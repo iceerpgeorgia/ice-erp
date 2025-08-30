@@ -18,3 +18,9 @@ coverage/
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Secrets
+client_secret_*.json
+*.pem
+*.key
+
