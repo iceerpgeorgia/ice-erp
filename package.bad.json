@@ -1,0 +1,43 @@
+{
+  "name": "next-postgres-starter",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "import:countries": "node scripts/import_countries.js ./countries.xlsx ./countries.xlsx",
+    "apply:countries-ui": "node scripts/apply-countries-ui.js",
+    "apply:countries-ui:route": "node scripts/apply-countries-ui.js --route",
+    "import:entity-types": "node scripts/import_entity_types.js ./entity_types.xlsx",
+    "apply:entity-types-ui": "node scripts/apply-entity-types-ui.js",
+    "apply:entity-types-ui:route": "node scripts/apply-entity-types-ui.js --route"
+  },
+  "dependencies": {
+    "@next-auth/prisma-adapter": "^1.0.7",
+    "@mui/icons-material": "^5.15.20",
+    "@mui/material": "^5.15.20",
+    "@mui/x-data-grid": "^6.19.4",
+    "@mui/x-data-grid-pro": "^6.19.4",
+    "@prisma/client": "^6.14.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^3.6.0",
+    "next": "14.2.32",
+    "next-auth": "^4.24.7",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/react": "^18.2.61",
+    "@types/react-dom": "^18.2.19",
+    "prisma": "^6.14.0",
+    "typescript": "^5.4.5"
+  }
+}
+
+"import:entity-types": "node scripts/import_entity_types.js"

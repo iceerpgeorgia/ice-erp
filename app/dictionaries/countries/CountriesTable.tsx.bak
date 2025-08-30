@@ -1,0 +1,222 @@
+"use client";
+
+import React from "react";
+
+type CountryRow = {
+  id: number;
+  createdAt: string | null;
+  updatedAt: string | null;
+  ts: string | null;
+  country_uuid: string;
+  name_en: string;
+  name_ka: string;
+  iso2: string;
+  iso3: string;
+  un_code: number | null;
+  country: string | null;
+};
+
+type Props = { data: CountryRow[] };
+
+type SortDir = "asc" | "desc" | null;
+
+function sortBy<T>(rows: T[], key: keyof T, dir: SortDir): T[] {
+  if (!dir) return rows;
+  return [...rows].sort((a: any, b: any) => {
+    const va = a[key] ?? "";
+    const vb = b[key] ?? "";
+    if (va < vb) return dir === "asc" ? -1 : 1;
+    if (va > vb) return dir === "asc" ? 1 : -1;
+    return 0;
+  });
+}
+
+const HEADERS: Array<{ key: keyof CountryRow; label: string; width?: string }> = [
+  { key: "id", label: "ID", width: "80px" },
+  { key: "name_en", label: "Name (EN)", width: "260px" },
+  { key: "name_ka", label: "Name (KA)", width: "220px" },
+  { key: "iso2", label: "ISO2", width: "80px" },
+  { key: "iso3", label: "ISO3", width: "90px" },
+  { key: "un_code", label: "UN Code", width: "110px" },
+  { key: "country_uuid", label: "UUID", width: "320px" },
+  { key: "country", label: "Country Label", width: "220px" },
+  { key: "ts", label: "TS", width: "200px" },
+  { key: "createdAt", label: "Created", width: "200px" },
+  { key: "updatedAt", label: "Updated", width: "200px" }
+];
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 250];
+
+export default function CountriesTable({ data }: Props) {
+  const [pageSize, setPageSize] = React.useState<number>(50);
+  const [page, setPage] = React.useState(1);
+  const [filters, setFilters] = React.useState<Record<string, string>>({});
+  const [sortKey, setSortKey] = React.useState<keyof CountryRow | null>(null);
+  const [sortDir, setSortDir] = React.useState<SortDir>(null);
+
+  const onFilter = (key: string, value: string) => {
+    setPage(1);
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const toggleSort = (key: keyof CountryRow) => {
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortDir("asc");
+    } else {
+      setSortDir(prev => (prev === "asc" ? "desc" : prev === "desc" ? null : "asc"));
+    }
+  };
+
+  // filter
+  const filtered = React.useMemo(() => {
+    const keys = Object.keys(filters).filter(k => (filters as any)[k]?.trim());
+    if (keys.length === 0) return data;
+    return data.filter(row =>
+      keys.every(k => {
+        const raw = (row as any)[k];
+        const hay = raw === null || raw === undefined ? "" : String(raw);
+        return hay.toLowerCase().includes((filters as any)[k].toLowerCase());
+      })
+    );
+  }, [data, filters]);
+
+  // sort
+  const sorted = React.useMemo(
+    () => (sortKey ? sortBy(filtered, sortKey, sortDir) : filtered),
+    [filtered, sortKey, sortDir]
+  );
+
+  // paginate
+  const total = sorted.length;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const current = Math.min(page, pageCount);
+  const start = (current - 1) * pageSize;
+  const end = start + pageSize;
+  const pageRows = sorted.slice(start, end);
+
+  React.useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
+
+  return (
+    <div className="w-full">
+      {/* Controls */}
+      <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="text-sm text-gray-600">
+          Showing <span className="font-medium">{total === 0 ? 0 : start + 1}</span>–<span className="font-medium">{Math.min(end, total)}</span> of{" "}
+          <span className="font-medium">{total}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-600">Rows per page:</label>
+          <select
+            className="border rounded px-2 py-1 text-sm"
+            value={pageSize}
+            onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+          >
+            {PAGE_SIZE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="w-full overflow-x-auto rounded border">
+        <table className="min-w-[1200px] w-full border-collapse">
+          <thead>
+            <tr className="bg-gray-50">
+              {HEADERS.map(h => (
+                <th
+                  key={String(h.key)}
+                  style={{ width: h.width }}
+                  className="sticky top-0 z-[1] border-b px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide cursor-pointer select-none"
+                  onClick={() => toggleSort(h.key)}
+                  title="Click to sort"
+                >
+                  <div className="flex items-center gap-1">
+                    <span>{h.label}</span>
+                    <span className="text-gray-400">
+                      {sortKey === h.key ? (sortDir === "asc" ? "▲" : sortDir === "desc" ? "▼" : "•") : ""}
+                    </span>
+                  </div>
+                </th>
+              ))}
+            </tr>
+            <tr className="bg-white">
+              {HEADERS.map(h => (
+                <th key={String(h.key)} className="border-b px-2 py-2">
+                  <input
+                    placeholder={"Filter " + h.label}
+                    className="w-full border rounded px-2 py-1 text-sm"
+                    value={filters[String(h.key)] ?? ""}
+                    onChange={e => onFilter(String(h.key), e.target.value)}
+                  />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {pageRows.map(row => (
+              <tr key={row.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100">
+                {HEADERS.map(h => {
+                  const v = (row as any)[h.key];
+                  return (
+                    <td key={String(h.key)} className="border-b px-3 py-2 text-sm align-top">
+                      {v === null || v === undefined
+                        ? ""
+                        : h.key === "ts" || h.key === "createdAt" || h.key === "updatedAt"
+                        ? (v ? new Date(v).toLocaleString() : "")
+                        : String(v)}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+            {pageRows.length === 0 && (
+              <tr>
+                <td colSpan={HEADERS.length} className="px-3 py-6 text-center text-gray-500">
+                  No rows match your filters.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm text-gray-600">
+          Page <span className="font-medium">{current}</span> / <span className="font-medium">{pageCount}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            className="border rounded px-3 py-1 text-sm disabled:opacity-50"
+            disabled={current <= 1}
+            onClick={() => setPage(1)}
+          >
+            « First
+          </button>
+          <button
+            className="border rounded px-3 py-1 text-sm disabled:opacity-50"
+            disabled={current <= 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+          >
+            ‹ Prev
+          </button>
+          <button
+            className="border rounded px-3 py-1 text-sm disabled:opacity-50"
+            disabled={current >= pageCount}
+            onClick={() => setPage(p => Math.min(pageCount, p + 1))}
+          >
+            Next ›
+          </button>
+          <button
+            className="border rounded px-3 py-1 text-sm disabled:opacity-50"
+            disabled={current >= pageCount}
+            onClick={() => setPage(pageCount)}
+          >
+            Last »
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

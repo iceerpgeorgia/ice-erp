@@ -1,0 +1,83 @@
+npm run dev
+
+cd C:\next-postgres-starter
+
+
+TRUNCATE TABLE trading_data;
+
+
+Ok lets get through this counteragents table once again from scrap.
+
+I want to see in my database exactly this columns in order of their appearance, also I want the form to contain only the fields which are marked TRUE under 'Show in form' and I want to see names of this fields exactly as they are named under the 'Form Name' header:
+
+[[#','Base header name','Form Name','Show in form'],
+[1','id',FALSE],
+[2','created_at',FALSE],
+[3','updated_at',FALSE],
+[4','ts',FALSE],
+[5','name','Name',TRUE],
+[6','identification_number','ID',TRUE],
+[7','birth_or_incorporation_date','Birth or Incorporation Date',TRUE],
+[8','entity_type','Entity Type',TRUE],
+[9','sex','Sex',TRUE],
+[10','pension_scheme','Pension Scheme',TRUE],
+[11','country','Country',TRUE],
+[12','address_line_1','Address Line 1',TRUE],
+[13','address_line_2','Address Line 2',TRUE],
+[14','zip_code','ZIP Code',TRUE],
+[15','iban','IBAN',TRUE],
+[16','swift','SWIFT',TRUE],
+[17','director','Director',TRUE],
+[18','director_id','Director ID',TRUE],
+[19','email','Email',TRUE],
+[20','phone','Phone',TRUE],
+[21','oris_id','ORIS ID',TRUE],
+[22','counteragent',FALSE],
+[23','country_uuid',FALSE],
+[24','entity_type_uuid',FALSE],
+[25','counteragent_uuid',FALSE],
+[26','internal_number',FALSE]]
+
+I want the fields in form to be aligned each on separate line appearing from the same horizontal point.
+
+I want to delete form and table which now exist in app and base and substitute them with correct one.
+
+First let's do it and after I will proceed with validations and constraints.
+
+
+Ok next change I want to do is following: I don't want to have counteragents form and counteragents table meshed with each other when I go to Dictionaries>Counteragents. I want to see wide grid with filter on headers which visually will almost fill the screen. The greed should be in style of current countries grid, but wider and must maximally fill the screen (example just like as countries page now but stretched to the screen width, leaving reasonable margins, the screenshot is attached). Different columns must be of different width (if it is possible user should have ability to adjust column size just like in excel and every time he revisits the app should he reopen the same dictionary he should see columns widths the same as he left them when he adjusted them last time). So when I go to Dictionaries>Counteragents I should se only grid with list of counteragents fitted to the screen (afterward user should have possibility of resizing columns width and if total width will not fit to screen page should be scrollable to left and right with visible scroll cursor, you know just like in excel as well). Each record should have "edit" button on rightmost side and if user hits it he must be able to edit record. On the top of the greed somewhere around dictionary name there must be button of "Add new", when clicked it must redirect to add new counteragent form which also I want to have different visual than it is now. I want fields not to be scattered around  screen as it is now (What I see.png attached), but aligned in a symmetrical manner as in the file "What I want to see.png" attached. This time of placement of the fields has it's principle : in the leftmost column we must bring only mandatory fields and in right columns nonmandatory fields, number of mandatory fields define height of each column so if we have for example 23 fields in form and 10 of them are mandatory first column must be 10 fields, second 10 fields and third column must contain remnant 3 fields. In the future when I share with you list of fields indicating mandatory fields for another forms you should apply the same principle. Besides except Save button, which obviously saves the record I want to have Save and New button (as shown in "What I want to see.png") which will save current record and proceed with next blank form. 
+
+For now you don't have information about which field is mandatory and which is not, so here is updated list of base columns which includes headers # - depicting number of the appearance in base of the column, Base header name - depicting actual base name of the column header, Form Field Name - what user must see when he visits the form, Show in form - weather that column should be filled and shown in form by the user, Is mandatory - if it's filling must be mandatory to save the form (True,False or Conditional. If the record is conditional I will explain in Is mandatory  column when and how it should be mandatory), Is Mandatory Conditions - in what ways to keep the field filling mandatory or not  , Validation - How should we validate this or that column, Restriction - based on which column(s) form should restrict saving new record and Concatenation - in case this column is filled value must be derived in way it is described in this column.
+
+So here is counteragent form settings expressed as javascript array containing all information and instructions you need:
+
+[[#','Base header name','Form Field Name','Show in form','Is Mandatory','Is Mandatory Conditions','Validation','Restriction','Concatenation']
+[1','id','',FALSE,'','','','','']
+[2','created_at','',FALSE,'','','','','']
+[3','updated_at','',FALSE,'','','','','']
+[4','ts','',FALSE,'','','','','']
+[5','name','Name',TRUE,TRUE,'','','','']
+[6','identification_number','ID',TRUE,'Conditional','If entity_type (Form Field Name Entity Type) value is selected (name_ka)  with coresponding entity_type_uuid values of "f5c3c745-eaa4-4e27-a73b-badc9ebb49c0" or "7766e9c2-0094-4090-adf4-ef017062457f" this field must not be mandatory . If any other entity_type is selected this field must be mandatory.','If entity_type (Form Field Name Entity Type) value is selected (name_ka)  with coresponding entity_type_uuid values of "bf4d83f9-5064-4958-af6e-e4c21b2e4880" , "470412f4-e2c0-4f9d-91f1-1c0630a02364" or "ba538574-e93f-4ce8-a780-667b61fc970a" validation should be 11 numbers like "012345678999". If entity_type (Form Field Name Entity Type) value is selected (name_ka)  with coresponding entity_type_uuid values of "f5c3c745-eaa4-4e27-a73b-badc9ebb49c0" or "7766e9c2-0094-4090-adf4-ef017062457f"  validation is not required. In any other case  validation must be 9 numbers like "123456789"','If the DB already contains identification_number entered in the field except If entity_type (Form Field Name Entity Type) value is selected (name_ka)  with coresponding entity_type_uuid values of "f5c3c745-eaa4-4e27-a73b-badc9ebb49c0" or "7766e9c2-0094-4090-adf4-ef017062457f" form should not save record ond pop up restriction dialog.','']
+[7','birth_or_incorporation_date','Birth or Incorporation Date',TRUE,'Conditional','If entity_type (Form Field Name Entity Type) value is selected (name_ka)  with coresponding entity_type_uuid values of "f5c3c745-eaa4-4e27-a73b-badc9ebb49c0" or "7766e9c2-0094-4090-adf4-ef017062457f" this field must not be mandatory . If any other entity_type is selected this field must be mandatory.','Valid date','','']
+[8','entity_type','Entity Type',TRUE,TRUE,'','Dropdown from entity_types table name_ka column','','']
+[9','sex','Sex',TRUE,'Conditional','If entity_type (Form Field Name Entity Type) value is selected (name_ka)  with coresponding entity_type_uuid values of "bf4d83f9-5064-4958-af6e-e4c21b2e4880","5747f8e6-a8a6-4a23-91cc-c427c3a22597" or "ba538574-e93f-4ce8-a780-667b61fc970a" this field must be mandatory with possible entry of Male or Femaly stricted by Validation in this case. If any other entity_type is selected this field must be blank and gray so it actually become nonmandatory for user to fill by himself.','If entity_type (Form Field Name Entity Type) value is selected (name_ka)  with coresponding entity_type_uuid values of "bf4d83f9-5064-4958-af6e-e4c21b2e4880","5747f8e6-a8a6-4a23-91cc-c427c3a22597" or "ba538574-e93f-4ce8-a780-667b61fc970a"  validation of this field must be Boolean [Male,Female]. If any other entity_type is selected this field must be gray and when saving value of Sex must be blank. So basicallly base must save Male or Female for entity_type_uuid value of "bf4d83f9-5064-4958-af6e-e4c21b2e4880","5747f8e6-a8a6-4a23-91cc-c427c3a22597" or "ba538574-e93f-4ce8-a780-667b61fc970a"   for any other value it must be blank.','','']
+[10','pension_scheme','Pension Scheme',TRUE,'Conditional','If entity_type (Form Field Name Entity Type) value is selected (name_ka)  with coresponding entity_type_uuid value of "bf4d83f9-5064-4958-af6e-e4c21b2e4880" this field must be mandatory with possible entry of True or False stricted by Validation in this case. If any other entity_type is selected this field must be blank and gray so it actually become nonmandatory for user to fill by himself.','If entity_type (Form Field Name Entity Type) value is selected (name_ka)  with coresponding entity_type_uuid value of "bf4d83f9-5064-4958-af6e-e4c21b2e4880" validation of this field must be Boolean [True,False]. If any other entity_type is selected this field must be gray and when saving value of pension_scheme must be blank. So basicallly base must save True or False for entity_type_uuid value of "bf4d83f9-5064-4958-af6e-e4c21b2e4880" or for any other value it must be blank.','','']
+[11','country','Country',TRUE,TRUE,'','Dropdown from countries table country column','','']
+[12','address_line_1','Address Line 1',TRUE,FALSE,'','','','']
+[13','address_line_2','Address Line 2',TRUE,FALSE,'','','','']
+[14','zip_code','ZIP Code',TRUE,FALSE,'','','','']
+[15','iban','IBAN',TRUE,FALSE,'','','','']
+[16','swift','SWIFT',TRUE,FALSE,'','','','']
+[17','director','Director',TRUE,FALSE,'','','','']
+[18','director_id','Director ID',TRUE,FALSE,'','','','']
+[19','email','Email',TRUE,FALSE,'','','','']
+[20','phone','Phone',TRUE,FALSE,'','','','']
+[21','oris_id','ORIS ID',TRUE,FALSE,'','','','']
+[22','counteragent','',FALSE,'','','','','this field must be concatenation of name&"(ს.კ. "&if(identification_number<>"",identification_number,internal_number)&" - "&corresponding name_ka of entity_type_uuid selected from entity_types table. This value must change if any of this variables change.']
+[23','country_uuid','',FALSE,'','','','','country_uuid of corresponding selected Country Field from countries table looked up by country collumn. In base this value must change if  country_uuid is changed']
+[24','entity_type_uuid','',FALSE,'','','','','entity_type_uuid of corresponding selected Entity Type field from entity_types table looked up by name_ka column. In base this value must change if  entity_type_uuid is changed']
+[25','counteragent_uuid','',FALSE,'','','','','unique uuid for counteragents table record']
+[26','internal_number','',FALSE,'','','','','this value should be concatenated as follows (expressed with ecxel formula) : ="ICE"&REPT(0,4-len( id))& id']]
+
+
+Single shot script would be appriciated

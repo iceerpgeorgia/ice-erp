@@ -1,0 +1,20 @@
+﻿# Dependencies & builds
+node_modules/
+.next/
+dist/
+build/
+.cache/
+.turbo/
+coverage/
+
+# Env & local
+.env
+.env.*
+*.log
+
+# Prisma
+.prisma/
+
+# OS junk
+.DS_Store
+Thumbs.db

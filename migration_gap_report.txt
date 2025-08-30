@@ -1,0 +1,5 @@
+Generated from Base_Migrate.xlsx (fields sheet only).
+- Used surrogate PK 'id bigserial' for each table (no PK metadata present).
+- Types inferred from 'transform' and 'notes'; otherwise defaulted to TEXT/String.
+- No FKs/views/materialized views generated because they are not specified in this workbook.
+- Extend the workbook with relationships if you want me to generate them automatically.

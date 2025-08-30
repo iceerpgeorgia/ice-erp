@@ -1,0 +1,67 @@
+// GENERATED from data_validation_spec.xlsx
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Counteragents {
+  id BigInt @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Timestamp DateTime @db.Timestamptz(6)
+  Name String
+  Sex String
+  Entity Type String
+  Pension Scheme Boolean
+  Tax ID? String @unique
+  Country String
+  Address Line 1 :? String
+  Address Line 2 :? String
+  ZIP Code :? String
+  Director? String
+  Director ID? String
+  SWIFT :? String
+  IBAN :? String
+  Tel. No :? String
+  Counteragent UUID String @unique
+  Email :? String
+  Date of incorporation or birth String
+  ORIS ID :? String @unique
+  Internal No String @unique
+  Counteragent String @unique
+  Country UUID String
+  Entity Type UUID String
+  /// FK hint: "Counteragent UUID" -> Counteragents.Counteragent UUID
+  @@index([Counteragent UUID])
+}
+
+model Countries {
+  id BigInt @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Timestamp DateTime @db.Timestamptz(6)
+  Country UUID String @unique
+  Country Name English String @unique
+  Country Name Georgian String @unique
+  ISO 2 String @unique
+  ISO 3 String @unique
+  UN Code String @unique
+  Country String @unique
+  /// FK hint: "Country UUID" -> Countries.Country UUID
+  @@index([Country UUID])
+}
+
+model Entity_Types {
+  id BigInt @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Timestamp DateTime @unique @db.Timestamptz(6)
+  Entity Type UUID String @unique
+  Entity Type Name String @unique
+  /// FK hint: "Entity Type UUID" -> Entity Types.Entity Type UUID
+  @@index([Entity Type UUID])
+}

@@ -1,0 +1,62 @@
+// Auto-generated from Base_Migrate.xlsx (fields sheet)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model Counteragents {
+  id BigInt @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Timestamp DateTime @default("nan") @db.Timestamptz(6)
+  Name String @default("nan")
+  Sex String @default("nan")
+  Entity Type String @default("nan")
+  Pension Scheme Boolean @default("nan")
+  Tax ID String @default("nan")
+  Country String @default("nan")
+  Address Line 1 : String @default("nan")
+  Address Line 2 : String @default("nan")
+  ZIP Code : String @default("nan")
+  Director String @default("nan")
+  Director ID String @default("nan")
+  SWIFT : String @default("nan")
+  IBAN : String @default("nan")
+  Tel. No : String @default("nan")
+  Counteragent UUID String @default("nan")
+  Email : String @default("nan")
+  Date of incorporation or birth String @default("nan")
+  ORIS ID : String @default("nan")
+  Internal No String @default("nan")
+  Counteragent String @default("nan")
+  Country UUID String @default("nan")
+  Entity Type UUID String @default("nan")
+}
+
+model Countries {
+  id BigInt @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Timestamp DateTime @default("nan") @db.Timestamptz(6)
+  Country UUID String @default("nan")
+  Country Name English String @default("nan")
+  Country Name Georgian String @default("nan")
+  ISO 2 String @default("nan")
+  ISO 3 String @default("nan")
+  UN Code String @default("nan")
+  Country String @default("nan")
+}
+
+model Entity_Types {
+  id BigInt @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Timestamp DateTime @default("nan") @db.Timestamptz(6)
+  Entity Type UUID String @default("nan")
+  Entity Type Name String @default("nan")
+}

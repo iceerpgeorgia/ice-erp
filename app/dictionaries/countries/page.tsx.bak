@@ -1,0 +1,45 @@
+import { PrismaClient } from "@prisma/client";
+import CountriesTable from "./CountriesTable";
+
+export const revalidate = 0;
+
+export default async function CountriesPage() {
+  const prisma = new PrismaClient();
+  const countries = await prisma.country.findMany({
+    orderBy: { id: "asc" },
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      ts: true,
+      country_uuid: true,
+      name_en: true,
+      name_ka: true,
+      iso2: true,
+      iso3: true,
+      un_code: true,
+      country: true
+    }
+  });
+
+  // Serialize BigInt & Date for client
+  const data = countries.map(c => ({
+    ...c,
+    id: Number(c.id),
+    createdAt: c.createdAt?.toISOString() ?? null,
+    updatedAt: c.updatedAt?.toISOString() ?? null,
+    ts: c.ts?.toISOString() ?? null
+  }));
+
+  return (
+    <div className="w-full">
+      <div className="mx-auto max-w-[1600px] px-6 py-8">
+        <h1 className="text-2xl font-semibold mb-4">Countries</h1>
+        <p className="text-sm text-gray-500 mb-6">
+          Wide table, header filters, sorting, and rows-per-page control.
+        </p>
+        <CountriesTable data={data} />
+      </div>
+    </div>
+  );
+}
