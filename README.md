@@ -33,3 +33,5 @@ Go to `/dashboard` to submit and view entries.
 - Auth uses NextAuth v4 with JWT sessions (no NextAuth DB tables).
 - We still keep our own `User` table for ownership of `Entry` records.
 - Update schema in `prisma/schema.prisma` and run new migrations as you grow.
+
+[![CI](https://github.com/iceerpgeorgia/ice-erp/actions/workflows/ci.yml/badge.svg)](https://github.com/iceerpgeorgia/ice-erp/actions/workflows/ci.yml)
