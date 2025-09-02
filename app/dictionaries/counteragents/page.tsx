@@ -36,6 +36,7 @@ export default async function CounteragentsPage() {
       entity_type_uuid: true,
       counteragent_uuid: true,
       internal_number: true,
+      is_active: true,
     },
   });
 
@@ -68,6 +69,7 @@ export default async function CounteragentsPage() {
     entity_type_uuid: r.entity_type_uuid,
     counteragent_uuid: r.counteragent_uuid,
     internal_number: r.internal_number ?? null,
+    is_active: r.is_active,
   }));
 
   return (

@@ -39,7 +39,7 @@ export async function createEntityType(formData: FormData) {
 }
 
 export async function deleteEntityType(id: string) {
-  await prisma.entityType.delete({ where: { id: Number(id) } });
+  await prisma.entityType.update({ where: { id: Number(id) }, data: { is_active: false } });
   revalidatePath("/dictionaries/entity-types");
   redirect("/dictionaries/entity-types");
 }
