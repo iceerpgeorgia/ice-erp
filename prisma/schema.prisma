@@ -1,4 +1,4 @@
-﻿generator client {
+generator client {
   provider = "prisma-client-js"
 }
 
@@ -19,7 +19,7 @@ model User {
   image         String?
   accounts      Account[]
   sessions      Session[]
-  entries Entry[]
+  entries       Entry[]
 }
 
 model Account {

@@ -1,0 +1,15 @@
+// entry_model.prisma
+// Drop-in Prisma model for ERP entries.
+model Entry {
+  id        String   @id @default(cuid())
+  userId    String
+  project   String
+  hours     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
