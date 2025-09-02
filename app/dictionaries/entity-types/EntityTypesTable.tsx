@@ -126,6 +126,7 @@ export default function EntityTypesTable({ data }: { data: Row[] }) {
             <th className="border px-2 py-1 text-left">Name (EN)</th>
             <th className="border px-2 py-1 text-left">Name (KA)</th>
             <th className="border px-2 py-1 text-left w-24">Active</th>
+            <th className="border px-2 py-1 text-left w-24">Actions</th>
           </tr>
           <tr>
             <th className="border px-2 py-1 text-left text-xs text-gray-500">—</th>
@@ -164,6 +165,7 @@ export default function EntityTypesTable({ data }: { data: Row[] }) {
                 <option value="no">Inactive</option>
               </select>
             </th>
+            <th className="border px-2 py-1"></th>
           </tr>
         </thead>
         <tbody>
@@ -174,11 +176,12 @@ export default function EntityTypesTable({ data }: { data: Row[] }) {
               <td className="border px-2 py-1">{r.name_en}</td>
               <td className="border px-2 py-1">{r.name_ka}</td>
               <td className="border px-2 py-1">{r.is_active ? "Yes" : "No"}</td>
+              <td className="border px-2 py-1"><a className="text-blue-600 hover:underline" href={`/dictionaries/entity-types/${r.id}/edit`}>Edit</a></td>
             </tr>
           ))}
           {pageRows.length === 0 && (
             <tr>
-              <td className="border px-2 py-6 text-center text-gray-500" colSpan={5}>
+              <td className="border px-2 py-6 text-center text-gray-500" colSpan={6}>
                 No rows
               </td>
             </tr>
