@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions, prisma } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { updateEntityType } from "../../actions";
+import { updateEntityType, deleteEntityType } from "../../actions";
 
 export default async function EditEntityTypePage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -35,12 +35,20 @@ export default async function EditEntityTypePage({ params }: { params: { id: str
           <span className="text-sm">Active</span>
         </label>
 
-        <div className="flex gap-2 mt-2">
+        <div className="flex gap-2 mt-2 items-center">
           <button type="submit" className="border rounded px-3 py-2 hover:bg-gray-50">Save</button>
           <Link href="/dictionaries/entity-types" className="border rounded px-3 py-2 hover:bg-gray-50">Cancel</Link>
+          <form action={deleteEntityType.bind(null, params.id)} className="ml-auto">
+            <button
+              type="submit"
+              className="border rounded px-3 py-2 text-red-700 hover:bg-red-50"
+              onClick={(e) => { if (!confirm('Delete this entity type?')) { e.preventDefault(); } }}
+            >
+              Delete
+            </button>
+          </form>
         </div>
       </form>
     </div>
   );
 }
-

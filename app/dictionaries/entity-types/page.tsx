@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import EntityTypesTable from "./EntityTypesTable";
+import EntitiesForm from "./EntitiesForm";
 
 export const revalidate = 0;
 
@@ -33,6 +34,9 @@ export default async function EntityTypesPage() {
     <div className="w-full">
       <div className="mx-auto max-w-[1600px] px-6 py-8">
         <h1 className="text-2xl font-semibold mb-4">Entity Types</h1>
+        <div className="mb-6">
+          <EntitiesForm />
+        </div>
         <EntityTypesTable data={data} />
       </div>
     </div>
