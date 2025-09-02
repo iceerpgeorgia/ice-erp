@@ -10,6 +10,26 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mydb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: test_secret_please_change
+      GOOGLE_CLIENT_ID: dummy.apps.googleusercontent.com
+      GOOGLE_CLIENT_SECRET: dummy
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mydb?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,8 +39,14 @@ jobs:
       - run: npm ci
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
+      - name: Prepare database (Prisma)
+        run: |
+          npx prisma generate
+          npx prisma db push
+          node scripts/seed-e2e.js
+      - name: Build app
+        run: npm run build
       - name: E2E tests
         run: npm run test:e2e
         env:
-          PLAYWRIGHT_WEB_SERVER_CMD: npm run dev
-
+          PLAYWRIGHT_WEB_SERVER_CMD: npm run start
