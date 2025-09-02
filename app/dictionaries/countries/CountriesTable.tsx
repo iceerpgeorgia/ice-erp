@@ -12,6 +12,7 @@ export type CountryRow = {
   iso3: string;
   un_code: number | null;
   country?: string | null; // label from DB trigger
+  is_active?: boolean;
 };
 
 type Props = {
@@ -210,9 +211,11 @@ export default function CountriesTable({ rows }: Props) {
               <th className="border px-2 py-1 text-left w-28">ISO3</th>
               <th className="border px-2 py-1 text-left w-24">UN</th>
               <th className="border px-2 py-1 text-left min-w-[260px]">Country</th>
+              <th className="border px-2 py-1 text-left w-24">Active</th>
               <th className="border px-2 py-1 text-left w-32">Actions</th>
             </tr>
             <tr>
+              <th className="border px-2 py-1"></th>
               <th className="border px-2 py-1"></th>
               <th className="border px-2 py-1">
                 <input
@@ -297,6 +300,7 @@ export default function CountriesTable({ rows }: Props) {
                   <td className="border px-2 py-1" title={r.country ?? ''}>
                     {missing ? <span className="text-red-700 italic">[missing]</span> : r.country}
                   </td>
+                  <td className="border px-2 py-1">{r.is_active ? 'Yes' : 'No'}</td>
                   <td className="border px-2 py-1">
                     <a className="text-blue-600 hover:underline mr-2" href={`/dictionaries/countries/${r.id}/edit`}>
                       Edit
@@ -304,12 +308,16 @@ export default function CountriesTable({ rows }: Props) {
                     <button
                       className="text-red-700 hover:underline"
                       onClick={async () => {
-                        if (!confirm('Delete this country?')) return;
-                        await fetch(`/dictionaries/countries/api?id=${r.id}` , { method: 'DELETE' });
+                        if (r.is_active) {
+                          if (!confirm('Deactivate this country?')) return;
+                          await fetch(`/dictionaries/countries/api?id=${r.id}` , { method: 'DELETE' });
+                        } else {
+                          await fetch(`/dictionaries/countries/api?id=${r.id}` , { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: true }) });
+                        }
                         router.refresh();
                       }}
                     >
-                      Delete
+                      {r.is_active ? 'Deactivate' : 'Activate'}
                     </button>
                   </td>
                 </tr>
@@ -317,7 +325,7 @@ export default function CountriesTable({ rows }: Props) {
             })}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={8} className="border px-2 py-8 text-center text-gray-500">
+                <td colSpan={9} className="border px-2 py-8 text-center text-gray-500">
                   No rows match your filters.
                 </td>
               </tr>

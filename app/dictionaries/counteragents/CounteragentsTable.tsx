@@ -24,6 +24,7 @@ type Row = {
   phone: string | null;
   oris_id: string | null;
   counteragent: string | null;
+  is_active?: boolean;
 };
 
 function usePersistedColumnSizing(key: string) {
@@ -63,6 +64,7 @@ export default function CounteragentsTable({ data }: { data: Row[] }) {
     { header: "Email", accessorKey: "email", size: 220 },
     { header: "Phone", accessorKey: "phone", size: 160 },
     { header: "ORIS ID", accessorKey: "oris_id", size: 140 },
+    { header: "Active", accessorKey: "is_active", size: 90, cell: (c) => c.getValue() ? "Yes" : "No" },
     {
       header: "Actions", size: 140,
       cell: (c) => (
@@ -71,12 +73,16 @@ export default function CounteragentsTable({ data }: { data: Row[] }) {
           <button
             className="text-red-700 underline"
             onClick={async () => {
-              if (!confirm('Delete this counteragent?')) return;
-              await fetch(`/dictionaries/counteragents/api?id=${c.row.original.id}`, { method: 'DELETE' });
+              if (c.row.original.is_active) {
+                if (!confirm('Deactivate this counteragent?')) return;
+                await fetch(`/dictionaries/counteragents/api?id=${c.row.original.id}`, { method: 'DELETE' });
+              } else {
+                await fetch(`/dictionaries/counteragents/api?id=${c.row.original.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: true }) });
+              }
               router.refresh();
             }}
           >
-            Delete
+            {c.row.original.is_active ? 'Deactivate' : 'Activate'}
           </button>
         </div>
       ),

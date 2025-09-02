@@ -26,3 +26,21 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: e.message ?? "Server error" }, { status: 500 });
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const idParam = searchParams.get("id");
+    if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const body = await req.json().catch(() => ({} as any));
+    const active = typeof body.active === 'boolean' ? body.active : true;
+    const updated = await prisma.entityType.update({
+      where: { id: Number(idParam) },
+      data: { is_active: active },
+      select: { id: true, is_active: true },
+    });
+    return NextResponse.json(updated);
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message ?? "Server error" }, { status: 500 });
+  }
+}

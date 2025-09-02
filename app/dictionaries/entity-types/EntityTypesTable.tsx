@@ -180,16 +180,28 @@ export default function EntityTypesTable({ data }: { data: Row[] }) {
               <td className="border px-2 py-1">{r.is_active ? "Yes" : "No"}</td>
               <td className="border px-2 py-1">
                 <a className="text-blue-600 hover:underline mr-2" href={`/dictionaries/entity-types/${r.id}/edit`}>Edit</a>
-                <button
-                  className="text-red-700 hover:underline"
-                  onClick={async () => {
-                    if (!confirm('Deactivate this entity type?')) return;
-                    await fetch(`/dictionaries/entity-types/api?id=${r.id}`, { method: 'DELETE' });
-                    router.refresh();
-                  }}
-                >
-                  Deactivate
-                </button>
+                {r.is_active ? (
+                  <button
+                    className="text-red-700 hover:underline"
+                    onClick={async () => {
+                      if (!confirm('Deactivate this entity type?')) return;
+                      await fetch(`/dictionaries/entity-types/api?id=${r.id}`, { method: 'DELETE' });
+                      router.refresh();
+                    }}
+                  >
+                    Deactivate
+                  </button>
+                ) : (
+                  <button
+                    className="text-green-700 hover:underline"
+                    onClick={async () => {
+                      await fetch(`/dictionaries/entity-types/api?id=${r.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: true }) });
+                      router.refresh();
+                    }}
+                  >
+                    Activate
+                  </button>
+                )}
               </td>
             </tr>
           ))}

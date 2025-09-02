@@ -72,6 +72,7 @@ model Country {
   iso3         String   @unique @db.Char(3)
   un_code      Int?
   country      String?
+  is_active    Boolean  @default(true)
 
   @@map("countries")
 }
@@ -128,6 +129,7 @@ model Counteragent {
   internal_number             String?
   pension_scheme              Boolean?
   is_emploee                  Boolean   @default(false)
+  is_active                   Boolean   @default(true)
 
   @@map("counteragents")
 }
