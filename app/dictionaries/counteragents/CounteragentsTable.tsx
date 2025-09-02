@@ -1,6 +1,7 @@
 "use client";
 import * as React from "react";
 import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable, ColumnDef } from "@tanstack/react-table";
+import { useRouter } from "next/navigation";
 import { utils, writeFileXLSX } from "xlsx";
 
 type Row = {
@@ -37,6 +38,7 @@ function usePersistedColumnSizing(key: string) {
 }
 
 export default function CounteragentsTable({ data }: { data: Row[] }) {
+  const router = useRouter();
   const STORAGE_KEY = "tbl.counteragents.columnSizing.v1";
   const [columnSizing, setColumnSizing] = usePersistedColumnSizing(STORAGE_KEY);
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -62,8 +64,22 @@ export default function CounteragentsTable({ data }: { data: Row[] }) {
     { header: "Phone", accessorKey: "phone", size: 160 },
     { header: "ORIS ID", accessorKey: "oris_id", size: 140 },
     {
-      header: "Edit", size: 90,
-      cell: (c) => <a className="text-blue-600 underline" href={`/dictionaries/counteragents/${c.row.original.id}`}>Edit</a>,
+      header: "Actions", size: 140,
+      cell: (c) => (
+        <div className="flex items-center gap-2">
+          <a className="text-blue-600 underline" href={`/dictionaries/counteragents/${c.row.original.id}`}>Edit</a>
+          <button
+            className="text-red-700 underline"
+            onClick={async () => {
+              if (!confirm('Delete this counteragent?')) return;
+              await fetch(`/dictionaries/counteragents/api?id=${c.row.original.id}`, { method: 'DELETE' });
+              router.refresh();
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      ),
       enableResizing: false,
     },
   ], []);
