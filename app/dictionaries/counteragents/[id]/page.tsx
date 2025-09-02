@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import CounteragentForm from "../CounteragentForm";
+import { deleteCounteragent } from "../actions";
 export const revalidate = 0;
 
 export default async function EditCounteragent({ params }: { params: { id: string }}) {
@@ -10,7 +11,18 @@ export default async function EditCounteragent({ params }: { params: { id: strin
   const entityTypes = await prisma.entityType.findMany({ orderBy: { name_ka: "asc" }, select: { name_ka: true, entity_type_uuid: true }});
   return (
     <div className="mx-auto max-w-[1100px] px-6 py-8">
-      <h1 className="text-2xl font-semibold mb-6">Edit Counteragent #{id}</h1>
+      <div className="flex items-center mb-6 gap-3">
+        <h1 className="text-2xl font-semibold">Edit Counteragent #{id}</h1>
+        <form action={deleteCounteragent.bind(null, String(id))} className="ml-auto">
+          <button
+            type="submit"
+            className="border rounded px-3 py-2 text-red-700 hover:bg-red-50"
+            onClick={(e) => { if (!confirm('Delete this counteragent?')) { e.preventDefault(); } }}
+          >
+            Delete
+          </button>
+        </form>
+      </div>
       <CounteragentForm
         mode="edit"
         initial={row ? {
