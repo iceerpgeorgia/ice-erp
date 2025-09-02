@@ -1,6 +1,7 @@
 "use client";
 import * as React from "react";
 import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable, ColumnDef } from "@tanstack/react-table";
+import { useRouter } from "next/navigation";
 import { utils, writeFileXLSX } from "xlsx";
 
 type Row = {
@@ -23,6 +24,7 @@ type Row = {
   phone: string | null;
   oris_id: string | null;
   counteragent: string | null;
+  is_active?: boolean;
 };
 
 function usePersistedColumnSizing(key: string) {
@@ -37,6 +39,7 @@ function usePersistedColumnSizing(key: string) {
 }
 
 export default function CounteragentsTable({ data }: { data: Row[] }) {
+  const router = useRouter();
   const STORAGE_KEY = "tbl.counteragents.columnSizing.v1";
   const [columnSizing, setColumnSizing] = usePersistedColumnSizing(STORAGE_KEY);
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -61,9 +64,28 @@ export default function CounteragentsTable({ data }: { data: Row[] }) {
     { header: "Email", accessorKey: "email", size: 220 },
     { header: "Phone", accessorKey: "phone", size: 160 },
     { header: "ORIS ID", accessorKey: "oris_id", size: 140 },
+    { header: "Active", accessorKey: "is_active", size: 90, cell: (c) => c.getValue() ? "Yes" : "No" },
     {
-      header: "Edit", size: 90,
-      cell: (c) => <a className="text-blue-600 underline" href={`/dictionaries/counteragents/${c.row.original.id}`}>Edit</a>,
+      header: "Actions", size: 140,
+      cell: (c) => (
+        <div className="flex items-center gap-2">
+          <a className="text-blue-600 underline" href={`/dictionaries/counteragents/${c.row.original.id}`}>Edit</a>
+          <button
+            className="text-red-700 underline"
+            onClick={async () => {
+              if (c.row.original.is_active) {
+                if (!confirm('Deactivate this counteragent?')) return;
+                await fetch(`/dictionaries/counteragents/api?id=${c.row.original.id}`, { method: 'DELETE' });
+              } else {
+                await fetch(`/dictionaries/counteragents/api?id=${c.row.original.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: true }) });
+              }
+              router.refresh();
+            }}
+          >
+            {c.row.original.is_active ? 'Deactivate' : 'Activate'}
+          </button>
+        </div>
+      ),
       enableResizing: false,
     },
   ], []);

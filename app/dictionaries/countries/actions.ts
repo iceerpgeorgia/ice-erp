@@ -42,3 +42,9 @@ export async function updateCountry(id: string, formData: FormData) {
   revalidatePath("/dictionaries/countries");
   redirect("/dictionaries/countries");
 }
+
+export async function deleteCountry(id: string) {
+  await prisma.country.update({ where: { id: Number(id) }, data: { is_active: false } });
+  revalidatePath("/dictionaries/countries");
+  redirect("/dictionaries/countries");
+}

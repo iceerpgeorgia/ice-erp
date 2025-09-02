@@ -20,6 +20,7 @@ export default async function CountriesPage() {
       iso3: true,
       un_code: true,
       country: true, // <- important
+      is_active: true,
     },
   });
 

@@ -2,7 +2,7 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions, prisma } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { updateCountry } from "../../actions";
+import { updateCountry, deleteCountry } from "../../actions";
 import Link from "next/link";
 
 export default async function EditCountryPage({ params }: { params: { id: string } }) {
@@ -37,9 +37,16 @@ export default async function EditCountryPage({ params }: { params: { id: string
           UN code
           <input name="un_code" type="number" defaultValue={c.un_code ?? undefined} />
         </label>
-        <div style={{display:"flex", gap:8}}>
+        <div style={{display:"flex", gap:8, alignItems: "center"}}>
           <button type="submit">Save</button>
           <Link href="/dictionaries/countries">Cancel</Link>
+          <form action={deleteCountry.bind(null, params.id)} style={{ marginLeft: "auto" }}>
+            <button type="submit" style={{ color: "#b91c1c" }}
+              onClick={(e) => { if (!confirm('Delete this country?')) { e.preventDefault(); } }}
+            >
+              Delete
+            </button>
+          </form>
         </div>
       </form>
       <p style={{marginTop:12, color:"#666"}}>
