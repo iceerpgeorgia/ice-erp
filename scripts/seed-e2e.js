@@ -9,7 +9,6 @@ async function main() {
       await prisma.country.upsert({
         where: { iso3: 'USA' },
         create: {
-          id: 1,
           iso2: 'US',
           iso3: 'USA',
           name_en: 'United States',
@@ -27,4 +26,3 @@ async function main() {
 }
 
 main();
-

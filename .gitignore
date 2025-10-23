@@ -10,7 +10,14 @@ coverage/
 # Env & local
 .env
 .env.*
+!.env.example
 *.log
+Server_Logs.txt
+
+# Test scripts (temporary)
+check-user.js
+authorize-user.js
+test-db.js
 
 # Prisma
 .prisma/

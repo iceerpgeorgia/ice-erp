@@ -30,7 +30,61 @@ export const authOptions: NextAuthOptions = {
       // allowDangerousEmailAccountLinking: true,
     }),
   ],
-  session: { strategy: "database" },
+  session: { 
+    strategy: "database",
+  },
+  callbacks: {
+    async signIn({ user, account, profile }) {
+      if (!user.email) {
+        return false;
+      }
+
+      // Check if user exists and is authorized
+      const existingUser = await prisma.user.findUnique({
+        where: { email: user.email },
+      });
+
+      // If user exists, check authorization
+      if (existingUser) {
+        if (!existingUser.isAuthorized) {
+          return '/auth/unauthorized';
+        }
+        return true;
+      }
+
+      // For new users, check if email is in authorized list (system admins can be pre-authorized)
+      const authorizedEmails = process.env.AUTHORIZED_EMAILS?.split(',').map(e => e.trim()) || [];
+      const isPreAuthorized = authorizedEmails.includes(user.email);
+
+      if (isPreAuthorized) {
+        // Auto-authorize system admins from env variable
+        await prisma.user.update({
+          where: { email: user.email },
+          data: {
+            isAuthorized: true,
+            role: 'system_admin',
+            authorizedAt: new Date(),
+            authorizedBy: 'system',
+          },
+        });
+        return true;
+      }
+
+      // New users need authorization
+      return '/auth/unauthorized';
+    },
+    async session({ session, user }) {
+      if (session?.user) {
+        session.user.id = user.id;
+        session.user.role = (user as any).role || 'user';
+        session.user.isAuthorized = (user as any).isAuthorized || false;
+      }
+      return session;
+    },
+  },
+  pages: {
+    signIn: '/auth/signin',
+    error: '/auth/error',
+  },
   secret: process.env.NEXTAUTH_SECRET,
-  trustHost: true,
 };

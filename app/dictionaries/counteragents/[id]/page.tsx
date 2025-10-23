@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import CounteragentForm from "../CounteragentForm";
 import { deleteCounteragent } from "../actions";
+import DeleteButton from "../DeleteButton";
 export const revalidate = 0;
 
 export default async function EditCounteragent({ params }: { params: { id: string }}) {
@@ -13,14 +14,12 @@ export default async function EditCounteragent({ params }: { params: { id: strin
     <div className="mx-auto max-w-[1100px] px-6 py-8">
       <div className="flex items-center mb-6 gap-3">
         <h1 className="text-2xl font-semibold">Edit Counteragent #{id}</h1>
-        <form action={deleteCounteragent.bind(null, String(id))} className="ml-auto">
-          <button
-            type="submit"
+        <form className="ml-auto">
+          <DeleteButton
             className="border rounded px-3 py-2 text-red-700 hover:bg-red-50"
-            onClick={(e) => { if (!confirm('Delete this counteragent?')) { e.preventDefault(); } }}
-          >
-            Delete
-          </button>
+            action={deleteCounteragent.bind(null, String(id))}
+            label="Delete"
+          />
         </form>
       </div>
       <CounteragentForm
@@ -44,7 +43,9 @@ export default async function EditCounteragent({ params }: { params: { id: strin
           director_id: row.director_id ?? "",
           email: row.email ?? "",
           phone: row.phone ?? "",
-          oris_id: row.oris_id ?? ""
+        oris_id: row.oris_id ?? ""
+        ,is_emploee: row.is_emploee ?? null
+        ,was_emploee: row.was_emploee ?? null
         } : null}
         countries={countries.map(c=>c.country)}
         entityTypes={entityTypes}
@@ -52,3 +53,7 @@ export default async function EditCounteragent({ params }: { params: { id: strin
     </div>
   );
 }
+
+
+
+

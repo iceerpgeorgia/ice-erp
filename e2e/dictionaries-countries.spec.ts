@@ -8,7 +8,7 @@ test('dictionaries → countries shows seeded data', async ({ page }) => {
 
   // At least one seeded row should be visible (USA / United States)
   await expect(
-    page.locator('text=/USA|United\s+States/i')
+    page.locator('text=/USA|United\\s+States/i').first()
   ).toBeVisible();
 });
 

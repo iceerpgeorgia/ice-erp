@@ -11,10 +11,9 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {
-    command: process.env.PLAYWRIGHT_WEB_SERVER_CMD || 'pnpm dev',
+    command: process.env.PLAYWRIGHT_WEB_SERVER_CMD || 'npm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
 });
-

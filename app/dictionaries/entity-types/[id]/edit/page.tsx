@@ -1,15 +1,16 @@
-// app/dictionaries/entity-types/[id]/edit/page.tsx
+﻿// app/dictionaries/entity-types/[id]/edit/page.tsx
 import { getServerSession } from "next-auth/next";
 import { authOptions, prisma } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { updateEntityType, deleteEntityType } from "../../actions";
+import DeleteButton from "../../DeleteButton";
 
 export default async function EditEntityTypePage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/api/auth/signin");
 
-  const id = Number(params.id);
+  const id = BigInt(Number(params.id));
   const item = await prisma.entityType.findUnique({ where: { id } });
   if (!item) redirect("/dictionaries/entity-types");
 
@@ -38,17 +39,17 @@ export default async function EditEntityTypePage({ params }: { params: { id: str
         <div className="flex gap-2 mt-2 items-center">
           <button type="submit" className="border rounded px-3 py-2 hover:bg-gray-50">Save</button>
           <Link href="/dictionaries/entity-types" className="border rounded px-3 py-2 hover:bg-gray-50">Cancel</Link>
-          <form action={deleteEntityType.bind(null, params.id)} className="ml-auto">
-            <button
-              type="submit"
-              className="border rounded px-3 py-2 text-red-700 hover:bg-red-50"
-              onClick={(e) => { if (!confirm('Delete this entity type?')) { e.preventDefault(); } }}
-            >
-              Delete
-            </button>
-          </form>
+          <DeleteButton
+            className="ml-auto border rounded px-3 py-2 text-red-700 hover:bg-red-50"
+            action={deleteEntityType.bind(null, params.id)}
+            label="Delete"
+            confirmMessage="Delete this entity type?"
+          />
         </div>
       </form>
     </div>
   );
 }
+
+
+

@@ -25,7 +25,8 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
   const mandatory = {
     name: true,
     identification_number: !EXEMPT.has(etUuid),
-    birth_or_incorporation_date: !EXEMPT.has(etUuid),
+    // Make birth_or_incorporation_date optional for all entity types
+    birth_or_incorporation_date: false,
     entity_type: true,
     sex: SEX_REQ.has(etUuid),
     pension_scheme: etUuid === PENS_REQ,
@@ -75,7 +76,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       if (mandatory.name && !v.name?.trim()) throw new Error("Name is required");
       if (mandatory.entity_type && !etUuid) throw new Error("Entity Type is required");
       if (mandatory.country && !v.country) throw new Error("Country is required");
-      if (mandatory.birth_or_incorporation_date && !v.birth_or_incorporation_date) throw new Error("Birth or Incorporation Date is required");
+      // birth_or_incorporation_date is optional; no validation enforced
 
       if (!EXEMPT.has(etUuid) && v.identification_number) {
         const re = PERSON_11.has(etUuid) ? /^[0-9]{11}$/ : /^[0-9]{9}$/;
@@ -166,6 +167,22 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
     field("Email","email", inputText("email","text" as any)),
     field("Phone","phone", inputText("phone")),
     field("ORIS ID","oris_id", inputText("oris_id")),
+    field("Is Employee","is_emploee",
+      <select className="w-full border rounded px-3 py-2" value={v.is_emploee ?? ""}
+        onChange={(e)=>setV((s:any)=>({ ...s, is_emploee: e.target.value === '' ? null : e.target.value === 'true' }))}>
+        <option value="">--</option>
+        <option value="true">True</option>
+        <option value="false">False</option>
+      </select>
+    ),
+    field("Was Employee","was_emploee",
+      <select className="w-full border rounded px-3 py-2" value={v.was_emploee ?? ""}
+        onChange={(e)=>setV((s:any)=>({ ...s, was_emploee: e.target.value === '' ? null : e.target.value === 'true' }))}>
+        <option value="">--</option>
+        <option value="true">True</option>
+        <option value="false">False</option>
+      </select>
+    ),
   ];
 
   // split optional to two columns roughly matching mandatory count
