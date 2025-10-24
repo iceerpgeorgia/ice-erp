@@ -20,7 +20,9 @@ export default async function NewCounteragentPage() {
   ]);
 
   const entityOptions: Opt[] = entityTypes.map(e => ({ id: e.entity_type_uuid, label: e.name_ka }));
-  const countryOptions: Opt[] = countries.map(c => ({ id: c.country_uuid, label: c.country }));
+  const countryOptions: Opt[] = countries
+    .filter(c => c.country !== null)
+    .map(c => ({ id: c.country_uuid, label: c.country! }));
 
   return (
     <div className="mx-auto max-w-[1400px] px-6 py-8">
