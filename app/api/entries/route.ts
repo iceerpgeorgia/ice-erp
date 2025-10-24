@@ -5,7 +5,7 @@ import { z } from "zod";
 
 const Body = z.object({
   project: z.string().min(1).max(200),
-  amount: z.number().finite(),
+  hours: z.number().int().min(0),
 });
 
 export async function POST(request: Request) {
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     data: {
       userId: user.id,
       project: parsed.data.project,
-      amount: parsed.data.amount,
+      hours: parsed.data.hours,
     },
   });
 
