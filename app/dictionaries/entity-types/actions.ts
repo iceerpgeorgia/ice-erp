@@ -4,6 +4,7 @@ import { prisma } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logAudit } from "@/lib/audit";
+import { randomUUID } from "crypto";
 
 function s(v: FormDataEntryValue | null, len?: number) {
   const t = (v ?? "").toString().trim();
@@ -18,7 +19,7 @@ export async function updateEntityType(id: string, formData: FormData) {
 
   await prisma.entityType.update({
     where: { id: BigInt(Number(id)) },
-    data: { code: code || null, name_en, name_ka, is_active },
+    data: { code, name_en, name_ka, is_active },
   });
   await logAudit({ table: "entity_types", recordId: BigInt(Number(id)), action: "update" });
 
@@ -33,7 +34,13 @@ export async function createEntityType(formData: FormData) {
   const is_active = formData.get("is_active") ? true : false;
 
   const created = await prisma.entityType.create({
-    data: { code: code || null, name_en, name_ka, is_active },
+    data: { 
+      entity_type_uuid: randomUUID(),
+      code, 
+      name_en, 
+      name_ka, 
+      is_active 
+    },
     select: { id: true },
   });
   await logAudit({ table: "entity_types", recordId: BigInt(created.id), action: "create" });
