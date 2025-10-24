@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
         ...(isEmp === null ? {} : { is_emploee: isEmp }),
         ...(wasEmp === null ? {} : { was_emploee: wasEmp }),
       },
-      select: { id: true, ...pick },
+      select: pick,
     });
     await logAudit({ table: "counteragents", recordId: BigInt(created.id as any), action: "create" });
     return NextResponse.json(toApi(created), { status: 201 });
