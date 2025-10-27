@@ -160,11 +160,12 @@ async function loadFromSupabase(slug: string): Promise<TableDesign | null> {
       .eq(slugField, slug)
       .single();
     if (error) return null;
-    if (!data || !data[configField]) return null;
+    const record = data as Record<string, any>;
+    if (!record || !record[configField]) return null;
     const cfg =
-      typeof data[configField] === "string"
-        ? JSON.parse(data[configField])
-        : data[configField];
+      typeof record[configField] === "string"
+        ? JSON.parse(record[configField])
+        : record[configField];
     return normalizeDesign(cfg, slug);
   } catch {
     return null;
