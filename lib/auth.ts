@@ -19,11 +19,17 @@ export const prisma =
 if (process.env.NODE_ENV !== "production") global.prisma = prisma;
 
 // Validate environment variables at module load
-if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+if (!googleClientId || !googleClientSecret) {
   console.error('[auth] Missing Google OAuth credentials:', {
-    hasClientId: !!process.env.GOOGLE_CLIENT_ID,
-    hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
-    allEnvKeys: Object.keys(process.env).filter(k => k.includes('GOOGLE')),
+    hasClientId: !!googleClientId,
+    hasClientSecret: !!googleClientSecret,
+    clientIdLength: googleClientId?.length || 0,
+    secretLength: googleClientSecret?.length || 0,
+    nodeEnv: process.env.NODE_ENV,
+    vercelEnv: process.env.VERCEL_ENV,
   });
 }
 
@@ -31,8 +37,8 @@ export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      clientId: googleClientId!,
+      clientSecret: googleClientSecret!,
       /** DEV ONLY: uncomment if you want to allow linking by email automatically
        *  (security risk in production).
        */
