@@ -70,10 +70,17 @@ function parseWorkbook(filePath: string): Row[] {
   return out;
 }
 
+type CleanedRow = {
+  name_ka: string;
+  name_en: string;
+  iso2: string;
+  iso3: string;
+  un_code: number | null;
+};
+
 function cleanAndValidate(rows: Row[]) {
   const errors: string[] = [];
-  const cleaned: (Required<Pick<Row, "name_ka" | "name_en" | "iso2" | "iso3">> &
-    Partial<Pick<Row, "un_code">>)[] = [];
+  const cleaned: CleanedRow[] = [];
 
   rows.forEach((r, idx) => {
     const line = idx + 2; // +2 because Excel headers are line 1
