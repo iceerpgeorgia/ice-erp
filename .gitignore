@@ -29,3 +29,4 @@ Thumbs.db
 # Ignore local OAuth client secret files
 client_secret_*.json
 
+.vercel
