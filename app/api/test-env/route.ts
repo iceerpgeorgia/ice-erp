@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  // Test endpoint to check if environment variables are available after URL fix
+  // Test endpoint to check if environment variables are available after DATABASE_URL fix
   const envVars = {
     hasNextAuthUrl: !!process.env.NEXTAUTH_URL,
     hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
