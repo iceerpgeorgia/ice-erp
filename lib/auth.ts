@@ -54,7 +54,17 @@ export const authOptions: NextAuthOptions = {
         return false;
       }
 
-      // Check if user exists and is authorized
+      // Check if email is in authorized list (for pre-authorization)
+      const authorizedEmails = process.env.AUTHORIZED_EMAILS?.split(',').map(e => e.trim()) || [];
+      const isPreAuthorized = authorizedEmails.includes(user.email);
+
+      // For pre-authorized users, allow sign-in and let adapter handle user creation
+      // We'll update authorization in the session callback after user is created
+      if (isPreAuthorized) {
+        return true;
+      }
+
+      // Check if user already exists in database
       const existingUser = await prisma.user.findUnique({
         where: { email: user.email },
       });
@@ -67,25 +77,7 @@ export const authOptions: NextAuthOptions = {
         return true;
       }
 
-      // For new users, check if email is in authorized list (system admins can be pre-authorized)
-      const authorizedEmails = process.env.AUTHORIZED_EMAILS?.split(',').map(e => e.trim()) || [];
-      const isPreAuthorized = authorizedEmails.includes(user.email);
-
-      if (isPreAuthorized) {
-        // Auto-authorize system admins from env variable
-        await prisma.user.update({
-          where: { email: user.email },
-          data: {
-            isAuthorized: true,
-            role: 'system_admin',
-            authorizedAt: new Date(),
-            authorizedBy: 'system',
-          },
-        });
-        return true;
-      }
-
-      // New users need authorization
+      // New users who are not pre-authorized need manual authorization
       return '/auth/unauthorized';
     },
     async session({ session, user }) {
@@ -93,6 +85,25 @@ export const authOptions: NextAuthOptions = {
         session.user.id = user.id;
         session.user.role = (user as any).role || 'user';
         session.user.isAuthorized = (user as any).isAuthorized || false;
+
+        // Auto-authorize pre-authorized users on first session load
+        const authorizedEmails = process.env.AUTHORIZED_EMAILS?.split(',').map(e => e.trim()) || [];
+        const isPreAuthorized = user.email && authorizedEmails.includes(user.email);
+        
+        if (isPreAuthorized && !(user as any).isAuthorized) {
+          // Update user to authorized if they're in the pre-authorized list
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              isAuthorized: true,
+              role: 'system_admin',
+              authorizedAt: new Date(),
+              authorizedBy: 'system',
+            },
+          });
+          session.user.isAuthorized = true;
+          session.user.role = 'system_admin';
+        }
       }
       return session;
     },
