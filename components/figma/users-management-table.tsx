@@ -39,6 +39,9 @@ export default function UsersManagementTable() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newUser, setNewUser] = useState({ email: '', name: '', role: 'user' });
+  const [addingUser, setAddingUser] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -55,6 +58,62 @@ export default function UsersManagementTable() {
       console.error('Failed to fetch users:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUser.email) {
+      alert('Email is required');
+      return;
+    }
+
+    setAddingUser(true);
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser),
+      });
+
+      if (response.ok) {
+        const createdUser = await response.json();
+        setUsers([...users, createdUser]);
+        setNewUser({ email: '', name: '', role: 'user' });
+        setShowAddForm(false);
+        alert('User added successfully!');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to add user');
+      }
+    } catch (error) {
+      console.error('Failed to add user:', error);
+      alert('Failed to add user');
+    } finally {
+      setAddingUser(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to delete this user?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/users?id=${userId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setUsers(users.filter(u => u.id !== userId));
+        alert('User deleted successfully!');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to delete user');
+      }
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      alert('Failed to delete user');
     }
   };
 
@@ -120,7 +179,59 @@ export default function UsersManagementTable() {
             Manage user access and roles for the application
           </p>
         </div>
+        <Button onClick={() => setShowAddForm(!showAddForm)}>
+          {showAddForm ? 'Cancel' : 'Add User'}
+        </Button>
       </div>
+
+      {showAddForm && (
+        <div className="rounded-md border p-4 bg-muted/50">
+          <form onSubmit={handleAddUser} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="user@example.com"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="name">Name (Optional)</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={newUser.name}
+                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="role">Role</Label>
+                <Select
+                  value={newUser.role}
+                  onValueChange={(value) => setNewUser({ ...newUser, role: value })}
+                >
+                  <SelectTrigger id="role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="system_admin">System Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Button type="submit" disabled={addingUser}>
+              {addingUser ? 'Adding...' : 'Add User'}
+            </Button>
+          </form>
+        </div>
+      )}
 
       <div className="flex items-center space-x-2">
         <Input
@@ -153,7 +264,7 @@ export default function UsersManagementTable() {
                   <Select
                     value={user.role}
                     onValueChange={(value: string) => handleRoleChange(user.id, value)}
-                    disabled={session?.user?.id === user.id}
+                    disabled={session?.user?.email === user.email}
                   >
                     <SelectTrigger className="w-[140px]">
                       <SelectValue />
@@ -170,7 +281,7 @@ export default function UsersManagementTable() {
                     <Switch
                       checked={user.isAuthorized}
                       onCheckedChange={() => handleAuthorizationToggle(user.id, user.isAuthorized)}
-                      disabled={session?.user?.id === user.id}
+                      disabled={session?.user?.email === user.email}
                     />
                     {user.isAuthorized ? (
                       <Badge variant="default">Authorized</Badge>
@@ -188,9 +299,19 @@ export default function UsersManagementTable() {
                     : '-'}
                 </TableCell>
                 <TableCell>
-                  {session?.user?.id === user.id && (
-                    <span className="text-xs text-muted-foreground">(You)</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {session?.user?.email === user.email ? (
+                      <span className="text-xs text-muted-foreground">(You)</span>
+                    ) : (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteUser(user.id)}
+                      >
+                        Delete
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

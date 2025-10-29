@@ -56,39 +56,29 @@ export const authOptions: NextAuthOptions = {
           return false;
         }
 
-        // Check if email is in authorized list (for pre-authorization)
-        const authorizedEmails = process.env.AUTHORIZED_EMAILS?.split(',').map(e => e.trim()) || [];
-        const isPreAuthorized = authorizedEmails.includes(user.email);
-
-        console.log('[auth] signIn: Pre-auth check:', { email: user.email, isPreAuthorized, authorizedEmails });
-
-        // For pre-authorized users, allow sign-in and let adapter handle user creation
-        // We'll update authorization in the session callback after user is created
-        if (isPreAuthorized) {
-          console.log('[auth] signIn: Pre-authorized, allowing');
-          return true;
-        }
-
-        // Check if user already exists in database
+        // Check if user exists in database (must be manually added by admin)
         const existingUser = await prisma.user.findUnique({
           where: { email: user.email },
         });
 
-        console.log('[auth] signIn: Existing user check:', { exists: !!existingUser, isAuthorized: existingUser?.isAuthorized });
+        console.log('[auth] signIn: User check:', { 
+          exists: !!existingUser, 
+          isAuthorized: existingUser?.isAuthorized 
+        });
 
-        // If user exists, check authorization
-        if (existingUser) {
-          if (!existingUser.isAuthorized) {
-            console.log('[auth] signIn: User exists but not authorized, redirecting');
-            return '/auth/unauthorized';
-          }
-          console.log('[auth] signIn: User authorized, allowing');
-          return true;
+        // Only allow users that exist in database and are authorized
+        if (!existingUser) {
+          console.log('[auth] signIn: User does not exist in database, rejecting');
+          return '/auth/unauthorized';
         }
 
-        // New users who are not pre-authorized need manual authorization
-        console.log('[auth] signIn: New user not pre-authorized, redirecting');
-        return '/auth/unauthorized';
+        if (!existingUser.isAuthorized) {
+          console.log('[auth] signIn: User not authorized, rejecting');
+          return '/auth/unauthorized';
+        }
+
+        console.log('[auth] signIn: User authorized, allowing');
+        return true;
       } catch (error) {
         console.error('[auth] signIn callback error:', error);
         return false;
@@ -102,33 +92,6 @@ export const authOptions: NextAuthOptions = {
           session.user.id = user.id;
           session.user.role = (user as any).role || 'user';
           session.user.isAuthorized = (user as any).isAuthorized || false;
-
-          // Auto-authorize pre-authorized users on first session load
-          const authorizedEmails = process.env.AUTHORIZED_EMAILS?.split(',').map(e => e.trim()) || [];
-          const isPreAuthorized = user.email && authorizedEmails.includes(user.email);
-          
-          console.log('[auth] session: Authorization check:', { 
-            isPreAuthorized, 
-            currentlyAuthorized: (user as any).isAuthorized,
-            role: (user as any).role 
-          });
-          
-          if (isPreAuthorized && !(user as any).isAuthorized) {
-            console.log('[auth] session: Auto-authorizing pre-authorized user');
-            // Update user to authorized if they're in the pre-authorized list
-            await prisma.user.update({
-              where: { id: user.id },
-              data: {
-                isAuthorized: true,
-                role: 'system_admin',
-                authorizedAt: new Date(),
-                authorizedBy: 'system',
-              },
-            });
-            session.user.isAuthorized = true;
-            session.user.role = 'system_admin';
-            console.log('[auth] session: User updated to system_admin');
-          }
         }
         return session;
       } catch (error) {
