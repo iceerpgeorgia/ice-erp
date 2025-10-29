@@ -39,6 +39,7 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: googleClientId!,
       clientSecret: googleClientSecret!,
+      allowDangerousEmailAccountLinking: true, // Allow linking Google account to existing email
     }),
   ],
   session: { 
@@ -77,6 +78,7 @@ export const authOptions: NextAuthOptions = {
           return '/auth/unauthorized';
         }
 
+        // Allow sign-in - Prisma adapter will link the OAuth account automatically
         console.log('[auth] signIn: User authorized, allowing');
         return true;
       } catch (error) {
