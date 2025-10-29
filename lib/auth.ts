@@ -39,26 +39,13 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: googleClientId!,
       clientSecret: googleClientSecret!,
-      /** DEV ONLY: uncomment if you want to allow linking by email automatically
-       *  (security risk in production).
-       */
-      // allowDangerousEmailAccountLinking: true,
     }),
   ],
   session: { 
     strategy: "database",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  cookies: {
-    sessionToken: {
-      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      },
-    },
-  },
+  useSecureCookies: process.env.NODE_ENV === 'production',
   callbacks: {
     async signIn({ user, account, profile }) {
       try {
