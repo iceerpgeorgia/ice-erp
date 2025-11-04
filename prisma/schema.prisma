@@ -105,6 +105,9 @@ model Counteragent {
   is_active                   Boolean   @default(true)
   was_emploee                 Boolean   @default(false)
 
+  // Relations
+  transactions                Transaction[]
+
   @@map("counteragents")
 }
 
@@ -146,4 +149,93 @@ model AuditLog {
   changes   Json?
 
   @@index([table, recordId, createdAt])
+}
+
+model FinancialCode {
+  id                String   @id @db.Uuid
+  code              String   @unique
+  name              String
+  nameEn            String?  @map("name_en")
+  sign              String   @db.Char(1)
+  nodeType          String   @map("node_type")
+  
+  // Hierarchy levels (for fast querying)
+  level1            Int      @map("level_1")
+  level2            Int      @default(0) @map("level_2")
+  level3            Int      @default(0) @map("level_3")
+  level4            Int      @default(0) @map("level_4")
+  depth             Int
+  
+  // Statement applicability
+  appliesToPL       Boolean  @default(false) @map("applies_to_pl")
+  appliesToCF       Boolean  @default(false) @map("applies_to_cf")
+  
+  // Formula fields (for calculated codes)
+  isFormula         Boolean  @default(false) @map("is_formula")
+  formulaExpression String?  @map("formula_expression") @db.Text
+  
+  // Additional metadata
+  category          String?
+  customsCategory   String?  @map("customs_category")
+  orisAccount       String?  @map("oris_account")
+  validation        String?  @db.Text
+  orderDescription  String?  @map("order_description") @db.Text
+  
+  // Audit fields
+  isDeleted         Boolean  @default(false) @map("is_deleted")
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  ancestors         FinancialCodePath[] @relation("Descendant")
+  descendants       FinancialCodePath[] @relation("Ancestor")
+  transactions      Transaction[]
+  
+  @@index([code])
+  @@index([level1, level2, level3, level4])
+  @@index([nodeType])
+  @@index([isFormula])
+  @@index([appliesToPL])
+  @@index([appliesToCF])
+  @@map("financial_codes")
+}
+
+model FinancialCodePath {
+  id           String        @id @default(uuid()) @db.Uuid
+  ancestorId   String        @map("ancestor_id") @db.Uuid
+  descendantId String        @map("descendant_id") @db.Uuid
+  depth        Int
+  
+  ancestor     FinancialCode @relation("Ancestor", fields: [ancestorId], references: [id], onDelete: Cascade)
+  descendant   FinancialCode @relation("Descendant", fields: [descendantId], references: [id], onDelete: Cascade)
+  
+  @@unique([ancestorId, descendantId])
+  @@index([ancestorId, depth])
+  @@index([descendantId])
+  @@map("financial_code_paths")
+}
+
+model Transaction {
+  id                String        @id @default(uuid()) @db.Uuid
+  date              DateTime      @db.Date
+  amount            Decimal       @db.Decimal(15, 2)
+  description       String
+  financialCodeId   String        @map("financial_code_id") @db.Uuid
+  counteragentId    BigInt?       @map("counteragent_id")
+  
+  // Relations
+  financialCode     FinancialCode @relation(fields: [financialCodeId], references: [id])
+  counteragent      Counteragent? @relation(fields: [counteragentId], references: [id])
+  
+  // Audit
+  createdAt         DateTime      @default(now()) @map("created_at")
+  createdBy         String?       @map("created_by")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  updatedBy         String?       @map("updated_by")
+  
+  @@index([financialCodeId, date])
+  @@index([date])
+  @@index([counteragentId])
+  @@map("transactions")
 }
