@@ -39,6 +39,7 @@ function toApi(row: any) {
     entity_type_uuid: row.entity_type_uuid,
     counteragent_uuid: row.counteragent_uuid,
     internal_number: row.internal_number ?? null,
+    is_active: row.is_active ?? true,
   };
 }
 
@@ -75,6 +76,7 @@ export async function GET() {
         entity_type_uuid: true,
         counteragent_uuid: true,
         internal_number: true,
+        is_active: true,
       },
     });
     return NextResponse.json(rows.map(toApi), { status: 200 });

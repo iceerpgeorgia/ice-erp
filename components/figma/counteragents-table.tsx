@@ -824,7 +824,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
       email: counteragent.email || '',
       phone: counteragent.phone || '',
       orisId: counteragent.orisId || '',
-      isActive: counteragent.isActive,
+      isActive: counteragent.isActive ?? true,
     });
     setFormErrors({});
     setIsEditDialogOpen(true);
@@ -846,7 +846,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     setLoadingAudit(true);
     
     try {
-      const response = await fetch(`/api/audit?table=entityTypes&recordId=${counteragent.id}`);
+      const response = await fetch(`/api/audit?table=counteragents&recordId=${counteragent.id}`);
       if (response.ok) {
         const logs = await response.json();
         setAuditLogs(logs);
