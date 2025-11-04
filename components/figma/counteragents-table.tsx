@@ -457,10 +457,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
       }
     }
     
-    // 5. Birth or Incorporation Date - conditional mandatory
-    if (!isExempt && !formData.birthOrIncorporationDate) {
-      errors.birthOrIncorporationDate = 'Birth or Incorporation Date is required';
-    }
+    // 5. Birth or Incorporation Date - OPTIONAL (no longer mandatory)
+    // Removed mandatory validation per user request
     
     // 6. Sex - conditional mandatory for natural persons
     if (NATURAL_PERSON_IDS.includes(entityTypeUuid)) {
