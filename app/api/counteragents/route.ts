@@ -279,15 +279,21 @@ export async function PATCH(req: NextRequest) {
       },
     });
 
+    console.log('[AUDIT DEBUG] Changes detected:', Object.keys(changes).length, changes);
+
     // Log audit if there were changes
     if (Object.keys(changes).length > 0) {
       const recordId = typeof updated.id === "bigint" ? updated.id : BigInt(updated.id);
+      console.log('[AUDIT DEBUG] Calling logAudit with:', { table: "counteragents", recordId, action: "update" });
       await logAudit({ 
         table: "counteragents", 
         recordId, 
         action: "update",
         changes 
       });
+      console.log('[AUDIT DEBUG] logAudit completed');
+    } else {
+      console.log('[AUDIT DEBUG] No changes detected, skipping audit log');
     }
 
     return NextResponse.json(toApi(updated), { status: 200 });

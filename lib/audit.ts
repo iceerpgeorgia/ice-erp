@@ -10,10 +10,12 @@ export async function logAudit(params: {
   changes?: any;
 }) {
   try {
+    console.log('[AUDIT] logAudit called with:', { table: params.table, recordId: params.recordId.toString(), action: params.action });
     const session = await getServerSession(authOptions);
+    console.log('[AUDIT] Session:', { email: session?.user?.email, userId: (session as any)?.user?.id });
     const email = session?.user?.email ?? null;
     const userId = (session as any)?.user?.id ?? null;
-    await prisma.auditLog.create({
+    const result = await prisma.auditLog.create({
       data: {
         table: params.table,
         recordId: params.recordId,
@@ -24,6 +26,7 @@ export async function logAudit(params: {
       },
       select: { id: true },
     });
+    console.log('[AUDIT] Audit log created successfully with id:', result.id);
   } catch (err) {
     console.error("[audit] failed to write audit log", err);
   }
