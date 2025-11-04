@@ -150,7 +150,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
     if (typeof window !== 'undefined') {
-      const savedColumns = localStorage.getItem('entityTypes-table-columns');
+      const savedColumns = localStorage.getItem('counteragents-table-columns');
       if (savedColumns) {
         try {
           return JSON.parse(savedColumns);
@@ -304,7 +304,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
 
   // Save column settings to localStorage
   useEffect(() => {
-    localStorage.setItem('entityTypes-table-columns', JSON.stringify(columns));
+    localStorage.setItem('counteragents-table-columns', JSON.stringify(columns));
   }, [columns]);
 
   // Mouse events for column resizing
