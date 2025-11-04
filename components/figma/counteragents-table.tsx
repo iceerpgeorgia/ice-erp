@@ -763,10 +763,20 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
 
   const startEdit = (counteragent: Counteragent) => {
     setEditingEntityType(counteragent);
+    // Format date to YYYY-MM-DD for input[type="date"]
+    const formatDateForInput = (dateStr: string | null) => {
+      if (!dateStr) return '';
+      try {
+        const date = new Date(dateStr);
+        return date.toISOString().split('T')[0];
+      } catch {
+        return '';
+      }
+    };
     setFormData({
       name: counteragent.name,
       identificationNumber: counteragent.identificationNumber || '',
-      birthOrIncorporationDate: counteragent.birthOrIncorporationDate || '',
+      birthOrIncorporationDate: formatDateForInput(counteragent.birthOrIncorporationDate),
       entityType: counteragent.entityType || '',
       entityTypeUuid: counteragent.entityTypeUuid || '',
       sex: counteragent.sex || '',
