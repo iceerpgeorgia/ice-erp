@@ -780,7 +780,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
       entityType: counteragent.entityType || '',
       entityTypeUuid: counteragent.entityTypeUuid || '',
       sex: counteragent.sex || '',
-      pensionScheme: counteragent.pensionScheme,
+      pensionScheme: counteragent.pensionScheme ?? null,
       country: counteragent.country || '',
       countryUuid: counteragent.countryUuid || '',
       addressLine1: counteragent.addressLine1 || '',
@@ -1229,7 +1229,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   </Label>
                   <div className="col-span-3">
                     <Select 
-                      value={formData.pensionScheme === null ? '' : formData.pensionScheme.toString()} 
+                      value={formData.pensionScheme === null || formData.pensionScheme === undefined ? '' : formData.pensionScheme.toString()} 
                       onValueChange={(value) => {
                         setFormData({...formData, pensionScheme: value === 'true' ? true : value === 'false' ? false : null});
                         if (formErrors.pensionScheme) setFormErrors({...formErrors, pensionScheme: ''});
@@ -1533,7 +1533,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   </Label>
                   <div className="col-span-3">
                     <Select 
-                      value={formData.pensionScheme === null ? '' : formData.pensionScheme.toString()} 
+                      value={formData.pensionScheme === null || formData.pensionScheme === undefined ? '' : formData.pensionScheme.toString()} 
                       onValueChange={(value) => {
                         setFormData({...formData, pensionScheme: value === 'true' ? true : value === 'false' ? false : null});
                         if (formErrors.pensionScheme) setFormErrors({...formErrors, pensionScheme: ''});
