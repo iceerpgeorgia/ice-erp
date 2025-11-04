@@ -1169,7 +1169,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 {/* Birth or Incorporation Date - conditional mandatory */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="add-birthDate" className="text-right">
-                    Birth/Inc Date {!['f5c3c745-eaa4-4e27-a73b-badc9ebb49c0', '7766e9c2-0094-4090-adf4-ef017062457f'].includes(formData.entityTypeUuid) ? '*' : ''}
+                    Birth/Inc Date
                   </Label>
                   <div className="col-span-3">
                     <Input
@@ -1473,7 +1473,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 {/* Birth or Incorporation Date - conditional mandatory */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="edit-birthDate" className="text-right">
-                    Birth/Inc Date {!['f5c3c745-eaa4-4e27-a73b-badc9ebb49c0', '7766e9c2-0094-4090-adf4-ef017062457f'].includes(formData.entityTypeUuid) ? '*' : ''}
+                    Birth/Inc Date
                   </Label>
                   <div className="col-span-3">
                     <Input
