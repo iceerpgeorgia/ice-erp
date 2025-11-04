@@ -668,9 +668,40 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
         
         const updated = await response.json();
         
-        // Update local state with API response
+        // Transform API response (snake_case) to component format (camelCase)
+        const transformedUpdate: Counteragent = {
+          id: updated.id,
+          createdAt: updated.created_at,
+          updatedAt: updated.updated_at,
+          ts: updated.ts,
+          counteragentUuid: updated.counteragent_uuid,
+          name: updated.name,
+          identificationNumber: updated.identification_number,
+          birthOrIncorporationDate: updated.birth_or_incorporation_date,
+          entityType: updated.entity_type,
+          sex: updated.sex,
+          pensionScheme: updated.pension_scheme,
+          country: updated.country,
+          addressLine1: updated.address_line_1,
+          addressLine2: updated.address_line_2,
+          zipCode: updated.zip_code,
+          iban: updated.iban,
+          swift: updated.swift,
+          director: updated.director,
+          directorId: updated.director_id,
+          email: updated.email,
+          phone: updated.phone,
+          orisId: updated.oris_id,
+          counteragent: updated.counteragent,
+          countryUuid: updated.country_uuid,
+          entityTypeUuid: updated.entity_type_uuid,
+          internalNumber: updated.internal_number,
+          isActive: updated.is_active,
+        };
+        
+        // Update local state with transformed response
         setEntityTypes(entityTypes.map(counteragent =>
-          counteragent.id === editingEntityType.id ? updated : counteragent
+          counteragent.id === editingEntityType.id ? transformedUpdate : counteragent
         ));
         
         setIsEditDialogOpen(false);
