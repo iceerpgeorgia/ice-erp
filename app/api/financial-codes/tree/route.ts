@@ -122,12 +122,9 @@ export async function GET(request: NextRequest) {
     // Get all codes
     const codes = await prisma.financialCode.findMany({
       where,
-      orderBy: [
-        { level1: 'asc' },
-        { level2: 'asc' },
-        { level3: 'asc' },
-        { level4: 'asc' },
-      ],
+      orderBy: {
+        code: 'asc',
+      },
     });
 
     // Build tree structure
