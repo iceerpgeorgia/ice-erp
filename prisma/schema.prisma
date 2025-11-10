@@ -21,6 +21,7 @@ model User {
   accounts      Account[]
   entries       Entry[]
   sessions      Session[]
+  projects      Project[]
 }
 
 model Account {
@@ -107,6 +108,7 @@ model Counteragent {
 
   // Relations
   transactions                Transaction[]
+  projects                    Project[]
 
   @@map("counteragents")
 }
@@ -152,68 +154,37 @@ model AuditLog {
 }
 
 model FinancialCode {
-  id                String   @id @db.Uuid
-  code              String   @unique
-  name              String
-  nameEn            String?  @map("name_en")
-  sign              String   @db.Char(1)
-  nodeType          String   @map("node_type")
+  id           BigInt   @id @default(autoincrement())
+  uuid         String   @default(uuid()) @db.Uuid @unique
+  code         String   @unique
+  name         String
+  validation   String?  @db.Text
+  appliesToPL  Boolean  @default(false) @map("applies_to_pl")
+  appliesToCF  Boolean  @default(false) @map("applies_to_cf")
+  isIncome     Boolean  @default(false) @map("is_income")
+  parentUuid   String?  @map("parent_uuid") @db.Uuid
+  description  String?  @db.Text
+  depth        Int      @default(1)
+  sortOrder    Int      @default(0) @map("sort_order")
   
-  // Hierarchy levels (for fast querying)
-  level1            Int      @map("level_1")
-  level2            Int      @default(0) @map("level_2")
-  level3            Int      @default(0) @map("level_3")
-  level4            Int      @default(0) @map("level_4")
-  depth             Int
-  
-  // Statement applicability
-  appliesToPL       Boolean  @default(false) @map("applies_to_pl")
-  appliesToCF       Boolean  @default(false) @map("applies_to_cf")
-  
-  // Formula fields (for calculated codes)
-  isFormula         Boolean  @default(false) @map("is_formula")
-  formulaExpression String?  @map("formula_expression") @db.Text
-  
-  // Additional metadata
-  category          String?
-  customsCategory   String?  @map("customs_category")
-  orisAccount       String?  @map("oris_account")
-  validation        String?  @db.Text
-  orderDescription  String?  @map("order_description") @db.Text
-  
-  // Audit fields
-  isDeleted         Boolean  @default(false) @map("is_deleted")
-  isActive          Boolean  @default(true) @map("is_active")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  // System fields
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
   
   // Relations
-  ancestors         FinancialCodePath[] @relation("Descendant")
-  descendants       FinancialCodePath[] @relation("Ancestor")
-  transactions      Transaction[]
+  transactions Transaction[]
+  projects     Project[]
   
   @@index([code])
-  @@index([level1, level2, level3, level4])
-  @@index([nodeType])
-  @@index([isFormula])
+  @@index([uuid])
+  @@index([parentUuid])
   @@index([appliesToPL])
   @@index([appliesToCF])
+  @@index([isIncome])
+  @@index([parentUuid, sortOrder])
+  @@index([isActive])
   @@map("financial_codes")
-}
-
-model FinancialCodePath {
-  id           String        @id @default(uuid()) @db.Uuid
-  ancestorId   String        @map("ancestor_id") @db.Uuid
-  descendantId String        @map("descendant_id") @db.Uuid
-  depth        Int
-  
-  ancestor     FinancialCode @relation("Ancestor", fields: [ancestorId], references: [id], onDelete: Cascade)
-  descendant   FinancialCode @relation("Descendant", fields: [descendantId], references: [id], onDelete: Cascade)
-  
-  @@unique([ancestorId, descendantId])
-  @@index([ancestorId, depth])
-  @@index([descendantId])
-  @@map("financial_code_paths")
 }
 
 model Transaction {
@@ -221,7 +192,7 @@ model Transaction {
   date              DateTime      @db.Date
   amount            Decimal       @db.Decimal(15, 2)
   description       String
-  financialCodeId   String        @map("financial_code_id") @db.Uuid
+  financialCodeId   BigInt        @map("financial_code_id")
   counteragentId    BigInt?       @map("counteragent_id")
   
   // Relations
@@ -238,4 +209,96 @@ model Transaction {
   @@index([date])
   @@index([counteragentId])
   @@map("transactions")
+}
+
+model Project {
+  id                  BigInt        @id @default(autoincrement())
+  uuid                String        @unique @default(uuid()) @db.Uuid
+  code                String        @unique // Generated project code (e.g., "ICE1", "ICE2")
+  name                String        // Project name (პროექტის დასახელება)
+  contractNumber      String?       @map("contract_number") // კონტრაქტის #
+  
+  // Relations
+  counteragentId      BigInt        @map("counteragent_id")
+  counteragent        Counteragent  @relation(fields: [counteragentId], references: [id])
+  
+  financialCodeId     BigInt        @map("financial_code_id")
+  financialCode       FinancialCode @relation(fields: [financialCodeId], references: [id])
+  
+  employeeId          String?       @map("employee_id") // User.id is String (cuid)
+  employee            User?         @relation(fields: [employeeId], references: [id])
+  
+  // Financial info
+  amount              Decimal       @db.Decimal(15, 2)
+  currency            String        @default("GEL") // USD, GEL, EUR
+  startDate           DateTime      @map("start_date")
+  
+  // Status
+  status              String        @default("active") // active, completed, cancelled, on_hold
+  isDeleted           Boolean       @default(false) @map("is_deleted")
+  
+  // ORIS Integration
+  orisId              String?       @unique @map("oris_id") // ORIS 1630
+  orisCounterагентId  String?       @map("oris_counteragent_id") // კონტრაგენტის ORIS ID
+  
+  // Additional fields
+  collateral          String?       // Collateral information
+  notes               String?       // Additional notes
+  
+  // Audit fields
+  createdAt           DateTime      @default(now()) @map("created_at")
+  createdBy           String?       @map("created_by")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+  updatedBy           String?       @map("updated_by")
+  
+  @@index([counteragentId])
+  @@index([financialCodeId])
+  @@index([status])
+  @@index([startDate])
+  @@map("projects")
+}
+
+model Currency {
+  id        BigInt   @id @default(autoincrement())
+  uuid      String   @unique @default(uuid()) @db.Uuid
+  code      String   @unique // GEL, USD, EUR, etc.
+  name      String   // Full name in Georgian
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("currencies")
+}
+
+model DocumentType {
+  id        BigInt   @id @default(autoincrement())
+  uuid      String   @unique @default(uuid()) @db.Uuid
+  name      String   @unique
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("document_types")
+}
+
+model ProjectState {
+  id        BigInt   @id @default(autoincrement())
+  uuid      String   @unique @default(uuid()) @db.Uuid
+  name      String   @unique
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("project_states")
+}
+
+model MIDimension {
+  id        BigInt   @id @default(autoincrement())
+  uuid      String   @unique @default(uuid()) @db.Uuid
+  name      String   @unique // მეტრი, ცალი, კგ, etc.
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("mi_dimensions")
 }
