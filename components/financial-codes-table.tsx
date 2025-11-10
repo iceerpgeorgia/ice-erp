@@ -28,10 +28,6 @@ export function FinancialCodesTable() {
   const [editingCode, setEditingCode] = useState<FinancialCode | null>(null);
   const [parentCode, setParentCode] = useState<FinancialCode | null>(null);
 
-  useEffect(() => {
-    fetchCodes();
-  }, []);
-
   const fetchCodes = async () => {
     try {
       const res = await fetch("/api/financial-codes");
@@ -54,6 +50,11 @@ export function FinancialCodesTable() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchCodes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const buildHierarchy = (flatList: FinancialCode[]): FinancialCode[] => {
     const map = new Map<string, FinancialCode>();
@@ -253,7 +254,7 @@ export function FinancialCodesTable() {
             {codes.length === 0 ? (
               <tr>
                 <td colSpan={9} className="px-4 py-8 text-center text-slate-500">
-                  No financial codes found. Click "Add Root Code" to create one.
+                  No financial codes found. Click &quot;Add Root Code&quot; to create one.
                 </td>
               </tr>
             ) : (
