@@ -144,7 +144,7 @@ model AuditLog {
   id        BigInt   @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
   table     String
-  recordId  BigInt   @map("record_id")
+  recordId  String   @map("record_id")
   action    String
   userEmail String?  @map("user_email")
   userId    String?  @map("user_id")
