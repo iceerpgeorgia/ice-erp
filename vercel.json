@@ -5,5 +5,11 @@
   "regions": ["iad1"],
   "env": {
     "NEXTAUTH_URL": "https://iceerpgeorgia.com"
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/update-nbg-rates",
+      "schedule": "0 19 * * *"
+    }
+  ]
 }
