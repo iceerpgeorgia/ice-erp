@@ -247,7 +247,7 @@ export default function CurrenciesPage() {
               {currencies.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                    No currencies found. Click "Add Currency" to create one.
+                    No currencies found. Click &quot;Add Currency&quot; to create one.
                   </TableCell>
                 </TableRow>
               ) : (
