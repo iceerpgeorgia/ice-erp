@@ -24,6 +24,16 @@ export default function DictionariesIndex() {
             </Link>
           </li>
           <li>
+            <Link className="text-blue-600 hover:underline" href="/dictionaries/currencies">
+              Currencies
+            </Link>
+          </li>
+          <li>
+            <Link className="text-blue-600 hover:underline" href="/dictionaries/nbg-rates">
+              NBG Exchange Rates
+            </Link>
+          </li>
+          <li>
             <Link className="text-blue-600 hover:underline" href="/admin/financial-codes">
               Financial Codes
             </Link>
