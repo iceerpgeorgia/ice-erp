@@ -83,9 +83,7 @@ model Counteragent {
   name                        String?
   identification_number       String?
   birth_or_incorporation_date DateTime?
-  entity_type                 String?
   sex                         String?
-  country                     String?
   address_line_1              String?
   address_line_2              String?
   zip_code                    String?
@@ -96,10 +94,14 @@ model Counteragent {
   email                       String?
   phone                       String?
   oris_id                     String?
-  counteragent                String?
   country_uuid                String?   @db.Uuid
   entity_type_uuid            String?   @db.Uuid
   counteragent_uuid           String    @default(uuid()) @db.Uuid
+  
+  // Computed fields (auto-populated by database trigger)
+  entity_type                 String?   // Populated from entity_types.name_ka via trigger
+  country                     String?   // Populated from countries.name_ka via trigger
+  counteragent                String?   // Formatted: "name (ს.კ. id) - entity_type" via trigger
   internal_number             String?
   pension_scheme              Boolean?
   is_emploee                  Boolean   @default(false)

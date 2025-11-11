@@ -21,7 +21,8 @@
     "apply:countries-ui:route": "node scripts/apply-countries-ui.js --route countries",
     "design:pull": "node scripts/fetch-figma-tables.js",
     "import:countries": "node scripts/import_countries.js",
-    "import:entity-types": "node scripts/import_entity_types.js"
+    "import:entity-types": "node scripts/import_entity_types.js",
+    "migrate-data": "ts-node scripts/migrate-data.ts"
   },
   "dependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",
@@ -84,6 +85,7 @@
     "tailwindcss": "^3.4.17",
     "tailwindcss-cli": "^0.1.2",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.4.5"
   },
   "pnpm": {

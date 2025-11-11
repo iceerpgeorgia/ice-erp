@@ -1134,7 +1134,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-medium text-foreground">EntityTypes</h1>
+          <h1 className="text-2xl font-medium text-foreground">Counteragents</h1>
         </div>
         <div className="flex items-center gap-2">
           <ColumnSettings />
