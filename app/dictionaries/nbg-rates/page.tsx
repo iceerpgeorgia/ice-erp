@@ -247,6 +247,15 @@ export default function NBGRatesPage() {
     return rate.toFixed(6);
   };
 
+  const formatDate = (dateString: string) => {
+    // Convert yyyy-mm-dd to dd.mm.yyyy
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+  };
+
   return (
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-6">
@@ -375,7 +384,7 @@ export default function NBGRatesPage() {
                     <TableRow key={rate.id}>
                       {visibleColumns.map((col) => (
                         <TableCell key={col.key}>
-                          {col.key === 'date' ? rate.date : formatRate(rate[col.key])}
+                          {col.key === 'date' ? formatDate(rate.date) : formatRate(rate[col.key])}
                         </TableCell>
                       ))}
                       <TableCell className="text-right">
