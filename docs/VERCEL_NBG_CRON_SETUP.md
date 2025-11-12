@@ -64,7 +64,28 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 # https://randomkeygen.com/
 ```
 
-### 3. Other Required Variables
+### 3. Google Sheets Sync (Optional - for automatic Google Sheets updates)
+```
+SPREADSHEET_ID=your-google-sheets-spreadsheet-id
+SHEET_NAME=Copy of NBG
+SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"..."}
+```
+
+**Important**: 
+- Instead of `SERVICE_ACCOUNT_FILE`, use `SERVICE_ACCOUNT_JSON` in Vercel
+- Copy the **entire contents** of your `bybit-458010-ac7999bfd4c8.json` file
+- Paste it as a **single line** string in Vercel environment variables
+- The cron endpoint will write this to a temp file when executing
+
+**To get the JSON**:
+```bash
+# On Windows PowerShell
+Get-Content bybit-458010-ac7999bfd4c8.json -Raw
+```
+
+**Note**: If these variables are set, the cron job will automatically sync NBG rates to Google Sheets after updating the database.
+
+### 4. Other Required Variables
 ```
 NEXTAUTH_SECRET=your-nextauth-secret
 NEXTAUTH_URL=https://iceerpgeorgia.com

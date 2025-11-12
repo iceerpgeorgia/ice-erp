@@ -212,7 +212,33 @@ export async function GET(req: NextRequest) {
 
     console.log('[CRON] NBG rates update completed successfully', summary);
 
-    return NextResponse.json(summary);
+    // Trigger Google Sheets sync
+    let sheetsSyncResult = null;
+    try {
+      console.log('[CRON] Starting Google Sheets sync...');
+      
+      const sheetsResponse = await fetch(`${process.env.NEXTAUTH_URL}/api/cron/sync-to-sheets`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${process.env.CRON_SECRET}`
+        }
+      });
+
+      if (sheetsResponse.ok) {
+        sheetsSyncResult = await sheetsResponse.json();
+        console.log('[CRON] Google Sheets sync completed', sheetsSyncResult);
+      } else {
+        console.error('[CRON] Google Sheets sync failed', await sheetsResponse.text());
+      }
+    } catch (sheetError: any) {
+      console.error('[CRON] Google Sheets sync error', sheetError.message);
+      // Don't fail the whole cron job if sheets sync fails
+    }
+
+    return NextResponse.json({
+      ...summary,
+      sheetsSync: sheetsSyncResult
+    });
   } catch (error: any) {
     console.error("[CRON] NBG rates update error", error);
     return NextResponse.json(

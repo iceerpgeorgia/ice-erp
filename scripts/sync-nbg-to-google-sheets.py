@@ -24,6 +24,7 @@ CURRENCY_CODES = {
     'GBP': 'gbp_rate',
     'RUB': 'rub_rate',
     'TRY': 'try_rate',
+    'TRL': 'try_rate',  # TRL is Turkish Lira old code, maps to TRY
     'AED': 'aed_rate',
     'KZT': 'kzt_rate',
     'GEL': None  # GEL is the base currency
@@ -31,12 +32,15 @@ CURRENCY_CODES = {
 
 
 def get_database_connection():
-    """Connect to Supabase PostgreSQL database."""
-    db_url = os.getenv("REMOTE_DATABASE_URL")
+    """Connect to PostgreSQL database (Supabase or local)."""
+    db_url = os.getenv("REMOTE_DATABASE_URL") or os.getenv("DATABASE_URL")
     if not db_url:
-        raise ValueError("REMOTE_DATABASE_URL environment variable not set")
-    # Keep pooler port 6543, just remove pgbouncer parameter
-    db_url = db_url.replace('?pgbouncer=true&connection_limit=1', '')
+        raise ValueError("REMOTE_DATABASE_URL or DATABASE_URL environment variable must be set")
+    
+    # If using Supabase pooler, remove pgbouncer parameter
+    if 'pgbouncer=true' in db_url:
+        db_url = db_url.replace('?pgbouncer=true&connection_limit=1', '')
+    
     return psycopg2.connect(db_url)
 
 
@@ -47,14 +51,26 @@ def get_google_sheets_service():
     return service
 
 
-def parse_date_from_gs(date_str: str) -> datetime:
-    """Parse date from Google Sheets (dd.mm.yyyy format)."""
-    return datetime.strptime(date_str, "%d.%m.%Y")
+def parse_date_from_gs(date_value) -> datetime:
+    """Parse date from Google Sheets (can be serial number or dd.mm.yyyy string)."""
+    if isinstance(date_value, (int, float)):
+        # Excel/Google Sheets serial number (days since 1899-12-30)
+        return datetime(1899, 12, 30) + timedelta(days=date_value)
+    elif isinstance(date_value, str):
+        # Try parsing as dd.mm.yyyy
+        try:
+            return datetime.strptime(date_value, "%d.%m.%Y")
+        except ValueError:
+            # Try parsing as yyyy-mm-dd
+            return datetime.strptime(date_value, "%Y-%m-%d")
+    return date_value
 
 
-def format_date_for_gs(date_obj: datetime) -> str:
-    """Format date for Google Sheets (dd.mm.yyyy format)."""
-    return date_obj.strftime("%d.%m.%Y")
+def date_to_serial(date_obj: datetime) -> float:
+    """Convert datetime to Excel/Google Sheets serial number."""
+    # Excel serial date: days since 1899-12-30
+    delta = date_obj - datetime(1899, 12, 30)
+    return delta.days + (delta.seconds / 86400.0)
 
 
 def parse_rate_pair(header: str) -> Tuple[str, str]:
@@ -207,7 +223,7 @@ def build_rows_to_insert(headers: List[str], missing_dates: List[datetime],
             continue
         
         rates = rates_by_date[date_key]
-        row = [format_date_for_gs(date)]  # First column is date
+        row = [date_to_serial(date)]  # First column is date as serial number
         
         # Process each header column (skip first which is 'Date')
         for header in headers[1:]:
@@ -230,25 +246,78 @@ def build_rows_to_insert(headers: List[str], missing_dates: List[datetime],
 
 
 def append_rows_to_sheet(service, spreadsheet_id: str, sheet_name: str, rows: List[List]):
-    """Append rows to the Google Sheet."""
+    """Append rows to the Google Sheet with date formatting."""
     if not rows:
         print("No rows to insert")
         return
     
+    # Get sheet ID first for formatting
+    sheet_metadata = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+    sheets = sheet_metadata.get('sheets', [])
+    sheet_id = None
+    
+    for sheet in sheets:
+        if sheet['properties']['title'] == sheet_name:
+            sheet_id = sheet['properties']['sheetId']
+            break
+    
+    if sheet_id is None:
+        raise ValueError(f"Could not find sheet ID for '{sheet_name}'")
+    
+    # Get current row count to know where we're inserting
+    range_name = f"{sheet_name}!A:A"
+    result = service.spreadsheets().values().get(
+        spreadsheetId=spreadsheet_id,
+        range=range_name
+    ).execute()
+    current_rows = len(result.get('values', []))
+    start_row = current_rows + 1  # +1 because we're appending after existing rows
+    
+    # Append data
     range_name = f"{sheet_name}!A:Z"
-    body = {
-        'values': rows
-    }
+    body = {'values': rows}
     
     result = service.spreadsheets().values().append(
         spreadsheetId=spreadsheet_id,
         range=range_name,
-        valueInputOption='RAW',
+        valueInputOption='USER_ENTERED',  # Changed from RAW to USER_ENTERED
         insertDataOption='INSERT_ROWS',
         body=body
     ).execute()
     
-    print(f"✓ Inserted {result.get('updates').get('updatedRows')} rows")
+    inserted_rows = result.get('updates').get('updatedRows')
+    print(f"✓ Inserted {inserted_rows} rows")
+    
+    # Format first column (dates) as dd.mm.yyyy
+    end_row = start_row + inserted_rows - 1
+    requests = [{
+        'repeatCell': {
+            'range': {
+                'sheetId': sheet_id,
+                'startRowIndex': start_row - 1,  # 0-indexed
+                'endRowIndex': end_row,
+                'startColumnIndex': 0,
+                'endColumnIndex': 1
+            },
+            'cell': {
+                'userEnteredFormat': {
+                    'numberFormat': {
+                        'type': 'DATE',
+                        'pattern': 'dd.mm.yyyy'
+                    }
+                }
+            },
+            'fields': 'userEnteredFormat.numberFormat'
+        }
+    }]
+    
+    body = {'requests': requests}
+    service.spreadsheets().batchUpdate(
+        spreadsheetId=spreadsheet_id,
+        body=body
+    ).execute()
+    
+    print("✓ Applied date formatting (dd.mm.yyyy) to first column")
 
 
 def sort_sheet_by_date(service, spreadsheet_id: str, sheet_name: str):
@@ -316,9 +385,10 @@ def main():
         headers = get_sheet_headers(service, SPREADSHEET_ID, SHEET_NAME)
         print(f"✓ Found {len(headers)} columns: {', '.join(headers)}")
         
-        # Validate first column is 'Date'
-        if headers[0].lower() != 'date':
-            raise ValueError(f"First column must be 'Date', found: {headers[0]}")
+        # Validate first column is 'Date' (or Georgian equivalent)
+        first_col = headers[0].lower().strip().rstrip(':').strip()
+        if first_col not in ['date', 'თარიღი']:
+            raise ValueError(f"First column must be 'Date' or 'თარიღი', found: {headers[0]}")
         
         # Get existing dates from sheet
         print("\nFetching existing dates from sheet...")
