@@ -25,13 +25,16 @@ This script synchronizes NBG (National Bank of Georgia) exchange rates from your
    ```
 
 2. **Google Service Account**: 
-   - Your service account JSON file should be in the project root
-   - Current file: `client_secret_904189547818-lsif33dip9h7dq1i34p3htppq3018k2j.apps.googleusercontent.com.json`
+   - **You need a service account JSON file** (not OAuth client secret)
+   - See `docs/CREATE_SERVICE_ACCOUNT.md` for step-by-step instructions
+   - Download the service account JSON file to project root
+   - Recommended filename: `service-account-nbg.json`
 
 3. **Environment Variables**:
    - `REMOTE_DATABASE_URL`: Supabase database connection string
    - `SPREADSHEET_ID`: Google Sheets spreadsheet ID
    - `SHEET_NAME`: Name of the sheet tab (default: "NBG Rates")
+   - `SERVICE_ACCOUNT_FILE`: Path to service account JSON (default: "service-account-nbg.json")
 
 ## Google Sheets Setup
 

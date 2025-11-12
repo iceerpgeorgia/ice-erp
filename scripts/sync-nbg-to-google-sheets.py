@@ -11,10 +11,10 @@ from typing import List, Dict, Tuple, Optional
 # Configuration
 SPREADSHEET_ID = os.getenv('SPREADSHEET_ID', 'YOUR_SPREADSHEET_ID_HERE')
 SHEET_NAME = os.getenv('SHEET_NAME', 'NBG Rates')
+SERVICE_ACCOUNT_FILE = os.getenv('SERVICE_ACCOUNT_FILE', 'service-account-nbg.json')
 
 # Google Sheets API setup
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
-SERVICE_ACCOUNT_FILE = 'client_secret_904189547818-lsif33dip9h7dq1i34p3htppq3018k2j.apps.googleusercontent.com.json'
 
 # Currency mapping for NBG database
 CURRENCY_CODES = {
@@ -35,8 +35,8 @@ def get_database_connection():
     db_url = os.getenv("REMOTE_DATABASE_URL")
     if not db_url:
         raise ValueError("REMOTE_DATABASE_URL environment variable not set")
-    # Use direct connection
-    db_url = db_url.replace('?pgbouncer=true&connection_limit=1', '').replace(':6543/', ':5432/')
+    # Keep pooler port 6543, just remove pgbouncer parameter
+    db_url = db_url.replace('?pgbouncer=true&connection_limit=1', '')
     return psycopg2.connect(db_url)
 
 
