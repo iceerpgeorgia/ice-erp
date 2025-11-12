@@ -92,6 +92,26 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Trigger Google Sheets sync after successful DB update
+    let sheetsSyncResult = null;
+    try {
+      const sheetsResponse = await fetch(`${process.env.NEXTAUTH_URL}/api/cron/sync-to-sheets`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${process.env.CRON_SECRET}`
+        }
+      });
+      
+      if (sheetsResponse.ok) {
+        sheetsSyncResult = await sheetsResponse.json();
+      } else {
+        console.error("[exchange-rates/update] Sheets sync failed", await sheetsResponse.text());
+      }
+    } catch (sheetError: any) {
+      console.error("[exchange-rates/update] Sheets sync error", sheetError.message);
+      // Don't fail the whole request if sheets sync fails
+    }
+
     return NextResponse.json({
       success: true,
       date: result.date.toISOString().split('T')[0],
@@ -106,6 +126,7 @@ export async function POST(req: NextRequest) {
         aed: result.aedRate ? Number(result.aedRate) : null,
         kzt: result.kztRate ? Number(result.kztRate) : null,
       },
+      sheetsSync: sheetsSyncResult,
     });
   } catch (error: any) {
     console.error("[exchange-rates/update] POST error", error);
