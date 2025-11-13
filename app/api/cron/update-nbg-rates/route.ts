@@ -5,6 +5,9 @@ import { logAudit } from "@/lib/audit";
 const prisma = new PrismaClient();
 const NBG_API_URL = "https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json/";
 
+// Force dynamic rendering for cron endpoint
+export const dynamic = 'force-dynamic';
+
 // This endpoint will be called by Vercel Cron daily at 19:00 UTC (equivalent to Georgian time)
 export async function GET(req: NextRequest) {
   try {

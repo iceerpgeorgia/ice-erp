@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { execSync } from "child_process";
 import path from "path";
 
+// Force dynamic rendering for cron endpoint
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     // Verify the request is from Vercel Cron
