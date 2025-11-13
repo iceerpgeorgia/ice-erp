@@ -125,6 +125,37 @@ const getResponsiveClass = (responsive?: string) => {
   }
 };
 
+// Helper function to map API response to Counteragent with proper defaults
+const mapCounteragentData = (row: any): Counteragent => ({
+  id: row.id || row.ID,
+  createdAt: row.created_at || row.createdAt || '',
+  updatedAt: row.updated_at || row.updatedAt || '',
+  ts: row.ts || row.TS || '',
+  counteragentUuid: row.counteragent_uuid || row.counteragentUuid || '',
+  name: row.name || row.NAME || '',
+  identificationNumber: row.identification_number || row.identificationNumber || null,
+  birthOrIncorporationDate: row.birth_or_incorporation_date || row.birthOrIncorporationDate || null,
+  entityType: row.entity_type || row.entityType || null,
+  sex: row.sex || row.SEX || null,
+  pensionScheme: row.pension_scheme || row.pensionScheme || null,
+  country: row.country || row.COUNTRY || null,
+  addressLine1: row.address_line_1 || row.addressLine1 || null,
+  addressLine2: row.address_line_2 || row.addressLine2 || null,
+  zipCode: row.zip_code || row.zipCode || null,
+  iban: row.iban || row.IBAN || null,
+  swift: row.swift || row.SWIFT || null,
+  director: row.director || row.DIRECTOR || null,
+  directorId: row.director_id || row.directorId || null,
+  email: row.email || row.EMAIL || null,
+  phone: row.phone || row.PHONE || null,
+  orisId: row.oris_id || row.orisId || null,
+  counteragent: row.counteragent || row.COUNTERAGENT || null,
+  countryUuid: row.country_uuid || row.countryUuid || null,
+  entityTypeUuid: row.entity_type_uuid || row.entityTypeUuid || null,
+  internalNumber: row.internal_number || row.internalNumber || null,
+  isActive: row.is_active ?? row.isActive ?? true,
+});
+
 export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   const [entityTypes, setEntityTypes] = useState<Counteragent[]>(data ?? []);
   // Dropdown data
@@ -137,8 +168,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   const [needsBottomScroller, setNeedsBottomScroller] = useState(false);
   const [scrollContentWidth, setScrollContentWidth] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<ColumnKey | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortField, setSortField] = useState<ColumnKey | null>('createdAt');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -754,7 +785,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
         // Fetch fresh data from API to get all fields properly formatted
         const refreshResponse = await fetch('/api/counteragents');
         const refreshedData = await refreshResponse.json();
-        setEntityTypes(refreshedData);
+        const mappedData = refreshedData.map(mapCounteragentData);
+        setEntityTypes(mappedData);
         
         setIsAddDialogOpen(false);
       } catch (error) {
