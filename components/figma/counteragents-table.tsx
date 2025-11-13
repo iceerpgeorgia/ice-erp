@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { 
   Table, 
   TableBody, 
@@ -1283,16 +1284,15 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="add-country" className="text-right">Country *</Label>
                   <div className="col-span-3">
-                    <Select value={formData.country} onValueChange={handleCountryChange}>
-                      <SelectTrigger className={formErrors.country ? 'border-red-500' : ''}>
-                        <SelectValue placeholder="Select country" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {countriesList.map(c => (
-                          <SelectItem key={c.id} value={c.country}>{c.country}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={countriesList.map(c => ({ value: c.country, label: c.country }))}
+                      value={formData.country}
+                      onValueChange={handleCountryChange}
+                      placeholder="Select country"
+                      searchPlaceholder="Search countries..."
+                      emptyText="No country found."
+                      triggerClassName={formErrors.country ? 'border-red-500' : ''}
+                    />
                     {formErrors.country && <p className="text-xs text-red-500 mt-1">{formErrors.country}</p>}
                   </div>
                 </div>
@@ -1587,16 +1587,15 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="edit-country" className="text-right">Country *</Label>
                   <div className="col-span-3">
-                    <Select value={formData.country} onValueChange={handleCountryChange}>
-                      <SelectTrigger className={formErrors.country ? 'border-red-500' : ''}>
-                        <SelectValue placeholder="Select country" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {countriesList.map(c => (
-                          <SelectItem key={c.id} value={c.country}>{c.country}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={countriesList.map(c => ({ value: c.country, label: c.country }))}
+                      value={formData.country}
+                      onValueChange={handleCountryChange}
+                      placeholder="Select country"
+                      searchPlaceholder="Search countries..."
+                      emptyText="No country found."
+                      triggerClassName={formErrors.country ? 'border-red-500' : ''}
+                    />
                     {formErrors.country && <p className="text-xs text-red-500 mt-1">{formErrors.country}</p>}
                   </div>
                 </div>
