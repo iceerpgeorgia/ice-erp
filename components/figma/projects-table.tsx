@@ -707,22 +707,52 @@ export default function ProjectsTable() {
   };
 
   return (
-    <div className="w-full space-y-4">
+    <div className="p-6 space-y-6 bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Projects</h2>
-          <p className="text-muted-foreground">
-            Manage your projects and their details
-          </p>
+          <h1 className="text-2xl font-medium text-foreground">Projects</h1>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={startAdd}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Project
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Settings className="h-4 w-4 mr-2" />
+                Columns
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm">Column Visibility</h4>
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {columns.map(col => (
+                    <div key={String(col.key)} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={String(col.key)}
+                        checked={col.visible}
+                        onCheckedChange={(checked) => 
+                          handleColumnVisibility(col.key, checked as boolean)
+                        }
+                      />
+                      <label
+                        htmlFor={String(col.key)}
+                        className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        {col.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={startAdd}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Project
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Project</DialogTitle>
@@ -881,49 +911,17 @@ export default function ProjectsTable() {
         </Dialog>
       </div>
 
-      {/* Toolbar */}
+      {/* Search bar */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search projects..."
+            placeholder="ძებნა"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-8"
           />
         </div>
-        
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="icon">
-              <Settings className="h-4 w-4" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80" align="end">
-            <div className="space-y-4">
-              <h4 className="font-medium text-sm">Column Visibility</h4>
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {columns.map(col => (
-                  <div key={String(col.key)} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={String(col.key)}
-                      checked={col.visible}
-                      onCheckedChange={(checked) => 
-                        handleColumnVisibility(col.key, checked as boolean)
-                      }
-                    />
-                    <label
-                      htmlFor={String(col.key)}
-                      className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                    >
-                      {col.label}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
       </div>
 
       {/* Table */}
@@ -1255,43 +1253,48 @@ export default function ProjectsTable() {
       </Dialog>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-2">
         <div className="text-sm text-muted-foreground">
-          Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} projects
+          Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} records
         </div>
-        <div className="flex items-center gap-2">
-          <Select
-            value={pageSize.toString()}
-            onValueChange={(value) => setPageSize(Number(value))}
-          >
-            <SelectTrigger className="w-24">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {pageSizeOptions.map(size => (
-                <SelectItem key={size} value={size.toString()}>
-                  {size}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Rows per page</span>
+            <Select
+              value={pageSize.toString()}
+              onValueChange={(value) => setPageSize(Number(value))}
+            >
+              <SelectTrigger className="h-8 w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {pageSizeOptions.map(size => (
+                  <SelectItem key={size} value={size.toString()}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex items-center gap-1">
             <Button
               variant="outline"
-              size="icon"
+              size="sm"
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
+              className="h-8 w-8 p-0"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div className="text-sm px-4">
-              Page {currentPage} of {totalPages}
+            <div className="text-sm px-3">
+              {currentPage} of {totalPages}
             </div>
             <Button
               variant="outline"
-              size="icon"
+              size="sm"
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
+              className="h-8 w-8 p-0"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>

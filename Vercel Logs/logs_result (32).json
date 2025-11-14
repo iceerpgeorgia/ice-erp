@@ -1,0 +1,71 @@
+2025-11-13 19:50:10.577 [error] [exchange-rates] GET error PrismaClientInitializationError: 
+Invalid `prisma.nBGExchangeRate.findMany()` invocation:
+
+
+Can't reach database server at `aws-1-eu-west-1.pooler.supabase.com:5432`
+
+Please make sure your database server is running at `aws-1-eu-west-1.pooler.supabase.com:5432`.
+    at ei.handleRequestError (/var/task/node_modules/.pnpm/@prisma+client@6.16.2_prisma@6.16.2_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client/runtime/library.js:121:7568)
+    at ei.handleAndLogRequestError (/var/task/node_modules/.pnpm/@prisma+client@6.16.2_prisma@6.16.2_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client/runtime/library.js:121:6593)
+    at ei.request (/var/task/node_modules/.pnpm/@prisma+client@6.16.2_prisma@6.16.2_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client/runtime/library.js:121:6300)
+    at async a (/var/task/node_modules/.pnpm/@prisma+client@6.16.2_prisma@6.16.2_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client/runtime/library.js:130:9551)
+    at async g (/var/task/.next/server/app/api/exchange-rates/route.js:1:2674)
+    at async /var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
+    at async e_.execute (/var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
+    at async e_.handle (/var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
+    at async en (/var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/server.runtime.prod.js:16:25561)
+    at async ea.responseCache.get.routeKind (/var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/server.runtime.prod.js:17:1028) {
+  clientVersion: '6.16.2',
+  errorCode: undefined,
+  retryable: undefined
+}
+
+
+
+2025-11-13 19:50:06.571 [error] GET /counteragents/api failed: PrismaClientInitializationError: 
+Invalid `prisma.counteragent.findMany()` invocation:
+
+
+Can't reach database server at `aws-1-eu-west-1.pooler.supabase.com:5432`
+
+Please make sure your database server is running at `aws-1-eu-west-1.pooler.supabase.com:5432`.
+    at ei.handleRequestError (/var/task/node_modules/.pnpm/@prisma+client@6.16.2_prisma@6.16.2_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client/runtime/library.js:121:7568)
+    at ei.handleAndLogRequestError (/var/task/node_modules/.pnpm/@prisma+client@6.16.2_prisma@6.16.2_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client/runtime/library.js:121:6593)
+    at ei.request (/var/task/node_modules/.pnpm/@prisma+client@6.16.2_prisma@6.16.2_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client/runtime/library.js:121:6300)
+    at async a (/var/task/node_modules/.pnpm/@prisma+client@6.16.2_prisma@6.16.2_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client/runtime/library.js:130:9551)
+    at async p (/var/task/.next/server/app/api/counteragents/route.js:1:2223)
+    at async /var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
+    at async e_.execute (/var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
+    at async e_.handle (/var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
+    at async en (/var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/server.runtime.prod.js:16:25561)
+    at async ea.responseCache.get.routeKind (/var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/server.runtime.prod.js:17:1028) {
+  clientVersion: '6.16.2',
+  errorCode: undefined,
+  retryable: undefined
+}
+
+
+
+
+
+2025-11-13 19:49:09.229 [error] [exchange-rates] GET error PrismaClientInitializationError: 
+Invalid `prisma.nBGExchangeRate.findMany()` invocation:
+
+
+Can't reach database server at `aws-1-eu-west-1.pooler.supabase.com:5432`
+
+Please make sure your database server is running at `aws-1-eu-west-1.pooler.supabase.com:5432`.
+    at ei.handleRequestError (/var/task/node_modules/.pnpm/@prisma+client@6.16.2_prisma@6.16.2_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client/runtime/library.js:121:7568)
+    at ei.handleAndLogRequestError (/var/task/node_modules/.pnpm/@prisma+client@6.16.2_prisma@6.16.2_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client/runtime/library.js:121:6593)
+    at ei.request (/var/task/node_modules/.pnpm/@prisma+client@6.16.2_prisma@6.16.2_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client/runtime/library.js:121:6300)
+    at async a (/var/task/node_modules/.pnpm/@prisma+client@6.16.2_prisma@6.16.2_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client/runtime/library.js:130:9551)
+    at async g (/var/task/.next/server/app/api/exchange-rates/route.js:1:2674)
+    at async /var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
+    at async e_.execute (/var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
+    at async e_.handle (/var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
+    at async en (/var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/server.runtime.prod.js:16:25561)
+    at async ea.responseCache.get.routeKind (/var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/server.runtime.prod.js:17:1028) {
+  clientVersion: '6.16.2',
+  errorCode: undefined,
+  retryable: undefined
+}
