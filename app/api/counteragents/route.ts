@@ -40,6 +40,8 @@ function toApi(row: any) {
     counteragent_uuid: row.counteragent_uuid,
     internal_number: row.internal_number ?? null,
     is_active: row.is_active ?? true,
+    is_emploee: row.is_emploee ?? null,
+    was_emploee: row.was_emploee ?? null,
   };
 }
 
@@ -77,6 +79,8 @@ export async function GET() {
         counteragent_uuid: true,
         internal_number: true,
         is_active: true,
+        is_emploee: true,
+        was_emploee: true,
       },
     });
     return NextResponse.json(rows.map(toApi), { status: 200 });
@@ -116,6 +120,8 @@ export async function POST(req: NextRequest) {
         country_uuid: body.country_uuid ?? null,
         entity_type_uuid: body.entity_type_uuid ?? null,
         internal_number: body.internal_number ?? null,
+        is_emploee: body.is_emploee ?? null,
+        was_emploee: body.was_emploee ?? null,
       },
       select: {
         id: true,
@@ -146,6 +152,8 @@ export async function POST(req: NextRequest) {
         entity_type_uuid: true,
         counteragent_uuid: true,
         internal_number: true,
+        is_emploee: true,
+        was_emploee: true,
       },
     });
 
@@ -202,6 +210,8 @@ export async function PATCH(req: NextRequest) {
       entity_type_uuid: 'entity_type_uuid',
       internal_number: 'internal_number',
       is_active: 'is_active',
+      is_emploee: 'is_emploee',
+      was_emploee: 'was_emploee',
     };
 
     Object.entries(fieldMap).forEach(([dbField, bodyField]) => {
@@ -247,6 +257,8 @@ export async function PATCH(req: NextRequest) {
         entity_type_uuid: body.entity_type_uuid !== undefined ? body.entity_type_uuid : undefined,
         internal_number: body.internal_number !== undefined ? body.internal_number : undefined,
         is_active: body.is_active !== undefined ? body.is_active : undefined,
+        is_emploee: body.is_emploee !== undefined ? body.is_emploee : undefined,
+        was_emploee: body.was_emploee !== undefined ? body.was_emploee : undefined,
       },
       select: {
         id: true,
@@ -276,6 +288,8 @@ export async function PATCH(req: NextRequest) {
         counteragent_uuid: true,
         internal_number: true,
         is_active: true,
+        is_emploee: true,
+        was_emploee: true,
       },
     });
 
