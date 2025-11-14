@@ -662,7 +662,6 @@ export default function ProjectsTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[100px]">Actions</TableHead>
               {visibleColumns.map(col => (
                 <TableHead 
                   key={String(col.key)} 
@@ -680,6 +679,7 @@ export default function ProjectsTable() {
                   </div>
                 </TableHead>
               ))}
+              <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -698,24 +698,6 @@ export default function ProjectsTable() {
             ) : (
               filteredAndSortedData.map(project => (
                 <TableRow key={project.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => startEdit(project)}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(project)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
                   {visibleColumns.map(col => {
                     const key = col.key;
                     let value: any;
@@ -760,6 +742,24 @@ export default function ProjectsTable() {
                       </TableCell>
                     );
                   })}
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => startEdit(project)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(project)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))
             )}
