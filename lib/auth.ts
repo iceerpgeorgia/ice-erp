@@ -4,6 +4,9 @@ import GoogleProvider from "next-auth/providers/google";
 import type { NextAuthOptions } from "next-auth";
 import { prisma } from "@/lib/prisma";
 
+// Re-export prisma for backward compatibility
+export { prisma } from "@/lib/prisma";
+
 // Validate environment variables at module load
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
