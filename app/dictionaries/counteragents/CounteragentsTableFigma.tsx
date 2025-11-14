@@ -69,6 +69,8 @@ export default function CounteragentsTableFigma() {
           entityTypeUuid: row.entity_type_uuid || row.entityTypeUuid || null,
           internalNumber: row.internal_number || row.internalNumber || null,
           isActive: row.is_active ?? row.isActive ?? true,
+          isEmploye: row.is_emploee ?? row.isEmploye ?? null,
+          wasEmploye: row.was_emploee ?? row.wasEmploye ?? null,
         }));
 
         setCounteragents(mapped);
