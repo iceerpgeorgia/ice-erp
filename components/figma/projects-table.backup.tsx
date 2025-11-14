@@ -15,9 +15,7 @@ import {
   Settings,
   Eye,
   EyeOff,
-  Trash2,
-  ChevronLeft,
-  ChevronRight
+  Trash2
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -122,27 +120,7 @@ export default function ProjectsTable() {
     key: null,
     direction: 'asc'
   });
-  
-  // Load column settings from localStorage
-  const [columns, setColumns] = useState<ColumnConfig[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('projects-table-columns');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse saved columns:', e);
-        }
-      }
-    }
-    return defaultColumns;
-  });
-  
-  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
-  const [isResizing, setIsResizing] = useState<{ column: ColumnKey | 'employees'; startX: number; startWidth: number } | null>(null);
-  const [draggedColumn, setDraggedColumn] = useState<ColumnKey | 'employees' | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | 'employees' | null>(null);
-  
+  const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -159,17 +137,6 @@ export default function ProjectsTable() {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
-  const pageSizeOptions = [50, 100, 200, 500, 1000];
-
-  // Scroll refs for syncing
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const bottomScrollRef = useRef<HTMLDivElement>(null);
-  const [scrollContentWidth, setScrollContentWidth] = useState(0);
-  const [needsBottomScroller, setNeedsBottomScroller] = useState(false);
-
   // Fetch projects
   useEffect(() => {
     fetchProjects();
@@ -179,112 +146,6 @@ export default function ProjectsTable() {
   useEffect(() => {
     fetchLookupData();
   }, []);
-
-  // Save column settings to localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('projects-table-columns', JSON.stringify(columns));
-    }
-  }, [columns]);
-
-  // Measure scroll content width
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-
-    const measure = () => {
-      const sw = el.scrollWidth;
-      const cw = el.clientWidth;
-      const needs = sw > cw + 1;
-      setScrollContentWidth(sw);
-      setNeedsBottomScroller(needs);
-    };
-
-    measure();
-    const raf1 = requestAnimationFrame(measure);
-    const raf2 = requestAnimationFrame(measure);
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    window.addEventListener('resize', measure);
-    window.addEventListener('load', measure);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener('resize', measure);
-      window.removeEventListener('load', measure);
-      cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
-    };
-  }, [projects, columns]);
-
-  // Sync scroll positions
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const top = scrollRef.current;
-      const bottom = bottomScrollRef.current;
-      
-      if (!top || !bottom) return;
-
-      let isSyncing = false;
-      const syncFromTop = () => {
-        if (isSyncing) return;
-        isSyncing = true;
-        bottom.scrollLeft = top.scrollLeft;
-        isSyncing = false;
-      };
-      const syncFromBottom = () => {
-        if (isSyncing) return;
-        isSyncing = true;
-        top.scrollLeft = bottom.scrollLeft;
-        isSyncing = false;
-      };
-      
-      top.addEventListener('scroll', syncFromTop, { passive: true });
-      bottom.addEventListener('scroll', syncFromBottom, { passive: true });
-      bottom.scrollLeft = top.scrollLeft;
-      
-      return () => {
-        top.removeEventListener('scroll', syncFromTop);
-        bottom.removeEventListener('scroll', syncFromBottom);
-      };
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, [scrollContentWidth]);
-
-  // Mouse events for column resizing
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
-      
-      const diff = e.clientX - isResizing.startX;
-      const newWidth = Math.max(60, isResizing.startWidth + diff);
-      
-      setColumns(cols => cols.map(col => 
-        col.key === isResizing.column 
-          ? { ...col, width: newWidth }
-          : col
-      ));
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(null);
-    };
-
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    } else {
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing]);
 
   const fetchProjects = async () => {
     try {
@@ -322,6 +183,7 @@ export default function ProjectsTable() {
 
   const fetchLookupData = async () => {
     try {
+      // Fetch counteragents (only employees)
       const counteragentsRes = await fetch('/api/counteragents');
       const counteragentsData = await counteragentsRes.json();
       const employees = counteragentsData
@@ -332,19 +194,22 @@ export default function ProjectsTable() {
           internalNumber: c.internal_number
         }));
 
+      // All counteragents for project counteragent selection
       const allCounteragents = counteragentsData.map((c: any) => ({
         uuid: c.counteragent_uuid,
         name: c.name || 'Unnamed',
         internalNumber: c.internal_number
       }));
 
+      // Fetch financial codes
       const financialCodesRes = await fetch('/api/financial-codes');
       const financialCodesData = await financialCodesRes.json();
       const financialCodes = financialCodesData.map((fc: any) => ({
-        uuid: fc.financial_code_uuid || fc.uuid,
+        uuid: fc.financial_code_uuid,
         code: fc.code
       }));
 
+      // Fetch currencies
       const currenciesRes = await fetch('/api/currencies');
       const currenciesData = await currenciesRes.json();
       const currencies = currenciesData.map((c: any) => ({
@@ -352,6 +217,7 @@ export default function ProjectsTable() {
         code: c.code
       }));
 
+      // Fetch states
       const statesRes = await fetch('/api/project-states');
       const statesData = await statesRes.json();
       const states = statesData.map((s: any) => ({
@@ -382,46 +248,6 @@ export default function ProjectsTable() {
     setColumns(prev => prev.map(col => 
       col.key === key ? { ...col, visible } : col
     ));
-  };
-
-  const handleDragStart = (e: React.DragEvent, columnKey: ColumnKey | 'employees') => {
-    setDraggedColumn(columnKey);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent, columnKey: ColumnKey | 'employees') => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (draggedColumn && draggedColumn !== columnKey) {
-      setDragOverColumn(columnKey);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent, targetColumnKey: ColumnKey | 'employees') => {
-    e.preventDefault();
-    
-    if (!draggedColumn || draggedColumn === targetColumnKey) {
-      setDragOverColumn(null);
-      return;
-    }
-
-    setColumns(cols => {
-      const newCols = [...cols];
-      const draggedIndex = newCols.findIndex(col => col.key === draggedColumn);
-      const targetIndex = newCols.findIndex(col => col.key === targetColumnKey);
-      
-      const [removed] = newCols.splice(draggedIndex, 1);
-      newCols.splice(targetIndex, 0, removed);
-      
-      return newCols;
-    });
-    
-    setDragOverColumn(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedColumn(null);
-    setDragOverColumn(null);
   };
 
   const resetForm = () => {
@@ -563,11 +389,11 @@ export default function ProjectsTable() {
     }
   };
 
-  // Filtered data
-  const filteredProjects = useMemo(() => {
+  // Filtered and sorted data
+  const filteredAndSortedData = useMemo(() => {
     let result = [...projects];
 
-    // Apply search filter
+    // Filter
     if (searchTerm) {
       result = result.filter(project => 
         project.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -578,50 +404,23 @@ export default function ProjectsTable() {
       );
     }
 
-    // Apply column filters
-    Object.entries(columnFilters).forEach(([column, values]) => {
-      if (values.length > 0) {
-        result = result.filter(project => {
-          const value = String(project[column as keyof Project] || '');
-          return values.includes(value);
-        });
-      }
-    });
+    // Sort
+    if (sortConfig.key) {
+      result.sort((a, b) => {
+        const aValue = a[sortConfig.key as ColumnKey];
+        const bValue = b[sortConfig.key as ColumnKey];
+        
+        if (aValue === null || aValue === undefined) return 1;
+        if (bValue === null || bValue === undefined) return -1;
+        
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
 
     return result;
-  }, [projects, searchTerm, columnFilters]);
-
-  // Sorted data
-  const sortedProjects = useMemo(() => {
-    if (!sortConfig.key) return filteredProjects;
-
-    return [...filteredProjects].sort((a, b) => {
-      const aValue = a[sortConfig.key as ColumnKey];
-      const bValue = b[sortConfig.key as ColumnKey];
-      
-      if (aValue === null || aValue === undefined) return 1;
-      if (bValue === null || bValue === undefined) return -1;
-      
-      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [filteredProjects, sortConfig]);
-
-  // Pagination
-  const totalRecords = sortedProjects.length;
-  const totalPages = Math.ceil(totalRecords / pageSize);
-  
-  const paginatedProjects = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return sortedProjects.slice(startIndex, endIndex);
-  }, [sortedProjects, currentPage, pageSize]);
-
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, columnFilters, pageSize]);
+  }, [projects, searchTerm, sortConfig]);
 
   const visibleColumns = columns.filter(col => col.visible);
 
@@ -636,74 +435,6 @@ export default function ProjectsTable() {
       maximumFractionDigits: 2
     }).format(value);
     return currency ? `${formatted} ${currency}` : formatted;
-  };
-
-  // Get unique values for filters
-  const getUniqueValues = (column: ColumnKey) => {
-    const values = projects.map(p => String(p[column] || ''));
-    return [...new Set(values)].filter(v => v).sort();
-  };
-
-  const FilterPopover = ({ column }: { column: ColumnConfig }) => {
-    const uniqueValues = getUniqueValues(column.key as ColumnKey);
-    const selectedValues = columnFilters[String(column.key)] || [];
-
-    return (
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-6 w-6 p-0 ${selectedValues.length > 0 ? 'text-blue-600' : ''}`}
-          >
-            <Filter className="h-3 w-3" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-64" align="start">
-          <div className="space-y-2">
-            <h4 className="font-medium text-sm">Filter {column.label}</h4>
-            <div className="max-h-80 overflow-y-auto space-y-2">
-              {uniqueValues.map(value => (
-                <div key={value} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`${column.key}-${value}`}
-                    checked={selectedValues.includes(value)}
-                    onCheckedChange={(checked) => {
-                      setColumnFilters({
-                        ...columnFilters,
-                        [column.key]: checked
-                          ? [...selectedValues, value]
-                          : selectedValues.filter(v => v !== value)
-                      });
-                    }}
-                  />
-                  <label
-                    htmlFor={`${column.key}-${value}`}
-                    className="text-sm cursor-pointer flex-1"
-                  >
-                    {value}
-                  </label>
-                </div>
-              ))}
-            </div>
-            {selectedValues.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={() => {
-                  const newFilters = { ...columnFilters };
-                  delete newFilters[String(column.key)];
-                  setColumnFilters(newFilters);
-                }}
-              >
-                Clear
-              </Button>
-            )}
-          </div>
-        </PopoverContent>
-      </Popover>
-    );
   };
 
   return (
@@ -928,159 +659,113 @@ export default function ProjectsTable() {
 
       {/* Table */}
       <div className="rounded-md border">
-        <div 
-          ref={scrollRef}
-          className="overflow-x-auto"
-          style={{ overflowX: 'auto' }}
-        >
-          <Table>
-            <TableHeader>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {visibleColumns.map(col => (
+                <TableHead 
+                  key={String(col.key)} 
+                  style={{ width: col.width }}
+                  className={col.sortable ? 'cursor-pointer select-none hover:bg-muted' : ''}
+                  onClick={() => col.sortable && col.key !== 'employees' && handleSort(col.key as ColumnKey)}
+                >
+                  <div className="flex items-center gap-2">
+                    {col.label}
+                    {col.sortable && sortConfig.key === col.key && (
+                      sortConfig.direction === 'asc' ? 
+                        <ArrowUp className="h-4 w-4" /> : 
+                        <ArrowDown className="h-4 w-4" />
+                    )}
+                  </div>
+                </TableHead>
+              ))}
+              <TableHead className="w-[100px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
               <TableRow>
-                {visibleColumns.map(column => (
-                  <TableHead
-                    key={String(column.key)}
-                    style={{ width: column.width, minWidth: column.width }}
-                    className={`relative ${dragOverColumn === column.key ? 'bg-blue-50' : ''}`}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, column.key)}
-                    onDragOver={(e) => handleDragOver(e, column.key)}
-                    onDrop={(e) => handleDrop(e, column.key)}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className={`flex-1 flex items-center gap-1 ${column.sortable ? 'cursor-pointer select-none hover:bg-muted' : ''}`}
-                        onClick={() => column.sortable && column.key !== 'employees' && handleSort(column.key as ColumnKey)}
-                      >
-                        <span>{column.label}</span>
-                        {column.sortable && sortConfig.key === column.key && (
-                          sortConfig.direction === 'asc' ? 
-                            <ArrowUp className="h-4 w-4" /> : 
-                            <ArrowDown className="h-4 w-4" />
-                        )}
-                      </div>
-                      {column.filterable && column.key !== 'employees' && (
-                        <FilterPopover column={column} />
-                      )}
-                      <div
-                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          setIsResizing({
-                            column: column.key,
-                            startX: e.clientX,
-                            startWidth: column.width
-                          });
-                        }}
-                      />
-                    </div>
-                  </TableHead>
-                ))}
-                <TableHead className="w-[100px]">Actions</TableHead>
+                <TableCell colSpan={visibleColumns.length + 1} className="text-center py-8">
+                  Loading projects...
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={visibleColumns.length + 1} className="text-center py-8">
-                    Loading projects...
-                  </TableCell>
-                </TableRow>
-              ) : paginatedProjects.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={visibleColumns.length + 1} className="text-center py-8">
-                    No projects found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginatedProjects.map(project => (
-                  <TableRow key={project.id}>
-                    {visibleColumns.map(col => {
-                      const key = col.key;
-                      let value: any;
+            ) : filteredAndSortedData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={visibleColumns.length + 1} className="text-center py-8">
+                  No projects found
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredAndSortedData.map(project => (
+                <TableRow key={project.id}>
+                  {visibleColumns.map(col => {
+                    const key = col.key;
+                    let value: any;
 
-                      if (key === 'employees') {
-                        value = project.employees && project.employees.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {project.employees.map(emp => (
-                              <Badge key={emp.employeeUuid} variant="secondary" className="text-xs">
-                                {emp.employeeName}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        );
-                      } else if (key === 'date') {
-                        value = formatDate(project.date);
-                      } else if (key === 'value') {
-                        value = formatValue(project.value, project.currency);
-                      } else if (key === 'state') {
-                        value = project.state ? (
-                          <Badge variant={
-                            project.state === 'Active' || project.state === 'მიმდინარე' ? 'default' :
-                            project.state === 'Completed' || project.state === 'დახურული' ? 'secondary' :
-                            project.state === 'Cancelled' || project.state === 'გაუქმებული' ? 'destructive' :
-                            'outline'
-                          }>
-                            {project.state}
-                          </Badge>
-                        ) : '-';
-                      } else {
-                        value = project[key as keyof Project];
-                        if (value === null || value === undefined || value === '') {
-                          value = <span className="text-muted-foreground">-</span>;
-                        }
-                      }
-
-                      return (
-                        <TableCell key={String(key)} style={{ minWidth: col.width }}>
-                          {value}
-                        </TableCell>
+                    if (key === 'employees') {
+                      value = project.employees && project.employees.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {project.employees.map(emp => (
+                            <Badge key={emp.employeeUuid} variant="secondary" className="text-xs">
+                              {emp.employeeName}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
                       );
-                    })}
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => startEdit(project)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(project)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+                    } else if (key === 'date') {
+                      value = formatDate(project.date);
+                    } else if (key === 'value') {
+                      value = formatValue(project.value, project.currency);
+                    } else if (key === 'state') {
+                      value = project.state ? (
+                        <Badge variant={
+                          project.state === 'Active' || project.state === 'მიმდინარე' ? 'default' :
+                          project.state === 'Completed' || project.state === 'დახურული' ? 'secondary' :
+                          project.state === 'Cancelled' || project.state === 'გაუქმებული' ? 'destructive' :
+                          'outline'
+                        }>
+                          {project.state}
+                        </Badge>
+                      ) : '-';
+                    } else {
+                      value = project[key as keyof Project];
+                      if (value === null || value === undefined || value === '') {
+                        value = <span className="text-muted-foreground">-</span>;
+                      }
+                    }
 
-      {/* Bottom scroller */}
-      {needsBottomScroller && typeof window !== 'undefined' && createPortal(
-        <div 
-          className="fixed bottom-0 left-0 right-0 overflow-x-auto bg-gray-100 border-t"
-          style={{ height: '12px', zIndex: 40 }}
-        >
-          <div 
-            ref={bottomScrollRef}
-            className="overflow-x-scroll"
-            style={{ height: '100%', overflowY: 'hidden' }}
-          >
-            <div style={{ width: scrollContentWidth, height: '1px' }} />
-          </div>
-        </div>,
-        document.body
-      )}
+                    return (
+                      <TableCell key={String(key)}>
+                        {value}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => startEdit(project)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(project)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -1254,48 +939,10 @@ export default function ProjectsTable() {
         </DialogContent>
       </Dialog>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} projects
-        </div>
-        <div className="flex items-center gap-2">
-          <Select
-            value={pageSize.toString()}
-            onValueChange={(value) => setPageSize(Number(value))}
-          >
-            <SelectTrigger className="w-24">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {pageSizeOptions.map(size => (
-                <SelectItem key={size} value={size.toString()}>
-                  {size}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="text-sm px-4">
-              Page {currentPage} of {totalPages}
-            </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+      {/* Stats */}
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <div>
+          Showing {filteredAndSortedData.length} of {projects.length} projects
         </div>
       </div>
     </div>
