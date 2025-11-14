@@ -753,7 +753,7 @@ export default function ProjectsTable() {
                 Add Project
               </Button>
             </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Project</DialogTitle>
               <DialogDescription>
@@ -909,6 +909,7 @@ export default function ProjectsTable() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Search bar */}
