@@ -101,10 +101,9 @@ export async function POST(req: NextRequest) {
         birth_or_incorporation_date: body.birth_or_incorporation_date
           ? new Date(body.birth_or_incorporation_date)
           : null,
-        entity_type: body.entity_type ?? null,
         sex: body.sex ?? null,
         pension_scheme: body.pension_scheme ?? null,
-        country: body.country ?? null,
+        // Don't set entity_type or country - they are auto-populated by trigger from UUIDs
         address_line_1: body.address_line_1 ?? null,
         address_line_2: body.address_line_2 ?? null,
         zip_code: body.zip_code ?? null,
@@ -116,7 +115,7 @@ export async function POST(req: NextRequest) {
         phone: body.phone ?? null,
         oris_id: body.oris_id ?? null,
 
-        counteragent: body.counteragent ?? null,
+        // Only set UUIDs - triggers will populate the name fields
         country_uuid: body.country_uuid ?? null,
         entity_type_uuid: body.entity_type_uuid ?? null,
         internal_number: body.internal_number ?? null,
@@ -187,14 +186,14 @@ export async function PATCH(req: NextRequest) {
     // Build changes object for audit
     const changes: Record<string, { from: any; to: any }> = {};
     
+    // Track changes only for fields we actually update
+    // Note: entity_type, country, counteragent are auto-populated by triggers from UUIDs
     const fieldMap: Record<string, keyof typeof body> = {
       name: 'name',
       identification_number: 'identification_number',
       birth_or_incorporation_date: 'birth_or_incorporation_date',
-      entity_type: 'entity_type',
       sex: 'sex',
       pension_scheme: 'pension_scheme',
-      country: 'country',
       address_line_1: 'address_line_1',
       address_line_2: 'address_line_2',
       zip_code: 'zip_code',
@@ -205,7 +204,6 @@ export async function PATCH(req: NextRequest) {
       email: 'email',
       phone: 'phone',
       oris_id: 'oris_id',
-      counteragent: 'counteragent',
       country_uuid: 'country_uuid',
       entity_type_uuid: 'entity_type_uuid',
       internal_number: 'internal_number',
@@ -229,6 +227,20 @@ export async function PATCH(req: NextRequest) {
       }
     });
 
+    // Add human-readable labels for UUID changes
+    if (changes.country_uuid) {
+      changes.country_uuid_label = {
+        from: existing.country || 'N/A',
+        to: body.country || 'N/A'
+      };
+    }
+    if (changes.entity_type_uuid) {
+      changes.entity_type_uuid_label = {
+        from: existing.entity_type || 'N/A',
+        to: body.entity_type || 'N/A'
+      };
+    }
+
     // Update the record
     const updated = await prisma.counteragent.update({
       where: { id: BigInt(id) },
@@ -238,10 +250,9 @@ export async function PATCH(req: NextRequest) {
         birth_or_incorporation_date: body.birth_or_incorporation_date !== undefined 
           ? (body.birth_or_incorporation_date ? new Date(body.birth_or_incorporation_date) : null) 
           : undefined,
-        entity_type: body.entity_type !== undefined ? body.entity_type : undefined,
         sex: body.sex !== undefined ? body.sex : undefined,
         pension_scheme: body.pension_scheme !== undefined ? body.pension_scheme : undefined,
-        country: body.country !== undefined ? body.country : undefined,
+        // Don't update entity_type or country - they are auto-populated by trigger from UUIDs
         address_line_1: body.address_line_1 !== undefined ? body.address_line_1 : undefined,
         address_line_2: body.address_line_2 !== undefined ? body.address_line_2 : undefined,
         zip_code: body.zip_code !== undefined ? body.zip_code : undefined,
@@ -252,7 +263,7 @@ export async function PATCH(req: NextRequest) {
         email: body.email !== undefined ? body.email : undefined,
         phone: body.phone !== undefined ? body.phone : undefined,
         oris_id: body.oris_id !== undefined ? body.oris_id : undefined,
-        counteragent: body.counteragent !== undefined ? body.counteragent : undefined,
+        // Only update UUIDs - triggers will populate the name fields
         country_uuid: body.country_uuid !== undefined ? body.country_uuid : undefined,
         entity_type_uuid: body.entity_type_uuid !== undefined ? body.entity_type_uuid : undefined,
         internal_number: body.internal_number !== undefined ? body.internal_number : undefined,
