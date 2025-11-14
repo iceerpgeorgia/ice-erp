@@ -693,8 +693,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
             email: formData.email || null,
             phone: formData.phone || null,
             oris_id: formData.orisId || null,
-            country_uuid: formData.countryUuid || null,
-            entity_type_uuid: formData.entityTypeUuid || null,
+            country_uuid: formData.countryUuid ? formData.countryUuid : null,
+            entity_type_uuid: formData.entityTypeUuid ? formData.entityTypeUuid : null,
             is_active: formData.isActive,
             is_emploee: formData.isEmploye || false,
             was_emploee: formData.wasEmploye || false
@@ -779,8 +779,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
             email: formData.email || null,
             phone: formData.phone || null,
             oris_id: formData.orisId || null,
-            country_uuid: formData.countryUuid || null,
-            entity_type_uuid: formData.entityTypeUuid || null,
+            country_uuid: formData.countryUuid ? formData.countryUuid : null,
+            entity_type_uuid: formData.entityTypeUuid ? formData.entityTypeUuid : null,
             is_active: formData.isActive,
             is_emploee: formData.isEmploye || false,
             was_emploee: formData.wasEmploye || false
