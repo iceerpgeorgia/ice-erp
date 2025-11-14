@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
-
-const prisma = new PrismaClient();
 
 // PUT update project
 export async function PUT(

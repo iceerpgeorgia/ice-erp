@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
-
-const prisma = new PrismaClient();
 
 // GET all projects or filter by query params
 export async function GET(req: NextRequest) {

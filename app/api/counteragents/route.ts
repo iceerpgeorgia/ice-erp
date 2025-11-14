@@ -1,10 +1,9 @@
 // app/dictionaries/counteragents/api/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 
 export const revalidate = 0;
-const prisma = new PrismaClient();
 
 // Map Prisma (camelCase) to snake_case JSON keys your UI expects
 function toApi(row: any) {
