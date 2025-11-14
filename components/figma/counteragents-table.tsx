@@ -758,33 +758,42 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     } else {
       // Add new via API
       try {
+        const payload = {
+          name: formData.name,
+          identification_number: formData.identificationNumber || null,
+          birth_or_incorporation_date: formData.birthOrIncorporationDate || null,
+          entity_type: formData.entityType || null,
+          sex: formData.sex || null,
+          pension_scheme: formData.pensionScheme,
+          country: formData.country || null,
+          address_line_1: formData.addressLine1 || null,
+          address_line_2: formData.addressLine2 || null,
+          zip_code: formData.zipCode || null,
+          iban: formData.iban || null,
+          swift: formData.swift || null,
+          director: formData.director || null,
+          director_id: formData.directorId || null,
+          email: formData.email || null,
+          phone: formData.phone || null,
+          oris_id: formData.orisId || null,
+          country_uuid: formData.countryUuid ? formData.countryUuid : null,
+          entity_type_uuid: formData.entityTypeUuid ? formData.entityTypeUuid : null,
+          is_active: formData.isActive,
+          is_emploee: formData.isEmploye || false,
+          was_emploee: formData.wasEmploye || false
+        };
+        
+        console.log('[Frontend POST] Sending payload:', {
+          country_uuid: payload.country_uuid,
+          entity_type_uuid: payload.entity_type_uuid,
+          countryUuid_from_formData: formData.countryUuid,
+          entityTypeUuid_from_formData: formData.entityTypeUuid
+        });
+        
         const response = await fetch('/api/counteragents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: formData.name,
-            identification_number: formData.identificationNumber || null,
-            birth_or_incorporation_date: formData.birthOrIncorporationDate || null,
-            entity_type: formData.entityType || null,
-            sex: formData.sex || null,
-            pension_scheme: formData.pensionScheme,
-            country: formData.country || null,
-            address_line_1: formData.addressLine1 || null,
-            address_line_2: formData.addressLine2 || null,
-            zip_code: formData.zipCode || null,
-            iban: formData.iban || null,
-            swift: formData.swift || null,
-            director: formData.director || null,
-            director_id: formData.directorId || null,
-            email: formData.email || null,
-            phone: formData.phone || null,
-            oris_id: formData.orisId || null,
-            country_uuid: formData.countryUuid ? formData.countryUuid : null,
-            entity_type_uuid: formData.entityTypeUuid ? formData.entityTypeUuid : null,
-            is_active: formData.isActive,
-            is_emploee: formData.isEmploye || false,
-            was_emploee: formData.wasEmploye || false
-          })
+          body: JSON.stringify(payload)
         });
         
         if (!response.ok) {
