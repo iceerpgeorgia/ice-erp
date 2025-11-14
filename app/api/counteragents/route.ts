@@ -117,10 +117,23 @@ export async function POST(req: NextRequest) {
         // Only set UUIDs - triggers will populate the name fields
         country_uuid: body.country_uuid ?? null,
         entity_type_uuid: body.entity_type_uuid ?? null,
-        internal_number: body.internal_number ?? null,
         is_emploee: body.is_emploee ?? null,
         was_emploee: body.was_emploee ?? null,
       },
+      select: {
+        id: true,
+      },
+    });
+
+    // Auto-generate internal_number based on ID (format: ICE00001, ICE00002, etc.)
+    const idStr = created.id.toString();
+    const zeros = '0'.repeat(Math.max(0, 4 - idStr.length));
+    const internalNumber = `ICE${zeros}${idStr}`;
+
+    // Update the record with internal_number and fetch complete data
+    const updated = await prisma.counteragent.update({
+      where: { id: created.id },
+      data: { internal_number: internalNumber },
       select: {
         id: true,
         createdAt: true,
@@ -155,7 +168,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(toApi(created), { status: 201 });
+    // Log audit for the creation
+    await logAudit({
+      table: "counteragents",
+      recordId: updated.id,
+      action: "create",
+    });
+
+    return NextResponse.json(toApi(updated), { status: 201 });
   } catch (err: any) {
     console.error("POST /counteragents/api failed:", err);
     return NextResponse.json({ error: err.message ?? "Server error" }, { status: 500 });
