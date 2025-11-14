@@ -38,6 +38,11 @@ export default function DictionariesIndex() {
               Financial Codes
             </Link>
           </li>
+          <li>
+            <Link className="text-blue-600 hover:underline" href="/admin/projects">
+              Projects
+            </Link>
+          </li>
         </ul>
       </div>
     </div>
