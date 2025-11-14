@@ -70,6 +70,8 @@ export type Counteragent = {
   entityTypeUuid: string | null;
   internalNumber: string | null;
   isActive: boolean;
+  isEmploye: boolean | null;
+  wasEmploye: boolean | null;
 };
 
 type ColumnKey = keyof Counteragent;
@@ -111,7 +113,9 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'countryUuid', label: 'Country UUID', width: 200, visible: false, sortable: true, filterable: true },
   { key: 'entityTypeUuid', label: 'Entity Type UUID', width: 200, visible: false, sortable: true, filterable: true },
   { key: 'internalNumber', label: 'Internal #', width: 120, visible: false, sortable: true, filterable: true },
-  { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true }
+  { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true },
+  { key: 'isEmploye', label: 'Is Employee', width: 120, visible: true, sortable: true, filterable: true },
+  { key: 'wasEmploye', label: 'Was Employee', width: 130, visible: false, sortable: true, filterable: true }
 ];
 
 // Helper function to get responsive classes
@@ -154,6 +158,8 @@ const mapCounteragentData = (row: any): Counteragent => ({
   entityTypeUuid: row.entity_type_uuid || row.entityTypeUuid || null,
   internalNumber: row.internal_number || row.internalNumber || null,
   isActive: row.is_active ?? row.isActive ?? true,
+  isEmploye: row.is_emploee ?? row.isEmploye ?? null,
+  wasEmploye: row.was_emploee ?? row.wasEmploye ?? null,
 });
 
 export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
@@ -220,6 +226,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     phone: '',
     orisId: '',
     isActive: true,
+    isEmploye: false,
+    wasEmploye: false,
   });
   
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -687,7 +695,9 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
             oris_id: formData.orisId || null,
             country_uuid: formData.countryUuid || null,
             entity_type_uuid: formData.entityTypeUuid || null,
-            is_active: formData.isActive
+            is_active: formData.isActive,
+            is_emploee: formData.isEmploye || false,
+            was_emploee: formData.wasEmploye || false
           })
         });
         
@@ -729,6 +739,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
           entityTypeUuid: updated.entity_type_uuid,
           internalNumber: updated.internal_number,
           isActive: updated.is_active,
+          isEmploye: updated.is_emploee || false,
+          wasEmploye: updated.was_emploee || false,
         };
         
         // Update local state with transformed response
@@ -769,7 +781,9 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
             oris_id: formData.orisId || null,
             country_uuid: formData.countryUuid || null,
             entity_type_uuid: formData.entityTypeUuid || null,
-            is_active: formData.isActive
+            is_active: formData.isActive,
+            is_emploee: formData.isEmploye || false,
+            was_emploee: formData.wasEmploye || false
           })
         });
         
@@ -821,6 +835,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
       phone: '',
       orisId: '',
       isActive: true,
+      isEmploye: false,
+      wasEmploye: false,
     });
     setFormErrors({});
   };
@@ -858,6 +874,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
       phone: counteragent.phone || '',
       orisId: counteragent.orisId || '',
       isActive: counteragent.isActive ?? true,
+      isEmploye: counteragent.isEmploye ?? false,
+      wasEmploye: counteragent.wasEmploye ?? false,
     });
     setFormErrors({});
     setIsEditDialogOpen(true);
@@ -1471,6 +1489,40 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                     </div>
                   </div>
                 </div>
+
+                {/* Is Employee */}
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="add-isEmploye" className="text-right">Is Employee</Label>
+                  <div className="col-span-3">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="add-isEmploye"
+                        checked={formData.isEmploye || false}
+                        onCheckedChange={(checked) => setFormData({...formData, isEmploye: checked})}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {formData.isEmploye ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Was Employee */}
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="add-wasEmploye" className="text-right">Was Employee</Label>
+                  <div className="col-span-3">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="add-wasEmploye"
+                        checked={formData.wasEmploye || false}
+                        onCheckedChange={(checked) => setFormData({...formData, wasEmploye: checked})}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {formData.wasEmploye ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
@@ -1774,6 +1826,40 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                     </div>
                   </div>
                 </div>
+
+                {/* Is Employee */}
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-isEmploye" className="text-right">Is Employee</Label>
+                  <div className="col-span-3">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="edit-isEmploye"
+                        checked={formData.isEmploye || false}
+                        onCheckedChange={(checked) => setFormData({...formData, isEmploye: checked})}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {formData.isEmploye ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Was Employee */}
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-wasEmploye" className="text-right">Was Employee</Label>
+                  <div className="col-span-3">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="edit-wasEmploye"
+                        checked={formData.wasEmploye || false}
+                        onCheckedChange={(checked) => setFormData({...formData, wasEmploye: checked})}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {formData.wasEmploye ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={cancelEdit}>Cancel</Button>
@@ -2059,6 +2145,14 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                           <span className="text-sm">{counteragent.entityTypeUuid || '-'}</span>
                         ) : column.key === 'internalNumber' ? (
                           <span className="text-sm">{counteragent.internalNumber || '-'}</span>
+                        ) : column.key === 'isEmploye' ? (
+                          <Badge variant={counteragent.isEmploye ? "default" : "secondary"} className="text-xs">
+                            {counteragent.isEmploye ? 'Yes' : 'No'}
+                          </Badge>
+                        ) : column.key === 'wasEmploye' ? (
+                          <Badge variant={counteragent.wasEmploye ? "default" : "secondary"} className="text-xs">
+                            {counteragent.wasEmploye ? 'Yes' : 'No'}
+                          </Badge>
                         ) : (
                           <span className="text-sm">-</span>
                         )}
