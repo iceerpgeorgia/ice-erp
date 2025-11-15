@@ -681,10 +681,9 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
             name: formData.name,
             identification_number: formData.identificationNumber || null,
             birth_or_incorporation_date: formData.birthOrIncorporationDate || null,
-            entity_type: formData.entityType || null,
             sex: formData.sex || null,
             pension_scheme: formData.pensionScheme,
-            country: formData.country || null,
+            // Don't send country/entity_type - let trigger populate from UUIDs
             address_line_1: formData.addressLine1 || null,
             address_line_2: formData.addressLine2 || null,
             zip_code: formData.zipCode || null,
@@ -767,10 +766,9 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
             name: formData.name,
             identification_number: formData.identificationNumber || null,
             birth_or_incorporation_date: formData.birthOrIncorporationDate || null,
-            entity_type: formData.entityType || null,
             sex: formData.sex || null,
             pension_scheme: formData.pensionScheme,
-            country: formData.country || null,
+            // Don't send country/entity_type - let trigger populate from UUIDs
             address_line_1: formData.addressLine1 || null,
             address_line_2: formData.addressLine2 || null,
             zip_code: formData.zipCode || null,
