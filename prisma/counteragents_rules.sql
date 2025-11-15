@@ -30,6 +30,47 @@ BEGIN
   END IF;
 END$$;
 
+-- Populate country and entity_type from UUIDs
+CREATE OR REPLACE FUNCTION public.counteragents_populate_names()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Populate country from country_uuid
+  IF NEW.country_uuid IS NOT NULL THEN
+    SELECT c.name_ka INTO NEW.country
+    FROM public.countries c
+    WHERE c.country_uuid::text = NEW.country_uuid;
+  ELSE
+    NEW.country := NULL;
+  END IF;
+
+  -- Populate entity_type from entity_type_uuid
+  IF NEW.entity_type_uuid IS NOT NULL THEN
+    SELECT et.name_ka INTO NEW.entity_type
+    FROM public.entity_types et
+    WHERE et.entity_type_uuid = NEW.entity_type_uuid;
+  ELSE
+    NEW.entity_type := NULL;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname='trg_counteragents_populate_names') THEN
+    DROP TRIGGER trg_counteragents_populate_names ON public.counteragents;
+  END IF;
+
+  CREATE TRIGGER trg_counteragents_populate_names
+  BEFORE INSERT OR UPDATE OF country_uuid, entity_type_uuid
+  ON public.counteragents
+  FOR EACH ROW
+  EXECUTE FUNCTION public.counteragents_populate_names();
+END$$;
+
 -- Derived label "counteragent" = name + (ს.კ. id_or_internal - entity_type.name_ka)
 CREATE OR REPLACE FUNCTION public.counteragents_set_label()
 RETURNS trigger
