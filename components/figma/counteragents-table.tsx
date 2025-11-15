@@ -678,6 +678,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     if (editingEntityType) {
       // Update existing via API
       try {
+        console.log('[Edit] Submitting with countryUuid:', formData.countryUuid, 'country:', formData.country);
         const response = await fetch(`/api/counteragents?id=${editingEntityType.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -847,6 +848,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   };
 
   const startEdit = (counteragent: Counteragent) => {
+    console.log('[startEdit] Opening edit for:', counteragent.name, 'country:', counteragent.country, 'countryUuid:', counteragent.countryUuid);
     setEditingEntityType(counteragent);
     // Format date to YYYY-MM-DD for input[type="date"]
     const formatDateForInput = (dateStr: string | null) => {
@@ -882,6 +884,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
       isEmploye: counteragent.isEmploye ?? false,
       wasEmploye: counteragent.wasEmploye ?? false,
     });
+    console.log('[startEdit] Set formData.countryUuid:', counteragent.countryUuid || '');
     setFormErrors({});
     setIsEditDialogOpen(true);
   };
