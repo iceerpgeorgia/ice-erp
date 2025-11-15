@@ -92,13 +92,6 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    
-    // Debug logging
-    console.log('[POST /api/counteragents] Received body:', {
-      country_uuid: body.country_uuid,
-      entity_type_uuid: body.entity_type_uuid,
-      name: body.name
-    });
 
     const created = await prisma.counteragent.create({
       data: {
@@ -132,14 +125,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log('[POST /api/counteragents] Created record with ID:', created.id);
-
     // Auto-generate internal_number based on ID (format: ICE00001, ICE00002, etc.)
     const idStr = created.id.toString();
     const zeros = '0'.repeat(Math.max(0, 4 - idStr.length));
     const internalNumber = `ICE${zeros}${idStr}`;
-    
-    console.log('[POST /api/counteragents] Generated internal_number:', internalNumber);
 
     // Update the record with internal_number and fetch complete data
     const updated = await prisma.counteragent.update({
@@ -179,14 +168,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log('[POST /api/counteragents] After update:', {
-      id: updated.id,
-      country_uuid: updated.country_uuid,
-      internal_number: updated.internal_number,
-      country: updated.country,
-      entity_type: updated.entity_type
-    });
-
     // Log audit for the creation
     await logAudit({
       table: "counteragents",
@@ -211,11 +192,6 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    
-    console.log('[PATCH /api/counteragents] Received body for ID', id, ':', {
-      country_uuid: body.country_uuid,
-      entity_type_uuid: body.entity_type_uuid,
-    });
     
     // Fetch existing record for change tracking
     const existing = await prisma.counteragent.findUnique({
