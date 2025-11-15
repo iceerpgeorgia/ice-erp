@@ -542,7 +542,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
 
   // Handler for entity type dropdown change
   const handleEntityTypeChange = (entityTypeName: string) => {
-    const selectedEntityType = entityTypesList.find(et => et.nameKa === entityTypeName);
+    // Case-insensitive search because Combobox lowercases values for searching
+    const selectedEntityType = entityTypesList.find(et => et.nameKa.toLowerCase() === entityTypeName.toLowerCase());
     const entityTypeUuid = selectedEntityType?.entityTypeUuid || '';
     
     // UUID constants for conditional logic
@@ -557,7 +558,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     
     setFormData({
       ...formData,
-      entityType: entityTypeName,
+      entityType: selectedEntityType?.nameKa || entityTypeName, // Use original casing from database
       entityTypeUuid: entityTypeUuid,
       sex: shouldClearSex ? '' : formData.sex,
       pensionScheme: shouldClearPension ? null : formData.pensionScheme,
@@ -571,12 +572,13 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
 
   // Handler for country dropdown change
   const handleCountryChange = (countryName: string) => {
-    const selectedCountry = countriesList.find(c => c.country === countryName);
+    // Case-insensitive search because Combobox lowercases values for searching
+    const selectedCountry = countriesList.find(c => c.country.toLowerCase() === countryName.toLowerCase());
     const countryUuid = selectedCountry?.country_uuid || '';
     
     setFormData({
       ...formData,
-      country: countryName,
+      country: selectedCountry?.country || countryName, // Use original casing from database
       countryUuid: countryUuid,
     });
     
