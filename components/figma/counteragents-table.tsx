@@ -166,7 +166,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   const [entityTypes, setEntityTypes] = useState<Counteragent[]>(data ?? []);
   // Dropdown data
   const [entityTypesList, setEntityTypesList] = useState<Array<{id: number, nameKa: string, entityTypeUuid: string}>>([]);
-  const [countriesList, setCountriesList] = useState<Array<{id: number, country: string, country_uuid: string}>>([]);
+  const [countriesList, setCountriesList] = useState<Array<{id: number, country: string, countryUuid: string}>>([]);
   
   // Horizontal scroll synchronization between the table and a sticky bottom scroller
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -572,9 +572,13 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
 
   // Handler for country dropdown change
   const handleCountryChange = (countryName: string) => {
+    console.log('[handleCountryChange] Received:', countryName);
+    console.log('[handleCountryChange] countriesList:', countriesList.map(c => ({ country: c.country, uuid: c.countryUuid })));
     // Case-insensitive search because Combobox lowercases values for searching
     const selectedCountry = countriesList.find(c => c.country.toLowerCase() === countryName.toLowerCase());
-    const countryUuid = selectedCountry?.country_uuid || '';
+    console.log('[handleCountryChange] Found country:', selectedCountry);
+    const countryUuid = selectedCountry?.countryUuid || '';
+    console.log('[handleCountryChange] Setting countryUuid:', countryUuid);
     
     setFormData({
       ...formData,
@@ -759,6 +763,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     } else {
       // Add new via API
       try {
+        console.log('[Add] Submitting with countryUuid:', formData.countryUuid, 'country:', formData.country);
         const response = await fetch('/api/counteragents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
