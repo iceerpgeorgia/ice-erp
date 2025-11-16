@@ -117,6 +117,7 @@ export async function POST(req: NextRequest) {
         // Only set UUIDs - triggers will populate the name fields
         country_uuid: body.country_uuid ?? null,
         entity_type_uuid: body.entity_type_uuid ?? null,
+        is_active: body.is_active ?? true,
         is_emploee: body.is_emploee ?? null,
         was_emploee: body.was_emploee ?? null,
       },
