@@ -1,8 +1,8 @@
 -- Backfill internal_number for records that are missing it
--- Format: ICE + zero-padded 4-digit ID (ICE0001, ICE0123, ICE3282, etc.)
+-- Format: ICE + zero-padded 6-digit ID (ICE000001, ICE000123, ICE003282, etc.)
 
 UPDATE public.counteragents
-SET internal_number = 'ICE' || LPAD(id::text, 4, '0')
+SET internal_number = 'ICE' || LPAD(id::text, 6, '0')
 WHERE internal_number IS NULL;
 
 -- Verify the update

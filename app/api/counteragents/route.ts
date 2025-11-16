@@ -126,9 +126,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Auto-generate internal_number based on ID (format: ICE00001, ICE00002, etc.)
+    // Auto-generate internal_number based on ID (format: ICE000001, ICE000002, etc.)
     const idStr = created.id.toString();
-    const zeros = '0'.repeat(Math.max(0, 4 - idStr.length));
+    const zeros = '0'.repeat(Math.max(0, 6 - idStr.length));
     const internalNumber = `ICE${zeros}${idStr}`;
 
     // Update the record with internal_number and fetch complete data

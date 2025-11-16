@@ -527,10 +527,10 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
 
   // Auto-calculation helpers
   const calculateInternalNumber = (id: number): string => {
-    // Format: "ICE" + REPT(0, 4-len(id)) + id
-    // Example: id=5 -> "ICE00005"
+    // Format: "ICE" + REPT(0, 6-len(id)) + id
+    // Example: id=5 -> "ICE000005", id=3285 -> "ICE003285"
     const idStr = id.toString();
-    const zeros = '0'.repeat(Math.max(0, 4 - idStr.length));
+    const zeros = '0'.repeat(Math.max(0, 6 - idStr.length));
     return `ICE${zeros}${idStr}`;
   };
 
