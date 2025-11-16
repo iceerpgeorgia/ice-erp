@@ -112,7 +112,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'counteragent', label: 'Counteragent', width: 150, visible: false, sortable: true, filterable: true },
   { key: 'countryUuid', label: 'Country UUID', width: 200, visible: false, sortable: true, filterable: true },
   { key: 'entityTypeUuid', label: 'Entity Type UUID', width: 200, visible: false, sortable: true, filterable: true },
-  { key: 'internalNumber', label: 'Internal #', width: 120, visible: false, sortable: true, filterable: true },
+  { key: 'internalNumber', label: 'Internal #', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'isEmploye', label: 'Is Employee', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'wasEmploye', label: 'Was Employee', width: 130, visible: false, sortable: true, filterable: true }
@@ -572,13 +572,9 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
 
   // Handler for country dropdown change
   const handleCountryChange = (countryName: string) => {
-    console.log('[handleCountryChange] Received:', countryName);
-    console.log('[handleCountryChange] countriesList:', countriesList.map(c => ({ country: c.country, uuid: c.countryUuid })));
     // Case-insensitive search because Combobox lowercases values for searching
     const selectedCountry = countriesList.find(c => c.country.toLowerCase() === countryName.toLowerCase());
-    console.log('[handleCountryChange] Found country:', selectedCountry);
     const countryUuid = selectedCountry?.countryUuid || '';
-    console.log('[handleCountryChange] Setting countryUuid:', countryUuid);
     
     setFormData({
       ...formData,
@@ -678,7 +674,6 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     if (editingEntityType) {
       // Update existing via API
       try {
-        console.log('[Edit] Submitting with countryUuid:', formData.countryUuid, 'country:', formData.country);
         const response = await fetch(`/api/counteragents?id=${editingEntityType.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -764,7 +759,6 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     } else {
       // Add new via API
       try {
-        console.log('[Add] Submitting with countryUuid:', formData.countryUuid, 'country:', formData.country);
         const response = await fetch('/api/counteragents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -848,7 +842,6 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   };
 
   const startEdit = (counteragent: Counteragent) => {
-    console.log('[startEdit] Opening edit for:', counteragent.name, 'country:', counteragent.country, 'countryUuid:', counteragent.countryUuid);
     setEditingEntityType(counteragent);
     // Format date to YYYY-MM-DD for input[type="date"]
     const formatDateForInput = (dateStr: string | null) => {
@@ -884,7 +877,6 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
       isEmploye: counteragent.isEmploye ?? false,
       wasEmploye: counteragent.wasEmploye ?? false,
     });
-    console.log('[startEdit] Set formData.countryUuid:', counteragent.countryUuid || '');
     setFormErrors({});
     setIsEditDialogOpen(true);
   };
