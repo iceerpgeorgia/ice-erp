@@ -30,7 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { Combobox } from '@/components/ui/combobox';
 import { 
   Table, 
   TableBody, 
@@ -542,8 +541,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
 
   // Handler for entity type dropdown change
   const handleEntityTypeChange = (entityTypeName: string) => {
-    // Case-insensitive search because Combobox lowercases values for searching
-    const selectedEntityType = entityTypesList.find(et => et.nameKa.toLowerCase() === entityTypeName.toLowerCase());
+    // Select component passes the exact value
+    const selectedEntityType = entityTypesList.find(et => et.nameKa === entityTypeName);
     const entityTypeUuid = selectedEntityType?.entityTypeUuid || '';
     
     // UUID constants for conditional logic
@@ -558,7 +557,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     
     setFormData({
       ...formData,
-      entityType: selectedEntityType?.nameKa || entityTypeName, // Use original casing from database
+      entityType: entityTypeName,
       entityTypeUuid: entityTypeUuid,
       sex: shouldClearSex ? '' : formData.sex,
       pensionScheme: shouldClearPension ? null : formData.pensionScheme,
@@ -572,13 +571,13 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
 
   // Handler for country dropdown change
   const handleCountryChange = (countryName: string) => {
-    // Case-insensitive search because Combobox lowercases values for searching
-    const selectedCountry = countriesList.find(c => c.country.toLowerCase() === countryName.toLowerCase());
+    // Select component passes the exact value, no lowercasing
+    const selectedCountry = countriesList.find(c => c.country === countryName);
     const countryUuid = selectedCountry?.countryUuid || '';
     
     setFormData({
       ...formData,
-      country: selectedCountry?.country || countryName, // Use original casing from database
+      country: countryName,
       countryUuid: countryUuid,
     });
     
@@ -1334,15 +1333,16 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="add-country" className="text-right">Country *</Label>
                   <div className="col-span-3">
-                    <Combobox
-                      options={countriesList.map(c => ({ value: c.country, label: c.country }))}
-                      value={formData.country}
-                      onValueChange={handleCountryChange}
-                      placeholder="Select country"
-                      searchPlaceholder="Search countries..."
-                      emptyText="No country found."
-                      triggerClassName={formErrors.country ? 'border-red-500' : ''}
-                    />
+                    <Select value={formData.country} onValueChange={handleCountryChange}>
+                      <SelectTrigger className={formErrors.country ? 'border-red-500' : ''}>
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countriesList.map(c => (
+                          <SelectItem key={c.id} value={c.country}>{c.country}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     {formErrors.country && <p className="text-xs text-red-500 mt-1">{formErrors.country}</p>}
                   </div>
                 </div>
@@ -1671,15 +1671,16 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="edit-country" className="text-right">Country *</Label>
                   <div className="col-span-3">
-                    <Combobox
-                      options={countriesList.map(c => ({ value: c.country, label: c.country }))}
-                      value={formData.country}
-                      onValueChange={handleCountryChange}
-                      placeholder="Select country"
-                      searchPlaceholder="Search countries..."
-                      emptyText="No country found."
-                      triggerClassName={formErrors.country ? 'border-red-500' : ''}
-                    />
+                    <Select value={formData.country} onValueChange={handleCountryChange}>
+                      <SelectTrigger className={formErrors.country ? 'border-red-500' : ''}>
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countriesList.map(c => (
+                          <SelectItem key={c.id} value={c.country}>{c.country}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     {formErrors.country && <p className="text-xs text-red-500 mt-1">{formErrors.country}</p>}
                   </div>
                 </div>
