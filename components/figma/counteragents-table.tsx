@@ -541,10 +541,9 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   };
 
   // Handler for entity type dropdown change
-  const handleEntityTypeChange = (entityTypeName: string) => {
-    // Select component passes the exact value
-    const selectedEntityType = entityTypesList.find(et => et.nameKa === entityTypeName);
-    const entityTypeUuid = selectedEntityType?.entityTypeUuid || '';
+  const handleEntityTypeChange = (entityTypeUuid: string) => {
+    // Combobox now passes entityTypeUuid directly as the value
+    const selectedEntityType = entityTypesList.find(et => et.entityTypeUuid === entityTypeUuid);
     
     // UUID constants for conditional logic
     const EXEMPT_IDS = ['f5c3c745-eaa4-4e27-a73b-badc9ebb49c0', '7766e9c2-0094-4090-adf4-ef017062457f'];
@@ -558,7 +557,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     
     setFormData({
       ...formData,
-      entityType: entityTypeName,
+      entityType: selectedEntityType?.nameKa || '',
       entityTypeUuid: entityTypeUuid,
       sex: shouldClearSex ? '' : formData.sex,
       pensionScheme: shouldClearPension ? null : formData.pensionScheme,
@@ -571,14 +570,13 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   };
 
   // Handler for country dropdown change
-  const handleCountryChange = (countryName: string) => {
-    // Select component passes the exact value, no lowercasing
-    const selectedCountry = countriesList.find(c => c.country === countryName);
-    const countryUuid = selectedCountry?.countryUuid || '';
+  const handleCountryChange = (countryUuid: string) => {
+    // Combobox now passes countryUuid directly as the value
+    const selectedCountry = countriesList.find(c => c.countryUuid === countryUuid);
     
     setFormData({
       ...formData,
-      country: countryName,
+      country: selectedCountry?.country || '',
       countryUuid: countryUuid,
     });
     
@@ -1225,13 +1223,13 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="add-entityType" className="text-right">Entity Type *</Label>
                   <div className="col-span-3">
-                    <Select value={formData.entityType} onValueChange={handleEntityTypeChange}>
+                    <Select value={formData.entityTypeUuid} onValueChange={handleEntityTypeChange}>
                       <SelectTrigger className={formErrors.entityType ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Select entity type" />
                       </SelectTrigger>
                       <SelectContent>
                         {entityTypesList.map(et => (
-                          <SelectItem key={et.id} value={et.nameKa}>{et.nameKa}</SelectItem>
+                          <SelectItem key={et.id} value={et.entityTypeUuid}>{et.nameKa}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -1335,8 +1333,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   <Label htmlFor="add-country" className="text-right">Country *</Label>
                   <div className="col-span-3">
                     <Combobox
-                      options={countriesList.map(c => ({ value: c.country, label: c.country }))}
-                      value={formData.country}
+                      options={countriesList.map(c => ({ value: c.countryUuid, label: c.country }))}
+                      value={formData.countryUuid}
                       onValueChange={handleCountryChange}
                       placeholder="Select country"
                       searchPlaceholder="Search countries..."
@@ -1562,13 +1560,13 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="edit-entityType" className="text-right">Entity Type *</Label>
                   <div className="col-span-3">
-                    <Select value={formData.entityType} onValueChange={handleEntityTypeChange}>
+                    <Select value={formData.entityTypeUuid} onValueChange={handleEntityTypeChange}>
                       <SelectTrigger className={formErrors.entityType ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Select entity type" />
                       </SelectTrigger>
                       <SelectContent>
                         {entityTypesList.map(et => (
-                          <SelectItem key={et.id} value={et.nameKa}>{et.nameKa}</SelectItem>
+                          <SelectItem key={et.id} value={et.entityTypeUuid}>{et.nameKa}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -1672,8 +1670,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   <Label htmlFor="edit-country" className="text-right">Country *</Label>
                   <div className="col-span-3">
                     <Combobox
-                      options={countriesList.map(c => ({ value: c.country, label: c.country }))}
-                      value={formData.country}
+                      options={countriesList.map(c => ({ value: c.countryUuid, label: c.country }))}
+                      value={formData.countryUuid}
                       onValueChange={handleCountryChange}
                       placeholder="Select country"
                       searchPlaceholder="Search countries..."
