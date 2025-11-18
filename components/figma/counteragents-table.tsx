@@ -703,6 +703,17 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
         if (!response.ok) {
           const error = await response.json();
           console.error('[Edit] API error:', error);
+          
+          // Handle specific error cases
+          if (response.status === 409) {
+            // Duplicate identification number
+            setFormErrors({
+              ...formErrors,
+              identificationNumber: error.error || 'This identification number already exists'
+            });
+            return;
+          }
+          
           alert(`Failed to update: ${error.error || 'Unknown error'}`);
           return;
         }
@@ -788,6 +799,17 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
         if (!response.ok) {
           const error = await response.json();
           console.error('[Add] API error:', error);
+          
+          // Handle specific error cases
+          if (response.status === 409) {
+            // Duplicate identification number
+            setFormErrors({
+              ...formErrors,
+              identificationNumber: error.error || 'This identification number already exists'
+            });
+            return;
+          }
+          
           alert(`Failed to add: ${error.error || 'Unknown error'}`);
           return;
         }

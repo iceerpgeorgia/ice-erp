@@ -179,6 +179,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(toApi(updated), { status: 201 });
   } catch (err: any) {
     console.error("POST /counteragents/api failed:", err);
+    
+    // PostgreSQL unique constraint violation
+    if (err.code === '23505' && err.meta?.target?.includes('identification_number')) {
+      return NextResponse.json(
+        { error: "This identification number already exists" },
+        { status: 409 }
+      );
+    }
+    
     return NextResponse.json({ error: err.message ?? "Server error" }, { status: 500 });
   }
 }
@@ -344,6 +353,15 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json(toApi(updated), { status: 200 });
   } catch (err: any) {
     console.error("PATCH /counteragents failed:", err);
+    
+    // PostgreSQL unique constraint violation
+    if (err.code === '23505' && err.meta?.target?.includes('identification_number')) {
+      return NextResponse.json(
+        { error: "This identification number already exists" },
+        { status: 409 }
+      );
+    }
+    
     return NextResponse.json({ error: err.message ?? "Server error" }, { status: 500 });
   }
 }
