@@ -74,6 +74,7 @@ export function Combobox({
               <CommandItem
                 key={option.value}
                 value={option.value}
+                keywords={[option.label]}
                 onSelect={(currentValue) => {
                   // cmdk lowercases currentValue for search matching
                   // Find the original option by case-insensitive comparison
