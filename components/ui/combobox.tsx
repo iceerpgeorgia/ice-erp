@@ -21,6 +21,7 @@ import {
 export interface ComboboxOption {
   value: string
   label: string
+  keywords?: string // Optional search keywords
 }
 
 interface ComboboxProps {
@@ -73,16 +74,16 @@ export function Combobox({
             {options.map((option) => (
               <CommandItem
                 key={option.value}
-                value={option.value}
-                keywords={[option.label]}
-                onSelect={(currentValue) => {
-                  // cmdk lowercases currentValue for search matching
-                  // Find the original option by case-insensitive comparison
-                  const originalOption = options.find(
-                    (opt) => opt.value.toLowerCase() === currentValue.toLowerCase()
+                value={option.keywords || option.label}
+                onSelect={(searchValue) => {
+                  // Find the option that matches the search value (label)
+                  const selectedOption = options.find(
+                    (opt) => (opt.keywords || opt.label).toLowerCase() === searchValue.toLowerCase()
                   )
-                  const originalValue = originalOption?.value || currentValue
-                  onValueChange?.(originalValue === value ? "" : originalValue)
+                  if (selectedOption) {
+                    const newValue = selectedOption.value === value ? "" : selectedOption.value
+                    onValueChange?.(newValue)
+                  }
                   setOpen(false)
                 }}
               >

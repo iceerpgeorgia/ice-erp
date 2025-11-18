@@ -1333,7 +1333,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   <Label htmlFor="add-country" className="text-right">Country *</Label>
                   <div className="col-span-3">
                     <Combobox
-                      options={countriesList.map(c => ({ value: c.countryUuid, label: c.country }))}
+                      options={countriesList.map(c => ({ value: c.countryUuid, label: c.country, keywords: c.country }))}
                       value={formData.countryUuid}
                       onValueChange={handleCountryChange}
                       placeholder="Select country"
@@ -1670,7 +1670,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   <Label htmlFor="edit-country" className="text-right">Country *</Label>
                   <div className="col-span-3">
                     <Combobox
-                      options={countriesList.map(c => ({ value: c.countryUuid, label: c.country }))}
+                      options={countriesList.map(c => ({ value: c.countryUuid, label: c.country, keywords: c.country }))}
                       value={formData.countryUuid}
                       onValueChange={handleCountryChange}
                       placeholder="Select country"
