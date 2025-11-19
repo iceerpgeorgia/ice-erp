@@ -437,7 +437,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     const errors: Record<string, string> = {};
     
     // UUID constants for conditional logic
-    const EXEMPT_IDS = ['f5c3c745-eaa4-4e27-a73b-badc9ebb49c0', '7766e9c2-0094-4090-adf4-ef017062457f'];
+    const EXEMPT_IDS = ['f5c3c745-eaa4-4e27-a73b-badc9ebb49c0', '7766e9c2-0094-4090-adf4-ef017062457f', '5747f8e6-a8a6-4a23-91cc-c427c3a22597'];
     const INDIVIDUAL_IDS = ['bf4d83f9-5064-4958-af6e-e4c21b2e4880', '470412f4-e2c0-4f9d-91f1-1c0630a02364', 'ba538574-e93f-4ce8-a780-667b61fc970a'];
     const NATURAL_PERSON_IDS = ['bf4d83f9-5064-4958-af6e-e4c21b2e4880', '5747f8e6-a8a6-4a23-91cc-c427c3a22597', 'ba538574-e93f-4ce8-a780-667b61fc970a'];
     const EMPLOYEE_ID = 'bf4d83f9-5064-4958-af6e-e4c21b2e4880';
@@ -546,7 +546,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     const selectedEntityType = entityTypesList.find(et => et.entityTypeUuid === entityTypeUuid);
     
     // UUID constants for conditional logic
-    const EXEMPT_IDS = ['f5c3c745-eaa4-4e27-a73b-badc9ebb49c0', '7766e9c2-0094-4090-adf4-ef017062457f'];
+    const EXEMPT_IDS = ['f5c3c745-eaa4-4e27-a73b-badc9ebb49c0', '7766e9c2-0094-4090-adf4-ef017062457f', '5747f8e6-a8a6-4a23-91cc-c427c3a22597'];
     const NATURAL_PERSON_IDS = ['bf4d83f9-5064-4958-af6e-e4c21b2e4880', '5747f8e6-a8a6-4a23-91cc-c427c3a22597', 'ba538574-e93f-4ce8-a780-667b61fc970a'];
     const EMPLOYEE_ID = 'bf4d83f9-5064-4958-af6e-e4c21b2e4880';
     
