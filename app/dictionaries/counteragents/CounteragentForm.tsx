@@ -11,7 +11,7 @@ type Props = {
 };
 
 const PERSON_11 = new Set(["bf4d83f9-5064-4958-af6e-e4c21b2e4880","470412f4-e2c0-4f9d-91f1-1c0630a02364","ba538574-e93f-4ce8-a780-667b61fc970a"]);
-const EXEMPT    = new Set(["f5c3c745-eaa4-4e27-a73b-badc9ebb49c0","7766e9c2-0094-4090-adf4-ef017062457f"]);
+const EXEMPT    = new Set(["f5c3c745-eaa4-4e27-a73b-badc9ebb49c0","7766e9c2-0094-4090-adf4-ef017062457f","5747f8e6-a8a6-4a23-91cc-c427c3a22597"]); // ID not required
 const SEX_REQ   = new Set(["bf4d83f9-5064-4958-af6e-e4c21b2e4880","5747f8e6-a8a6-4a23-91cc-c427c3a22597","ba538574-e93f-4ce8-a780-667b61fc970a"]);
 const NO_ID_VALIDATION = new Set(["5747f8e6-a8a6-4a23-91cc-c427c3a22597"]); // Entity types that don't require 9-digit ID format
 const PENS_REQ  = "bf4d83f9-5064-4958-af6e-e4c21b2e4880";
