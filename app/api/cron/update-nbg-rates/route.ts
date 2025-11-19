@@ -167,7 +167,18 @@ export async function GET(req: NextRequest) {
             where: { date: fillDate }
           });
 
-          if (!exists) {
+          // Check if date is missing OR has incomplete/invalid data (e.g., any rate is null or 0)
+          const needsRefetch = !exists || 
+            !exists.usdRate || exists.usdRate.toNumber() === 0 ||
+            !exists.eurRate || exists.eurRate.toNumber() === 0 ||
+            !exists.cnyRate || exists.cnyRate.toNumber() === 0 ||
+            !exists.gbpRate || exists.gbpRate.toNumber() === 0 ||
+            !exists.rubRate || exists.rubRate.toNumber() === 0 ||
+            !exists.tryRate || exists.tryRate.toNumber() === 0 ||
+            !exists.aedRate || exists.aedRate.toNumber() === 0 ||
+            !exists.kztRate || exists.kztRate.toNumber() === 0;
+
+          if (needsRefetch) {
             try {
               // Fetch historical rate from NBG API using ?date= parameter
               const historicalResponse = await fetch(`${NBG_API_URL}?date=${dateStr}`, {
@@ -204,16 +215,19 @@ export async function GET(req: NextRequest) {
                     }
                   }
                   
-                  // Insert the historical rate
-                  await prisma.nBGExchangeRate.create({
-                    data: {
+                  // Use upsert to insert or update the historical rate
+                  await prisma.nBGExchangeRate.upsert({
+                    where: { date: fillDate },
+                    create: {
                       date: fillDate,
                       ...fillRates,
-                    }
+                    },
+                    update: fillRates,
                   });
                   
                   filledCount++;
-                  console.log(`[CRON] Backfilled ${dateStr} from NBG API`);
+                  const action = exists ? 'updated' : 'created';
+                  console.log(`[CRON] Backfilled (${action}) ${dateStr} from NBG API`);
                 }
               }
             } catch (apiError: any) {
