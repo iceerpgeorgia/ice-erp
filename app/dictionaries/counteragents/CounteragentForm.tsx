@@ -73,6 +73,12 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
   async function submit(nextNew=false) {
     setSaving(true); setErr(null);
     try {
+      // Debug: log entity type UUID and validation state
+      console.log("🔍 Entity Type UUID:", etUuid);
+      console.log("🔍 In EXEMPT set:", EXEMPT.has(etUuid));
+      console.log("🔍 mandatory.identification_number:", mandatory.identification_number);
+      console.log("🔍 ID value:", v.identification_number);
+
       // validations
       if (mandatory.name && !v.name?.trim()) throw new Error("Name is required");
       if (mandatory.entity_type && !etUuid) throw new Error("Entity Type is required");
