@@ -143,54 +143,89 @@ export async function GET(req: NextRequest) {
       console.log(`[CRON] Created new rates for ${rateDate.toISOString().split('T')[0]}`);
     }
 
-    // Fill any missing dates (weekends/holidays)
-    const yesterday = new Date(rateDate);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const previousRate = await prisma.nBGExchangeRate.findFirst({
-      where: {
-        date: {
-          lt: rateDate,
-        }
-      },
-      orderBy: {
-        date: 'desc'
-      }
+    // Backfill any missing dates between last DB date and today using NBG API
+    const lastDbDate = await prisma.nBGExchangeRate.findFirst({
+      orderBy: { date: 'desc' },
+      select: { date: true }
     });
 
     let filledCount = 0;
-    if (previousRate) {
-      const daysBetween = Math.floor((rateDate.getTime() - previousRate.date.getTime()) / (1000 * 60 * 60 * 24));
+    if (lastDbDate) {
+      const daysBetween = Math.floor((rateDate.getTime() - lastDbDate.date.getTime()) / (1000 * 60 * 60 * 24));
       
       if (daysBetween > 1) {
-        // Fill missing dates
+        console.log(`[CRON] Found ${daysBetween - 1} missing date(s) between ${lastDbDate.date.toISOString().split('T')[0]} and ${rateDate.toISOString().split('T')[0]}`);
+        
+        // Fill missing dates by fetching from NBG API
         for (let i = 1; i < daysBetween; i++) {
-          const fillDate = new Date(previousRate.date);
+          const fillDate = new Date(lastDbDate.date);
           fillDate.setDate(fillDate.getDate() + i);
+          
+          const dateStr = fillDate.toISOString().split('T')[0];
 
           const exists = await prisma.nBGExchangeRate.findUnique({
             where: { date: fillDate }
           });
 
           if (!exists) {
-            await prisma.nBGExchangeRate.create({
-              data: {
-                date: fillDate,
-                usdRate: previousRate.usdRate,
-                eurRate: previousRate.eurRate,
-                cnyRate: previousRate.cnyRate,
-                gbpRate: previousRate.gbpRate,
-                rubRate: previousRate.rubRate,
-                tryRate: previousRate.tryRate,
-                aedRate: previousRate.aedRate,
-                kztRate: previousRate.kztRate,
+            try {
+              // Fetch historical rate from NBG API using ?date= parameter
+              const historicalResponse = await fetch(`${NBG_API_URL}?date=${dateStr}`, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+              });
+
+              if (historicalResponse.ok) {
+                const historicalData = await historicalResponse.json();
+                
+                if (historicalData && historicalData.length > 0) {
+                  const historicalRates = historicalData[0];
+                  const historicalCurrencies = historicalRates.currencies || [];
+                  
+                  // Build rates object from API response
+                  const fillRates: any = {};
+                  
+                  for (const currency of historicalCurrencies) {
+                    const code = currency.code?.toUpperCase();
+                    const quantity = parseFloat(currency.quantity || 1);
+                    const rate = parseFloat(currency.rate || 0);
+
+                    if (code && rate > 0) {
+                      const ratePerUnit = rate / quantity;
+                      
+                      if (code === 'USD') fillRates.usdRate = new Prisma.Decimal(ratePerUnit);
+                      if (code === 'EUR') fillRates.eurRate = new Prisma.Decimal(ratePerUnit);
+                      if (code === 'CNY') fillRates.cnyRate = new Prisma.Decimal(ratePerUnit);
+                      if (code === 'GBP') fillRates.gbpRate = new Prisma.Decimal(ratePerUnit);
+                      if (code === 'RUB') fillRates.rubRate = new Prisma.Decimal(ratePerUnit);
+                      if (code === 'TRY') fillRates.tryRate = new Prisma.Decimal(ratePerUnit);
+                      if (code === 'AED') fillRates.aedRate = new Prisma.Decimal(ratePerUnit);
+                      if (code === 'KZT') fillRates.kztRate = new Prisma.Decimal(ratePerUnit);
+                    }
+                  }
+                  
+                  // Insert the historical rate
+                  await prisma.nBGExchangeRate.create({
+                    data: {
+                      date: fillDate,
+                      ...fillRates,
+                    }
+                  });
+                  
+                  filledCount++;
+                  console.log(`[CRON] Backfilled ${dateStr} from NBG API`);
+                }
               }
-            });
-            filledCount++;
+            } catch (apiError: any) {
+              console.error(`[CRON] Failed to backfill ${dateStr}:`, apiError.message);
+              // Continue with other dates even if one fails
+            }
           }
         }
 
-        console.log(`[CRON] Filled ${filledCount} missing dates with previous rates`);
+        if (filledCount > 0) {
+          console.log(`[CRON] Successfully backfilled ${filledCount} missing date(s) from NBG API`);
+        }
       }
     }
 
