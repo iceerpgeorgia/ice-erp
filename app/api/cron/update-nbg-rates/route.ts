@@ -8,7 +8,7 @@ const NBG_API_URL = "https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/j
 // Force dynamic rendering for cron endpoint
 export const dynamic = 'force-dynamic';
 
-// This endpoint will be called by Vercel Cron daily at 15:00 UTC (19:00 Tbilisi time, UTC+4)
+// This endpoint will be called by Vercel Cron every hour at the top of the hour
 export async function GET(req: NextRequest) {
   try {
     // Verify the request is from Vercel Cron (optional but recommended)
