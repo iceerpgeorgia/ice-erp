@@ -1,0 +1,40 @@
+{
+  "table": "counteragents",
+  "model": "Counteragent",
+  "primaryKey": ["id"],
+  "columns": [
+    { "name": "name", "label": "Name", "type": "string", "visible": true, "width": 240 },
+    { "name": "identification_number", "label": "ID", "type": "string", "visible": true, "width": 150 },
+    { "name": "birth_or_incorporation_date", "label": "Birth/Inc.", "type": "date", "visible": true, "width": 140 },
+    { "name": "entity_type", "label": "Entity Type", "type": "string", "visible": true, "width": 200 },
+    { "name": "sex", "label": "Sex", "type": "string", "visible": true, "width": 90, "align": "center" },
+    { "name": "pension_scheme", "label": "Pension", "type": "boolean", "visible": true, "width": 100, "align": "center" },
+    { "name": "country", "label": "Country", "type": "string", "visible": true, "width": 180 },
+    { "name": "address_line_1", "label": "Address 1", "type": "string", "visible": true, "width": 220 },
+    { "name": "address_line_2", "label": "Address 2", "type": "string", "visible": true, "width": 220 },
+    { "name": "zip_code", "label": "ZIP", "type": "string", "visible": true, "width": 100, "align": "center" },
+    { "name": "iban", "label": "IBAN", "type": "string", "visible": true, "width": 220, "align": "left", "uppercase": true },
+    { "name": "swift", "label": "SWIFT", "type": "string", "visible": true, "width": 140, "uppercase": true },
+    { "name": "director", "label": "Director", "type": "string", "visible": true, "width": 180 },
+    { "name": "director_id", "label": "Director ID", "type": "string", "visible": true, "width": 160 },
+    { "name": "email", "label": "Email", "type": "string", "visible": true, "width": 220 },
+    { "name": "phone", "label": "Phone", "type": "string", "visible": true, "width": 160 },
+    { "name": "oris_id", "label": "ORIS ID", "type": "string", "visible": true, "width": 140 },
+    { "name": "is_active", "label": "Active", "type": "boolean", "visible": true, "width": 90, "align": "center" },
+    { "name": "updated_by", "label": "Updated By", "type": "string", "visible": true, "width": 220 }
+  ],
+  "ui": {
+    "visibleColumns": [
+      "name", "identification_number", "birth_or_incorporation_date", "entity_type", "sex", "pension_scheme",
+      "country", "address_line_1", "address_line_2", "zip_code", "iban", "swift", "director", "director_id",
+      "email", "phone", "oris_id", "is_active", "updated_by"
+    ],
+    "actions": ["edit", "delete", "history"],
+    "headerBg": "#F7F7F9",
+    "headerText": "#111827",
+    "borderColor": "#E5E7EB",
+    "rowAltBg": "#F9FAFB",
+    "fontSize": "14px"
+  }
+}
+

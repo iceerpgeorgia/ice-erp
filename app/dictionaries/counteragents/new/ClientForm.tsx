@@ -39,7 +39,8 @@ export default function ClientForm({ entityOptions, countryOptions }: ClientProp
   const [country, setCountry] = React.useState<OptState>({ id: null, label: null });
 
   const isIdRequired = !(entityType.id && UUIDS.ID_NOT_REQUIRED.has(entityType.id));
-  const isBirthRequired = isIdRequired;
+  // Birth/registration date should not be mandatory
+  const isBirthRequired = false;
   const isSexRequired = !!(entityType.id && UUIDS.SEX_REQUIRED.has(entityType.id));
   const isPensionRequired = !!(entityType.id && UUIDS.PENSION_REQUIRED.has(entityType.id));
 
@@ -52,7 +53,8 @@ export default function ClientForm({ entityOptions, countryOptions }: ClientProp
       label: "Birth or Incorporation Date",
       type: "date",
       required: isBirthRequired,
-      disabled: !isBirthRequired,
+      // keep enabled even when not required
+      disabled: false,
     },
     {
       name: "entity_type_uuid",
@@ -68,7 +70,7 @@ export default function ClientForm({ entityOptions, countryOptions }: ClientProp
             setEntityType({ id, label: opt?.label ?? null });
           }}
         >
-          <option value="">— select —</option>
+          <option value="">Select</option>
           {entityOptions.map((o) => (
             <option key={o.id} value={o.id}>
               {o.label}
@@ -84,7 +86,7 @@ export default function ClientForm({ entityOptions, countryOptions }: ClientProp
       disabled: !isSexRequired,
       render: (p) => (
         <select {...p} disabled={!isSexRequired} defaultValue="">
-          <option value="">—</option>
+          <option value="">Select</option>
           <option value="Male">Male</option>
           <option value="Female">Female</option>
         </select>
@@ -97,7 +99,7 @@ export default function ClientForm({ entityOptions, countryOptions }: ClientProp
       disabled: !isPensionRequired,
       render: (p) => (
         <select {...p} disabled={!isPensionRequired} defaultValue="">
-          <option value="">—</option>
+          <option value="">Select</option>
           <option value="True">True</option>
           <option value="False">False</option>
         </select>
@@ -117,12 +119,23 @@ export default function ClientForm({ entityOptions, countryOptions }: ClientProp
             setCountry({ id, label: opt?.label ?? null });
           }}
         >
-          <option value="">— select —</option>
+          <option value="">Select</option>
           {countryOptions.map((o) => (
             <option key={o.id} value={o.id}>
               {o.label}
             </option>
           ))}
+        </select>
+      ),
+    },
+    {
+      name: "was_emploee",
+      label: "Was Employee",
+      render: (p) => (
+        <select {...p} defaultValue="">
+          <option value="">Select</option>
+          <option value="True">True</option>
+          <option value="False">False</option>
         </select>
       ),
     },
@@ -141,13 +154,13 @@ export default function ClientForm({ entityOptions, countryOptions }: ClientProp
     { name: "phone", label: "Phone", type: "tel" },
     { name: "oris_id", label: "ORIS ID" },
 
-    // ⬇️ NEW: boolean field (select True/False). If you prefer a checkbox, tell me and I'll switch it.
+    // NEW: boolean field (select True/False). If you prefer a checkbox, tell me and I'll switch it.
     {
       name: "is_emploee",
       label: "Is Employee",
       render: (p) => (
         <select {...p} defaultValue="">
-          <option value="">—</option>
+          <option value="">Select</option>
           <option value="True">True</option>
           <option value="False">False</option>
         </select>
@@ -244,7 +257,7 @@ export default function ClientForm({ entityOptions, countryOptions }: ClientProp
           className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
           disabled={saving === "saving"}
         >
-          {saving === "saving" ? "Saving…" : "Save"}
+          {saving === "saving" ? "Saving..." : "Save"}
         </button>
 
         <button
@@ -253,7 +266,7 @@ export default function ClientForm({ entityOptions, countryOptions }: ClientProp
           className="px-4 py-2 rounded bg-gray-700 text-white disabled:opacity-50"
           disabled={saving === "saving"}
         >
-          {saving === "saving" ? "Saving…" : "Save and New"}
+          {saving === "saving" ? "Saving..." : "Save and New"}
         </button>
 
         <a href="/dictionaries/counteragents" className="ml-4 text-blue-600 hover:underline">
@@ -264,3 +277,4 @@ export default function ClientForm({ entityOptions, countryOptions }: ClientProp
     </form>
   );
 }
+

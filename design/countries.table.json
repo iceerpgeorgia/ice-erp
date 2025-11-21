@@ -1,0 +1,87 @@
+﻿{
+  "table": "countries",
+  "model": "Country",
+  "primaryKey": ["id"],
+  "columns": [
+    { "name": "id", "dbName": "id", "label": "ID", "type": "bigint", "nullable": false, "unique": true, "pk": true, "default": "autoincrement()", "visible": false },
+    { "name": "createdAt", "dbName": "created_at", "label": "Created", "type": "timestamp", "nullable": false, "default": "now()", "visible": false },
+    { "name": "updatedAt", "dbName": "updated_at", "label": "Updated", "type": "timestamp", "nullable": false, "auto": "updatedAt", "visible": true, "width": 160, "hideBelow": "md" },
+    { "name": "ts", "dbName": "ts", "label": "TS", "type": "timestamptz(6)", "nullable": false, "default": "now()", "visible": false },
+    { "name": "country_uuid", "dbName": "country_uuid", "label": "UUID", "type": "uuid", "nullable": false, "unique": true, "default": "uuid()", "visible": false },
+    { "name": "name_en", "dbName": "name_en", "label": "Name (EN)", "type": "string", "nullable": false, "visible": true, "width": 240 },
+    { "name": "name_ka", "dbName": "name_ka", "label": "Name (KA)", "type": "string", "nullable": false, "visible": true, "width": 240 },
+    { "name": "iso2", "dbName": "iso2", "label": "ISO2", "type": "char(2)", "nullable": false, "unique": true, "visible": true, "align": "center", "width": 96 },
+    { "name": "iso3", "dbName": "iso3", "label": "ISO3", "type": "char(3)", "nullable": false, "unique": true, "visible": true, "align": "center", "width": 112, "hideBelow": "sm" },
+    { "name": "un_code", "dbName": "un_code", "label": "UN Code", "type": "int", "nullable": true, "visible": true, "align": "right", "width": 120, "hideBelow": "sm" },
+    { "name": "country", "dbName": "country", "label": "Label (trigger)", "type": "string", "nullable": true, "visible": true, "width": 260, "hideBelow": "lg" },
+    { "name": "is_active", "dbName": "is_active", "label": "Active", "type": "boolean", "nullable": false, "default": true, "visible": true, "align": "center", "width": 110 }
+  ],
+  "indexes": [
+    { "name": "pk_countries_id", "type": "primary", "columns": ["id"] },
+    { "name": "uniq_countries_iso2", "type": "unique", "columns": ["iso2"] },
+    { "name": "uniq_countries_iso3", "type": "unique", "columns": ["iso3"] },
+    { "name": "uniq_countries_country_uuid", "type": "unique", "columns": ["country_uuid"] }
+  ],
+  "ui": {
+    "rowId": "id",
+    "defaultSort": [{ "column": "name_en", "direction": "asc" }],
+    "visibleColumns": ["name_en", "name_ka", "iso2", "iso3", "un_code", "country", "is_active", "updatedAt"],
+    "actions": ["edit", "delete", "history"],
+    "headerBg": "var(--muted, #ececf0)",
+    "headerText": "var(--foreground, #030213)",
+    "borderColor": "var(--border, rgba(0,0,0,0.1))",
+    "rowAltBg": "var(--table-row-alt, rgba(3,2,19,0.03))",
+    "fontSize": "var(--font-size, 16px)",
+    "fontFamily": "var(--font-sans, 'Inter', 'Segoe UI', sans-serif)",
+    "radius": "var(--radius, 0.625rem)",
+    "shadow": "0 1px 3px rgba(3,2,19,0.08)",
+    "stickyHeader": true,
+    "cellPaddingX": 16,
+    "cellPaddingY": 12,
+    "booleanStyles": {
+      "is_active": {
+        "true": { "bg": "rgba(46, 204, 113, 0.12)", "text": "#057647", "border": "rgba(46, 204, 113, 0.3)", "label": "Active" },
+        "false": { "bg": "rgba(231, 76, 60, 0.12)", "text": "#A62317", "border": "rgba(231, 76, 60, 0.3)", "label": "Inactive" }
+      }
+    }
+  },
+  "layout": {
+    "density": "normal",
+    "maxWidth": "max-w-7xl",
+    "containerPadding": "px-6",
+    "rowHeight": 40,
+    "columnVisibility": {
+      "updatedAt": "md",
+      "un_code": "sm",
+      "iso3": "sm",
+      "country": "lg"
+    }
+  },
+  "typography": {
+    "--font-size": "16px",
+    "--font-weight-medium": "500",
+    "--font-weight-normal": "400"
+  },
+  "colors": {
+    "--background": "#ffffff",
+    "--foreground": "oklch(0.145 0 0)",
+    "--primary": "#030213",
+    "--muted": "#ececf0",
+    "--border": "rgba(0, 0, 0, 0.1)",
+    "--background-dark": "oklch(0.145 0 0)",
+    "--foreground-dark": "oklch(0.985 0 0)",
+    "--color-accent": "rgba(3, 2, 19, 0.08)",
+    "--color-ring": "rgba(3, 2, 19, 0.24)"
+  },
+  "exampleRow": {
+    "id": 1,
+    "name_en": "Georgia",
+    "name_ka": "Sakartvelo",
+    "iso2": "GE",
+    "iso3": "GEO",
+    "un_code": 268,
+    "is_active": true,
+    "updatedAt": "2025-09-10T08:00:00Z"
+  }
+}
+

@@ -1,0 +1,19 @@
+2025-11-04 15:15:58.864 [error] [audit] GET error PrismaClientKnownRequestError: 
+Invalid `prisma.auditLog.findMany()` invocation:
+
+
+The column `AuditLog.created_at` does not exist in the current database.
+    at ei.handleRequestError (/var/task/node_modules/.pnpm/@prisma+client@6.16.2_prisma@6.16.2_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client/runtime/library.js:121:7268)
+    at ei.handleAndLogRequestError (/var/task/node_modules/.pnpm/@prisma+client@6.16.2_prisma@6.16.2_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client/runtime/library.js:121:6593)
+    at ei.request (/var/task/node_modules/.pnpm/@prisma+client@6.16.2_prisma@6.16.2_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client/runtime/library.js:121:6300)
+    at async a (/var/task/node_modules/.pnpm/@prisma+client@6.16.2_prisma@6.16.2_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client/runtime/library.js:130:9551)
+    at async l (/var/task/.next/server/app/api/audit/route.js:1:815)
+    at async /var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
+    at async e_.execute (/var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
+    at async e_.handle (/var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
+    at async en (/var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/server.runtime.prod.js:16:25561)
+    at async ea.responseCache.get.routeKind (/var/task/node_modules/.pnpm/next@14.2.32_@babel+core@7.28.4_@playwright+test@1.55.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/compiled/next-server/server.runtime.prod.js:17:1028) {
+  code: 'P2022',
+  meta: { modelName: 'AuditLog', column: 'AuditLog.created_at' },
+  clientVersion: '6.16.2'
+}

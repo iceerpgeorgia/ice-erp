@@ -1,5 +1,33 @@
+export async function PUT(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const idParam = searchParams.get("id");
+    if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const body = await req.json();
+    // Only allow fields in pick
+    const allowed = Object.keys(pick);
+    const updateData: any = {};
+    for (const k of allowed) {
+      if (k in body) updateData[k] = body[k];
+    }
+    // Special handling for booleans
+    if ("is_emploee" in body) updateData.is_emploee = toBool(body.is_emploee);
+    if ("was_emploee" in body) updateData.was_emploee = toBool(body.was_emploee);
+    const updated = await prisma.counteragent.update({
+      where: { id: BigInt(Number(idParam)) },
+      data: updateData,
+      select: pick,
+    });
+    await logAudit({ table: "counteragents", recordId: BigInt(updated.id as any), action: "update", changes: updateData });
+    return NextResponse.json(toApi(updated));
+  } catch (e: any) {
+    console.error("PUT /counteragents/api", e);
+    return NextResponse.json({ error: e.message ?? "Server error" }, { status: 500 });
+  }
+}
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { logAudit } from "@/lib/audit";
 export const revalidate = 0;
 const prisma = new PrismaClient();
 
@@ -13,8 +41,9 @@ const pick = {
   counteragent: true, country_uuid: true, entity_type_uuid: true,
   counteragent_uuid: true, internal_number: true,
 
-  // ⬇️ NEW
+  // New boolean flags
   is_emploee: true,
+  was_emploee: true,
 };
 
 function toApi(r: any) {
@@ -48,8 +77,9 @@ function toApi(r: any) {
     counteragent_uuid: r.counteragent_uuid,
     internal_number: r.internal_number ?? null,
 
-    // ⬇️ NEW
+    // boolean flags
     is_emploee: !!r.is_emploee,
+    was_emploee: !!r.was_emploee,
   };
 }
 
@@ -80,6 +110,7 @@ export async function POST(req: NextRequest) {
     const b = await req.json();
 
     const isEmp = toBool(b.is_emploee);
+    const wasEmp = toBool(b.was_emploee);
 
     const created = await prisma.counteragent.create({
       data: {
@@ -106,14 +137,48 @@ export async function POST(req: NextRequest) {
         counteragent_uuid: b.counteragent_uuid ?? null,
         internal_number: b.internal_number ?? null,
 
-        // ⬇️ NEW (omit when empty so DB default can apply)
         ...(isEmp === null ? {} : { is_emploee: isEmp }),
+        ...(wasEmp === null ? {} : { was_emploee: wasEmp }),
       },
       select: pick,
     });
+    await logAudit({ table: "counteragents", recordId: BigInt(created.id as any), action: "create" });
     return NextResponse.json(toApi(created), { status: 201 });
   } catch (e: any) {
     console.error("POST /counteragents/api", e);
+    return NextResponse.json({ error: e.message ?? "Server error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const idParam = searchParams.get("id");
+    if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    await prisma.counteragent.delete({ where: { id: BigInt(Number(idParam)) } });
+    await logAudit({ table: "counteragents", recordId: BigInt(Number(idParam)), action: "delete" });
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    console.error("DELETE /counteragents/api", e);
+    return NextResponse.json({ error: e.message ?? "Server error" }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const idParam = searchParams.get("id");
+    if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const body = await req.json().catch(() => ({} as any));
+    const active = typeof body.active === 'boolean' ? body.active : true;
+    await prisma.counteragent.update({
+      where: { id: BigInt(Number(idParam)) },
+      data: { is_active: active },
+    });
+    await logAudit({ table: "counteragents", recordId: BigInt(Number(idParam)), action: active ? "activate" : "deactivate" });
+    return NextResponse.json({ id: Number(idParam), is_active: active });
+  } catch (e: any) {
+    console.error("PATCH /counteragents/api", e);
     return NextResponse.json({ error: e.message ?? "Server error" }, { status: 500 });
   }
 }

@@ -19,6 +19,9 @@ export default function HomePage() {
           <p>Signed in as <b>{session.user?.email}</b></p>
           <p><Link href="/dashboard">Go to Dashboard</Link></p>
           <p><Link href="/dictionaries">Open Dictionaries</Link></p>
+          {session.user?.role === 'system_admin' && (
+            <p><Link href="/admin/users">Manage Users (Admin)</Link></p>
+          )}
           <button onClick={() => signOut()}>Sign out</button>
         </div>
       ) : (

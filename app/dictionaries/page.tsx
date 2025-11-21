@@ -23,6 +23,26 @@ export default function DictionariesIndex() {
               Counteragents
             </Link>
           </li>
+          <li>
+            <Link className="text-blue-600 hover:underline" href="/dictionaries/currencies">
+              Currencies
+            </Link>
+          </li>
+          <li>
+            <Link className="text-blue-600 hover:underline" href="/dictionaries/nbg-rates">
+              NBG Exchange Rates
+            </Link>
+          </li>
+          <li>
+            <Link className="text-blue-600 hover:underline" href="/admin/financial-codes">
+              Financial Codes
+            </Link>
+          </li>
+          <li>
+            <Link className="text-blue-600 hover:underline" href="/admin/projects">
+              Projects
+            </Link>
+          </li>
         </ul>
       </div>
     </div>

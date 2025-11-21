@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "name": "countries",
+  "model": "Country",
+  "dbTable": "countries",
+  "primaryKey": { "name": "id", "type": "BigInt", "generated": "autoincrement" },
+  "unique": ["country_uuid", "iso2", "iso3"],
+  "softDelete": { "field": "is_active", "activeValue": true },
+  "displayField": "country",
+  "defaultSort": [{ "field": "id", "dir": "asc" }],
+  "fields": [
+    { "name": "id", "label": "ID", "type": "BigInt", "nullable": false, "db": { "pk": true }, "ui": { "visible": true, "sortable": true, "align": "right", "width": 64 } },
+    { "name": "createdAt", "label": "Created At", "type": "DateTime", "nullable": false, "db": { "column": "created_at" }, "ui": { "visible": false, "readOnly": true } },
+    { "name": "updatedAt", "label": "Updated At", "type": "DateTime", "nullable": false, "db": { "column": "updated_at" }, "ui": { "visible": false, "readOnly": true } },
+    { "name": "ts", "label": "Timestamp", "type": "Timestamptz(6)", "nullable": false, "ui": { "visible": false, "readOnly": true } },
+    { "name": "country_uuid", "label": "Country UUID", "type": "UUID", "nullable": false, "unique": true, "default": "uuid()", "ui": { "visible": false, "readOnly": true } },
+    { "name": "name_en", "label": "Name (EN)", "type": "String", "nullable": false, "ui": { "filter": "text", "sortable": true, "minWidth": 200 } },
+    { "name": "name_ka", "label": "Name (KA)", "type": "String", "nullable": false, "ui": { "filter": "text", "sortable": true, "minWidth": 200 } },
+    { "name": "iso2", "label": "ISO2", "type": "Char(2)", "nullable": false, "unique": true, "ui": { "filter": "text", "sortable": true, "align": "center", "width": 72, "transform": "uppercase" } },
+    { "name": "iso3", "label": "ISO3", "type": "Char(3)", "nullable": false, "unique": true, "ui": { "filter": "text", "sortable": true, "align": "center", "width": 84, "transform": "uppercase" } },
+    { "name": "un_code", "label": "UN Code", "type": "Int", "nullable": true, "ui": { "filter": "number", "align": "right", "width": 90 } },
+    { "name": "country", "label": "Country (Label)", "type": "String", "nullable": true, "computed": true, "ui": { "filter": "text", "minWidth": 220, "truncate": true, "readOnly": true } },
+    { "name": "is_active", "label": "Active", "type": "Boolean", "nullable": false, "default": true, "ui": { "type": "badge", "width": 90 } }
+  ],
+  "validation": {
+    "name_en": { "required": true, "max": 255 },
+    "name_ka": { "required": true, "max": 255 },
+    "iso2": { "required": true, "length": 2, "uppercase": true },
+    "iso3": { "required": true, "length": 3, "uppercase": true },
+    "un_code": { "integer": true, "min": 0, "nullable": true }
+  },
+  "ui": {
+    "list": {
+      "columns": ["id", "name_en", "name_ka", "iso2", "iso3", "un_code", "country", "is_active"],
+      "filters": ["name_en", "name_ka", "iso2", "iso3", "un_code", "country"],
+      "pageSizeOptions": [50, 100, 250]
+    },
+    "edit": {
+      "writable": ["name_en", "name_ka", "iso2", "iso3", "un_code"],
+      "readOnly": ["id", "country", "country_uuid", "createdAt", "updatedAt", "ts"]
+    },
+    "actions": [
+      { "type": "link", "label": "Edit", "href": "/dictionaries/countries/{id}/edit" },
+      {
+        "type": "toggleActive",
+        "labelWhenTrue": "Deactivate",
+        "labelWhenFalse": "Activate",
+        "confirmWhenTrue": "Deactivate this country?",
+        "serverRoute": "/dictionaries/countries/api?id={id}",
+        "methodActiveFalse": "DELETE",
+        "methodActiveTrue": "PATCH",
+        "bodyActiveTrue": { "active": true }
+      }
+    ]
+  },
+  "api": {
+    "list": { "route": "/dictionaries/countries/api", "method": "GET" },
+    "export": { "route": "/api/countries/export", "method": "GET" },
+    "toggleActive": { "route": "/dictionaries/countries/api?id={id}", "methods": { "deactivate": "DELETE", "activate": "PATCH" } },
+    "serverActions": { "create": "createCountry", "update": "updateCountry", "deleteSoft": "deleteCountry" }
+  },
+  "serialization": {
+    "BigInt": { "toClient": "number" },
+    "DateTime": { "toClient": "ISO8601" }
+  }
+}
+

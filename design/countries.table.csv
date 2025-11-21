@@ -1,0 +1,13 @@
+label,field,dbName,type,nullable,unique,pk,default,visible,align,width
+ID,id,id,bigint,false,true,true,autoincrement(),false,,
+Created,createdAt,created_at,timestamp,false,false,false,now(),false,,
+Updated,updatedAt,updated_at,timestamp,false,false,false,updatedAt, true,left,140
+TS,ts,ts,timestamptz(6),false,false,false,now(),false,,
+UUID,country_uuid,country_uuid,uuid,false,true,false,uuid(),false,,
+Name (EN),name_en,name_en,string,false,false,false,,true,left,240
+Name (KA),name_ka,name_ka,string,false,false,false,,true,left,240
+ISO2,iso2,iso2,char(2),false,true,false,,true,center,80
+ISO3,iso3,iso3,char(3),false,true,false,,true,center,90
+UN Code,un_code,un_code,int,true,false,false,,true,right,110
+Label (trigger),country,country,string,true,false,false,,false,,
+Active,is_active,is_active,boolean,false,false,false,true,true,center,90

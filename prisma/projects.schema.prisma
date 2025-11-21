@@ -1,0 +1,81 @@
+// Projects Schema
+// This defines the projects table with all relationships
+
+model Project {
+  id                    Int       @id @default(autoincrement())
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  
+  // Core fields
+  projectUuid           String    @unique @default(uuid()) @map("project_uuid") @db.Uuid
+  projectName           String    @map("project_name")
+  date                  DateTime  @db.Date
+  value                 Decimal   @db.Decimal(15, 2)
+  oris1630              String?   @map("oris_1630")
+  contractNo            String?   @map("contract_no")
+  projectIndex          String?   @map("project_index") // Computed field
+  
+  // Foreign key UUIDs
+  counteragentUuid      String    @map("counteragent_uuid") @db.Uuid
+  financialCodeUuid     String    @map("financial_code_uuid") @db.Uuid
+  currencyUuid          String    @map("currency_uuid") @db.Uuid
+  stateUuid             String    @map("state_uuid") @db.Uuid
+  
+  // Derived/lookup fields (denormalized for performance)
+  counteragent          String?   // Looked up from counteragents table
+  financialCode         String?   @map("financial_code") // Looked up from financial_codes table
+  currency              String?   // Looked up from currencies table
+  state                 String?   // Looked up from project_states table
+  
+  // Relationships
+  projectEmployees      ProjectEmployee[]
+  
+  @@map("projects")
+  @@index([counteragentUuid])
+  @@index([financialCodeUuid])
+  @@index([currencyUuid])
+  @@index([stateUuid])
+  @@index([date])
+}
+
+// Junction table for many-to-many relationship between projects and employees
+model ProjectEmployee {
+  id                Int       @id @default(autoincrement())
+  createdAt         DateTime  @default(now()) @map("created_at")
+  
+  projectId         Int       @map("project_id")
+  employeeUuid      String    @map("employee_uuid") @db.Uuid
+  employeeName      String?   @map("employee_name") // Denormalized for quick lookup
+  
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@map("project_employees")
+  @@unique([projectId, employeeUuid])
+  @@index([projectId])
+  @@index([employeeUuid])
+}
+
+// Financial Codes table (if not exists)
+model FinancialCode {
+  id                Int       @id @default(autoincrement())
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  
+  financialCodeUuid String    @unique @default(uuid()) @map("financial_code_uuid") @db.Uuid
+  code              String    @unique
+  validation        String?   // The validation/description field
+  
+  @@map("financial_codes")
+}
+
+// Project States table
+model ProjectState {
+  id                Int       @id @default(autoincrement())
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  
+  stateUuid         String    @unique @default(uuid()) @map("state_uuid") @db.Uuid
+  name              String    @unique
+  
+  @@map("project_states")
+}
