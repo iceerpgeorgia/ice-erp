@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     
     const where: any = {};
     if (table) where.table = table;
-    if (recordId) where.recordId = BigInt(recordId);
+  if (recordId) where.recordId = recordId;
     
     const logs = await prisma.auditLog.findMany({
       where,
