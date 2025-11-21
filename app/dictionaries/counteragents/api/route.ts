@@ -1,3 +1,30 @@
+export async function PUT(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const idParam = searchParams.get("id");
+    if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const body = await req.json();
+    // Only allow fields in pick
+    const allowed = Object.keys(pick);
+    const updateData: any = {};
+    for (const k of allowed) {
+      if (k in body) updateData[k] = body[k];
+    }
+    // Special handling for booleans
+    if ("is_emploee" in body) updateData.is_emploee = toBool(body.is_emploee);
+    if ("was_emploee" in body) updateData.was_emploee = toBool(body.was_emploee);
+    const updated = await prisma.counteragent.update({
+      where: { id: BigInt(Number(idParam)) },
+      data: updateData,
+      select: pick,
+    });
+    await logAudit({ table: "counteragents", recordId: BigInt(updated.id as any), action: "update", changes: updateData });
+    return NextResponse.json(toApi(updated));
+  } catch (e: any) {
+    console.error("PUT /counteragents/api", e);
+    return NextResponse.json({ error: e.message ?? "Server error" }, { status: 500 });
+  }
+}
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { logAudit } from "@/lib/audit";
