@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import CounteragentForm from "../CounteragentForm";
+import AuditHistory from "../AuditHistory";
 export const revalidate = 0;
 
 export default async function EditCounteragent({ params }: { params: { id: string }}) {
@@ -37,6 +38,10 @@ export default async function EditCounteragent({ params }: { params: { id: strin
         countries={countries.map(c=>c.country)}
         entityTypes={entityTypes}
       />
+      
+      <div className="mt-8">
+        <AuditHistory counteragentId={id} />
+      </div>
     </div>
   );
 }
