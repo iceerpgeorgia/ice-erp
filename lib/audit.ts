@@ -10,19 +10,26 @@ export async function logAudit(params: {
   changes?: any;
 }) {
   try {
+    console.log('[DEBUG] logAudit called with params:', params);
     console.log('[AUDIT] logAudit called with:', { table: params.table, recordId: typeof params.recordId === 'bigint' ? params.recordId.toString() : params.recordId, action: params.action });
     const session = await getServerSession(authOptions);
     console.log('[AUDIT] Session:', { email: session?.user?.email, userId: (session as any)?.user?.id });
     const email = session?.user?.email ?? null;
     const userId = (session as any)?.user?.id ?? null;
-    
     // Convert recordId to string for storage
     const recordIdStr = typeof params.recordId === 'bigint' 
       ? params.recordId.toString() 
       : typeof params.recordId === 'number'
       ? params.recordId.toString()
       : params.recordId;
-    
+    console.log('[DEBUG] Creating auditLog entry:', {
+      table: params.table,
+      recordId: recordIdStr,
+      action: params.action,
+      userEmail: email ?? undefined,
+      userId: userId ?? undefined,
+      changes: params.changes ?? undefined,
+    });
     const result = await prisma.auditLog.create({
       data: {
         table: params.table,

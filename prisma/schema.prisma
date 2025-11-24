@@ -96,7 +96,7 @@ model Counteragent {
   oris_id                     String?
   country_uuid                String?   @db.Uuid
   entity_type_uuid            String?   @db.Uuid
-  counteragent_uuid           String    @default(uuid()) @db.Uuid
+  counteragent_uuid           String    @unique @default(uuid()) @db.Uuid
   
   // Computed fields (auto-populated by database trigger)
   entity_type                 String?   // Populated from entity_types.name_ka via trigger
@@ -110,7 +110,8 @@ model Counteragent {
 
   // Relations
   transactions                Transaction[]
-  projects                    Project[]
+    projects                    Project[]
+    projectEmployees            ProjectEmployee[] @relation("CounteragentToProjectEmployee")
 
   @@map("counteragents")
 }
@@ -233,10 +234,12 @@ model Project {
   // Financial info
   amount              Decimal       @db.Decimal(15, 2)
   currency            String        @default("GEL") // USD, GEL, EUR
+  currencyUuid        String?       @db.Uuid @map("currency_uuid") // Currency UUID (FK)
   startDate           DateTime      @map("start_date")
   
   // Status
   status              String        @default("active") // active, completed, cancelled, on_hold
+  stateUuid           String?       @db.Uuid @map("state_uuid") // State UUID (FK)
   isDeleted           Boolean       @default(false) @map("is_deleted")
   
   // ORIS Integration
@@ -246,6 +249,9 @@ model Project {
   // Additional fields
   collateral          String?       // Collateral information
   notes               String?       // Additional notes
+
+  // Relations: Employees (many-to-many)
+  employees           ProjectEmployee[]
   
   // Audit fields
   createdAt           DateTime      @default(now()) @map("created_at")
@@ -257,7 +263,26 @@ model Project {
   @@index([financialCodeId])
   @@index([status])
   @@index([startDate])
+  @@index([currencyUuid])
+  @@index([stateUuid])
   @@map("projects")
+
+}
+
+model ProjectEmployee {
+  id            BigInt   @id @default(autoincrement())
+  projectId     BigInt   @map("project_id")
+  counteragentId BigInt  @map("counteragent_id")
+
+  project       Project  @relation(fields: [projectId], references: [id])
+    counteragent  Counteragent @relation("CounteragentToProjectEmployee", fields: [counteragentId], references: [id])
+
+  isActive      Boolean  @default(true)
+  assignedAt    DateTime @default(now())
+
+  @@index([projectId])
+  @@index([counteragentId])
+  @@map("project_employees")
 }
 
 model Currency {

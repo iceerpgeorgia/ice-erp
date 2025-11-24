@@ -1932,9 +1932,41 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                             {Object.entries(log.changes).map(([field, change]: [string, any]) => (
                               <div key={field} className="text-sm">
                                 <span className="font-medium text-foreground">{field}:</span>{' '}
-                                <span className="text-red-600 line-through">{String(change.from || 'null')}</span>
-                                {' → '}
-                                <span className="text-green-600">{String(change.to || 'null')}</span>
+                                {(field === 'country_uuid' || field === 'country_uuid_label') ? (
+                                  <>
+                                    <span className="text-red-600 line-through">
+                                      {(() => {
+                                        if (field === 'country_uuid') {
+                                          const label = countriesList.find(c => c.countryUuid === change.from)?.country;
+                                          return label || (change.from === null || change.from === undefined ? 'N/A' : String(change.from));
+                                        } else {
+                                          // country_uuid_label
+                                          const label = countriesList.find(c => c.country === change.from)?.country;
+                                          return label || (change.from === null || change.from === undefined ? 'N/A' : String(change.from));
+                                        }
+                                      })()}
+                                    </span>
+                                    {' → '}
+                                    <span className="text-green-600">
+                                      {(() => {
+                                        if (field === 'country_uuid') {
+                                          const label = countriesList.find(c => c.countryUuid === change.to)?.country;
+                                          return label || (change.to === null || change.to === undefined ? 'N/A' : String(change.to));
+                                        } else {
+                                          // country_uuid_label
+                                          const label = countriesList.find(c => c.country === change.to)?.country;
+                                          return label || (change.to === null || change.to === undefined ? 'N/A' : String(change.to));
+                                        }
+                                      })()}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="text-red-600 line-through">{String(change.from || 'null')}</span>
+                                    {' → '}
+                                    <span className="text-green-600">{String(change.to || 'null')}</span>
+                                  </>
+                                )}
                               </div>
                             ))}
                           </div>

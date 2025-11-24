@@ -18,6 +18,8 @@ export async function PUT(req: NextRequest) {
       data: updateData,
       select: pick,
     });
+    console.log('[DEBUG] Counteragent updated:', updated);
+    console.log('[DEBUG] Audit log params:', { table: "counteragents", recordId: BigInt(updated.id as any), action: "update", changes: updateData });
     await logAudit({ table: "counteragents", recordId: BigInt(updated.id as any), action: "update", changes: updateData });
     return NextResponse.json(toApi(updated));
   } catch (e: any) {
