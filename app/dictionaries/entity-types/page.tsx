@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import EntityTypesTable from "./EntityTypesTable";
 
 export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 
 export default async function EntityTypesPage() {
   const prisma = new PrismaClient();

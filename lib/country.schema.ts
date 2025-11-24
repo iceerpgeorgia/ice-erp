@@ -14,12 +14,16 @@ export const CountrySchema = z.object({
     .regex(/^[ა-ჰ]+(?:[ -][ა-ჰ]+)*$/, "Only Georgian letters, spaces and hyphens"),
   iso2: z
     .string()
+    .min(2, "2 letters required")
+    .max(2, "2 letters only")
     .transform((s) => (s ?? "").toUpperCase())
-    .regex(/^[A-Z]{2}$/, "2 uppercase letters"),
+    .refine((s) => /^[A-Z]{2}$/.test(s), "2 uppercase letters"),
   iso3: z
     .string()
+    .min(3, "3 letters required")
+    .max(3, "3 letters only")
     .transform((s) => (s ?? "").toUpperCase())
-    .regex(/^[A-Z]{3}$/, "3 uppercase letters"),
+    .refine((s) => /^[A-Z]{3}$/.test(s), "3 uppercase letters"),
   un_code: z.coerce.number().int().optional(),
 });
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { getServerSession } from "next-auth";
 export const revalidate = 0;
 const prisma = new PrismaClient();
 
@@ -62,6 +63,43 @@ const toBool = (val: any): boolean | null => {
   return null;
 };
 
+// Helper to get current user email from session
+async function getCurrentUser() {
+  try {
+    const session = await getServerSession();
+    return session?.user?.email || "system";
+  } catch {
+    return "system";
+  }
+}
+
+// Helper to log field changes
+async function logFieldChange(
+  counteragentId: bigint,
+  fieldName: string,
+  oldValue: any,
+  newValue: any,
+  operation: string,
+  changedBy: string
+) {
+  const oldStr = oldValue != null ? String(oldValue) : null;
+  const newStr = newValue != null ? String(newValue) : null;
+  
+  // Only log if values are different
+  if (oldStr !== newStr) {
+    await prisma.counteragentAuditLog.create({
+      data: {
+        counteragent_id: counteragentId,
+        field_name: fieldName,
+        old_value: oldStr,
+        new_value: newStr,
+        operation,
+        changed_by: changedBy,
+      },
+    });
+  }
+}
+
 export async function GET() {
   try {
     const rows = await prisma.counteragent.findMany({
@@ -78,42 +116,128 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const b = await req.json();
-
     const isEmp = toBool(b.is_emploee);
+    const changedBy = await getCurrentUser();
+
+    const data = {
+      name: b.name ?? null,
+      identification_number: b.identification_number ?? null,
+      birth_or_incorporation_date: b.birth_or_incorporation_date ? new Date(b.birth_or_incorporation_date) : null,
+      entity_type: b.entity_type ?? null,
+      sex: b.sex ?? null,
+      pension_scheme: b.pension_scheme ?? null,
+      country: b.country ?? null,
+      address_line_1: b.address_line_1 ?? null,
+      address_line_2: b.address_line_2 ?? null,
+      zip_code: b.zip_code ?? null,
+      iban: b.iban ?? null,
+      swift: b.swift ?? null,
+      director: b.director ?? null,
+      director_id: b.director_id ?? null,
+      email: b.email ?? null,
+      phone: b.phone ?? null,
+      oris_id: b.oris_id ?? null,
+      counteragent: b.counteragent ?? null,
+      country_uuid: b.country_uuid ?? null,
+      entity_type_uuid: b.entity_type_uuid ?? null,
+      counteragent_uuid: b.counteragent_uuid ?? null,
+      internal_number: b.internal_number ?? null,
+      ...(isEmp === null ? {} : { is_emploee: isEmp }),
+    };
 
     const created = await prisma.counteragent.create({
-      data: {
-        name: b.name ?? null,
-        identification_number: b.identification_number ?? null,
-        birth_or_incorporation_date: b.birth_or_incorporation_date ? new Date(b.birth_or_incorporation_date) : null,
-        entity_type: b.entity_type ?? null,
-        sex: b.sex ?? null,
-        pension_scheme: b.pension_scheme ?? null,
-        country: b.country ?? null,
-        address_line_1: b.address_line_1 ?? null,
-        address_line_2: b.address_line_2 ?? null,
-        zip_code: b.zip_code ?? null,
-        iban: b.iban ?? null,
-        swift: b.swift ?? null,
-        director: b.director ?? null,
-        director_id: b.director_id ?? null,
-        email: b.email ?? null,
-        phone: b.phone ?? null,
-        oris_id: b.oris_id ?? null,
-        counteragent: b.counteragent ?? null,
-        country_uuid: b.country_uuid ?? null,
-        entity_type_uuid: b.entity_type_uuid ?? null,
-        counteragent_uuid: b.counteragent_uuid ?? null,
-        internal_number: b.internal_number ?? null,
-
-        // ⬇️ NEW (omit when empty so DB default can apply)
-        ...(isEmp === null ? {} : { is_emploee: isEmp }),
-      },
+      data,
       select: pick,
     });
+
+    // Log creation for all non-null fields
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== null) {
+        await logFieldChange(created.id, key, null, value, "INSERT", changedBy);
+      }
+    }
+
     return NextResponse.json(toApi(created), { status: 201 });
   } catch (e: any) {
     console.error("POST /counteragents/api", e);
     return NextResponse.json({ error: e.message ?? "Server error" }, { status: 500 });
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const b = await req.json();
+    if (!b.id) {
+      return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    }
+
+    const id = BigInt(b.id);
+    const changedBy = await getCurrentUser();
+
+    // Get existing record
+    const existing = await prisma.counteragent.findUnique({
+      where: { id },
+      select: pick,
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Counteragent not found" }, { status: 404 });
+    }
+
+    const isEmp = toBool(b.is_emploee);
+
+    const data = {
+      name: b.name ?? null,
+      identification_number: b.identification_number ?? null,
+      birth_or_incorporation_date: b.birth_or_incorporation_date ? new Date(b.birth_or_incorporation_date) : null,
+      entity_type: b.entity_type ?? null,
+      sex: b.sex ?? null,
+      pension_scheme: b.pension_scheme ?? null,
+      country: b.country ?? null,
+      address_line_1: b.address_line_1 ?? null,
+      address_line_2: b.address_line_2 ?? null,
+      zip_code: b.zip_code ?? null,
+      iban: b.iban ?? null,
+      swift: b.swift ?? null,
+      director: b.director ?? null,
+      director_id: b.director_id ?? null,
+      email: b.email ?? null,
+      phone: b.phone ?? null,
+      oris_id: b.oris_id ?? null,
+      counteragent: b.counteragent ?? null,
+      country_uuid: b.country_uuid ?? null,
+      entity_type_uuid: b.entity_type_uuid ?? null,
+      counteragent_uuid: b.counteragent_uuid ?? null,
+      internal_number: b.internal_number ?? null,
+      ...(isEmp === null ? {} : { is_emploee: isEmp }),
+    };
+
+    const updated = await prisma.counteragent.update({
+      where: { id },
+      data,
+      select: pick,
+    });
+
+    // Log changes for modified fields
+    const fieldsToTrack = [
+      'name', 'identification_number', 'birth_or_incorporation_date',
+      'entity_type', 'sex', 'pension_scheme', 'country',
+      'address_line_1', 'address_line_2', 'zip_code',
+      'iban', 'swift', 'director', 'director_id',
+      'email', 'phone', 'oris_id', 'is_emploee',
+    ];
+
+    for (const field of fieldsToTrack) {
+      const oldVal = (existing as any)[field];
+      const newVal = (updated as any)[field];
+      await logFieldChange(id, field, oldVal, newVal, "UPDATE", changedBy);
+    }
+
+    return NextResponse.json(toApi(updated), { status: 200 });
+  } catch (e: any) {
+    console.error("PUT /counteragents/api", e);
+    const msg = String(e?.message || "");
+    const status = msg.includes("uq_counteragents_identification_number_filtered") ? 409 : 500;
+    return NextResponse.json({ error: msg }, { status });
   }
 }

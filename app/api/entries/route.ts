@@ -9,7 +9,10 @@ const Body = z.object({
 });
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
+  // TODO: Entry model needs to be added to schema.prisma
+  return new Response("Entry model not yet implemented", { status: 501 });
+  
+  /* const session = await getServerSession(authOptions);
   if (!session) return new Response("Unauthorized", { status: 401 });
 
   const json = await request.json();
@@ -33,5 +36,5 @@ export async function POST(request: Request) {
     },
   });
 
-  return new Response("ok");
+  return new Response("ok"); */
 }

@@ -1,6 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import CounteragentForm from "../CounteragentForm";
+import AuditHistory from "../AuditHistory";
 export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 
 export default async function EditCounteragent({ params }: { params: { id: string }}) {
   const prisma = new PrismaClient();
@@ -34,9 +36,13 @@ export default async function EditCounteragent({ params }: { params: { id: strin
           phone: row.phone ?? "",
           oris_id: row.oris_id ?? ""
         } : null}
-        countries={countries.map(c=>c.country)}
+        countries={countries.map(c=>c.country).filter((c): c is string => c !== null)}
         entityTypes={entityTypes}
       />
+      
+      <div className="mt-8">
+        <AuditHistory counteragentId={id} />
+      </div>
     </div>
   );
 }

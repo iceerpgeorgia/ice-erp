@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import ClientForm from "./ClientForm";
 
 export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 
 type Opt = { id: string; label: string };
 
@@ -20,7 +21,9 @@ export default async function NewCounteragentPage() {
   ]);
 
   const entityOptions: Opt[] = entityTypes.map(e => ({ id: e.entity_type_uuid, label: e.name_ka }));
-  const countryOptions: Opt[] = countries.map(c => ({ id: c.country_uuid, label: c.country }));
+  const countryOptions: Opt[] = countries
+    .filter(c => c.country !== null)
+    .map(c => ({ id: c.country_uuid, label: c.country as string }));
 
   return (
     <div className="mx-auto max-w-[1400px] px-6 py-8">

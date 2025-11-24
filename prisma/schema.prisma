@@ -135,7 +135,29 @@ model Counteragent {
   counteragent_uuid           String     @db.Uuid @default(uuid())
   internal_number             String?   @db.Text
 
-  @@map("counteragents")
-
   is_emploee Boolean @default(false)
+
+  auditLogs CounteragentAuditLog[]
+
+  @@map("counteragents")
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Counteragent Audit Log
+   ═══════════════════════════════════════════════════════════════ */
+model CounteragentAuditLog {
+  id               BigInt   @id @default(autoincrement())
+  counteragent_id  BigInt
+  changed_at       DateTime @default(now()) @db.Timestamptz(6)
+  changed_by       String?  @db.Text
+  field_name       String   @db.Text
+  old_value        String?  @db.Text
+  new_value        String?  @db.Text
+  operation        String   @db.Text
+
+  counteragent Counteragent @relation(fields: [counteragent_id], references: [id], onDelete: Cascade)
+
+  @@map("counteragent_audit_log")
+  @@index([counteragent_id])
+  @@index([changed_at])
 }
