@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import CountriesTable from "./CountriesTable";
 
 export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 
 export default async function CountriesPage() {
   const prisma = new PrismaClient();

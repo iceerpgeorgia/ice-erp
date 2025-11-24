@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import ClientForm from "./ClientForm";
 
 export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 
 type Opt = { id: string; label: string };
 

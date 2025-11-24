@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import CounteragentsTable from "./CounteragentsTable";
 
 export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 
 export default async function CounteragentsPage() {
   const prisma = new PrismaClient();
