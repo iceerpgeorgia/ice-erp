@@ -35,7 +35,7 @@ export default async function EditCounteragent({ params }: { params: { id: strin
           phone: row.phone ?? "",
           oris_id: row.oris_id ?? ""
         } : null}
-        countries={countries.map(c=>c.country)}
+        countries={countries.map(c=>c.country).filter((c): c is string => c !== null)}
         entityTypes={entityTypes}
       />
       
