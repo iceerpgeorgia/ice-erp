@@ -3,11 +3,17 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
   try {
-    const states = await prisma.$queryRaw`
+    const states: any[] = await prisma.$queryRaw`
       SELECT * FROM project_states ORDER BY name ASC
     `;
 
-    return NextResponse.json(states);
+    // Convert BigInt to number for JSON serialization
+    const serializedStates = states.map(state => ({
+      ...state,
+      id: Number(state.id),
+    }));
+
+    return NextResponse.json(serializedStates);
   } catch (error: any) {
     console.error('GET /project-states error:', error);
     return NextResponse.json(
