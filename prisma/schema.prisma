@@ -1,4 +1,3 @@
-// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,47 +7,65 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
-   NextAuth models (unchanged)
-   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */
-model User {
-  id            String     @id @default(cuid())
-  name          String?
-  email         String?    @unique
-  emailVerified DateTime?
-  image         String?
-
-  accounts Account[]
-  sessions Session[]
-}
-
 model Account {
-  id                String   @id @default(cuid())
+  id                String  @id
   userId            String
   type              String
   provider          String
   providerAccountId String
-
-  refresh_token String? @db.Text
-  access_token  String? @db.Text
-  expires_at    Int?
-  token_type    String?
-  scope         String?
-  id_token      String? @db.Text
-  session_state String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  User              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  created_at DateTime @default(now())
+  table      String
+  record_id  BigInt
+  action     String
+  user_email String?
+  user_id    String?
+  changes    Json?
+
+  @@index([created_at(sort: Desc)])
+  @@index([table, record_id])
+  @@index([user_email])
 }
 
 model Session {
-  id           String   @id @default(cuid())
+  id           String   @id
   sessionToken String   @unique
   userId       String
   expires      DateTime
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model User {
+  id            String    @id
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          String    @default("user")
+  isAuthorized  Boolean   @default(false)
+  authorizedAt  DateTime?
+  authorizedBy  String?
+  Account       Account[]
+  Session       Session[]
+
+  @@index([isAuthorized])
+  @@index([role])
 }
 
 model VerificationToken {
@@ -59,105 +76,189 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-/* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
-   Countries (as before)
-   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */
-model Country {
-  id           BigInt   @id @default(autoincrement())
-  createdAt    DateTime @default(now())            @map("created_at")
-  updatedAt    DateTime @updatedAt                 @map("updated_at")
-  ts           DateTime @default(now())            @db.Timestamptz(6)
-  country_uuid String   @db.Uuid @default(uuid())  @unique
-  name_en      String   @db.Text
-  name_ka      String   @db.Text
-  iso2         String   @db.Char(2) @unique
-  iso3         String   @db.Char(3) @unique
-  un_code      Int?
-  // Maintained by DB trigger; do not add Prisma default here.
-  country      String?  @db.Text
-
-  @@map("countries")
-}
-
-/* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
-   Entity Types (as before)
-   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */
-model EntityType {
-  id               BigInt   @id @default(autoincrement())
-  createdAt        DateTime @default(now())            @map("created_at")
-  updatedAt        DateTime @updatedAt                 @map("updated_at")
-  ts               DateTime @default(now())            @db.Timestamptz(6)
-  entity_type_uuid String   @db.Uuid @default(uuid())  @unique
-  name_en          String   @db.Text
-  name_ka          String   @db.Text
-  code             String   @db.Text
-  is_active        Boolean  @default(true)
-
-  @@map("entity_types")
-}
-
-/* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
-   Counteragents (exact spec)
-   Column order matches your list.
-   No relations/constraints yet.
-   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */
-model Counteragent {
+model counteragents {
   id                          BigInt    @id @default(autoincrement())
-  createdAt                   DateTime  @default(now())   @map("created_at")
-  updatedAt                   DateTime  @updatedAt        @map("updated_at")
-  ts                          DateTime  @default(now())   @db.Timestamptz(6)
-
-  name                        String?   @db.Text
-  identification_number       String?   @db.Text
+  created_at                  DateTime  @default(now())
+  updated_at                  DateTime
+  ts                          DateTime  @default(now()) @db.Timestamptz(6)
+  name                        String?
+  identification_number       String?
   birth_or_incorporation_date DateTime?
-
-  entity_type                 String?   @db.Text
-  sex                         String?   @db.Text
-  pension_scheme              Boolean?
-
-  country                     String?   @db.Text
-
-  address_line_1              String?   @db.Text
-  address_line_2              String?   @db.Text
-  zip_code                    String?   @db.Text
-  iban                        String?   @db.Text
-  swift                       String?   @db.Text
-  director                    String?   @db.Text
-  director_id                 String?   @db.Text
-  email                       String?   @db.Text
-  phone                       String?   @db.Text
-  oris_id                     String?   @db.Text
-
-  counteragent                String?   @db.Text
-
+  entity_type                 String?
+  sex                         String?
+  country                     String?
+  address_line_1              String?
+  address_line_2              String?
+  zip_code                    String?
+  iban                        String?
+  swift                       String?
+  director                    String?
+  director_id                 String?
+  email                       String?
+  phone                       String?
+  oris_id                     String?
+  counteragent                String?
   country_uuid                String?   @db.Uuid
   entity_type_uuid            String?   @db.Uuid
-  counteragent_uuid           String     @db.Uuid @default(uuid())
-  internal_number             String?   @db.Text
+  counteragent_uuid           String    @unique @db.Uuid
+  internal_number             String?
+  pension_scheme              Boolean?
+  is_emploee                  Boolean   @default(false)
+  is_active                   Boolean   @default(true)
+  was_emploee                 Boolean   @default(false)
 
-  is_emploee Boolean @default(false)
-
-  auditLogs CounteragentAuditLog[]
-
-  @@map("counteragents")
+  @@index([counteragent], map: "idx_counteragents_counteragent")
+  @@index([country], map: "idx_counteragents_country")
+  @@index([entity_type], map: "idx_counteragents_entity_type")
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Counteragent Audit Log
-   ═══════════════════════════════════════════════════════════════ */
-model CounteragentAuditLog {
+model counteragents_audit {
+  audit_id          Int       @id @default(autoincrement())
+  counteragent_uuid String    @db.Uuid
+  changed_by        String?
+  change_type       String?
+  old_country_uuid  String?   @db.Uuid
+  new_country_uuid  String?   @db.Uuid
+  changed_at        DateTime? @default(now()) @db.Timestamp(6)
+  details           Json?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model countries {
+  id           BigInt   @id @default(autoincrement())
+  created_at   DateTime @default(now())
+  updated_at   DateTime
+  ts           DateTime @default(now()) @db.Timestamptz(6)
+  country_uuid String   @unique @db.Uuid
+  name_en      String
+  name_ka      String
+  iso2         String   @unique @db.Char(2)
+  iso3         String   @unique @db.Char(3)
+  un_code      Int?
+  country      String?
+  is_active    Boolean  @default(true)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model currencies {
+  id         BigInt   @id @default(autoincrement())
+  uuid       String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code       String   @unique @db.VarChar(10)
+  name       String
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  updated_at DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([code], map: "idx_currencies_code")
+  @@index([is_active], map: "idx_currencies_is_active")
+}
+
+model entity_types {
   id               BigInt   @id @default(autoincrement())
-  counteragent_id  BigInt
-  changed_at       DateTime @default(now()) @db.Timestamptz(6)
-  changed_by       String?  @db.Text
-  field_name       String   @db.Text
-  old_value        String?  @db.Text
-  new_value        String?  @db.Text
-  operation        String   @db.Text
+  created_at       DateTime @default(now())
+  updated_at       DateTime
+  ts               DateTime @default(now()) @db.Timestamptz(6)
+  entity_type_uuid String   @unique @db.Uuid
+  code             String
+  name_en          String
+  name_ka          String
+  is_active        Boolean  @default(true)
+}
 
-  counteragent Counteragent @relation(fields: [counteragent_id], references: [id], onDelete: Cascade)
+model financial_codes {
+  id                    BigInt            @id @default(autoincrement())
+  uuid                  String?           @unique @db.Uuid
+  code                  String            @unique
+  name                  String
+  validation            String?
+  applies_to_pl         Boolean?
+  applies_to_cf         Boolean?
+  is_income             Boolean?
+  parent_uuid           String?           @db.Uuid
+  description           String?
+  depth                 Int?
+  sort_order            Int?
+  is_active             Boolean?          @default(true)
+  created_at            DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at            DateTime?         @default(now()) @db.Timestamp(6)
+  financial_codes       financial_codes?  @relation("financial_codesTofinancial_codes", fields: [parent_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+  other_financial_codes financial_codes[] @relation("financial_codesTofinancial_codes")
 
-  @@map("counteragent_audit_log")
-  @@index([counteragent_id])
-  @@index([changed_at])
+  @@index([code], map: "idx_financial_codes_code")
+  @@index([parent_uuid], map: "idx_financial_codes_parent")
+  @@index([uuid], map: "idx_financial_codes_uuid")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model nbg_exchange_rates {
+  id         BigInt   @id @default(autoincrement())
+  uuid       String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date       DateTime @unique @db.Date
+  usd_rate   Decimal? @db.Decimal(18, 6)
+  eur_rate   Decimal? @db.Decimal(18, 6)
+  cny_rate   Decimal? @db.Decimal(18, 6)
+  gbp_rate   Decimal? @db.Decimal(18, 6)
+  rub_rate   Decimal? @db.Decimal(18, 6)
+  try_rate   Decimal? @db.Decimal(18, 6)
+  aed_rate   Decimal? @db.Decimal(18, 6)
+  kzt_rate   Decimal? @db.Decimal(18, 6)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  updated_at DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([date(sort: Desc)], map: "idx_nbg_exchange_rates_date")
+}
+
+model project_states {
+  id         BigInt    @id @default(autoincrement())
+  uuid       String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String    @unique
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamp(6)
+  updated_at DateTime  @default(now()) @db.Timestamp(6)
+  projects   projects[]
+}
+
+model projects {
+  id                    BigInt              @id @default(autoincrement())
+  created_at            DateTime            @default(now()) @db.Timestamp(6)
+  updated_at            DateTime            @default(now()) @db.Timestamp(6)
+  ts                    DateTime            @default(now()) @db.Timestamptz(6)
+  project_uuid          String              @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  
+  // Form fields - all required in form
+  counteragent_uuid     String              @db.Uuid
+  project_name          String
+  financial_code_uuid   String              @db.Uuid
+  date                  DateTime            @db.Date
+  value                 Decimal             @db.Decimal(18, 2)
+  currency_uuid         String              @db.Uuid
+  state_uuid            String              @db.Uuid
+  oris_1630             String?
+  
+  // Computed/derived fields (not in form)
+  contract_no           String?
+  project_index         String?
+  
+  // Relations
+  project_state         project_states      @relation(fields: [state_uuid], references: [uuid])
+  project_employees     project_employees[]
+  
+  @@index([counteragent_uuid])
+  @@index([financial_code_uuid])
+  @@index([currency_uuid])
+  @@index([state_uuid])
+  @@index([date])
+}
+
+model project_employees {
+  id                BigInt   @id @default(autoincrement())
+  project_uuid      String   @db.Uuid
+  employee_uuid     String   @db.Uuid
+  created_at        DateTime @default(now()) @db.Timestamp(6)
+  
+  project           projects @relation(fields: [project_uuid], references: [project_uuid], onDelete: Cascade)
+  
+  @@unique([project_uuid, employee_uuid])
+  @@index([project_uuid])
+  @@index([employee_uuid])
 }
