@@ -6,12 +6,12 @@ export const dynamic = 'force-dynamic';
 
 export default async function EntityTypesPage() {
   const prisma = new PrismaClient();
-  const items = await prisma.entityType.findMany({
+  const items = await prisma.entity_types.findMany({
     orderBy: { id: "asc" },
     select: {
       id: true,
-      createdAt: true,
-      updatedAt: true,
+      created_at: true,
+      updated_at: true,
       ts: true,
       entity_type_uuid: true, // ← correct field name
       code: true,
@@ -25,8 +25,8 @@ export default async function EntityTypesPage() {
   const data = items.map((x) => ({
     ...x,
     id: Number(x.id),
-    createdAt: x.createdAt?.toISOString() ?? null,
-    updatedAt: x.updatedAt?.toISOString() ?? null,
+    created_at: x.created_at?.toISOString() ?? null,
+    updated_at: x.updated_at?.toISOString() ?? null,
     ts: x.ts?.toISOString() ?? null,
   }));
 

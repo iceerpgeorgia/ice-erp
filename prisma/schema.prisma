@@ -123,6 +123,21 @@ model counteragents_audit {
   details           Json?
 }
 
+model counteragent_audit_log {
+  id               BigInt   @id @default(autoincrement())
+  counteragent_id  BigInt
+  changed_at       DateTime @default(now()) @db.Timestamptz(6)
+  changed_by       String?
+  field_name       String
+  old_value        String?
+  new_value        String?
+  operation        String
+
+  @@index([counteragent_id])
+  @@index([changed_at])
+  @@map("counteragent_audit_log")
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model countries {
   id           BigInt   @id @default(autoincrement())

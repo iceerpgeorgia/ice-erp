@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
     await logAudit({
       table: 'projects',
       recordId: project.id,
-      action: 'create',
+      action: 'CREATE',
     });
 
     return NextResponse.json(project, { status: 201 });

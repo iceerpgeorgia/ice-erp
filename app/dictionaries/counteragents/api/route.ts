@@ -5,7 +5,7 @@ export const revalidate = 0;
 const prisma = new PrismaClient();
 
 const pick = {
-  id: true, createdAt: true, updatedAt: true, ts: true,
+  id: true, created_at: true, updated_at: true, ts: true,
   name: true, identification_number: true, birth_or_incorporation_date: true,
   entity_type: true, sex: true, pension_scheme: true, country: true,
   address_line_1: true, address_line_2: true, zip_code: true,
@@ -21,8 +21,8 @@ const pick = {
 function toApi(r: any) {
   return {
     id: Number(r.id),
-    created_at: r.createdAt?.toISOString() ?? null,
-    updated_at: r.updatedAt?.toISOString() ?? null,
+    created_at: r.created_at?.toISOString() ?? null,
+    updated_at: r.updated_at?.toISOString() ?? null,
     ts: r.ts?.toISOString() ?? null,
     name: r.name,
     identification_number: r.identification_number,
@@ -87,7 +87,7 @@ async function logFieldChange(
   
   // Only log if values are different
   if (oldStr !== newStr) {
-    await prisma.counteragentAuditLog.create({
+    await prisma.counteragent_audit_log.create({
       data: {
         counteragent_id: counteragentId,
         field_name: fieldName,
@@ -102,7 +102,7 @@ async function logFieldChange(
 
 export async function GET() {
   try {
-    const rows = await prisma.counteragent.findMany({
+    const rows = await prisma.counteragents.findMany({
       orderBy: { id: "asc" },
       select: pick,
     });
@@ -120,6 +120,7 @@ export async function POST(req: NextRequest) {
     const changedBy = await getCurrentUser();
 
     const data = {
+      updated_at: new Date(),
       name: b.name ?? null,
       identification_number: b.identification_number ?? null,
       birth_or_incorporation_date: b.birth_or_incorporation_date ? new Date(b.birth_or_incorporation_date) : null,
@@ -140,12 +141,12 @@ export async function POST(req: NextRequest) {
       counteragent: b.counteragent ?? null,
       country_uuid: b.country_uuid ?? null,
       entity_type_uuid: b.entity_type_uuid ?? null,
-      counteragent_uuid: b.counteragent_uuid ?? null,
+      counteragent_uuid: b.counteragent_uuid ?? crypto.randomUUID(),
       internal_number: b.internal_number ?? null,
       ...(isEmp === null ? {} : { is_emploee: isEmp }),
     };
 
-    const created = await prisma.counteragent.create({
+    const created = await prisma.counteragents.create({
       data,
       select: pick,
     });
@@ -175,7 +176,7 @@ export async function PUT(req: NextRequest) {
     const changedBy = await getCurrentUser();
 
     // Get existing record
-    const existing = await prisma.counteragent.findUnique({
+    const existing = await prisma.counteragents.findUnique({
       where: { id },
       select: pick,
     });
@@ -212,7 +213,7 @@ export async function PUT(req: NextRequest) {
       ...(isEmp === null ? {} : { is_emploee: isEmp }),
     };
 
-    const updated = await prisma.counteragent.update({
+    const updated = await prisma.counteragents.update({
       where: { id },
       data,
       select: pick,

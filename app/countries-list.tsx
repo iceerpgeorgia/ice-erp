@@ -2,8 +2,8 @@
 import { prisma } from "@/lib/prisma";
 
 export default async function CountriesList() {
-  const countries = await prisma.country.findMany({
-    orderBy: { createdAt: "desc" },
+  const countries = await prisma.countries.findMany({
+    orderBy: { created_at: "desc" },
     take: 20,
   });
 

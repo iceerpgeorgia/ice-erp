@@ -7,12 +7,12 @@ export const dynamic = 'force-dynamic';
 export default async function CountriesPage() {
   const prisma = new PrismaClient();
 
-  const countries = await prisma.country.findMany({
+  const countries = await prisma.countries.findMany({
     orderBy: { id: "asc" },
     select: {
       id: true,
-      createdAt: true,
-      updatedAt: true,
+      created_at: true,
+      updated_at: true,
       ts: true,
       country_uuid: true,
       name_en: true,
@@ -43,8 +43,8 @@ export default async function CountriesPage() {
   const data = countries.map((c) => ({
     ...c,
     id: Number(c.id),
-    createdAt: c.createdAt?.toISOString() ?? null,
-    updatedAt: c.updatedAt?.toISOString() ?? null,
+    created_at: c.created_at?.toISOString() ?? null,
+    updated_at: c.updated_at?.toISOString() ?? null,
     ts: c.ts?.toISOString() ?? null,
   }));
 
