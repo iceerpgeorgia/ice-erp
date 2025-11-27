@@ -4,6 +4,7 @@ import { CountriesTable } from "@/components/figma/countries-table";
 export const revalidate = 0;
 export const dynamic = 'force-dynamic';
 
+// Force rebuild - Nov 27, 2025
 export default async function CountriesPage() {
   const prisma = new PrismaClient();
 
