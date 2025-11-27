@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import CountriesTable from "./CountriesTable";
+import { CountriesTable } from "@/components/figma/countries-table";
 
 export const revalidate = 0;
 export const dynamic = 'force-dynamic';
@@ -39,13 +39,20 @@ export default async function CountriesPage() {
   console.log("[CountriesPage] with country (non-empty):", withCountry);
   console.log("[CountriesPage] sample:", sample);
 
-  // Serialize BigInt & Date for client
+  // Serialize BigInt & Date for client and transform to camelCase
   const data = countries.map((c) => ({
-    ...c,
     id: Number(c.id),
-    created_at: c.created_at?.toISOString() ?? null,
-    updated_at: c.updated_at?.toISOString() ?? null,
-    ts: c.ts?.toISOString() ?? null,
+    createdAt: c.created_at?.toISOString() ?? '',
+    updatedAt: c.updated_at?.toISOString() ?? '',
+    ts: c.ts?.toISOString() ?? '',
+    countryUuid: c.country_uuid ?? '',
+    nameEn: c.name_en ?? '',
+    nameKa: c.name_ka ?? '',
+    iso2: c.iso2 ?? '',
+    iso3: c.iso3 ?? '',
+    unCode: c.un_code ?? 0,
+    country: c.country ?? '',
+    isActive: true, // default for now
   }));
 
   return (
@@ -69,7 +76,7 @@ export default async function CountriesPage() {
           </details>
         </div>
 
-        <CountriesTable rows={data} />
+        <CountriesTable data={data} />
       </div>
     </div>
   );

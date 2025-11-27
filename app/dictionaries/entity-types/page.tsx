@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import EntityTypesTable from "./EntityTypesTable";
+import { EntityTypesTable } from "@/components/figma/entity-types-table";
 
 export const revalidate = 0;
 export const dynamic = 'force-dynamic';
@@ -21,13 +21,17 @@ export default async function EntityTypesPage() {
     },
   });
 
-  // Serialize BigInt & Date
+  // Serialize BigInt & Date and transform to camelCase
   const data = items.map((x) => ({
-    ...x,
     id: Number(x.id),
-    created_at: x.created_at?.toISOString() ?? null,
-    updated_at: x.updated_at?.toISOString() ?? null,
-    ts: x.ts?.toISOString() ?? null,
+    createdAt: x.created_at?.toISOString() ?? '',
+    updatedAt: x.updated_at?.toISOString() ?? '',
+    ts: x.ts?.toISOString() ?? '',
+    entityTypeUuid: x.entity_type_uuid ?? '',
+    code: x.code ?? '',
+    nameEn: x.name_en ?? '',
+    nameKa: x.name_ka ?? '',
+    isActive: x.is_active ?? true,
   }));
 
   return (

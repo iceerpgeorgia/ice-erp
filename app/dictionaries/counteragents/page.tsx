@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PrismaClient } from "@prisma/client";
-import CounteragentsTable from "./CounteragentsTable";
+import { CounteragentsTable } from "@/components/figma/counteragents-table";
 
 export const revalidate = 0;
 export const dynamic = 'force-dynamic';
@@ -37,38 +37,44 @@ export default async function CounteragentsPage() {
       entity_type_uuid: true,
       counteragent_uuid: true,
       internal_number: true,
+      is_active: true,
+      is_emploee: true,
+      was_emploee: true,
     },
   });
 
   const data = rows.map((r) => ({
     id: Number(r.id),
-    created_at: r.created_at?.toISOString() ?? null,
-    updated_at: r.updated_at?.toISOString() ?? null,
-    ts: r.ts?.toISOString() ?? null,
-    name: r.name,
-    identification_number: r.identification_number,
-    birth_or_incorporation_date: r.birth_or_incorporation_date
+    createdAt: r.created_at?.toISOString() ?? '',
+    updatedAt: r.updated_at?.toISOString() ?? '',
+    ts: r.ts?.toISOString() ?? '',
+    name: r.name ?? '',
+    identificationNumber: r.identification_number,
+    birthOrIncorporationDate: r.birth_or_incorporation_date
       ? new Date(r.birth_or_incorporation_date).toISOString().slice(0, 10)
       : null,
-    entity_type: r.entity_type,
+    entityType: r.entity_type,
     sex: r.sex,
-    pension_scheme: r.pension_scheme,
+    pensionScheme: r.pension_scheme,
     country: r.country,
-    address_line_1: r.address_line_1,
-    address_line_2: r.address_line_2,
-    zip_code: r.zip_code,
+    addressLine1: r.address_line_1,
+    addressLine2: r.address_line_2,
+    zipCode: r.zip_code,
     iban: r.iban,
     swift: r.swift,
     director: r.director,
-    director_id: r.director_id,
+    directorId: r.director_id,
     email: r.email,
     phone: r.phone,
-    oris_id: r.oris_id,
+    orisId: r.oris_id,
     counteragent: r.counteragent,
-    country_uuid: r.country_uuid,
-    entity_type_uuid: r.entity_type_uuid,
-    counteragent_uuid: r.counteragent_uuid,
-    internal_number: r.internal_number ?? null,
+    countryUuid: r.country_uuid,
+    entityTypeUuid: r.entity_type_uuid,
+    counteragentUuid: r.counteragent_uuid ?? '',
+    internalNumber: r.internal_number,
+    isActive: r.is_active ?? true,
+    isEmploye: r.is_emploee ?? false,
+    wasEmploye: r.was_emploee ?? false,
   }));
 
   return (
