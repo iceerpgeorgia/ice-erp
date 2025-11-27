@@ -1,48 +1,35 @@
-import { PrismaClient } from "@prisma/client";
-import { CountriesTable } from "@/components/figma/countries-table";
+"use client";
 
-export const revalidate = 0;
-export const dynamic = 'force-dynamic';
+import CountriesTableFigma from "./CountriesTableFigma";
+import { useEffect, useState } from "react";
 
-// Force rebuild - Nov 27, 2025
-export default async function CountriesPage() {
-  const prisma = new PrismaClient();
+export default function CountriesPage() {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const countries = await prisma.countries.findMany({
-    orderBy: { id: "asc" },
-    select: {
-      id: true,
-      created_at: true,
-      updated_at: true,
-      ts: true,
-      country_uuid: true,
-      name_en: true,
-      name_ka: true,
-      iso2: true,
-      iso3: true,
-      un_code: true,
-      country: true, // <- important
-    },
-  });
+  useEffect(() => {
+    async function fetchCountries() {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/countries");
+        const data = await res.json();
+        setRows(data);
+      } catch (err) {
+        console.error("Error fetching countries:", err);
+        setRows([]);
+      }
+      setLoading(false);
+    }
+    fetchCountries();
+  }, []);
 
-  const data = countries.map((c) => ({
-    id: Number(c.id),
-    createdAt: c.created_at?.toISOString() ?? '',
-    updatedAt: c.updated_at?.toISOString() ?? '',
-    ts: c.ts?.toISOString() ?? '',
-    countryUuid: c.country_uuid ?? '',
-    nameEn: c.name_en ?? '',
-    nameKa: c.name_ka ?? '',
-    iso2: c.iso2 ?? '',
-    iso3: c.iso3 ?? '',
-    unCode: c.un_code ?? 0,
-    country: c.country ?? '',
-    isActive: true,
-  }));
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-gray-500">Loading countries...</div>
+      </div>
+    );
+  }
 
-  return (
-    <div className="w-full p-6">
-      <CountriesTable data={data} />
-    </div>
-  );
+  return <CountriesTableFigma rows={rows} />;
 }
