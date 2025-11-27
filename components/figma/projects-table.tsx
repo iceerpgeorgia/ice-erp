@@ -17,7 +17,10 @@ import {
   EyeOff,
   Trash2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Upload,
+  Download,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -145,6 +148,9 @@ export default function ProjectsTable() {
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isImportMenuOpen, setIsImportMenuOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     projectName: '',
     date: '',
@@ -376,6 +382,53 @@ export default function ProjectsTable() {
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
+  };
+
+  const handleDownloadTemplate = () => {
+    // Download the template file
+    window.location.href = '/projects_template.xlsx';
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    setIsImportMenuOpen(false);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/projects/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Import failed');
+      }
+
+      const result = await response.json();
+      alert(`Import successful!\nCreated: ${result.created}\nUpdated: ${result.updated}\nFailed: ${result.failed}`);
+      
+      // Refresh the projects list
+      await fetchProjects();
+    } catch (error: any) {
+      console.error('Import error:', error);
+      alert(`Import failed: ${error.message}`);
+    } finally {
+      setIsImporting(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   const handleColumnVisibility = (key: ColumnKey | 'employees', visible: boolean) => {
@@ -746,6 +799,45 @@ export default function ProjectsTable() {
               </div>
             </PopoverContent>
           </Popover>
+          
+          {/* Import Button with Dropdown */}
+          <Popover open={isImportMenuOpen} onOpenChange={setIsImportMenuOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" disabled={isImporting}>
+                <Upload className="h-4 w-4 mr-2" />
+                {isImporting ? 'Importing...' : 'Import'}
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56" align="end">
+              <div className="grid gap-2">
+                <button
+                  onClick={handleDownloadTemplate}
+                  className="flex items-center px-3 py-2 text-sm hover:bg-gray-100 rounded"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Template
+                </button>
+                <button
+                  onClick={handleImportClick}
+                  className="flex items-center px-3 py-2 text-sm hover:bg-gray-100 rounded"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import from File
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
+          
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={startAdd}>
