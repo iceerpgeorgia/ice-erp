@@ -48,12 +48,12 @@ export async function GET(request: NextRequest) {
       where.appliesToCF = true;
     }
 
-    // Get all codes matching filters, ordered by code and sortOrder
+    // Get all codes matching filters, ordered by code and sort_order
     const codes = await prisma.financial_codes.findMany({
       where,
       orderBy: [
         { depth: 'asc' },
-        { sortOrder: 'asc' },
+        { sort_order: 'asc' },
         { code: 'asc' },
       ],
     });
@@ -152,26 +152,26 @@ export async function POST(req: NextRequest) {
     // Calculate depth from code
     const depth = payload.code.split(".").length;
 
-    // Calculate sortOrder: find max sortOrder for siblings and increment
-    let sortOrder = 1;
+    // Calculate sort_order: find max sort_order for siblings and increment
+    let sort_order = 1;
     if (payload.parentUuid) {
       const siblings = await prisma.financial_codes.findMany({
         where: { parentUuid: payload.parentUuid },
-        orderBy: { sortOrder: 'desc' },
+        orderBy: { sort_order: 'desc' },
         take: 1,
       });
       if (siblings.length > 0) {
-        sortOrder = (siblings[0].sortOrder || 0) + 1;
+        sort_order = (siblings[0].sort_order || 0) + 1;
       }
     } else {
-      // Root level - find max sortOrder among roots
+      // Root level - find max sort_order among roots
       const roots = await prisma.financial_codes.findMany({
         where: { parentUuid: null },
-        orderBy: { sortOrder: 'desc' },
+        orderBy: { sort_order: 'desc' },
         take: 1,
       });
       if (roots.length > 0) {
-        sortOrder = (roots[0].sortOrder || 0) + 1;
+        sort_order = (roots[0].sort_order || 0) + 1;
       }
     }
 
@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
         is_active: payload.is_active,
         ...(payload.parentUuid && { parentUuid: payload.parentUuid }),
         depth,
-        sortOrder,
+        sort_order,
       },
     });
 
