@@ -159,7 +159,8 @@ export async function PATCH(req: NextRequest) {
       await logAudit({ 
         table: "currencies", 
         recordId: BigInt(Number(idParam)), 
-        action: active ? "activate" : "deactivate" 
+        action: "UPDATE",
+        changes: { is_active: active }
       });
       return NextResponse.json({ id: Number(idParam) });
     }
