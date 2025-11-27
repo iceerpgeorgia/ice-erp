@@ -195,7 +195,7 @@ export async function POST(req: NextRequest) {
     await logAudit({
       table: "financial_codes",
       recordId: created.uuid,
-      action: "create",
+      action: "CREATE",
     });
 
     console.log(`[API POST] Financial code created:`, serializeFinancialCode(created));
@@ -294,7 +294,7 @@ export async function PATCH(req: NextRequest) {
       await logAudit({
         table: "financial_codes",
         recordId: updated.uuid,
-        action: "update",
+        action: "UPDATE",
         changes,
       });
       console.log(`[API] Financial code updated with changes:`, changes);
@@ -338,7 +338,7 @@ export async function DELETE(req: NextRequest) {
     await logAudit({
       table: "financial_codes",
       recordId: updated.uuid,
-      action: "delete",
+      action: "DELETE",
     });
 
     console.log(`[API] Financial code deleted: ${updated.code}`);

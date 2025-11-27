@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     });
 
     const recordId = typeof created.id === "bigint" ? created.id : BigInt(created.id);
-    await logAudit({ table: "currencies", recordId, action: "create" });
+    await logAudit({ table: "currencies", recordId, action: "CREATE" });
 
     function formatDate(date: string | Date | undefined): string {
       if (!date) return "";
@@ -213,7 +213,7 @@ export async function PATCH(req: NextRequest) {
     await logAudit({ 
       table: "currencies", 
       recordId: BigInt(Number(idParam)), 
-      action: "update"
+      action: "UPDATE"
     });
 
     function formatDate(date: string | Date | undefined): string {
