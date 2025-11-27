@@ -30,16 +30,16 @@ function validatePayload(body: any) {
 
 export async function GET() {
   try {
-    const rows = await prisma.currency.findMany({
+    const rows = await prisma.currencies.findMany({
       orderBy: { code: "asc" },
       select: {
         id: true,
         uuid: true,
         code: true,
         name: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
+        is_active: true,
+        created_at: true,
+        updated_at: true,
       },
     });
 
@@ -57,9 +57,9 @@ export async function GET() {
       uuid: row.uuid,
       code: row.code,
       name: row.name,
-      isActive: row.isActive,
-      createdAt: formatDate(row.createdAt),
-      updatedAt: formatDate(row.updatedAt),
+      is_active: row.is_active,
+      created_at: formatDate(row.created_at),
+      updated_at: formatDate(row.updated_at),
     }));
 
     return NextResponse.json(camelRows);
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check for duplicate code
-    const existing = await prisma.currency.findUnique({
+    const existing = await prisma.currencies.findUnique({
       where: { code: payload.code },
     });
 
@@ -93,20 +93,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const created = await prisma.currency.create({
+    const created = await prisma.currencies.create({
       data: {
         code: payload.code,
         name: payload.name,
-        isActive: payload.is_active,
+        is_active: payload.is_active,
       },
       select: {
         id: true,
         uuid: true,
         code: true,
         name: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
+        is_active: true,
+        created_at: true,
+        updated_at: true,
       },
     });
 
@@ -125,9 +125,9 @@ export async function POST(req: NextRequest) {
       uuid: created.uuid,
       code: created.code,
       name: created.name,
-      isActive: created.isActive,
-      createdAt: formatDate(created.createdAt),
-      updatedAt: formatDate(created.updatedAt),
+      is_active: created.is_active,
+      created_at: formatDate(created.created_at),
+      updated_at: formatDate(created.updated_at),
     }, { status: 201 });
   } catch (error: any) {
     console.error("[currencies] POST error", error);
@@ -152,9 +152,9 @@ export async function PATCH(req: NextRequest) {
     // If only toggling active status
     if (body.active !== undefined && Object.keys(body).length === 1) {
       const active = typeof body.active === "boolean" ? body.active : true;
-      await prisma.currency.update({ 
+      await prisma.currencies.update({ 
         where: { id: BigInt(Number(idParam)) }, 
-        data: { isActive: active } 
+        data: { is_active: active } 
       });
       await logAudit({ 
         table: "currencies", 
@@ -171,7 +171,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Get existing record
-    const existing = await prisma.currency.findUnique({
+    const existing = await prisma.currencies.findUnique({
       where: { id: BigInt(Number(idParam)) },
     });
 
@@ -181,7 +181,7 @@ export async function PATCH(req: NextRequest) {
 
     // Check for code conflicts (if code changed)
     if (payload.code !== existing.code) {
-      const duplicate = await prisma.currency.findUnique({
+      const duplicate = await prisma.currencies.findUnique({
         where: { code: payload.code },
       });
       if (duplicate) {
@@ -192,21 +192,21 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    const updated = await prisma.currency.update({
+    const updated = await prisma.currencies.update({
       where: { id: BigInt(Number(idParam)) },
       data: {
         code: payload.code,
         name: payload.name,
-        isActive: payload.is_active,
+        is_active: payload.is_active,
       },
       select: {
         id: true,
         uuid: true,
         code: true,
         name: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
+        is_active: true,
+        created_at: true,
+        updated_at: true,
       },
     });
 
@@ -228,9 +228,9 @@ export async function PATCH(req: NextRequest) {
       uuid: updated.uuid,
       code: updated.code,
       name: updated.name,
-      isActive: updated.isActive,
-      createdAt: formatDate(updated.createdAt),
-      updatedAt: formatDate(updated.updatedAt),
+      is_active: updated.is_active,
+      created_at: formatDate(updated.created_at),
+      updated_at: formatDate(updated.updated_at),
     });
   } catch (e: any) {
     console.error("[currencies] PATCH error", e);
@@ -247,9 +247,9 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Missing id" }, { status: 400 });
     }
     
-    await prisma.currency.update({ 
+    await prisma.currencies.update({ 
       where: { id: BigInt(Number(idParam)) }, 
-      data: { isActive: false } 
+      data: { is_active: false } 
     });
     
     await logAudit({ 

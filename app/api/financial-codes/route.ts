@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     // Get single code details
     if (singleCode) {
-      const code = await prisma.financialCode.findUnique({
+      const code = await prisma.financial_codes.findUnique({
         where: { code: singleCode },
       });
 
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all codes matching filters, ordered by code and sortOrder
-    const codes = await prisma.financialCode.findMany({
+    const codes = await prisma.financial_codes.findMany({
       where,
       orderBy: [
         { depth: 'asc' },
@@ -76,7 +76,7 @@ function validatePayload(body: any) {
   const isIncome = typeof body?.isIncome === "boolean" ? body.isIncome : false;
   const appliesToPL = typeof body?.appliesToPL === "boolean" ? body.appliesToPL : false;
   const appliesToCF = typeof body?.appliesToCF === "boolean" ? body.appliesToCF : false;
-  const isActive = typeof body?.isActive === "boolean" ? body.isActive : true;
+  const is_active = typeof body?.is_active === "boolean" ? body.is_active : true;
   
   // Validate parentUuid format if provided
   let parentUuid: string | null = null;
@@ -116,7 +116,7 @@ function validatePayload(body: any) {
       isIncome,
       appliesToPL,
       appliesToCF,
-      isActive,
+      is_active,
       parentUuid,
     },
   } as const;
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
     console.log('[API POST] Validated payload:', payload);
 
     // Check for duplicate code
-    const existing = await prisma.financialCode.findUnique({
+    const existing = await prisma.financial_codes.findUnique({
       where: { code: payload.code },
     });
 
@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
     // Calculate sortOrder: find max sortOrder for siblings and increment
     let sortOrder = 1;
     if (payload.parentUuid) {
-      const siblings = await prisma.financialCode.findMany({
+      const siblings = await prisma.financial_codes.findMany({
         where: { parentUuid: payload.parentUuid },
         orderBy: { sortOrder: 'desc' },
         take: 1,
@@ -165,7 +165,7 @@ export async function POST(req: NextRequest) {
       }
     } else {
       // Root level - find max sortOrder among roots
-      const roots = await prisma.financialCode.findMany({
+      const roots = await prisma.financial_codes.findMany({
         where: { parentUuid: null },
         orderBy: { sortOrder: 'desc' },
         take: 1,
@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const created = await prisma.financialCode.create({
+    const created = await prisma.financial_codes.create({
       data: {
         code: payload.code,
         name: payload.name,
@@ -184,7 +184,7 @@ export async function POST(req: NextRequest) {
         isIncome: payload.isIncome,
         appliesToPL: payload.appliesToPL,
         appliesToCF: payload.appliesToCF,
-        isActive: payload.isActive,
+        is_active: payload.is_active,
         ...(payload.parentUuid && { parentUuid: payload.parentUuid }),
         depth,
         sortOrder,
@@ -232,7 +232,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Fetch existing record
-    const existing = await prisma.financialCode.findUnique({
+    const existing = await prisma.financial_codes.findUnique({
       where: { id },
     });
 
@@ -242,7 +242,7 @@ export async function PATCH(req: NextRequest) {
 
     // Check for code conflicts (if code changed)
     if (payload.code !== existing.code) {
-      const duplicate = await prisma.financialCode.findUnique({
+      const duplicate = await prisma.financial_codes.findUnique({
         where: { code: payload.code },
       });
       if (duplicate) {
@@ -264,7 +264,7 @@ export async function PATCH(req: NextRequest) {
     if (existingAny.isIncome !== payload.isIncome) changes.isIncome = { from: existingAny.isIncome, to: payload.isIncome };
     if (existingAny.appliesToPL !== payload.appliesToPL) changes.appliesToPL = { from: existingAny.appliesToPL, to: payload.appliesToPL };
     if (existingAny.appliesToCF !== payload.appliesToCF) changes.appliesToCF = { from: existingAny.appliesToCF, to: payload.appliesToCF };
-    if (existingAny.isActive !== payload.isActive) changes.isActive = { from: existingAny.isActive, to: payload.isActive };
+    if (existingAny.is_active !== payload.is_active) changes.is_active = { from: existingAny.is_active, to: payload.is_active };
     if (existingAny.parentUuid !== payload.parentUuid) changes.parentUuid = { from: existingAny.parentUuid, to: payload.parentUuid };
 
     // Calculate depth if code changed
@@ -275,7 +275,7 @@ export async function PATCH(req: NextRequest) {
       isIncome: payload.isIncome,
       appliesToPL: payload.appliesToPL,
       appliesToCF: payload.appliesToCF,
-      isActive: payload.isActive,
+      is_active: payload.is_active,
       parentUuid: payload.parentUuid,
     };
 
@@ -284,7 +284,7 @@ export async function PATCH(req: NextRequest) {
       updateData.depth = payload.code.split(".").length;
     }
 
-    const updated = await prisma.financialCode.update({
+    const updated = await prisma.financial_codes.update({
       where: { id },
       data: updateData,
     });
@@ -321,7 +321,7 @@ export async function DELETE(req: NextRequest) {
 
     const id = BigInt(idString);
 
-    const existing = await prisma.financialCode.findUnique({
+    const existing = await prisma.financial_codes.findUnique({
       where: { id },
     });
 
@@ -329,10 +329,10 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ errors: { id: "Financial code not found" } }, { status: 404 });
     }
 
-    // Soft delete by setting isActive to false
-    const updated = await prisma.financialCode.update({
+    // Soft delete by setting is_active to false
+    const updated = await prisma.financial_codes.update({
       where: { id },
-      data: { isActive: false },
+      data: { is_active: false },
     });
 
     await logAudit({
