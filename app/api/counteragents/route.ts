@@ -9,8 +9,8 @@ const prisma = new PrismaClient();
 function toApi(row: any) {
   return {
     id: Number(row.id),
-    created_at: row.createdAt?.toISOString() ?? null,
-    updated_at: row.updatedAt?.toISOString() ?? null,
+    created_at: row.created_at?.toISOString() ?? null,
+    updated_at: row.updated_at?.toISOString() ?? null,
     ts: row.ts?.toISOString() ?? null,
 
     name: row.name,
@@ -43,12 +43,12 @@ function toApi(row: any) {
 
 export async function GET() {
   try {
-    const rows = await prisma.counteragent.findMany({
+    const rows = await prisma.counteragents.findMany({
       orderBy: { id: "asc" },
       select: {
         id: true,
-        createdAt: true, // Prisma uses camelCase in client
-        updatedAt: true,
+        created_at: true,
+        updated_at: true,
         ts: true,
 
         name: true,
@@ -87,8 +87,10 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    const created = await prisma.counteragent.create({
+    const created = await prisma.counteragents.create({
       data: {
+        updated_at: new Date(),
+        counteragent_uuid: body.counteragent_uuid ?? crypto.randomUUID(),
         name: body.name?.trim(),
         identification_number: body.identification_number ?? null,
         birth_or_incorporation_date: body.birth_or_incorporation_date
@@ -116,8 +118,8 @@ export async function POST(req: NextRequest) {
       },
       select: {
         id: true,
-        createdAt: true,
-        updatedAt: true,
+        created_at: true,
+        updated_at: true,
         ts: true,
 
         name: true,

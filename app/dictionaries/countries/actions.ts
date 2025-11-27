@@ -18,8 +18,16 @@ export async function createCountry(formData: FormData) {
   const un_code_raw = s(formData.get("un_code"));
   const un_code = un_code_raw ? Number(un_code_raw) : null;
 
-  await prisma.country.create({
-    data: { name_en, name_ka, iso2, iso3, un_code: un_code ?? undefined },
+  await prisma.countries.create({
+    data: { 
+      updated_at: new Date(),
+      country_uuid: crypto.randomUUID(),
+      name_en, 
+      name_ka, 
+      iso2, 
+      iso3, 
+      un_code: un_code ?? undefined 
+    },
   });
 
   revalidatePath("/dictionaries/countries");
@@ -34,7 +42,7 @@ export async function updateCountry(id: string, formData: FormData) {
   const un_code_raw = s(formData.get("un_code"));
   const un_code = un_code_raw ? Number(un_code_raw) : null;
 
-  await prisma.country.update({
+  await prisma.countries.update({
     where: { id: Number(id) }, // id is BIGINT in DB
     data: { name_en, name_ka, iso2, iso3, un_code: un_code ?? undefined },
   });

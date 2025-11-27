@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const rows = await prisma.country.findMany({
+  const rows = await prisma.countries.findMany({
     orderBy: { name_en: "asc" },
     select: { country_uuid: true, country: true, name_en: true, iso2: true },
   });

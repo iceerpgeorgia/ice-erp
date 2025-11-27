@@ -172,7 +172,7 @@ async function main() {
     prisma.entityType.findMany({
       select: { entity_type_uuid: true, name_ka: true },
     }),
-    prisma.country.findMany({
+    prisma.countries.findMany({
       select: { country_uuid: true, country: true },
     }),
   ]);

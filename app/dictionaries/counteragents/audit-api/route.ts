@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Missing counteragent id" }, { status: 400 });
     }
 
-    const logs = await prisma.counteragentAuditLog.findMany({
+    const logs = await prisma.counteragent_audit_log.findMany({
       where: {
         counteragent_id: BigInt(id),
       },

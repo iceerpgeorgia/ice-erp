@@ -10,11 +10,11 @@ export default async function NewCounteragentPage() {
   const prisma = new PrismaClient();
 
   const [entityTypes, countries] = await Promise.all([
-    prisma.entityType.findMany({
+    prisma.entity_types.findMany({
       select: { entity_type_uuid: true, name_ka: true },
       orderBy: { name_ka: "asc" },
     }),
-    prisma.country.findMany({
+    prisma.countries.findMany({
       select: { country_uuid: true, country: true },
       orderBy: { country: "asc" },
     }),
