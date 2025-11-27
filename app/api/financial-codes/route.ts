@@ -7,7 +7,7 @@ function serializeFinancialCode(code: any) {
   return {
     ...code,
     id: String(code.id),
-    // parentUuid is already a string, no conversion needed
+    // parent_uuid is already a string, no conversion needed
   };
 }
 
@@ -78,14 +78,14 @@ function validatePayload(body: any) {
   const appliesToCF = typeof body?.appliesToCF === "boolean" ? body.appliesToCF : false;
   const is_active = typeof body?.is_active === "boolean" ? body.is_active : true;
   
-  // Validate parentUuid format if provided
-  let parentUuid: string | null = null;
-  if (body?.parentUuid && typeof body.parentUuid === "string") {
+  // Validate parent_uuid format if provided
+  let parent_uuid: string | null = null;
+  if (body?.parent_uuid && typeof body.parent_uuid === "string") {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (uuidRegex.test(body.parentUuid)) {
-      parentUuid = body.parentUuid;
+    if (uuidRegex.test(body.parent_uuid)) {
+      parent_uuid = body.parent_uuid;
     } else {
-      errors.parentUuid = "Invalid parent UUID format";
+      errors.parent_uuid = "Invalid parent UUID format";
     }
   }
 
@@ -117,7 +117,7 @@ function validatePayload(body: any) {
       appliesToPL,
       appliesToCF,
       is_active,
-      parentUuid,
+      parent_uuid,
     },
   } as const;
 }
@@ -154,9 +154,9 @@ export async function POST(req: NextRequest) {
 
     // Calculate sort_order: find max sort_order for siblings and increment
     let sort_order = 1;
-    if (payload.parentUuid) {
+    if (payload.parent_uuid) {
       const siblings = await prisma.financial_codes.findMany({
-        where: { parentUuid: payload.parentUuid },
+        where: { parent_uuid: payload.parent_uuid },
         orderBy: { sort_order: 'desc' },
         take: 1,
       });
@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
     } else {
       // Root level - find max sort_order among roots
       const roots = await prisma.financial_codes.findMany({
-        where: { parentUuid: null },
+        where: { parent_uuid: null },
         orderBy: { sort_order: 'desc' },
         take: 1,
       });
@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
         appliesToPL: payload.appliesToPL,
         appliesToCF: payload.appliesToCF,
         is_active: payload.is_active,
-        ...(payload.parentUuid && { parentUuid: payload.parentUuid }),
+        ...(payload.parent_uuid && { parent_uuid: payload.parent_uuid }),
         depth,
         sort_order,
       },
@@ -265,7 +265,7 @@ export async function PATCH(req: NextRequest) {
     if (existingAny.appliesToPL !== payload.appliesToPL) changes.appliesToPL = { from: existingAny.appliesToPL, to: payload.appliesToPL };
     if (existingAny.appliesToCF !== payload.appliesToCF) changes.appliesToCF = { from: existingAny.appliesToCF, to: payload.appliesToCF };
     if (existingAny.is_active !== payload.is_active) changes.is_active = { from: existingAny.is_active, to: payload.is_active };
-    if (existingAny.parentUuid !== payload.parentUuid) changes.parentUuid = { from: existingAny.parentUuid, to: payload.parentUuid };
+    if (existingAny.parent_uuid !== payload.parent_uuid) changes.parent_uuid = { from: existingAny.parent_uuid, to: payload.parent_uuid };
 
     // Calculate depth if code changed
     let updateData: any = {
@@ -276,7 +276,7 @@ export async function PATCH(req: NextRequest) {
       appliesToPL: payload.appliesToPL,
       appliesToCF: payload.appliesToCF,
       is_active: payload.is_active,
-      parentUuid: payload.parentUuid,
+      parent_uuid: payload.parent_uuid,
     };
 
     if (payload.code !== existing.code) {
