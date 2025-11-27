@@ -1,0 +1,35 @@
+name: Import NBG Exchange Rates
+
+on:
+  schedule:
+    # Run daily at 19:00 Tbilisi time (15:00 UTC, Tbilisi is UTC+4)
+    - cron: '0 15 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  import-rates:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Import today's NBG exchange rates
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run import:nbg-rates
+      
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Failed to import NBG exchange rates"
+          exit 1
