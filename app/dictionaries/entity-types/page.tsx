@@ -35,11 +35,8 @@ export default async function EntityTypesPage() {
   }));
 
   return (
-    <div className="w-full">
-      <div className="mx-auto max-w-[1600px] px-6 py-8">
-        <h1 className="text-2xl font-semibold mb-4">Entity Types</h1>
-        <EntityTypesTable data={data} />
-      </div>
+    <div className="w-full p-6">
+      <EntityTypesTable data={data} />
     </div>
   );
 }

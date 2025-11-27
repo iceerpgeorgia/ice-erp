@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { PrismaClient } from "@prisma/client";
 import { CounteragentsTable } from "@/components/figma/counteragents-table";
 
@@ -78,24 +77,8 @@ export default async function CounteragentsPage() {
   }));
 
   return (
-    <div className="w-full">
-      <div className="mx-auto max-w-[1800px] px-6 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-semibold">Counteragents</h1>
-
-          <Link
-            href="/dictionaries/counteragents/new"
-            className="inline-flex items-center rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-          >
-            + Add new
-          </Link>
-        </div>
-
-        {/* horizontal scroll if user makes columns wider than viewport */}
-        <div className="overflow-x-auto">
-          <CounteragentsTable data={data} />
-        </div>
-      </div>
+    <div className="w-full p-6">
+      <CounteragentsTable data={data} />
     </div>
   );
 }
