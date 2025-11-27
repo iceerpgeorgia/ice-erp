@@ -256,7 +256,8 @@ export async function DELETE(req: NextRequest) {
     await logAudit({ 
       table: "currencies", 
       recordId: BigInt(Number(idParam)), 
-      action: "deactivate" 
+      action: "DELETE",
+      changes: { is_active: false }
     });
     
     return NextResponse.json({ id: Number(idParam) });
