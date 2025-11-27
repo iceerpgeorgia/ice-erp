@@ -16,6 +16,8 @@
     "apply:countries-ui:route": "node scripts/apply-countries-ui.js --route countries",
     "import:countries": "node scripts/import_countries.js",
     "import:entity-types": "node scripts/import_entity_types.js",
+    "import:projects": "node scripts/import_projects.js",
+    "import:projects:template": "node scripts/import_projects.js --template projects_template.xlsx",
     "import:nbg-rates": "node scripts/import_nbg_rates.js today",
     "import:nbg-rates:backfill": "node scripts/import_nbg_rates.js backfill"
   },
