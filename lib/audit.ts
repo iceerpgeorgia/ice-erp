@@ -13,6 +13,12 @@ export async function logAudit(params: AuditLogParams) {
   try {
     const session = await getServerSession(authOptions);
     
+    // Skip audit if recordId is null
+    if (params.recordId === null) {
+      console.warn('Skipping audit log: recordId is null');
+      return;
+    }
+    
     await prisma.auditLog.create({
       data: {
         table: params.table,
