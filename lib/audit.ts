@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 
 export interface AuditLogParams {
   table: string;
-  recordId: string | number | bigint;
+  recordId: string | number | bigint | null;
   action: 'CREATE' | 'UPDATE' | 'DELETE';
   changes?: Record<string, any>;
 }

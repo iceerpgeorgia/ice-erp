@@ -191,10 +191,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Use uuid as recordId for audit logging
+    // Use BigInt id for audit logging
     await logAudit({
       table: "financial_codes",
-      recordId: created.uuid,
+      recordId: created.id,
       action: "CREATE",
     });
 
@@ -293,7 +293,7 @@ export async function PATCH(req: NextRequest) {
     if (Object.keys(changes).length > 0) {
       await logAudit({
         table: "financial_codes",
-        recordId: updated.uuid,
+        recordId: updated.id,
         action: "UPDATE",
         changes,
       });
@@ -337,7 +337,7 @@ export async function DELETE(req: NextRequest) {
 
     await logAudit({
       table: "financial_codes",
-      recordId: updated.uuid,
+      recordId: updated.id,
       action: "DELETE",
     });
 
