@@ -22,6 +22,7 @@
     "design:pull": "node scripts/fetch-figma-tables.js",
     "import:countries": "node scripts/import_countries.js",
     "import:entity-types": "node scripts/import_entity_types.js",
+    "import:nbg-rates": "python scripts/update-nbg-rates.py",
     "migrate-data": "ts-node scripts/migrate-data.ts"
   },
   "dependencies": {
