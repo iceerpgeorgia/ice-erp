@@ -3,6 +3,10 @@
 Automatic NBG Exchange Rate Updater Service
 Fetches latest exchange rates from National Bank of Georgia API and updates the database.
 Should be run daily (recommended after 18:30 Georgian time when rates are published).
+
+Weekend Handling:
+- If today is Saturday or Sunday, uses Friday's rates
+- NBG doesn't publish rates on weekends
 """
 
 import os
@@ -15,6 +19,16 @@ import json
 
 # NBG API endpoint
 NBG_API_URL = "https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json/"
+
+def is_weekend(date):
+    """Check if a date is Saturday (5) or Sunday (6)."""
+    return date.weekday() >= 5
+
+def get_last_business_day(date):
+    """Get the last business day (Friday if weekend)."""
+    while is_weekend(date):
+        date = date - timedelta(days=1)
+    return date
 
 def get_database_connection():
     """Get database connection."""
@@ -181,21 +195,32 @@ def update_exchange_rates(rate_date, rates):
                 )
                 
                 if not cursor.fetchone():
-                    # Copy rates from previous date
-                    cursor.execute("""
-                        INSERT INTO nbg_exchange_rates 
-                        (date, usd_rate, eur_rate, cny_rate, gbp_rate, rub_rate, try_rate, aed_rate, kzt_rate)
-                        SELECT %s, usd_rate, eur_rate, cny_rate, gbp_rate, rub_rate, try_rate, aed_rate, kzt_rate
-                        FROM nbg_exchange_rates
-                        WHERE date = %s
-                    """, (current_date, previous_date))
+                    # For weekends, use Friday's rates; otherwise copy from previous date
+                    if is_weekend(current_date):
+                        friday = get_last_business_day(current_date)
+                        cursor.execute("""
+                            INSERT INTO nbg_exchange_rates 
+                            (date, usd_rate, eur_rate, cny_rate, gbp_rate, rub_rate, try_rate, aed_rate, kzt_rate)
+                            SELECT %s, usd_rate, eur_rate, cny_rate, gbp_rate, rub_rate, try_rate, aed_rate, kzt_rate
+                            FROM nbg_exchange_rates
+                            WHERE date = %s
+                        """, (current_date, friday))
+                        print(f"  📅 Filled {current_date} ({'Saturday' if current_date.weekday() == 5 else 'Sunday'}) with Friday ({friday}) rates")
+                    else:
+                        cursor.execute("""
+                            INSERT INTO nbg_exchange_rates 
+                            (date, usd_rate, eur_rate, cny_rate, gbp_rate, rub_rate, try_rate, aed_rate, kzt_rate)
+                            SELECT %s, usd_rate, eur_rate, cny_rate, gbp_rate, rub_rate, try_rate, aed_rate, kzt_rate
+                            FROM nbg_exchange_rates
+                            WHERE date = %s
+                        """, (current_date, previous_date))
                     filled_count += 1
                 
                 previous_date = current_date
                 current_date += timedelta(days=1)
             
             if filled_count > 0:
-                print(f"📅 Filled {filled_count} missing dates with previous rates")
+                print(f"📅 Filled {filled_count} missing dates with appropriate rates")
         
         conn.commit()
         
@@ -272,6 +297,59 @@ def main():
     print("=" * 60)
     print(f"🕐 Started at: {datetime.now()}")
     
+    today = datetime.now().date()
+    
+    # Weekend handling
+    if is_weekend(today):
+        friday = get_last_business_day(today)
+        print(f"\n🗓️  Today is {'Saturday' if today.weekday() == 5 else 'Sunday'}")
+        print(f"📅 Using Friday's rates ({friday}) for weekend days")
+        
+        # Fetch Friday's rates from database
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("""
+                SELECT usd_rate, eur_rate, cny_rate, gbp_rate, rub_rate, try_rate, aed_rate, kzt_rate
+                FROM nbg_exchange_rates
+                WHERE date = %s
+            """, (friday,))
+            
+            friday_rates = cursor.fetchone()
+            
+            if not friday_rates:
+                print(f"❌ No rates found for Friday ({friday}). Please run the script on a weekday first.")
+                sys.exit(1)
+            
+            # Build rates dictionary from Friday's data
+            rate_columns = ['USD', 'EUR', 'CNY', 'GBP', 'RUB', 'TRY', 'AED', 'KZT']
+            rates = {rate_columns[i]: Decimal(str(friday_rates[i])) for i in range(len(rate_columns)) if friday_rates[i]}
+            
+            # Insert for today (Saturday or Sunday)
+            success = update_exchange_rates(today, rates)
+            
+            cursor.close()
+            conn.close()
+            
+            if success:
+                print("\n" + "=" * 60)
+                print(f"✅ Weekend rates (from Friday) updated successfully for {today}!")
+                print("=" * 60)
+                sys.exit(0)
+            else:
+                print("\n" + "=" * 60)
+                print("❌ Failed to update weekend rates")
+                print("=" * 60)
+                sys.exit(1)
+                
+        except Exception as e:
+            print(f"❌ Error handling weekend rates: {e}")
+            cursor.close()
+            conn.close()
+            sys.exit(1)
+    
+    # Weekday: fetch from NBG API
     # Check for missing currency columns
     missing = check_for_new_currencies()
     if missing:
