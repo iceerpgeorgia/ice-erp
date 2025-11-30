@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from './ui/select';
 import { Combobox } from '@/components/ui/combobox';
+import { MultiCombobox } from '@/components/ui/multi-combobox';
 import { 
   Table, 
   TableBody, 
@@ -1178,31 +1179,19 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                 {/* Employees - optional, multi-select */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label className="text-right">Employees</Label>
-                  <div className="col-span-3 space-y-2 max-h-48 overflow-auto border rounded p-2">
-                    {employeesList.map((employee) => (
-                      <div key={employee.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`add-employee-${employee.id}`}
-                          checked={formData.employees.includes(employee.counteragentUuid)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setFormData({
-                                ...formData,
-                                employees: [...formData.employees, employee.counteragentUuid]
-                              });
-                            } else {
-                              setFormData({
-                                ...formData,
-                                employees: formData.employees.filter(e => e !== employee.counteragentUuid)
-                              });
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`add-employee-${employee.id}`} className="text-sm cursor-pointer">
-                          {employee.name}
-                        </Label>
-                      </div>
-                    ))}
+                  <div className="col-span-3">
+                    <MultiCombobox
+                      options={employeesList.map(e => ({
+                        value: e.counteragentUuid,
+                        label: e.name,
+                        keywords: e.name
+                      }))}
+                      value={formData.employees}
+                      onValueChange={(values) => setFormData({ ...formData, employees: values })}
+                      placeholder="Select employees..."
+                      searchPlaceholder="Search employees..."
+                      emptyText="No employee found."
+                    />
                   </div>
                 </div>
               </div>
@@ -1374,31 +1363,19 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                 {/* Employees - optional, multi-select */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label className="text-right">Employees</Label>
-                  <div className="col-span-3 space-y-2 max-h-48 overflow-auto border rounded p-2">
-                    {employeesList.map((employee) => (
-                      <div key={employee.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`edit-employee-${employee.id}`}
-                          checked={formData.employees.includes(employee.counteragentUuid)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setFormData({
-                                ...formData,
-                                employees: [...formData.employees, employee.counteragentUuid]
-                              });
-                            } else {
-                              setFormData({
-                                ...formData,
-                                employees: formData.employees.filter(e => e !== employee.counteragentUuid)
-                              });
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`edit-employee-${employee.id}`} className="text-sm cursor-pointer">
-                          {employee.name}
-                        </Label>
-                      </div>
-                    ))}
+                  <div className="col-span-3">
+                    <MultiCombobox
+                      options={employeesList.map(e => ({
+                        value: e.counteragentUuid,
+                        label: e.name,
+                        keywords: e.name
+                      }))}
+                      value={formData.employees}
+                      onValueChange={(values) => setFormData({ ...formData, employees: values })}
+                      placeholder="Select employees..."
+                      searchPlaceholder="Search employees..."
+                      emptyText="No employee found."
+                    />
                   </div>
                 </div>
               </div>

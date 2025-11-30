@@ -44,9 +44,18 @@ function toApi(row: any) {
   };
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const isEmployeeFilter = searchParams.get('is_emploee');
+    
+    const where: any = {};
+    if (isEmployeeFilter === 'true') {
+      where.is_emploee = true;
+    }
+    
     const rows = await prisma.counteragent.findMany({
+      where,
       orderBy: { id: "asc" },
       select: {
         id: true,
