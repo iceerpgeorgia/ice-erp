@@ -217,27 +217,34 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
           const counteragentsData = await counteragentsRes.json();
           setCounteragentsList(counteragentsData.map((c: any) => ({
             id: c.id,
-            name: c.name,
+            name: c.counteragent || c.name,
             counteragentUuid: c.counteragent_uuid || c.counteragentUuid
           })));
         }
         
-        // Fetch financial codes
+        // Fetch financial codes (filtered by is_income=true and applies_to_pl=true)
         const financialCodesRes = await fetch('/api/financial-codes');
         if (financialCodesRes.ok) {
           const financialCodesData = await financialCodesRes.json();
-          setFinancialCodesList(financialCodesData.map((fc: any) => ({
+          const filteredCodes = financialCodesData.filter((fc: any) => 
+            fc.isIncome === true && fc.appliesToPL === true
+          );
+          setFinancialCodesList(filteredCodes.map((fc: any) => ({
             id: fc.id,
             validation: fc.validation,
             uuid: fc.uuid || fc.financial_code_uuid
           })));
         }
         
-        // Fetch currencies
+        // Fetch currencies (limited to USD, GEL, EUR)
         const currenciesRes = await fetch('/api/currencies');
         if (currenciesRes.ok) {
           const currenciesData = await currenciesRes.json();
-          setCurrenciesList(currenciesData.map((c: any) => ({
+          const allowedCurrencies = ['USD', 'GEL', 'EUR'];
+          const filteredCurrencies = allowedCurrencies
+            .map(code => currenciesData.find((c: any) => c.code === code))
+            .filter(Boolean);
+          setCurrenciesList(filteredCurrencies.map((c: any) => ({
             id: c.id,
             code: c.code,
             uuid: c.uuid || c.currency_uuid
@@ -261,7 +268,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
           const employeesData = await employeesRes.json();
           setEmployeesList(employeesData.map((e: any) => ({
             id: e.id,
-            name: e.name,
+            name: e.counteragent || e.name,
             counteragentUuid: e.counteragent_uuid || e.counteragentUuid
           })));
         }
