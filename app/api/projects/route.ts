@@ -142,3 +142,107 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// PATCH update existing project
+export async function PATCH(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Project ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const body = await req.json();
+    const {
+      project_name,
+      date,
+      value,
+      oris_1630,
+      counteragent_uuid,
+      financial_code_uuid,
+      currency_uuid,
+      state_uuid,
+      employees
+    } = body;
+
+    // Validation
+    if (project_name && !/^[a-zA-Z0-9\s]+$/.test(project_name)) {
+      return NextResponse.json(
+        { error: 'Project name must contain only English letters and numbers' },
+        { status: 400 }
+      );
+    }
+
+    if (date && isNaN(new Date(date).getTime())) {
+      return NextResponse.json(
+        { error: 'Valid date is required' },
+        { status: 400 }
+      );
+    }
+
+    if (value && parseFloat(value) <= 0) {
+      return NextResponse.json(
+        { error: 'Value must be greater than 0' },
+        { status: 400 }
+      );
+    }
+
+    // Update project
+    const result = await prisma.$queryRaw`
+      UPDATE projects 
+      SET 
+        project_name = COALESCE(${project_name}, project_name),
+        date = COALESCE(${date ? new Date(date) : null}::date, date),
+        value = COALESCE(${value ? parseFloat(value) : null}::decimal, value),
+        oris_1630 = COALESCE(${oris_1630}, oris_1630),
+        counteragent_uuid = COALESCE(${counteragent_uuid}::uuid, counteragent_uuid),
+        financial_code_uuid = COALESCE(${financial_code_uuid}::uuid, financial_code_uuid),
+        currency_uuid = COALESCE(${currency_uuid}::uuid, currency_uuid),
+        state_uuid = COALESCE(${state_uuid}::uuid, state_uuid),
+        updated_at = NOW()
+      WHERE id = ${parseInt(id)}
+      RETURNING *
+    `;
+
+    const project: any = Array.isArray(result) ? result[0] : result;
+
+    // Update employees if provided
+    if (employees && Array.isArray(employees)) {
+      // Delete existing employees
+      await prisma.$queryRaw`
+        DELETE FROM project_employees WHERE project_id = ${parseInt(id)}
+      `;
+
+      // Insert new employees
+      for (const employeeUuid of employees) {
+        const employeeData: any = await prisma.$queryRaw`
+          SELECT name FROM counteragents WHERE counteragent_uuid = ${employeeUuid}::uuid
+        `;
+        const employeeName = employeeData[0]?.name || null;
+
+        await prisma.$queryRaw`
+          INSERT INTO project_employees (project_id, employee_uuid, employee_name)
+          VALUES (${parseInt(id)}, ${employeeUuid}::uuid, ${employeeName})
+        `;
+      }
+    }
+
+    await logAudit({
+      table: 'projects',
+      recordId: parseInt(id),
+      action: 'update',
+    });
+
+    return NextResponse.json(project);
+  } catch (error: any) {
+    console.error('PATCH /projects error:', error);
+    return NextResponse.json(
+      { error: error?.message || 'Failed to update project' },
+      { status: 500 }
+    );
+  }
+}
