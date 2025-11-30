@@ -41,9 +41,9 @@ export const authOptions: NextAuthOptions = {
       // Persist user data in JWT token
       if (user) {
         token.id = user.id;
-        token.email = user.email;
-        token.name = user.name;
-        token.image = user.image;
+        token.email = user.email || '';
+        token.name = user.name || '';
+        token.image = user.image || '';
         token.role = (user as any).role || 'user';
         token.isAuthorized = (user as any).isAuthorized || false;
       }
