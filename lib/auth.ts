@@ -32,11 +32,31 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   session: { 
-    strategy: "database",
+    strategy: "jwt", // Changed from "database" to reduce DB load
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   useSecureCookies: process.env.NODE_ENV === 'production',
   callbacks: {
+    async jwt({ token, user, account }) {
+      // Persist user data in JWT token
+      if (user) {
+        token.id = user.id;
+        token.email = user.email;
+        token.name = user.name;
+        token.image = user.image;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      // Pass user data from JWT to session
+      if (token && session.user) {
+        session.user.id = token.id as string;
+        session.user.email = token.email as string;
+        session.user.name = token.name as string;
+        session.user.image = token.image as string;
+      }
+      return session;
+    },
     async signIn({ user, account, profile }) {
       try {
         console.log('[auth] signIn callback:', { email: user.email, hasAccount: !!account });
