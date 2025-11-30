@@ -42,21 +42,6 @@ model Account {
   @@index([userId])
 }
 
-model AuditLog {
-  id         BigInt   @id @default(autoincrement())
-  created_at DateTime @default(now())
-  table      String
-  record_id  BigInt
-  action     String
-  user_email String?
-  user_id    String?
-  changes    Json?
-
-  @@index([created_at(sort: Desc)])
-  @@index([table, record_id])
-  @@index([user_email])
-}
-
 model Session {
   id           String   @id
   sessionToken String   @unique
