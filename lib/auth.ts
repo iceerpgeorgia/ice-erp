@@ -44,6 +44,8 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email;
         token.name = user.name;
         token.image = user.image;
+        token.role = (user as any).role || 'user';
+        token.isAuthorized = (user as any).isAuthorized || false;
       }
       return token;
     },
@@ -54,6 +56,8 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string;
         session.user.name = token.name as string;
         session.user.image = token.image as string;
+        session.user.role = token.role as string;
+        session.user.isAuthorized = token.isAuthorized as boolean;
       }
       return session;
     },
@@ -93,21 +97,6 @@ export const authOptions: NextAuthOptions = {
       } catch (error) {
         console.error('[auth] signIn callback error:', error);
         return false;
-      }
-    },
-    async session({ session, user }) {
-      try {
-        console.log('[auth] session callback:', { userId: user.id, email: user.email });
-        
-        if (session?.user) {
-          session.user.id = user.id;
-          session.user.role = (user as any).role || 'user';
-          session.user.isAuthorized = (user as any).isAuthorized || false;
-        }
-        return session;
-      } catch (error) {
-        console.error('[auth] session callback error:', error);
-        return session;
       }
     },
   },
