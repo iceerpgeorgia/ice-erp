@@ -6,8 +6,8 @@ import * as XLSX from "xlsx";
 
 type Row = {
   id: number;
-  created_at: string | null;
-  updated_at: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
   ts: string | null;
   entity_type_uuid: string;
   code: string;
@@ -58,8 +58,8 @@ export default function EntityTypesTable({ data, design }: { data: Row[]; design
       "Name (KA)": r.name_ka,
       Active: r.is_active ? "Yes" : "No",
       UUID: r.entity_type_uuid,
-      CreatedAt: r.created_at ?? "",
-      UpdatedAt: r.updated_at ?? "",
+      CreatedAt: r.createdAt ?? "",
+      UpdatedAt: r.updatedAt ?? "",
       TS: r.ts ?? "",
     }));
     const ws = XLSX.utils.json_to_sheet(exportRows);

@@ -3,10 +3,8 @@ import { PrismaClient } from "@prisma/client";
 import { logAudit } from "@/lib/audit";
 const prisma = new PrismaClient();
 
-export const dynamic = 'force-dynamic';
-
 export async function GET() {
-  const rows = await prisma.entity_types.findMany({
+  const rows = await prisma.entityType.findMany({
     orderBy: { name_en: "asc" },
     select: { entity_type_uuid: true, code: true, name_en: true, name_ka: true },
   });

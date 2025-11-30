@@ -3,14 +3,13 @@ import CounteragentForm from "../CounteragentForm";
 import { deleteCounteragent } from "../actions";
 import DeleteButton from "../DeleteButton";
 export const revalidate = 0;
-export const dynamic = 'force-dynamic';
 
 export default async function EditCounteragent({ params }: { params: { id: string }}) {
   const prisma = new PrismaClient();
   const id = Number(params.id);
-  const row = await prisma.counteragents.findFirst({ where: { id: BigInt(id) }});
-  const countries = await prisma.countries.findMany({ orderBy: { country: "asc" }, select: { country: true }});
-  const entityTypes = await prisma.entity_types.findMany({ orderBy: { name_ka: "asc" }, select: { name_ka: true, entity_type_uuid: true }});
+  const row = await prisma.counteragent.findFirst({ where: { id: BigInt(id) }});
+  const countries = await prisma.country.findMany({ orderBy: { country: "asc" }, select: { country: true }});
+  const entityTypes = await prisma.entityType.findMany({ orderBy: { name_ka: "asc" }, select: { name_ka: true, entity_type_uuid: true }});
   return (
     <div className="mx-auto max-w-[1100px] px-6 py-8">
       <div className="flex items-center mb-6 gap-3">
@@ -51,10 +50,6 @@ export default async function EditCounteragent({ params }: { params: { id: strin
         countries={countries.map(c=>c.country).filter((c): c is string => c !== null)}
         entityTypes={entityTypes}
       />
-      
-      <div className="mt-8">
-        <AuditHistory counteragentId={id} />
-      </div>
     </div>
   );
 }

@@ -76,14 +76,14 @@ export default async function Page({ searchParams }: { searchParams?: SP }) {
   if (filters.un_code && /^\\d+$/.test(filters.un_code)) where.un_code = parseInt(filters.un_code, 10);
 
   const [rows, total] = await Promise.all([
-    prisma.countries.findMany({
+    prisma.country.findMany({
       where,
       select: { id: true, name_en: true, name_ka: true, iso2: true, iso3: true, un_code: true },
       orderBy: [{ name_en: "asc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
-    prisma.countries.count({ where }),
+    prisma.country.count({ where }),
   ]);
 
   const safeRows = rows.map((r) => ({ ...r, id: Number(r.id) }));

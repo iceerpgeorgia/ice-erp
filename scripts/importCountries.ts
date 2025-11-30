@@ -126,7 +126,7 @@ async function upsertCountries(rows: ReturnType<typeof cleanAndValidate>["cleane
     await Promise.all(
       slice.map(async (r) => {
         try {
-          await prisma.countries.upsert({
+          await prisma.country.upsert({
             where: { iso3: r.iso3 }, // unique
             update: {
               name_ka: r.name_ka,
@@ -136,8 +136,6 @@ async function upsertCountries(rows: ReturnType<typeof cleanAndValidate>["cleane
               // DO NOT set `country`; DB trigger keeps it in sync
             },
             create: {
-              updated_at: new Date(),
-              country_uuid: crypto.randomUUID(),
               name_ka: r.name_ka,
               name_en: r.name_en,
               iso2: r.iso2,

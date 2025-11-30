@@ -2,7 +2,6 @@ import { PrismaClient } from "@prisma/client";
 import ClientForm from "./ClientForm";
 
 export const revalidate = 0;
-export const dynamic = 'force-dynamic';
 
 type Opt = { id: string; label: string };
 
@@ -10,11 +9,11 @@ export default async function NewCounteragentPage() {
   const prisma = new PrismaClient();
 
   const [entityTypes, countries] = await Promise.all([
-    prisma.entity_types.findMany({
+    prisma.entityType.findMany({
       select: { entity_type_uuid: true, name_ka: true },
       orderBy: { name_ka: "asc" },
     }),
-    prisma.countries.findMany({
+    prisma.country.findMany({
       select: { country_uuid: true, country: true },
       orderBy: { country: "asc" },
     }),
