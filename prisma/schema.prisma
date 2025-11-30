@@ -21,7 +21,6 @@ model User {
   accounts      Account[]
   entries       Entry[]
   sessions      Session[]
-  projects      Project[]
 }
 
 model Account {
@@ -110,8 +109,6 @@ model Counteragent {
 
   // Relations
   transactions                Transaction[]
-    projects                    Project[]
-    projectEmployees            ProjectEmployee[] @relation("CounteragentToProjectEmployee")
 
   @@map("counteragents")
 }
@@ -177,7 +174,6 @@ model FinancialCode {
   
   // Relations
   transactions Transaction[]
-  projects     Project[]
   
   @@index([code])
   @@index([uuid])
@@ -216,72 +212,55 @@ model Transaction {
 
 model Project {
   id                  BigInt        @id @default(autoincrement())
-  uuid                String        @unique @default(uuid()) @db.Uuid
-  code                String        @unique // Generated project code (e.g., "ICE1", "ICE2")
-  name                String        // Project name (პროექტის დასახელება)
-  contractNumber      String?       @map("contract_number") // კონტრაქტის #
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+  ts                  DateTime      @default(now()) @db.Timestamptz(6)
   
-  // Relations
-  counteragentId      BigInt        @map("counteragent_id")
-  counteragent        Counteragent  @relation(fields: [counteragentId], references: [id])
+  // UUIDs (used as foreign keys)
+  projectUuid         String        @unique @default(uuid()) @db.Uuid @map("project_uuid")
+  counteragentUuid    String        @db.Uuid @map("counteragent_uuid")
+  financialCodeUuid   String        @db.Uuid @map("financial_code_uuid")
+  currencyUuid        String        @db.Uuid @map("currency_uuid")
+  stateUuid           String        @db.Uuid @map("state_uuid")
   
-  financialCodeId     BigInt        @map("financial_code_id")
-  financialCode       FinancialCode @relation(fields: [financialCodeId], references: [id])
+  // User-entered fields (in form)
+  projectName         String        @map("project_name") // Only English letters and numbers
+  date                DateTime      @db.Date // Valid date
+  value               Decimal       @db.Decimal(15, 2) // Valid number > 0
+  oris1630            String?       @map("oris_1630") // Optional ORIS field
   
-  employeeId          String?       @map("employee_id") // User.id is String (cuid)
-  employee            User?         @relation(fields: [employeeId], references: [id])
+  // Computed/derived fields (not in form, populated by triggers)
+  counteragent        String?       // Derived from counteragents.counteragent
+  financialCode       String?       @map("financial_code") // Derived from financial_codes.validation
+  currency            String?       // Derived from currencies.code
+  state               String?       // Derived from project_states.name
+  contractNo          String?       @map("contract_no") // Computed: counteragent_internal_number + "." + padded_project_count
+  projectIndex        String?       @map("project_index") // Computed: project_name | financial_code | counteragent | formatted_value | currency | formatted_date
   
-  // Financial info
-  amount              Decimal       @db.Decimal(15, 2)
-  currency            String        @default("GEL") // USD, GEL, EUR
-  currencyUuid        String?       @db.Uuid @map("currency_uuid") // Currency UUID (FK)
-  startDate           DateTime      @map("start_date")
-  
-  // Status
-  status              String        @default("active") // active, completed, cancelled, on_hold
-  stateUuid           String?       @db.Uuid @map("state_uuid") // State UUID (FK)
-  isDeleted           Boolean       @default(false) @map("is_deleted")
-  
-  // ORIS Integration
-  orisId              String?       @unique @map("oris_id") // ORIS 1630
-  orisCounterагентId  String?       @map("oris_counteragent_id") // კონტრაგენტის ORIS ID
-  
-  // Additional fields
-  collateral          String?       // Collateral information
-  notes               String?       // Additional notes
-
-  // Relations: Employees (many-to-many)
+  // Relations: Employees (many-to-many through ProjectEmployee)
   employees           ProjectEmployee[]
   
-  // Audit fields
-  createdAt           DateTime      @default(now()) @map("created_at")
-  createdBy           String?       @map("created_by")
-  updatedAt           DateTime      @updatedAt @map("updated_at")
-  updatedBy           String?       @map("updated_by")
-  
-  @@index([counteragentId])
-  @@index([financialCodeId])
-  @@index([status])
-  @@index([startDate])
+  @@index([counteragentUuid])
+  @@index([financialCodeUuid])
   @@index([currencyUuid])
   @@index([stateUuid])
+  @@index([date])
   @@map("projects")
-
 }
 
 model ProjectEmployee {
-  id            BigInt   @id @default(autoincrement())
-  projectId     BigInt   @map("project_id")
-  counteragentId BigInt  @map("counteragent_id")
+  id              BigInt   @id @default(autoincrement())
+  projectId       BigInt   @map("project_id")
+  employeeUuid    String   @db.Uuid @map("employee_uuid") // UUID of counteragent with is_emploee=true
+  employeeName    String?  @map("employee_name") // Derived from counteragents.name
 
-  project       Project  @relation(fields: [projectId], references: [id])
-    counteragent  Counteragent @relation("CounteragentToProjectEmployee", fields: [counteragentId], references: [id])
+  project         Project  @relation(fields: [projectId], references: [id])
 
   isActive      Boolean  @default(true)
   assignedAt    DateTime @default(now())
 
   @@index([projectId])
-  @@index([counteragentId])
+  @@index([employeeUuid])
   @@map("project_employees")
 }
 
