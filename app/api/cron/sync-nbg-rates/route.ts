@@ -40,84 +40,20 @@ export async function GET(req: NextRequest) {
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    let targetDate = today;
 
-    // Weekend handling
+    // Weekend handling: fetch Friday's rates from NBG API
     if (isWeekend(today)) {
-      const friday = getLastBusinessDay(today);
-      friday.setHours(0, 0, 0, 0);
+      targetDate = getLastBusinessDay(today);
+      targetDate.setHours(0, 0, 0, 0);
       
-      console.log(`[NBG Sync] Today is ${today.getDay() === 6 ? 'Saturday' : 'Sunday'}, using Friday's rates (${friday.toISOString().split('T')[0]})`);
-      
-      // Fetch Friday's rates from database
-      const fridayRates = await prisma.nBGExchangeRate.findUnique({
-        where: { date: friday },
-      });
-
-      if (!fridayRates) {
-        throw new Error(`No rates found for Friday (${friday.toISOString().split('T')[0]}). Please update rates on a weekday first.`);
-      }
-
-      // Check if today already has rates
-      const existing = await prisma.nBGExchangeRate.findUnique({
-        where: { date: today },
-      });
-
-      let result;
-      if (existing) {
-        // Update with Friday's rates
-        result = await prisma.nBGExchangeRate.update({
-          where: { date: today },
-          data: {
-            usdRate: fridayRates.usdRate,
-            eurRate: fridayRates.eurRate,
-            cnyRate: fridayRates.cnyRate,
-            gbpRate: fridayRates.gbpRate,
-            rubRate: fridayRates.rubRate,
-            tryRate: fridayRates.tryRate,
-            aedRate: fridayRates.aedRate,
-            kztRate: fridayRates.kztRate,
-          },
-        });
-
-        await logAudit({
-          table: 'nbg_exchange_rates',
-          recordId: result.id,
-          action: 'update',
-        });
-      } else {
-        // Create new record with Friday's rates
-        result = await prisma.nBGExchangeRate.create({
-          data: {
-            date: today,
-            usdRate: fridayRates.usdRate,
-            eurRate: fridayRates.eurRate,
-            cnyRate: fridayRates.cnyRate,
-            gbpRate: fridayRates.gbpRate,
-            rubRate: fridayRates.rubRate,
-            tryRate: fridayRates.tryRate,
-            aedRate: fridayRates.aedRate,
-            kztRate: fridayRates.kztRate,
-          },
-        });
-
-        await logAudit({
-          table: 'nbg_exchange_rates',
-          recordId: result.id,
-          action: 'create',
-        });
-      }
-
-      return NextResponse.json({
-        success: true,
-        date: result.date.toISOString().split('T')[0],
-        message: 'Weekend rates (from Friday) synced successfully',
-      });
+      console.log(`[NBG Sync] Today is ${today.getDay() === 6 ? 'Saturday' : 'Sunday'}, fetching Friday's rates (${targetDate.toISOString().split('T')[0]}) from NBG API`);
     }
 
-    // Weekday: Fetch from NBG API
-    console.log('[NBG Sync] Fetching from NBG API');
+    // Fetch from NBG API (either today for weekdays, or Friday for weekends)
+    console.log(`[NBG Sync] Fetching rates for ${targetDate.toISOString().split('T')[0]} from NBG API`);
     
-    const response = await fetch(NBG_API_URL, { 
+    const response = await fetch(`${NBG_API_URL}?date=${targetDate.toISOString().split('T')[0]}`, { 
       method: 'GET',
       headers: { 'Accept': 'application/json' }
     });
@@ -134,15 +70,6 @@ export async function GET(req: NextRequest) {
 
     const ratesData = data[0];
     const currencies = ratesData.currencies || [];
-    const dateStr = ratesData.date || '';
-
-    if (!dateStr) {
-      throw new Error('No date in NBG API response');
-    }
-
-    // Parse date
-    const rateDate = new Date(dateStr.split('T')[0]);
-    rateDate.setHours(0, 0, 0, 0);
 
     // Build rates object
     const rates: any = {};
@@ -167,9 +94,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Check if date exists
+    // If it's a weekend, save rates for TODAY (not Friday)
+    const saveDate = today;
+
+    // Check if today's date exists
     const existing = await prisma.nBGExchangeRate.findUnique({
-      where: { date: rateDate },
+      where: { date: saveDate },
     });
 
     let result;
@@ -177,7 +107,7 @@ export async function GET(req: NextRequest) {
     if (existing) {
       // Update existing
       result = await prisma.nBGExchangeRate.update({
-        where: { date: rateDate },
+        where: { date: saveDate },
         data: rates,
       });
 
@@ -190,7 +120,7 @@ export async function GET(req: NextRequest) {
       // Create new
       result = await prisma.nBGExchangeRate.create({
         data: {
-          date: rateDate,
+          date: saveDate,
           ...rates,
         },
       });
@@ -202,10 +132,14 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    const message = isWeekend(today)
+      ? `Weekend rates (from Friday ${targetDate.toISOString().split('T')[0]}) synced successfully`
+      : 'NBG rates synced successfully';
+
     return NextResponse.json({
       success: true,
       date: result.date.toISOString().split('T')[0],
-      message: 'NBG rates synced successfully',
+      message,
     });
   } catch (error: any) {
     console.error('[NBG Sync] Error:', error);
