@@ -113,11 +113,11 @@ export function MultiCombobox({
             {options.map((option) => (
               <CommandItem
                 key={option.value}
-                value={option.keywords || option.label}
+                value={option.label}
                 onSelect={(searchValue) => {
                   // Find the option that matches the search value (label)
                   const selectedOption = options.find(
-                    (opt) => (opt.keywords || opt.label).toLowerCase() === searchValue.toLowerCase()
+                    (opt) => opt.label.toLowerCase() === searchValue.toLowerCase()
                   )
                   if (selectedOption) {
                     handleSelect(selectedOption.value)
