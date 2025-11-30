@@ -187,18 +187,33 @@ async function backfillMissingDates(currentDate: Date, currentRates: any) {
 
     console.log(`[exchange-rates/update] Backfilling ${daysToBackfill - 1} missing dates`);
 
+    // Get all existing dates in one query to reduce database calls
+    const existingDates = await prisma.nBGExchangeRate.findMany({
+      where: {
+        date: {
+          gt: lastDate,
+          lt: today,
+        },
+      },
+      select: {
+        date: true,
+      },
+    });
+
+    const existingDateSet = new Set(
+      existingDates.map(r => r.date.toISOString().split('T')[0])
+    );
+
     for (let i = 1; i < daysToBackfill; i++) {
       const missingDate = new Date(lastDate);
       missingDate.setDate(missingDate.getDate() + i);
       missingDate.setHours(0, 0, 0, 0);
 
-      // Check if this date already exists
-      const exists = await prisma.nBGExchangeRate.findUnique({
-        where: { date: missingDate },
-      });
+      const dateStr = missingDate.toISOString().split('T')[0];
 
-      if (exists) {
-        console.log(`[exchange-rates/update] Date ${missingDate.toISOString().split('T')[0]} already exists, skipping`);
+      // Check if this date already exists
+      if (existingDateSet.has(dateStr)) {
+        console.log(`[exchange-rates/update] Date ${dateStr} already exists, skipping`);
         continue;
       }
 
@@ -242,13 +257,13 @@ async function backfillMissingDates(currentDate: Date, currentRates: any) {
             }
           }
         } catch (error) {
-          console.error(`[exchange-rates/update] Failed to fetch Friday rates for ${missingDate.toISOString().split('T')[0]}, skipping`);
+          console.error(`[exchange-rates/update] Failed to fetch Friday rates for ${dateStr}, skipping`);
           continue;
         }
       } else {
         // For weekdays, fetch from NBG API
         try {
-          const response = await fetch(`${NBG_API_URL}?date=${missingDate.toISOString().split('T')[0]}`, {
+          const response = await fetch(`${NBG_API_URL}?date=${dateStr}`, {
             method: 'GET',
             headers: { 'Accept': 'application/json' }
           });
@@ -279,7 +294,7 @@ async function backfillMissingDates(currentDate: Date, currentRates: any) {
             }
           }
         } catch (error) {
-          console.error(`[exchange-rates/update] Failed to fetch rates for ${missingDate.toISOString().split('T')[0]}, skipping`);
+          console.error(`[exchange-rates/update] Failed to fetch rates for ${dateStr}, skipping`);
           continue;
         }
       }
@@ -292,7 +307,7 @@ async function backfillMissingDates(currentDate: Date, currentRates: any) {
         },
       });
 
-      console.log(`[exchange-rates/update] Backfilled ${missingDate.toISOString().split('T')[0]}`);
+      console.log(`[exchange-rates/update] Backfilled ${dateStr}`);
     }
 
     console.log('[exchange-rates/update] Backfill complete');
