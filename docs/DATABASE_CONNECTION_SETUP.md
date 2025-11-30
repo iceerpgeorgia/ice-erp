@@ -1,13 +1,105 @@
-# Database Connection Setup for Vercel
+# Database Connection Issues - Troubleshooting
 
-## Issue
-Vercel serverless functions are getting connection errors to Supabase:
+## Current Issue
+Intermittent connection errors to Supabase from Vercel:
 ```
 Can't reach database server at `aws-1-eu-west-1.pooler.supabase.com:6543`
 ```
 
 ## Root Cause
-Supabase connection pooler has limits and serverless functions need proper connection parameters.
+This is a **known issue** with Supabase connection pooler and Vercel serverless functions. The connection pooler can become overwhelmed when multiple serverless functions try to connect simultaneously.
+
+## Solutions
+
+### Option 1: Verify Current DATABASE_URL Has Correct Parameters (Recommended)
+
+Your `DATABASE_URL` in Vercel **MUST** include these parameters:
+
+```
+postgresql://postgres.fojbzghphznbslqwurrm:PASSWORD@aws-1-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+```
+
+**Critical Parameters:**
+- `?pgbouncer=true` - REQUIRED for connection pooling
+- `&connection_limit=1` - REQUIRED to prevent connection exhaustion
+
+### Option 2: Use Supabase Direct Connection with Prisma Accelerate
+
+If the pooler keeps timing out, consider using Prisma Accelerate:
+1. Sign up for Prisma Accelerate (free tier available)
+2. Get your accelerated connection string
+3. Update DATABASE_URL in Vercel
+
+### Option 3: Switch to Session Tokens (Quick Fix)
+
+If database sessions are causing issues, switch NextAuth to JWT sessions:
+
+In `lib/auth.ts`:
+```typescript
+session: { 
+  strategy: "jwt",  // Change from "database"
+  maxAge: 30 * 24 * 60 * 60,
+},
+```
+
+**Pros:** Eliminates database queries for every page load
+**Cons:** User data in session won't update until re-login
+
+## Immediate Steps to Take
+
+### 1. Check Current DATABASE_URL in Vercel
+
+Go to: Vercel Dashboard → Settings → Environment Variables → DATABASE_URL
+
+Ensure it looks like:
+```
+postgresql://postgres.PROJECT_REF:PASSWORD@aws-1-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+```
+
+### 2. If Parameters Are Missing
+
+Update it with the correct format and redeploy.
+
+### 3. Check Supabase Database Status
+
+1. Go to Supabase Dashboard
+2. Check if database is active and not paused
+3. Verify connection pooling is enabled
+
+### 4. Monitor Connection Usage
+
+In Supabase Dashboard → Database → Connection Pooling:
+- Check current active connections
+- Free tier limit: 60 connections
+- Connection pooler limit: 15 connections per database
+
+## Why This Happens
+
+1. **Serverless Cold Starts**: Each Vercel function creates a new Prisma client
+2. **Connection Pooling**: Without proper parameters, connections aren't reused
+3. **Supabase Limits**: Free tier has connection limits
+4. **NextAuth Database Sessions**: Every page load queries the database for session
+
+## Long-term Solution
+
+Consider implementing:
+
+1. **JWT Sessions** (immediate, no DB queries)
+2. **Prisma Accelerate** (managed connection pooling)
+3. **Upgrade Supabase Plan** (higher connection limits)
+4. **Redis Session Store** (faster, fewer DB connections)
+
+## Testing the Fix
+
+After updating DATABASE_URL:
+
+1. Redeploy in Vercel
+2. Clear browser cookies
+3. Sign in again
+4. Navigate between pages
+5. Check Vercel Function logs for errors
+
+If you still see errors after 5 minutes, the connection pooler might be rate-limiting. Wait 10 minutes and try again.
 
 ## Solution
 
