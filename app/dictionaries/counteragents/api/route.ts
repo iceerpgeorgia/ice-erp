@@ -1,6 +1,35 @@
+export async function PUT(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const idParam = searchParams.get("id");
+    if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const body = await req.json();
+    // Only allow fields in pick
+    const allowed = Object.keys(pick);
+    const updateData: any = {};
+    for (const k of allowed) {
+      if (k in body) updateData[k] = body[k];
+    }
+    // Special handling for booleans
+    if ("is_emploee" in body) updateData.is_emploee = toBool(body.is_emploee);
+    if ("was_emploee" in body) updateData.was_emploee = toBool(body.was_emploee);
+    const updated = await prisma.counteragent.update({
+      where: { id: BigInt(Number(idParam)) },
+      data: updateData,
+      select: pick,
+    });
+    console.log('[DEBUG] Counteragent updated:', updated);
+    console.log('[DEBUG] Audit log params:', { table: "counteragents", recordId: BigInt(updated.id as any), action: "update", changes: updateData });
+    await logAudit({ table: "counteragents", recordId: BigInt(updated.id as any), action: "update", changes: updateData });
+    return NextResponse.json(toApi(updated));
+  } catch (e: any) {
+    console.error("PUT /counteragents/api", e);
+    return NextResponse.json({ error: e.message ?? "Server error" }, { status: 500 });
+  }
+}
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { getServerSession } from "next-auth";
+import { logAudit } from "@/lib/audit";
 export const revalidate = 0;
 const prisma = new PrismaClient();
 
@@ -14,8 +43,9 @@ const pick = {
   counteragent: true, country_uuid: true, entity_type_uuid: true,
   counteragent_uuid: true, internal_number: true,
 
-  // ⬇️ NEW
+  // New boolean flags
   is_emploee: true,
+  was_emploee: true,
 };
 
 function toApi(r: any) {
@@ -49,8 +79,9 @@ function toApi(r: any) {
     counteragent_uuid: r.counteragent_uuid,
     internal_number: r.internal_number ?? null,
 
-    // ⬇️ NEW
+    // boolean flags
     is_emploee: !!r.is_emploee,
+    was_emploee: !!r.was_emploee,
   };
 }
 
@@ -117,7 +148,7 @@ export async function POST(req: NextRequest) {
   try {
     const b = await req.json();
     const isEmp = toBool(b.is_emploee);
-    const changedBy = await getCurrentUser();
+    const wasEmp = toBool(b.was_emploee);
 
     const data = {
       updated_at: new Date(),
@@ -146,18 +177,12 @@ export async function POST(req: NextRequest) {
       ...(isEmp === null ? {} : { is_emploee: isEmp }),
     };
 
-    const created = await prisma.counteragents.create({
-      data,
+        ...(isEmp === null ? {} : { is_emploee: isEmp }),
+        ...(wasEmp === null ? {} : { was_emploee: wasEmp }),
+      },
       select: pick,
     });
-
-    // Log creation for all non-null fields
-    for (const [key, value] of Object.entries(data)) {
-      if (value !== null) {
-        await logFieldChange(created.id, key, null, value, "INSERT", changedBy);
-      }
-    }
-
+    await logAudit({ table: "counteragents", recordId: BigInt(created.id as any), action: "create" });
     return NextResponse.json(toApi(created), { status: 201 });
   } catch (e: any) {
     console.error("POST /counteragents/api", e);
@@ -165,80 +190,35 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function PUT(req: NextRequest) {
+export async function DELETE(req: NextRequest) {
   try {
-    const b = await req.json();
-    if (!b.id) {
-      return NextResponse.json({ error: "Missing id" }, { status: 400 });
-    }
-
-    const id = BigInt(b.id);
-    const changedBy = await getCurrentUser();
-
-    // Get existing record
-    const existing = await prisma.counteragents.findUnique({
-      where: { id },
-      select: pick,
-    });
-
-    if (!existing) {
-      return NextResponse.json({ error: "Counteragent not found" }, { status: 404 });
-    }
-
-    const isEmp = toBool(b.is_emploee);
-
-    const data = {
-      name: b.name ?? null,
-      identification_number: b.identification_number ?? null,
-      birth_or_incorporation_date: b.birth_or_incorporation_date ? new Date(b.birth_or_incorporation_date) : null,
-      entity_type: b.entity_type ?? null,
-      sex: b.sex ?? null,
-      pension_scheme: b.pension_scheme ?? null,
-      country: b.country ?? null,
-      address_line_1: b.address_line_1 ?? null,
-      address_line_2: b.address_line_2 ?? null,
-      zip_code: b.zip_code ?? null,
-      iban: b.iban ?? null,
-      swift: b.swift ?? null,
-      director: b.director ?? null,
-      director_id: b.director_id ?? null,
-      email: b.email ?? null,
-      phone: b.phone ?? null,
-      oris_id: b.oris_id ?? null,
-      counteragent: b.counteragent ?? null,
-      country_uuid: b.country_uuid ?? null,
-      entity_type_uuid: b.entity_type_uuid ?? null,
-      counteragent_uuid: b.counteragent_uuid ?? null,
-      internal_number: b.internal_number ?? null,
-      ...(isEmp === null ? {} : { is_emploee: isEmp }),
-    };
-
-    const updated = await prisma.counteragents.update({
-      where: { id },
-      data,
-      select: pick,
-    });
-
-    // Log changes for modified fields
-    const fieldsToTrack = [
-      'name', 'identification_number', 'birth_or_incorporation_date',
-      'entity_type', 'sex', 'pension_scheme', 'country',
-      'address_line_1', 'address_line_2', 'zip_code',
-      'iban', 'swift', 'director', 'director_id',
-      'email', 'phone', 'oris_id', 'is_emploee',
-    ];
-
-    for (const field of fieldsToTrack) {
-      const oldVal = (existing as any)[field];
-      const newVal = (updated as any)[field];
-      await logFieldChange(id, field, oldVal, newVal, "UPDATE", changedBy);
-    }
-
-    return NextResponse.json(toApi(updated), { status: 200 });
+    const { searchParams } = new URL(req.url);
+    const idParam = searchParams.get("id");
+    if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    await prisma.counteragent.delete({ where: { id: BigInt(Number(idParam)) } });
+    await logAudit({ table: "counteragents", recordId: BigInt(Number(idParam)), action: "delete" });
+    return NextResponse.json({ ok: true });
   } catch (e: any) {
-    console.error("PUT /counteragents/api", e);
-    const msg = String(e?.message || "");
-    const status = msg.includes("uq_counteragents_identification_number_filtered") ? 409 : 500;
-    return NextResponse.json({ error: msg }, { status });
+    console.error("DELETE /counteragents/api", e);
+    return NextResponse.json({ error: e.message ?? "Server error" }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const idParam = searchParams.get("id");
+    if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const body = await req.json().catch(() => ({} as any));
+    const active = typeof body.active === 'boolean' ? body.active : true;
+    await prisma.counteragent.update({
+      where: { id: BigInt(Number(idParam)) },
+      data: { is_active: active },
+    });
+    await logAudit({ table: "counteragents", recordId: BigInt(Number(idParam)), action: active ? "activate" : "deactivate" });
+    return NextResponse.json({ id: Number(idParam), is_active: active });
+  } catch (e: any) {
+    console.error("PATCH /counteragents/api", e);
+    return NextResponse.json({ error: e.message ?? "Server error" }, { status: 500 });
   }
 }

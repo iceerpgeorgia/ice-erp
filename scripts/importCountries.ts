@@ -70,9 +70,16 @@ function parseWorkbook(filePath: string): Row[] {
   return out;
 }
 
+type CleanedRow = {
+  name_ka: string;
+  name_en: string;
+  iso2: string;
+  iso3: string;
+  un_code: number | null;
+};
+
 function cleanAndValidate(rows: Row[]) {
   const errors: string[] = [];
-  type CleanedRow = Required<Pick<Row, "name_ka" | "name_en" | "iso2" | "iso3">> & { un_code: number | null };
   const cleaned: CleanedRow[] = [];
 
   rows.forEach((r, idx) => {

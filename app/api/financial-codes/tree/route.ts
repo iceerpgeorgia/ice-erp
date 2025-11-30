@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 interface TreeNode {
   id: string;
   code: string;
@@ -120,7 +122,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all codes
-    const codes = await prisma.financial_codes.findMany({
+    const codes = await prisma.financialCode.findMany({
       where,
       orderBy: {
         code: 'asc',

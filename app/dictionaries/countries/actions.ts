@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { logAudit } from "@/lib/audit";
 
 // tiny helper to coerce/clean inputs
 function s(v: FormDataEntryValue | null, len?: number) {
@@ -18,17 +19,11 @@ export async function createCountry(formData: FormData) {
   const un_code_raw = s(formData.get("un_code"));
   const un_code = un_code_raw ? Number(un_code_raw) : null;
 
-  await prisma.countries.create({
-    data: { 
-      updated_at: new Date(),
-      country_uuid: crypto.randomUUID(),
-      name_en, 
-      name_ka, 
-      iso2, 
-      iso3, 
-      un_code: un_code ?? undefined 
-    },
+  const created = await prisma.country.create({
+    data: { name_en, name_ka, iso2, iso3, un_code: un_code ?? undefined },
+    select: { id: true },
   });
+  await logAudit({ table: "countries", recordId: BigInt(created.id), action: "create" });
 
   revalidatePath("/dictionaries/countries");
   redirect("/dictionaries/countries");
@@ -42,11 +37,19 @@ export async function updateCountry(id: string, formData: FormData) {
   const un_code_raw = s(formData.get("un_code"));
   const un_code = un_code_raw ? Number(un_code_raw) : null;
 
-  await prisma.countries.update({
-    where: { id: Number(id) }, // id is BIGINT in DB
+  await prisma.country.update({
+    where: { id: BigInt(Number(id)) },
     data: { name_en, name_ka, iso2, iso3, un_code: un_code ?? undefined },
   });
+  await logAudit({ table: "countries", recordId: BigInt(Number(id)), action: "update" });
 
+  revalidatePath("/dictionaries/countries");
+  redirect("/dictionaries/countries");
+}
+
+export async function deleteCountry(id: string) {
+  await prisma.country.update({ where: { id: BigInt(Number(id)) }, data: { is_active: false } });
+  await logAudit({ table: "countries", recordId: BigInt(Number(id)), action: "deactivate" });
   revalidatePath("/dictionaries/countries");
   redirect("/dictionaries/countries");
 }

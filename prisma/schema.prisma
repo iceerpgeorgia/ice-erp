@@ -3,12 +3,28 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          String    @default("user") // "user", "admin", "system_admin"
+  isAuthorized  Boolean   @default(false)
+  authorizedAt  DateTime?
+  authorizedBy  String?
+  accounts      Account[]
+  entries       Entry[]
+  sessions      Session[]
 }
 
 model Account {
-  id                String  @id
+  id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
@@ -20,7 +36,7 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-  User              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@index([userId])
@@ -47,25 +63,6 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-model User {
-  id            String    @id
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  role          String    @default("user")
-  isAuthorized  Boolean   @default(false)
-  authorizedAt  DateTime?
-  authorizedBy  String?
-  Account       Account[]
-  Session       Session[]
-
-  @@index([isAuthorized])
-  @@index([role])
 }
 
 model VerificationToken {
@@ -76,17 +73,32 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-model counteragents {
+model Country {
+  id           BigInt   @id @default(autoincrement())
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  ts           DateTime @default(now()) @db.Timestamptz(6)
+  country_uuid String   @unique @default(uuid()) @db.Uuid
+  name_en      String
+  name_ka      String
+  iso2         String   @unique @db.Char(2)
+  iso3         String   @unique @db.Char(3)
+  un_code      Int?
+  country      String?
+  is_active    Boolean  @default(true)
+
+  @@map("countries")
+}
+
+model Counteragent {
   id                          BigInt    @id @default(autoincrement())
-  created_at                  DateTime  @default(now())
-  updated_at                  DateTime
+  createdAt                   DateTime  @default(now()) @map("created_at")
+  updatedAt                   DateTime  @updatedAt @map("updated_at")
   ts                          DateTime  @default(now()) @db.Timestamptz(6)
   name                        String?
   identification_number       String?
   birth_or_incorporation_date DateTime?
-  entity_type                 String?
   sex                         String?
-  country                     String?
   address_line_1              String?
   address_line_2              String?
   zip_code                    String?
@@ -97,183 +109,236 @@ model counteragents {
   email                       String?
   phone                       String?
   oris_id                     String?
-  counteragent                String?
   country_uuid                String?   @db.Uuid
   entity_type_uuid            String?   @db.Uuid
-  counteragent_uuid           String    @unique @db.Uuid
+  counteragent_uuid           String    @unique @default(uuid()) @db.Uuid
+  
+  // Computed fields (auto-populated by database trigger)
+  entity_type                 String?   // Populated from entity_types.name_ka via trigger
+  country                     String?   // Populated from countries.name_ka via trigger
+  counteragent                String?   // Formatted: "name (ს.კ. id) - entity_type" via trigger
   internal_number             String?
   pension_scheme              Boolean?
   is_emploee                  Boolean   @default(false)
   is_active                   Boolean   @default(true)
   was_emploee                 Boolean   @default(false)
 
-  @@index([counteragent], map: "idx_counteragents_counteragent")
-  @@index([country], map: "idx_counteragents_country")
-  @@index([entity_type], map: "idx_counteragents_entity_type")
+  // Relations
+  transactions                Transaction[]
+
+  @@map("counteragents")
 }
 
-model counteragents_audit {
-  audit_id          Int       @id @default(autoincrement())
-  counteragent_uuid String    @db.Uuid
-  changed_by        String?
-  change_type       String?
-  old_country_uuid  String?   @db.Uuid
-  new_country_uuid  String?   @db.Uuid
-  changed_at        DateTime? @default(now()) @db.Timestamp(6)
-  details           Json?
-}
-
-model counteragent_audit_log {
+model EntityType {
   id               BigInt   @id @default(autoincrement())
-  counteragent_id  BigInt
-  changed_at       DateTime @default(now()) @db.Timestamptz(6)
-  changed_by       String?
-  field_name       String
-  old_value        String?
-  new_value        String?
-  operation        String
-
-  @@index([counteragent_id])
-  @@index([changed_at])
-  @@map("counteragent_audit_log")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model countries {
-  id           BigInt   @id @default(autoincrement())
-  created_at   DateTime @default(now())
-  updated_at   DateTime
-  ts           DateTime @default(now()) @db.Timestamptz(6)
-  country_uuid String   @unique @db.Uuid
-  name_en      String
-  name_ka      String
-  iso2         String   @unique @db.Char(2)
-  iso3         String   @unique @db.Char(3)
-  un_code      Int?
-  country      String?
-  is_active    Boolean  @default(true)
-}
-
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model currencies {
-  id         BigInt   @id @default(autoincrement())
-  uuid       String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code       String   @unique @db.VarChar(10)
-  name       String
-  is_active  Boolean  @default(true)
-  created_at DateTime @default(now()) @db.Timestamp(6)
-  updated_at DateTime @default(now()) @db.Timestamp(6)
-
-  @@index([code], map: "idx_currencies_code")
-  @@index([is_active], map: "idx_currencies_is_active")
-}
-
-model entity_types {
-  id               BigInt   @id @default(autoincrement())
-  created_at       DateTime @default(now())
-  updated_at       DateTime
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
   ts               DateTime @default(now()) @db.Timestamptz(6)
   entity_type_uuid String   @unique @db.Uuid
-  code             String
+  code             String   @unique
   name_en          String
   name_ka          String
   is_active        Boolean  @default(true)
+
+  @@map("entity_types")
 }
 
-model financial_codes {
-  id                    BigInt            @id @default(autoincrement())
-  uuid                  String?           @unique @db.Uuid
-  code                  String            @unique
-  name                  String
-  validation            String?
-  applies_to_pl         Boolean?
-  applies_to_cf         Boolean?
-  is_income             Boolean?
-  parent_uuid           String?           @db.Uuid
-  description           String?
-  depth                 Int?
-  sort_order            Int?
-  is_active             Boolean?          @default(true)
-  created_at            DateTime?         @default(now()) @db.Timestamp(6)
-  updated_at            DateTime?         @default(now()) @db.Timestamp(6)
-  financial_codes       financial_codes?  @relation("financial_codesTofinancial_codes", fields: [parent_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
-  other_financial_codes financial_codes[] @relation("financial_codesTofinancial_codes")
+model Entry {
+  id        String   @id @default(cuid())
+  userId    String
+  project   String
+  hours     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([code], map: "idx_financial_codes_code")
-  @@index([parent_uuid], map: "idx_financial_codes_parent")
-  @@index([uuid], map: "idx_financial_codes_uuid")
+  @@index([userId])
+  @@index([createdAt])
 }
 
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model nbg_exchange_rates {
-  id         BigInt   @id @default(autoincrement())
-  uuid       String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  date       DateTime @unique @db.Date
-  usd_rate   Decimal? @db.Decimal(18, 6)
-  eur_rate   Decimal? @db.Decimal(18, 6)
-  cny_rate   Decimal? @db.Decimal(18, 6)
-  gbp_rate   Decimal? @db.Decimal(18, 6)
-  rub_rate   Decimal? @db.Decimal(18, 6)
-  try_rate   Decimal? @db.Decimal(18, 6)
-  aed_rate   Decimal? @db.Decimal(18, 6)
-  kzt_rate   Decimal? @db.Decimal(18, 6)
-  created_at DateTime @default(now()) @db.Timestamp(6)
-  updated_at DateTime @default(now()) @db.Timestamp(6)
+model AuditLog {
+  id        BigInt   @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  table     String
+  recordId  String   @map("record_id")
+  action    String
+  userEmail String?  @map("user_email")
+  userId    String?  @map("user_id")
+  changes   Json?
 
-  @@index([date(sort: Desc)], map: "idx_nbg_exchange_rates_date")
+  @@index([table, recordId, createdAt])
 }
 
-model project_states {
-  id         BigInt    @id @default(autoincrement())
-  uuid       String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name       String    @unique
-  is_active  Boolean   @default(true)
-  created_at DateTime  @default(now()) @db.Timestamp(6)
-  updated_at DateTime  @default(now()) @db.Timestamp(6)
-  projects   projects[]
-}
-
-model projects {
-  id                    BigInt              @id @default(autoincrement())
-  created_at            DateTime            @default(now()) @db.Timestamp(6)
-  updated_at            DateTime            @default(now()) @db.Timestamp(6)
-  ts                    DateTime            @default(now()) @db.Timestamptz(6)
-  project_uuid          String              @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+model FinancialCode {
+  id           BigInt   @id @default(autoincrement())
+  uuid         String   @default(uuid()) @db.Uuid @unique
+  code         String   @unique
+  name         String
+  validation   String?  @db.Text
+  appliesToPL  Boolean  @default(false) @map("applies_to_pl")
+  appliesToCF  Boolean  @default(false) @map("applies_to_cf")
+  isIncome     Boolean  @default(false) @map("is_income")
+  parentUuid   String?  @map("parent_uuid") @db.Uuid
+  description  String?  @db.Text
+  depth        Int      @default(1)
+  sortOrder    Int      @default(0) @map("sort_order")
   
-  // Form fields - all required in form
-  counteragent_uuid     String              @db.Uuid
-  project_name          String
-  financial_code_uuid   String              @db.Uuid
-  date                  DateTime            @db.Date
-  value                 Decimal             @db.Decimal(18, 2)
-  currency_uuid         String              @db.Uuid
-  state_uuid            String              @db.Uuid
-  oris_1630             String?
-  
-  // Computed/derived fields (not in form)
-  contract_no           String?
-  project_index         String?
+  // System fields
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
   
   // Relations
-  project_state         project_states      @relation(fields: [state_uuid], references: [uuid])
-  project_employees     project_employees[]
+  transactions Transaction[]
   
-  @@index([counteragent_uuid])
-  @@index([financial_code_uuid])
-  @@index([currency_uuid])
-  @@index([state_uuid])
-  @@index([date])
+  @@index([code])
+  @@index([uuid])
+  @@index([parentUuid])
+  @@index([appliesToPL])
+  @@index([appliesToCF])
+  @@index([isIncome])
+  @@index([parentUuid, sortOrder])
+  @@index([isActive])
+  @@map("financial_codes")
 }
 
-model project_employees {
-  id                BigInt   @id @default(autoincrement())
-  project_uuid      String   @db.Uuid
-  employee_uuid     String   @db.Uuid
-  created_at        DateTime @default(now()) @db.Timestamp(6)
+model Transaction {
+  id                String        @id @default(uuid()) @db.Uuid
+  date              DateTime      @db.Date
+  amount            Decimal       @db.Decimal(15, 2)
+  description       String
+  financialCodeId   BigInt        @map("financial_code_id")
+  counteragentId    BigInt?       @map("counteragent_id")
   
-  project           projects @relation(fields: [project_uuid], references: [project_uuid], onDelete: Cascade)
+  // Relations
+  financialCode     FinancialCode @relation(fields: [financialCodeId], references: [id])
+  counteragent      Counteragent? @relation(fields: [counteragentId], references: [id])
   
-  @@unique([project_uuid, employee_uuid])
-  @@index([project_uuid])
-  @@index([employee_uuid])
+  // Audit
+  createdAt         DateTime      @default(now()) @map("created_at")
+  createdBy         String?       @map("created_by")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  updatedBy         String?       @map("updated_by")
+  
+  @@index([financialCodeId, date])
+  @@index([date])
+  @@index([counteragentId])
+  @@map("transactions")
+}
+
+model Project {
+  id                  BigInt        @id @default(autoincrement())
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+  
+  // UUIDs (used as foreign keys)
+  projectUuid         String        @unique @default(uuid()) @db.Uuid @map("project_uuid")
+  counteragentUuid    String        @db.Uuid @map("counteragent_uuid")
+  financialCodeUuid   String        @db.Uuid @map("financial_code_uuid")
+  currencyUuid        String        @db.Uuid @map("currency_uuid")
+  stateUuid           String        @db.Uuid @map("state_uuid")
+  
+  // User-entered fields (in form)
+  projectName         String        @map("project_name") // Only English letters and numbers
+  date                DateTime      @db.Date // Valid date
+  value               Decimal       @db.Decimal(15, 2) // Valid number > 0
+  oris1630            String?       @map("oris_1630") // Optional ORIS field
+  
+  // Computed/derived fields (not in form, populated by triggers)
+  counteragent        String?       // Derived from counteragents.counteragent
+  financialCode       String?       @map("financial_code") // Derived from financial_codes.validation
+  currency            String?       // Derived from currencies.code
+  state               String?       // Derived from project_states.name
+  contractNo          String?       @map("contract_no") // Computed: counteragent_internal_number + "." + padded_project_count
+  projectIndex        String?       @map("project_index") // Computed: project_name | financial_code | counteragent | formatted_value | currency | formatted_date
+  
+  // Relations: Employees (many-to-many through ProjectEmployee)
+  employees           ProjectEmployee[]
+  
+  @@index([counteragentUuid])
+  @@index([financialCodeUuid])
+  @@index([currencyUuid])
+  @@index([stateUuid])
+  @@index([date])
+  @@map("projects")
+}
+
+model ProjectEmployee {
+  id              BigInt   @id @default(autoincrement())
+  projectId       BigInt   @map("project_id")
+  employeeUuid    String   @db.Uuid @map("employee_uuid") // UUID of counteragent with is_emploee=true
+  employeeName    String?  @map("employee_name") // Derived from counteragents.name
+
+  project         Project  @relation(fields: [projectId], references: [id])
+
+  isActive      Boolean  @default(true)
+  assignedAt    DateTime @default(now())
+
+  @@index([projectId])
+  @@index([employeeUuid])
+  @@map("project_employees")
+}
+
+model Currency {
+  id        BigInt   @id @default(autoincrement())
+  uuid      String   @unique @default(uuid()) @db.Uuid
+  code      String   @unique // GEL, USD, EUR, etc.
+  name      String   // Full name in Georgian
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("currencies")
+}
+
+model NBGExchangeRate {
+  id        BigInt   @id @default(autoincrement())
+  uuid      String   @unique @default(uuid()) @db.Uuid
+  date      DateTime @db.Date // Exchange rate date
+  usdRate   Decimal? @map("usd_rate") @db.Decimal(18, 6) // USD/GEL
+  eurRate   Decimal? @map("eur_rate") @db.Decimal(18, 6) // EUR/GEL
+  cnyRate   Decimal? @map("cny_rate") @db.Decimal(18, 6) // CNY/GEL
+  gbpRate   Decimal? @map("gbp_rate") @db.Decimal(18, 6) // GBP/GEL
+  rubRate   Decimal? @map("rub_rate") @db.Decimal(18, 6) // RUB/GEL
+  tryRate   Decimal? @map("try_rate") @db.Decimal(18, 6) // TRY/GEL
+  aedRate   Decimal? @map("aed_rate") @db.Decimal(18, 6) // AED/GEL
+  kztRate   Decimal? @map("kzt_rate") @db.Decimal(18, 6) // KZT/GEL
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@unique([date])
+  @@map("nbg_exchange_rates")
+}
+
+model DocumentType {
+  id        BigInt   @id @default(autoincrement())
+  uuid      String   @unique @default(uuid()) @db.Uuid
+  name      String   @unique
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("document_types")
+}
+
+model ProjectState {
+  id        BigInt   @id @default(autoincrement())
+  uuid      String   @unique @default(uuid()) @db.Uuid
+  name      String   @unique
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("project_states")
+}
+
+model MIDimension {
+  id        BigInt   @id @default(autoincrement())
+  uuid      String   @unique @default(uuid()) @db.Uuid
+  name      String   @unique // მეტრი, ცალი, კგ, etc.
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("mi_dimensions")
 }

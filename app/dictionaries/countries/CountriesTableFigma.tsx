@@ -96,7 +96,7 @@ export default function CountriesTableFigma({ rows }: Props) {
     } as FigmaCountry;
   });
 
-  // Add bottom padding so fixed bottom scroller doesn't overlap last rows
+  // Add bottom padding so fixed bottom scroller doesn’t overlap last rows
   return (
     <div className="pb-8">
       <FigmaCountriesTable data={mapped} />

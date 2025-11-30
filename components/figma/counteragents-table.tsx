@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
@@ -17,21 +15,21 @@ import {
   EyeOff,
   Info
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Badge } from './ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Label } from './ui/label';
+import { Switch } from './ui/switch';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Checkbox } from './ui/checkbox';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from './ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { 
   Table, 
@@ -40,7 +38,7 @@ import {
   TableHead, 
   TableHeader, 
   TableRow 
-} from '@/components/ui/table';
+} from './ui/table';
 
 
 
@@ -1934,9 +1932,41 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                             {Object.entries(log.changes).map(([field, change]: [string, any]) => (
                               <div key={field} className="text-sm">
                                 <span className="font-medium text-foreground">{field}:</span>{' '}
-                                <span className="text-red-600 line-through">{String(change.from || 'null')}</span>
-                                {' → '}
-                                <span className="text-green-600">{String(change.to || 'null')}</span>
+                                {(field === 'country_uuid' || field === 'country_uuid_label') ? (
+                                  <>
+                                    <span className="text-red-600 line-through">
+                                      {(() => {
+                                        if (field === 'country_uuid') {
+                                          const label = countriesList.find(c => c.countryUuid === change.from)?.country;
+                                          return label || (change.from === null || change.from === undefined ? 'N/A' : String(change.from));
+                                        } else {
+                                          // country_uuid_label
+                                          const label = countriesList.find(c => c.country === change.from)?.country;
+                                          return label || (change.from === null || change.from === undefined ? 'N/A' : String(change.from));
+                                        }
+                                      })()}
+                                    </span>
+                                    {' → '}
+                                    <span className="text-green-600">
+                                      {(() => {
+                                        if (field === 'country_uuid') {
+                                          const label = countriesList.find(c => c.countryUuid === change.to)?.country;
+                                          return label || (change.to === null || change.to === undefined ? 'N/A' : String(change.to));
+                                        } else {
+                                          // country_uuid_label
+                                          const label = countriesList.find(c => c.country === change.to)?.country;
+                                          return label || (change.to === null || change.to === undefined ? 'N/A' : String(change.to));
+                                        }
+                                      })()}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="text-red-600 line-through">{String(change.from || 'null')}</span>
+                                    {' → '}
+                                    <span className="text-green-600">{String(change.to || 'null')}</span>
+                                  </>
+                                )}
                               </div>
                             ))}
                           </div>

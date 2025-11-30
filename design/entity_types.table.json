@@ -1,0 +1,29 @@
+{
+  "table": "entity_types",
+  "model": "EntityType",
+  "primaryKey": ["id"],
+  "columns": [
+    { "name": "code", "label": "Code", "type": "string", "width": 160 },
+    { "name": "name_en", "label": "Name (EN)", "type": "string", "width": 240 },
+    { "name": "name_ka", "label": "Name (KA)", "type": "string", "width": 240 },
+    { "name": "is_active", "label": "Active", "type": "boolean", "align": "center", "width": 90 },
+    { "name": "updatedBy", "label": "Updated By", "type": "string", "width": 220 }
+  ],
+  "ui": {
+    "visibleColumns": ["code", "name_en", "name_ka", "is_active", "updatedBy"],
+    "actions": ["edit", "delete", "history"],
+    "headerBg": "#F7F7F9",
+    "headerText": "#111827",
+    "borderColor": "#E5E7EB",
+    "rowAltBg": "#F9FAFB",
+    "fontSize": "14px",
+    "fontFamily": "Inter, ui-sans-serif, system-ui",
+    "radius": 8,
+    "shadow": true,
+    "stickyHeader": true,
+    "cellPaddingX": 12,
+    "cellPaddingY": 8,
+    "rowHeight": 44
+  }
+}
+

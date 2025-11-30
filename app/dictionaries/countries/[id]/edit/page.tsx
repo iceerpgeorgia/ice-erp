@@ -1,16 +1,18 @@
-// app/dictionaries/countries/[id]/edit/page.tsx
+﻿// app/dictionaries/countries/[id]/edit/page.tsx
 import { getServerSession } from "next-auth/next";
 import { authOptions, prisma } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { updateCountry } from "../../actions";
+import { updateCountry, deleteCountry } from "../../actions";
+import DeleteButton from "../../DeleteButton";
 import Link from "next/link";
 
 export default async function EditCountryPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/api/auth/signin");
 
-  const id = Number(params.id);
-  const c = await prisma.countries.findUnique({ where: { id } });
+  const idNum = Number(params.id);
+  const id = BigInt(idNum);
+  const c = await prisma.country.findUnique({ where: { id } });
   if (!c) redirect("/dictionaries/countries");
 
   return (
@@ -37,9 +39,15 @@ export default async function EditCountryPage({ params }: { params: { id: string
           UN code
           <input name="un_code" type="number" defaultValue={c.un_code ?? undefined} />
         </label>
-        <div style={{display:"flex", gap:8}}>
+        <div style={{display:"flex", gap:8, alignItems: "center"}}>
           <button type="submit">Save</button>
           <Link href="/dictionaries/countries">Cancel</Link>
+          <DeleteButton
+            action={deleteCountry.bind(null, params.id)}
+            label="Delete"
+            confirmMessage="Delete this country?"
+            className="ml-auto"
+          />
         </div>
       </form>
       <p style={{marginTop:12, color:"#666"}}>
@@ -48,3 +56,6 @@ export default async function EditCountryPage({ params }: { params: { id: string
     </>
   );
 }
+
+
+

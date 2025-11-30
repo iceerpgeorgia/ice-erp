@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable, ColumnDef } from "@tanstack/react-table";
+import { useRouter } from "next/navigation";
 import { utils, writeFileXLSX } from "xlsx";
 
 type Row = {
@@ -23,66 +23,126 @@ type Row = {
   phone: string | null;
   oris_id: string | null;
   counteragent: string | null;
+  is_active?: boolean;
+  updated_by?: string;
 };
 
-function usePersistedColumnSizing(key: string) {
-  const [sizing, setSizing] = React.useState<Record<string, number>>(() => {
-    if (typeof window === "undefined") return {};
-    try { return JSON.parse(localStorage.getItem(key) || "{}"); } catch { return {}; }
-  });
-  React.useEffect(() => {
-    if (typeof window !== "undefined") localStorage.setItem(key, JSON.stringify(sizing));
-  }, [key, sizing]);
-  return [sizing, setSizing] as const;
-}
-
-export default function CounteragentsTable({ data }: { data: Row[] }) {
-  const STORAGE_KEY = "tbl.counteragents.columnSizing.v1";
-  const [columnSizing, setColumnSizing] = usePersistedColumnSizing(STORAGE_KEY);
+export default function CounteragentsTable({ data, design }: { data: Row[]; design?: any }) {
+  const router = useRouter();
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(25);
   const [globalFilter, setGlobalFilter] = React.useState("");
 
-  const cols = React.useMemo<ColumnDef<Row>[]>(() => [
-    { header: "ID", accessorKey: "id", size: 80 },
-    { header: "Name", accessorKey: "name", size: 240 },
-    { header: "ID", accessorKey: "identification_number", size: 150 },
-    { header: "Birth/Inc.", accessorKey: "birth_or_incorporation_date", size: 140 },
-    { header: "Entity Type", accessorKey: "entity_type", size: 200 },
-    { header: "Sex", accessorKey: "sex", size: 100 },
-    { header: "Pens.", accessorKey: "pension_scheme", size: 90,
-      cell: (c) => c.getValue() === true ? "True" : c.getValue() === false ? "False" : "" },
-    { header: "Country", accessorKey: "country", size: 180 },
-    { header: "Address 1", accessorKey: "address_line_1", size: 220 },
-    { header: "Address 2", accessorKey: "address_line_2", size: 220 },
-    { header: "ZIP", accessorKey: "zip_code", size: 100 },
-    { header: "IBAN", accessorKey: "iban", size: 200 },
-    { header: "SWIFT", accessorKey: "swift", size: 120 },
-    { header: "Director", accessorKey: "director", size: 180 },
-    { header: "Director ID", accessorKey: "director_id", size: 160 },
-    { header: "Email", accessorKey: "email", size: 220 },
-    { header: "Phone", accessorKey: "phone", size: 160 },
-    { header: "ORIS ID", accessorKey: "oris_id", size: 140 },
-    {
-      header: "Edit", size: 90,
-      cell: (c) => <a className="text-blue-600 underline" href={`/dictionaries/counteragents/${c.row.original.id}`}>Edit</a>,
-      enableResizing: false,
-    },
-  ], []);
+  // Build columns from design
+  type RenderCol = {
+    field: string;
+    label: string;
+    width?: number;
+    align?: 'left' | 'center' | 'right';
+    render: (r: Row) => React.ReactNode;
+  };
 
-  const table = useReactTable({
-    data,
-    columns: cols,
-    state: { columnSizing, globalFilter },
-    onColumnSizingChange: setColumnSizing,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    columnResizeMode: "onChange",
-    enableColumnResizing: true,
-  });
+  const renderCols: RenderCol[] = React.useMemo(() => {
+    const fallback = [
+      'name','identification_number','birth_or_incorporation_date','entity_type','sex','pension_scheme',
+      'country','address_line_1','address_line_2','zip_code','iban','swift','director','director_id',
+      'email','phone','oris_id','is_active','updated_by'
+    ];
+    const order: string[] = (design?.ui?.visibleColumns?.length ? design.ui.visibleColumns : fallback) as string[];
+
+    const colMap: Record<string, any> = {};
+    if (Array.isArray(design?.columns)) {
+      for (const c of design.columns) {
+        const key = (c && (c.name || c.field)) as string | undefined;
+        if (key) colMap[key] = c;
+      }
+    }
+
+    const toLabel = (f: string) => colMap[f]?.label || f;
+    const toAlign = (f: string) => (['left','center','right'].includes(colMap[f]?.align) ? colMap[f]?.align : undefined) as any;
+    const toWidth = (f: string) => (typeof colMap[f]?.width === 'number' ? colMap[f]?.width : undefined);
+
+    const fmt = (f: string, r: Row) => {
+      if (f === 'is_active') return r.is_active ? 'Yes' : 'No';
+      return (r as any)[f] ?? '';
+    };
+
+    const cols = order.map((f) => ({ field: f, label: toLabel(f), align: toAlign(f), width: toWidth(f), render: (r: Row) => fmt(f, r) }));
+
+    const actions: string[] | undefined = design?.ui?.actions;
+    if (Array.isArray(actions) && actions.length) {
+      cols.push({
+        field: '__actions',
+        label: 'Actions',
+        width: 160,
+        align: 'left',
+        render: (r: Row) => (
+          <div className="whitespace-nowrap">
+            {actions.includes('edit') && (
+              <a className="text-blue-600 hover:underline mr-2" href={`/dictionaries/counteragents/${r.id}`}>Edit</a>
+            )}
+            {actions.includes('history') && (
+              <a className="text-gray-700 hover:underline mr-2" href={`/dictionaries/counteragents/${r.id}/history`}>History</a>
+            )}
+            {actions.includes('delete') && (
+              <button
+                className="text-red-700 hover:underline"
+                onClick={async () => {
+                  if (r.is_active) {
+                    if (!confirm('Deactivate this counteragent?')) return;
+                    await fetch(`/dictionaries/counteragents/api?id=${r.id}`, { method: 'DELETE' });
+                  } else {
+                    await fetch(`/dictionaries/counteragents/api?id=${r.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: true }) });
+                  }
+                  router.refresh();
+                }}
+              >
+                {r.is_active ? 'Deactivate' : 'Activate'}
+              </button>
+            )}
+          </div>
+        )
+      });
+    }
+    return cols;
+  }, [design, router]);
+
+  const headerBg: string | undefined = design?.ui?.headerBg;
+  const headerText: string | undefined = design?.ui?.headerText;
+  const borderColor: string | undefined = design?.ui?.borderColor;
+  const rowAltBg: string | undefined = design?.ui?.rowAltBg;
+  const fontSize: string | undefined = design?.ui?.fontSize;
+  const fontFamily: string | undefined = design?.ui?.fontFamily;
+  const radius: number | string | undefined = design?.ui?.radius;
+  const shadow: string | boolean | undefined = design?.ui?.shadow;
+  const stickyHeader: boolean | undefined = design?.ui?.stickyHeader;
+  const cellPaddingX: number | undefined = design?.ui?.cellPaddingX;
+  const cellPaddingY: number | undefined = design?.ui?.cellPaddingY;
+  const rowHeight: number | undefined = design?.ui?.rowHeight;
+
+  const filtered = React.useMemo(() => {
+    const q = globalFilter.trim().toLowerCase();
+    if (!q) return data;
+    return data.filter((r) =>
+      renderCols.some((c) => {
+        if (c.field === '__actions') return false;
+        const v = (r as any)[c.field];
+        return v != null && String(v).toLowerCase().includes(q);
+      })
+    );
+  }, [data, globalFilter, renderCols]);
+
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pageClamped = Math.min(page, totalPages);
+  const start = (pageClamped - 1) * pageSize;
+  const visible = filtered.slice(start, start + pageSize);
 
   function exportXlsx() {
-    const rows = table.getFilteredRowModel().rows.map(r => r.original);
-    const ws = utils.json_to_sheet(rows);
+    const exportCols = renderCols.filter((c) => c.field !== '__actions');
+    const header = exportCols.map((c) => c.label);
+    const rows = filtered.map((r) => exportCols.map((c) => (r as any)[c.field] ?? ''));
+    const ws = utils.aoa_to_sheet([header, ...rows]);
     const wb = utils.book_new(); utils.book_append_sheet(wb, ws, "Counteragents");
     writeFileXLSX(wb, "counteragents.xlsx");
   }
@@ -90,63 +150,43 @@ export default function CounteragentsTable({ data }: { data: Row[] }) {
   return (
     <div className="w-full">
       <div className="flex items-center gap-2 mb-2">
-        <input
-          value={globalFilter ?? ""}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          placeholder="Filter..."
-          className="border rounded px-2 py-1"
-        />
-        <button onClick={exportXlsx} className="ml-auto px-3 py-1.5 border rounded">
-          Export XLSX (filtered)
-        </button>
+        <input value={globalFilter} onChange={(e) => { setGlobalFilter(e.target.value); setPage(1); }} placeholder="Filter..." className="border rounded px-2 py-1" />
+        <button onClick={exportXlsx} className="ml-auto px-3 py-1.5 border rounded">Export XLSX (filtered)</button>
       </div>
 
-      <div className="overflow-x-auto border rounded">
-        <table className="min-w-full table-fixed">
-          <thead className="bg-gray-50">
-            {table.getHeaderGroups().map(hg => (
-              <tr key={hg.id}>
-                {hg.headers.map(h => (
-                  <th key={h.id} style={{ width: h.getSize() }} className="border-b px-2 py-2 text-left relative">
-                    {flexRender(h.column.columnDef.header, h.getContext())}
-                    {h.column.getCanResize() && (
-                      <div
-                        onMouseDown={h.getResizeHandler()}
-                        onTouchStart={h.getResizeHandler()}
-                        className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize select-none"
-                      />
-                    )}
-                  </th>
-                ))}
-              </tr>
-            ))}
+      <div className="overflow-x-auto border rounded" style={{ ...(radius ? { borderRadius: typeof radius === 'number' ? `${radius}px` : radius } : {}), ...(shadow ? { boxShadow: typeof shadow === 'string' ? shadow : '0 1px 2px rgba(0,0,0,0.06)' } : {}) }}>
+        <table className="min-w-full table-fixed" style={{ ...(fontSize ? { fontSize } : {}), ...(fontFamily ? { fontFamily } : {}) }}>
+          <thead>
+            <tr className={`bg-gray-50 ${stickyHeader ? 'sticky top-0 z-10' : ''}`}>
+              {renderCols.map((c) => (
+                <th key={c.field} className={`border-b text-${c.align ?? 'left'}`} style={{ ...(c.width ? { width: c.width } : {}), ...(headerBg ? { backgroundColor: headerBg } : {}), ...(headerText ? { color: headerText } : {}), ...(borderColor ? { borderColor } : {}), paddingLeft: cellPaddingX ?? 8, paddingRight: cellPaddingX ?? 8, paddingTop: cellPaddingY ?? 6, paddingBottom: cellPaddingY ?? 6 }}>
+                  {c.label}
+                </th>
+              ))}
+            </tr>
           </thead>
           <tbody>
-            {table.getRowModel().rows.map(r => (
-              <tr key={r.id} className="odd:bg-white even:bg-gray-50">
-                {r.getVisibleCells().map(c => (
-                  <td key={c.id} style={{ width: c.column.getSize() }} className="border-b px-2 py-1.5">
-                    {flexRender(c.column.columnDef.cell, c.getContext())}
+            {visible.map((r, idx) => (
+              <tr key={r.id} className="odd:bg-white even:bg-gray-50" style={{ ...(rowAltBg && idx % 2 === 1 ? { backgroundColor: rowAltBg } : {}), ...(rowHeight ? { height: rowHeight } : {}) }}>
+                {renderCols.map((c) => (
+                  <td key={c.field} className={`border-b text-${c.align ?? 'left'}`} style={{ ...(c.width ? { width: c.width } : {}), ...(borderColor ? { borderColor } : {}), paddingLeft: cellPaddingX ?? 8, paddingRight: cellPaddingX ?? 8, paddingTop: cellPaddingY ?? 4, paddingBottom: cellPaddingY ?? 4 }}>
+                    {c.render(r)}
                   </td>
                 ))}
               </tr>
             ))}
-            {table.getRowModel().rows.length === 0 && (
-              <tr><td className="px-3 py-4 text-gray-500" colSpan={cols.length}>No rows</td></tr>
+            {visible.length === 0 && (
+              <tr><td className="px-3 py-4 text-gray-500" colSpan={renderCols.length}>No rows</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
       <div className="flex items-center gap-2 mt-3">
-        <button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} className="px-2 py-1 border rounded">Prev</button>
-        <span>Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}</span>
-        <button onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} className="px-2 py-1 border rounded">Next</button>
-        <select
-          value={table.getState().pagination.pageSize}
-          onChange={e => table.setPageSize(Number(e.target.value))}
-          className="ml-2 border rounded px-2 py-1"
-        >
+        <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={pageClamped === 1} className="px-2 py-1 border rounded">Prev</button>
+        <span>Page {pageClamped} of {totalPages}</span>
+        <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={pageClamped === totalPages} className="px-2 py-1 border rounded">Next</button>
+        <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="ml-2 border rounded px-2 py-1">
           {[10,25,50,100].map(n => <option key={n} value={n}>Show {n}</option>)}
         </select>
       </div>

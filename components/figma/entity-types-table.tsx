@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
@@ -17,14 +15,14 @@ import {
   EyeOff,
   Info
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Badge } from './ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Label } from './ui/label';
+import { Switch } from './ui/switch';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Checkbox } from './ui/checkbox';
 import { 
   Table, 
   TableBody, 
@@ -32,7 +30,7 @@ import {
   TableHead, 
   TableHeader, 
   TableRow 
-} from '@/components/ui/table';
+} from './ui/table';
 
 
 

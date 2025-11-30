@@ -7,7 +7,7 @@ function serializeFinancialCode(code: any) {
   return {
     ...code,
     id: String(code.id),
-    // parent_uuid is already a string, no conversion needed
+    // parentUuid is already a string, no conversion needed
   };
 }
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     // Get single code details
     if (singleCode) {
-      const code = await prisma.financial_codes.findUnique({
+      const code = await prisma.financialCode.findUnique({
         where: { code: singleCode },
       });
 
@@ -48,12 +48,12 @@ export async function GET(request: NextRequest) {
       where.appliesToCF = true;
     }
 
-    // Get all codes matching filters, ordered by code and sort_order
-    const codes = await prisma.financial_codes.findMany({
+    // Get all codes matching filters, ordered by code and sortOrder
+    const codes = await prisma.financialCode.findMany({
       where,
       orderBy: [
         { depth: 'asc' },
-        { sort_order: 'asc' },
+        { sortOrder: 'asc' },
         { code: 'asc' },
       ],
     });
@@ -76,16 +76,16 @@ function validatePayload(body: any) {
   const isIncome = typeof body?.isIncome === "boolean" ? body.isIncome : false;
   const appliesToPL = typeof body?.appliesToPL === "boolean" ? body.appliesToPL : false;
   const appliesToCF = typeof body?.appliesToCF === "boolean" ? body.appliesToCF : false;
-  const is_active = typeof body?.is_active === "boolean" ? body.is_active : true;
+  const isActive = typeof body?.isActive === "boolean" ? body.isActive : true;
   
-  // Validate parent_uuid format if provided
-  let parent_uuid: string | null = null;
-  if (body?.parent_uuid && typeof body.parent_uuid === "string") {
+  // Validate parentUuid format if provided
+  let parentUuid: string | null = null;
+  if (body?.parentUuid && typeof body.parentUuid === "string") {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (uuidRegex.test(body.parent_uuid)) {
-      parent_uuid = body.parent_uuid;
+    if (uuidRegex.test(body.parentUuid)) {
+      parentUuid = body.parentUuid;
     } else {
-      errors.parent_uuid = "Invalid parent UUID format";
+      errors.parentUuid = "Invalid parent UUID format";
     }
   }
 
@@ -116,8 +116,8 @@ function validatePayload(body: any) {
       isIncome,
       appliesToPL,
       appliesToCF,
-      is_active,
-      parent_uuid,
+      isActive,
+      parentUuid,
     },
   } as const;
 }
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
     console.log('[API POST] Validated payload:', payload);
 
     // Check for duplicate code
-    const existing = await prisma.financial_codes.findUnique({
+    const existing = await prisma.financialCode.findUnique({
       where: { code: payload.code },
     });
 
@@ -152,30 +152,30 @@ export async function POST(req: NextRequest) {
     // Calculate depth from code
     const depth = payload.code.split(".").length;
 
-    // Calculate sort_order: find max sort_order for siblings and increment
-    let sort_order = 1;
-    if (payload.parent_uuid) {
-      const siblings = await prisma.financial_codes.findMany({
-        where: { parent_uuid: payload.parent_uuid },
-        orderBy: { sort_order: 'desc' },
+    // Calculate sortOrder: find max sortOrder for siblings and increment
+    let sortOrder = 1;
+    if (payload.parentUuid) {
+      const siblings = await prisma.financialCode.findMany({
+        where: { parentUuid: payload.parentUuid },
+        orderBy: { sortOrder: 'desc' },
         take: 1,
       });
       if (siblings.length > 0) {
-        sort_order = (siblings[0].sort_order || 0) + 1;
+        sortOrder = (siblings[0].sortOrder || 0) + 1;
       }
     } else {
-      // Root level - find max sort_order among roots
-      const roots = await prisma.financial_codes.findMany({
-        where: { parent_uuid: null },
-        orderBy: { sort_order: 'desc' },
+      // Root level - find max sortOrder among roots
+      const roots = await prisma.financialCode.findMany({
+        where: { parentUuid: null },
+        orderBy: { sortOrder: 'desc' },
         take: 1,
       });
       if (roots.length > 0) {
-        sort_order = (roots[0].sort_order || 0) + 1;
+        sortOrder = (roots[0].sortOrder || 0) + 1;
       }
     }
 
-    const created = await prisma.financial_codes.create({
+    const created = await prisma.financialCode.create({
       data: {
         code: payload.code,
         name: payload.name,
@@ -184,18 +184,18 @@ export async function POST(req: NextRequest) {
         isIncome: payload.isIncome,
         appliesToPL: payload.appliesToPL,
         appliesToCF: payload.appliesToCF,
-        is_active: payload.is_active,
-        ...(payload.parent_uuid && { parent_uuid: payload.parent_uuid }),
+        isActive: payload.isActive,
+        ...(payload.parentUuid && { parentUuid: payload.parentUuid }),
         depth,
-        sort_order,
+        sortOrder,
       },
     });
 
-    // Use BigInt id for audit logging
+    // Use uuid as recordId for audit logging
     await logAudit({
       table: "financial_codes",
-      recordId: created.id,
-      action: "CREATE",
+      recordId: created.uuid,
+      action: "create",
     });
 
     console.log(`[API POST] Financial code created:`, serializeFinancialCode(created));
@@ -232,7 +232,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Fetch existing record
-    const existing = await prisma.financial_codes.findUnique({
+    const existing = await prisma.financialCode.findUnique({
       where: { id },
     });
 
@@ -242,7 +242,7 @@ export async function PATCH(req: NextRequest) {
 
     // Check for code conflicts (if code changed)
     if (payload.code !== existing.code) {
-      const duplicate = await prisma.financial_codes.findUnique({
+      const duplicate = await prisma.financialCode.findUnique({
         where: { code: payload.code },
       });
       if (duplicate) {
@@ -264,8 +264,8 @@ export async function PATCH(req: NextRequest) {
     if (existingAny.isIncome !== payload.isIncome) changes.isIncome = { from: existingAny.isIncome, to: payload.isIncome };
     if (existingAny.appliesToPL !== payload.appliesToPL) changes.appliesToPL = { from: existingAny.appliesToPL, to: payload.appliesToPL };
     if (existingAny.appliesToCF !== payload.appliesToCF) changes.appliesToCF = { from: existingAny.appliesToCF, to: payload.appliesToCF };
-    if (existingAny.is_active !== payload.is_active) changes.is_active = { from: existingAny.is_active, to: payload.is_active };
-    if (existingAny.parent_uuid !== payload.parent_uuid) changes.parent_uuid = { from: existingAny.parent_uuid, to: payload.parent_uuid };
+    if (existingAny.isActive !== payload.isActive) changes.isActive = { from: existingAny.isActive, to: payload.isActive };
+    if (existingAny.parentUuid !== payload.parentUuid) changes.parentUuid = { from: existingAny.parentUuid, to: payload.parentUuid };
 
     // Calculate depth if code changed
     let updateData: any = {
@@ -275,8 +275,8 @@ export async function PATCH(req: NextRequest) {
       isIncome: payload.isIncome,
       appliesToPL: payload.appliesToPL,
       appliesToCF: payload.appliesToCF,
-      is_active: payload.is_active,
-      parent_uuid: payload.parent_uuid,
+      isActive: payload.isActive,
+      parentUuid: payload.parentUuid,
     };
 
     if (payload.code !== existing.code) {
@@ -284,7 +284,7 @@ export async function PATCH(req: NextRequest) {
       updateData.depth = payload.code.split(".").length;
     }
 
-    const updated = await prisma.financial_codes.update({
+    const updated = await prisma.financialCode.update({
       where: { id },
       data: updateData,
     });
@@ -293,8 +293,8 @@ export async function PATCH(req: NextRequest) {
     if (Object.keys(changes).length > 0) {
       await logAudit({
         table: "financial_codes",
-        recordId: updated.id,
-        action: "UPDATE",
+        recordId: updated.uuid,
+        action: "update",
         changes,
       });
       console.log(`[API] Financial code updated with changes:`, changes);
@@ -321,7 +321,7 @@ export async function DELETE(req: NextRequest) {
 
     const id = BigInt(idString);
 
-    const existing = await prisma.financial_codes.findUnique({
+    const existing = await prisma.financialCode.findUnique({
       where: { id },
     });
 
@@ -329,16 +329,16 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ errors: { id: "Financial code not found" } }, { status: 404 });
     }
 
-    // Soft delete by setting is_active to false
-    const updated = await prisma.financial_codes.update({
+    // Soft delete by setting isActive to false
+    const updated = await prisma.financialCode.update({
       where: { id },
-      data: { is_active: false },
+      data: { isActive: false },
     });
 
     await logAudit({
       table: "financial_codes",
-      recordId: updated.id,
-      action: "DELETE",
+      recordId: updated.uuid,
+      action: "delete",
     });
 
     console.log(`[API] Financial code deleted: ${updated.code}`);

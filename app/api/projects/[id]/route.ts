@@ -82,7 +82,7 @@ export async function PUT(
     await logAudit({
       table: 'projects',
       recordId: id,
-      action: 'UPDATE',
+      action: 'update',
     });
 
     return NextResponse.json(updated[0]);
@@ -110,7 +110,7 @@ export async function DELETE(
     await logAudit({
       table: 'projects',
       recordId: id,
-      action: 'DELETE',
+      action: 'delete',
     });
 
     return NextResponse.json({ success: true });

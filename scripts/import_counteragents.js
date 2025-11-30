@@ -1,11 +1,10 @@
 // scripts/import_counteragents.js
 // Usage:
-//   node scripts/import_counteragents.js ./counteragents.xlsx
-//   node scripts/import_counteragents.js --write-template ./counteragents_template.xlsx
+//   node scripts/import_counteragents.js <file.xlsx> [--sheet=Sheet1] [--dry-run]
+//   node scripts/import_counteragents.js --write-template <out.xlsx>
 //
-// Accepts either "Form Field" headers or DB field names. Works from any sheet (default Sheet1).
-//
-// Requires: xlsx, @prisma/client
+// Accepts either friendly headers or DB field names.
+// Requires deps: xlsx, @prisma/client
 
 const fs = require("fs");
 const path = require("path");
@@ -23,9 +22,7 @@ const UUIDS = {
     "5747f8e6-a8a6-4a23-91cc-c427c3a22597",
     "ba538574-e93f-4ce8-a780-667b61fc970a",
   ]),
-  PENSION_REQUIRED: new Set([
-    "bf4d83f9-5064-4958-af6e-e4c21b2e4880",
-  ]),
+  PENSION_REQUIRED: new Set(["bf4d83f9-5064-4958-af6e-e4c21b2e4880"]),
   ID_11_DIGIT: new Set([
     "bf4d83f9-5064-4958-af6e-e4c21b2e4880",
     "470412f4-e2c0-4f9d-91f1-1c0630a02364",
@@ -33,7 +30,7 @@ const UUIDS = {
   ]),
 };
 
-// Friendly → DB field mapping (supports multiple header aliases)
+// Header aliases
 const MAP = {
   name: ["name", "Name"],
   identification_number: ["identification_number", "ID"],
@@ -59,26 +56,38 @@ const MAP = {
   oris_id: ["oris_id", "ORIS ID"],
   internal_number: ["internal_number", "Internal Number"],
   counteragent_uuid: ["counteragent_uuid", "Counteragent UUID"],
+  // New booleans
+  is_emploee: ["is_emploee", "Is Employee"],
+  was_emploee: ["was_emploee", "Was Employee"],
+  is_active: ["is_active", "Is Active"],
 };
 
 const args = process.argv.slice(2);
-if (!args.length) {
+const DRY_RUN = args.includes("--dry-run");
+const SHEET_ARG = args.find((a) => a.startsWith("--sheet="));
+const EXPORT_ARG = args.find((a) => a.startsWith("--export-errors"));
+const EXPORT_ERRORS = EXPORT_ARG
+  ? (EXPORT_ARG.includes("=") ? EXPORT_ARG.split("=")[1] : (args[args.indexOf(EXPORT_ARG)+1] || "counteragent_import_errors.csv"))
+  : null;
+const WRITE_TEMPLATE = args[0] === "--write-template";
+const FILE_ARG = args.find((a) => !a.startsWith("--"));
+
+if (!args.length || (!WRITE_TEMPLATE && !FILE_ARG)) {
   console.log(
-    "Usage:\n  node scripts/import_counteragents.js <file.xlsx> [--sheet=Sheet1]\n  node scripts/import_counteragents.js --write-template <out.xlsx>"
+    "Usage:\n  node scripts/import_counteragents.js <file.xlsx> [--sheet=Sheet1] [--dry-run] [--export-errors <csv>]\n  node scripts/import_counteragents.js --write-template <out.xlsx>"
   );
   process.exit(0);
 }
 
-if (args[0] === "--write-template") {
+if (WRITE_TEMPLATE) {
   const out = args[1] || "counteragents_template.xlsx";
   writeTemplate(out);
   console.log(`Template written: ${out}`);
   process.exit(0);
 }
 
-const file = args[0];
-const sheetArg = args.find((a) => a.startsWith("--sheet="));
-const SHEET = sheetArg ? sheetArg.split("=")[1] : "Sheet1";
+const file = FILE_ARG;
+const SHEET = SHEET_ARG ? SHEET_ARG.split("=")[1] : "Sheet1";
 
 function norm(s) {
   return (s ?? "").toString().trim().toLowerCase();
@@ -93,9 +102,8 @@ function firstNonEmpty(row, keys) {
 
 function parseDate(any) {
   if (any == null || any === "") return null;
-  // Accept Excel dates, ISO, or dd/MM/yyyy & dd.MM.yyyy
+  if (any instanceof Date) return any;
   if (typeof any === "number") {
-    // Excel serial
     const d = XLSX.SSF.parse_date_code(any);
     if (!d) return null;
     return new Date(Date.UTC(d.y, d.m - 1, d.d));
@@ -105,7 +113,7 @@ function parseDate(any) {
   if (!isNaN(iso.getTime())) return iso;
   const m = s.match(/^(\d{1,2})[./\-](\d{1,2})[./\-](\d{4})$/);
   if (m) {
-    const [_, dd, mm, yyyy] = m;
+    const [, dd, mm, yyyy] = m;
     const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
     if (!isNaN(d.getTime())) return d;
   }
@@ -119,15 +127,11 @@ function asMaleFemale(v) {
   return null;
 }
 
-function asTrueFalse(v) {
+function toBool(v) {
   const n = norm(v);
-  if (["true", "1", "yes", "y"].includes(n)) return "True";
-  if (["false", "0", "no", "n"].includes(n)) return "False";
+  if (["true", "1", "yes", "y"].includes(n)) return true;
+  if (["false", "0", "no", "n"].includes(n)) return false;
   return null;
-}
-
-function padICE(id) {
-  return "ICE" + String(id).padStart(4, "0");
 }
 
 async function writeTemplate(outPath) {
@@ -136,10 +140,10 @@ async function writeTemplate(outPath) {
     "Name",
     "ID",
     "Birth or Incorporation Date",
-    "Entity Type", // (name_ka from entity_types)
-    "Sex", // Male/Female
-    "Pension Scheme", // True/False
-    "Country", // (country from countries)
+    "Entity Type",
+    "Sex",
+    "Pension Scheme",
+    "Country",
     "Address Line 1",
     "Address Line 2",
     "ZIP Code",
@@ -150,11 +154,15 @@ async function writeTemplate(outPath) {
     "Email",
     "Phone",
     "ORIS ID",
-    // Optionally:
+    // Optional
     "Entity Type UUID",
     "Country UUID",
     "Counteragent UUID",
     "Internal Number",
+    // New optional booleans
+    "Is Employee",
+    "Was Employee",
+    "Is Active",
   ];
   const ws = XLSX.utils.aoa_to_sheet([headers]);
   XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
@@ -162,6 +170,7 @@ async function writeTemplate(outPath) {
 }
 
 async function main() {
+  const errorsOut = [];
   if (!fs.existsSync(file)) {
     console.error(`File not found: ${file}`);
     process.exit(1);
@@ -169,54 +178,42 @@ async function main() {
 
   // Prefetch lookups
   const [etRows, cRows] = await Promise.all([
-    prisma.entityType.findMany({
-      select: { entity_type_uuid: true, name_ka: true },
-    }),
-    prisma.countries.findMany({
-      select: { country_uuid: true, country: true },
-    }),
+    prisma.entityType.findMany({ select: { entity_type_uuid: true, name_ka: true } }),
+    prisma.country.findMany({ select: { country_uuid: true, country: true } }),
   ]);
   const etByName = new Map(etRows.map((e) => [norm(e.name_ka), e.entity_type_uuid]));
   const etUuidSet = new Set(etRows.map((e) => e.entity_type_uuid));
   const cByName = new Map(cRows.map((c) => [norm(c.country), c.country_uuid]));
   const cUuidSet = new Set(cRows.map((c) => c.country_uuid));
 
-  const wb = XLSX.readFile(file);
+  const wb = XLSX.readFile(file, { cellDates: true });
   const ws = wb.Sheets[SHEET] || wb.Sheets[wb.SheetNames[0]];
   if (!ws) {
     console.error("No worksheet found.");
     process.exit(1);
   }
   const rows = XLSX.utils.sheet_to_json(ws, { defval: null });
-  console.log(`➡ Found ${rows.length} rows on sheet "${SHEET}"`);
+  console.log(`Found ${rows.length} rows on sheet "${SHEET}"`);
 
-  let created = 0,
-    updated = 0,
-    skipped = 0,
-    errors = 0;
+  let created = 0, updated = 0, skipped = 0, errors = 0;
 
   for (let idx = 0; idx < rows.length; idx++) {
     const row = rows[idx];
-
+    let errName, errIdentification, errDirector, errDirectorId, errOrisId, errEntityTypeUuid, errCountryUuid;
     try {
-      // Read values using aliases
       const name = firstNonEmpty(row, MAP.name) || "";
       let identification_number = firstNonEmpty(row, MAP.identification_number);
       const birthRaw = firstNonEmpty(row, MAP.birth_or_incorporation_date);
       const birth_or_incorporation_date = parseDate(birthRaw);
 
       let entity_type_label = firstNonEmpty(row, MAP.entity_type);
-      let entity_type_uuid =
-        firstNonEmpty(row, MAP.entity_type_uuid) ||
-        (entity_type_label ? etByName.get(norm(entity_type_label)) : null);
+      let entity_type_uuid = firstNonEmpty(row, MAP.entity_type_uuid) || (entity_type_label ? etByName.get(norm(entity_type_label)) : null);
 
-      let sex = firstNonEmpty(row, MAP.sex);
-      let pension_scheme = firstNonEmpty(row, MAP.pension_scheme);
+      let sex = asMaleFemale(firstNonEmpty(row, MAP.sex));
+      let pension_bool = toBool(firstNonEmpty(row, MAP.pension_scheme));
 
       let country_label = firstNonEmpty(row, MAP.country);
-      let country_uuid =
-        firstNonEmpty(row, MAP.country_uuid) ||
-        (country_label ? cByName.get(norm(country_label)) : null);
+      let country_uuid = firstNonEmpty(row, MAP.country_uuid) || (country_label ? cByName.get(norm(country_label)) : null);
 
       const address_line_1 = firstNonEmpty(row, MAP.address_line_1);
       const address_line_2 = firstNonEmpty(row, MAP.address_line_2);
@@ -231,74 +228,45 @@ async function main() {
       let internal_number = firstNonEmpty(row, MAP.internal_number) || null;
       const counteragent_uuid = firstNonEmpty(row, MAP.counteragent_uuid);
 
-      // Basic lookups / recover labels if only UUIDs were supplied
-      if (!entity_type_label && entity_type_uuid && etUuidSet.has(entity_type_uuid)) {
-        const match = etRows.find((e) => e.entity_type_uuid === entity_type_uuid);
-        entity_type_label = match?.name_ka || null;
-      }
-      if (!country_label && country_uuid && cUuidSet.has(country_uuid)) {
-        const match = cRows.find((c) => c.country_uuid === country_uuid);
-        country_label = match?.country || null;
-      }
+      // New booleans
+      const is_emploee = toBool(firstNonEmpty(row, MAP.is_emploee));
+      const was_emploee = toBool(firstNonEmpty(row, MAP.was_emploee));
+      const is_active = toBool(firstNonEmpty(row, MAP.is_active));
+
+      // Stash for error reporting
+      errName = name;
+      errIdentification = identification_number;
+      errDirector = director;
+      errDirectorId = director_id;
+      errOrisId = oris_id;
+      errEntityTypeUuid = entity_type_uuid;
+      errCountryUuid = country_uuid;
 
       // Mandatory checks
-      if (!name) {
-        console.warn(`Row ${idx + 2}: missing Name → skipped`);
-        skipped++;
-        continue;
-      }
-      if (!entity_type_uuid || !etUuidSet.has(entity_type_uuid)) {
-        console.warn(`Row ${idx + 2}: unknown Entity Type → skipped`);
-        skipped++;
-        continue;
-      }
-      if (!country_uuid || !cUuidSet.has(country_uuid)) {
-        console.warn(`Row ${idx + 2}: unknown Country → skipped`);
-        skipped++;
-        continue;
-      }
+      if (!name) { console.warn(`Row ${idx + 2}: missing Name — skipped`); skipped++; continue; }
+      if (!entity_type_uuid || !etUuidSet.has(entity_type_uuid)) { console.warn(`Row ${idx + 2}: unknown Entity Type — skipped`); skipped++; continue; }
+      if (!country_uuid || !cUuidSet.has(country_uuid)) { console.warn(`Row ${idx + 2}: unknown Country — skipped`); skipped++; continue; }
 
-      // Conditional requirements & normalization
+      // Conditional checks
       const idRequired = !UUIDS.ID_NOT_REQUIRED.has(entity_type_uuid);
-      if (idRequired && !identification_number) {
-        console.warn(`Row ${idx + 2}: ID required but empty → skipped`);
-        skipped++;
-        continue;
-      }
+      if (idRequired && !identification_number) { console.warn(`Row ${idx + 2}: ID required but empty — skipped`); skipped++; continue; }
       if (identification_number) {
         const idStr = String(identification_number).trim();
         const is11 = UUIDS.ID_11_DIGIT.has(entity_type_uuid);
         const rx = is11 ? /^\d{11}$/ : /^\d{9}$/;
-        if (!rx.test(idStr)) {
-          console.warn(
-            `Row ${idx + 2}: ID "${idStr}" invalid for entity type (expected ${
-              is11 ? "11" : "9"
-            } digits) → skipped`
-          );
-          skipped++;
-          continue;
-        }
+        if (!rx.test(idStr)) { console.warn(`Row ${idx + 2}: ID "${idStr}" invalid (expected ${is11 ? "11" : "9"} digits) — skipped`); skipped++; continue; }
         identification_number = idStr;
       }
 
       const sexRequired = UUIDS.SEX_REQUIRED.has(entity_type_uuid);
-      sex = asMaleFemale(sex);
-      if (sexRequired && !sex) {
-        console.warn(`Row ${idx + 2}: Sex required (Male/Female) → skipped`);
-        skipped++;
-        continue;
-      }
+      if (sexRequired && !sex) { console.warn(`Row ${idx + 2}: Sex required (Male/Female) — skipped`); skipped++; continue; }
       if (!sexRequired) sex = null;
 
       const pensionRequired = UUIDS.PENSION_REQUIRED.has(entity_type_uuid);
-      pension_scheme = asTrueFalse(pension_scheme);
-      if (pensionRequired && !pension_scheme) {
-        console.warn(`Row ${idx + 2}: Pension Scheme required (True/False) → skipped`);
-        skipped++;
-        continue;
-      }
-      if (!pensionRequired) pension_scheme = null;
+      if (pensionRequired && pension_bool === null) { console.warn(`Row ${idx + 2}: Pension Scheme required (True/False) — skipped`); skipped++; continue; }
+      if (!pensionRequired) pension_bool = null;
 
+      // Build data
       const data = {
         name,
         identification_number: identification_number ?? null,
@@ -306,7 +274,7 @@ async function main() {
         entity_type: entity_type_label ?? null,
         entity_type_uuid,
         sex,
-        pension_scheme,
+        ...(pension_bool === null ? {} : { pension_scheme: pension_bool }),
         country: country_label ?? null,
         country_uuid,
         address_line_1: address_line_1 ?? null,
@@ -315,67 +283,92 @@ async function main() {
         iban: iban ?? null,
         swift: swift ?? null,
         director: director ?? null,
-        director_id: director_id ?? null,
+        director_id: director_id == null ? null : String(director_id),
         email: email ?? null,
         phone: phone ?? null,
-        oris_id: oris_id ?? null,
-        internal_number, // may be null; we’ll backfill ICE#### after insert if ID is empty
+        oris_id: oris_id == null ? null : String(oris_id),
+        ...(is_emploee === null ? {} : { is_emploee }),
+        ...(was_emploee === null ? {} : { was_emploee }),
+        ...(is_active === null ? {} : { is_active }),
+        internal_number,
       };
 
-      // Create or update
+      // Type validations similar to Prisma (for dry-run and early catch)
+      if (data.name != null && typeof data.name !== 'string') {
+        throw new Error('name must be a string');
+      }
+      if (data.director != null && typeof data.director !== 'string') {
+        throw new Error('director must be a string');
+      }
+
+      // Upsert or simulate
       let existing = null;
       if (counteragent_uuid) {
-        existing = await prisma.counteragent.findFirst({
-          where: { counteragent_uuid },
-        });
+        existing = await prisma.counteragent.findFirst({ where: { counteragent_uuid } });
       } else if (identification_number && idRequired) {
-        existing = await prisma.counteragent.findFirst({
-          where: { identification_number },
-        });
+        existing = await prisma.counteragent.findFirst({ where: { identification_number } });
       }
 
       let rec;
-      if (existing) {
-        rec = await prisma.counteragent.update({
-          where: { id: existing.id },
-          data,
-          select: { id: true, internal_number: true, identification_number: true },
-        });
-        updated++;
+      if (DRY_RUN) {
+        if (existing) { updated++; rec = existing; } else { created++; rec = { id: 0n, internal_number, identification_number }; }
       } else {
-        rec = await prisma.counteragent.create({
-          data: counteragent_uuid ? { ...data, counteragent_uuid } : data,
-          select: { id: true, internal_number: true, identification_number: true },
-        });
-        created++;
+        if (existing) {
+          rec = await prisma.counteragent.update({ where: { id: existing.id }, data, select: { id: true, internal_number: true, identification_number: true } });
+          updated++;
+        } else {
+          rec = await prisma.counteragent.create({ data: counteragent_uuid ? { ...data, counteragent_uuid } : data, select: { id: true, internal_number: true, identification_number: true } });
+          created++;
+        }
       }
 
-      // If ID is empty, ensure internal_number = ICE#### (and re-run label trigger)
-      if (!rec.identification_number) {
+      // If ID is empty, ensure internal_number = ICE####
+      if (!DRY_RUN && !rec.identification_number) {
         const desired = internal_number || padICE(rec.id);
         if (rec.internal_number !== desired) {
-          await prisma.counteragent.update({
-            where: { id: rec.id },
-            data: { internal_number: desired },
-          });
+          await prisma.counteragent.update({ where: { id: rec.id }, data: { internal_number: desired } });
         }
       }
     } catch (e) {
       errors++;
-      console.error(`Row ${idx + 2}: ERROR →`, e.message || e);
+      const msg = e && e.message ? e.message : String(e);
+      console.error(`Row ${idx + 2}: ERROR`, msg);
+      if (EXPORT_ERRORS) {
+        errorsOut.push({
+          row: idx + 2,
+          error: msg,
+          name: errName,
+          identification_number: errIdentification,
+          director: errDirector,
+          director_id: errDirectorId,
+          oris_id: errOrisId,
+          entity_type_uuid: errEntityTypeUuid,
+          country_uuid: errCountryUuid,
+        });
+      }
     }
   }
 
-  console.log(
-    `\n✅ Done. Created: ${created}, Updated: ${updated}, Skipped: ${skipped}, Errors: ${errors}`
-  );
+  console.log(`\nDone${DRY_RUN ? " (dry-run)" : ""}. Created: ${created}, Updated: ${updated}, Skipped: ${skipped}, Errors: ${errors}`);
+
+  if (EXPORT_ERRORS) {
+    const outPath = path.isAbsolute(EXPORT_ERRORS) ? EXPORT_ERRORS : path.join(process.cwd(), EXPORT_ERRORS);
+    const rowsCsv = [
+      ['row','error','name','identification_number','director','director_id','oris_id','entity_type_uuid','country_uuid'],
+      ...errorsOut.map(r => [r.row, r.error, r.name, r.identification_number, r.director, r.director_id, r.oris_id, r.entity_type_uuid, r.country_uuid])
+    ];
+    const csv = rowsCsv.map(line => line.map(v => {
+      if (v == null) return '';
+      const s = String(v);
+      return '"' + s.replace(/"/g,'""') + '"';
+    }).join(',')).join('\n');
+    fs.writeFileSync(outPath, csv, 'utf8');
+    console.log(`Error CSV written: ${outPath}`);
+  }
 }
 
+function padICE(id) { return "ICE" + String(id).padStart(4, "0"); }
+
 main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .catch((e) => { console.error(e); process.exit(1); })
+  .finally(async () => { await prisma.$disconnect(); });
