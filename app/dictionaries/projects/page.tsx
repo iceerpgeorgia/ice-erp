@@ -1,4 +1,4 @@
-import ProjectsTableFigma from "@/components/figma/projects-table";
+import ProjectsTable from "@/components/figma/projects-table";
 
 export const metadata = {
   title: "Projects",
@@ -8,7 +8,7 @@ export const metadata = {
 export default function ProjectsPage() {
   return (
     <div className="w-full">
-      <ProjectsTableFigma />
+      <ProjectsTable />
     </div>
   );
 }
