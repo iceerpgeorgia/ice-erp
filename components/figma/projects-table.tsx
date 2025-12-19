@@ -101,7 +101,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'financialCodeUuid', label: 'Financial Code UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'currencyUuid', label: 'Currency UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'stateUuid', label: 'State UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
-  { key: 'employees', label: 'Employees', width: 200, visible: false, sortable: true, filterable: true, responsive: 'lg' }
+  { key: 'employees', label: 'Employees', width: 200, visible: true, sortable: true, filterable: true, responsive: 'lg' }
 ];
 
 // Helper function to get responsive classes
