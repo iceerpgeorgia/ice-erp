@@ -5,27 +5,39 @@ import dynamic from "next/dynamic";
 import type { Project } from "@/components/figma/projects-table";
 
 // Helper function to map API response (snake_case) to Project interface (camelCase)
-const mapProjectData = (row: any): Project => ({
-  id: row.id || 0,
-  createdAt: row.created_at || row.createdAt || '',
-  updatedAt: row.updated_at || row.updatedAt || '',
-  projectUuid: row.project_uuid || row.projectUuid || '',
-  projectName: row.project_name || row.projectName || '',
-  date: row.date || '',
-  value: row.value || 0,
-  oris1630: row.oris_1630 || row.oris1630 || null,
-  counteragentUuid: row.counteragent_uuid || row.counteragentUuid || '',
-  financialCodeUuid: row.financial_code_uuid || row.financialCodeUuid || '',
-  currencyUuid: row.currency_uuid || row.currencyUuid || '',
-  stateUuid: row.state_uuid || row.stateUuid || '',
-  counteragent: row.counteragent || null,
-  financialCode: row.financial_code || row.financialCode || null,
-  currency: row.currency || null,
-  state: row.state || null,
-  contractNo: row.contract_no || row.contractNo || null,
-  projectIndex: row.project_index || row.projectIndex || null,
-  employees: row.employees || []
-});
+const mapProjectData = (row: any): Project => {
+  // Format date from ISO to dd.mm.yyyy
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+  };
+
+  return {
+    id: row.id || 0,
+    createdAt: row.created_at || row.createdAt || '',
+    updatedAt: row.updated_at || row.updatedAt || '',
+    projectUuid: row.project_uuid || row.projectUuid || '',
+    projectName: row.project_name || row.projectName || '',
+    date: formatDate(row.date || ''),
+    value: row.value || 0,
+    oris1630: row.oris_1630 || row.oris1630 || null,
+    counteragentUuid: row.counteragent_uuid || row.counteragentUuid || '',
+    financialCodeUuid: row.financial_code_uuid || row.financialCodeUuid || '',
+    currencyUuid: row.currency_uuid || row.currencyUuid || '',
+    stateUuid: row.state_uuid || row.stateUuid || '',
+    counteragent: row.counteragent || null,
+    financialCode: row.financial_code || row.financialCode || null,
+    currency: row.currency || null,
+    state: row.state || null,
+    contractNo: row.contract_no || row.contractNo || null,
+    projectIndex: row.project_index || row.projectIndex || null,
+    employees: row.employees || []
+  };
+};
 
 // Dynamically import the heavy table component
 const ProjectsTableDynamic = dynamic(
