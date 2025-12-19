@@ -1618,7 +1618,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                         ) : column.key === 'projectName' ? (
                           <span className="text-sm font-medium">{project.projectName}</span>
                         ) : column.key === 'date' ? (
-                          <span className="text-sm">{new Date(project.date).toLocaleDateString()}</span>
+                          <span className="text-sm">{project.date}</span>
                         ) : column.key === 'value' ? (
                           <span className="text-sm">{Number(project.value).toLocaleString()}</span>
                         ) : column.key === 'oris1630' ? (
