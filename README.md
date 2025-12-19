@@ -1,5 +1,7 @@
 # Next.js + Postgres Starter (Google Sign-In)
 
+**Production Version 1.0.0** - Projects Management Feature
+
 [![CI — Lint & Unit](https://img.shields.io/github/actions/workflow/status/iceerpgeorgia/ice-erp/ci-unit.yml?branch=main&label=CI%20%E2%80%94%20Lint%20%26%20Unit)](https://github.com/iceerpgeorgia/ice-erp/actions/workflows/ci-unit.yml)
 [![CI — E2E](https://img.shields.io/github/actions/workflow/status/iceerpgeorgia/ice-erp/ci-e2e.yml?branch=main&label=CI%20%E2%80%94%20E2E)](https://github.com/iceerpgeorgia/ice-erp/actions/workflows/ci-e2e.yml)
 
