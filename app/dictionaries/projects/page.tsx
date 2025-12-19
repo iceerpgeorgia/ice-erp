@@ -34,7 +34,7 @@ export default function ProjectsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
-        <p className="text-muted-foreground">Loading projects...</p>
+        <p className="text-muted-foreground">Loading projects data...</p>
       </div>
     );
   }
