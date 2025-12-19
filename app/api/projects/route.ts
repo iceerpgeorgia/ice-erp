@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 
 // GET all projects or filter by query params
-// Updated: 2025-12-19 - Fixed project_employees join
+// Updated: 2025-12-19 22:00 - Fixed project_employees join using project_uuid
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(project);
     }
 
+    // Query uses project_uuid (not project_id) to join with project_employees table
     const projects = await prisma.$queryRaw`
       SELECT 
         p.*,
