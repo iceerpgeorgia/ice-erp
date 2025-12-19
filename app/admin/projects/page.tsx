@@ -9,11 +9,17 @@ const mapProjectData = (row: any): Project => {
   // Format date from ISO to dd.mm.yyyy
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
-    const date = new Date(dateStr);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}.${month}.${year}`;
+    try {
+      const date = new Date(dateStr);
+      // Check if date is valid
+      if (isNaN(date.getTime())) return dateStr; // Return original if invalid
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const year = date.getUTCFullYear();
+      return `${day}.${month}.${year}`;
+    } catch (e) {
+      return dateStr; // Return original on error
+    }
   };
 
   return {
