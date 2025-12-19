@@ -21,11 +21,12 @@ export async function GET(req: NextRequest) {
         ARRAY_AGG(
           JSON_BUILD_OBJECT(
             'employeeUuid', pe.employee_uuid,
-            'employeeName', pe.employee_name
+            'employeeName', c.name
           )
         ) FILTER (WHERE pe.employee_uuid IS NOT NULL) as employees
       FROM projects p
-      LEFT JOIN project_employees pe ON p.id = pe.project_id
+      LEFT JOIN project_employees pe ON p.project_uuid = pe.project_uuid
+      LEFT JOIN counteragents c ON pe.employee_uuid = c.counteragent_uuid
       GROUP BY p.id
       ORDER BY p.created_at DESC
     `;
@@ -114,15 +115,9 @@ export async function POST(req: NextRequest) {
     // Insert employees if provided
     if (employees && Array.isArray(employees) && employees.length > 0) {
       for (const employeeUuid of employees) {
-        // Get employee name
-        const employeeData: any = await prisma.$queryRaw`
-          SELECT name FROM counteragents WHERE counteragent_uuid = ${employeeUuid}::uuid
-        `;
-        const employeeName = employeeData[0]?.name || null;
-
         await prisma.$queryRaw`
-          INSERT INTO project_employees (project_id, employee_uuid, employee_name)
-          VALUES (${project.id}, ${employeeUuid}::uuid, ${employeeName})
+          INSERT INTO project_employees (project_uuid, employee_uuid)
+          VALUES (${project.project_uuid}::uuid, ${employeeUuid}::uuid)
         `;
       }
     }
@@ -212,21 +207,22 @@ export async function PATCH(req: NextRequest) {
 
     // Update employees if provided
     if (employees && Array.isArray(employees)) {
+      // Get project_uuid from id
+      const projectData: any = await prisma.$queryRaw`
+        SELECT project_uuid FROM projects WHERE id = ${parseInt(id)}
+      `;
+      const projectUuid = projectData[0]?.project_uuid;
+
       // Delete existing employees
       await prisma.$queryRaw`
-        DELETE FROM project_employees WHERE project_id = ${parseInt(id)}
+        DELETE FROM project_employees WHERE project_uuid = ${projectUuid}::uuid
       `;
 
       // Insert new employees
       for (const employeeUuid of employees) {
-        const employeeData: any = await prisma.$queryRaw`
-          SELECT name FROM counteragents WHERE counteragent_uuid = ${employeeUuid}::uuid
-        `;
-        const employeeName = employeeData[0]?.name || null;
-
         await prisma.$queryRaw`
-          INSERT INTO project_employees (project_id, employee_uuid, employee_name)
-          VALUES (${parseInt(id)}, ${employeeUuid}::uuid, ${employeeName})
+          INSERT INTO project_employees (project_uuid, employee_uuid)
+          VALUES (${projectUuid}::uuid, ${employeeUuid}::uuid)
         `;
       }
     }
