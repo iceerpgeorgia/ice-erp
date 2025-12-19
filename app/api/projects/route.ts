@@ -13,7 +13,11 @@ export async function GET(req: NextRequest) {
       const project = await prisma.$queryRaw`
         SELECT * FROM projects WHERE project_uuid = ${projectUuid}::uuid
       `;
-      return NextResponse.json(project);
+      const serialized = (project as any[]).map((p: any) => ({
+        ...p,
+        id: Number(p.id),
+      }));
+      return NextResponse.json(serialized);
     }
 
     // Query uses project_uuid (not project_id) to join with project_employees table
@@ -33,7 +37,13 @@ export async function GET(req: NextRequest) {
       ORDER BY p.created_at DESC
     `;
 
-    return NextResponse.json(projects);
+    // Convert BigInt to Number for JSON serialization
+    const serialized = (projects as any[]).map((project: any) => ({
+      ...project,
+      id: Number(project.id),
+    }));
+
+    return NextResponse.json(serialized);
   } catch (error: any) {
     console.error('GET /projects error:', error);
     return NextResponse.json(

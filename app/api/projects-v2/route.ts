@@ -20,7 +20,13 @@ export async function GET(req: NextRequest) {
       ORDER BY p.created_at DESC
     `;
 
-    return NextResponse.json(projects);
+    // Convert BigInt to Number for JSON serialization
+    const serialized = (projects as any[]).map((project: any) => ({
+      ...project,
+      id: Number(project.id),
+    }));
+
+    return NextResponse.json(serialized);
   } catch (error: any) {
     console.error('GET /projects-v2 error:', error);
     return NextResponse.json(

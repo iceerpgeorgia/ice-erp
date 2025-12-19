@@ -9,7 +9,13 @@ export async function GET(req: NextRequest) {
       SELECT * FROM project_states ORDER BY name ASC
     `;
 
-    return NextResponse.json(states);
+    // Convert BigInt to Number for JSON serialization
+    const serialized = (states as any[]).map((state: any) => ({
+      ...state,
+      id: Number(state.id),
+    }));
+
+    return NextResponse.json(serialized);
   } catch (error: any) {
     console.error('GET /project-states error:', error);
     return NextResponse.json(
