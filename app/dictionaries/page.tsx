@@ -39,7 +39,7 @@ export default function DictionariesIndex() {
             </Link>
           </li>
           <li>
-            <Link className="text-blue-600 hover:underline" href="/admin/projects">
+            <Link className="text-blue-600 hover:underline" href="/dictionaries/projects">
               Projects
             </Link>
           </li>

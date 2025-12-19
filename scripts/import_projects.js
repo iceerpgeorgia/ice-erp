@@ -9,8 +9,20 @@
 const fs = require("fs");
 const path = require("path");
 const XLSX = require("xlsx");
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+
+// Use the singleton Prisma client from lib
+const prismaPath = path.join(__dirname, '..', 'lib', 'prisma.ts');
+let prisma;
+
+// Try to use the singleton, fall back to direct client
+try {
+  // For Node.js execution, we need to use the compiled output
+  const { PrismaClient } = require("@prisma/client");
+  prisma = new PrismaClient();
+} catch (error) {
+  console.error("Failed to initialize Prisma:", error.message);
+  process.exit(1);
+}
 
 // Friendly → DB field mapping
 const FIELD_MAP = {
@@ -160,23 +172,23 @@ function validateRow(row, rowNum) {
 }
 
 /**
- * Transform row to database format
+ * Transform row to database format (using Prisma camelCase field names)
  */
 function transformRow(row) {
   return {
-    project_uuid: parseUUID(row.project_uuid) || undefined, // Let DB generate if not provided
-    counteragent_uuid: parseUUID(row.counteragent_uuid),
-    project_name: row.project_name?.trim(),
-    financial_code_uuid: parseUUID(row.financial_code_uuid),
+    projectUuid: parseUUID(row.project_uuid) || undefined, // Let DB generate if not provided
+    counteragentUuid: parseUUID(row.counteragent_uuid),
+    projectName: row.project_name?.trim(),
+    financialCodeUuid: parseUUID(row.financial_code_uuid),
     date: parseDate(row.date),
     value: parseDecimal(row.value),
-    currency_uuid: parseUUID(row.currency_uuid),
-    state_uuid: parseUUID(row.state_uuid),
-    oris_1630: row.oris_1630?.trim() || null,
-    contract_no: row.contract_no?.trim() || null,
-    project_index: row.project_index?.trim() || null,
+    currencyUuid: parseUUID(row.currency_uuid),
+    stateUuid: parseUUID(row.state_uuid),
+    oris1630: row.oris_1630?.trim() || null,
+    contractNo: row.contract_no?.trim() || null,
+    projectIndex: row.project_index?.trim() || null,
     employees: parseEmployees(row.employees),
-    updated_at: new Date(),
+    updatedAt: new Date(),
   };
 }
 
@@ -189,40 +201,40 @@ async function importProject(data, index) {
   try {
     // Check if project already exists (by UUID if provided)
     let project;
-    if (projectData.project_uuid) {
-      project = await prisma.projects.findUnique({
-        where: { project_uuid: projectData.project_uuid }
+    if (projectData.projectUuid) {
+      project = await prisma.project.findUnique({
+        where: { projectUuid: projectData.projectUuid }
       });
     }
     
     if (project) {
       // Update existing project
-      project = await prisma.projects.update({
-        where: { project_uuid: projectData.project_uuid },
+      project = await prisma.project.update({
+        where: { projectUuid: projectData.projectUuid },
         data: projectData
       });
-      console.log(`✓ Updated project ${index}: ${projectData.project_name}`);
+      console.log(`✓ Updated project ${index}: ${projectData.projectName}`);
     } else {
       // Create new project
-      project = await prisma.projects.create({
+      project = await prisma.project.create({
         data: projectData
       });
-      console.log(`✓ Created project ${index}: ${projectData.project_name}`);
+      console.log(`✓ Created project ${index}: ${projectData.projectName}`);
     }
     
     // Handle employees
     if (employees && employees.length > 0) {
       // Delete existing employee assignments
-      await prisma.project_employees.deleteMany({
-        where: { project_uuid: project.project_uuid }
+      await prisma.projectEmployee.deleteMany({
+        where: { projectId: project.id }
       });
       
       // Create new assignments
       for (const employeeUuid of employees) {
-        await prisma.project_employees.create({
+        await prisma.projectEmployee.create({
           data: {
-            project_uuid: project.project_uuid,
-            employee_uuid: employeeUuid
+            projectId: project.id,
+            employeeUuid: employeeUuid
           }
         });
       }
