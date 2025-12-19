@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 
 // GET all projects or filter by query params
+// Updated: 2025-12-19 - Fixed project_employees join
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
