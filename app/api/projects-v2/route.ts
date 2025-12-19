@@ -6,7 +6,24 @@ export async function GET(req: NextRequest) {
   try {
     const projects = await prisma.$queryRaw`
       SELECT 
-        p.*,
+        p.id,
+        p.created_at,
+        p.updated_at,
+        p.project_uuid,
+        p.counteragent_uuid,
+        p.project_name,
+        p.financial_code_uuid,
+        TO_CHAR(p.date, 'DD.MM.YYYY') as date,
+        p.value,
+        p.currency_uuid,
+        p.state_uuid,
+        p.oris_1630,
+        p.contract_no,
+        p.project_index,
+        p.financial_code,
+        p.currency,
+        p.state,
+        p.counteragent,
         ARRAY_AGG(
           JSON_BUILD_OBJECT(
             'employeeUuid', pe.employee_uuid,

@@ -6,29 +6,13 @@ import type { Project } from "@/components/figma/projects-table";
 
 // Helper function to map API response (snake_case) to Project interface (camelCase)
 const mapProjectData = (row: any): Project => {
-  // Format date from ISO to dd.mm.yyyy
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    try {
-      const date = new Date(dateStr);
-      // Check if date is valid
-      if (isNaN(date.getTime())) return dateStr; // Return original if invalid
-      const day = String(date.getUTCDate()).padStart(2, '0');
-      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-      const year = date.getUTCFullYear();
-      return `${day}.${month}.${year}`;
-    } catch (e) {
-      return dateStr; // Return original on error
-    }
-  };
-
   return {
     id: row.id || 0,
     createdAt: row.created_at || row.createdAt || '',
     updatedAt: row.updated_at || row.updatedAt || '',
     projectUuid: row.project_uuid || row.projectUuid || '',
     projectName: row.project_name || row.projectName || '',
-    date: formatDate(row.date || ''),
+    date: row.date || '', // Already formatted as dd.mm.yyyy by API
     value: row.value || 0,
     oris1630: row.oris_1630 || row.oris1630 || null,
     counteragentUuid: row.counteragent_uuid || row.counteragentUuid || '',
