@@ -512,7 +512,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
         (project.financialCode || '').toLowerCase().includes(search) ||
         (project.currency || '').toLowerCase().includes(search) ||
         (project.state || '').toLowerCase().includes(search) ||
-        (project.contractNo || '').toLowerCase().includes(search)
+        (project.contractNo || '').toLowerCase().includes(search) ||
+        (project.employees?.some(e => e.employeeName?.toLowerCase().includes(search)))
       );
     }
 
@@ -520,6 +521,11 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
     Object.entries(columnFilters).forEach(([column, values]) => {
       if (values.length > 0) {
         filtered = filtered.filter(project => {
+          if (column === 'employees') {
+            // For employees, check if any employee name matches the selected values
+            const employeeNames = project.employees?.map(e => e.employeeName) || [];
+            return values.some(selectedName => employeeNames.includes(selectedName));
+          }
           const cellValue = String(project[column as ColumnKey]);
           return values.includes(cellValue);
         });
@@ -739,6 +745,13 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
 
   // Get unique values for column filters
   const getUniqueValues = (column: ColumnKey) => {
+    if (column === 'employees') {
+      // For employees, extract all unique employee names from the nested array
+      const allEmployees = projects.flatMap(project => 
+        project.employees?.map(e => e.employeeName) || []
+      );
+      return [...new Set(allEmployees)].sort();
+    }
     return [...new Set(projects.map(Project => String(Project[column])))].sort();
   };
 
