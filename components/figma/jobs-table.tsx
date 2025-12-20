@@ -749,7 +749,7 @@ function JobForm({
           checked={formData.isFf}
           onCheckedChange={(checked) => setFormData({ ...formData, isFf: checked })}
         />
-        <Label htmlFor="isFf">FF (Freight Forwarding)</Label>
+        <Label htmlFor="isFf">FF (firefighter)</Label>
       </div>
 
       {/* Actions */}
