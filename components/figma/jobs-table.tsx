@@ -547,7 +547,7 @@ function JobForm({
             label: `${p.projectIndex} - ${p.projectName}`
           }))}
           value={formData.projectUuid}
-          onChange={(value) => setFormData({ ...formData, projectUuid: value })}
+          onValueChange={(value) => setFormData({ ...formData, projectUuid: value })}
           placeholder="Select project..."
           searchPlaceholder="Search projects..."
         />

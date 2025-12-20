@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       INSERT INTO jobs (project_uuid, job_name, floors, weight, is_ff, brand_id)
       VALUES (${projectUuid}::uuid, ${jobName}, ${floors}, ${weight}, ${isFf}, ${brandId})
       RETURNING id, job_uuid
-    `;
+    ` as any[];
 
     return NextResponse.json(result[0]);
   } catch (error: any) {

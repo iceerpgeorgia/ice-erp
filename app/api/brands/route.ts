@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       INSERT INTO brands (name, counteragent_uuids)
       VALUES (${name}, ${uuids}::uuid[])
       RETURNING id, uuid
-    `;
+    ` as any[];
 
     return NextResponse.json(result[0]);
   } catch (error: any) {
