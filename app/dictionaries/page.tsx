@@ -43,6 +43,11 @@ export default function DictionariesIndex() {
               Projects
             </Link>
           </li>
+          <li>
+            <Link className="text-blue-600 hover:underline" href="/dictionaries/jobs">
+              Jobs
+            </Link>
+          </li>
         </ul>
       </div>
     </div>
