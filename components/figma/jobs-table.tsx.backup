@@ -92,29 +92,12 @@ export function JobsTable() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
-  const [columns, setColumns] = useState<ColumnConfig[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('jobs-table-columns');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          return defaultColumns;
-        }
-      }
-    }
-    return defaultColumns;
-  });
+  const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
   const [sortField, setSortField] = useState<ColumnKey | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
-  
-  // Resize and drag state
-  const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number } | null>(null);
-  const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
 
   const [formData, setFormData] = useState({
     projectUuid: '',
@@ -124,42 +107,6 @@ export function JobsTable() {
     isFf: false,
     brandId: 0
   });
-
-  // Save columns to localStorage
-  useEffect(() => {
-    localStorage.setItem('jobs-table-columns', JSON.stringify(columns));
-  }, [columns]);
-  
-  // Handle column resizing
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
-      const diff = e.clientX - isResizing.startX;
-      const newWidth = Math.max(60, isResizing.startWidth + diff);
-      setColumns(cols => cols.map(col => 
-        col.key === isResizing.column ? { ...col, width: newWidth } : col
-      ));
-    };
-    
-    const handleMouseUp = () => {
-      setIsResizing(null);
-    };
-    
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    } else {
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    }
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing]);
 
   // Fetch data
   useEffect(() => {
@@ -355,51 +302,6 @@ export function JobsTable() {
       col.key === key ? { ...col, visible: !col.visible } : col
     ));
   };
-  
-  // Column drag handlers
-  const handleDragStart = (e: React.DragEvent, columnKey: ColumnKey) => {
-    setDraggedColumn(columnKey);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-  
-  const handleDragOver = (e: React.DragEvent, columnKey: ColumnKey) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (draggedColumn && draggedColumn !== columnKey) {
-      setDragOverColumn(columnKey);
-    }
-  };
-  
-  const handleDragLeave = () => {
-    setDragOverColumn(null);
-  };
-  
-  const handleDrop = (e: React.DragEvent, targetColumnKey: ColumnKey) => {
-    e.preventDefault();
-    if (!draggedColumn || draggedColumn === targetColumnKey) {
-      setDraggedColumn(null);
-      setDragOverColumn(null);
-      return;
-    }
-    
-    const draggedIndex = columns.findIndex(col => col.key === draggedColumn);
-    const targetIndex = columns.findIndex(col => col.key === targetColumnKey);
-    
-    if (draggedIndex === -1 || targetIndex === -1) return;
-    
-    const newColumns = [...columns];
-    const [removed] = newColumns.splice(draggedIndex, 1);
-    newColumns.splice(targetIndex, 0, removed);
-    
-    setColumns(newColumns);
-    setDraggedColumn(null);
-    setDragOverColumn(null);
-  };
-  
-  const handleDragEnd = () => {
-    setDraggedColumn(null);
-    setDragOverColumn(null);
-  };
 
   if (loading) {
     return <div className="p-8 text-center">Loading jobs...</div>;
@@ -501,21 +403,8 @@ export function JobsTable() {
                 {visibleColumns.map(column => (
                   <TableHead 
                     key={column.key}
-                    draggable={!isResizing}
-                    onDragStart={(e) => handleDragStart(e, column.key)}
-                    onDragOver={(e) => handleDragOver(e, column.key)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, column.key)}
-                    onDragEnd={handleDragEnd}
-                    className={`bg-muted/50 relative group ${
-                      draggedColumn === column.key ? 'opacity-50' : ''
-                    } ${
-                      dragOverColumn === column.key ? 'border-l-4 border-l-blue-500' : ''
-                    }`}
-                    style={{ 
-                      width: column.width,
-                      cursor: isResizing ? 'col-resize' : 'grab'
-                    }}
+                    style={{ width: column.width }}
+                    className="bg-muted/50"
                   >
                     <div className="flex items-center gap-2">
                       <span>{column.label}</span>
@@ -532,29 +421,6 @@ export function JobsTable() {
                         </button>
                       )}
                     </div>
-                    
-                    {/* Resize handle */}
-                    <div
-                      className="absolute top-0 bottom-0 w-4 cursor-col-resize hover:bg-blue-400/30 active:bg-blue-500/50 transition-colors"
-                      style={{ 
-                        right: '-8px',
-                        zIndex: 30 
-                      }}
-                      draggable={false}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setIsResizing({
-                          column: column.key,
-                          startX: e.clientX,
-                          startWidth: column.width
-                        });
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      title="Drag to resize column"
-                    >
-                      <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-[2px] bg-gray-300 hover:bg-blue-500 transition-colors" />
-                    </div>
                   </TableHead>
                 ))}
                 <TableHead className="w-32 bg-muted/50">Actions</TableHead>
@@ -564,7 +430,7 @@ export function JobsTable() {
               {paginatedJobs.map(job => (
                 <TableRow key={job.id}>
                   {visibleColumns.map(column => (
-                    <TableCell key={column.key} style={{ width: column.width }}>
+                    <TableCell key={column.key}>
                       {column.key === 'isFf' ? (
                         <Badge variant={job.isFf ? 'default' : 'secondary'}>
                           {job.isFf ? 'FF' : 'NOT FF'}
