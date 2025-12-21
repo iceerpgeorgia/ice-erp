@@ -39,13 +39,10 @@ import {
   TableHeader, 
   TableRow 
 } from './ui/table';
+import type { BrandType } from '@/types/brand';
 
-// Brand type for brand selection dropdown
-export type Brand = {
-  id: number;
-  uuid: string;
-  name: string;
-};
+// Brand type alias for brand selection dropdown
+export type Brand = BrandType;
 
 export type Job = {
   id: number;
