@@ -40,6 +40,7 @@ import {
   TableRow 
 } from './ui/table';
 
+// Brand type for brand selection dropdown
 export type Brand = {
   id: number;
   uuid: string;
