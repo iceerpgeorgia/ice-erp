@@ -40,6 +40,12 @@ import {
   TableRow 
 } from './ui/table';
 
+export type Brand = {
+  id: number;
+  uuid: string;
+  name: string;
+};
+
 export type Job = {
   id: number;
   jobUuid: string;
@@ -86,8 +92,7 @@ const defaultColumns: ColumnConfig[] = [
 export function JobsTable() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [projects, setProjects] = useState<Array<{ projectUuid: string; projectIndex: string; projectName: string }>>([]);
-  // Brand type includes uuid for brand selection
-  const [brands, setBrands] = useState<Array<{ id: number; uuid: string; name: string }>>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -204,7 +209,7 @@ export function JobsTable() {
     try {
       const res = await fetch('/api/brands');
       if (res.ok) {
-        const data: Array<{ id: number; uuid: string; name: string }> = await res.json();
+        const data: Brand[] = await res.json();
         setBrands(data);
       }
     } catch (error) {
