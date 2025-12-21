@@ -7,3 +7,6 @@ export interface BrandType {
   uuid: string;
   name: string;
 }
+
+// Re-export as const for runtime validation
+export const BRAND_FIELDS = ['id', 'uuid', 'name'] as const;
