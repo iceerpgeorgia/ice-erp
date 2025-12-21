@@ -44,7 +44,7 @@ BEGIN
   
   -- Compute project_index with proper separators
   NEW.project_index := NEW.project_name || ' | ' || 
-                       COALESCE(fin_code, '') || ' ' || 
+                       COALESCE(fin_code, '') || ' | ' || 
                        COALESCE(counteragent_name, '') || ' | ' || 
                        formatted_value || ' | ' || 
                        COALESCE(currency_code, '') || ' | ' || 

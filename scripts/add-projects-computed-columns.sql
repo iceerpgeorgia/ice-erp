@@ -133,10 +133,10 @@ BEGIN
   
   -- Compute project_index
   NEW.project_index := NEW.project_name || ' | ' || 
-                       COALESCE(fin_code, '') || ' ' || 
+                       COALESCE(fin_code, '') || ' | ' || 
                        COALESCE(counteragent_name, '') || ' | ' || 
-                       formatted_value || ' ' || 
-                       COALESCE(currency_code, '') || ' ' || 
+                       formatted_value || ' | ' || 
+                       COALESCE(currency_code, '') || ' | ' || 
                        formatted_date;
   
   RETURN NEW;
