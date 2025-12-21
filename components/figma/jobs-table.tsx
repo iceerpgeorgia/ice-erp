@@ -76,13 +76,18 @@ type ColumnConfig = {
 
 const defaultColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', width: 80, visible: false, sortable: true, filterable: true },
+  { key: 'jobUuid', label: 'Job UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
+  { key: 'projectUuid', label: 'Project UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
+  { key: 'brandUuid', label: 'Brand UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'jobIndex', label: 'Job Index', width: 400, visible: true, sortable: true, filterable: true },
   { key: 'projectIndex', label: 'Project', width: 150, visible: true, sortable: true, filterable: true },
+  { key: 'projectName', label: 'Project Name', width: 200, visible: false, sortable: true, filterable: true },
   { key: 'jobName', label: 'Job Name', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'brandName', label: 'Brand', width: 150, visible: true, sortable: true, filterable: true },
   { key: 'floors', label: 'Floors', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'weight', label: 'Weight (kg)', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'isFf', label: 'FF', width: 80, visible: true, sortable: true, filterable: true },
+  { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true },
   { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true },
 ];
@@ -521,19 +526,84 @@ export function JobsTable() {
                       cursor: isResizing ? 'col-resize' : 'grab'
                     }}
                   >
-                    <div className="flex items-center gap-2">
-                      <span>{column.label}</span>
-                      {column.sortable && (
-                        <button
-                          onClick={() => handleSort(column.key)}
-                          className="hover:bg-accent rounded p-1"
-                        >
-                          {sortField === column.key ? (
-                            sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                          ) : (
-                            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </button>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span>{column.label}</span>
+                        {column.sortable && (
+                          <button
+                            onClick={() => handleSort(column.key)}
+                            className="hover:bg-accent rounded p-1"
+                          >
+                            {sortField === column.key ? (
+                              sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                            ) : (
+                              <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                      
+                      {/* Column Filter */}
+                      {column.filterable && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button 
+                              className="hover:bg-accent rounded p-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Filter className={`h-4 w-4 ${columnFilters[column.key]?.length > 0 ? 'text-primary' : 'text-muted-foreground'}`} />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64" align="start">
+                            <div className="space-y-2">
+                              <div className="font-medium text-sm">Filter {column.label}</div>
+                              <div className="max-h-60 overflow-y-auto space-y-1">
+                                {Array.from(new Set(jobs.map(j => String(j[column.key] ?? '-')))).sort().map(value => (
+                                  <div key={value} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={`filter-${column.key}-${value}`}
+                                      checked={columnFilters[column.key]?.includes(value) || false}
+                                      onCheckedChange={(checked) => {
+                                        const current = columnFilters[column.key] || [];
+                                        if (checked) {
+                                          setColumnFilters({
+                                            ...columnFilters,
+                                            [column.key]: [...current, value]
+                                          });
+                                        } else {
+                                          setColumnFilters({
+                                            ...columnFilters,
+                                            [column.key]: current.filter(v => v !== value)
+                                          });
+                                        }
+                                      }}
+                                    />
+                                    <label
+                                      htmlFor={`filter-${column.key}-${value}`}
+                                      className="text-sm cursor-pointer"
+                                    >
+                                      {value}
+                                    </label>
+                                  </div>
+                                ))}
+                              </div>
+                              {columnFilters[column.key]?.length > 0 && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full"
+                                  onClick={() => {
+                                    const newFilters = { ...columnFilters };
+                                    delete newFilters[column.key];
+                                    setColumnFilters(newFilters);
+                                  }}
+                                >
+                                  Clear Filter
+                                </Button>
+                              )}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       )}
                     </div>
                     
@@ -572,6 +642,10 @@ export function JobsTable() {
                       {column.key === 'isFf' ? (
                         <Badge variant={job.isFf ? 'default' : 'secondary'}>
                           {job.isFf ? 'FF' : 'NOT FF'}
+                        </Badge>
+                      ) : column.key === 'isActive' ? (
+                        <Badge variant={job.isActive ? 'default' : 'secondary'}>
+                          {job.isActive ? 'Active' : 'Inactive'}
                         </Badge>
                       ) : column.key === 'floors' ? (
                         <span>{job.floors} Floors</span>
