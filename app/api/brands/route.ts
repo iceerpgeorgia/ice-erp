@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import type { BrandType } from '@/types/brand';
 
 // GET all brands
 export async function GET(req: NextRequest) {
@@ -18,9 +19,10 @@ export async function GET(req: NextRequest) {
       ORDER BY name ASC
     `;
 
-    const serialized = (brands as any[]).map((brand: any) => ({
-      ...brand,
+    const serialized: BrandType[] = (brands as any[]).map((brand: any) => ({
       id: Number(brand.id),
+      uuid: brand.uuid,
+      name: brand.name,
     }));
 
     return NextResponse.json(serialized);
