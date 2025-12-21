@@ -713,7 +713,7 @@ function JobForm({
             <SelectValue placeholder="Select brand..." />
           </SelectTrigger>
           <SelectContent>
-            {brands.map((brand: Brand) => (
+            {(brands as Brand[]).map((brand) => (
               <SelectItem key={brand.uuid} value={brand.uuid}>
                 {brand.name}
               </SelectItem>
