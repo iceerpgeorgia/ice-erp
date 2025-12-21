@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
         j.floors,
         j.weight,
         j.is_ff,
-        j.brand_id,
+        j.brand_uuid,
         j.is_active,
         j.created_at,
         j.updated_at,
@@ -38,14 +38,13 @@ export async function GET(req: NextRequest) {
         ) as job_index
       FROM jobs j
       LEFT JOIN projects p ON j.project_uuid = p.project_uuid
-      LEFT JOIN brands b ON j.brand_id = b.id
+      LEFT JOIN brands b ON j.brand_uuid = b.uuid
       ORDER BY j.created_at DESC
     `;
 
     const serialized = (jobs as any[]).map((job: any) => ({
       ...job,
       id: Number(job.id),
-      brand_id: Number(job.brand_id),
     }));
 
     return NextResponse.json(serialized);
@@ -62,10 +61,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { projectUuid, jobName, floors, weight, isFf, brandId } = body;
+    const { projectUuid, jobName, floors, weight, isFf, brandUuid } = body;
 
     // Validation
-    if (!projectUuid || !jobName || floors === undefined || weight === undefined || isFf === undefined || !brandId) {
+    if (!projectUuid || !jobName || floors === undefined || weight === undefined || isFf === undefined) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -73,8 +72,8 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await prisma.$queryRaw`
-      INSERT INTO jobs (project_uuid, job_name, floors, weight, is_ff, brand_id)
-      VALUES (${projectUuid}::uuid, ${jobName}, ${floors}, ${weight}, ${isFf}, ${brandId})
+      INSERT INTO jobs (project_uuid, job_name, floors, weight, is_ff, brand_uuid)
+      VALUES (${projectUuid}::uuid, ${jobName}, ${floors}, ${weight}, ${isFf}, ${brandUuid}::uuid)
       RETURNING id, job_uuid
     ` as any[];
 
@@ -92,7 +91,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, projectUuid, jobName, floors, weight, isFf, brandId } = body;
+    const { id, projectUuid, jobName, floors, weight, isFf, brandUuid } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -109,7 +108,7 @@ export async function PUT(req: NextRequest) {
         floors = ${floors},
         weight = ${weight},
         is_ff = ${isFf},
-        brand_id = ${brandId},
+        brand_uuid = ${brandUuid}::uuid,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;

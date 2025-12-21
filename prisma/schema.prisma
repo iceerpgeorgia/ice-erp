@@ -345,10 +345,10 @@ model Job {
   jobUuid     String   @unique @default(uuid()) @map("job_uuid") @db.Uuid
   projectUuid String   @map("project_uuid") @db.Uuid
   jobName     String   @map("job_name")
-  floors      Int
-  weight      Int
+  floors      Int?
+  weight      Int?
   isFf        Boolean  @map("is_ff")
-  brandId     BigInt   @map("brand_id")
+  brandUuid   String?  @map("brand_uuid") @db.Uuid
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")

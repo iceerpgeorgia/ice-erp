@@ -48,7 +48,7 @@ export type Job = {
   floors: number;
   weight: number;
   isFf: boolean;
-  brandId: number;
+  brandUuid: string | null;
   projectIndex: string;
   projectName: string;
   brandName: string;
@@ -122,7 +122,7 @@ export function JobsTable() {
     floors: 0,
     weight: 0,
     isFf: false,
-    brandId: 0
+    brandUuid: ''
   });
 
   // Save columns to localStorage
@@ -277,7 +277,7 @@ export function JobsTable() {
       floors: job.floors,
       weight: job.weight,
       isFf: job.isFf,
-      brandId: job.brandId
+      brandUuid: job.brandUuid || ''
     });
     setIsEditDialogOpen(true);
   };
@@ -289,7 +289,7 @@ export function JobsTable() {
       floors: 0,
       weight: 0,
       isFf: false,
-      brandId: 0
+      brandUuid: ''
     });
   };
 
@@ -702,15 +702,15 @@ function JobForm({
       <div>
         <Label htmlFor="brand">Brand *</Label>
         <Select
-          value={String(formData.brandId)}
-          onValueChange={(value) => setFormData({ ...formData, brandId: Number(value) })}
+          value={formData.brandUuid}
+          onValueChange={(value) => setFormData({ ...formData, brandUuid: value })}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select brand..." />
           </SelectTrigger>
           <SelectContent>
             {brands.map(brand => (
-              <SelectItem key={brand.id} value={String(brand.id)}>
+              <SelectItem key={brand.uuid} value={brand.uuid}>
                 {brand.name}
               </SelectItem>
             ))}
