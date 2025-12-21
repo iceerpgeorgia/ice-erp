@@ -3,6 +3,7 @@
   "installCommand": "pnpm install",
   "framework": "nextjs",
   "regions": ["iad1"],
+  "cacheMaxAge": 0,
   "env": {
     "NEXTAUTH_URL": "https://iceerpgeorgia.com"
   },
