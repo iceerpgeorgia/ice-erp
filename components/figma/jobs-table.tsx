@@ -86,6 +86,7 @@ const defaultColumns: ColumnConfig[] = [
 export function JobsTable() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [projects, setProjects] = useState<Array<{ projectUuid: string; projectIndex: string; projectName: string }>>([]);
+  // Brand type includes uuid for brand selection
   const [brands, setBrands] = useState<Array<{ id: number; uuid: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
