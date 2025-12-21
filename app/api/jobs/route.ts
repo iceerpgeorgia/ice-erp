@@ -43,8 +43,21 @@ export async function GET(req: NextRequest) {
     `;
 
     const serialized = (jobs as any[]).map((job: any) => ({
-      ...job,
       id: Number(job.id),
+      jobUuid: job.job_uuid,
+      projectUuid: job.project_uuid,
+      jobName: job.job_name,
+      floors: job.floors,
+      weight: job.weight,
+      isFf: job.is_ff,
+      brandUuid: job.brand_uuid,
+      projectIndex: job.project_index,
+      projectName: job.project_name,
+      brandName: job.brand_name,
+      jobIndex: job.job_index,
+      isActive: job.is_active,
+      createdAt: job.created_at,
+      updatedAt: job.updated_at,
     }));
 
     return NextResponse.json(serialized);
