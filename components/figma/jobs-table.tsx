@@ -204,7 +204,7 @@ export function JobsTable() {
     try {
       const res = await fetch('/api/brands');
       if (res.ok) {
-        const data = await res.json();
+        const data: Array<{ id: number; uuid: string; name: string }> = await res.json();
         setBrands(data);
       }
     } catch (error) {
@@ -710,7 +710,7 @@ function JobForm({
             <SelectValue placeholder="Select brand..." />
           </SelectTrigger>
           <SelectContent>
-            {brands.map((brand: { id: number; uuid: string; name: string }) => (
+            {brands.map(brand => (
               <SelectItem key={brand.uuid} value={brand.uuid}>
                 {brand.name}
               </SelectItem>
