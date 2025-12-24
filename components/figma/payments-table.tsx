@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, 
   Plus, 
@@ -101,6 +101,11 @@ export function PaymentsTable() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(defaultColumns);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  
+  // Column dragging and resizing states
+  const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number } | null>(null);
+  const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
 
   // Form states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -275,6 +280,87 @@ export function PaymentsTable() {
     setSelectedJobUuid('');
     setSelectedIncomeTax(false);
     setSelectedCurrencyUuid('');
+  };
+
+  // Mouse events for column resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      
+      const diff = e.clientX - isResizing.startX;
+      const newWidth = Math.max(60, isResizing.startWidth + diff);
+      
+      setColumnConfig(cols => cols.map(col => 
+        col.key === isResizing.column 
+          ? { ...col, width: newWidth }
+          : col
+      ));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(null);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  // Column reordering handlers
+  const handleDragStart = (e: React.DragEvent, columnKey: ColumnKey) => {
+    setDraggedColumn(columnKey);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, columnKey: ColumnKey) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedColumn && draggedColumn !== columnKey) {
+      setDragOverColumn(columnKey);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverColumn(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetColumnKey: ColumnKey) => {
+    e.preventDefault();
+    
+    if (!draggedColumn || draggedColumn === targetColumnKey) {
+      setDraggedColumn(null);
+      setDragOverColumn(null);
+      return;
+    }
+
+    const draggedIndex = columnConfig.findIndex(col => col.key === draggedColumn);
+    const targetIndex = columnConfig.findIndex(col => col.key === targetColumnKey);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const newColumns = [...columnConfig];
+    const [removed] = newColumns.splice(draggedIndex, 1);
+    newColumns.splice(targetIndex, 0, removed);
+
+    setColumnConfig(newColumns);
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedColumn(null);
+    setDragOverColumn(null);
   };
 
   const handleSort = (column: ColumnKey) => {
@@ -650,22 +736,64 @@ export function PaymentsTable() {
           <TableHeader>
             <TableRow>
               {visibleColumns.map((column) => (
-                <TableHead key={column.key} style={{ width: column.width }}>
-                  <div className="flex items-center gap-1">
-                    {column.sortable ? (
-                      <button
-                        onClick={() => handleSort(column.key)}
-                        className="flex items-center gap-1 hover:text-gray-900"
-                      >
-                        {column.label}
-                        {sortColumn === column.key && (
-                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                        )}
-                      </button>
-                    ) : (
-                      column.label
-                    )}
-                    {column.filterable && <ColumnFilter column={column} />}
+                <TableHead 
+                  key={column.key} 
+                  draggable={!isResizing}
+                  onDragStart={(e) => handleDragStart(e, column.key)}
+                  onDragOver={(e) => handleDragOver(e, column.key)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, column.key)}
+                  onDragEnd={handleDragEnd}
+                  className={`relative group ${
+                    draggedColumn === column.key ? 'opacity-50' : ''
+                  } ${
+                    dragOverColumn === column.key ? 'border-l-4 border-l-blue-500' : ''
+                  }`}
+                  style={{ 
+                    width: column.width,
+                    cursor: isResizing ? 'col-resize' : 'grab'
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      {column.sortable ? (
+                        <button
+                          onClick={() => handleSort(column.key)}
+                          className="flex items-center gap-1 hover:text-gray-900"
+                        >
+                          {column.label}
+                          {sortColumn === column.key && (
+                            sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                          )}
+                        </button>
+                      ) : (
+                        column.label
+                      )}
+                      {column.filterable && <ColumnFilter column={column} />}
+                    </div>
+                    
+                    {/* Resize handle */}
+                    <div
+                      className="absolute top-0 bottom-0 w-4 cursor-col-resize hover:bg-blue-400/30 active:bg-blue-500/50 transition-colors"
+                      style={{ 
+                        right: '-8px',
+                        zIndex: 30 
+                      }}
+                      draggable={false}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsResizing({
+                          column: column.key,
+                          startX: e.clientX,
+                          startWidth: column.width
+                        });
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      title="Drag to resize column"
+                    >
+                      <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-[2px] bg-gray-300 hover:bg-blue-500 transition-colors" />
+                    </div>
                   </div>
                 </TableHead>
               ))}
@@ -676,7 +804,7 @@ export function PaymentsTable() {
             {filteredAndSortedPayments.map((payment) => (
               <TableRow key={payment.id}>
                 {visibleColumns.map((column) => (
-                  <TableCell key={column.key}>
+                  <TableCell key={column.key} style={{ width: column.width }}>
                     {column.key === 'isActive' ? (
                       <Badge variant={payment.isActive ? 'default' : 'secondary'}>
                         {payment.isActive ? 'Active' : 'Inactive'}

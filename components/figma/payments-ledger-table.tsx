@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, 
   Plus, 
@@ -95,6 +95,11 @@ export function PaymentsLedgerTable() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(defaultColumns);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+
+  // Column resize and drag states
+  const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number } | null>(null);
+  const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
 
   // Form states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -199,6 +204,81 @@ export function PaymentsLedgerTable() {
     setEffectiveDate('');
     setAccrual('');
     setOrder('');
+  };
+
+  // Column resize handlers
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isResizing) {
+        const deltaX = e.clientX - isResizing.startX;
+        const newWidth = Math.max(100, isResizing.startWidth + deltaX);
+        setColumnConfig(prev =>
+          prev.map(col =>
+            col.key === isResizing.column ? { ...col, width: newWidth } : col
+          )
+        );
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (isResizing) {
+        setIsResizing(null);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  // Column drag handlers
+  const handleDragStart = (e: React.DragEvent<HTMLTableCellElement>, key: ColumnKey) => {
+    setDraggedColumn(key);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>, key: ColumnKey) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedColumn && draggedColumn !== key) {
+      setDragOverColumn(key);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverColumn(null);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLTableCellElement>, targetKey: ColumnKey) => {
+    e.preventDefault();
+    if (!draggedColumn || draggedColumn === targetKey) return;
+
+    setColumnConfig(prev => {
+      const draggedIndex = prev.findIndex(col => col.key === draggedColumn);
+      const targetIndex = prev.findIndex(col => col.key === targetKey);
+      const newConfig = [...prev];
+      const [draggedItem] = newConfig.splice(draggedIndex, 1);
+      newConfig.splice(targetIndex, 0, draggedItem);
+      return newConfig;
+    });
+
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedColumn(null);
+    setDragOverColumn(null);
   };
 
   const handleSort = (column: ColumnKey) => {
@@ -463,7 +543,21 @@ export function PaymentsLedgerTable() {
             <TableHeader>
               <TableRow>
                 {visibleColumns.map(col => (
-                  <TableHead key={col.key} style={{ width: col.width }}>
+                  <TableHead 
+                    key={col.key} 
+                    style={{ width: col.width }}
+                    draggable={!isResizing}
+                    onDragStart={(e) => handleDragStart(e, col.key)}
+                    onDragOver={(e) => handleDragOver(e, col.key)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, col.key)}
+                    onDragEnd={handleDragEnd}
+                    className={`relative ${
+                      draggedColumn === col.key ? 'opacity-50' : ''
+                    } ${
+                      dragOverColumn === col.key ? 'border-l-4 border-primary' : ''
+                    }`}
+                  >
                     <div className="flex items-center gap-2">
                       {col.sortable ? (
                         <button
@@ -514,6 +608,23 @@ export function PaymentsLedgerTable() {
                           </div>
                         </PopoverContent>
                       </Popover>
+                    </div>
+                    
+                    {/* Resize handle */}
+                    <div
+                      className="absolute top-0 right-0 w-4 h-full cursor-col-resize hover:bg-primary/20 active:bg-primary/40 flex items-center justify-center"
+                      style={{ right: '-8px' }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsResizing({
+                          column: col.key,
+                          startX: e.clientX,
+                          startWidth: col.width,
+                        });
+                      }}
+                    >
+                      <div className="w-px h-4 bg-border" />
                     </div>
                   </TableHead>
                 ))}
