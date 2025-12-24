@@ -7,7 +7,7 @@ async function applyMigration() {
   });
   
   const supabase = new Client({
-    connectionString: 'postgresql://postgres.iceerpgeorgia:fulebimojviT1985%25@aws-0-eu-central-1.pooler.supabase.com:6543/postgres'
+    connectionString: 'postgresql://postgres.fojbzghphznbslqwurrm:fulebimojviT1985%25@aws-1-eu-west-1.pooler.supabase.com:6543/postgres'
   });
   
   const migration = fs.readFileSync(
