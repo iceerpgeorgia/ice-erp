@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       where.appliesToCF = true;
     }
 
-    // Get all codes matching filters, ordered by depth and natural sort on code
+    // Get all codes matching filters, ordered by depth and sortOrder
     const codes = await prisma.financialCode.findMany({
       where,
       orderBy: [
@@ -57,22 +57,7 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    // Sort codes using natural version number sorting
-    const sortedCodes = codes.sort((a, b) => {
-      const aParts = a.code.split('.').map(Number);
-      const bParts = b.code.split('.').map(Number);
-      
-      for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
-        const aNum = aParts[i] || 0;
-        const bNum = bParts[i] || 0;
-        if (aNum !== bNum) {
-          return aNum - bNum;
-        }
-      }
-      return 0;
-    });
-
-    return NextResponse.json(sortedCodes.map(serializeFinancialCode));
+    return NextResponse.json(codes.map(serializeFinancialCode));
   } catch (error: any) {
     console.error('Error fetching financial codes:', error);
     return NextResponse.json(
