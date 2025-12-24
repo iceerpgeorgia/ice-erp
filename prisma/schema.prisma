@@ -362,16 +362,19 @@ model Payment {
   counteragentUuid   String   @map("counteragent_uuid") @db.Uuid
   financialCodeUuid  String   @map("financial_code_uuid") @db.Uuid
   jobUuid            String   @map("job_uuid") @db.Uuid
+  incomeTax          Boolean  @map("income_tax")
+  currencyUuid       String   @map("currency_uuid") @db.Uuid
   paymentId          String   @map("payment_id") // Auto-generated for unique combination
   recordUuid         String   @unique @map("record_uuid") // Custom UUID format
   isActive           Boolean  @default(true) @map("is_active")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
   
-  @@unique([projectUuid, counteragentUuid, financialCodeUuid], name: "unique_payment_combination")
+  @@unique([projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid], name: "unique_payment_combination")
   @@index([projectUuid])
   @@index([counteragentUuid])
   @@index([financialCodeUuid])
   @@index([jobUuid])
+  @@index([currencyUuid])
   @@map("payments")
 }

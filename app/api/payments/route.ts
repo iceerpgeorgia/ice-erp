@@ -9,6 +9,8 @@ export async function GET() {
       counteragent_uuid: string;
       financial_code_uuid: string;
       job_uuid: string;
+      income_tax: boolean;
+      currency_uuid: string;
       payment_id: string;
       record_uuid: string;
       is_active: boolean;
@@ -19,6 +21,7 @@ export async function GET() {
       financial_code_validation: string | null;
       job_name: string | null;
       job_identifier: string | null;
+      currency_code: string | null;
     }>>`
       SELECT 
         p.id,
@@ -26,6 +29,8 @@ export async function GET() {
         p.counteragent_uuid,
         p.financial_code_uuid,
         p.job_uuid,
+        p.income_tax,
+        p.currency_uuid,
         p.payment_id,
         p.record_uuid,
         p.is_active,
@@ -35,12 +40,14 @@ export async function GET() {
         c.name as counteragent_name,
         fc.validation as financial_code_validation,
         j.job_name,
-        j.job_uuid as job_identifier
+        j.job_uuid as job_identifier,
+        curr.code as currency_code
       FROM payments p
       LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
       LEFT JOIN counteragents c ON p.counteragent_uuid = c.counteragent_uuid
       LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
       LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
+      LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
       ORDER BY p.created_at DESC
     `;
 
@@ -50,6 +57,8 @@ export async function GET() {
       counteragentUuid: payment.counteragent_uuid,
       financialCodeUuid: payment.financial_code_uuid,
       jobUuid: payment.job_uuid,
+      incomeTax: payment.income_tax,
+      currencyUuid: payment.currency_uuid,
       paymentId: payment.payment_id,
       recordUuid: payment.record_uuid,
       isActive: payment.is_active,
@@ -60,6 +69,7 @@ export async function GET() {
       financialCodeValidation: payment.financial_code_validation,
       jobName: payment.job_name,
       jobIdentifier: payment.job_identifier,
+      currencyCode: payment.currency_code,
     }));
 
     return NextResponse.json(formattedPayments);
@@ -75,10 +85,10 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { projectUuid, counteragentUuid, financialCodeUuid, jobUuid } = body;
+    const { projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid } = body;
 
     // Validation
-    if (!projectUuid || !counteragentUuid || !financialCodeUuid || !jobUuid) {
+    if (!projectUuid || !counteragentUuid || !financialCodeUuid || !jobUuid || incomeTax === undefined || !currencyUuid) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -92,6 +102,8 @@ export async function POST(request: Request) {
         counteragent_uuid,
         financial_code_uuid,
         job_uuid,
+        income_tax,
+        currency_uuid,
         payment_id,
         record_uuid,
         updated_at
@@ -100,6 +112,8 @@ export async function POST(request: Request) {
         ${counteragentUuid}::uuid,
         ${financialCodeUuid}::uuid,
         ${jobUuid}::uuid,
+        ${incomeTax}::boolean,
+        ${currencyUuid}::uuid,
         '',
         '',
         NOW()

@@ -40,6 +40,8 @@ export type Payment = {
   counteragentUuid: string;
   financialCodeUuid: string;
   jobUuid: string;
+  incomeTax: boolean;
+  currencyUuid: string;
   paymentId: string;
   recordUuid: string;
   isActive: boolean;
@@ -50,6 +52,7 @@ export type Payment = {
   financialCodeValidation: string | null;
   jobName: string | null;
   jobIdentifier: string | null;
+  currencyCode: string | null;
 };
 
 type ColumnKey = keyof Payment;
@@ -72,10 +75,13 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'counteragentName', label: 'Counteragent', width: 250, visible: true, sortable: true, filterable: true },
   { key: 'financialCodeValidation', label: 'Financial Code', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'jobName', label: 'Job', width: 200, visible: true, sortable: true, filterable: true },
+  { key: 'incomeTax', label: 'Income Tax', width: 100, visible: true, sortable: true, filterable: true },
+  { key: 'currencyCode', label: 'Currency', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'projectUuid', label: 'Project UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'counteragentUuid', label: 'Counteragent UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'financialCodeUuid', label: 'Financial Code UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'jobUuid', label: 'Job UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
+  { key: 'currencyUuid', label: 'Currency UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'jobIdentifier', label: 'Job Identifier', width: 200, visible: false, sortable: true, filterable: true },
   { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true },
@@ -88,6 +94,7 @@ export function PaymentsTable() {
   const [counteragents, setCounteragents] = useState<Array<{ counteragentUuid: string; name: string; identificationNumber: string; entityType: string }>>([]);
   const [financialCodes, setFinancialCodes] = useState<Array<{ uuid: string; validation: string; code: string }>>([]);
   const [jobs, setJobs] = useState<Array<{ jobUuid: string; jobIndex: string; jobName: string }>>([]);
+  const [currencies, setCurrencies] = useState<Array<{ uuid: string; code: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<ColumnKey>('createdAt');
@@ -101,6 +108,8 @@ export function PaymentsTable() {
   const [selectedCounteragentUuid, setSelectedCounteragentUuid] = useState('');
   const [selectedFinancialCodeUuid, setSelectedFinancialCodeUuid] = useState('');
   const [selectedJobUuid, setSelectedJobUuid] = useState('');
+  const [selectedIncomeTax, setSelectedIncomeTax] = useState(false);
+  const [selectedCurrencyUuid, setSelectedCurrencyUuid] = useState('');
 
   useEffect(() => {
     fetchPayments();
@@ -108,6 +117,7 @@ export function PaymentsTable() {
     fetchCounteragents();
     fetchFinancialCodes();
     fetchJobs();
+    fetchCurrencies();
   }, []);
 
   const fetchPayments = async () => {
@@ -193,8 +203,23 @@ export function PaymentsTable() {
     }
   };
 
+  const fetchCurrencies = async () => {
+    try {
+      const response = await fetch('/api/currencies');
+      if (!response.ok) throw new Error('Failed to fetch currencies');
+      const data = await response.json();
+      setCurrencies(data.map((c: any) => ({ 
+        uuid: c.uuid, 
+        code: c.code, 
+        name: c.name 
+      })));
+    } catch (error) {
+      console.error('Failed to fetch currencies:', error);
+    }
+  };
+
   const handleAddPayment = async () => {
-    if (!selectedProjectUuid || !selectedCounteragentUuid || !selectedFinancialCodeUuid || !selectedJobUuid) {
+    if (!selectedProjectUuid || !selectedCounteragentUuid || !selectedFinancialCodeUuid || !selectedJobUuid || !selectedCurrencyUuid) {
       alert('Please fill in all fields');
       return;
     }
@@ -208,6 +233,8 @@ export function PaymentsTable() {
           counteragentUuid: selectedCounteragentUuid,
           financialCodeUuid: selectedFinancialCodeUuid,
           jobUuid: selectedJobUuid,
+          incomeTax: selectedIncomeTax,
+          currencyUuid: selectedCurrencyUuid,
         }),
       });
 
@@ -246,6 +273,8 @@ export function PaymentsTable() {
     setSelectedCounteragentUuid('');
     setSelectedFinancialCodeUuid('');
     setSelectedJobUuid('');
+    setSelectedIncomeTax(false);
+    setSelectedCurrencyUuid('');
   };
 
   const handleSort = (column: ColumnKey) => {
@@ -528,6 +557,33 @@ export function PaymentsTable() {
                   }))}
                   placeholder="Select job..."
                   searchPlaceholder="Search jobs..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Switch 
+                    checked={selectedIncomeTax} 
+                    onCheckedChange={setSelectedIncomeTax}
+                    id="income-tax-switch"
+                  />
+                  <Label htmlFor="income-tax-switch" className="cursor-pointer">
+                    Income Tax
+                  </Label>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Currency</Label>
+                <Combobox
+                  value={selectedCurrencyUuid}
+                  onValueChange={setSelectedCurrencyUuid}
+                  options={currencies.map(c => ({
+                    value: c.uuid,
+                    label: `${c.code} - ${c.name}`
+                  }))}
+                  placeholder="Select currency..."
+                  searchPlaceholder="Search currencies..."
                 />
               </div>
 
