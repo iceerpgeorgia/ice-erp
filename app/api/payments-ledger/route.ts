@@ -31,9 +31,24 @@ export async function GET(request: NextRequest) {
         p.financial_code_uuid,
         p.job_uuid,
         p.income_tax,
-        p.currency_uuid
+        p.currency_uuid,
+        proj.project_index,
+        proj.project_name,
+        ca.name as counteragent_name,
+        ca.identification_number as counteragent_id,
+        ca.entity_type as counteragent_entity_type,
+        fc.validation as financial_code_validation,
+        fc.code as financial_code,
+        j.job_index,
+        j.job_name,
+        curr.code as currency_code
       FROM payments_ledger pl
       LEFT JOIN payments p ON pl.payment_id = p.payment_id
+      LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
+      LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
+      LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
+      LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
+      LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
     `;
 
     const params: any[] = [];
@@ -63,6 +78,16 @@ export async function GET(request: NextRequest) {
       jobUuid: entry.job_uuid,
       incomeTax: entry.income_tax,
       currencyUuid: entry.currency_uuid,
+      projectIndex: entry.project_index,
+      projectName: entry.project_name,
+      counteragentName: entry.counteragent_name,
+      counteragentId: entry.counteragent_id,
+      counteragentEntityType: entry.counteragent_entity_type,
+      financialCodeValidation: entry.financial_code_validation,
+      financialCode: entry.financial_code,
+      jobIndex: entry.job_index,
+      jobName: entry.job_name,
+      currencyCode: entry.currency_code,
     }));
 
     return NextResponse.json(formattedEntries);

@@ -46,6 +46,16 @@ export type PaymentLedgerEntry = {
   jobUuid?: string;
   incomeTax?: boolean;
   currencyUuid?: string;
+  projectIndex?: string;
+  projectName?: string;
+  counteragentName?: string;
+  counteragentId?: string;
+  counteragentEntityType?: string;
+  financialCodeValidation?: string;
+  financialCode?: string;
+  jobIndex?: string;
+  jobName?: string;
+  currencyCode?: string;
 };
 
 type ColumnKey = keyof PaymentLedgerEntry;
@@ -60,7 +70,13 @@ type ColumnConfig = {
 
 const defaultColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', visible: false, width: 80, sortable: true },
-  { key: 'paymentId', label: 'Payment ID', visible: true, width: 300, sortable: true },
+  { key: 'paymentId', label: 'Payment ID', visible: true, width: 150, sortable: true },
+  { key: 'projectIndex', label: 'Project', visible: true, width: 150, sortable: true },
+  { key: 'counteragentName', label: 'Counteragent', visible: true, width: 200, sortable: true },
+  { key: 'financialCodeValidation', label: 'Financial Code', visible: true, width: 200, sortable: true },
+  { key: 'jobIndex', label: 'Job', visible: true, width: 120, sortable: true },
+  { key: 'currencyCode', label: 'Currency', visible: true, width: 100, sortable: true },
+  { key: 'incomeTax', label: 'Income Tax', visible: true, width: 100, sortable: true },
   { key: 'effectiveDate', label: 'Effective Date', visible: true, width: 150, sortable: true },
   { key: 'accrual', label: 'Accrual', visible: true, width: 120, sortable: true },
   { key: 'order', label: 'Order', visible: true, width: 120, sortable: true },
@@ -282,7 +298,7 @@ export function PaymentsLedgerTable() {
   const visibleColumns = columnConfig.filter(col => col.visible);
   const activeFilterCount = Object.keys(columnFilters).length;
 
-  const formatValue = (key: ColumnKey, value: any) => {
+  const formatValue = (key: ColumnKey, value: any, entry?: PaymentLedgerEntry) => {
     if (value === null || value === undefined) return 'N/A';
     
     if (key === 'effectiveDate' || key === 'createdAt' || key === 'updatedAt') {
@@ -291,6 +307,31 @@ export function PaymentsLedgerTable() {
     
     if (key === 'accrual' || key === 'order') {
       return typeof value === 'number' ? value.toFixed(2) : 'N/A';
+    }
+    
+    if (key === 'counteragentName' && entry) {
+      const name = entry.counteragentName || '';
+      const id = entry.counteragentId ? ` (ს.კ. ${entry.counteragentId})` : '';
+      const entityType = entry.counteragentEntityType ? ` - ${entry.counteragentEntityType}` : '';
+      return name + id + entityType || 'N/A';
+    }
+    
+    if (key === 'financialCodeValidation' && entry) {
+      const validation = entry.financialCodeValidation || '';
+      const code = entry.financialCode ? ` (${entry.financialCode})` : '';
+      return validation + code || 'N/A';
+    }
+    
+    if (key === 'projectIndex' && entry) {
+      return entry.projectIndex || entry.projectName || 'N/A';
+    }
+    
+    if (key === 'jobIndex' && entry) {
+      return entry.jobIndex || entry.jobName || 'N/A';
+    }
+    
+    if (key === 'incomeTax') {
+      return value ? 'Yes' : 'No';
     }
     
     if (typeof value === 'boolean') {
@@ -497,7 +538,7 @@ export function PaymentsLedgerTable() {
                   <TableRow key={entry.id}>
                     {visibleColumns.map(col => (
                       <TableCell key={col.key}>
-                        {formatValue(col.key, entry[col.key])}
+                        {formatValue(col.key, entry[col.key], entry)}
                       </TableCell>
                     ))}
                     <TableCell>
