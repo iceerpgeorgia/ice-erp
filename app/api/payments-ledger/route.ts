@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
         pl.effective_date,
         pl.accrual,
         pl."order",
+        pl.comment,
         pl.record_uuid,
         pl.user_email,
         pl.created_at,
@@ -68,6 +69,7 @@ export async function GET(request: NextRequest) {
       effectiveDate: entry.effective_date,
       accrual: entry.accrual,
       order: entry.order,
+      comment: entry.comment,
       recordUuid: entry.record_uuid,
       userEmail: entry.user_email,
       createdAt: entry.created_at,
@@ -108,7 +110,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { paymentId, effectiveDate, accrual, order } = body;
+    const { paymentId, effectiveDate, accrual, order, comment } = body;
 
     // Validation
     if (!paymentId) {
@@ -132,8 +134,9 @@ export async function POST(request: NextRequest) {
         effective_date,
         accrual,
         "order",
+        comment,
         user_email
-      ) VALUES ($1, $2, $3, $4, $5)
+      ) VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
 
@@ -143,6 +146,7 @@ export async function POST(request: NextRequest) {
       finalEffectiveDate,
       accrual || null,
       order || null,
+      comment || null,
       session.user.email
     );
 

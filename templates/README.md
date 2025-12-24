@@ -2,7 +2,7 @@
 
 This folder contains Excel templates for importing data into the system.
 
-**Auto-generated:** 2025-11-09 03:20:10
+**Auto-generated:** 2025-12-24 20:06:31
 
 ## Available Templates
 
@@ -35,9 +35,7 @@ This folder contains Excel templates for importing data into the system.
 - `name`: String
 - `identification_number`: String
 - `birth_or_incorporation_date`: DateTime
-- `entity_type`: String
 - `sex`: String
-- `country`: String
 - `address_line_1`: String
 - `address_line_2`: String
 - `zip_code`: String
@@ -48,9 +46,11 @@ This folder contains Excel templates for importing data into the system.
 - `email`: String
 - `phone`: String
 - `oris_id`: String
-- `counteragent`: String
 - `country_uuid`: String
 - `entity_type_uuid`: String
+- `entity_type`: String
+- `country`: String
+- `counteragent`: String
 - `internal_number`: String
 - `pension_scheme`: Boolean (TRUE/FALSE)
 
@@ -75,7 +75,7 @@ This folder contains Excel templates for importing data into the system.
 
 **Required columns:**
 - `table`: String
-- `recordId`: BigInt
+- `recordId`: String
 - `action`: String
 
 **Optional columns:**
@@ -117,28 +117,126 @@ This folder contains Excel templates for importing data into the system.
 ### Project (`project_import_template.xlsx`)
 
 **Required columns:**
+- `projectUuid`: String
+- `counteragentUuid`: String
+- `financialCodeUuid`: String
+- `currencyUuid`: String
+- `stateUuid`: String
+- `projectName`: String
+- `date`: DateTime
+- `value`: Decimal
+
+**Optional columns:**
+- `oris1630`: String
+- `counteragent`: String
+- `financialCode`: String
+- `currency`: String
+- `state`: String
+- `contractNo`: String
+- `projectIndex`: String
+
+### ProjectEmployee (`projectemployee_import_template.xlsx`)
+
+**Required columns:**
+- `projectId`: BigInt
+- `employeeUuid`: String
+- `isActive`: Boolean (TRUE/FALSE)
+- `assignedAt`: DateTime
+
+**Optional columns:**
+- `employeeName`: String
+
+### Currency (`currency_import_template.xlsx`)
+
+**Required columns:**
 - `uuid`: String
 - `code`: String
 - `name`: String
-- `counteragentId`: BigInt
-- `financialCodeId`: BigInt
-- `is`: String
-- `amount`: Decimal
-- `currency`: String
-- `startDate`: DateTime
-- `status`: String
-- `isDeleted`: Boolean (TRUE/FALSE)
-- `ORIS`: Int
+- `isActive`: Boolean (TRUE/FALSE)
+
+### NBGExchangeRate (`nbgexchangerate_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `date`: DateTime
 
 **Optional columns:**
-- `contractNumber`: String
-- `employeeId`: String
-- `orisId`: String
-- `orisCounterагентId`: String
-- `collateral`: String
-- `notes`: String
-- `createdBy`: String
-- `updatedBy`: String
+- `usdRate`: Decimal
+- `eurRate`: Decimal
+- `cnyRate`: Decimal
+- `gbpRate`: Decimal
+- `rubRate`: Decimal
+- `tryRate`: Decimal
+- `aedRate`: Decimal
+- `kztRate`: Decimal
+
+### DocumentType (`documenttype_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `name`: String
+- `isActive`: Boolean (TRUE/FALSE)
+
+### ProjectState (`projectstate_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `name`: String
+- `isActive`: Boolean (TRUE/FALSE)
+
+### MIDimension (`midimension_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `name`: String
+- `isActive`: Boolean (TRUE/FALSE)
+
+### Brand (`brand_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `name`: String
+- `counteragentUuids`: String
+- `isActive`: Boolean (TRUE/FALSE)
+
+### Job (`job_import_template.xlsx`)
+
+**Required columns:**
+- `jobUuid`: String
+- `projectUuid`: String
+- `jobName`: String
+- `isFf`: Boolean (TRUE/FALSE)
+- `isActive`: Boolean (TRUE/FALSE)
+
+**Optional columns:**
+- `floors`: Int
+- `weight`: Int
+- `brandUuid`: String
+
+### Payment (`payment_import_template.xlsx`)
+
+**Required columns:**
+- `projectUuid`: String
+- `counteragentUuid`: String
+- `financialCodeUuid`: String
+- `jobUuid`: String
+- `incomeTax`: Boolean (TRUE/FALSE)
+- `currencyUuid`: String
+- `paymentId`: String
+- `recordUuid`: String
+- `isActive`: Boolean (TRUE/FALSE)
+
+### PaymentLedger (`paymentledger_import_template.xlsx`)
+
+**Required columns:**
+- `paymentId`: String
+- `effectiveDate`: DateTime
+- `recordUuid`: String
+- `userEmail`: String
+
+**Optional columns:**
+- `accrual`: Decimal
+- `order`: Decimal
 
 
 ## General Guidelines

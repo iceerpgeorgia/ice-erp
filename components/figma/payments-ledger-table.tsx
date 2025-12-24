@@ -36,6 +36,7 @@ export type PaymentLedgerEntry = {
   effectiveDate: string;
   accrual: number | null;
   order: number | null;
+  comment: string | null;
   recordUuid: string;
   userEmail: string;
   createdAt: string;
@@ -80,6 +81,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'effectiveDate', label: 'Effective Date', visible: true, width: 150, sortable: true },
   { key: 'accrual', label: 'Accrual', visible: true, width: 120, sortable: true },
   { key: 'order', label: 'Order', visible: true, width: 120, sortable: true },
+  { key: 'comment', label: 'Comment', visible: true, width: 250, sortable: true },
   { key: 'userEmail', label: 'User', visible: true, width: 200, sortable: true },
   { key: 'recordUuid', label: 'Record UUID', visible: false, width: 250, sortable: false },
   { key: 'createdAt', label: 'Created At', visible: true, width: 150, sortable: true },
@@ -107,6 +109,7 @@ export function PaymentsLedgerTable() {
   const [effectiveDate, setEffectiveDate] = useState('');
   const [accrual, setAccrual] = useState('');
   const [order, setOrder] = useState('');
+  const [comment, setComment] = useState('');
 
   useEffect(() => {
     fetchEntries();
@@ -166,6 +169,7 @@ export function PaymentsLedgerTable() {
           effectiveDate: effectiveDate || undefined,
           accrual: accrualValue,
           order: orderValue,
+          comment: comment || undefined,
         }),
       });
 
@@ -204,6 +208,7 @@ export function PaymentsLedgerTable() {
     setEffectiveDate('');
     setAccrual('');
     setOrder('');
+    setComment('');
   };
 
   // Column resize handlers
@@ -482,6 +487,16 @@ export function PaymentsLedgerTable() {
                   value={order}
                   onChange={(e) => setOrder(e.target.value)}
                   placeholder="Enter order amount"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Comment (optional)</Label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Enter comment..."
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
 

@@ -386,6 +386,7 @@ model PaymentLedger {
   effectiveDate DateTime @map("effective_date")
   accrual       Decimal? @db.Decimal(18, 2)
   order         Decimal? @map("order") @db.Decimal(18, 2)
+  comment       String?  @db.Text
   recordUuid    String   @unique @map("record_uuid") @db.Uuid
   userEmail     String   @map("user_email")
   createdAt     DateTime @default(now()) @map("created_at")
