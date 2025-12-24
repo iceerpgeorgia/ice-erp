@@ -48,15 +48,28 @@ export async function GET(request: NextRequest) {
       where.appliesToCF = true;
     }
 
-    // Get all codes matching filters, ordered by code and sortOrder
-    const codes = await prisma.financialCode.findMany({
-      where,
-      orderBy: [
-        { depth: 'asc' },
-        { sortOrder: 'asc' },
-        { code: 'asc' },
-      ],
-    });
+    // Get all codes matching filters, ordered by depth and natural sort on code
+    let query = `
+      SELECT *
+      FROM financial_codes
+    `;
+    
+    const params: any[] = [];
+    
+    if (statementType === 'pl') {
+      query += ` WHERE applies_to_pl = true`;
+    } else if (statementType === 'cf') {
+      query += ` WHERE applies_to_cf = true`;
+    }
+    
+    query += `
+      ORDER BY 
+        depth ASC,
+        sort_order ASC,
+        string_to_array(code, '.')::int[] ASC
+    `;
+
+    const codes = await prisma.$queryRawUnsafe<Array<any>>(query, ...params);
 
     return NextResponse.json(codes.map(serializeFinancialCode));
   } catch (error: any) {
