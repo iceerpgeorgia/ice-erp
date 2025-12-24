@@ -357,18 +357,19 @@ model Job {
 }
 
 model Payment {
-  id                 BigInt   @id @default(autoincrement())
-  projectUuid        String   @map("project_uuid") @db.Uuid
-  counteragentUuid   String   @map("counteragent_uuid") @db.Uuid
-  financialCodeUuid  String   @map("financial_code_uuid") @db.Uuid
-  jobUuid            String   @map("job_uuid") @db.Uuid
-  incomeTax          Boolean  @map("income_tax")
-  currencyUuid       String   @map("currency_uuid") @db.Uuid
-  paymentId          String   @map("payment_id") // Auto-generated for unique combination
-  recordUuid         String   @unique @map("record_uuid") // Custom UUID format
-  isActive           Boolean  @default(true) @map("is_active")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  id                 BigInt          @id @default(autoincrement())
+  projectUuid        String          @map("project_uuid") @db.Uuid
+  counteragentUuid   String          @map("counteragent_uuid") @db.Uuid
+  financialCodeUuid  String          @map("financial_code_uuid") @db.Uuid
+  jobUuid            String          @map("job_uuid") @db.Uuid
+  incomeTax          Boolean         @map("income_tax")
+  currencyUuid       String          @map("currency_uuid") @db.Uuid
+  paymentId          String          @unique @map("payment_id") // Auto-generated unique ID (format: 6hex_2hex_4hex)
+  recordUuid         String          @unique @map("record_uuid") // Custom UUID format (6hex_2hex_4hex)
+  isActive           Boolean         @default(true) @map("is_active")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+  ledgerEntries      PaymentLedger[]
   
   @@unique([projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid], name: "unique_payment_combination")
   @@index([projectUuid])
@@ -377,4 +378,21 @@ model Payment {
   @@index([jobUuid])
   @@index([currencyUuid])
   @@map("payments")
+}
+
+model PaymentLedger {
+  id            BigInt   @id @default(autoincrement())
+  paymentId     String   @map("payment_id")
+  effectiveDate DateTime @map("effective_date")
+  accrual       Decimal? @db.Decimal(18, 2)
+  order         Decimal? @map("order") @db.Decimal(18, 2)
+  recordUuid    String   @unique @map("record_uuid") @db.Uuid
+  userEmail     String   @map("user_email")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  payment       Payment  @relation(fields: [paymentId], references: [paymentId], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@index([effectiveDate])
+  @@map("payments_ledger")
 }

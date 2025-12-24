@@ -49,8 +49,13 @@ export default function DictionariesIndex() {
             </Link>
           </li>
           <li>
-            <Link className="text-blue-600 hover:underline" href="/admin/payments">
+            <Link className="text-blue-600 hover:underline" href="/dictionaries/payments">
               Payments
+            </Link>
+          </li>
+          <li>
+            <Link className="text-blue-600 hover:underline" href="/dictionaries/payments-ledger">
+              Payments Ledger
             </Link>
           </li>
         </ul>
