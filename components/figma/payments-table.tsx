@@ -479,7 +479,7 @@ export function PaymentsTable() {
                 <Label>Project</Label>
                 <Combobox
                   value={selectedProjectUuid}
-                  onChange={setSelectedProjectUuid}
+                  onValueChange={setSelectedProjectUuid}
                   options={projects.map(p => ({
                     value: p.projectUuid,
                     label: p.projectIndex || p.projectName
@@ -493,7 +493,7 @@ export function PaymentsTable() {
                 <Label>Counteragent</Label>
                 <Combobox
                   value={selectedCounteragentUuid}
-                  onChange={setSelectedCounteragentUuid}
+                  onValueChange={setSelectedCounteragentUuid}
                   options={counteragents.map(ca => ({
                     value: ca.counteragentUuid,
                     label: `${ca.name}${ca.identificationNumber ? ` (ს.კ. ${ca.identificationNumber})` : ''}${ca.entityType ? ` - ${ca.entityType}` : ''}`
@@ -507,7 +507,7 @@ export function PaymentsTable() {
                 <Label>Financial Code</Label>
                 <Combobox
                   value={selectedFinancialCodeUuid}
-                  onChange={setSelectedFinancialCodeUuid}
+                  onValueChange={setSelectedFinancialCodeUuid}
                   options={financialCodes.map(fc => ({
                     value: fc.uuid,
                     label: `${fc.validation} (${fc.code})`
@@ -521,7 +521,7 @@ export function PaymentsTable() {
                 <Label>Job</Label>
                 <Combobox
                   value={selectedJobUuid}
-                  onChange={setSelectedJobUuid}
+                  onValueChange={setSelectedJobUuid}
                   options={jobs.map(job => ({
                     value: job.jobUuid,
                     label: job.jobIndex || job.jobName
