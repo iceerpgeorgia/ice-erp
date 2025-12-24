@@ -3,7 +3,23 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const payments = await prisma.$queryRaw`
+    const payments = await prisma.$queryRaw<Array<{
+      id: bigint;
+      project_uuid: string;
+      counteragent_uuid: string;
+      financial_code_uuid: string;
+      job_uuid: string;
+      payment_id: string;
+      record_uuid: string;
+      is_active: boolean;
+      created_at: Date;
+      updated_at: Date;
+      project_index: string | null;
+      counteragent_name: string | null;
+      financial_code_validation: string | null;
+      job_name: string | null;
+      job_identifier: string | null;
+    }>>`
       SELECT 
         p.id,
         p.project_uuid,
@@ -28,7 +44,7 @@ export async function GET() {
       ORDER BY p.created_at DESC
     `;
 
-    const formattedPayments = payments.map((payment: any) => ({
+    const formattedPayments = payments.map((payment) => ({
       id: Number(payment.id),
       projectUuid: payment.project_uuid,
       counteragentUuid: payment.counteragent_uuid,
