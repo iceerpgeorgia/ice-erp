@@ -24,13 +24,6 @@ import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { 
   Table, 
@@ -91,8 +84,8 @@ const defaultColumns: ColumnConfig[] = [
 
 export function PaymentsTable() {
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [projects, setProjects] = useState<Array<{ uuid: string; index: string; name: string }>>([]);
-  const [counteragents, setCounteragents] = useState<Array<{ counteragentUuid: string; name: string }>>([]);
+  const [projects, setProjects] = useState<Array<{ projectUuid: string; projectIndex: string; projectName: string }>>([]);
+  const [counteragents, setCounteragents] = useState<Array<{ counteragentUuid: string; name: string; identificationNumber: string; entityType: string }>>([]);
   const [financialCodes, setFinancialCodes] = useState<Array<{ uuid: string; validation: string; code: string }>>([]);
   const [jobs, setJobs] = useState<Array<{ jobUuid: string; jobIndex: string; jobName: string }>>([]);
   const [loading, setLoading] = useState(true);
@@ -136,7 +129,13 @@ export function PaymentsTable() {
       const response = await fetch('/api/projects');
       if (!response.ok) throw new Error('Failed to fetch projects');
       const data = await response.json();
-      setProjects(data);
+      // Map the API response to our format
+      const formattedProjects = data.map((p: any) => ({
+        projectUuid: p.project_uuid,
+        projectIndex: p.project_index,
+        projectName: p.project_name
+      }));
+      setProjects(formattedProjects);
     } catch (error) {
       console.error('Error fetching projects:', error);
     }
@@ -147,7 +146,14 @@ export function PaymentsTable() {
       const response = await fetch('/api/counteragents');
       if (!response.ok) throw new Error('Failed to fetch counteragents');
       const data = await response.json();
-      setCounteragents(data);
+      // Map to include full display format
+      const formattedCounteragents = data.map((ca: any) => ({
+        counteragentUuid: ca.counteragent_uuid,
+        name: ca.name,
+        identificationNumber: ca.identification_number || '',
+        entityType: ca.entity_type || ''
+      }));
+      setCounteragents(formattedCounteragents);
     } catch (error) {
       console.error('Error fetching counteragents:', error);
     }
@@ -158,7 +164,13 @@ export function PaymentsTable() {
       const response = await fetch('/api/financial-codes');
       if (!response.ok) throw new Error('Failed to fetch financial codes');
       const data = await response.json();
-      setFinancialCodes(data);
+      // Map to include both validation and code
+      const formattedCodes = data.map((fc: any) => ({
+        uuid: fc.uuid,
+        validation: fc.validation || fc.name,
+        code: fc.code
+      }));
+      setFinancialCodes(formattedCodes);
     } catch (error) {
       console.error('Error fetching financial codes:', error);
     }
@@ -169,7 +181,13 @@ export function PaymentsTable() {
       const response = await fetch('/api/jobs');
       if (!response.ok) throw new Error('Failed to fetch jobs');
       const data = await response.json();
-      setJobs(data);
+      // Map to our format
+      const formattedJobs = data.map((job: any) => ({
+        jobUuid: job.jobUuid,
+        jobIndex: job.jobIndex,
+        jobName: job.jobName
+      }));
+      setJobs(formattedJobs);
     } catch (error) {
       console.error('Error fetching jobs:', error);
     }
@@ -459,66 +477,58 @@ export function PaymentsTable() {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Project</Label>
-                <Select value={selectedProjectUuid} onValueChange={setSelectedProjectUuid}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.uuid} value={project.uuid}>
-                        {project.index || project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  value={selectedProjectUuid}
+                  onChange={setSelectedProjectUuid}
+                  options={projects.map(p => ({
+                    value: p.projectUuid,
+                    label: p.projectIndex || p.projectName
+                  }))}
+                  placeholder="Select project..."
+                  searchPlaceholder="Search projects..."
+                />
               </div>
 
               <div className="space-y-2">
                 <Label>Counteragent</Label>
-                <Select value={selectedCounteragentUuid} onValueChange={setSelectedCounteragentUuid}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select counteragent..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {counteragents.map((ca) => (
-                      <SelectItem key={ca.counteragentUuid} value={ca.counteragentUuid}>
-                        {ca.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  value={selectedCounteragentUuid}
+                  onChange={setSelectedCounteragentUuid}
+                  options={counteragents.map(ca => ({
+                    value: ca.counteragentUuid,
+                    label: `${ca.name}${ca.identificationNumber ? ` (ს.კ. ${ca.identificationNumber})` : ''}${ca.entityType ? ` - ${ca.entityType}` : ''}`
+                  }))}
+                  placeholder="Select counteragent..."
+                  searchPlaceholder="Search counteragents..."
+                />
               </div>
 
               <div className="space-y-2">
                 <Label>Financial Code</Label>
-                <Select value={selectedFinancialCodeUuid} onValueChange={setSelectedFinancialCodeUuid}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select financial code..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {financialCodes.map((fc) => (
-                      <SelectItem key={fc.uuid} value={fc.uuid}>
-                        {fc.validation} ({fc.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  value={selectedFinancialCodeUuid}
+                  onChange={setSelectedFinancialCodeUuid}
+                  options={financialCodes.map(fc => ({
+                    value: fc.uuid,
+                    label: `${fc.validation} (${fc.code})`
+                  }))}
+                  placeholder="Select financial code..."
+                  searchPlaceholder="Search financial codes..."
+                />
               </div>
 
               <div className="space-y-2">
                 <Label>Job</Label>
-                <Select value={selectedJobUuid} onValueChange={setSelectedJobUuid}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select job..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {jobs.map((job) => (
-                      <SelectItem key={job.jobUuid} value={job.jobUuid}>
-                        {job.jobIndex || job.jobName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  value={selectedJobUuid}
+                  onChange={setSelectedJobUuid}
+                  options={jobs.map(job => ({
+                    value: job.jobUuid,
+                    label: job.jobIndex || job.jobName
+                  }))}
+                  placeholder="Select job..."
+                  searchPlaceholder="Search jobs..."
+                />
               </div>
 
               <Button onClick={handleAddPayment} className="w-full">
