@@ -49,29 +49,30 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all codes matching filters, ordered by depth and natural sort on code
-    let query = `
-      SELECT *
-      FROM financial_codes
-    `;
-    
-    const params: any[] = [];
-    
-    if (statementType === 'pl') {
-      query += ` WHERE applies_to_pl = true`;
-    } else if (statementType === 'cf') {
-      query += ` WHERE applies_to_cf = true`;
-    }
-    
-    query += `
-      ORDER BY 
-        depth ASC,
-        sort_order ASC,
-        string_to_array(code, '.')::int[] ASC
-    `;
+    const codes = await prisma.financialCode.findMany({
+      where,
+      orderBy: [
+        { depth: 'asc' },
+        { sortOrder: 'asc' },
+      ],
+    });
 
-    const codes = await prisma.$queryRawUnsafe<Array<any>>(query, ...params);
+    // Sort codes using natural version number sorting
+    const sortedCodes = codes.sort((a, b) => {
+      const aParts = a.code.split('.').map(Number);
+      const bParts = b.code.split('.').map(Number);
+      
+      for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+        const aNum = aParts[i] || 0;
+        const bNum = bParts[i] || 0;
+        if (aNum !== bNum) {
+          return aNum - bNum;
+        }
+      }
+      return 0;
+    });
 
-    return NextResponse.json(codes.map(serializeFinancialCode));
+    return NextResponse.json(sortedCodes.map(serializeFinancialCode));
   } catch (error: any) {
     console.error('Error fetching financial codes:', error);
     return NextResponse.json(
