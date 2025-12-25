@@ -112,10 +112,12 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+export async function PATCH(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const body = await request.json();
+    const { incomeTax } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -124,15 +126,24 @@ export async function DELETE(request: Request) {
       );
     }
 
+    if (incomeTax === undefined) {
+      return NextResponse.json(
+        { error: 'Income tax value is required' },
+        { status: 400 }
+      );
+    }
+
     await prisma.$executeRaw`
-      DELETE FROM payments WHERE id = ${BigInt(id)}
+      UPDATE payments 
+      SET income_tax = ${incomeTax}::boolean, updated_at = NOW()
+      WHERE id = ${BigInt(id)}
     `;
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting payment:', error);
+    console.error('Error updating payment:', error);
     return NextResponse.json(
-      { error: 'Failed to delete payment' },
+      { error: 'Failed to update payment' },
       { status: 500 }
     );
   }

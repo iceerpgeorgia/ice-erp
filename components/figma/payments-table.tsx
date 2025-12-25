@@ -14,7 +14,6 @@ import {
   Settings,
   Eye,
   EyeOff,
-  Trash2
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -257,19 +256,19 @@ export function PaymentsTable() {
     }
   };
 
-  const handleDeletePayment = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this payment?')) return;
-
+  const handleToggleIncomeTax = async (id: number, currentValue: boolean) => {
     try {
       const response = await fetch(`/api/payments?id=${id}`, {
-        method: 'DELETE',
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incomeTax: !currentValue }),
       });
 
-      if (!response.ok) throw new Error('Failed to delete payment');
+      if (!response.ok) throw new Error('Failed to update income tax');
       fetchPayments();
     } catch (error) {
-      console.error('Error deleting payment:', error);
-      alert('Failed to delete payment');
+      console.error('Error updating income tax:', error);
+      alert('Failed to update income tax');
     }
   };
 
@@ -797,7 +796,6 @@ export function PaymentsTable() {
                   </div>
                 </TableHead>
               ))}
-              <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -809,20 +807,16 @@ export function PaymentsTable() {
                       <Badge variant={payment.isActive ? 'default' : 'secondary'}>
                         {payment.isActive ? 'Active' : 'Inactive'}
                       </Badge>
+                    ) : column.key === 'incomeTax' ? (
+                      <Switch
+                        checked={payment.incomeTax}
+                        onCheckedChange={() => handleToggleIncomeTax(payment.id, payment.incomeTax)}
+                      />
                     ) : (
                       String(payment[column.key] || '')
                     )}
                   </TableCell>
                 ))}
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeletePayment(payment.id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-red-600" />
-                  </Button>
-                </TableCell>
               </TableRow>
             ))}
           </TableBody>
