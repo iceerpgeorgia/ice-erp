@@ -14,6 +14,7 @@ import {
   Settings,
   Eye,
   EyeOff,
+  Edit2,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -119,6 +120,11 @@ export function PaymentsTable() {
   const [selectedJobUuid, setSelectedJobUuid] = useState('');
   const [selectedIncomeTax, setSelectedIncomeTax] = useState(false);
   const [selectedCurrencyUuid, setSelectedCurrencyUuid] = useState('');
+
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [editIncomeTax, setEditIncomeTax] = useState(false);
 
   useEffect(() => {
     fetchPayments();
@@ -261,16 +267,25 @@ export function PaymentsTable() {
     }
   };
 
-  const handleToggleIncomeTax = async (id: number, currentValue: boolean) => {
+  const handleOpenEditDialog = (payment: Payment) => {
+    setEditingPayment(payment);
+    setEditIncomeTax(payment.incomeTax);
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveIncomeTax = async () => {
+    if (!editingPayment) return;
+
     try {
-      const response = await fetch(`/api/payments?id=${id}`, {
+      const response = await fetch(`/api/payments?id=${editingPayment.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ incomeTax: !currentValue }),
+        body: JSON.stringify({ incomeTax: editIncomeTax }),
       });
 
       if (!response.ok) throw new Error('Failed to update income tax');
-      fetchPayments();
+      await fetchPayments();
+      setEditDialogOpen(false);
     } catch (error) {
       console.error('Error updating income tax:', error);
       alert('Failed to update income tax');
@@ -875,6 +890,7 @@ export function PaymentsTable() {
                   </div>
                 </TableHead>
               ))}
+              <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -887,20 +903,91 @@ export function PaymentsTable() {
                         {payment.isActive ? 'Active' : 'Inactive'}
                       </Badge>
                     ) : column.key === 'incomeTax' ? (
-                      <Switch
-                        checked={payment.incomeTax}
-                        onCheckedChange={() => handleToggleIncomeTax(payment.id, payment.incomeTax)}
-                      />
+                      <span className="text-muted-foreground">
+                        {payment.incomeTax ? 'Yes' : 'No'}
+                      </span>
                     ) : (
                       String(payment[column.key] || '')
                     )}
                   </TableCell>
                 ))}
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleOpenEditDialog(payment)}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      {/* Edit Payment Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Payment</DialogTitle>
+            <DialogDescription>
+              Modify income tax setting for this payment
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {editingPayment && (
+              <>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Payment ID</Label>
+                  <Input value={editingPayment.paymentId} disabled className="bg-muted" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Project</Label>
+                  <Input value={editingPayment.projectIndex || ''} disabled className="bg-muted" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Counteragent</Label>
+                  <Input value={editingPayment.counteragentName || ''} disabled className="bg-muted" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Job</Label>
+                  <Input value={editingPayment.jobName || ''} disabled className="bg-muted" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Currency</Label>
+                  <Input value={editingPayment.currencyCode || ''} disabled className="bg-muted" />
+                </div>
+                <div className="flex items-center space-x-2 pt-4 border-t">
+                  <Switch 
+                    checked={editIncomeTax} 
+                    onCheckedChange={setEditIncomeTax}
+                    id="edit-income-tax"
+                  />
+                  <Label htmlFor="edit-income-tax" className="cursor-pointer font-semibold">
+                    Income Tax
+                  </Label>
+                </div>
+                <div className="flex gap-2 pt-4">
+                  <Button 
+                    onClick={handleSaveIncomeTax}
+                    className="flex-1"
+                  >
+                    Save Changes
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setEditDialogOpen(false)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
