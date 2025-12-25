@@ -9,6 +9,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 
 # Create template with example data
 data = {
+    'payment_id': ['Example: a3f5c9_4b_12d8 (optional - auto-generated if empty)', ''],
     'project_uuid': ['Example: 123e4567-e89b-12d3-a456-426614174000', ''],
     'counteragent_uuid': ['Example: 123e4567-e89b-12d3-a456-426614174001', ''],
     'financial_code_uuid': ['Example: 123e4567-e89b-12d3-a456-426614174002', ''],
@@ -64,7 +65,9 @@ print('\nColumns:')
 for col in df.columns:
     print(f'  • {col}')
 print('\nNotes:')
-print('  • payment_id and record_uuid are auto-generated (not needed in import)')
+print('  • payment_id: optional - provide to import from Google Sheets, auto-generated if empty')
+print('  • payment_id format: 6hex_2hex_4hex (e.g., a3f5c9_4b_12d8)')
+print('  • record_uuid: always auto-generated')
 print('  • income_tax: boolean (true/false)')
 print('  • is_active: defaults to true if not provided')
 print('  • All UUIDs must reference existing records in respective tables')

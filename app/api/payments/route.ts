@@ -30,9 +30,9 @@ export async function GET() {
       LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
       LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
       ORDER BY p.created_at DESC
-    `);
+    `) as any[];
 
-    const formattedPayments = (payments as any[]).map((payment) => ({
+    const formattedPayments = payments.map((payment) => ({
       id: Number(payment.id),
       projectUuid: payment.project_uuid,
       counteragentUuid: payment.counteragent_uuid,
