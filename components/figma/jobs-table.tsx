@@ -104,12 +104,20 @@ export function JobsTable() {
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('jobs-table-columns');
-      if (saved) {
+      const version = localStorage.getItem('jobs-table-columns-version');
+      const currentVersion = '2'; // Increment this when changing default column visibility
+      
+      if (saved && version === currentVersion) {
         try {
           return JSON.parse(saved);
         } catch (e) {
           return defaultColumns;
         }
+      } else {
+        // Reset to defaults if version changed
+        localStorage.setItem('jobs-table-columns-version', currentVersion);
+        localStorage.setItem('jobs-table-columns', JSON.stringify(defaultColumns));
+        return defaultColumns;
       }
     }
     return defaultColumns;
