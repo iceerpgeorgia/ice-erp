@@ -18,7 +18,7 @@ export async function GET() {
         p.created_at,
         p.updated_at,
         proj.project_index,
-        c.name as counteragent_name,
+        c.counteragent as counteragent_name,
         fc.validation as financial_code_validation,
         j.job_name,
         j.job_uuid as job_identifier,
