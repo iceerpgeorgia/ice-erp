@@ -101,6 +101,11 @@ export function PaymentsTable() {
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(defaultColumns);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
   
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+  const pageSizeOptions = [50, 100, 200, 500, 1000];
+  
   // Column dragging and resizing states
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number } | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
@@ -426,6 +431,21 @@ export function PaymentsTable() {
     return filtered;
   }, [payments, searchTerm, sortColumn, sortDirection, columnFilters]);
 
+  // Pagination
+  const totalRecords = filteredAndSortedPayments.length;
+  const totalPages = Math.ceil(totalRecords / pageSize);
+  
+  const paginatedPayments = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredAndSortedPayments.slice(startIndex, endIndex);
+  }, [filteredAndSortedPayments, currentPage, pageSize]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, columnFilters, pageSize]);
+
   // Column filter component (matching counteragents style)
   function ColumnFilter({ column }: { column: ColumnConfig }) {
     const uniqueValues = getUniqueValues(column.key);
@@ -680,7 +700,7 @@ export function PaymentsTable() {
         </Dialog>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
@@ -690,6 +710,69 @@ export function PaymentsTable() {
             className="pl-9"
           />
         </div>
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-muted-foreground">
+            Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} records
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="border border-input rounded px-2 py-1 text-sm bg-background"
+            >
+              {pageSizeOptions.map(size => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              First
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              Last
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-4">
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm">
@@ -724,10 +807,6 @@ export function PaymentsTable() {
             </div>
           </PopoverContent>
         </Popover>
-      </div>
-
-      <div className="text-sm text-gray-600">
-        Showing {filteredAndSortedPayments.length} of {payments.length} payments
       </div>
 
       <div className="border rounded-lg overflow-auto">
@@ -799,7 +878,7 @@ export function PaymentsTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAndSortedPayments.map((payment) => (
+            {paginatedPayments.map((payment) => (
               <TableRow key={payment.id}>
                 {visibleColumns.map((column) => (
                   <TableCell key={column.key} style={{ width: column.width }}>
