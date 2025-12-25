@@ -76,7 +76,7 @@ type ColumnConfig = {
 
 const defaultColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', width: 80, visible: false, sortable: true, filterable: true },
-  { key: 'jobUuid', label: 'Job UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
+  { key: 'jobUuid', label: 'Job UUID', width: 200, visible: true, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'projectUuid', label: 'Project UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'brandUuid', label: 'Brand UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'jobIndex', label: 'Job Index', width: 400, visible: true, sortable: true, filterable: true },
