@@ -12,8 +12,8 @@ print("="*80)
 print("PAYMENTS IMPORT FROM TEMPLATE")
 print("="*80)
 
-# Database connection
-DATABASE_URL = "postgresql://postgres:fulebimojviT1985%25@localhost:5432/ICE_ERP"
+# Database connection (SUPABASE)
+DATABASE_URL = "postgresql://postgres.fojbzghphznbslqwurrm:fulebimojviT1985%25@aws-1-eu-west-1.pooler.supabase.com:6543/postgres"
 
 def validate_payment_id_format(payment_id):
     """Validate payment_id format: flexible hex_hex_hex with underscores"""
@@ -259,12 +259,18 @@ try:
     )
     duplicate_combos = df[df['combo_key'].duplicated(keep=False)]
     if len(duplicate_combos) > 0:
-        print(f"   ❌ Found {len(duplicate_combos)} rows with duplicate 6-field combinations:")
-        print(f"      (project + counteragent + financial_code + job + income_tax + currency)")
-        for idx, row in duplicate_combos.head(3).iterrows():
-            project_str = str(row['project_uuid'])[:8] if pd.notna(row['project_uuid']) else 'NULL'
-            print(f"      Row {idx + 2}: project={project_str}... income_tax={row['income_tax']}")
-        has_errors = True
+        print(f"   ⚠️  Found {len(duplicate_combos)} rows with duplicate 6-field combinations")
+        print(f"   ℹ️  Will keep first payment_id per combination and track duplicates")
+        
+        # Group duplicates and prepare for tracking
+        duplicate_groups = duplicate_combos.groupby('combo_key')
+        total_duplicates = 0
+        
+        for combo_key, group in duplicate_groups:
+            if len(group) > 1:
+                total_duplicates += len(group) - 1
+        
+        print(f"   📝 Will store {total_duplicates} duplicate payment_ids for later matching")
     else:
         print(f"   ✓ No duplicate 6-field combinations found")
     
@@ -282,21 +288,32 @@ try:
     # Ask for confirmation
     print(f"\n📊 Summary:")
     print(f"   Records to import: {len(df)}")
-    print(f"   Payment IDs provided: {provided_payment_ids.size if 'provided_payment_ids' in locals() else 0}")
-    print(f"   Payment IDs to auto-generate: {len(df) - (provided_payment_ids.size if 'provided_payment_ids' in locals() else 0)}")
+    has_dupes = len(df[df['combo_key'].duplicated(keep='first')]) > 0
+    if has_dupes:
+        unique_count = len(df.drop_duplicates(subset='combo_key'))
+        dupe_count = len(df) - unique_count
+        print(f"   Unique payments: {unique_count}")
+        print(f"   Duplicate payment_ids to track: {dupe_count}")
     
     confirm = input("\n❓ Proceed with import? (yes/no): ").strip().lower()
     if confirm not in ['yes', 'y']:
         print("\n❌ Import cancelled by user")
         sys.exit(0)
     
-    # Prepare data for insertion
+    # Prepare data for insertion - keep first occurrence of each combo_key
     print("\n📦 Preparing data for insertion...")
+    df_unique = df.drop_duplicates(subset='combo_key', keep='first').copy()
+    df_duplicates = df[df['combo_key'].duplicated(keep='first')].copy()
+    
+    print(f"   Unique records to insert: {len(df_unique)}")
+    print(f"   Duplicate payment_ids to track: {len(df_duplicates)}")
+    
     insert_count = 0
-    skip_count = 0
+    duplicate_tracking_count = 0
     error_count = 0
     
-    for idx, row in df.iterrows():
+    # Insert unique records
+    for idx, row in df_unique.iterrows():
         try:
             # Convert boolean values
             income_tax = False
@@ -312,49 +329,83 @@ try:
             payment_id = row.get('payment_id')
             payment_id_to_use = str(payment_id).strip() if pd.notna(payment_id) and payment_id != '' else None
             
-            # Skip if payment_id exists
-            if payment_id_to_use and payment_id_to_use in (existing_payment_ids if 'existing_payment_ids' in locals() else set()):
-                skip_count += 1
-                continue
+            # Prepare values with NULL handling
+            project_uuid_val = str(row['project_uuid']).strip().upper() if pd.notna(row['project_uuid']) and str(row['project_uuid']).strip() != 'nan' else None
+            job_uuid_val = str(row['job_uuid']).strip().upper() if pd.notna(row['job_uuid']) and str(row['job_uuid']).strip() != 'nan' else None
             
             # Insert with or without payment_id (trigger will generate if NULL)
-            if payment_id_to_use:
-                cur.execute("""
-                    INSERT INTO payments (
-                        payment_id, project_uuid, counteragent_uuid, financial_code_uuid,
-                        job_uuid, income_tax, currency_uuid, is_active
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    payment_id_to_use,
-                    str(row['project_uuid']).strip().upper(),
-                    str(row['counteragent_uuid']).strip().upper(),
-                    str(row['financial_code_uuid']).strip().upper(),
-                    str(row['job_uuid']).strip().upper(),
-                    income_tax,
-                    str(row['currency_uuid']).strip().upper(),
-                    is_active
-                ))
-            else:
-                cur.execute("""
-                    INSERT INTO payments (
-                        project_uuid, counteragent_uuid, financial_code_uuid,
-                        job_uuid, income_tax, currency_uuid, is_active
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    str(row['project_uuid']).strip().upper(),
-                    str(row['counteragent_uuid']).strip().upper(),
-                    str(row['financial_code_uuid']).strip().upper(),
-                    str(row['job_uuid']).strip().upper(),
-                    income_tax,
-                    str(row['currency_uuid']).strip().upper(),
-                    is_active
-                ))
+            cur.execute("""
+                INSERT INTO payments (
+                    payment_id, project_uuid, counteragent_uuid, financial_code_uuid,
+                    job_uuid, income_tax, currency_uuid, is_active, created_at, updated_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+            """, (
+                payment_id_to_use,
+                project_uuid_val,
+                str(row['counteragent_uuid']).strip().upper(),
+                str(row['financial_code_uuid']).strip().upper(),
+                job_uuid_val,
+                income_tax,
+                str(row['currency_uuid']).strip().upper(),
+                is_active
+            ))
             
             insert_count += 1
             
         except Exception as e:
             error_count += 1
             print(f"   ⚠️  Error on row {idx + 2}: {str(e)}")
+            if error_count > 5:
+                print(f"   ⚠️  Too many errors, stopping...")
+                break
+    
+    conn.commit()
+    print(f"\n   ✓ Inserted {insert_count} unique payment records")
+    
+    # Now track duplicate payment_ids
+    if len(df_duplicates) > 0:
+        print(f"\n📝 Storing duplicate payment_id mappings...")
+        
+        for idx, dup_row in df_duplicates.iterrows():
+            try:
+                # Find the master record (first occurrence with same combo_key)
+                combo_key = dup_row['combo_key']
+                master_row = df_unique[df_unique['combo_key'] == combo_key].iloc[0]
+                
+                master_payment_id = str(master_row['payment_id']).strip() if pd.notna(master_row['payment_id']) and master_row['payment_id'] != '' else None
+                duplicate_payment_id = str(dup_row['payment_id']).strip() if pd.notna(dup_row['payment_id']) and dup_row['payment_id'] != '' else None
+                
+                if duplicate_payment_id and master_payment_id:
+                    # Prepare values with NULL handling
+                    project_uuid_val = str(dup_row['project_uuid']).strip().upper() if pd.notna(dup_row['project_uuid']) and str(dup_row['project_uuid']).strip() != 'nan' else None
+                    job_uuid_val = str(dup_row['job_uuid']).strip().upper() if pd.notna(dup_row['job_uuid']) and str(dup_row['job_uuid']).strip() != 'nan' else None
+                    income_tax_val = str(dup_row['income_tax']).lower() in ['true', 'yes', '1', '1.0']
+                    
+                    cur.execute("""
+                        INSERT INTO payment_id_duplicates (
+                            master_payment_id, duplicate_payment_id,
+                            project_uuid, counteragent_uuid, financial_code_uuid,
+                            job_uuid, income_tax, currency_uuid
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (duplicate_payment_id) DO NOTHING
+                    """, (
+                        master_payment_id,
+                        duplicate_payment_id,
+                        project_uuid_val,
+                        str(dup_row['counteragent_uuid']).strip().upper(),
+                        str(dup_row['financial_code_uuid']).strip().upper(),
+                        job_uuid_val,
+                        income_tax_val,
+                        str(dup_row['currency_uuid']).strip().upper()
+                    ))
+                    
+                    duplicate_tracking_count += 1
+                    
+            except Exception as e:
+                print(f"   ⚠️  Error tracking duplicate on row {idx + 2}: {str(e)}")
+        
+        conn.commit()
+        print(f"   ✓ Stored {duplicate_tracking_count} duplicate payment_id mappings")
     
     # Commit transaction
     conn.commit()
@@ -363,15 +414,16 @@ try:
     print("✅ IMPORT COMPLETED")
     print("="*80)
     print(f"\n📊 Results:")
-    print(f"   ✓ Successfully inserted: {insert_count}")
-    if skip_count > 0:
-        print(f"   ⊘ Skipped (already exists): {skip_count}")
+    print(f"   ✓ Successfully inserted unique payments: {insert_count}")
+    if duplicate_tracking_count > 0:
+        print(f"   ✓ Duplicate payment_ids tracked: {duplicate_tracking_count}")
     if error_count > 0:
         print(f"   ✗ Errors: {error_count}")
-    print(f"\n   Total processed: {insert_count + skip_count + error_count} / {len(df)}")
+    print(f"\n   Total processed: {insert_count + duplicate_tracking_count + error_count}")
     
     cur.close()
     conn.close()
+
     
 except Exception as e:
     print(f"\n❌ Fatal error: {str(e)}")
