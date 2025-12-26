@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 
+// Disable caching for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // GET all projects or filter by query params
 // Updated: 2025-12-19 22:00 - Fixed project_employees join using project_uuid
 export async function GET(req: NextRequest) {
@@ -17,7 +21,13 @@ export async function GET(req: NextRequest) {
         ...p,
         id: Number(p.id),
       }));
-      return NextResponse.json(serialized);
+      return NextResponse.json(serialized, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      });
     }
 
     // Query uses project_uuid (not project_id) to join with project_employees table
@@ -43,7 +53,13 @@ export async function GET(req: NextRequest) {
       id: Number(project.id),
     }));
 
-    return NextResponse.json(serialized);
+    return NextResponse.json(serialized, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
   } catch (error: any) {
     console.error('GET /projects error:', error);
     return NextResponse.json(
