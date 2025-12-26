@@ -14,7 +14,6 @@ import {
   Settings,
   Eye,
   EyeOff,
-  Edit2,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
