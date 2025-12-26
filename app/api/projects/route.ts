@@ -136,11 +136,17 @@ export async function POST(req: NextRequest) {
 
     await logAudit({
       table: 'projects',
-      recordId: project.id,
+      recordId: Number(project.id),
       action: 'create',
     });
 
-    return NextResponse.json(project, { status: 201 });
+    // Serialize BigInt values for JSON response
+    const serializedProject = {
+      ...project,
+      id: Number(project.id),
+    };
+
+    return NextResponse.json(serializedProject, { status: 201 });
   } catch (error: any) {
     console.error('POST /projects error:', error);
     return NextResponse.json(
@@ -245,7 +251,13 @@ export async function PATCH(req: NextRequest) {
       action: 'update',
     });
 
-    return NextResponse.json(project);
+    // Serialize BigInt values for JSON response
+    const serializedProject = {
+      ...project,
+      id: Number(project.id),
+    };
+
+    return NextResponse.json(serializedProject);
   } catch (error: any) {
     console.error('PATCH /projects error:', error);
     return NextResponse.json(
