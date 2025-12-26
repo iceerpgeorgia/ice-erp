@@ -102,7 +102,14 @@ export async function POST(request: Request) {
       RETURNING *
     `;
 
-    return NextResponse.json({ success: true, data: result });
+    // Serialize BigInt values for JSON response
+    const payment = Array.isArray(result) ? result[0] : result;
+    const serializedPayment = {
+      ...payment,
+      id: Number((payment as any).id),
+    };
+
+    return NextResponse.json({ success: true, data: serializedPayment });
   } catch (error: any) {
     console.error('Error creating payment:', error);
     return NextResponse.json(
