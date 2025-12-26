@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     const { projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid } = body;
 
     // Validation
-    if (!projectUuid || !counteragentUuid || !financialCodeUuid || !jobUuid || incomeTax === undefined || !currencyUuid) {
+    if (!projectUuid || !counteragentUuid || !financialCodeUuid || incomeTax === undefined || !currencyUuid) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
         ${projectUuid}::uuid,
         ${counteragentUuid}::uuid,
         ${financialCodeUuid}::uuid,
-        ${jobUuid}::uuid,
+        ${jobUuid ? `${jobUuid}` : null}::uuid,
         ${incomeTax}::boolean,
         ${currencyUuid}::uuid,
         '',

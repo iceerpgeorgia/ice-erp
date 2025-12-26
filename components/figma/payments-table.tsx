@@ -233,8 +233,8 @@ export function PaymentsTable() {
   };
 
   const handleAddPayment = async () => {
-    if (!selectedProjectUuid || !selectedCounteragentUuid || !selectedFinancialCodeUuid || !selectedJobUuid || !selectedCurrencyUuid) {
-      alert('Please fill in all fields');
+    if (!selectedProjectUuid || !selectedCounteragentUuid || !selectedFinancialCodeUuid || !selectedCurrencyUuid) {
+      alert('Please fill in all required fields');
       return;
     }
 
@@ -246,7 +246,7 @@ export function PaymentsTable() {
           projectUuid: selectedProjectUuid,
           counteragentUuid: selectedCounteragentUuid,
           financialCodeUuid: selectedFinancialCodeUuid,
-          jobUuid: selectedJobUuid,
+          jobUuid: selectedJobUuid || null,
           incomeTax: selectedIncomeTax,
           currencyUuid: selectedCurrencyUuid,
         }),
@@ -666,7 +666,7 @@ export function PaymentsTable() {
               </div>
 
               <div className="space-y-2">
-                <Label>Job</Label>
+                <Label>Job (Optional)</Label>
                 <Combobox
                   value={selectedJobUuid}
                   onValueChange={setSelectedJobUuid}
