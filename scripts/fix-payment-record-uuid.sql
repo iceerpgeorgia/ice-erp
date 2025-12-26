@@ -1,10 +1,14 @@
--- Update the trigger function to use standard UUID for record_uuid
+-- Update the trigger function to match import template format for payment_id
+-- and use standard UUID for record_uuid
 CREATE OR REPLACE FUNCTION generate_payment_id()
 RETURNS TRIGGER AS $$
 DECLARE
   existing_payment_id TEXT;
   new_payment_id TEXT;
-  max_sequence INT;
+  hex_chars TEXT := '0123456789abcdef';
+  result TEXT := '';
+  i INT;
+  random_val INT;
 BEGIN
   -- Check if a payment_id already exists for this combination
   SELECT payment_id INTO existing_payment_id
@@ -18,13 +22,30 @@ BEGIN
     -- Use existing payment_id for this combination
     NEW.payment_id := existing_payment_id;
   ELSE
-    -- Generate new payment_id
-    -- Format: P-{project_uuid_first8}-{counter_uuid_first8}-{fincode_uuid_first8}
-    new_payment_id := 'P-' || 
-                      substring(NEW.project_uuid::TEXT, 1, 8) || '-' ||
-                      substring(NEW.counteragent_uuid::TEXT, 1, 8) || '-' ||
-                      substring(NEW.financial_code_uuid::TEXT, 1, 8);
-    NEW.payment_id := new_payment_id;
+    -- Generate new payment_id in format: xxxxxx_xx_xxxxxx (matching import template)
+    -- Part 1: 6 hex characters
+    FOR i IN 1..6 LOOP
+      random_val := floor(random() * 16)::INT;
+      result := result || substr(hex_chars, random_val + 1, 1);
+    END LOOP;
+    
+    result := result || '_';
+    
+    -- Part 2: 2 hex characters
+    FOR i IN 1..2 LOOP
+      random_val := floor(random() * 16)::INT;
+      result := result || substr(hex_chars, random_val + 1, 1);
+    END LOOP;
+    
+    result := result || '_';
+    
+    -- Part 3: 6 hex characters
+    FOR i IN 1..6 LOOP
+      random_val := floor(random() * 16)::INT;
+      result := result || substr(hex_chars, random_val + 1, 1);
+    END LOOP;
+    
+    NEW.payment_id := result;
   END IF;
   
   -- Generate standard UUID for record_uuid
