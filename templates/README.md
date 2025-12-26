@@ -2,7 +2,7 @@
 
 This folder contains Excel templates for importing data into the system.
 
-**Auto-generated:** 2025-12-24 20:06:31
+**Auto-generated:** 2025-12-26 19:51:53
 
 ## Available Templates
 
@@ -154,6 +154,24 @@ This folder contains Excel templates for importing data into the system.
 - `name`: String
 - `isActive`: Boolean (TRUE/FALSE)
 
+### Bank (`bank_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `bankName`: String
+- `isActive`: Boolean (TRUE/FALSE)
+
+### BankAccount (`bankaccount_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `accountNumber`: String
+- `currencyUuid`: String
+- `isActive`: Boolean (TRUE/FALSE)
+
+**Optional columns:**
+- `bankUuid`: String
+
 ### NBGExchangeRate (`nbgexchangerate_import_template.xlsx`)
 
 **Required columns:**
@@ -216,15 +234,17 @@ This folder contains Excel templates for importing data into the system.
 ### Payment (`payment_import_template.xlsx`)
 
 **Required columns:**
-- `projectUuid`: String
 - `counteragentUuid`: String
 - `financialCodeUuid`: String
-- `jobUuid`: String
 - `incomeTax`: Boolean (TRUE/FALSE)
 - `currencyUuid`: String
 - `paymentId`: String
 - `recordUuid`: String
 - `isActive`: Boolean (TRUE/FALSE)
+
+**Optional columns:**
+- `projectUuid`: String
+- `jobUuid`: String
 
 ### PaymentLedger (`paymentledger_import_template.xlsx`)
 
@@ -237,6 +257,7 @@ This folder contains Excel templates for importing data into the system.
 **Optional columns:**
 - `accrual`: Decimal
 - `order`: Decimal
+- `comment`: String
 
 
 ## General Guidelines

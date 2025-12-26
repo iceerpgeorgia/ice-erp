@@ -265,15 +265,46 @@ model ProjectEmployee {
 }
 
 model Currency {
-  id        BigInt   @id @default(autoincrement())
-  uuid      String   @unique @default(uuid()) @db.Uuid
-  code      String   @unique // GEL, USD, EUR, etc.
-  name      String   // Full name in Georgian
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id           BigInt        @id @default(autoincrement())
+  uuid         String        @unique @default(uuid()) @db.Uuid
+  code         String        @unique // GEL, USD, EUR, etc.
+  name         String        // Full name in Georgian
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  bankAccounts BankAccount[]
   
   @@map("currencies")
+}
+
+model Bank {
+  id           BigInt        @id @default(autoincrement())
+  uuid         String        @unique @default(uuid()) @db.Uuid
+  bankName     String        @map("bank_name")
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  bankAccounts BankAccount[]
+  
+  @@map("banks")
+}
+
+model BankAccount {
+  id            BigInt   @id @default(autoincrement())
+  uuid          String   @unique @default(uuid()) @db.Uuid
+  accountNumber String   @map("account_number")
+  currencyUuid  String   @map("currency_uuid") @db.Uuid
+  bankUuid      String?  @map("bank_uuid") @db.Uuid
+  currency      Currency @relation(fields: [currencyUuid], references: [uuid])
+  bank          Bank?    @relation(fields: [bankUuid], references: [uuid])
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  @@unique([accountNumber, currencyUuid], name: "unique_account_currency")
+  @@index([currencyUuid])
+  @@index([bankUuid])
+  @@map("bank_accounts")
 }
 
 model NBGExchangeRate {
