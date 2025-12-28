@@ -677,7 +677,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                       dragOverColumn === col.key ? 'border-l-2 border-primary' : ''
                     }`}
                     style={{ width: col.width, minWidth: col.width }}
-                    draggable
+                    draggable={!isResizing}
                     onDragStart={(e) => handleDragStart(e, col.key)}
                     onDragOver={(e) => handleDragOver(e, col.key)}
                     onDragLeave={handleDragLeave}
@@ -702,14 +702,32 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                       )}
                       {col.filterable && <FilterPopover column={col} />}
                     </div>
-                    {/* Resize handle */}
+                    
+                    {/* Resize handle - centered on column border (matching counteragents exactly) */}
                     <div
-                      className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/50 active:bg-primary"
+                      className="absolute top-0 bottom-0 w-4 cursor-col-resize hover:bg-blue-400/30 active:bg-blue-500/50 transition-colors"
+                      style={{ 
+                        right: '-8px',
+                        zIndex: 30 
+                      }}
+                      draggable={false}
                       onMouseDown={(e) => {
                         e.preventDefault();
-                        setIsResizing({ column: col.key, startX: e.clientX, startWidth: col.width });
+                        e.stopPropagation();
+                        setIsResizing({
+                          column: col.key,
+                          startX: e.clientX,
+                          startWidth: col.width
+                        });
                       }}
-                    />
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                      title="Drag to resize column"
+                    >
+                      {/* Visual indicator line at center */}
+                      <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-[2px] bg-gray-300 hover:bg-blue-500 transition-colors" />
+                    </div>
                   </TableHead>
                 ))}
               </TableRow>
