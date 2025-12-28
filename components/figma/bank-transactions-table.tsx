@@ -12,6 +12,7 @@ import {
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
+import { Label } from './ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { 
@@ -383,6 +384,193 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     return Array.from(values).sort();
   };
 
+  // Filter popover component (matching counteragents table exactly)
+  const FilterPopover = ({ column }: { column: ColumnConfig }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [filterSearchTerm, setFilterSearchTerm] = useState('');
+    const [tempSelectedValues, setTempSelectedValues] = useState<string[]>([]);
+
+    const uniqueValues = useMemo(() => getColumnUniqueValues(column.key), [column.key]);
+    const selectedValues = columnFilters[column.key] || [];
+
+    const handleOpenChange = (open: boolean) => {
+      if (open) {
+        setTempSelectedValues([...selectedValues]);
+        setFilterSearchTerm('');
+      }
+      setIsOpen(open);
+    };
+
+    const handleApply = () => {
+      setColumnFilters(prev => ({
+        ...prev,
+        [column.key]: tempSelectedValues
+      }));
+      setIsOpen(false);
+    };
+
+    const handleCancel = () => {
+      setTempSelectedValues([...selectedValues]);
+      setIsOpen(false);
+    };
+
+    const handleSelectAll = () => {
+      setTempSelectedValues([...filteredUniqueValues]);
+    };
+
+    const handleClearAll = () => {
+      setTempSelectedValues([]);
+    };
+
+    const filteredUniqueValues = useMemo(() => {
+      if (!filterSearchTerm) return uniqueValues;
+      const term = filterSearchTerm.toLowerCase();
+      return uniqueValues.filter(val => 
+        String(val).toLowerCase().includes(term)
+      );
+    }, [uniqueValues, filterSearchTerm]);
+
+    const sortedFilteredValues = useMemo(() => {
+      return [...filteredUniqueValues].sort((a, b) => {
+        const aIsNum = !isNaN(Number(a));
+        const bIsNum = !isNaN(Number(b));
+        
+        if (aIsNum && bIsNum) {
+          return Number(a) - Number(b);
+        } else if (aIsNum && !bIsNum) {
+          return -1;
+        } else if (!aIsNum && bIsNum) {
+          return 1;
+        } else {
+          return a.localeCompare(b);
+        }
+      });
+    }, [filteredUniqueValues]);
+
+    return (
+      <Popover open={isOpen} onOpenChange={handleOpenChange}>
+        <PopoverTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className={`h-6 px-1 ${selectedValues.length > 0 ? 'text-blue-600' : ''}`}
+          >
+            <Filter className="h-3 w-3" />
+            {selectedValues.length > 0 && (
+              <span className="ml-1 text-xs">{selectedValues.length}</span>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-72" align="start">
+          <div className="space-y-3">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-2">
+              <div className="font-medium text-sm">{column.label}</div>
+              <div className="text-xs text-muted-foreground">
+                Displaying {filteredUniqueValues.length}
+              </div>
+            </div>
+
+            {/* Sort Options */}
+            <div className="space-y-1">
+              <button 
+                className="w-full text-left text-sm py-1 px-2 hover:bg-muted rounded"
+                onClick={() => {
+                  const sorted = [...uniqueValues].sort();
+                  setTempSelectedValues(tempSelectedValues.filter(v => sorted.includes(v)));
+                }}
+              >
+                Sort A to Z
+              </button>
+              <button 
+                className="w-full text-left text-sm py-1 px-2 hover:bg-muted rounded"
+                onClick={() => {
+                  const sorted = [...uniqueValues].sort().reverse();
+                  setTempSelectedValues(tempSelectedValues.filter(v => sorted.includes(v)));
+                }}
+              >
+                Sort Z to A
+              </button>
+            </div>
+
+            {/* Filter by values section */}
+            <div className="border-t pt-3">
+              <div className="font-medium text-sm mb-2">Filter by values</div>
+              
+              {/* Select All / Clear controls */}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSelectAll}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Select all {filteredUniqueValues.length}
+                  </button>
+                  <span className="text-xs text-muted-foreground">·</span>
+                  <button
+                    onClick={handleClearAll}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              {/* Search input */}
+              <div className="relative mb-3">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <Input
+                  placeholder="Search values..."
+                  value={filterSearchTerm}
+                  onChange={(e) => setFilterSearchTerm(e.target.value)}
+                  className="pl-7 h-8 text-sm"
+                />
+              </div>
+
+              {/* Values list */}
+              <div className="space-y-1 max-h-48 overflow-auto border rounded p-2">
+                {sortedFilteredValues.length === 0 ? (
+                  <div className="text-xs text-muted-foreground py-2 text-center">
+                    No values found
+                  </div>
+                ) : (
+                  sortedFilteredValues.map(value => (
+                    <div key={value} className="flex items-center space-x-2 py-1">
+                      <Checkbox
+                        id={`${column.key}-${value}`}
+                        checked={tempSelectedValues.includes(value)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setTempSelectedValues([...tempSelectedValues, value]);
+                          } else {
+                            setTempSelectedValues(tempSelectedValues.filter(v => v !== value));
+                          }
+                        }}
+                      />
+                      <Label htmlFor={`${column.key}-${value}`} className="text-sm flex-1 cursor-pointer">
+                        {value}
+                      </Label>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex justify-end space-x-2 pt-2 border-t">
+              <Button variant="outline" size="sm" onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleApply} className="bg-green-600 hover:bg-green-700">
+                OK
+              </Button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
   const visibleColumns = columns.filter(col => col.visible);
   const totalWidth = visibleColumns.reduce((sum, col) => sum + col.width, 0);
 
@@ -512,44 +700,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                           )}
                         </Button>
                       )}
-                      {col.filterable && (
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                              <Filter className={`h-3 w-3 ${columnFilters[col.key]?.length ? 'text-primary' : ''}`} />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-64 max-h-80 overflow-y-auto">
-                            <div className="space-y-2">
-                              <div className="font-semibold text-sm mb-2">Filter {col.label}</div>
-                              {getColumnUniqueValues(col.key).map(value => (
-                                <div key={value} className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`filter-${col.key}-${value}`}
-                                    checked={columnFilters[col.key]?.includes(value) ?? false}
-                                    onCheckedChange={(checked) => {
-                                      setColumnFilters(prev => {
-                                        const current = prev[col.key] || [];
-                                        if (checked) {
-                                          return { ...prev, [col.key]: [...current, value] };
-                                        } else {
-                                          return { ...prev, [col.key]: current.filter(v => v !== value) };
-                                        }
-                                      });
-                                    }}
-                                  />
-                                  <label
-                                    htmlFor={`filter-${col.key}-${value}`}
-                                    className="text-sm cursor-pointer truncate"
-                                  >
-                                    {value || '(empty)'}
-                                  </label>
-                                </div>
-                              ))}
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      )}
+                      {col.filterable && <FilterPopover column={col} />}
                     </div>
                     {/* Resize handle */}
                     <div
