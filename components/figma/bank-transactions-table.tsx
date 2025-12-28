@@ -671,11 +671,11 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
         <span>Showing: {paginatedData.length} transactions</span>
       </div>
 
-      {/* Top horizontal scroller - sticky */}
+      {/* Top horizontal scroller */}
       {needsBottomScroller && (
         <div 
           ref={bottomScrollRef}
-          className="overflow-x-auto border rounded bg-muted/50 sticky top-0 z-30"
+          className="overflow-x-auto border rounded bg-muted/50"
           style={{ height: '20px' }}
         >
           <div style={{ width: totalWidth, height: '1px' }} />
@@ -690,7 +690,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
           style={{ maxHeight: '600px' }}
         >
           <Table>
-            <TableHeader className="sticky top-[20px] bg-muted z-20 shadow-sm">
+            <TableHeader className="bg-muted">
               <TableRow>
                 {visibleColumns.map((col) => (
                   <TableHead
