@@ -96,6 +96,28 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true }
 ];
 
+// Helper function to format date as dd.mm.yyyy
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+  } catch {
+    return dateString;
+  }
+};
+
+// Helper function to format amount with thousands separator and 2 decimals
+const formatAmount = (amount: string | number | null | undefined): string => {
+  if (amount == null) return '-';
+  const num = Number(amount);
+  if (isNaN(num)) return '-';
+  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 // Helper function to get responsive classes
 const getResponsiveClass = (responsive?: string) => {
   switch (responsive) {
@@ -751,8 +773,10 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                         <div className="truncate" title={String(row[col.key] ?? '')}>
                           {col.key === 'accountCurrencyAmount' || col.key === 'nominalAmount' ? (
                             <span className={Number(row[col.key]) >= 0 ? 'text-green-600' : 'text-red-600'}>
-                              {row[col.key] ? Number(row[col.key]).toFixed(2) : '-'}
+                              {formatAmount(row[col.key])}
                             </span>
+                          ) : col.key === 'date' || col.key === 'correctionDate' || col.key === 'createdAt' || col.key === 'updatedAt' ? (
+                            formatDate(row[col.key])
                           ) : (
                             row[col.key] ?? '-'
                           )}
