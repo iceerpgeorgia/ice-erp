@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { 
   Search, 
   Filter, 
@@ -137,6 +136,8 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   });
   
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number } | null>(null);
+  const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -241,6 +242,52 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isResizing]);
+
+  // Column reordering handlers
+  const handleDragStart = (e: React.DragEvent, columnKey: ColumnKey) => {
+    setDraggedColumn(columnKey);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, columnKey: ColumnKey) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedColumn && draggedColumn !== columnKey) {
+      setDragOverColumn(columnKey);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverColumn(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetColumnKey: ColumnKey) => {
+    e.preventDefault();
+    
+    if (!draggedColumn || draggedColumn === targetColumnKey) {
+      setDraggedColumn(null);
+      setDragOverColumn(null);
+      return;
+    }
+
+    const draggedIndex = columns.findIndex(col => col.key === draggedColumn);
+    const targetIndex = columns.findIndex(col => col.key === targetColumnKey);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const newColumns = [...columns];
+    const [removed] = newColumns.splice(draggedIndex, 1);
+    newColumns.splice(targetIndex, 0, removed);
+
+    setColumns(newColumns);
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
 
   // Filtering and sorting
   const filteredData = useMemo(() => {
@@ -403,6 +450,17 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
         <span>Showing: {paginatedData.length} transactions</span>
       </div>
 
+      {/* Top horizontal scroller */}
+      {needsBottomScroller && (
+        <div 
+          ref={bottomScrollRef}
+          className="overflow-x-auto border rounded bg-muted/50"
+          style={{ height: '20px' }}
+        >
+          <div style={{ width: totalWidth, height: '1px' }} />
+        </div>
+      )}
+
       {/* Table */}
       <div className="border rounded-lg overflow-hidden bg-card">
         <div 
@@ -416,10 +474,18 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                 {visibleColumns.map((col) => (
                   <TableHead
                     key={col.key}
-                    className={`relative ${getResponsiveClass(col.responsive)}`}
+                    className={`relative ${getResponsiveClass(col.responsive)} ${
+                      dragOverColumn === col.key ? 'border-l-2 border-primary' : ''
+                    }`}
                     style={{ width: col.width, minWidth: col.width }}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, col.key)}
+                    onDragOver={(e) => handleDragOver(e, col.key)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, col.key)}
+                    onDragEnd={handleDragEnd}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 cursor-move">
                       <span className="flex-1 truncate">{col.label}</span>
                       {col.sortable && (
                         <Button
@@ -574,18 +640,6 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
           </Button>
         </div>
       </div>
-
-      {/* Bottom horizontal scroller */}
-      {needsBottomScroller && typeof document !== 'undefined' &&
-        createPortal(
-          <div className="fixed bottom-0 left-0 right-0 bg-background border-t z-50 overflow-x-auto"
-               ref={bottomScrollRef}
-               style={{ height: '20px' }}>
-            <div style={{ width: totalWidth, height: '1px' }} />
-          </div>,
-          document.body
-        )
-      }
     </div>
   );
 }
