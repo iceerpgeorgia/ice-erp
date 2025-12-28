@@ -290,21 +290,56 @@ model Bank {
 }
 
 model BankAccount {
-  id            BigInt   @id @default(autoincrement())
-  uuid          String   @unique @default(uuid()) @db.Uuid
-  accountNumber String   @map("account_number")
-  currencyUuid  String   @map("currency_uuid") @db.Uuid
-  bankUuid      String?  @map("bank_uuid") @db.Uuid
-  currency      Currency @relation(fields: [currencyUuid], references: [uuid])
-  bank          Bank?    @relation(fields: [bankUuid], references: [uuid])
-  isActive      Boolean  @default(true) @map("is_active")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id                        BigInt                     @id @default(autoincrement())
+  uuid                      String                     @unique @default(uuid()) @db.Uuid
+  accountNumber             String                     @map("account_number")
+  currencyUuid              String                     @map("currency_uuid") @db.Uuid
+  bankUuid                  String?                    @map("bank_uuid") @db.Uuid
+  currency                  Currency                   @relation(fields: [currencyUuid], references: [uuid])
+  bank                      Bank?                      @relation(fields: [bankUuid], references: [uuid])
+  isActive                  Boolean                    @default(true) @map("is_active")
+  createdAt                 DateTime                   @default(now()) @map("created_at")
+  updatedAt                 DateTime                   @updatedAt @map("updated_at")
+  consolidatedBankAccounts  ConsolidatedBankAccount[]
   
   @@unique([accountNumber, currencyUuid], name: "unique_account_currency")
   @@index([currencyUuid])
   @@index([bankUuid])
   @@map("bank_accounts")
+}
+
+model ConsolidatedBankAccount {
+  id                        BigInt       @id @default(autoincrement())
+  uuid                      String       @unique @db.Uuid
+  accountUuid               String       @map("account_uuid") @db.Uuid
+  accountCurrencyUuid       String       @map("account_currency_uuid") @db.Uuid
+  accountCurrencyAmount     Decimal      @map("account_currency_amount") @db.Decimal(18, 2)
+  paymentUuid               String?      @map("payment_uuid") @db.Uuid
+  counteragentUuid          String?      @map("counteragent_uuid") @db.Uuid
+  projectUuid               String?      @map("project_uuid") @db.Uuid
+  financialCodeUuid         String?      @map("financial_code_uuid") @db.Uuid
+  nominalCurrencyUuid       String?      @map("nominal_currency_uuid") @db.Uuid
+  nominalAmount             Decimal?     @map("nominal_amount") @db.Decimal(18, 2)
+  date                      DateTime     @db.Date
+  correctionDate            DateTime?    @map("correction_date") @db.Date
+  id1                       String?      @map("id_1")
+  id2                       String?      @map("id_2")
+  recordUuid                String       @map("record_uuid")
+  counteragentAccountNumber String?      @map("counteragent_account_number")
+  description               String?      @db.Text
+  createdAt                 DateTime     @default(now()) @map("created_at")
+  updatedAt                 DateTime     @updatedAt @map("updated_at")
+  
+  bankAccount               BankAccount  @relation(fields: [accountUuid], references: [uuid])
+  
+  @@unique([id1, id2], name: "unique_id1_id2")
+  @@index([accountUuid])
+  @@index([counteragentUuid])
+  @@index([paymentUuid])
+  @@index([projectUuid])
+  @@index([financialCodeUuid])
+  @@index([date])
+  @@map("consolidated_bank_accounts")
 }
 
 model NBGExchangeRate {
