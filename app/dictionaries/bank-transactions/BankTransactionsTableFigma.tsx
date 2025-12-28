@@ -70,6 +70,7 @@ export default function BankTransactionsTableFigma() {
           projectIndex: row.project_index || null,
           financialCode: row.financial_code || null,
           paymentId: row.payment_id || null,
+          nominalCurrencyCode: row.nominal_currency_code || null,
         }));
 
         setTransactions(mapped);
