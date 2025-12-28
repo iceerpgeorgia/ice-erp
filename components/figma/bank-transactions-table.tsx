@@ -149,12 +149,18 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
     if (typeof window !== 'undefined') {
       const savedColumns = localStorage.getItem('bank-transactions-table-columns');
-      if (savedColumns) {
+      const savedVersion = localStorage.getItem('bank-transactions-table-version');
+      const currentVersion = '2'; // Increment this when defaultColumns structure changes
+      
+      if (savedColumns && savedVersion === currentVersion) {
         try {
           return JSON.parse(savedColumns);
         } catch (error) {
           console.warn('Failed to parse saved column settings:', error);
         }
+      } else {
+        // Clear old version data
+        localStorage.setItem('bank-transactions-table-version', currentVersion);
       }
     }
     return defaultColumns;
@@ -700,7 +706,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                     className={`relative ${getResponsiveClass(col.responsive)} ${
                       dragOverColumn === col.key ? 'border-l-2 border-primary' : ''
                     }`}
-                    style={{ width: col.width, minWidth: col.width }}
+                    style={{ width: col.width }}
                     draggable={!isResizing}
                     onDragStart={(e) => handleDragStart(e, col.key)}
                     onDragOver={(e) => handleDragOver(e, col.key)}
@@ -770,7 +776,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                       <TableCell
                         key={col.key}
                         className={`${getResponsiveClass(col.responsive)}`}
-                        style={{ width: col.width, minWidth: col.width }}
+                        style={{ width: col.width }}
                       >
                         <div className="truncate" title={String(row[col.key] ?? '')}>
                           {col.key === 'accountCurrencyAmount' || col.key === 'nominalAmount' ? (
