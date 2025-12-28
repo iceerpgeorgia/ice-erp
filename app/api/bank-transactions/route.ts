@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
       financialCodeUuids.length > 0
         ? prisma.financialCode.findMany({
             where: { uuid: { in: financialCodeUuids as string[] } },
-            select: { uuid: true, code: true }
+            select: { uuid: true, code: true, validation: true }
           })
         : [],
       paymentUuids.length > 0
@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
     // Create lookup maps
     const counteragentMap = new Map(counteragents.map(c => [c.counteragent_uuid, c.name]));
     const projectMap = new Map(projects.map(p => [p.projectUuid, p.projectIndex]));
-    const financialCodeMap = new Map(financialCodes.map(f => [f.uuid, f.code]));
+    const financialCodeMap = new Map(financialCodes.map(f => [f.uuid, f.validation || f.code]));
     const paymentMap = new Map(payments.map(p => [p.recordUuid, p.paymentId]));
 
     // Map transactions with lookup data
