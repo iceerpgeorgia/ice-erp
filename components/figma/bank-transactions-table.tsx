@@ -248,7 +248,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
       const diff = e.clientX - isResizing.startX;
-      const newWidth = isResizing.startWidth + diff; // No minimum width constraint
+      const newWidth = Math.max(10, isResizing.startWidth + diff); // Minimal 10px to prevent negative widths
       setColumns(cols => cols.map(col => 
         col.key === isResizing.column ? { ...col, width: newWidth } : col
       ));
