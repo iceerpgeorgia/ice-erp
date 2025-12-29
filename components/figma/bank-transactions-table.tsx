@@ -686,7 +686,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
           className="overflow-x-auto overflow-y-auto"
           style={{ maxHeight: '70vh' }}
         >
-          <Table>
+          <Table style={{ tableLayout: 'fixed', width: `${totalWidth}px` }}>
             <TableHeader className="bg-muted">
               <TableRow>
                 {visibleColumns.map((col) => (
@@ -695,7 +695,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                     className={`relative ${getResponsiveClass(col.responsive)} ${
                       dragOverColumn === col.key ? 'border-l-2 border-primary' : ''
                     }`}
-                    style={{ width: col.width }}
+                    style={{ width: col.width, maxWidth: col.width }}
                     draggable={!isResizing}
                     onDragStart={(e) => handleDragStart(e, col.key)}
                     onDragOver={(e) => handleDragOver(e, col.key)}
@@ -765,9 +765,9 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                       <TableCell
                         key={col.key}
                         className={`${getResponsiveClass(col.responsive)}`}
-                        style={{ width: col.width }}
+                        style={{ width: col.width, maxWidth: col.width }}
                       >
-                        <div className="truncate" title={String(row[col.key] ?? '')}>
+                        <div className="truncate overflow-hidden" title={String(row[col.key] ?? '')}>
                           {col.key === 'accountCurrencyAmount' || col.key === 'nominalAmount' ? (
                             <span className={Number(row[col.key]) >= 0 ? 'text-green-600' : 'text-red-600'}>
                               {formatAmount(row[col.key])}
