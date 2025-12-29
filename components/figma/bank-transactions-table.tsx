@@ -150,7 +150,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     if (typeof window !== 'undefined') {
       const savedColumns = localStorage.getItem('bank-transactions-table-columns');
       const savedVersion = localStorage.getItem('bank-transactions-table-version');
-      const currentVersion = '2'; // Increment this when defaultColumns structure changes
+      const currentVersion = '3'; // Increment this when defaultColumns structure changes
       
       if (savedColumns && savedVersion === currentVersion) {
         try {
@@ -248,7 +248,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
       const diff = e.clientX - isResizing.startX;
-      const newWidth = Math.max(60, isResizing.startWidth + diff);
+      const newWidth = Math.max(30, isResizing.startWidth + diff); // Allow smaller columns
       setColumns(cols => cols.map(col => 
         col.key === isResizing.column ? { ...col, width: newWidth } : col
       ));
