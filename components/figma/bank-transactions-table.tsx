@@ -606,17 +606,6 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
 
   return (
     <div className="w-full space-y-4 p-4">
-      <style dangerouslySetInnerHTML={{
-        __html: `
-          .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-          }
-          .hide-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-          }
-        `
-      }} />
       {/* Header Controls */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex-1 min-w-0 w-full sm:w-auto">
@@ -683,8 +672,8 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       {needsBottomScroller && (
         <div 
           ref={bottomScrollRef}
-          className="overflow-x-auto border rounded bg-muted/50"
-          style={{ height: '20px' }}
+          className="overflow-x-auto border rounded bg-muted/50 hover:bg-muted"
+          style={{ height: '16px', cursor: 'ew-resize' }}
         >
           <div style={{ width: totalWidth, height: '1px' }} />
         </div>
@@ -694,8 +683,8 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       <div className="border rounded-lg overflow-hidden bg-card">
         <div 
           ref={scrollRef} 
-          className="hide-scrollbar overflow-x-auto overflow-y-auto"
-          style={{ maxHeight: '600px' }}
+          className="overflow-x-auto overflow-y-auto"
+          style={{ maxHeight: '70vh' }}
         >
           <Table>
             <TableHeader className="bg-muted">
