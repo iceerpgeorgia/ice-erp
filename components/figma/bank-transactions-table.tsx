@@ -560,9 +560,13 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
         currenciesRes.json(),
       ]);
       
-      setProjectOptions(projectsData.projects || []);
-      setFinancialCodeOptions(codesData.codes || []);
-      setCurrencyOptions(currenciesData.currencies || []);
+      console.log('Projects API response:', projectsData);
+      console.log('Codes API response:', codesData);
+      console.log('Currencies API response:', currenciesData);
+      
+      setProjectOptions(Array.isArray(projectsData) ? projectsData : []);
+      setFinancialCodeOptions(Array.isArray(codesData) ? codesData : (codesData.codes || []));
+      setCurrencyOptions(Array.isArray(currenciesData) ? currenciesData : (currenciesData.currencies || []));
       
       // Load jobs for the current project if present
       if (transaction.projectUuid) {
