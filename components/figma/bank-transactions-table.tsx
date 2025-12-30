@@ -500,7 +500,6 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       nominal_currency_uuid: transaction.nominalCurrencyUuid || '',
     });
     setLoadingOptions(true);
-    setIsEditDialogOpen(true);
     
     try {
       // Fetch payment options for this transaction's counteragent
@@ -524,8 +523,12 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       setProjectOptions(projectsData.projects || []);
       setFinancialCodeOptions(codesData.codes || []);
       setCurrencyOptions(currenciesData.currencies || []);
+      
+      // Only open dialog after all options are loaded
+      setIsEditDialogOpen(true);
     } catch (error: any) {
       alert(`Failed to load options: ${error.message}`);
+      setEditingTransaction(null);
     } finally {
       setLoadingOptions(false);
     }
