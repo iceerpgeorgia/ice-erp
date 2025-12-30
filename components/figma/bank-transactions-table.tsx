@@ -1122,7 +1122,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                                 <span className="text-muted-foreground">
                                   {' | '}{payment.currencyCode || '-'}
                                   {' | '}{payment.projectName || '-'}
-                                  {' | '}{payment.jobName || 'NJ'}
+                                  {payment.jobName && ` | ${payment.jobName}`}
                                   {' | '}{payment.financialCodeValidation || '-'}
                                 </span>
                               )}
