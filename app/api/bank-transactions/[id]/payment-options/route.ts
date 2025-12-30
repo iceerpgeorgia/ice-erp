@@ -31,6 +31,7 @@ export async function GET(
         projectUuid: true,
         financialCodeUuid: true,
         currencyUuid: true,
+        jobUuid: true,
       },
       orderBy: {
         paymentId: 'asc',
