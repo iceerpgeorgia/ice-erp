@@ -408,12 +408,16 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
     setIsUploading(true);
     const formData = new FormData();
-    formData.append('file', file);
+    
+    // Add all selected files
+    Array.from(files).forEach(file => {
+      formData.append('file', file);
+    });
 
     try {
       const response = await fetch('/api/bank-transactions/upload', {
@@ -424,8 +428,33 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       const result = await response.json();
 
       if (response.ok) {
-        alert(`Success! ${result.message}\n\nProcessed transactions. Page will reload.`);
-        window.location.reload();
+        // Show logs in a textarea for better readability
+        const logWindow = window.open('', 'Processing Logs', 'width=800,height=600');
+        if (logWindow) {
+          logWindow.document.write(`
+            <html>
+              <head>
+                <title>Processing Logs</title>
+                <style>
+                  body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+                  pre { white-space: pre-wrap; word-wrap: break-word; }
+                  h2 { color: #4ec9b0; }
+                  .success { color: #4ec9b0; }
+                  .error { color: #f48771; }
+                </style>
+              </head>
+              <body>
+                <h2 class="success">${result.message}</h2>
+                <pre>${result.logs || 'No logs available'}</pre>
+                <p><button onclick="window.close(); opener.location.reload();">Close and Reload Page</button></p>
+              </body>
+            </html>
+          `);
+          logWindow.document.close();
+        } else {
+          alert(`Success! ${result.message}\n\nPage will reload.`);
+          window.location.reload();
+        }
       } else {
         alert(`Error: ${result.error}${result.details ? '\n' + result.details : ''}`);
       }
@@ -662,6 +691,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
             ref={fileInputRef}
             type="file"
             accept=".xml"
+            multiple
             onChange={handleFileUpload}
             className="hidden"
           />
@@ -672,7 +702,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
             disabled={isUploading}
           >
             <Upload className="h-4 w-4 mr-2" />
-            {isUploading ? 'Uploading...' : 'Upload XML'}
+            {isUploading ? 'Processing...' : 'Upload XML'}
           </Button>
           
           {/* Column Settings */}

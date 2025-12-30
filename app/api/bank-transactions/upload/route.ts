@@ -9,19 +9,20 @@ const execPromise = promisify(exec);
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
-    const file = formData.get("file") as File;
+    const files = formData.getAll("file") as File[];
     
-    if (!file) {
+    if (!files || files.length === 0) {
       return NextResponse.json(
-        { error: "No file provided" },
+        { error: "No files provided" },
         { status: 400 }
       );
     }
 
-    // Validate file type
-    if (!file.name.toLowerCase().endsWith('.xml')) {
+    // Validate all files are XML
+    const invalidFiles = files.filter(f => !f.name.toLowerCase().endsWith('.xml'));
+    if (invalidFiles.length > 0) {
       return NextResponse.json(
-        { error: "Only XML files are accepted" },
+        { error: `Only XML files are accepted. Invalid files: ${invalidFiles.map(f => f.name).join(', ')}` },
         { status: 400 }
       );
     }
@@ -34,64 +35,92 @@ export async function POST(req: NextRequest) {
       // Directory might already exist
     }
 
-    // Save the file
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const timestamp = new Date().getTime();
-    const filename = `bog_${timestamp}_${file.name}`;
-    const filepath = join(uploadsDir, filename);
-    
-    await writeFile(filepath, buffer);
-    console.log(`[Upload] Saved file: ${filepath}`);
+    const results = [];
+    let allLogs = `Processing ${files.length} file(s)...\n\n`;
 
-    // Run the XML parser script
-    try {
-      console.log(`[Upload] Running XML parser for ${filename}...`);
-      const { stdout, stderr } = await execPromise(
-        `python parse-bog-xml.py "${filepath}"`,
-        { cwd: process.cwd() }
-      );
-      
-      if (stderr) {
-        console.error(`[Upload] Parser stderr:`, stderr);
+    // Process each file
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileNum = i + 1;
+      allLogs += `\n${'='.repeat(60)}\n`;
+      allLogs += `FILE ${fileNum}/${files.length}: ${file.name}\n`;
+      allLogs += `${'='.repeat(60)}\n\n`;
+
+      try {
+        // Save the file
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        const timestamp = new Date().getTime();
+        const filename = `bog_${timestamp}_${file.name}`;
+        const filepath = join(uploadsDir, filename);
+        
+        await writeFile(filepath, buffer);
+        allLogs += `✓ File saved: ${filename}\n\n`;
+
+        // Run the XML parser script
+        allLogs += `Running XML parser...\n`;
+        const { stdout, stderr } = await execPromise(
+          `python parse-bog-xml.py "${filepath}"`,
+          { cwd: process.cwd(), maxBuffer: 1024 * 1024 * 10 }
+        );
+        
+        allLogs += stdout;
+        if (stderr) {
+          allLogs += `\nWarnings/Errors:\n${stderr}\n`;
+        }
+
+        results.push({
+          filename: file.name,
+          success: true,
+          savedAs: filename
+        });
+      } catch (error: any) {
+        allLogs += `\n✗ ERROR processing ${file.name}:\n${error.message}\n`;
+        if (error.stdout) allLogs += `\nOutput:\n${error.stdout}\n`;
+        if (error.stderr) allLogs += `\nError details:\n${error.stderr}\n`;
+        
+        results.push({
+          filename: file.name,
+          success: false,
+          error: error.message
+        });
       }
-      console.log(`[Upload] Parser output:`, stdout);
+    }
 
-      // Run the consolidation script
-      console.log(`[Upload] Running consolidation process...`);
+    // Run consolidation once after all files
+    allLogs += `\n${'='.repeat(60)}\n`;
+    allLogs += `CONSOLIDATION PROCESS\n`;
+    allLogs += `${'='.repeat(60)}\n\n`;
+
+    try {
       const { stdout: stdout2, stderr: stderr2 } = await execPromise(
         `python process-raw-to-consolidated.py`,
-        { cwd: process.cwd() }
+        { cwd: process.cwd(), maxBuffer: 1024 * 1024 * 10 }
       );
       
+      allLogs += stdout2;
       if (stderr2) {
-        console.error(`[Upload] Consolidation stderr:`, stderr2);
+        allLogs += `\nWarnings/Errors:\n${stderr2}\n`;
       }
-      console.log(`[Upload] Consolidation output:`, stdout2);
-
-      return NextResponse.json({
-        success: true,
-        message: "File uploaded and processed successfully",
-        filename,
-        parserOutput: stdout,
-        consolidationOutput: stdout2
-      });
     } catch (error: any) {
-      console.error(`[Upload] Processing error:`, error);
-      return NextResponse.json(
-        { 
-          error: "Failed to process file", 
-          details: error.message,
-          stdout: error.stdout,
-          stderr: error.stderr
-        },
-        { status: 500 }
-      );
+      allLogs += `\n✗ CONSOLIDATION ERROR:\n${error.message}\n`;
+      if (error.stdout) allLogs += `\nOutput:\n${error.stdout}\n`;
+      if (error.stderr) allLogs += `\nError details:\n${error.stderr}\n`;
     }
+
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    return NextResponse.json({
+      success: failCount === 0,
+      message: `Processed ${files.length} file(s): ${successCount} succeeded, ${failCount} failed`,
+      results,
+      logs: allLogs
+    });
   } catch (error: any) {
     console.error("[Upload] Error:", error);
     return NextResponse.json(
-      { error: error?.message || "Failed to upload file" },
+      { error: error?.message || "Failed to upload files" },
       { status: 500 }
     );
   }
