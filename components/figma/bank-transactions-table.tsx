@@ -567,7 +567,16 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       console.log('Currencies API response:', currenciesData);
       console.log('First currency:', currenciesData[0]);
       
-      setProjectOptions(Array.isArray(projectsData) ? projectsData : []);
+      // Transform projects from snake_case to camelCase
+      const mappedProjects = Array.isArray(projectsData) 
+        ? projectsData.map((p: any) => ({
+            uuid: p.project_uuid,
+            projectIndex: p.project_index,
+            projectName: p.project_name,
+          }))
+        : [];
+      
+      setProjectOptions(mappedProjects);
       setFinancialCodeOptions(Array.isArray(codesData) ? codesData : (codesData.codes || []));
       setCurrencyOptions(Array.isArray(currenciesData) ? currenciesData : (currenciesData.currencies || []));
       
