@@ -40,7 +40,7 @@ export async function GET(
     // Fetch related data for each payment
     const paymentsWithDetails = await Promise.all(
       payments.map(async (payment) => {
-        const [currency, project, financialCode] = await Promise.all([
+        const [currency, project, job, financialCode] = await Promise.all([
           payment.currencyUuid
             ? prisma.currency.findUnique({
                 where: { uuid: payment.currencyUuid },
@@ -51,6 +51,12 @@ export async function GET(
             ? prisma.project.findUnique({
                 where: { projectUuid: payment.projectUuid },
                 select: { projectName: true },
+              })
+            : null,
+          payment.jobUuid
+            ? prisma.job.findUnique({
+                where: { jobUuid: payment.jobUuid },
+                select: { jobName: true },
               })
             : null,
           payment.financialCodeUuid
@@ -66,8 +72,10 @@ export async function GET(
           projectUuid: payment.projectUuid,
           financialCodeUuid: payment.financialCodeUuid,
           currencyUuid: payment.currencyUuid,
+          jobUuid: payment.jobUuid,
           currencyCode: currency?.code || '',
           projectName: project?.projectName || '',
+          jobName: job?.jobName || '',
           financialCodeValidation: financialCode?.validation || '',
         };
       })

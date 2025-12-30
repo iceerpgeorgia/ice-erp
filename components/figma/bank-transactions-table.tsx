@@ -1109,6 +1109,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                             const searchLower = paymentSearch.toLowerCase();
                             return (
                               payment.paymentId?.toLowerCase().includes(searchLower) ||
+                              payment.jobName?.toLowerCase().includes(searchLower) ||
                               payment.currencyCode?.toLowerCase().includes(searchLower) ||
                               payment.projectName?.toLowerCase().includes(searchLower) ||
                               payment.financialCodeValidation?.toLowerCase().includes(searchLower)
@@ -1117,8 +1118,9 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                           .map((payment) => (
                             <SelectItem key={payment.paymentId} value={payment.paymentId}>
                               {payment.paymentId}
-                              {(payment.currencyCode || payment.projectName || payment.financialCodeValidation) && (
+                              {(payment.jobName || payment.currencyCode || payment.projectName || payment.financialCodeValidation) && (
                                 <span className="text-muted-foreground">
+                                  {' | '}{payment.jobName || '-'}
                                   {' | '}{payment.currencyCode || '-'}
                                   {' | '}{payment.projectName || '-'}
                                   {' | '}{payment.financialCodeValidation || '-'}
