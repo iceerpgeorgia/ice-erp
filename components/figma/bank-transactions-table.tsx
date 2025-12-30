@@ -7,7 +7,8 @@ import {
   ArrowDown,
   Settings,
   Eye,
-  EyeOff
+  EyeOff,
+  Upload
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -144,6 +145,12 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
@@ -404,6 +411,70 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     localStorage.removeItem('bank-transactions-table-columns');
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/bank-transactions/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert(`Success! ${result.message}\n\nProcessed transactions. Page will reload.`);
+        window.location.reload();
+      } else {
+        alert(`Error: ${result.error}${result.details ? '\n' + result.details : ''}`);
+      }
+    } catch (error: any) {
+      alert(`Upload failed: ${error.message}`);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/bank-transactions/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert(`Success! ${result.message}\n\nProcessed transactions. Page will reload.`);
+        window.location.reload();
+      } else {
+        alert(`Error: ${result.error}${result.details ? '\n' + result.details : ''}`);
+      }
+    } catch (error: any) {
+      alert(`Upload failed: ${error.message}`);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   // Get unique values for column filters
   const getColumnUniqueValues = (columnKey: ColumnKey) => {
     const values = new Set<string>();
@@ -622,6 +693,24 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Upload XML Button */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xml"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            {isUploading ? 'Uploading...' : 'Upload XML'}
+          </Button>
+          
           {/* Column Settings */}
           <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
             <PopoverTrigger asChild>
