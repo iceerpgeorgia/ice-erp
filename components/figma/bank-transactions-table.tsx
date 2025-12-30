@@ -9,7 +9,8 @@ import {
   Eye,
   EyeOff,
   Upload,
-  Edit2
+  Edit2,
+  Loader2
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -516,6 +517,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       nominal_currency_uuid: transaction.nominalCurrencyUuid || '',
     });
     setLoadingOptions(true);
+    setIsEditDialogOpen(true); // Open dialog immediately with loading state
     
     try {
       // Fetch payment options for this transaction's counteragent
@@ -570,12 +572,10 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       } else {
         setJobOptions([]);
       }
-      
-      // Only open dialog after all options are loaded
-      setIsEditDialogOpen(true);
     } catch (error: any) {
       alert(`Failed to load options: ${error.message}`);
       setEditingTransaction(null);
+      setIsEditDialogOpen(false);
     } finally {
       setLoadingOptions(false);
     }
@@ -1228,7 +1228,10 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
             </DialogDescription>
           </DialogHeader>
           {loadingOptions ? (
-            <div className="py-8 text-center text-muted-foreground">Loading options...</div>
+            <div className="flex flex-col items-center justify-center py-12 gap-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Loading transaction data...</p>
+            </div>
           ) : (
             <div className="grid gap-4 py-4">
               {/* Payment ID */}
