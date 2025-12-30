@@ -1,7 +1,7 @@
 -- CreateTable
 CREATE TABLE "bank_accounts" (
     "id" BIGSERIAL NOT NULL,
-    "uuid" UUID NOT NULL DEFAULT uuid_generate_v4(),
+    "uuid" UUID NOT NULL DEFAULT gen_random_uuid(),
     "account_number" TEXT NOT NULL,
     "currency_uuid" UUID NOT NULL,
     "is_active" BOOLEAN NOT NULL DEFAULT true,

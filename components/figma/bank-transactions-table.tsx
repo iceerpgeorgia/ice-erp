@@ -150,6 +150,11 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const [editingCell, setEditingCell] = useState<{ rowId: number; columnKey: ColumnKey } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
+  const [paymentOptions, setPaymentOptions] = useState<any[]>([]);
+  const [projectOptions, setProjectOptions] = useState<any[]>([]);
+  const [financialCodeOptions, setFinancialCodeOptions] = useState<any[]>([]);
+  const [currencyOptions, setCurrencyOptions] = useState<any[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
   
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
@@ -471,21 +476,75 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     }
   };
 
-  const handleCellClick = (rowId: number, columnKey: ColumnKey, currentValue: any) => {
-    // Only description is directly editable for now
-    // Other fields (counteragent, project, etc.) require lookup dialogs
-    const editableColumns: ColumnKey[] = ['description'];
+  const handleCellClick = async (rowId: number, columnKey: ColumnKey, currentValue: any) => {
+    const row = transactions.find(t => t.id === rowId);
+    if (!row) return;
+
+    const hasPayment = !!row.paymentId;
+    
+    // Determine which fields are editable
+    const editableColumns: ColumnKey[] = ['paymentId'];
+    if (!hasPayment) {
+      // When no payment, also allow editing project, financial code, and nominal currency
+      editableColumns.push('projectIndex', 'financialCode', 'nominalCurrencyCode');
+    }
     
     if (!editableColumns.includes(columnKey)) {
-      // Show message for UUID fields
-      if (['counteragentName', 'projectIndex', 'financialCode', 'paymentId'].includes(columnKey)) {
-        alert('Editing reference fields requires a lookup dialog. This feature is coming soon.');
+      if (['projectIndex', 'financialCode', 'nominalCurrencyCode'].includes(columnKey) && hasPayment) {
+        alert('These fields are read-only when a Payment ID is assigned. Clear the Payment ID first to edit manually.');
       }
       return;
     }
     
+    setLoadingOptions(true);
     setEditingCell({ rowId, columnKey });
-    setEditValue(String(currentValue || ''));
+    
+    // Set the UUID value instead of display value
+    let uuidValue = '';
+    if (columnKey === 'paymentId') {
+      uuidValue = row.paymentId || '';
+    } else if (columnKey === 'projectIndex') {
+      uuidValue = row.projectUuid || '';
+    } else if (columnKey === 'financialCode') {
+      uuidValue = row.financialCodeUuid || '';
+    } else if (columnKey === 'nominalCurrencyCode') {
+      uuidValue = row.nominalCurrencyUuid || '';
+    }
+    setEditValue(uuidValue);
+    
+    try {
+      // Load options based on field type
+      if (columnKey === 'paymentId') {
+        // Fetch payment options for this transaction's counteragent
+        const res = await fetch(`/api/bank-transactions/${rowId}/payment-options`);
+        const data = await res.json();
+        setPaymentOptions(data.payments || []);
+      }
+      
+      if (!hasPayment) {
+        // Load all reference data when no payment
+        const [projectsRes, codesRes, currenciesRes] = await Promise.all([
+          fetch('/api/projects'),
+          fetch('/api/financial-codes'),
+          fetch('/api/currencies'),
+        ]);
+        
+        const [projectsData, codesData, currenciesData] = await Promise.all([
+          projectsRes.json(),
+          codesRes.json(),
+          currenciesRes.json(),
+        ]);
+        
+        setProjectOptions(projectsData.projects || []);
+        setFinancialCodeOptions(codesData.codes || []);
+        setCurrencyOptions(currenciesData.currencies || []);
+      }
+    } catch (error: any) {
+      alert(`Failed to load options: ${error.message}`);
+      setEditingCell(null);
+    } finally {
+      setLoadingOptions(false);
+    }
   };
 
   const handleCellBlur = async () => {
@@ -513,14 +572,21 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     setIsSaving(true);
     
     try {
-      // Only description is directly editable
-      if (columnKey !== 'description') {
-        throw new Error('Field not editable');
-      }
+      const row = transactions.find(t => t.id === rowId);
+      if (!row) throw new Error('Transaction not found');
 
-      const updateData = {
-        description: newValue || null
-      };
+      // Map column keys to API field names
+      const updateData: any = {};
+      
+      if (columnKey === 'paymentId') {
+        updateData.payment_uuid = newValue || null;
+      } else if (columnKey === 'projectIndex') {
+        updateData.project_uuid = newValue || null;
+      } else if (columnKey === 'financialCode') {
+        updateData.financial_code_uuid = newValue || null;
+      } else if (columnKey === 'nominalCurrencyCode') {
+        updateData.nominal_currency_uuid = newValue || null;
+      }
 
       const response = await fetch(`/api/bank-transactions/${rowId}`, {
         method: 'PATCH',
@@ -531,7 +597,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       const result = await response.json();
 
       if (response.ok) {
-        // Refresh page to get updated values from database triggers
+        // Refresh page to get updated values from database
         window.location.reload();
       } else {
         alert(`Error: ${result.error}`);
@@ -918,54 +984,158 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedData.map((row) => (
-                  <TableRow key={row.id}>
-                    {visibleColumns.map((col) => {
-                      const isEditing = editingCell?.rowId === row.id && editingCell?.columnKey === col.key;
-                      const isEditableField = col.key === 'description';
-                      
-                      return (
-                        <TableCell
-                          key={col.key}
-                          className={`${getResponsiveClass(col.responsive)} ${isEditableField ? 'cursor-pointer hover:bg-muted/50' : ''} ${isEditing ? 'bg-blue-50' : ''}`}
-                          style={{ width: col.width, maxWidth: col.width }}
-                          onClick={() => !isEditing && handleCellClick(row.id, col.key, row[col.key])}
-                        >
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={handleCellBlur}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  handleCellBlur();
-                                } else if (e.key === 'Escape') {
-                                  setEditingCell(null);
-                                }
-                              }}
-                              autoFocus
-                              disabled={isSaving}
-                            />
-                          ) : (
-                            <div className="truncate overflow-hidden" title={String(row[col.key] ?? '')}>
-                              {col.key === 'accountCurrencyAmount' || col.key === 'nominalAmount' ? (
-                                <span className={Number(row[col.key]) >= 0 ? 'text-green-600' : 'text-red-600'}>
-                                  {formatAmount(row[col.key])}
-                                </span>
-                              ) : col.key === 'date' || col.key === 'correctionDate' || col.key === 'createdAt' || col.key === 'updatedAt' ? (
-                                formatDate(row[col.key])
+                paginatedData.map((row) => {
+                  const hasPayment = !!row.paymentId;
+                  
+                  return (
+                    <TableRow key={row.id}>
+                      {visibleColumns.map((col) => {
+                        const isEditing = editingCell?.rowId === row.id && editingCell?.columnKey === col.key;
+                        
+                        // Determine if field is editable
+                        const isPaymentField = col.key === 'paymentId';
+                        const isManualField = ['projectIndex', 'financialCode', 'nominalCurrencyCode'].includes(col.key);
+                        const isEditableField = isPaymentField || (isManualField && !hasPayment);
+                        
+                        return (
+                          <TableCell
+                            key={col.key}
+                            className={`${getResponsiveClass(col.responsive)} ${isEditableField ? 'cursor-pointer hover:bg-muted/50' : ''} ${isEditing ? 'bg-blue-50' : ''}`}
+                            style={{ width: col.width, maxWidth: col.width }}
+                            onClick={() => !isEditing && !loadingOptions && handleCellClick(row.id, col.key, row[col.key])}
+                          >
+                            {isEditing ? (
+                              loadingOptions ? (
+                                <div className="text-sm text-muted-foreground">Loading...</div>
+                              ) : col.key === 'paymentId' ? (
+                                <select
+                                  className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onBlur={handleCellBlur}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleCellBlur();
+                                    } else if (e.key === 'Escape') {
+                                      setEditingCell(null);
+                                    }
+                                  }}
+                                  autoFocus
+                                  disabled={isSaving}
+                                >
+                                  <option value="">-- Clear Payment --</option>
+                                  {paymentOptions.map((payment) => (
+                                    <option key={payment.paymentId} value={payment.paymentId}>
+                                      {payment.paymentId}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : col.key === 'projectIndex' ? (
+                                <select
+                                  className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onBlur={handleCellBlur}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleCellBlur();
+                                    } else if (e.key === 'Escape') {
+                                      setEditingCell(null);
+                                    }
+                                  }}
+                                  autoFocus
+                                  disabled={isSaving}
+                                >
+                                  <option value="">-- Select Project --</option>
+                                  {projectOptions.map((project) => (
+                                    <option key={project.uuid} value={project.uuid}>
+                                      {project.projectIndex} - {project.projectName}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : col.key === 'financialCode' ? (
+                                <select
+                                  className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onBlur={handleCellBlur}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleCellBlur();
+                                    } else if (e.key === 'Escape') {
+                                      setEditingCell(null);
+                                    }
+                                  }}
+                                  autoFocus
+                                  disabled={isSaving}
+                                >
+                                  <option value="">-- Select Financial Code --</option>
+                                  {financialCodeOptions.map((code) => (
+                                    <option key={code.uuid} value={code.uuid}>
+                                      {code.validation}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : col.key === 'nominalCurrencyCode' ? (
+                                <select
+                                  className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onBlur={handleCellBlur}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleCellBlur();
+                                    } else if (e.key === 'Escape') {
+                                      setEditingCell(null);
+                                    }
+                                  }}
+                                  autoFocus
+                                  disabled={isSaving}
+                                >
+                                  <option value="">-- Select Currency --</option>
+                                  {currencyOptions.map((currency) => (
+                                    <option key={currency.uuid} value={currency.uuid}>
+                                      {currency.code}
+                                    </option>
+                                  ))}
+                                </select>
                               ) : (
-                                row[col.key] ?? '-'
-                              )}
-                            </div>
-                          )}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                ))
+                                <input
+                                  type="text"
+                                  className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onBlur={handleCellBlur}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleCellBlur();
+                                    } else if (e.key === 'Escape') {
+                                      setEditingCell(null);
+                                    }
+                                  }}
+                                  autoFocus
+                                  disabled={isSaving}
+                                />
+                              )
+                            ) : (
+                              <div className="truncate overflow-hidden" title={String(row[col.key] ?? '')}>
+                                {col.key === 'accountCurrencyAmount' || col.key === 'nominalAmount' ? (
+                                  <span className={Number(row[col.key]) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                    {formatAmount(row[col.key])}
+                                  </span>
+                                ) : col.key === 'date' || col.key === 'correctionDate' || col.key === 'createdAt' || col.key === 'updatedAt' ? (
+                                  formatDate(row[col.key])
+                                ) : (
+                                  row[col.key] ?? '-'
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
