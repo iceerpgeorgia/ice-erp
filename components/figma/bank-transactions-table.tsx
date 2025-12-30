@@ -161,19 +161,22 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const [isSaving, setIsSaving] = useState(false);
   const [paymentOptions, setPaymentOptions] = useState<any[]>([]);
   const [projectOptions, setProjectOptions] = useState<any[]>([]);
+  const [jobOptions, setJobOptions] = useState<any[]>([]);
   const [financialCodeOptions, setFinancialCodeOptions] = useState<any[]>([]);
   const [currencyOptions, setCurrencyOptions] = useState<any[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [paymentSearch, setPaymentSearch] = useState('');
   const [projectSearch, setProjectSearch] = useState('');
+  const [jobSearch, setJobSearch] = useState('');
   const [financialCodeSearch, setFinancialCodeSearch] = useState('');
   const [currencySearch, setCurrencySearch] = useState('');
   const [formData, setFormData] = useState<{
     payment_uuid: string;
     project_uuid: string;
+    job_uuid: string;
     financial_code_uuid: string;
     nominal_currency_uuid: string;
-  }>({ payment_uuid: '', project_uuid: '', financial_code_uuid: '', nominal_currency_uuid: '' });
+  }>({ payment_uuid: '', project_uuid: '', job_uuid: '', financial_code_uuid: '', nominal_currency_uuid: '' });
   
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
@@ -500,6 +503,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     setFormData({
       payment_uuid: transaction.paymentId || '',
       project_uuid: transaction.projectUuid || '',
+      job_uuid: '', // Will be loaded based on project
       financial_code_uuid: transaction.financialCodeUuid || '',
       nominal_currency_uuid: transaction.nominalCurrencyUuid || '',
     });
@@ -529,6 +533,15 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       setFinancialCodeOptions(codesData.codes || []);
       setCurrencyOptions(currenciesData.currencies || []);
       
+      // Load jobs for the current project if present
+      if (transaction.projectUuid) {
+        const jobsRes = await fetch(`/api/jobs?projectUuid=${transaction.projectUuid}`);
+        const jobsData = await jobsRes.json();
+        setJobOptions(jobsData.jobs || []);
+      } else {
+        setJobOptions([]);
+      }
+      
       // Only open dialog after all options are loaded
       setIsEditDialogOpen(true);
     } catch (error: any) {
@@ -542,7 +555,101 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const cancelEdit = () => {
     setEditingTransaction(null);
     setIsEditDialogOpen(false);
-    setFormData({ payment_uuid: '', project_uuid: '', financial_code_uuid: '', nominal_currency_uuid: '' });
+    setFormData({ payment_uuid: '', project_uuid: '', job_uuid: '', financial_code_uuid: '', nominal_currency_uuid: '' });
+    setJobOptions([]);
+  };
+
+  // Handle payment selection - auto-fill related fields
+  const handlePaymentChange = (paymentId: string) => {
+    const newFormData = { ...formData, payment_uuid: paymentId === '__none__' ? '' : paymentId };
+    
+    if (paymentId && paymentId !== '__none__') {
+      const selectedPayment = paymentOptions.find(p => p.paymentId === paymentId);
+      if (selectedPayment) {
+        newFormData.project_uuid = selectedPayment.projectUuid || '';
+        newFormData.job_uuid = selectedPayment.jobUuid || '';
+        newFormData.financial_code_uuid = selectedPayment.financialCodeUuid || '';
+        newFormData.nominal_currency_uuid = selectedPayment.currencyUuid || '';
+        
+        // Load jobs for the selected payment's project
+        if (selectedPayment.projectUuid) {
+          fetch(`/api/jobs?projectUuid=${selectedPayment.projectUuid}`)
+            .then(res => res.json())
+            .then(data => setJobOptions(data.jobs || []))
+            .catch(err => console.error('Failed to load jobs:', err));
+        }
+      }
+    }
+    
+    setFormData(newFormData);
+    setPaymentSearch('');
+  };
+
+  // Handle project change - load jobs for new project
+  const handleProjectChange = async (projectUuid: string) => {
+    const newFormData = { ...formData, project_uuid: projectUuid === '__none__' ? '' : projectUuid, job_uuid: '' };
+    setFormData(newFormData);
+    setProjectSearch('');
+    
+    if (projectUuid && projectUuid !== '__none__') {
+      try {
+        const jobsRes = await fetch(`/api/jobs?projectUuid=${projectUuid}`);
+        const jobsData = await jobsRes.json();
+        setJobOptions(jobsData.jobs || []);
+      } catch (err) {
+        console.error('Failed to load jobs:', err);
+        setJobOptions([]);
+      }
+    } else {
+      setJobOptions([]);
+    }
+    
+    // Check if manual combination matches a payment
+    checkAndAutoSelectPayment(newFormData);
+  };
+
+  // Check if manual field selection matches a payment
+  const checkAndAutoSelectPayment = (currentFormData: typeof formData) => {
+    if (!currentFormData.payment_uuid && 
+        currentFormData.project_uuid && 
+        currentFormData.financial_code_uuid && 
+        currentFormData.nominal_currency_uuid) {
+      
+      const matchingPayment = paymentOptions.find(p => 
+        p.projectUuid === currentFormData.project_uuid &&
+        (p.jobUuid || '') === (currentFormData.job_uuid || '') &&
+        p.financialCodeUuid === currentFormData.financial_code_uuid &&
+        p.currencyUuid === currentFormData.nominal_currency_uuid
+      );
+      
+      if (matchingPayment) {
+        setFormData({ ...currentFormData, payment_uuid: matchingPayment.paymentId });
+      }
+    }
+  };
+
+  // Handle job change
+  const handleJobChange = (jobUuid: string) => {
+    const newFormData = { ...formData, job_uuid: jobUuid === '__none__' ? '' : jobUuid };
+    setFormData(newFormData);
+    setJobSearch('');
+    checkAndAutoSelectPayment(newFormData);
+  };
+
+  // Handle financial code change
+  const handleFinancialCodeChange = (codeUuid: string) => {
+    const newFormData = { ...formData, financial_code_uuid: codeUuid === '__none__' ? '' : codeUuid };
+    setFormData(newFormData);
+    setFinancialCodeSearch('');
+    checkAndAutoSelectPayment(newFormData);
+  };
+
+  // Handle currency change
+  const handleCurrencyChange = (currencyUuid: string) => {
+    const newFormData = { ...formData, nominal_currency_uuid: currencyUuid === '__none__' ? '' : currencyUuid };
+    setFormData(newFormData);
+    setCurrencySearch('');
+    checkAndAutoSelectPayment(newFormData);
   };
 
   const handleSave = async () => {
@@ -1084,10 +1191,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                 <div className="col-span-3">
                   <Select 
                     value={formData.payment_uuid || '__none__'} 
-                    onValueChange={(value) => {
-                      setFormData({ ...formData, payment_uuid: value === '__none__' ? '' : value });
-                      setPaymentSearch('');
-                    }}
+                    onValueChange={handlePaymentChange}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="-- No Payment --" />
@@ -1133,24 +1237,21 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground mt-1">
-                    When set, Project, Financial Code, and Nominal Currency are auto-filled from payment
+                    {formData.payment_uuid ? 'Clears auto-fill other fields' : 'Select to auto-fill fields below'}
                   </p>
                 </div>
               </div>
 
-              {/* Project - disabled if payment exists */}
+              {/* Project */}
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-project" className="text-right">Project</Label>
                 <div className="col-span-3">
                   <Select 
                     value={formData.project_uuid || '__none__'} 
-                    onValueChange={(value) => {
-                      setFormData({ ...formData, project_uuid: value === '__none__' ? '' : value });
-                      setProjectSearch('');
-                    }}
+                    onValueChange={handleProjectChange}
                     disabled={!!formData.payment_uuid}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={!!formData.payment_uuid ? 'bg-muted' : ''}>
                       <SelectValue placeholder="-- Select Project --" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1189,19 +1290,60 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                 </div>
               </div>
 
-              {/* Financial Code - disabled if payment exists */}
+              {/* Job Name */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-job" className="text-right">Job Name</Label>
+                <div className="col-span-3">
+                  <Select 
+                    value={formData.job_uuid || '__none__'} 
+                    onValueChange={handleJobChange}
+                    disabled={!!formData.payment_uuid || !formData.project_uuid}
+                  >
+                    <SelectTrigger className={!!formData.payment_uuid ? 'bg-muted' : ''}>
+                      <SelectValue placeholder={formData.project_uuid ? "-- No Job --" : "Select project first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <div className="flex items-center border-b px-3 pb-2">
+                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                        <Input
+                          placeholder="Search jobs..."
+                          value={jobSearch}
+                          onChange={(e) => setJobSearch(e.target.value)}
+                          className="h-8 w-full border-0 p-0 focus-visible:ring-0"
+                          disabled={!!formData.payment_uuid}
+                        />
+                      </div>
+                      <div className="max-h-[300px] overflow-y-auto">
+                        <SelectItem value="__none__">-- No Job --</SelectItem>
+                        {jobOptions
+                          .filter((job) => {
+                            if (!jobSearch) return true;
+                            return job.jobName?.toLowerCase().includes(jobSearch.toLowerCase());
+                          })
+                          .map((job) => (
+                            <SelectItem key={job.jobUuid} value={job.jobUuid}>
+                              {job.jobName}
+                            </SelectItem>
+                          ))}
+                      </div>
+                    </SelectContent>
+                  </Select>
+                  {!!formData.payment_uuid && (
+                    <p className="text-xs text-muted-foreground mt-1">Clear Payment ID to edit manually</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Financial Code */}
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-financial-code" className="text-right">Financial Code</Label>
                 <div className="col-span-3">
                   <Select 
                     value={formData.financial_code_uuid || '__none__'} 
-                    onValueChange={(value) => {
-                      setFormData({ ...formData, financial_code_uuid: value === '__none__' ? '' : value });
-                      setFinancialCodeSearch('');
-                    }}
+                    onValueChange={handleFinancialCodeChange}
                     disabled={!!formData.payment_uuid}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={!!formData.payment_uuid ? 'bg-muted' : ''}>
                       <SelectValue placeholder="-- Select Financial Code --" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1236,19 +1378,16 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                 </div>
               </div>
 
-              {/* Nominal Currency - disabled if payment exists */}
+              {/* Nominal Currency */}
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-nominal-currency" className="text-right">Nominal Currency</Label>
                 <div className="col-span-3">
                   <Select 
                     value={formData.nominal_currency_uuid || '__none__'} 
-                    onValueChange={(value) => {
-                      setFormData({ ...formData, nominal_currency_uuid: value === '__none__' ? '' : value });
-                      setCurrencySearch('');
-                    }}
+                    onValueChange={handleCurrencyChange}
                     disabled={!!formData.payment_uuid}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={!!formData.payment_uuid ? 'bg-muted' : ''}>
                       <SelectValue placeholder="-- Select Currency --" />
                     </SelectTrigger>
                     <SelectContent>

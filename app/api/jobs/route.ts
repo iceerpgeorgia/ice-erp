@@ -4,6 +4,30 @@ import { prisma } from '@/lib/prisma';
 // GET all jobs with project and brand info
 export async function GET(req: NextRequest) {
   try {
+    // Get query parameters
+    const { searchParams } = new URL(req.url);
+    const projectUuid = searchParams.get('projectUuid');
+
+    // Simple approach: if projectUuid provided, use Prisma
+    if (projectUuid) {
+      const jobs = await prisma.job.findMany({
+        where: {
+          projectUuid: projectUuid,
+          isActive: true,
+        },
+        select: {
+          jobUuid: true,
+          jobName: true,
+        },
+        orderBy: {
+          jobName: 'asc',
+        },
+      });
+
+      return NextResponse.json(jobs);
+    }
+
+    // Otherwise, use the full query with all fields
     const jobs = await prisma.$queryRaw`
       SELECT 
         j.id,
