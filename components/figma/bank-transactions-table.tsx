@@ -1078,14 +1078,14 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                 <Label htmlFor="edit-payment" className="text-right">Payment ID</Label>
                 <div className="col-span-3">
                   <Select 
-                    value={formData.payment_uuid} 
-                    onValueChange={(value) => setFormData({ ...formData, payment_uuid: value })}
+                    value={formData.payment_uuid || '__none__'} 
+                    onValueChange={(value) => setFormData({ ...formData, payment_uuid: value === '__none__' ? '' : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="-- No Payment --" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">-- No Payment --</SelectItem>
+                      <SelectItem value="__none__">-- No Payment --</SelectItem>
                       {paymentOptions.map((payment) => (
                         <SelectItem key={payment.paymentId} value={payment.paymentId}>
                           {payment.paymentId}
@@ -1104,15 +1104,15 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                 <Label htmlFor="edit-project" className="text-right">Project</Label>
                 <div className="col-span-3">
                   <Select 
-                    value={formData.project_uuid} 
-                    onValueChange={(value) => setFormData({ ...formData, project_uuid: value })}
+                    value={formData.project_uuid || '__none__'} 
+                    onValueChange={(value) => setFormData({ ...formData, project_uuid: value === '__none__' ? '' : value })}
                     disabled={!!formData.payment_uuid}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="-- Select Project --" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">-- No Project --</SelectItem>
+                      <SelectItem value="__none__">-- No Project --</SelectItem>
                       {projectOptions.map((project) => (
                         <SelectItem key={project.uuid} value={project.uuid}>
                           {project.projectIndex} - {project.projectName}
@@ -1131,15 +1131,15 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                 <Label htmlFor="edit-financial-code" className="text-right">Financial Code</Label>
                 <div className="col-span-3">
                   <Select 
-                    value={formData.financial_code_uuid} 
-                    onValueChange={(value) => setFormData({ ...formData, financial_code_uuid: value })}
+                    value={formData.financial_code_uuid || '__none__'} 
+                    onValueChange={(value) => setFormData({ ...formData, financial_code_uuid: value === '__none__' ? '' : value })}
                     disabled={!!formData.payment_uuid}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="-- Select Financial Code --" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">-- No Code --</SelectItem>
+                      <SelectItem value="__none__">-- No Code --</SelectItem>
                       {financialCodeOptions.map((code) => (
                         <SelectItem key={code.uuid} value={code.uuid}>
                           {code.validation}
@@ -1158,15 +1158,15 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                 <Label htmlFor="edit-nominal-currency" className="text-right">Nominal Currency</Label>
                 <div className="col-span-3">
                   <Select 
-                    value={formData.nominal_currency_uuid} 
-                    onValueChange={(value) => setFormData({ ...formData, nominal_currency_uuid: value })}
+                    value={formData.nominal_currency_uuid || '__none__'} 
+                    onValueChange={(value) => setFormData({ ...formData, nominal_currency_uuid: value === '__none__' ? '' : value })}
                     disabled={!!formData.payment_uuid}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="-- Select Currency --" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">-- No Currency --</SelectItem>
+                      <SelectItem value="__none__">-- No Currency --</SelectItem>
                       {currencyOptions.map((currency) => (
                         <SelectItem key={currency.uuid} value={currency.uuid}>
                           {currency.code}
