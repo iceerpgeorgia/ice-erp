@@ -509,6 +509,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       // Fetch payment options for this transaction's counteragent
       const res = await fetch(`/api/bank-transactions/${transaction.id}/payment-options`);
       const data = await res.json();
+      console.log('Payment options received from API:', data.payments);
       setPaymentOptions(data.payments || []);
       
       // Load all reference data
