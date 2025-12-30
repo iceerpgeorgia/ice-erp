@@ -561,8 +561,11 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       ]);
       
       console.log('Projects API response:', projectsData);
+      console.log('First project:', projectsData[0]);
       console.log('Codes API response:', codesData);
+      console.log('First code:', codesData[0]);
       console.log('Currencies API response:', currenciesData);
+      console.log('First currency:', currenciesData[0]);
       
       setProjectOptions(Array.isArray(projectsData) ? projectsData : []);
       setFinancialCodeOptions(Array.isArray(codesData) ? codesData : (codesData.codes || []));
