@@ -524,6 +524,27 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       console.log('Payment options received from API:', data.payments);
       setPaymentOptions(data.payments || []);
       
+      // If transaction already has a payment, find it and populate display values
+      if (transaction.paymentId && data.payments) {
+        const selectedPayment = data.payments.find((p: any) => p.paymentId === transaction.paymentId);
+        console.log('Looking for payment:', transaction.paymentId);
+        console.log('Found payment:', selectedPayment);
+        if (selectedPayment) {
+          setPaymentDisplayValues({
+            projectLabel: selectedPayment.projectName || '',
+            jobLabel: selectedPayment.jobName || '',
+            financialCodeLabel: selectedPayment.financialCodeValidation || '',
+            currencyLabel: selectedPayment.currencyCode || '',
+          });
+          console.log('Set display values:', {
+            projectLabel: selectedPayment.projectName,
+            jobLabel: selectedPayment.jobName,
+            financialCodeLabel: selectedPayment.financialCodeValidation,
+            currencyLabel: selectedPayment.currencyCode,
+          });
+        }
+      }
+      
       // Load all reference data
       const [projectsRes, codesRes, currenciesRes] = await Promise.all([
         fetch('/api/projects'),
