@@ -1246,44 +1246,52 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-project" className="text-right">Project</Label>
                 <div className="col-span-3">
-                  <Select 
-                    value={formData.project_uuid || '__none__'} 
-                    onValueChange={handleProjectChange}
-                    disabled={!!formData.payment_uuid}
-                  >
-                    <SelectTrigger className={!!formData.payment_uuid ? 'bg-muted' : ''}>
-                      <SelectValue placeholder="-- Select Project --" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div className="flex items-center border-b px-3 pb-2">
-                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                        <Input
-                          placeholder="Search projects..."
-                          value={projectSearch}
-                          onChange={(e) => setProjectSearch(e.target.value)}
-                          className="h-8 w-full border-0 p-0 focus-visible:ring-0"
-                          disabled={!!formData.payment_uuid}
-                        />
-                      </div>
-                      <div className="max-h-[300px] overflow-y-auto">
-                        <SelectItem value="__none__">-- No Project --</SelectItem>
-                        {projectOptions
-                          .filter((project) => {
-                            if (!projectSearch) return true;
-                            const searchLower = projectSearch.toLowerCase();
-                            return (
-                              project.projectIndex?.toLowerCase().includes(searchLower) ||
-                              project.projectName?.toLowerCase().includes(searchLower)
-                            );
-                          })
-                          .map((project) => (
-                            <SelectItem key={project.uuid} value={project.uuid}>
-                              {project.projectIndex} - {project.projectName}
-                            </SelectItem>
-                          ))}
-                      </div>
-                    </SelectContent>
-                  </Select>
+                  {!!formData.payment_uuid ? (
+                    <Input
+                      value={projectOptions.find(p => p.uuid === formData.project_uuid) 
+                        ? `${projectOptions.find(p => p.uuid === formData.project_uuid)?.projectIndex} - ${projectOptions.find(p => p.uuid === formData.project_uuid)?.projectName}` 
+                        : ''}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  ) : (
+                    <Select 
+                      value={formData.project_uuid || '__none__'} 
+                      onValueChange={handleProjectChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="-- Select Project --" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <div className="flex items-center border-b px-3 pb-2">
+                          <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                          <Input
+                            placeholder="Search projects..."
+                            value={projectSearch}
+                            onChange={(e) => setProjectSearch(e.target.value)}
+                            className="h-8 w-full border-0 p-0 focus-visible:ring-0"
+                          />
+                        </div>
+                        <div className="max-h-[300px] overflow-y-auto">
+                          <SelectItem value="__none__">-- No Project --</SelectItem>
+                          {projectOptions
+                            .filter((project) => {
+                              if (!projectSearch) return true;
+                              const searchLower = projectSearch.toLowerCase();
+                              return (
+                                project.projectIndex?.toLowerCase().includes(searchLower) ||
+                                project.projectName?.toLowerCase().includes(searchLower)
+                              );
+                            })
+                            .map((project) => (
+                              <SelectItem key={project.uuid} value={project.uuid}>
+                                {project.projectIndex} - {project.projectName}
+                              </SelectItem>
+                            ))}
+                        </div>
+                      </SelectContent>
+                    </Select>
+                  )}
                   {!!formData.payment_uuid && (
                     <p className="text-xs text-muted-foreground mt-1">Clear Payment ID to edit manually</p>
                   )}
@@ -1294,40 +1302,47 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-job" className="text-right">Job Name</Label>
                 <div className="col-span-3">
-                  <Select 
-                    value={formData.job_uuid || '__none__'} 
-                    onValueChange={handleJobChange}
-                    disabled={!!formData.payment_uuid || !formData.project_uuid}
-                  >
-                    <SelectTrigger className={!!formData.payment_uuid ? 'bg-muted' : ''}>
-                      <SelectValue placeholder={formData.project_uuid ? "-- No Job --" : "Select project first"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div className="flex items-center border-b px-3 pb-2">
-                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                        <Input
-                          placeholder="Search jobs..."
-                          value={jobSearch}
-                          onChange={(e) => setJobSearch(e.target.value)}
-                          className="h-8 w-full border-0 p-0 focus-visible:ring-0"
-                          disabled={!!formData.payment_uuid}
-                        />
-                      </div>
-                      <div className="max-h-[300px] overflow-y-auto">
-                        <SelectItem value="__none__">-- No Job --</SelectItem>
-                        {jobOptions
-                          .filter((job) => {
-                            if (!jobSearch) return true;
-                            return job.jobName?.toLowerCase().includes(jobSearch.toLowerCase());
-                          })
-                          .map((job) => (
-                            <SelectItem key={job.jobUuid} value={job.jobUuid}>
-                              {job.jobName}
-                            </SelectItem>
-                          ))}
-                      </div>
-                    </SelectContent>
-                  </Select>
+                  {!!formData.payment_uuid ? (
+                    <Input
+                      value={jobOptions.find(j => j.jobUuid === formData.job_uuid)?.jobName || ''}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  ) : (
+                    <Select 
+                      value={formData.job_uuid || '__none__'} 
+                      onValueChange={handleJobChange}
+                      disabled={!formData.project_uuid}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={formData.project_uuid ? "-- No Job --" : "Select project first"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <div className="flex items-center border-b px-3 pb-2">
+                          <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                          <Input
+                            placeholder="Search jobs..."
+                            value={jobSearch}
+                            onChange={(e) => setJobSearch(e.target.value)}
+                            className="h-8 w-full border-0 p-0 focus-visible:ring-0"
+                          />
+                        </div>
+                        <div className="max-h-[300px] overflow-y-auto">
+                          <SelectItem value="__none__">-- No Job --</SelectItem>
+                          {jobOptions
+                            .filter((job) => {
+                              if (!jobSearch) return true;
+                              return job.jobName?.toLowerCase().includes(jobSearch.toLowerCase());
+                            })
+                            .map((job) => (
+                              <SelectItem key={job.jobUuid} value={job.jobUuid}>
+                                {job.jobName}
+                              </SelectItem>
+                            ))}
+                        </div>
+                      </SelectContent>
+                    </Select>
+                  )}
                   {!!formData.payment_uuid && (
                     <p className="text-xs text-muted-foreground mt-1">Clear Payment ID to edit manually</p>
                   )}
@@ -1338,40 +1353,46 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-financial-code" className="text-right">Financial Code</Label>
                 <div className="col-span-3">
-                  <Select 
-                    value={formData.financial_code_uuid || '__none__'} 
-                    onValueChange={handleFinancialCodeChange}
-                    disabled={!!formData.payment_uuid}
-                  >
-                    <SelectTrigger className={!!formData.payment_uuid ? 'bg-muted' : ''}>
-                      <SelectValue placeholder="-- Select Financial Code --" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div className="flex items-center border-b px-3 pb-2">
-                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                        <Input
-                          placeholder="Search codes..."
-                          value={financialCodeSearch}
-                          onChange={(e) => setFinancialCodeSearch(e.target.value)}
-                          className="h-8 w-full border-0 p-0 focus-visible:ring-0"
-                          disabled={!!formData.payment_uuid}
-                        />
-                      </div>
-                      <div className="max-h-[300px] overflow-y-auto">
-                        <SelectItem value="__none__">-- No Code --</SelectItem>
-                        {financialCodeOptions
-                          .filter((code) => {
-                            if (!financialCodeSearch) return true;
-                            return code.validation?.toLowerCase().includes(financialCodeSearch.toLowerCase());
-                          })
-                          .map((code) => (
-                            <SelectItem key={code.uuid} value={code.uuid}>
-                              {code.validation}
-                            </SelectItem>
-                          ))}
-                      </div>
-                    </SelectContent>
-                  </Select>
+                  {!!formData.payment_uuid ? (
+                    <Input
+                      value={financialCodeOptions.find(c => c.uuid === formData.financial_code_uuid)?.validation || ''}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  ) : (
+                    <Select 
+                      value={formData.financial_code_uuid || '__none__'} 
+                      onValueChange={handleFinancialCodeChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="-- Select Financial Code --" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <div className="flex items-center border-b px-3 pb-2">
+                          <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                          <Input
+                            placeholder="Search codes..."
+                            value={financialCodeSearch}
+                            onChange={(e) => setFinancialCodeSearch(e.target.value)}
+                            className="h-8 w-full border-0 p-0 focus-visible:ring-0"
+                          />
+                        </div>
+                        <div className="max-h-[300px] overflow-y-auto">
+                          <SelectItem value="__none__">-- No Code --</SelectItem>
+                          {financialCodeOptions
+                            .filter((code) => {
+                              if (!financialCodeSearch) return true;
+                              return code.validation?.toLowerCase().includes(financialCodeSearch.toLowerCase());
+                            })
+                            .map((code) => (
+                              <SelectItem key={code.uuid} value={code.uuid}>
+                                {code.validation}
+                              </SelectItem>
+                            ))}
+                        </div>
+                      </SelectContent>
+                    </Select>
+                  )}
                   {!!formData.payment_uuid && (
                     <p className="text-xs text-muted-foreground mt-1">Clear Payment ID to edit manually</p>
                   )}
@@ -1382,44 +1403,52 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-nominal-currency" className="text-right">Nominal Currency</Label>
                 <div className="col-span-3">
-                  <Select 
-                    value={formData.nominal_currency_uuid || '__none__'} 
-                    onValueChange={handleCurrencyChange}
-                    disabled={!!formData.payment_uuid}
-                  >
-                    <SelectTrigger className={!!formData.payment_uuid ? 'bg-muted' : ''}>
-                      <SelectValue placeholder="-- Select Currency --" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div className="flex items-center border-b px-3 pb-2">
-                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                        <Input
-                          placeholder="Search currencies..."
-                          value={currencySearch}
-                          onChange={(e) => setCurrencySearch(e.target.value)}
-                          className="h-8 w-full border-0 p-0 focus-visible:ring-0"
-                          disabled={!!formData.payment_uuid}
-                        />
-                      </div>
-                      <div className="max-h-[300px] overflow-y-auto">
-                        <SelectItem value="__none__">-- No Currency --</SelectItem>
-                        {currencyOptions
-                          .filter((currency) => {
-                            if (!currencySearch) return true;
-                            const searchLower = currencySearch.toLowerCase();
-                            return (
-                              currency.code?.toLowerCase().includes(searchLower) ||
-                              currency.name?.toLowerCase().includes(searchLower)
-                            );
-                          })
-                          .map((currency) => (
-                            <SelectItem key={currency.uuid} value={currency.uuid}>
-                              {currency.code} - {currency.name}
-                            </SelectItem>
-                          ))}
-                      </div>
-                    </SelectContent>
-                  </Select>
+                  {!!formData.payment_uuid ? (
+                    <Input
+                      value={currencyOptions.find(c => c.uuid === formData.nominal_currency_uuid) 
+                        ? `${currencyOptions.find(c => c.uuid === formData.nominal_currency_uuid)?.code} - ${currencyOptions.find(c => c.uuid === formData.nominal_currency_uuid)?.name}` 
+                        : ''}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  ) : (
+                    <Select 
+                      value={formData.nominal_currency_uuid || '__none__'} 
+                      onValueChange={handleCurrencyChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="-- Select Currency --" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <div className="flex items-center border-b px-3 pb-2">
+                          <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                          <Input
+                            placeholder="Search currencies..."
+                            value={currencySearch}
+                            onChange={(e) => setCurrencySearch(e.target.value)}
+                            className="h-8 w-full border-0 p-0 focus-visible:ring-0"
+                          />
+                        </div>
+                        <div className="max-h-[300px] overflow-y-auto">
+                          <SelectItem value="__none__">-- No Currency --</SelectItem>
+                          {currencyOptions
+                            .filter((currency) => {
+                              if (!currencySearch) return true;
+                              const searchLower = currencySearch.toLowerCase();
+                              return (
+                                currency.code?.toLowerCase().includes(searchLower) ||
+                                currency.name?.toLowerCase().includes(searchLower)
+                              );
+                            })
+                            .map((currency) => (
+                              <SelectItem key={currency.uuid} value={currency.uuid}>
+                                {currency.code} - {currency.name}
+                              </SelectItem>
+                            ))}
+                        </div>
+                      </SelectContent>
+                    </Select>
+                  )}
                   {!!formData.payment_uuid && (
                     <p className="text-xs text-muted-foreground mt-1">Clear Payment ID to edit manually</p>
                   )}
