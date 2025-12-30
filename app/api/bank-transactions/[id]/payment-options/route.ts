@@ -20,7 +20,7 @@ export async function GET(
       return NextResponse.json({ payments: [] });
     }
 
-    // Get all payments for this counteragent
+    // Get all payments for this counteragent with related data
     const payments = await prisma.payment.findMany({
       where: {
         counteragentUuid: transaction.counteragentUuid,
@@ -37,7 +37,43 @@ export async function GET(
       },
     });
 
-    return NextResponse.json({ payments });
+    // Fetch related data for each payment
+    const paymentsWithDetails = await Promise.all(
+      payments.map(async (payment) => {
+        const [currency, project, financialCode] = await Promise.all([
+          payment.currencyUuid
+            ? prisma.currency.findUnique({
+                where: { uuid: payment.currencyUuid },
+                select: { code: true },
+              })
+            : null,
+          payment.projectUuid
+            ? prisma.project.findUnique({
+                where: { uuid: payment.projectUuid },
+                select: { name: true },
+              })
+            : null,
+          payment.financialCodeUuid
+            ? prisma.financialCode.findUnique({
+                where: { uuid: payment.financialCodeUuid },
+                select: { validation: true },
+              })
+            : null,
+        ]);
+
+        return {
+          paymentId: payment.paymentId,
+          projectUuid: payment.projectUuid,
+          financialCodeUuid: payment.financialCodeUuid,
+          currencyUuid: payment.currencyUuid,
+          currencyCode: currency?.code || '',
+          projectName: project?.name || '',
+          financialCodeValidation: financialCode?.validation || '',
+        };
+      })
+    );
+
+    return NextResponse.json({ payments: paymentsWithDetails });
   } catch (error: any) {
     console.error("[GET /api/bank-transactions/[id]/payment-options] Error:", error);
     return NextResponse.json(

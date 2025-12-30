@@ -164,6 +164,10 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const [financialCodeOptions, setFinancialCodeOptions] = useState<any[]>([]);
   const [currencyOptions, setCurrencyOptions] = useState<any[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
+  const [paymentSearch, setPaymentSearch] = useState('');
+  const [projectSearch, setProjectSearch] = useState('');
+  const [financialCodeSearch, setFinancialCodeSearch] = useState('');
+  const [currencySearch, setCurrencySearch] = useState('');
   const [formData, setFormData] = useState<{
     payment_uuid: string;
     project_uuid: string;
@@ -1079,18 +1083,50 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                 <div className="col-span-3">
                   <Select 
                     value={formData.payment_uuid || '__none__'} 
-                    onValueChange={(value) => setFormData({ ...formData, payment_uuid: value === '__none__' ? '' : value })}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, payment_uuid: value === '__none__' ? '' : value });
+                      setPaymentSearch('');
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="-- No Payment --" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">-- No Payment --</SelectItem>
-                      {paymentOptions.map((payment) => (
-                        <SelectItem key={payment.paymentId} value={payment.paymentId}>
-                          {payment.paymentId}
-                        </SelectItem>
-                      ))}
+                      <div className="flex items-center border-b px-3 pb-2">
+                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                        <Input
+                          placeholder="Search payments..."
+                          value={paymentSearch}
+                          onChange={(e) => setPaymentSearch(e.target.value)}
+                          className="h-8 w-full border-0 p-0 focus-visible:ring-0"
+                        />
+                      </div>
+                      <div className="max-h-[300px] overflow-y-auto">
+                        <SelectItem value="__none__">-- No Payment --</SelectItem>
+                        {paymentOptions
+                          .filter((payment) => {
+                            if (!paymentSearch) return true;
+                            const searchLower = paymentSearch.toLowerCase();
+                            return (
+                              payment.paymentId?.toLowerCase().includes(searchLower) ||
+                              payment.currencyCode?.toLowerCase().includes(searchLower) ||
+                              payment.projectName?.toLowerCase().includes(searchLower) ||
+                              payment.financialCodeValidation?.toLowerCase().includes(searchLower)
+                            );
+                          })
+                          .map((payment) => (
+                            <SelectItem key={payment.paymentId} value={payment.paymentId}>
+                              {payment.paymentId}
+                              {(payment.currencyCode || payment.projectName || payment.financialCodeValidation) && (
+                                <span className="text-muted-foreground">
+                                  {' | '}{payment.currencyCode || '-'}
+                                  {' | '}{payment.projectName || '-'}
+                                  {' | '}{payment.financialCodeValidation || '-'}
+                                </span>
+                              )}
+                            </SelectItem>
+                          ))}
+                      </div>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -1105,19 +1141,43 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                 <div className="col-span-3">
                   <Select 
                     value={formData.project_uuid || '__none__'} 
-                    onValueChange={(value) => setFormData({ ...formData, project_uuid: value === '__none__' ? '' : value })}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, project_uuid: value === '__none__' ? '' : value });
+                      setProjectSearch('');
+                    }}
                     disabled={!!formData.payment_uuid}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="-- Select Project --" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">-- No Project --</SelectItem>
-                      {projectOptions.map((project) => (
-                        <SelectItem key={project.uuid} value={project.uuid}>
-                          {project.projectIndex} - {project.projectName}
-                        </SelectItem>
-                      ))}
+                      <div className="flex items-center border-b px-3 pb-2">
+                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                        <Input
+                          placeholder="Search projects..."
+                          value={projectSearch}
+                          onChange={(e) => setProjectSearch(e.target.value)}
+                          className="h-8 w-full border-0 p-0 focus-visible:ring-0"
+                          disabled={!!formData.payment_uuid}
+                        />
+                      </div>
+                      <div className="max-h-[300px] overflow-y-auto">
+                        <SelectItem value="__none__">-- No Project --</SelectItem>
+                        {projectOptions
+                          .filter((project) => {
+                            if (!projectSearch) return true;
+                            const searchLower = projectSearch.toLowerCase();
+                            return (
+                              project.projectIndex?.toLowerCase().includes(searchLower) ||
+                              project.projectName?.toLowerCase().includes(searchLower)
+                            );
+                          })
+                          .map((project) => (
+                            <SelectItem key={project.uuid} value={project.uuid}>
+                              {project.projectIndex} - {project.projectName}
+                            </SelectItem>
+                          ))}
+                      </div>
                     </SelectContent>
                   </Select>
                   {!!formData.payment_uuid && (
@@ -1132,19 +1192,39 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                 <div className="col-span-3">
                   <Select 
                     value={formData.financial_code_uuid || '__none__'} 
-                    onValueChange={(value) => setFormData({ ...formData, financial_code_uuid: value === '__none__' ? '' : value })}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, financial_code_uuid: value === '__none__' ? '' : value });
+                      setFinancialCodeSearch('');
+                    }}
                     disabled={!!formData.payment_uuid}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="-- Select Financial Code --" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">-- No Code --</SelectItem>
-                      {financialCodeOptions.map((code) => (
-                        <SelectItem key={code.uuid} value={code.uuid}>
-                          {code.validation}
-                        </SelectItem>
-                      ))}
+                      <div className="flex items-center border-b px-3 pb-2">
+                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                        <Input
+                          placeholder="Search codes..."
+                          value={financialCodeSearch}
+                          onChange={(e) => setFinancialCodeSearch(e.target.value)}
+                          className="h-8 w-full border-0 p-0 focus-visible:ring-0"
+                          disabled={!!formData.payment_uuid}
+                        />
+                      </div>
+                      <div className="max-h-[300px] overflow-y-auto">
+                        <SelectItem value="__none__">-- No Code --</SelectItem>
+                        {financialCodeOptions
+                          .filter((code) => {
+                            if (!financialCodeSearch) return true;
+                            return code.validation?.toLowerCase().includes(financialCodeSearch.toLowerCase());
+                          })
+                          .map((code) => (
+                            <SelectItem key={code.uuid} value={code.uuid}>
+                              {code.validation}
+                            </SelectItem>
+                          ))}
+                      </div>
                     </SelectContent>
                   </Select>
                   {!!formData.payment_uuid && (
@@ -1159,19 +1239,43 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                 <div className="col-span-3">
                   <Select 
                     value={formData.nominal_currency_uuid || '__none__'} 
-                    onValueChange={(value) => setFormData({ ...formData, nominal_currency_uuid: value === '__none__' ? '' : value })}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, nominal_currency_uuid: value === '__none__' ? '' : value });
+                      setCurrencySearch('');
+                    }}
                     disabled={!!formData.payment_uuid}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="-- Select Currency --" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">-- No Currency --</SelectItem>
-                      {currencyOptions.map((currency) => (
-                        <SelectItem key={currency.uuid} value={currency.uuid}>
-                          {currency.code}
-                        </SelectItem>
-                      ))}
+                      <div className="flex items-center border-b px-3 pb-2">
+                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                        <Input
+                          placeholder="Search currencies..."
+                          value={currencySearch}
+                          onChange={(e) => setCurrencySearch(e.target.value)}
+                          className="h-8 w-full border-0 p-0 focus-visible:ring-0"
+                          disabled={!!formData.payment_uuid}
+                        />
+                      </div>
+                      <div className="max-h-[300px] overflow-y-auto">
+                        <SelectItem value="__none__">-- No Currency --</SelectItem>
+                        {currencyOptions
+                          .filter((currency) => {
+                            if (!currencySearch) return true;
+                            const searchLower = currencySearch.toLowerCase();
+                            return (
+                              currency.code?.toLowerCase().includes(searchLower) ||
+                              currency.name?.toLowerCase().includes(searchLower)
+                            );
+                          })
+                          .map((currency) => (
+                            <SelectItem key={currency.uuid} value={currency.uuid}>
+                              {currency.code} - {currency.name}
+                            </SelectItem>
+                          ))}
+                      </div>
                     </SelectContent>
                   </Select>
                   {!!formData.payment_uuid && (
