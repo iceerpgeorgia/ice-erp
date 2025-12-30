@@ -1302,42 +1302,45 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                       className="bg-muted"
                     />
                   ) : (
-                    <Select 
-                      value={formData.project_uuid || '__none__'} 
-                      onValueChange={handleProjectChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="-- Select Project --" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <div className="flex items-center border-b px-3 pb-2">
-                          <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                          <Input
-                            placeholder="Search projects..."
-                            value={projectSearch}
-                            onChange={(e) => setProjectSearch(e.target.value)}
-                            className="h-8 w-full border-0 p-0 focus-visible:ring-0"
-                          />
-                        </div>
-                        <div className="max-h-[300px] overflow-y-auto">
-                          <SelectItem value="__none__">-- No Project --</SelectItem>
-                          {projectOptions
-                            .filter((project) => {
-                              if (!projectSearch) return true;
-                              const searchLower = projectSearch.toLowerCase();
-                              return (
-                                project.projectIndex?.toLowerCase().includes(searchLower) ||
-                                project.projectName?.toLowerCase().includes(searchLower)
-                              );
-                            })
-                            .map((project) => (
-                              <SelectItem key={project.uuid} value={project.uuid}>
-                                {project.projectIndex} - {project.projectName}
-                              </SelectItem>
-                            ))}
-                        </div>
-                      </SelectContent>
-                    </Select>
+                    <>
+                      {console.log('Project options count:', projectOptions.length)}
+                      <Select 
+                        value={formData.project_uuid || '__none__'} 
+                        onValueChange={handleProjectChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="-- Select Project --" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <div className="flex items-center border-b px-3 pb-2">
+                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                            <Input
+                              placeholder="Search projects..."
+                              value={projectSearch}
+                              onChange={(e) => setProjectSearch(e.target.value)}
+                              className="h-8 w-full border-0 p-0 focus-visible:ring-0"
+                            />
+                          </div>
+                          <div className="max-h-[300px] overflow-y-auto">
+                            <SelectItem value="__none__">-- No Project --</SelectItem>
+                            {projectOptions
+                              .filter((project) => {
+                                if (!projectSearch) return true;
+                                const searchLower = projectSearch.toLowerCase();
+                                return (
+                                  project.projectIndex?.toLowerCase().includes(searchLower) ||
+                                  project.projectName?.toLowerCase().includes(searchLower)
+                                );
+                              })
+                              .map((project) => (
+                                <SelectItem key={project.uuid} value={project.uuid}>
+                                  {project.projectIndex} - {project.projectName}
+                                </SelectItem>
+                              ))}
+                          </div>
+                        </SelectContent>
+                      </Select>
+                    </>
                   )}
                   {!!formData.payment_uuid && (
                     <p className="text-xs text-muted-foreground mt-1">Clear Payment ID to edit manually</p>
