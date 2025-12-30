@@ -1118,11 +1118,11 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                           .map((payment) => (
                             <SelectItem key={payment.paymentId} value={payment.paymentId}>
                               {payment.paymentId}
-                              {(payment.jobName || payment.currencyCode || payment.projectName || payment.financialCodeValidation) && (
+                              {(payment.currencyCode || payment.projectName || payment.jobName || payment.financialCodeValidation) && (
                                 <span className="text-muted-foreground">
-                                  {' | '}{payment.jobName || '-'}
                                   {' | '}{payment.currencyCode || '-'}
                                   {' | '}{payment.projectName || '-'}
+                                  {' | '}{payment.jobName || 'NJ'}
                                   {' | '}{payment.financialCodeValidation || '-'}
                                 </span>
                               )}
