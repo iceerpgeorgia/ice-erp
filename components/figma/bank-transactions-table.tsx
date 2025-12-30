@@ -147,10 +147,6 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
@@ -409,38 +405,6 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const resetColumns = () => {
     setColumns(defaultColumns);
     localStorage.removeItem('bank-transactions-table-columns');
-  };
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await fetch('/api/bank-transactions/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        alert(`Success! ${result.message}\n\nProcessed transactions. Page will reload.`);
-        window.location.reload();
-      } else {
-        alert(`Error: ${result.error}${result.details ? '\n' + result.details : ''}`);
-      }
-    } catch (error: any) {
-      alert(`Upload failed: ${error.message}`);
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
