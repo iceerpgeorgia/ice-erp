@@ -537,7 +537,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       if (transaction.projectUuid) {
         const jobsRes = await fetch(`/api/jobs?projectUuid=${transaction.projectUuid}`);
         const jobsData = await jobsRes.json();
-        setJobOptions(jobsData.jobs || []);
+        setJobOptions(Array.isArray(jobsData) ? jobsData : []);
       } else {
         setJobOptions([]);
       }
@@ -575,7 +575,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
         if (selectedPayment.projectUuid) {
           fetch(`/api/jobs?projectUuid=${selectedPayment.projectUuid}`)
             .then(res => res.json())
-            .then(data => setJobOptions(data.jobs || []))
+            .then(data => setJobOptions(Array.isArray(data) ? data : []))
             .catch(err => console.error('Failed to load jobs:', err));
         }
       }
@@ -595,7 +595,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       try {
         const jobsRes = await fetch(`/api/jobs?projectUuid=${projectUuid}`);
         const jobsData = await jobsRes.json();
-        setJobOptions(jobsData.jobs || []);
+        setJobOptions(Array.isArray(jobsData) ? jobsData : []);
       } catch (err) {
         console.error('Failed to load jobs:', err);
         setJobOptions([]);
