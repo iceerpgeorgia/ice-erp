@@ -178,6 +178,14 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     nominal_currency_uuid: string;
   }>({ payment_uuid: '', project_uuid: '', job_uuid: '', financial_code_uuid: '', nominal_currency_uuid: '' });
   
+  // Store display labels from selected payment
+  const [paymentDisplayValues, setPaymentDisplayValues] = useState<{
+    projectLabel: string;
+    jobLabel: string;
+    financialCodeLabel: string;
+    currencyLabel: string;
+  }>({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '' });
+  
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
     if (typeof window !== 'undefined') {
@@ -556,6 +564,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     setEditingTransaction(null);
     setIsEditDialogOpen(false);
     setFormData({ payment_uuid: '', project_uuid: '', job_uuid: '', financial_code_uuid: '', nominal_currency_uuid: '' });
+    setPaymentDisplayValues({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '' });
     setJobOptions([]);
   };
 
@@ -571,6 +580,14 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
         newFormData.financial_code_uuid = selectedPayment.financialCodeUuid || '';
         newFormData.nominal_currency_uuid = selectedPayment.currencyUuid || '';
         
+        // Store display labels
+        setPaymentDisplayValues({
+          projectLabel: selectedPayment.projectName || '',
+          jobLabel: selectedPayment.jobName || '',
+          financialCodeLabel: selectedPayment.financialCodeValidation || '',
+          currencyLabel: selectedPayment.currencyCode || '',
+        });
+        
         // Load jobs for the selected payment's project
         if (selectedPayment.projectUuid) {
           fetch(`/api/jobs?projectUuid=${selectedPayment.projectUuid}`)
@@ -579,6 +596,14 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
             .catch(err => console.error('Failed to load jobs:', err));
         }
       }
+    } else {
+      // Clear display labels when payment is cleared
+      setPaymentDisplayValues({
+        projectLabel: '',
+        jobLabel: '',
+        financialCodeLabel: '',
+        currencyLabel: '',
+      });
     }
     
     setFormData(newFormData);
@@ -1248,9 +1273,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                 <div className="col-span-3">
                   {!!formData.payment_uuid ? (
                     <Input
-                      value={projectOptions.find(p => p.uuid === formData.project_uuid) 
-                        ? `${projectOptions.find(p => p.uuid === formData.project_uuid)?.projectIndex} - ${projectOptions.find(p => p.uuid === formData.project_uuid)?.projectName}` 
-                        : ''}
+                      value={paymentDisplayValues.projectLabel}
                       readOnly
                       className="bg-muted"
                     />
@@ -1304,7 +1327,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                 <div className="col-span-3">
                   {!!formData.payment_uuid ? (
                     <Input
-                      value={jobOptions.find(j => j.jobUuid === formData.job_uuid)?.jobName || ''}
+                      value={paymentDisplayValues.jobLabel || '-- No Job --'}
                       readOnly
                       className="bg-muted"
                     />
@@ -1355,7 +1378,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                 <div className="col-span-3">
                   {!!formData.payment_uuid ? (
                     <Input
-                      value={financialCodeOptions.find(c => c.uuid === formData.financial_code_uuid)?.validation || ''}
+                      value={paymentDisplayValues.financialCodeLabel}
                       readOnly
                       className="bg-muted"
                     />
@@ -1405,9 +1428,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                 <div className="col-span-3">
                   {!!formData.payment_uuid ? (
                     <Input
-                      value={currencyOptions.find(c => c.uuid === formData.nominal_currency_uuid) 
-                        ? `${currencyOptions.find(c => c.uuid === formData.nominal_currency_uuid)?.code} - ${currencyOptions.find(c => c.uuid === formData.nominal_currency_uuid)?.name}` 
-                        : ''}
+                      value={paymentDisplayValues.currencyLabel}
                       readOnly
                       className="bg-muted"
                     />
