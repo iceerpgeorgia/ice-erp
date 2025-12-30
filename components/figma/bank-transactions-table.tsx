@@ -147,6 +147,9 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [editingCell, setEditingCell] = useState<{ rowId: number; columnKey: ColumnKey } | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
+  const [isSaving, setIsSaving] = useState(false);
   
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
@@ -465,6 +468,79 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+    }
+  };
+
+  const handleCellClick = (rowId: number, columnKey: ColumnKey, currentValue: any) => {
+    // Only description is directly editable for now
+    // Other fields (counteragent, project, etc.) require lookup dialogs
+    const editableColumns: ColumnKey[] = ['description'];
+    
+    if (!editableColumns.includes(columnKey)) {
+      // Show message for UUID fields
+      if (['counteragentName', 'projectIndex', 'financialCode', 'paymentId'].includes(columnKey)) {
+        alert('Editing reference fields requires a lookup dialog. This feature is coming soon.');
+      }
+      return;
+    }
+    
+    setEditingCell({ rowId, columnKey });
+    setEditValue(String(currentValue || ''));
+  };
+
+  const handleCellBlur = async () => {
+    if (!editingCell) return;
+    
+    const row = transactions.find(t => t.id === editingCell.rowId);
+    if (!row) {
+      setEditingCell(null);
+      return;
+    }
+
+    const currentValue = String(row[editingCell.columnKey] || '');
+    
+    // If value hasn't changed, just cancel
+    if (currentValue === editValue) {
+      setEditingCell(null);
+      return;
+    }
+
+    // Save the change
+    await handleSaveCell(editingCell.rowId, editingCell.columnKey, editValue);
+  };
+
+  const handleSaveCell = async (rowId: number, columnKey: ColumnKey, newValue: string) => {
+    setIsSaving(true);
+    
+    try {
+      // Only description is directly editable
+      if (columnKey !== 'description') {
+        throw new Error('Field not editable');
+      }
+
+      const updateData = {
+        description: newValue || null
+      };
+
+      const response = await fetch(`/api/bank-transactions/${rowId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // Refresh page to get updated values from database triggers
+        window.location.reload();
+      } else {
+        alert(`Error: ${result.error}`);
+      }
+    } catch (error: any) {
+      alert(`Failed to save: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+      setEditingCell(null);
     }
   };
 
@@ -844,25 +920,50 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
               ) : (
                 paginatedData.map((row) => (
                   <TableRow key={row.id}>
-                    {visibleColumns.map((col) => (
-                      <TableCell
-                        key={col.key}
-                        className={`${getResponsiveClass(col.responsive)}`}
-                        style={{ width: col.width, maxWidth: col.width }}
-                      >
-                        <div className="truncate overflow-hidden" title={String(row[col.key] ?? '')}>
-                          {col.key === 'accountCurrencyAmount' || col.key === 'nominalAmount' ? (
-                            <span className={Number(row[col.key]) >= 0 ? 'text-green-600' : 'text-red-600'}>
-                              {formatAmount(row[col.key])}
-                            </span>
-                          ) : col.key === 'date' || col.key === 'correctionDate' || col.key === 'createdAt' || col.key === 'updatedAt' ? (
-                            formatDate(row[col.key])
+                    {visibleColumns.map((col) => {
+                      const isEditing = editingCell?.rowId === row.id && editingCell?.columnKey === col.key;
+                      const isEditableField = col.key === 'description';
+                      
+                      return (
+                        <TableCell
+                          key={col.key}
+                          className={`${getResponsiveClass(col.responsive)} ${isEditableField ? 'cursor-pointer hover:bg-muted/50' : ''} ${isEditing ? 'bg-blue-50' : ''}`}
+                          style={{ width: col.width, maxWidth: col.width }}
+                          onClick={() => !isEditing && handleCellClick(row.id, col.key, row[col.key])}
+                        >
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={handleCellBlur}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleCellBlur();
+                                } else if (e.key === 'Escape') {
+                                  setEditingCell(null);
+                                }
+                              }}
+                              autoFocus
+                              disabled={isSaving}
+                            />
                           ) : (
-                            row[col.key] ?? '-'
+                            <div className="truncate overflow-hidden" title={String(row[col.key] ?? '')}>
+                              {col.key === 'accountCurrencyAmount' || col.key === 'nominalAmount' ? (
+                                <span className={Number(row[col.key]) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                  {formatAmount(row[col.key])}
+                                </span>
+                              ) : col.key === 'date' || col.key === 'correctionDate' || col.key === 'createdAt' || col.key === 'updatedAt' ? (
+                                formatDate(row[col.key])
+                              ) : (
+                                row[col.key] ?? '-'
+                              )}
+                            </div>
                           )}
-                        </div>
-                      </TableCell>
-                    ))}
+                        </TableCell>
+                      );
+                    })}
                   </TableRow>
                 ))
               )}
