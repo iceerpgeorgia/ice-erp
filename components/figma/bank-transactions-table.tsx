@@ -8,7 +8,8 @@ import {
   Settings,
   Eye,
   EyeOff,
-  Upload
+  Upload,
+  Edit2
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -16,6 +17,14 @@ import { Badge } from './ui/badge';
 import { Label } from './ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 import { 
   Table, 
   TableBody, 
@@ -147,14 +156,20 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [editingCell, setEditingCell] = useState<{ rowId: number; columnKey: ColumnKey } | null>(null);
-  const [editValue, setEditValue] = useState<string>('');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<BankTransaction | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [paymentOptions, setPaymentOptions] = useState<any[]>([]);
   const [projectOptions, setProjectOptions] = useState<any[]>([]);
   const [financialCodeOptions, setFinancialCodeOptions] = useState<any[]>([]);
   const [currencyOptions, setCurrencyOptions] = useState<any[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
+  const [formData, setFormData] = useState<{
+    payment_uuid: string;
+    project_uuid: string;
+    financial_code_uuid: string;
+    nominal_currency_uuid: string;
+  }>({ payment_uuid: '', project_uuid: '', financial_code_uuid: '', nominal_currency_uuid: '' });
   
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
@@ -476,119 +491,81 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     }
   };
 
-  const handleCellClick = async (rowId: number, columnKey: ColumnKey, currentValue: any) => {
-    const row = transactions.find(t => t.id === rowId);
-    if (!row) return;
-
-    const hasPayment = !!row.paymentId;
-    
-    // Determine which fields are editable
-    const editableColumns: ColumnKey[] = ['paymentId'];
-    if (!hasPayment) {
-      // When no payment, also allow editing project, financial code, and nominal currency
-      editableColumns.push('projectIndex', 'financialCode', 'nominalCurrencyCode');
-    }
-    
-    if (!editableColumns.includes(columnKey)) {
-      if (['projectIndex', 'financialCode', 'nominalCurrencyCode'].includes(columnKey) && hasPayment) {
-        alert('These fields are read-only when a Payment ID is assigned. Clear the Payment ID first to edit manually.');
-      }
-      return;
-    }
-    
+  const startEdit = async (transaction: BankTransaction) => {
+    setEditingTransaction(transaction);
+    setFormData({
+      payment_uuid: transaction.paymentId || '',
+      project_uuid: transaction.projectUuid || '',
+      financial_code_uuid: transaction.financialCodeUuid || '',
+      nominal_currency_uuid: transaction.nominalCurrencyUuid || '',
+    });
     setLoadingOptions(true);
-    setEditingCell({ rowId, columnKey });
-    
-    // Set the UUID value instead of display value
-    let uuidValue = '';
-    if (columnKey === 'paymentId') {
-      uuidValue = row.paymentId || '';
-    } else if (columnKey === 'projectIndex') {
-      uuidValue = row.projectUuid || '';
-    } else if (columnKey === 'financialCode') {
-      uuidValue = row.financialCodeUuid || '';
-    } else if (columnKey === 'nominalCurrencyCode') {
-      uuidValue = row.nominalCurrencyUuid || '';
-    }
-    setEditValue(uuidValue);
+    setIsEditDialogOpen(true);
     
     try {
-      // Load options based on field type
-      if (columnKey === 'paymentId') {
-        // Fetch payment options for this transaction's counteragent
-        const res = await fetch(`/api/bank-transactions/${rowId}/payment-options`);
-        const data = await res.json();
-        setPaymentOptions(data.payments || []);
-      }
+      // Fetch payment options for this transaction's counteragent
+      const res = await fetch(`/api/bank-transactions/${transaction.id}/payment-options`);
+      const data = await res.json();
+      setPaymentOptions(data.payments || []);
       
-      if (!hasPayment) {
-        // Load all reference data when no payment
-        const [projectsRes, codesRes, currenciesRes] = await Promise.all([
-          fetch('/api/projects'),
-          fetch('/api/financial-codes'),
-          fetch('/api/currencies'),
-        ]);
-        
-        const [projectsData, codesData, currenciesData] = await Promise.all([
-          projectsRes.json(),
-          codesRes.json(),
-          currenciesRes.json(),
-        ]);
-        
-        setProjectOptions(projectsData.projects || []);
-        setFinancialCodeOptions(codesData.codes || []);
-        setCurrencyOptions(currenciesData.currencies || []);
-      }
+      // Load all reference data
+      const [projectsRes, codesRes, currenciesRes] = await Promise.all([
+        fetch('/api/projects'),
+        fetch('/api/financial-codes'),
+        fetch('/api/currencies'),
+      ]);
+      
+      const [projectsData, codesData, currenciesData] = await Promise.all([
+        projectsRes.json(),
+        codesRes.json(),
+        currenciesRes.json(),
+      ]);
+      
+      setProjectOptions(projectsData.projects || []);
+      setFinancialCodeOptions(codesData.codes || []);
+      setCurrencyOptions(currenciesData.currencies || []);
     } catch (error: any) {
       alert(`Failed to load options: ${error.message}`);
-      setEditingCell(null);
     } finally {
       setLoadingOptions(false);
     }
   };
 
-  const handleCellBlur = async () => {
-    if (!editingCell) return;
-    
-    const row = transactions.find(t => t.id === editingCell.rowId);
-    if (!row) {
-      setEditingCell(null);
-      return;
-    }
-
-    const currentValue = String(row[editingCell.columnKey] || '');
-    
-    // If value hasn't changed, just cancel
-    if (currentValue === editValue) {
-      setEditingCell(null);
-      return;
-    }
-
-    // Save the change
-    await handleSaveCell(editingCell.rowId, editingCell.columnKey, editValue);
+  const cancelEdit = () => {
+    setEditingTransaction(null);
+    setIsEditDialogOpen(false);
+    setFormData({ payment_uuid: '', project_uuid: '', financial_code_uuid: '', nominal_currency_uuid: '' });
   };
 
-  const handleSaveCell = async (rowId: number, columnKey: ColumnKey, newValue: string) => {
+  const handleSave = async () => {
+    if (!editingTransaction) return;
+    
     setIsSaving(true);
     
     try {
-      const row = transactions.find(t => t.id === rowId);
-      if (!row) throw new Error('Transaction not found');
-
-      // Map column keys to API field names
       const updateData: any = {};
       
-      if (columnKey === 'paymentId') {
-        updateData.payment_uuid = newValue || null;
-      } else if (columnKey === 'projectIndex') {
-        updateData.project_uuid = newValue || null;
-      } else if (columnKey === 'financialCode') {
-        updateData.financial_code_uuid = newValue || null;
-      } else if (columnKey === 'nominalCurrencyCode') {
-        updateData.nominal_currency_uuid = newValue || null;
+      // Only include changed fields
+      if (formData.payment_uuid !== (editingTransaction.paymentId || '')) {
+        updateData.payment_uuid = formData.payment_uuid || null;
+      }
+      if (formData.project_uuid !== (editingTransaction.projectUuid || '')) {
+        updateData.project_uuid = formData.project_uuid || null;
+      }
+      if (formData.financial_code_uuid !== (editingTransaction.financialCodeUuid || '')) {
+        updateData.financial_code_uuid = formData.financial_code_uuid || null;
+      }
+      if (formData.nominal_currency_uuid !== (editingTransaction.nominalCurrencyUuid || '')) {
+        updateData.nominal_currency_uuid = formData.nominal_currency_uuid || null;
       }
 
-      const response = await fetch(`/api/bank-transactions/${rowId}`, {
+      // If nothing changed, just close
+      if (Object.keys(updateData).length === 0) {
+        cancelEdit();
+        return;
+      }
+
+      const response = await fetch(`/api/bank-transactions/${editingTransaction.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
@@ -606,7 +583,6 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       alert(`Failed to save: ${error.message}`);
     } finally {
       setIsSaving(false);
-      setEditingCell(null);
     }
   };
 
@@ -974,6 +950,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                     </div>
                   </TableHead>
                 ))}
+                <TableHead className="w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -984,158 +961,42 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedData.map((row) => {
-                  const hasPayment = !!row.paymentId;
-                  
-                  return (
-                    <TableRow key={row.id}>
-                      {visibleColumns.map((col) => {
-                        const isEditing = editingCell?.rowId === row.id && editingCell?.columnKey === col.key;
-                        
-                        // Determine if field is editable
-                        const isPaymentField = col.key === 'paymentId';
-                        const isManualField = ['projectIndex', 'financialCode', 'nominalCurrencyCode'].includes(col.key);
-                        const isEditableField = isPaymentField || (isManualField && !hasPayment);
-                        
-                        return (
-                          <TableCell
-                            key={col.key}
-                            className={`${getResponsiveClass(col.responsive)} ${isEditableField ? 'cursor-pointer hover:bg-muted/50' : ''} ${isEditing ? 'bg-blue-50' : ''}`}
-                            style={{ width: col.width, maxWidth: col.width }}
-                            onClick={() => !isEditing && !loadingOptions && handleCellClick(row.id, col.key, row[col.key])}
-                          >
-                            {isEditing ? (
-                              loadingOptions ? (
-                                <div className="text-sm text-muted-foreground">Loading...</div>
-                              ) : col.key === 'paymentId' ? (
-                                <select
-                                  className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  value={editValue}
-                                  onChange={(e) => setEditValue(e.target.value)}
-                                  onBlur={handleCellBlur}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      handleCellBlur();
-                                    } else if (e.key === 'Escape') {
-                                      setEditingCell(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                  disabled={isSaving}
-                                >
-                                  <option value="">-- Clear Payment --</option>
-                                  {paymentOptions.map((payment) => (
-                                    <option key={payment.paymentId} value={payment.paymentId}>
-                                      {payment.paymentId}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : col.key === 'projectIndex' ? (
-                                <select
-                                  className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  value={editValue}
-                                  onChange={(e) => setEditValue(e.target.value)}
-                                  onBlur={handleCellBlur}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      handleCellBlur();
-                                    } else if (e.key === 'Escape') {
-                                      setEditingCell(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                  disabled={isSaving}
-                                >
-                                  <option value="">-- Select Project --</option>
-                                  {projectOptions.map((project) => (
-                                    <option key={project.uuid} value={project.uuid}>
-                                      {project.projectIndex} - {project.projectName}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : col.key === 'financialCode' ? (
-                                <select
-                                  className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  value={editValue}
-                                  onChange={(e) => setEditValue(e.target.value)}
-                                  onBlur={handleCellBlur}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      handleCellBlur();
-                                    } else if (e.key === 'Escape') {
-                                      setEditingCell(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                  disabled={isSaving}
-                                >
-                                  <option value="">-- Select Financial Code --</option>
-                                  {financialCodeOptions.map((code) => (
-                                    <option key={code.uuid} value={code.uuid}>
-                                      {code.validation}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : col.key === 'nominalCurrencyCode' ? (
-                                <select
-                                  className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  value={editValue}
-                                  onChange={(e) => setEditValue(e.target.value)}
-                                  onBlur={handleCellBlur}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      handleCellBlur();
-                                    } else if (e.key === 'Escape') {
-                                      setEditingCell(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                  disabled={isSaving}
-                                >
-                                  <option value="">-- Select Currency --</option>
-                                  {currencyOptions.map((currency) => (
-                                    <option key={currency.uuid} value={currency.uuid}>
-                                      {currency.code}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <input
-                                  type="text"
-                                  className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  value={editValue}
-                                  onChange={(e) => setEditValue(e.target.value)}
-                                  onBlur={handleCellBlur}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      handleCellBlur();
-                                    } else if (e.key === 'Escape') {
-                                      setEditingCell(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                  disabled={isSaving}
-                                />
-                              )
-                            ) : (
-                              <div className="truncate overflow-hidden" title={String(row[col.key] ?? '')}>
-                                {col.key === 'accountCurrencyAmount' || col.key === 'nominalAmount' ? (
-                                  <span className={Number(row[col.key]) >= 0 ? 'text-green-600' : 'text-red-600'}>
-                                    {formatAmount(row[col.key])}
-                                  </span>
-                                ) : col.key === 'date' || col.key === 'correctionDate' || col.key === 'createdAt' || col.key === 'updatedAt' ? (
-                                  formatDate(row[col.key])
-                                ) : (
-                                  row[col.key] ?? '-'
-                                )}
-                              </div>
-                            )}
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  );
-                })
+                paginatedData.map((row) => (
+                  <TableRow key={row.id}>
+                    {visibleColumns.map((col) => (
+                      <TableCell
+                        key={col.key}
+                        className={getResponsiveClass(col.responsive)}
+                        style={{ width: col.width, maxWidth: col.width }}
+                      >
+                        <div className="truncate overflow-hidden" title={String(row[col.key] ?? '')}>
+                          {col.key === 'accountCurrencyAmount' || col.key === 'nominalAmount' ? (
+                            <span className={Number(row[col.key]) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                              {formatAmount(row[col.key])}
+                            </span>
+                          ) : col.key === 'date' || col.key === 'correctionDate' || col.key === 'createdAt' || col.key === 'updatedAt' ? (
+                            formatDate(row[col.key])
+                          ) : (
+                            row[col.key] ?? '-'
+                          )}
+                        </div>
+                      </TableCell>
+                    ))}
+                    <TableCell className="w-24">
+                      <div className="flex items-center space-x-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => startEdit(row)}
+                          className="h-7 w-7 p-0"
+                          title="Edit transaction"
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>
@@ -1195,6 +1056,139 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
           </Button>
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Bank Transaction</DialogTitle>
+            <DialogDescription>
+              Update transaction details. Payment ID controls which fields can be edited.
+            </DialogDescription>
+          </DialogHeader>
+          {loadingOptions ? (
+            <div className="py-8 text-center text-muted-foreground">Loading options...</div>
+          ) : (
+            <div className="grid gap-4 py-4">
+              {/* Payment ID */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-payment" className="text-right">Payment ID</Label>
+                <div className="col-span-3">
+                  <Select 
+                    value={formData.payment_uuid} 
+                    onValueChange={(value) => setFormData({ ...formData, payment_uuid: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="-- No Payment --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">-- No Payment --</SelectItem>
+                      {paymentOptions.map((payment) => (
+                        <SelectItem key={payment.paymentId} value={payment.paymentId}>
+                          {payment.paymentId}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    When set, Project, Financial Code, and Nominal Currency are auto-filled from payment
+                  </p>
+                </div>
+              </div>
+
+              {/* Project - disabled if payment exists */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-project" className="text-right">Project</Label>
+                <div className="col-span-3">
+                  <Select 
+                    value={formData.project_uuid} 
+                    onValueChange={(value) => setFormData({ ...formData, project_uuid: value })}
+                    disabled={!!formData.payment_uuid}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="-- Select Project --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">-- No Project --</SelectItem>
+                      {projectOptions.map((project) => (
+                        <SelectItem key={project.uuid} value={project.uuid}>
+                          {project.projectIndex} - {project.projectName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!!formData.payment_uuid && (
+                    <p className="text-xs text-muted-foreground mt-1">Clear Payment ID to edit manually</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Financial Code - disabled if payment exists */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-financial-code" className="text-right">Financial Code</Label>
+                <div className="col-span-3">
+                  <Select 
+                    value={formData.financial_code_uuid} 
+                    onValueChange={(value) => setFormData({ ...formData, financial_code_uuid: value })}
+                    disabled={!!formData.payment_uuid}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="-- Select Financial Code --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">-- No Code --</SelectItem>
+                      {financialCodeOptions.map((code) => (
+                        <SelectItem key={code.uuid} value={code.uuid}>
+                          {code.validation}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!!formData.payment_uuid && (
+                    <p className="text-xs text-muted-foreground mt-1">Clear Payment ID to edit manually</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Nominal Currency - disabled if payment exists */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-nominal-currency" className="text-right">Nominal Currency</Label>
+                <div className="col-span-3">
+                  <Select 
+                    value={formData.nominal_currency_uuid} 
+                    onValueChange={(value) => setFormData({ ...formData, nominal_currency_uuid: value })}
+                    disabled={!!formData.payment_uuid}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="-- Select Currency --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">-- No Currency --</SelectItem>
+                      {currencyOptions.map((currency) => (
+                        <SelectItem key={currency.uuid} value={currency.uuid}>
+                          {currency.code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!!formData.payment_uuid && (
+                    <p className="text-xs text-muted-foreground mt-1">Clear Payment ID to edit manually</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={cancelEdit} disabled={isSaving}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSave} disabled={isSaving}>
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
