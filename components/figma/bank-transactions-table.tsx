@@ -956,7 +956,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
             <TableBody>
               {paginatedData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={visibleColumns.length} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={visibleColumns.length + 1} className="text-center text-muted-foreground py-8">
                     No transactions found
                   </TableCell>
                 </TableRow>
