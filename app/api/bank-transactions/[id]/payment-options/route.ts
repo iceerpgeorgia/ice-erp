@@ -55,10 +55,27 @@ export async function GET(
               })
             : null,
           payment.jobUuid
-            ? prisma.job.findUnique({
-                where: { jobUuid: payment.jobUuid },
-                select: { jobName: true },
-              })
+            ? (async () => {
+                const rows: any[] = await prisma.$queryRaw`
+                  SELECT 
+                    j.job_name,
+                    CONCAT(
+                      j.job_name,
+                      ' | ',
+                      COALESCE(b.name, 'No Brand'),
+                      ' | ',
+                      j.floors,
+                      ' | ',
+                      j.weight,
+                      CASE WHEN j.is_ff THEN ' | FF' ELSE '' END
+                    ) as job_display
+                  FROM jobs j
+                  LEFT JOIN brands b ON j.brand_uuid = b.uuid
+                  WHERE j.job_uuid = ${payment.jobUuid}
+                  LIMIT 1
+                `;
+                return rows[0] || null;
+              })()
             : null,
           payment.financialCodeUuid
             ? prisma.financialCode.findUnique({
@@ -76,7 +93,8 @@ export async function GET(
           jobUuid: payment.jobUuid,
           currencyCode: currency?.code || '',
           projectName: project?.projectName || '',
-          jobName: job?.jobName || '',
+          jobName: job?.job_name || '',
+          jobDisplay: job?.job_display || '',
           financialCodeValidation: financialCode?.validation || '',
         };
       })

@@ -534,13 +534,13 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
         if (selectedPayment) {
           setPaymentDisplayValues({
             projectLabel: selectedPayment.projectName || '',
-            jobLabel: selectedPayment.jobName || '',
+            jobLabel: selectedPayment.jobDisplay || selectedPayment.jobName || '',
             financialCodeLabel: selectedPayment.financialCodeValidation || '',
             currencyLabel: selectedPayment.currencyCode || '',
           });
           console.log('Set display values:', {
             projectLabel: selectedPayment.projectName,
-            jobLabel: selectedPayment.jobName,
+            jobLabel: selectedPayment.jobDisplay || selectedPayment.jobName,
             financialCodeLabel: selectedPayment.financialCodeValidation,
             currencyLabel: selectedPayment.currencyCode,
           });
@@ -662,8 +662,12 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     
     if (projectUuid && projectUuid !== '__none__') {
       try {
+        console.log(`Loading jobs for project: ${projectUuid}`);
         const jobsRes = await fetch(`/api/jobs?projectUuid=${projectUuid}`);
         const jobsData = await jobsRes.json();
+        console.log('Jobs API response:', jobsData);
+        console.log('Is array?', Array.isArray(jobsData));
+        console.log('Jobs count:', Array.isArray(jobsData) ? jobsData.length : 0);
         setJobOptions(Array.isArray(jobsData) ? jobsData : []);
       } catch (err) {
         console.error('Failed to load jobs:', err);
