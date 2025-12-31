@@ -634,13 +634,20 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
         }
       }
     } else {
-      // Clear display labels when payment is cleared
+      // Clear all fields when payment is cleared
+      newFormData.project_uuid = '';
+      newFormData.job_uuid = '';
+      newFormData.financial_code_uuid = '';
+      newFormData.nominal_currency_uuid = '';
+      
       setPaymentDisplayValues({
         projectLabel: '',
         jobLabel: '',
         financialCodeLabel: '',
         currencyLabel: '',
       });
+      
+      setJobOptions([]);
     }
     
     setFormData(newFormData);
@@ -686,6 +693,14 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       
       if (matchingPayment) {
         setFormData({ ...currentFormData, payment_uuid: matchingPayment.paymentId });
+        
+        // Set display values to make fields read-only
+        setPaymentDisplayValues({
+          projectLabel: matchingPayment.projectName || '',
+          jobLabel: matchingPayment.jobName || '',
+          financialCodeLabel: matchingPayment.financialCodeValidation || '',
+          currencyLabel: matchingPayment.currencyCode || '',
+        });
       }
     }
   };
