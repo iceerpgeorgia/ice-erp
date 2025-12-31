@@ -8,23 +8,47 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const projectUuid = searchParams.get('projectUuid');
 
-    // Simple approach: if projectUuid provided, use Prisma
+    // Simple approach: if projectUuid provided, use raw query with brand info
     if (projectUuid) {
-      const jobs = await prisma.job.findMany({
-        where: {
-          projectUuid: projectUuid,
-          isActive: true,
-        },
-        select: {
-          jobUuid: true,
-          jobName: true,
-        },
-        orderBy: {
-          jobName: 'asc',
-        },
-      });
+      const jobs = await prisma.$queryRaw`
+        SELECT 
+          j.job_uuid,
+          j.job_name,
+          j.floors,
+          j.weight,
+          j.is_ff,
+          j.brand_uuid,
+          b.name as brand_name,
+          -- Formatted job display: job_name | brand_name | floors | weight | FF
+          CONCAT(
+            j.job_name,
+            ' | ',
+            COALESCE(b.name, 'No Brand'),
+            ' | ',
+            j.floors,
+            ' | ',
+            j.weight,
+            CASE WHEN j.is_ff THEN ' | FF' ELSE '' END
+          ) as job_display
+        FROM jobs j
+        LEFT JOIN brands b ON j.brand_uuid = b.uuid
+        WHERE j.project_uuid = ${projectUuid}
+          AND j.is_active = true
+        ORDER BY j.job_name ASC
+      `;
 
-      return NextResponse.json(jobs);
+      const serialized = (jobs as any[]).map((job: any) => ({
+        jobUuid: job.job_uuid,
+        jobName: job.job_name,
+        floors: job.floors,
+        weight: job.weight,
+        isFf: job.is_ff,
+        brandUuid: job.brand_uuid,
+        brandName: job.brand_name,
+        jobDisplay: job.job_display,
+      }));
+
+      return NextResponse.json(serialized);
     }
 
     // Otherwise, use the full query with all fields

@@ -1413,11 +1413,13 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                           {jobOptions
                             .filter((job) => {
                               if (!jobSearch) return true;
-                              return job.jobName?.toLowerCase().includes(jobSearch.toLowerCase());
+                              const searchLower = jobSearch.toLowerCase();
+                              const displayText = job.jobDisplay || job.jobName || '';
+                              return displayText.toLowerCase().includes(searchLower);
                             })
                             .map((job) => (
                               <SelectItem key={job.jobUuid} value={job.jobUuid}>
-                                {job.jobName}
+                                {job.jobDisplay || job.jobName}
                               </SelectItem>
                             ))}
                         </div>
