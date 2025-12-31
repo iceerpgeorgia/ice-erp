@@ -8,6 +8,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    console.log('[GET /api/bank-transactions/[id]/payment-options] Transaction ID:', params.id);
     const id = BigInt(params.id);
     
     // Get the transaction to find counteragent
@@ -41,7 +42,32 @@ export async function GET(
     // Fetch related data for each payment
     const paymentsWithDetails = await Promise.all(
       payments.map(async (payment) => {
-        const [currency, project, job, financialCode] = await Promise.all([
+        // Fetch job with brand info separately if needed
+        let job: any = null;
+        if (payment.jobUuid) {
+          console.log('[payment-options] Fetching job:', payment.jobUuid);
+          const jobRows: any[] = await prisma.$queryRaw`
+            SELECT 
+              j.job_name,
+              CONCAT(
+                j.job_name,
+                ' | ',
+                COALESCE(b.name, 'No Brand'),
+                ' | ',
+                j.floors,
+                ' | ',
+                j.weight,
+                CASE WHEN j.is_ff THEN ' | FF' ELSE '' END
+              ) as job_display
+            FROM jobs j
+            LEFT JOIN brands b ON j.brand_uuid = b.uuid
+            WHERE j.job_uuid = ${payment.jobUuid}
+            LIMIT 1
+          `;
+          job = jobRows[0] || null;
+        }
+
+        const [currency, project, financialCode] = await Promise.all([
           payment.currencyUuid
             ? prisma.currency.findUnique({
                 where: { uuid: payment.currencyUuid },
@@ -53,29 +79,6 @@ export async function GET(
                 where: { projectUuid: payment.projectUuid },
                 select: { projectName: true },
               })
-            : null,
-          payment.jobUuid
-            ? (async () => {
-                const rows: any[] = await prisma.$queryRaw`
-                  SELECT 
-                    j.job_name,
-                    CONCAT(
-                      j.job_name,
-                      ' | ',
-                      COALESCE(b.name, 'No Brand'),
-                      ' | ',
-                      j.floors,
-                      ' | ',
-                      j.weight,
-                      CASE WHEN j.is_ff THEN ' | FF' ELSE '' END
-                    ) as job_display
-                  FROM jobs j
-                  LEFT JOIN brands b ON j.brand_uuid = b.uuid
-                  WHERE j.job_uuid = ${payment.jobUuid}
-                  LIMIT 1
-                `;
-                return rows[0] || null;
-              })()
             : null,
           payment.financialCodeUuid
             ? prisma.financialCode.findUnique({

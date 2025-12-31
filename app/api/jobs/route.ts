@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
 
     // Simple approach: if projectUuid provided, use raw query with brand info
     if (projectUuid) {
+      console.log('[GET /api/jobs] Fetching jobs for project:', projectUuid);
       const jobs = await prisma.$queryRaw`
         SELECT 
           j.job_uuid,
