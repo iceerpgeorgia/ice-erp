@@ -11,9 +11,23 @@ export const dynamic = 'force-dynamic';
 // This endpoint will be called by Vercel Cron every hour at the top of the hour
 export async function GET(req: NextRequest) {
   try {
-    // Verify the request is from Vercel Cron (optional but recommended)
+    // Verify the request is from Vercel Cron or has valid authorization
     const authHeader = req.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    const vercelCronHeader = req.headers.get('x-vercel-cron');
+    const userAgent = req.headers.get('user-agent') || '';
+    
+    // Allow if: 1) Vercel Cron header present, 2) Valid CRON_SECRET, or 3) Vercel user agent
+    const isAuthorized = 
+      vercelCronHeader || 
+      userAgent.includes('vercel-cron') ||
+      authHeader === `Bearer ${process.env.CRON_SECRET}`;
+    
+    if (!isAuthorized) {
+      console.log('[CRON] Unauthorized request:', {
+        hasVercelCronHeader: !!vercelCronHeader,
+        userAgent: userAgent,
+        hasAuthHeader: !!authHeader,
+      });
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
