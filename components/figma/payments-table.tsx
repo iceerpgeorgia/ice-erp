@@ -125,6 +125,11 @@ export function PaymentsTable() {
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [editIncomeTax, setEditIncomeTax] = useState(false);
 
+  // Payment options state (for matching existing payments)
+  const [paymentOptions, setPaymentOptions] = useState<Array<{ paymentId: string; projectName: string; jobName: string; jobDisplay: string; currencyCode: string; financialCodeValidation: string }>>([]);
+  const [selectedPaymentId, setSelectedPaymentId] = useState('');
+  const [editSelectedPaymentId, setEditSelectedPaymentId] = useState('');
+
   useEffect(() => {
     fetchPayments();
     fetchProjects();
@@ -133,6 +138,16 @@ export function PaymentsTable() {
     fetchJobs();
     fetchCurrencies();
   }, []);
+
+  // Fetch payment options when counteragent changes
+  useEffect(() => {
+    if (selectedCounteragentUuid) {
+      fetchPaymentOptions(selectedCounteragentUuid);
+    } else {
+      setPaymentOptions([]);
+      setSelectedPaymentId('');
+    }
+  }, [selectedCounteragentUuid]);
 
   const fetchPayments = async () => {
     try {
@@ -232,6 +247,27 @@ export function PaymentsTable() {
     }
   };
 
+  const fetchPaymentOptions = async (counteragentUuid: string) => {
+    if (!counteragentUuid) {
+      setPaymentOptions([]);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/payments/${counteragentUuid}/payment-options`);
+      if (!response.ok) {
+        console.error('Failed to fetch payment options');
+        setPaymentOptions([]);
+        return;
+      }
+      const data = await response.json();
+      setPaymentOptions(data.payments || []);
+    } catch (error) {
+      console.error('Error fetching payment options:', error);
+      setPaymentOptions([]);
+    }
+  };
+
   const handleAddPayment = async () => {
     if (!selectedProjectUuid || !selectedCounteragentUuid || !selectedFinancialCodeUuid || !selectedCurrencyUuid) {
       alert('Please fill in all required fields');
@@ -249,6 +285,7 @@ export function PaymentsTable() {
           jobUuid: selectedJobUuid || null,
           incomeTax: selectedIncomeTax,
           currencyUuid: selectedCurrencyUuid,
+          paymentId: selectedPaymentId || undefined,
         }),
       });
 
@@ -266,9 +303,16 @@ export function PaymentsTable() {
     }
   };
 
-  const handleOpenEditDialog = (payment: Payment) => {
+  const handleOpenEditDialog = async (payment: Payment) => {
     setEditingPayment(payment);
     setEditIncomeTax(payment.incomeTax);
+    setEditSelectedPaymentId(payment.paymentId || '');
+    
+    // Fetch payment options for this counteragent
+    if (payment.counteragentUuid) {
+      await fetchPaymentOptions(payment.counteragentUuid);
+    }
+    
     setEditDialogOpen(true);
   };
 
@@ -279,15 +323,18 @@ export function PaymentsTable() {
       const response = await fetch(`/api/payments?id=${editingPayment.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ incomeTax: editIncomeTax }),
+        body: JSON.stringify({ 
+          incomeTax: editIncomeTax,
+          paymentId: editSelectedPaymentId || undefined,
+        }),
       });
 
-      if (!response.ok) throw new Error('Failed to update income tax');
+      if (!response.ok) throw new Error('Failed to update payment');
       await fetchPayments();
       setEditDialogOpen(false);
     } catch (error) {
-      console.error('Error updating income tax:', error);
-      alert('Failed to update income tax');
+      console.error('Error updating payment:', error);
+      alert('Failed to update payment');
     }
   };
 
@@ -298,6 +345,8 @@ export function PaymentsTable() {
     setSelectedJobUuid('');
     setSelectedIncomeTax(false);
     setSelectedCurrencyUuid('');
+    setSelectedPaymentId('');
+    setPaymentOptions([]);
   };
 
   // Mouse events for column resizing
@@ -706,6 +755,25 @@ export function PaymentsTable() {
                 />
               </div>
 
+              {paymentOptions.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Payment ID (Optional)</Label>
+                  <Combobox
+                    value={selectedPaymentId}
+                    onValueChange={setSelectedPaymentId}
+                    options={paymentOptions.map(opt => ({
+                      value: opt.paymentId,
+                      label: `${opt.paymentId} - ${opt.projectName} | ${opt.jobDisplay || opt.jobName || 'No Job'} | ${opt.financialCodeValidation} | ${opt.currencyCode}`
+                    }))}
+                    placeholder="Link to existing payment..."
+                    searchPlaceholder="Search payment IDs..."
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {paymentOptions.length} matching payment{paymentOptions.length !== 1 ? 's' : ''} found for this counteragent
+                  </p>
+                </div>
+              )}
+
               <Button onClick={handleAddPayment} className="w-full">
                 Create Payment
               </Button>
@@ -957,6 +1025,24 @@ export function PaymentsTable() {
                   <Label className="text-muted-foreground">Currency</Label>
                   <Input value={editingPayment.currencyCode || ''} disabled className="bg-muted" />
                 </div>
+                {paymentOptions.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Payment ID</Label>
+                    <Combobox
+                      value={editSelectedPaymentId}
+                      onValueChange={setEditSelectedPaymentId}
+                      options={paymentOptions.map(opt => ({
+                        value: opt.paymentId,
+                        label: `${opt.paymentId} - ${opt.projectName} | ${opt.jobDisplay || opt.jobName || 'No Job'} | ${opt.financialCodeValidation} | ${opt.currencyCode}`
+                      }))}
+                      placeholder="Link to payment ID..."
+                      searchPlaceholder="Search payment IDs..."
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {paymentOptions.length} matching payment{paymentOptions.length !== 1 ? 's' : ''} found
+                    </p>
+                  </div>
+                )}
                 <div className="flex items-center space-x-2 pt-4 border-t">
                   <Switch 
                     checked={editIncomeTax} 

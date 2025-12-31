@@ -66,7 +66,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid } = body;
+    const { projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid, paymentId } = body;
 
     // Validation
     if (!projectUuid || !counteragentUuid || !financialCodeUuid || incomeTax === undefined || !currencyUuid) {
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
         ${jobUuid ? `${jobUuid}` : null}::uuid,
         ${incomeTax}::boolean,
         ${currencyUuid}::uuid,
-        '',
+        ${paymentId || ''},
         '',
         NOW()
       )
@@ -124,7 +124,7 @@ export async function PATCH(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const body = await request.json();
-    const { incomeTax } = body;
+    const { incomeTax, paymentId } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -133,18 +133,32 @@ export async function PATCH(request: Request) {
       );
     }
 
-    if (incomeTax === undefined) {
+    if (incomeTax === undefined && paymentId === undefined) {
       return NextResponse.json(
-        { error: 'Income tax value is required' },
+        { error: 'At least one field to update is required' },
         { status: 400 }
       );
     }
 
-    await prisma.$executeRaw`
+    // Build dynamic update query
+    const updates: string[] = [];
+    const values: any[] = [];
+    
+    if (incomeTax !== undefined) {
+      updates.push(`income_tax = ${incomeTax}::boolean`);
+    }
+    
+    if (paymentId !== undefined) {
+      updates.push(`payment_id = '${paymentId}'`);
+    }
+    
+    updates.push('updated_at = NOW()');
+
+    await prisma.$executeRawUnsafe(`
       UPDATE payments 
-      SET income_tax = ${incomeTax}::boolean, updated_at = NOW()
+      SET ${updates.join(', ')}
       WHERE id = ${BigInt(id)}
-    `;
+    `);
 
     return NextResponse.json({ success: true });
   } catch (error) {
