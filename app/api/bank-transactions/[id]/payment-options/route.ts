@@ -61,7 +61,7 @@ export async function GET(
               ) as job_display
             FROM jobs j
             LEFT JOIN brands b ON j.brand_uuid = b.uuid
-            WHERE j.job_uuid = ${payment.jobUuid}
+            WHERE j.job_uuid = ${payment.jobUuid}::uuid
             LIMIT 1
           `;
           job = jobRows[0] || null;

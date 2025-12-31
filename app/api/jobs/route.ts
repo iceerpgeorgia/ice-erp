@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
           ) as job_display
         FROM jobs j
         LEFT JOIN brands b ON j.brand_uuid = b.uuid
-        WHERE j.project_uuid = ${projectUuid}
+        WHERE j.project_uuid = ${projectUuid}::uuid
           AND j.is_active = true
         ORDER BY j.job_name ASC
       `;
