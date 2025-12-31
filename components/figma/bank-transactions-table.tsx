@@ -561,6 +561,8 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       ]);
       
       console.log('Projects API response:', projectsData);
+      console.log('Is projects array?', Array.isArray(projectsData));
+      console.log('Projects length:', Array.isArray(projectsData) ? projectsData.length : 0);
       console.log('First project:', projectsData[0]);
       console.log('Codes API response:', codesData);
       console.log('First code:', codesData[0]);
@@ -569,14 +571,22 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       
       // Transform projects from snake_case to camelCase
       const mappedProjects = Array.isArray(projectsData) 
-        ? projectsData.map((p: any) => ({
-            uuid: p.project_uuid,
-            projectIndex: p.project_index,
-            projectName: p.project_name,
-          }))
+        ? projectsData.map((p: any) => {
+            console.log('Mapping project:', p);
+            return {
+              uuid: p.project_uuid,
+              projectIndex: p.project_index,
+              projectName: p.project_name,
+            };
+          })
         : [];
       
+      console.log('Mapped projects count:', mappedProjects.length);
+      console.log('First mapped project:', mappedProjects[0]);
+      
       setProjectOptions(mappedProjects);
+      console.log('Project options count after set:', mappedProjects.length);
+      
       setFinancialCodeOptions(Array.isArray(codesData) ? codesData : (codesData.codes || []));
       setCurrencyOptions(Array.isArray(currenciesData) ? currenciesData : (currenciesData.currencies || []));
       
