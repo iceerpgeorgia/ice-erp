@@ -126,9 +126,21 @@ export function PaymentsTable() {
   const [editIncomeTax, setEditIncomeTax] = useState(false);
 
   // Payment options state (for matching existing payments)
-  const [paymentOptions, setPaymentOptions] = useState<Array<{ paymentId: string; projectName: string; jobName: string; jobDisplay: string; currencyCode: string; financialCodeValidation: string }>>([]);
+  const [paymentOptions, setPaymentOptions] = useState<Array<{ paymentId: string; projectUuid: string; jobUuid: string; financialCodeUuid: string; currencyUuid: string; projectName: string; jobName: string; jobDisplay: string; currencyCode: string; financialCodeValidation: string }>>([]);
   const [selectedPaymentId, setSelectedPaymentId] = useState('');
   const [editSelectedPaymentId, setEditSelectedPaymentId] = useState('');
+  const [paymentDisplayValues, setPaymentDisplayValues] = useState<{
+    projectLabel: string;
+    jobLabel: string;
+    financialCodeLabel: string;
+    currencyLabel: string;
+  }>({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '' });
+  const [editPaymentDisplayValues, setEditPaymentDisplayValues] = useState<{
+    projectLabel: string;
+    jobLabel: string;
+    financialCodeLabel: string;
+    currencyLabel: string;
+  }>({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '' });
 
   useEffect(() => {
     fetchPayments();
@@ -268,6 +280,63 @@ export function PaymentsTable() {
     }
   };
 
+  // Handle payment ID selection in add dialog
+  const handlePaymentIdChange = (paymentId: string) => {
+    setSelectedPaymentId(paymentId);
+    
+    if (paymentId) {
+      const selectedPayment = paymentOptions.find(p => p.paymentId === paymentId);
+      if (selectedPayment) {
+        setSelectedProjectUuid(selectedPayment.projectUuid || '');
+        setSelectedJobUuid(selectedPayment.jobUuid || '');
+        setSelectedFinancialCodeUuid(selectedPayment.financialCodeUuid || '');
+        setSelectedCurrencyUuid(selectedPayment.currencyUuid || '');
+        
+        setPaymentDisplayValues({
+          projectLabel: selectedPayment.projectName || '',
+          jobLabel: selectedPayment.jobDisplay || selectedPayment.jobName || '',
+          financialCodeLabel: selectedPayment.financialCodeValidation || '',
+          currencyLabel: selectedPayment.currencyCode || '',
+        });
+      }
+    } else {
+      // Clear display values when payment is cleared
+      setPaymentDisplayValues({
+        projectLabel: '',
+        jobLabel: '',
+        financialCodeLabel: '',
+        currencyLabel: '',
+      });
+    }
+  };
+
+  // Handle payment ID selection in edit dialog
+  const handleEditPaymentIdChange = (paymentId: string) => {
+    setEditSelectedPaymentId(paymentId);
+    
+    if (paymentId) {
+      const selectedPayment = paymentOptions.find(p => p.paymentId === paymentId);
+      if (selectedPayment && editingPayment) {
+        setEditPaymentDisplayValues({
+          projectLabel: selectedPayment.projectName || '',
+          jobLabel: selectedPayment.jobDisplay || selectedPayment.jobName || '',
+          financialCodeLabel: selectedPayment.financialCodeValidation || '',
+          currencyLabel: selectedPayment.currencyCode || '',
+        });
+      }
+    } else {
+      // Clear display values when payment is cleared
+      if (editingPayment) {
+        setEditPaymentDisplayValues({
+          projectLabel: editingPayment.projectIndex || '',
+          jobLabel: editingPayment.jobName || '',
+          financialCodeLabel: editingPayment.financialCodeValidation || '',
+          currencyLabel: editingPayment.currencyCode || '',
+        });
+      }
+    }
+  };
+
   const handleAddPayment = async () => {
     if (!selectedProjectUuid || !selectedCounteragentUuid || !selectedFinancialCodeUuid || !selectedCurrencyUuid) {
       alert('Please fill in all required fields');
@@ -308,6 +377,14 @@ export function PaymentsTable() {
     setEditIncomeTax(payment.incomeTax);
     setEditSelectedPaymentId(payment.paymentId || '');
     
+    // Set initial display values
+    setEditPaymentDisplayValues({
+      projectLabel: payment.projectIndex || '',
+      jobLabel: payment.jobName || '',
+      financialCodeLabel: payment.financialCodeValidation || '',
+      currencyLabel: payment.currencyCode || '',
+    });
+    
     // Fetch payment options for this counteragent
     if (payment.counteragentUuid) {
       await fetchPaymentOptions(payment.counteragentUuid);
@@ -347,6 +424,7 @@ export function PaymentsTable() {
     setSelectedCurrencyUuid('');
     setSelectedPaymentId('');
     setPaymentOptions([]);
+    setPaymentDisplayValues({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '' });
   };
 
   // Mouse events for column resizing
@@ -674,16 +752,27 @@ export function PaymentsTable() {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Project</Label>
-                <Combobox
-                  value={selectedProjectUuid}
-                  onValueChange={setSelectedProjectUuid}
-                  options={projects.map(p => ({
-                    value: p.projectUuid,
-                    label: p.projectIndex || p.projectName
-                  }))}
-                  placeholder="Select project..."
-                  searchPlaceholder="Search projects..."
-                />
+                {selectedPaymentId ? (
+                  <>
+                    <Input
+                      value={paymentDisplayValues.projectLabel}
+                      readOnly
+                      className="bg-muted"
+                    />
+                    <p className="text-xs text-muted-foreground">Clear Payment ID to edit manually</p>
+                  </>
+                ) : (
+                  <Combobox
+                    value={selectedProjectUuid}
+                    onValueChange={setSelectedProjectUuid}
+                    options={projects.map(p => ({
+                      value: p.projectUuid,
+                      label: p.projectIndex || p.projectName
+                    }))}
+                    placeholder="Select project..."
+                    searchPlaceholder="Search projects..."
+                  />
+                )}
               </div>
 
               <div className="space-y-2">
@@ -702,30 +791,52 @@ export function PaymentsTable() {
 
               <div className="space-y-2">
                 <Label>Financial Code</Label>
-                <Combobox
-                  value={selectedFinancialCodeUuid}
-                  onValueChange={setSelectedFinancialCodeUuid}
-                  options={financialCodes.map(fc => ({
-                    value: fc.uuid,
-                    label: `${fc.validation} (${fc.code})`
-                  }))}
-                  placeholder="Select financial code..."
-                  searchPlaceholder="Search financial codes..."
-                />
+                {selectedPaymentId ? (
+                  <>
+                    <Input
+                      value={paymentDisplayValues.financialCodeLabel}
+                      readOnly
+                      className="bg-muted"
+                    />
+                    <p className="text-xs text-muted-foreground">Clear Payment ID to edit manually</p>
+                  </>
+                ) : (
+                  <Combobox
+                    value={selectedFinancialCodeUuid}
+                    onValueChange={setSelectedFinancialCodeUuid}
+                    options={financialCodes.map(fc => ({
+                      value: fc.uuid,
+                      label: `${fc.validation} (${fc.code})`
+                    }))}
+                    placeholder="Select financial code..."
+                    searchPlaceholder="Search financial codes..."
+                  />
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label>Job (Optional)</Label>
-                <Combobox
-                  value={selectedJobUuid}
-                  onValueChange={setSelectedJobUuid}
-                  options={jobs.map(job => ({
-                    value: job.jobUuid,
-                    label: job.jobIndex || job.jobName
-                  }))}
-                  placeholder="Select job..."
-                  searchPlaceholder="Search jobs..."
-                />
+                {selectedPaymentId ? (
+                  <>
+                    <Input
+                      value={paymentDisplayValues.jobLabel || '-- No Job --'}
+                      readOnly
+                      className="bg-muted"
+                    />
+                    <p className="text-xs text-muted-foreground">Clear Payment ID to edit manually</p>
+                  </>
+                ) : (
+                  <Combobox
+                    value={selectedJobUuid}
+                    onValueChange={setSelectedJobUuid}
+                    options={jobs.map(job => ({
+                      value: job.jobUuid,
+                      label: job.jobIndex || job.jobName
+                    }))}
+                    placeholder="Select job..."
+                    searchPlaceholder="Search jobs..."
+                  />
+                )}
               </div>
 
               <div className="space-y-2">
@@ -743,16 +854,27 @@ export function PaymentsTable() {
 
               <div className="space-y-2">
                 <Label>Currency</Label>
-                <Combobox
-                  value={selectedCurrencyUuid}
-                  onValueChange={setSelectedCurrencyUuid}
-                  options={currencies.map(c => ({
-                    value: c.uuid,
-                    label: `${c.code} - ${c.name}`
-                  }))}
-                  placeholder="Select currency..."
-                  searchPlaceholder="Search currencies..."
-                />
+                {selectedPaymentId ? (
+                  <>
+                    <Input
+                      value={paymentDisplayValues.currencyLabel}
+                      readOnly
+                      className="bg-muted"
+                    />
+                    <p className="text-xs text-muted-foreground">Clear Payment ID to edit manually</p>
+                  </>
+                ) : (
+                  <Combobox
+                    value={selectedCurrencyUuid}
+                    onValueChange={setSelectedCurrencyUuid}
+                    options={currencies.map(c => ({
+                      value: c.uuid,
+                      label: `${c.code} - ${c.name}`
+                    }))}
+                    placeholder="Select currency..."
+                    searchPlaceholder="Search currencies..."
+                  />
+                )}
               </div>
 
               {paymentOptions.length > 0 && (
@@ -760,7 +882,7 @@ export function PaymentsTable() {
                   <Label>Payment ID (Optional)</Label>
                   <Combobox
                     value={selectedPaymentId}
-                    onValueChange={setSelectedPaymentId}
+                    onValueChange={handlePaymentIdChange}
                     options={paymentOptions.map(opt => ({
                       value: opt.paymentId,
                       label: `${opt.paymentId} - ${opt.projectName} | ${opt.jobDisplay || opt.jobName || 'No Job'} | ${opt.financialCodeValidation} | ${opt.currencyCode}`
@@ -769,7 +891,7 @@ export function PaymentsTable() {
                     searchPlaceholder="Search payment IDs..."
                   />
                   <p className="text-xs text-muted-foreground">
-                    {paymentOptions.length} matching payment{paymentOptions.length !== 1 ? 's' : ''} found for this counteragent
+                    {paymentOptions.length} matching payment{paymentOptions.length !== 1 ? 's' : ''} found. {selectedPaymentId ? 'Selecting auto-fills fields above.' : 'Select to auto-fill fields.'}
                   </p>
                 </div>
               )}
@@ -1006,31 +1128,35 @@ export function PaymentsTable() {
             {editingPayment && (
               <>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Payment ID</Label>
-                  <Input value={editingPayment.paymentId} disabled className="bg-muted" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Project</Label>
-                  <Input value={editingPayment.projectIndex || ''} disabled className="bg-muted" />
+                  <Label className="text-muted-foreground">Current Payment ID</Label>
+                  <Input value={editingPayment.paymentId || '(None)'} disabled className="bg-muted" />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-muted-foreground">Counteragent</Label>
                   <Input value={editingPayment.counteragentName || ''} disabled className="bg-muted" />
                 </div>
                 <div className="space-y-2">
+                  <Label className="text-muted-foreground">Project</Label>
+                  <Input value={editPaymentDisplayValues.projectLabel} disabled className="bg-muted" />
+                </div>
+                <div className="space-y-2">
                   <Label className="text-muted-foreground">Job</Label>
-                  <Input value={editingPayment.jobName || ''} disabled className="bg-muted" />
+                  <Input value={editPaymentDisplayValues.jobLabel || '-- No Job --'} disabled className="bg-muted" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Financial Code</Label>
+                  <Input value={editPaymentDisplayValues.financialCodeLabel} disabled className="bg-muted" />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-muted-foreground">Currency</Label>
-                  <Input value={editingPayment.currencyCode || ''} disabled className="bg-muted" />
+                  <Input value={editPaymentDisplayValues.currencyLabel} disabled className="bg-muted" />
                 </div>
                 {paymentOptions.length > 0 && (
                   <div className="space-y-2">
-                    <Label>Payment ID</Label>
+                    <Label>Change Payment ID</Label>
                     <Combobox
                       value={editSelectedPaymentId}
-                      onValueChange={setEditSelectedPaymentId}
+                      onValueChange={handleEditPaymentIdChange}
                       options={paymentOptions.map(opt => ({
                         value: opt.paymentId,
                         label: `${opt.paymentId} - ${opt.projectName} | ${opt.jobDisplay || opt.jobName || 'No Job'} | ${opt.financialCodeValidation} | ${opt.currencyCode}`
@@ -1039,7 +1165,7 @@ export function PaymentsTable() {
                       searchPlaceholder="Search payment IDs..."
                     />
                     <p className="text-xs text-muted-foreground">
-                      {paymentOptions.length} matching payment{paymentOptions.length !== 1 ? 's' : ''} found
+                      {paymentOptions.length} matching payment{paymentOptions.length !== 1 ? 's' : ''} found for this counteragent
                     </p>
                   </div>
                 )}

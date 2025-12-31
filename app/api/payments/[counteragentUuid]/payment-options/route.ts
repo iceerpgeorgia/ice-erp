@@ -80,6 +80,10 @@ export async function GET(
 
         return {
           paymentId: payment.paymentId,
+          projectUuid: payment.projectUuid,
+          jobUuid: payment.jobUuid,
+          financialCodeUuid: payment.financialCodeUuid,
+          currencyUuid: payment.currencyUuid,
           projectName: project?.projectName || '',
           jobName: job?.job_name || '',
           jobDisplay: job?.job_display || '',
