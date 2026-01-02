@@ -191,10 +191,12 @@ export function PaymentsTable() {
   }, [paymentOptions, selectedProjectUuid, selectedCounteragentUuid, selectedFinancialCodeUuid, selectedJobUuid, selectedCurrencyUuid]);
 
   // Check for duplicate payments when relevant fields change
+  // Mandatory fields: counteragent, financial code, currency
+  // Optional fields: project, job, income tax
   useEffect(() => {
     const checkDuplicates = async () => {
-      // Only check if we have the minimum required fields and no payment ID is selected
-      if (!selectedProjectUuid || !selectedCounteragentUuid || !selectedFinancialCodeUuid || !selectedCurrencyUuid || selectedPaymentId) {
+      // Only check if we have ALL mandatory fields and no payment ID is selected
+      if (!selectedCounteragentUuid || !selectedFinancialCodeUuid || !selectedCurrencyUuid || selectedPaymentId) {
         setDuplicateCount(0);
         setDuplicatePaymentIds([]);
         return;
@@ -206,11 +208,12 @@ export function PaymentsTable() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            projectUuid: selectedProjectUuid,
+            projectUuid: selectedProjectUuid || null,
             counteragentUuid: selectedCounteragentUuid,
             financialCodeUuid: selectedFinancialCodeUuid,
             jobUuid: selectedJobUuid || null,
             currencyUuid: selectedCurrencyUuid,
+            incomeTax: selectedIncomeTax,
           }),
         });
 
@@ -227,7 +230,7 @@ export function PaymentsTable() {
     };
 
     checkDuplicates();
-  }, [selectedProjectUuid, selectedCounteragentUuid, selectedFinancialCodeUuid, selectedJobUuid, selectedCurrencyUuid, selectedPaymentId]);
+  }, [selectedProjectUuid, selectedCounteragentUuid, selectedFinancialCodeUuid, selectedJobUuid, selectedCurrencyUuid, selectedIncomeTax, selectedPaymentId]);
 
   const fetchPayments = async () => {
     try {
