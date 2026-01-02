@@ -157,6 +157,7 @@ export function PaymentsTable() {
   }, []);
 
   // Fetch payment options when counteragent changes
+  // Fetch all payment options for the selected counteragent
   useEffect(() => {
     if (selectedCounteragentUuid) {
       fetchPaymentOptions(selectedCounteragentUuid);
@@ -165,6 +166,29 @@ export function PaymentsTable() {
       setSelectedPaymentId('');
     }
   }, [selectedCounteragentUuid]);
+
+  // Filter payment options based on ALL selected fields
+  const filteredPaymentOptions = useMemo(() => {
+    if (!selectedCounteragentUuid) return [];
+    
+    return paymentOptions.filter(opt => {
+      // Filter by project if selected
+      if (selectedProjectUuid && opt.projectUuid !== selectedProjectUuid) return false;
+      
+      // Filter by financial code if selected
+      if (selectedFinancialCodeUuid && opt.financialCodeUuid !== selectedFinancialCodeUuid) return false;
+      
+      // Filter by job if selected (handle null case)
+      if (selectedJobUuid) {
+        if (opt.jobUuid !== selectedJobUuid) return false;
+      }
+      
+      // Filter by currency if selected
+      if (selectedCurrencyUuid && opt.currencyUuid !== selectedCurrencyUuid) return false;
+      
+      return true;
+    });
+  }, [paymentOptions, selectedProjectUuid, selectedCounteragentUuid, selectedFinancialCodeUuid, selectedJobUuid, selectedCurrencyUuid]);
 
   // Check for duplicate payments when relevant fields change
   useEffect(() => {
@@ -935,13 +959,13 @@ export function PaymentsTable() {
                 )}
               </div>
 
-              {paymentOptions.length > 0 && (
+              {filteredPaymentOptions.length > 0 && (
                 <div className="space-y-2">
                   <Label>Payment ID (Optional)</Label>
                   <Combobox
                     value={selectedPaymentId}
                     onValueChange={handlePaymentIdChange}
-                    options={paymentOptions.map(opt => ({
+                    options={filteredPaymentOptions.map(opt => ({
                       value: opt.paymentId,
                       label: `${opt.paymentId} - ${opt.projectName} | ${opt.jobDisplay || opt.jobName || 'No Job'} | ${opt.financialCodeValidation} | ${opt.currencyCode}`
                     }))}
@@ -949,7 +973,7 @@ export function PaymentsTable() {
                     searchPlaceholder="Search payment IDs..."
                   />
                   <p className="text-xs text-muted-foreground">
-                    {paymentOptions.length} matching payment{paymentOptions.length !== 1 ? 's' : ''} found. {selectedPaymentId ? 'Selecting auto-fills fields above.' : 'Select to auto-fill fields.'}
+                    {filteredPaymentOptions.length} matching payment{filteredPaymentOptions.length !== 1 ? 's' : ''} found with current selections. {selectedPaymentId ? 'Selecting auto-fills fields above.' : 'Select to auto-fill fields.'}
                   </p>
                 </div>
               )}
@@ -1252,7 +1276,7 @@ export function PaymentsTable() {
                       searchPlaceholder="Search payment IDs..."
                     />
                     <p className="text-xs text-muted-foreground">
-                      {paymentOptions.length} matching payment{paymentOptions.length !== 1 ? 's' : ''} found for this counteragent
+                      {paymentOptions.length} payment{paymentOptions.length !== 1 ? 's' : ''} available for this counteragent
                     </p>
                   </div>
                 )}
