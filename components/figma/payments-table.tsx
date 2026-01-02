@@ -409,8 +409,9 @@ export function PaymentsTable() {
   };
 
   const handleAddPayment = async () => {
-    if (!selectedProjectUuid || !selectedCounteragentUuid || !selectedFinancialCodeUuid || !selectedCurrencyUuid) {
-      alert('Please fill in all required fields');
+    // Validate mandatory fields only
+    if (!selectedCounteragentUuid || !selectedFinancialCodeUuid || !selectedCurrencyUuid) {
+      alert('Please fill in all required fields: Counteragent, Financial Code, and Currency');
       return;
     }
 
@@ -1011,7 +1012,12 @@ export function PaymentsTable() {
                 className="w-full"
                 disabled={duplicateCount > 0 && !selectedPaymentId}
               >
-                {duplicateCount > 0 && !selectedPaymentId ? `Cannot Create - ${duplicateCount} Duplicate(s) Exist` : 'Create Payment'}
+                {duplicateCount > 0 && !selectedPaymentId 
+                  ? `Cannot Create - ${duplicateCount} Duplicate(s) Exist` 
+                  : selectedPaymentId 
+                    ? 'Link to Existing Payment' 
+                    : 'Create Payment'
+                }
               </Button>
             </div>
           </DialogContent>
