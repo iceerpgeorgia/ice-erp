@@ -142,6 +142,11 @@ export function PaymentsTable() {
     currencyLabel: string;
   }>({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '' });
 
+  // Duplicate checking state
+  const [duplicateCount, setDuplicateCount] = useState(0);
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+  const [duplicatePaymentIds, setDuplicatePaymentIds] = useState<string[]>([]);
+
   useEffect(() => {
     fetchPayments();
     fetchProjects();
@@ -160,6 +165,45 @@ export function PaymentsTable() {
       setSelectedPaymentId('');
     }
   }, [selectedCounteragentUuid]);
+
+  // Check for duplicate payments when relevant fields change
+  useEffect(() => {
+    const checkDuplicates = async () => {
+      // Only check if we have the minimum required fields and no payment ID is selected
+      if (!selectedProjectUuid || !selectedCounteragentUuid || !selectedFinancialCodeUuid || !selectedCurrencyUuid || selectedPaymentId) {
+        setDuplicateCount(0);
+        setDuplicatePaymentIds([]);
+        return;
+      }
+
+      setCheckingDuplicates(true);
+      try {
+        const response = await fetch('/api/payments/check-duplicates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectUuid: selectedProjectUuid,
+            counteragentUuid: selectedCounteragentUuid,
+            financialCodeUuid: selectedFinancialCodeUuid,
+            jobUuid: selectedJobUuid || null,
+            currencyUuid: selectedCurrencyUuid,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setDuplicateCount(data.count);
+          setDuplicatePaymentIds(data.matches.map((m: any) => m.paymentId));
+        }
+      } catch (error) {
+        console.error('Error checking duplicates:', error);
+      } finally {
+        setCheckingDuplicates(false);
+      }
+    };
+
+    checkDuplicates();
+  }, [selectedProjectUuid, selectedCounteragentUuid, selectedFinancialCodeUuid, selectedJobUuid, selectedCurrencyUuid, selectedPaymentId]);
 
   const fetchPayments = async () => {
     try {
@@ -343,6 +387,12 @@ export function PaymentsTable() {
       return;
     }
 
+    // Prevent creating duplicate if matches exist and no payment ID selected
+    if (duplicateCount > 0 && !selectedPaymentId) {
+      alert(`Cannot create duplicate payment. ${duplicateCount} matching payment(s) already exist with these exact parameters. Please select one of the existing payments from the Payment ID dropdown.`);
+      return;
+    }
+
     try {
       const response = await fetch('/api/payments', {
         method: 'POST',
@@ -425,6 +475,9 @@ export function PaymentsTable() {
     setSelectedPaymentId('');
     setPaymentOptions([]);
     setPaymentDisplayValues({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '' });
+    setDuplicateCount(0);
+    setDuplicatePaymentIds([]);
+  };
   };
 
   // Mouse events for column resizing
@@ -735,7 +788,13 @@ export function PaymentsTable() {
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Payments</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (open) {
+            // Reset form when dialog opens to ensure blank state
+            resetForm();
+          }
+        }}>
           <DialogTrigger asChild>
             <Button className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
@@ -896,8 +955,37 @@ export function PaymentsTable() {
                 </div>
               )}
 
-              <Button onClick={handleAddPayment} className="w-full">
-                Create Payment
+              {/* Duplicate warning */}
+              {duplicateCount > 0 && !selectedPaymentId && (
+                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <svg className="h-5 w-5 text-yellow-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-yellow-800">Duplicate Payment Detected</h4>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        <strong>{duplicateCount}</strong> matching payment{duplicateCount !== 1 ? 's' : ''} already exist{duplicateCount === 1 ? 's' : ''} with these exact parameters.
+                      </p>
+                      {duplicatePaymentIds.length > 0 && (
+                        <p className="text-xs text-yellow-600 mt-1">
+                          Payment IDs: {duplicatePaymentIds.join(', ')}
+                        </p>
+                      )}
+                      <p className="text-sm text-yellow-700 mt-2 font-medium">
+                        You must select one of the existing payments from the "Payment ID" dropdown above instead of creating a duplicate.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <Button 
+                onClick={handleAddPayment} 
+                className="w-full"
+                disabled={duplicateCount > 0 && !selectedPaymentId}
+              >
+                {duplicateCount > 0 && !selectedPaymentId ? `Cannot Create - ${duplicateCount} Duplicate(s) Exist` : 'Create Payment'}
               </Button>
             </div>
           </DialogContent>
