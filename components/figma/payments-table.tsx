@@ -478,7 +478,6 @@ export function PaymentsTable() {
     setDuplicateCount(0);
     setDuplicatePaymentIds([]);
   };
-  };
 
   // Mouse events for column resizing
   useEffect(() => {
@@ -973,7 +972,7 @@ export function PaymentsTable() {
                         </p>
                       )}
                       <p className="text-sm text-yellow-700 mt-2 font-medium">
-                        You must select one of the existing payments from the "Payment ID" dropdown above instead of creating a duplicate.
+                        You must select one of the existing payments from the &quot;Payment ID&quot; dropdown above instead of creating a duplicate.
                       </p>
                     </div>
                   </div>
