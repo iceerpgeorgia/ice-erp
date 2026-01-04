@@ -848,7 +848,6 @@ export function PaymentsTable() {
                   }))}
                   placeholder="Select counteragent..."
                   searchPlaceholder="Search counteragents..."
-                  disabled={false}
                 />
               </div>
 
@@ -857,17 +856,20 @@ export function PaymentsTable() {
                 <Label className={!selectedCounteragentUuid ? 'text-muted-foreground' : ''}>
                   Financial Code <span className="text-red-500">*</span>
                 </Label>
-                <Combobox
-                  value={selectedFinancialCodeUuid}
-                  onValueChange={setSelectedFinancialCodeUuid}
-                  options={financialCodes.map(fc => ({
-                    value: fc.uuid,
-                    label: `${fc.validation} (${fc.code})`
-                  }))}
-                  placeholder={selectedCounteragentUuid ? "Select financial code..." : "Select counteragent first"}
-                  searchPlaceholder="Search financial codes..."
-                  disabled={!selectedCounteragentUuid}
-                />
+                {selectedCounteragentUuid ? (
+                  <Combobox
+                    value={selectedFinancialCodeUuid}
+                    onValueChange={setSelectedFinancialCodeUuid}
+                    options={financialCodes.map(fc => ({
+                      value: fc.uuid,
+                      label: `${fc.validation} (${fc.code})`
+                    }))}
+                    placeholder="Select financial code..."
+                    searchPlaceholder="Search financial codes..."
+                  />
+                ) : (
+                  <Input value="" placeholder="Select counteragent first" disabled className="bg-muted" />
+                )}
               </div>
 
               {/* 3. Currency - Active after financial code */}
@@ -875,17 +877,20 @@ export function PaymentsTable() {
                 <Label className={!selectedFinancialCodeUuid ? 'text-muted-foreground' : ''}>
                   Currency <span className="text-red-500">*</span>
                 </Label>
-                <Combobox
-                  value={selectedCurrencyUuid}
-                  onValueChange={setSelectedCurrencyUuid}
-                  options={currencies.map(c => ({
-                    value: c.uuid,
-                    label: `${c.code} - ${c.name}`
-                  }))}
-                  placeholder={selectedFinancialCodeUuid ? "Select currency..." : "Select financial code first"}
-                  searchPlaceholder="Search currencies..."
-                  disabled={!selectedFinancialCodeUuid}
-                />
+                {selectedFinancialCodeUuid ? (
+                  <Combobox
+                    value={selectedCurrencyUuid}
+                    onValueChange={setSelectedCurrencyUuid}
+                    options={currencies.map(c => ({
+                      value: c.uuid,
+                      label: `${c.code} - ${c.name}`
+                    }))}
+                    placeholder="Select currency..."
+                    searchPlaceholder="Search currencies..."
+                  />
+                ) : (
+                  <Input value="" placeholder="Select financial code first" disabled className="bg-muted" />
+                )}
               </div>
 
               {/* 4. Income Tax - Active after currency (always visible as toggle) */}
@@ -911,17 +916,20 @@ export function PaymentsTable() {
                 <Label className={!selectedCurrencyUuid ? 'text-muted-foreground' : ''}>
                   Project (Optional)
                 </Label>
-                <Combobox
-                  value={selectedProjectUuid}
-                  onValueChange={setSelectedProjectUuid}
-                  options={projects.map(p => ({
-                    value: p.projectUuid,
-                    label: p.projectIndex || p.projectName
-                  }))}
-                  placeholder={selectedCurrencyUuid ? "Select project..." : "Select currency first"}
-                  searchPlaceholder="Search projects..."
-                  disabled={!selectedCurrencyUuid}
-                />
+                {selectedCurrencyUuid ? (
+                  <Combobox
+                    value={selectedProjectUuid}
+                    onValueChange={setSelectedProjectUuid}
+                    options={projects.map(p => ({
+                      value: p.projectUuid,
+                      label: p.projectIndex || p.projectName
+                    }))}
+                    placeholder="Select project..."
+                    searchPlaceholder="Search projects..."
+                  />
+                ) : (
+                  <Input value="" placeholder="Select currency first" disabled className="bg-muted" />
+                )}
               </div>
 
               {/* 6. Job - Active after project (optional) */}
@@ -929,17 +937,20 @@ export function PaymentsTable() {
                 <Label className={!selectedProjectUuid ? 'text-muted-foreground' : ''}>
                   Job (Optional)
                 </Label>
-                <Combobox
-                  value={selectedJobUuid}
-                  onValueChange={setSelectedJobUuid}
-                  options={jobs.map(job => ({
-                    value: job.jobUuid,
-                    label: job.jobIndex || job.jobName
-                  }))}
-                  placeholder={selectedProjectUuid ? "Select job..." : "Select project first"}
-                  searchPlaceholder="Search jobs..."
-                  disabled={!selectedProjectUuid}
-                />
+                {selectedProjectUuid ? (
+                  <Combobox
+                    value={selectedJobUuid}
+                    onValueChange={setSelectedJobUuid}
+                    options={jobs.map(job => ({
+                      value: job.jobUuid,
+                      label: job.jobIndex || job.jobName
+                    }))}
+                    placeholder="Select job..."
+                    searchPlaceholder="Search jobs..."
+                  />
+                ) : (
+                  <Input value="" placeholder="Select project first" disabled className="bg-muted" />
+                )}
               </div>
 
               {/* Payment ID Information - Always visible after counteragent, shows matches */}
