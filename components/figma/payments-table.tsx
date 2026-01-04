@@ -832,37 +832,13 @@ export function PaymentsTable() {
             <DialogHeader>
               <DialogTitle>Add New Payment</DialogTitle>
               <DialogDescription>
-                Create a new payment record
+                Fill fields in order to create a payment record
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
+              {/* 1. Counteragent - Always active */}
               <div className="space-y-2">
-                <Label>Project</Label>
-                {selectedPaymentId ? (
-                  <>
-                    <Input
-                      value={paymentDisplayValues.projectLabel}
-                      readOnly
-                      className="bg-muted"
-                    />
-                    <p className="text-xs text-muted-foreground">Clear Payment ID to edit manually</p>
-                  </>
-                ) : (
-                  <Combobox
-                    value={selectedProjectUuid}
-                    onValueChange={setSelectedProjectUuid}
-                    options={projects.map(p => ({
-                      value: p.projectUuid,
-                      label: p.projectIndex || p.projectName
-                    }))}
-                    placeholder="Select project..."
-                    searchPlaceholder="Search projects..."
-                  />
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Counteragent</Label>
+                <Label>Counteragent <span className="text-red-500">*</span></Label>
                 <Combobox
                   value={selectedCounteragentUuid}
                   onValueChange={setSelectedCounteragentUuid}
@@ -872,135 +848,149 @@ export function PaymentsTable() {
                   }))}
                   placeholder="Select counteragent..."
                   searchPlaceholder="Search counteragents..."
+                  disabled={false}
                 />
               </div>
 
+              {/* 2. Financial Code - Active after counteragent */}
               <div className="space-y-2">
-                <Label>Financial Code</Label>
-                {selectedPaymentId ? (
-                  <>
-                    <Input
-                      value={paymentDisplayValues.financialCodeLabel}
-                      readOnly
-                      className="bg-muted"
-                    />
-                    <p className="text-xs text-muted-foreground">Clear Payment ID to edit manually</p>
-                  </>
-                ) : (
-                  <Combobox
-                    value={selectedFinancialCodeUuid}
-                    onValueChange={setSelectedFinancialCodeUuid}
-                    options={financialCodes.map(fc => ({
-                      value: fc.uuid,
-                      label: `${fc.validation} (${fc.code})`
-                    }))}
-                    placeholder="Select financial code..."
-                    searchPlaceholder="Search financial codes..."
-                  />
-                )}
+                <Label className={!selectedCounteragentUuid ? 'text-muted-foreground' : ''}>
+                  Financial Code <span className="text-red-500">*</span>
+                </Label>
+                <Combobox
+                  value={selectedFinancialCodeUuid}
+                  onValueChange={setSelectedFinancialCodeUuid}
+                  options={financialCodes.map(fc => ({
+                    value: fc.uuid,
+                    label: `${fc.validation} (${fc.code})`
+                  }))}
+                  placeholder={selectedCounteragentUuid ? "Select financial code..." : "Select counteragent first"}
+                  searchPlaceholder="Search financial codes..."
+                  disabled={!selectedCounteragentUuid}
+                />
               </div>
 
+              {/* 3. Currency - Active after financial code */}
               <div className="space-y-2">
-                <Label>Job (Optional)</Label>
-                {selectedPaymentId ? (
-                  <>
-                    <Input
-                      value={paymentDisplayValues.jobLabel || '-- No Job --'}
-                      readOnly
-                      className="bg-muted"
-                    />
-                    <p className="text-xs text-muted-foreground">Clear Payment ID to edit manually</p>
-                  </>
-                ) : (
-                  <Combobox
-                    value={selectedJobUuid}
-                    onValueChange={setSelectedJobUuid}
-                    options={jobs.map(job => ({
-                      value: job.jobUuid,
-                      label: job.jobIndex || job.jobName
-                    }))}
-                    placeholder="Select job..."
-                    searchPlaceholder="Search jobs..."
-                  />
-                )}
+                <Label className={!selectedFinancialCodeUuid ? 'text-muted-foreground' : ''}>
+                  Currency <span className="text-red-500">*</span>
+                </Label>
+                <Combobox
+                  value={selectedCurrencyUuid}
+                  onValueChange={setSelectedCurrencyUuid}
+                  options={currencies.map(c => ({
+                    value: c.uuid,
+                    label: `${c.code} - ${c.name}`
+                  }))}
+                  placeholder={selectedFinancialCodeUuid ? "Select currency..." : "Select financial code first"}
+                  searchPlaceholder="Search currencies..."
+                  disabled={!selectedFinancialCodeUuid}
+                />
               </div>
 
+              {/* 4. Income Tax - Active after currency (always visible as toggle) */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Switch 
                     checked={selectedIncomeTax} 
                     onCheckedChange={setSelectedIncomeTax}
                     id="income-tax-switch"
+                    disabled={!selectedCurrencyUuid}
                   />
-                  <Label htmlFor="income-tax-switch" className="cursor-pointer">
+                  <Label 
+                    htmlFor="income-tax-switch" 
+                    className={`cursor-pointer ${!selectedCurrencyUuid ? 'text-muted-foreground' : ''}`}
+                  >
                     Income Tax
                   </Label>
                 </div>
               </div>
 
+              {/* 5. Project - Active after currency (optional) */}
               <div className="space-y-2">
-                <Label>Currency</Label>
-                {selectedPaymentId ? (
-                  <>
-                    <Input
-                      value={paymentDisplayValues.currencyLabel}
-                      readOnly
-                      className="bg-muted"
-                    />
-                    <p className="text-xs text-muted-foreground">Clear Payment ID to edit manually</p>
-                  </>
-                ) : (
-                  <Combobox
-                    value={selectedCurrencyUuid}
-                    onValueChange={setSelectedCurrencyUuid}
-                    options={currencies.map(c => ({
-                      value: c.uuid,
-                      label: `${c.code} - ${c.name}`
-                    }))}
-                    placeholder="Select currency..."
-                    searchPlaceholder="Search currencies..."
-                  />
-                )}
+                <Label className={!selectedCurrencyUuid ? 'text-muted-foreground' : ''}>
+                  Project (Optional)
+                </Label>
+                <Combobox
+                  value={selectedProjectUuid}
+                  onValueChange={setSelectedProjectUuid}
+                  options={projects.map(p => ({
+                    value: p.projectUuid,
+                    label: p.projectIndex || p.projectName
+                  }))}
+                  placeholder={selectedCurrencyUuid ? "Select project..." : "Select currency first"}
+                  searchPlaceholder="Search projects..."
+                  disabled={!selectedCurrencyUuid}
+                />
               </div>
 
-              {filteredPaymentOptions.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Payment ID (Optional)</Label>
-                  <Combobox
-                    value={selectedPaymentId}
-                    onValueChange={handlePaymentIdChange}
-                    options={filteredPaymentOptions.map(opt => ({
-                      value: opt.paymentId,
-                      label: `${opt.paymentId} - ${opt.projectName} | ${opt.jobDisplay || opt.jobName || 'No Job'} | ${opt.financialCodeValidation} | ${opt.currencyCode}`
-                    }))}
-                    placeholder="Link to existing payment..."
-                    searchPlaceholder="Search payment IDs..."
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {filteredPaymentOptions.length} matching payment{filteredPaymentOptions.length !== 1 ? 's' : ''} found with current selections. {selectedPaymentId ? 'Selecting auto-fills fields above.' : 'Select to auto-fill fields.'}
-                  </p>
+              {/* 6. Job - Active after project (optional) */}
+              <div className="space-y-2">
+                <Label className={!selectedProjectUuid ? 'text-muted-foreground' : ''}>
+                  Job (Optional)
+                </Label>
+                <Combobox
+                  value={selectedJobUuid}
+                  onValueChange={setSelectedJobUuid}
+                  options={jobs.map(job => ({
+                    value: job.jobUuid,
+                    label: job.jobIndex || job.jobName
+                  }))}
+                  placeholder={selectedProjectUuid ? "Select job..." : "Select project first"}
+                  searchPlaceholder="Search jobs..."
+                  disabled={!selectedProjectUuid}
+                />
+              </div>
+
+              {/* Payment ID Information - Always visible after counteragent, shows matches */}
+              {selectedCounteragentUuid && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <svg className="h-5 w-5 text-blue-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-blue-800 text-sm">Payment ID Matches</h4>
+                      {filteredPaymentOptions.length > 0 ? (
+                        <>
+                          <p className="text-xs text-blue-700 mt-1">
+                            <strong>{filteredPaymentOptions.length}</strong> existing payment{filteredPaymentOptions.length !== 1 ? 's' : ''} match your current selection
+                          </p>
+                          <div className="mt-2">
+                            <Label className="text-xs text-blue-800">Select existing payment to link:</Label>
+                            <Combobox
+                              value={selectedPaymentId}
+                              onValueChange={handlePaymentIdChange}
+                              options={filteredPaymentOptions.map(opt => ({
+                                value: opt.paymentId,
+                                label: `${opt.paymentId} - ${opt.projectName || 'No Project'} | ${opt.jobDisplay || opt.jobName || 'No Job'} | ${opt.financialCodeValidation} | ${opt.currencyCode}`
+                              }))}
+                              placeholder="Link to existing payment..."
+                              searchPlaceholder="Search payment IDs..."
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-xs text-blue-700 mt-1">
+                          No existing payments match your current selection. You can create a new payment.
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {/* Duplicate warning */}
+              {/* Duplicate warning - only show if exact duplicate */}
               {duplicateCount > 0 && !selectedPaymentId && (
-                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 space-y-2">
+                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 space-y-2">
                   <div className="flex items-start gap-2">
                     <svg className="h-5 w-5 text-yellow-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <div className="flex-1">
-                      <h4 className="font-semibold text-yellow-800">Duplicate Payment Detected</h4>
-                      <p className="text-sm text-yellow-700 mt-1">
-                        <strong>{duplicateCount}</strong> matching payment{duplicateCount !== 1 ? 's' : ''} already exist{duplicateCount === 1 ? 's' : ''} with these exact parameters.
-                      </p>
-                      {duplicatePaymentIds.length > 0 && (
-                        <p className="text-xs text-yellow-600 mt-1">
-                          Payment IDs: {duplicatePaymentIds.join(', ')}
-                        </p>
-                      )}
-                      <p className="text-sm text-yellow-700 mt-2 font-medium">
-                        You must select one of the existing payments from the &quot;Payment ID&quot; dropdown above instead of creating a duplicate.
+                      <h4 className="font-semibold text-yellow-800 text-sm">Exact Duplicate Found</h4>
+                      <p className="text-xs text-yellow-700 mt-1">
+                        This exact combination already exists ({duplicatePaymentIds.join(', ')}). Select a payment above or change your selections.
                       </p>
                     </div>
                   </div>
@@ -1013,7 +1003,7 @@ export function PaymentsTable() {
                 disabled={duplicateCount > 0 && !selectedPaymentId}
               >
                 {duplicateCount > 0 && !selectedPaymentId 
-                  ? `Cannot Create - ${duplicateCount} Duplicate(s) Exist` 
+                  ? `Cannot Create - Exact Duplicate Exists` 
                   : selectedPaymentId 
                     ? 'Link to Existing Payment' 
                     : 'Create Payment'
