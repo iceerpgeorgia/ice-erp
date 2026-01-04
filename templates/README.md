@@ -2,7 +2,7 @@
 
 This folder contains Excel templates for importing data into the system.
 
-**Auto-generated:** 2025-12-26 19:51:53
+**Auto-generated:** 2026-01-05 00:22:39
 
 ## Available Templates
 
@@ -171,6 +171,29 @@ This folder contains Excel templates for importing data into the system.
 
 **Optional columns:**
 - `bankUuid`: String
+
+### ConsolidatedBankAccount (`consolidatedbankaccount_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `accountUuid`: String
+- `accountCurrencyUuid`: String
+- `accountCurrencyAmount`: Decimal
+- `date`: DateTime
+- `recordUuid`: String
+
+**Optional columns:**
+- `paymentUuid`: String
+- `counteragentUuid`: String
+- `projectUuid`: String
+- `financialCodeUuid`: String
+- `nominalCurrencyUuid`: String
+- `nominalAmount`: Decimal
+- `correctionDate`: DateTime
+- `id1`: String
+- `id2`: String
+- `counteragentAccountNumber`: String
+- `description`: String
 
 ### NBGExchangeRate (`nbgexchangerate_import_template.xlsx`)
 
