@@ -93,6 +93,7 @@ export function PaymentsTable() {
   const [counteragents, setCounteragents] = useState<Array<{ counteragentUuid: string; name: string; identificationNumber: string; entityType: string }>>([]);
   const [financialCodes, setFinancialCodes] = useState<Array<{ uuid: string; validation: string; code: string }>>([]);
   const [jobs, setJobs] = useState<Array<{ jobUuid: string; jobIndex: string; jobName: string }>>([]);
+  const [filteredJobs, setFilteredJobs] = useState<Array<{ jobUuid: string; jobIndex: string; jobName: string; jobDisplay?: string }>>([]);
   const [currencies, setCurrencies] = useState<Array<{ uuid: string; code: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -155,6 +156,27 @@ export function PaymentsTable() {
     fetchJobs();
     fetchCurrencies();
   }, []);
+
+  // Fetch jobs when project changes
+  useEffect(() => {
+    const fetchProjectJobs = async () => {
+      if (selectedProjectUuid) {
+        try {
+          const response = await fetch(`/api/jobs?projectUuid=${selectedProjectUuid}`);
+          if (!response.ok) throw new Error('Failed to fetch project jobs');
+          const data = await response.json();
+          setFilteredJobs(data);
+        } catch (error) {
+          console.error('Error fetching project jobs:', error);
+          setFilteredJobs([]);
+        }
+      } else {
+        setFilteredJobs([]);
+        setSelectedJobUuid('');
+      }
+    };
+    fetchProjectJobs();
+  }, [selectedProjectUuid]);
 
   // Fetch payment options when counteragent changes
   // Fetch all payment options for the selected counteragent
@@ -941,9 +963,9 @@ export function PaymentsTable() {
                   <Combobox
                     value={selectedJobUuid}
                     onValueChange={setSelectedJobUuid}
-                    options={jobs.map(job => ({
+                    options={filteredJobs.map(job => ({
                       value: job.jobUuid,
-                      label: job.jobIndex || job.jobName
+                      label: job.jobDisplay || job.jobIndex || job.jobName
                     }))}
                     placeholder="Select job..."
                     searchPlaceholder="Search jobs..."
