@@ -953,55 +953,55 @@ export function PaymentsTable() {
                 )}
               </div>
 
-              {/* Payment ID Information - Always visible after counteragent, shows matches */}
-              {selectedCounteragentUuid && (
+              {/* Payment ID Information - Only show if no exact duplicates */}
+              {selectedCounteragentUuid && duplicateCount === 0 && filteredPaymentOptions.length > 0 && (
                 <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2">
                   <div className="flex items-start gap-2">
                     <svg className="h-5 w-5 text-blue-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div className="flex-1">
-                      <h4 className="font-semibold text-blue-800 text-sm">Payment ID Matches</h4>
-                      {filteredPaymentOptions.length > 0 ? (
-                        <>
-                          <p className="text-xs text-blue-700 mt-1">
-                            <strong>{filteredPaymentOptions.length}</strong> existing payment{filteredPaymentOptions.length !== 1 ? 's' : ''} match your current selection
-                          </p>
-                          <div className="mt-2">
-                            <Label className="text-xs text-blue-800">Select existing payment to link:</Label>
-                            <Combobox
-                              value={selectedPaymentId}
-                              onValueChange={handlePaymentIdChange}
-                              options={filteredPaymentOptions.map(opt => ({
-                                value: opt.paymentId,
-                                label: `${opt.paymentId} - ${opt.projectName || 'No Project'} | ${opt.jobDisplay || opt.jobName || 'No Job'} | ${opt.financialCodeValidation} | ${opt.currencyCode}`
-                              }))}
-                              placeholder="Link to existing payment..."
-                              searchPlaceholder="Search payment IDs..."
-                            />
-                          </div>
-                        </>
-                      ) : (
-                        <p className="text-xs text-blue-700 mt-1">
-                          No existing payments match your current selection. You can create a new payment.
-                        </p>
-                      )}
+                      <h4 className="font-semibold text-blue-800 text-sm">Similar Payments Found</h4>
+                      <p className="text-xs text-blue-700 mt-1">
+                        <strong>{filteredPaymentOptions.length}</strong> existing payment{filteredPaymentOptions.length !== 1 ? 's' : ''} match some of your selections
+                      </p>
+                      <div className="mt-2">
+                        <Label className="text-xs text-blue-800">You can link to an existing payment:</Label>
+                        <Combobox
+                          value={selectedPaymentId}
+                          onValueChange={handlePaymentIdChange}
+                          options={filteredPaymentOptions.map(opt => ({
+                            value: opt.paymentId,
+                            label: `${opt.paymentId} - ${opt.projectName || 'No Project'} | ${opt.jobDisplay || opt.jobName || 'No Job'} | ${opt.financialCodeValidation} | ${opt.currencyCode}`
+                          }))}
+                          placeholder="Link to existing payment..."
+                          searchPlaceholder="Search payment IDs..."
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Duplicate warning - only show if exact duplicate */}
-              {duplicateCount > 0 && !selectedPaymentId && (
-                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 space-y-2">
+              {/* Duplicate warning - show when exact duplicate exists */}
+              {duplicateCount > 0 && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 space-y-2">
                   <div className="flex items-start gap-2">
-                    <svg className="h-5 w-5 text-yellow-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-5 w-5 text-red-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <div className="flex-1">
-                      <h4 className="font-semibold text-yellow-800 text-sm">Exact Duplicate Found</h4>
-                      <p className="text-xs text-yellow-700 mt-1">
-                        This exact combination already exists ({duplicatePaymentIds.join(', ')}). Select a payment above or change your selections.
+                      <h4 className="font-semibold text-red-800 text-sm">Cannot Create - Duplicate Exists</h4>
+                      <p className="text-xs text-red-700 mt-1">
+                        This exact combination already exists in the database.
+                      </p>
+                      {duplicatePaymentIds.length > 0 && (
+                        <p className="text-xs text-red-600 mt-1 font-medium">
+                          Existing Payment ID(s): {duplicatePaymentIds.join(', ')}
+                        </p>
+                      )}
+                      <p className="text-xs text-red-700 mt-2">
+                        Please change your field selections to create a different payment record.
                       </p>
                     </div>
                   </div>
@@ -1011,10 +1011,10 @@ export function PaymentsTable() {
               <Button 
                 onClick={handleAddPayment} 
                 className="w-full"
-                disabled={duplicateCount > 0 && !selectedPaymentId}
+                disabled={duplicateCount > 0}
               >
-                {duplicateCount > 0 && !selectedPaymentId 
-                  ? `Cannot Create - Exact Duplicate Exists` 
+                {duplicateCount > 0 
+                  ? `Cannot Create - Duplicate Exists` 
                   : selectedPaymentId 
                     ? 'Link to Existing Payment' 
                     : 'Create Payment'
