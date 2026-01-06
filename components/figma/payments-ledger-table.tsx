@@ -552,9 +552,9 @@ export function PaymentsLedgerTable() {
       </div>
 
       <div className="border rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[calc(100vh-300px)] relative">
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
               <TableRow>
                 {visibleColumns.map(col => (
                   <TableHead 
