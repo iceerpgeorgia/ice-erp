@@ -94,9 +94,6 @@ export function PaymentsLedgerTable() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<ColumnKey>('effectiveDate');
-  
-  // Debug log
-  console.log('[PaymentsLedgerTable] Rendering with', entries.length, 'entries');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(defaultColumns);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
@@ -415,8 +412,6 @@ export function PaymentsLedgerTable() {
     const [filterSearchTerm, setFilterSearchTerm] = useState('');
     const [tempSelectedValues, setTempSelectedValues] = useState<string[]>(selectedValues);
     const [isOpen, setIsOpen] = useState(false);
-    
-    console.log('[ColumnFilter] Rendering filter for', column.key, 'with', uniqueValues.length, 'unique values');
 
     // Filter unique values based on search term
     const filteredUniqueValues = useMemo(() => {
@@ -733,9 +728,7 @@ export function PaymentsLedgerTable() {
           <Table>
             <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
               <TableRow>
-                {visibleColumns.map(col => {
-                  console.log('[TableHead] Rendering column:', col.key, 'filterable:', col.filterable);
-                  return (
+                {visibleColumns.map(col => (
                   <TableHead 
                     key={col.key} 
                     style={{ width: col.width }}
@@ -792,8 +785,7 @@ export function PaymentsLedgerTable() {
                       <div className="w-px h-4 bg-border" />
                     </div>
                   </TableHead>
-                  );
-                })}
+                ))}
                 <TableHead className="w-20">Actions</TableHead>
               </TableRow>
             </TableHeader>
