@@ -54,7 +54,6 @@ export type PaymentLedgerEntry = {
   counteragentEntityType?: string;
   financialCodeValidation?: string;
   financialCode?: string;
-  jobIndex?: string;
   jobName?: string;
   currencyCode?: string;
 };
@@ -75,7 +74,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'projectIndex', label: 'Project', visible: true, width: 150, sortable: true },
   { key: 'counteragentName', label: 'Counteragent', visible: true, width: 200, sortable: true },
   { key: 'financialCodeValidation', label: 'Financial Code', visible: true, width: 200, sortable: true },
-  { key: 'jobIndex', label: 'Job', visible: true, width: 120, sortable: true },
+  { key: 'jobName', label: 'Job', visible: true, width: 120, sortable: true },
   { key: 'currencyCode', label: 'Currency', visible: true, width: 100, sortable: true },
   { key: 'incomeTax', label: 'Income Tax', visible: true, width: 100, sortable: true },
   { key: 'effectiveDate', label: 'Effective Date', visible: true, width: 150, sortable: true },

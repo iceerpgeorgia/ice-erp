@@ -40,7 +40,6 @@ export async function GET(request: NextRequest) {
         ca.entity_type as counteragent_entity_type,
         fc.validation as financial_code_validation,
         fc.code as financial_code,
-        j.job_index,
         j.job_name,
         curr.code as currency_code
       FROM payments_ledger pl
@@ -87,7 +86,6 @@ export async function GET(request: NextRequest) {
       counteragentEntityType: entry.counteragent_entity_type,
       financialCodeValidation: entry.financial_code_validation,
       financialCode: entry.financial_code,
-      jobIndex: entry.job_index,
       jobName: entry.job_name,
       currencyCode: entry.currency_code,
     }));
