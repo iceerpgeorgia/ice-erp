@@ -94,6 +94,9 @@ export function PaymentsLedgerTable() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<ColumnKey>('effectiveDate');
+  
+  // Debug log
+  console.log('[PaymentsLedgerTable] Rendering with', entries.length, 'entries');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(defaultColumns);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
