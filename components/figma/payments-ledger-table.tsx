@@ -410,8 +410,8 @@ export function PaymentsLedgerTable() {
       return entry.projectIndex || entry.projectName || 'N/A';
     }
     
-    if (key === 'jobIndex' && entry) {
-      return entry.jobIndex || entry.jobName || 'N/A';
+    if (key === 'jobName' && entry) {
+      return entry.jobName || 'N/A';
     }
     
     if (key === 'incomeTax') {
