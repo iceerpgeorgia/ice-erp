@@ -553,7 +553,7 @@ export function PaymentsReportTable() {
               <DialogTrigger asChild>
                 <Button variant="default">
                   <Plus className="mr-2 h-4 w-4" />
-                  Add Entry
+                  Add Ledger
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md">
