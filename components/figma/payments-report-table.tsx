@@ -341,8 +341,8 @@ export function PaymentsReportTable() {
       // Special handling for date columns
       const columnConfig = columns.find(col => col.key === sortColumn);
       if (columnConfig?.format === 'date') {
-        const aDate = aVal ? new Date(aVal).getTime() : 0;
-        const bDate = bVal ? new Date(bVal).getTime() : 0;
+        const aDate = aVal && typeof aVal !== 'boolean' ? new Date(aVal as string | number).getTime() : 0;
+        const bDate = bVal && typeof bVal !== 'boolean' ? new Date(bVal as string | number).getTime() : 0;
         const comparison = aDate < bDate ? -1 : 1;
         return sortDirection === 'asc' ? comparison : -comparison;
       }
