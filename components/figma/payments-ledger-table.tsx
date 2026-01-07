@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { 
   Search, 
   Plus, 
@@ -96,7 +96,7 @@ export function PaymentsLedgerTable() {
   const [sortColumn, setSortColumn] = useState<ColumnKey>('effectiveDate');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(defaultColumns);
-  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [filters, setFilters] = useState<Map<string, Set<any>>>(new Map());
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(50);
 
@@ -308,57 +308,51 @@ export function PaymentsLedgerTable() {
   };
 
   const clearFilters = () => {
-    setColumnFilters({});
+    setFilters(new Map());
   };
 
   const filteredAndSortedEntries = useMemo(() => {
-    let filtered = [...entries];
+    let result = [...entries];
 
     // Apply search
     if (searchTerm) {
-      filtered = filtered.filter(entry =>
-        Object.entries(entry).some(([_, value]) =>
-          String(value).toLowerCase().includes(searchTerm.toLowerCase())
+      result = result.filter(entry =>
+        Object.values(entry).some(val =>
+          String(val).toLowerCase().includes(searchTerm.toLowerCase())
         )
       );
     }
 
-    // Apply column filters
-    Object.entries(columnFilters).forEach(([column, values]) => {
-      if (values.length > 0) {
-        filtered = filtered.filter(entry => {
-          const value = entry[column as ColumnKey];
-          const stringValue = value === null || value === undefined ? 'N/A' : 
-                             typeof value === 'boolean' ? (value ? 'Yes' : 'No') : 
-                             String(value);
-          return values.includes(stringValue);
-        });
-      }
-    });
+    // Apply filters
+    if (filters.size > 0) {
+      result = result.filter(entry => {
+        for (const [columnKey, allowedValues] of filters.entries()) {
+          const entryValue = entry[columnKey as ColumnKey];
+          if (!allowedValues.has(entryValue)) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
 
     // Apply sorting
-    filtered.sort((a, b) => {
-      const aValue = a[sortColumn];
-      const bValue = b[sortColumn];
+    result.sort((a, b) => {
+      const aVal = a[sortColumn];
+      const bVal = b[sortColumn];
 
-      if (aValue === null || aValue === undefined) return 1;
-      if (bValue === null || bValue === undefined) return -1;
+      if (aVal === bVal) return 0;
 
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortDirection === 'asc' 
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
+      // Handle null/undefined values
+      if (aVal === null || aVal === undefined) return 1;
+      if (bVal === null || bVal === undefined) return -1;
 
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
-      }
-
-      return 0;
+      const comparison = aVal < bVal ? -1 : 1;
+      return sortDirection === 'asc' ? comparison : -comparison;
     });
 
-    return filtered;
-  }, [entries, searchTerm, sortColumn, sortDirection, columnFilters]);
+    return result;
+  }, [entries, searchTerm, sortColumn, sortDirection, filters]);
 
   // Pagination
   const totalRecords = filteredAndSortedEntries.length;
@@ -370,10 +364,10 @@ export function PaymentsLedgerTable() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, columnFilters]);
+  }, [searchTerm, filters]);
 
   const visibleColumns = columnConfig.filter(col => col.visible);
-  const activeFilterCount = Object.keys(columnFilters).length;
+  const activeFilterCount = filters.size;
 
   const formatValue = (key: ColumnKey, value: any, entry?: PaymentLedgerEntry) => {
     if (value === null || value === undefined) return 'N/A';
@@ -418,75 +412,52 @@ export function PaymentsLedgerTable() {
     return String(value);
   };
 
-  // Get unique values for a column for filtering - memoized
-  const getUniqueValues = useMemo(() => {
-    const cache: Record<string, string[]> = {};
-    return (column: ColumnKey) => {
-      if (!cache[column]) {
-        const values = new Set<string>();
-        entries.forEach(entry => {
-          const value = entry[column];
-          values.add(value === null || value === undefined ? 'N/A' : String(value));
-        });
-        cache[column] = Array.from(values).sort().slice(0, 1000); // Limit to 1000 unique values
-      }
-      return cache[column];
-    };
-  }, [entries]);
+  // Memoize unique values to avoid recalculating on every render
+  const uniqueValuesCache = useMemo(() => {
+    const cache = new Map<ColumnKey, any[]>();
+    const filterableColumns = columnConfig.filter(col => col.filterable);
+    
+    filterableColumns.forEach(col => {
+      const values = new Set(entries.map(entry => entry[col.key]));
+      cache.set(col.key, Array.from(values).sort());
+    });
+    
+    return cache;
+  }, [entries, columnConfig]);
+
+  const getUniqueValues = useCallback((columnKey: ColumnKey): any[] => {
+    return uniqueValuesCache.get(columnKey) || [];
+  }, [uniqueValuesCache]);
+
+  const handleFilterChange = (columnKey: string, values: Set<any>) => {
+    const newFilters = new Map(filters);
+    if (values.size === 0) {
+      newFilters.delete(columnKey);
+    } else {
+      newFilters.set(columnKey, values);
+    }
+    setFilters(newFilters);
+  };
 
   // Column filter component with sophisticated filter UI - Memoized
   const ColumnFilter = React.memo(({ column }: { column: ColumnConfig }) => {
     const uniqueValues = useMemo(() => getUniqueValues(column.key), [column.key]);
-    const selectedValues = columnFilters[column.key] || [];
+    const selectedValues = filters.get(column.key) || new Set();
     const [filterSearchTerm, setFilterSearchTerm] = useState('');
-    const [tempSelectedValues, setTempSelectedValues] = useState<string[]>(selectedValues);
+    const [tempSelected, setTempSelected] = useState<Set<any>>(new Set(selectedValues));
     const [isOpen, setIsOpen] = useState(false);
 
     // Filter unique values based on search term
-    const filteredUniqueValues = useMemo(() => {
-      if (!filterSearchTerm) return uniqueValues.slice(0, 100); // Limit to 100 for performance
+    const filteredValues = useMemo(() => {
+      if (!filterSearchTerm) return uniqueValues;
       return uniqueValues.filter(value => 
-        value.toLowerCase().includes(filterSearchTerm.toLowerCase())
-      ).slice(0, 100);
+        String(value).toLowerCase().includes(filterSearchTerm.toLowerCase())
+      );
     }, [uniqueValues, filterSearchTerm]);
-
-    // Reset temp values when opening
-    const handleOpenChange = (open: boolean) => {
-      setIsOpen(open);
-      if (open) {
-        setTempSelectedValues(selectedValues);
-        setFilterSearchTerm('');
-      }
-    };
-
-    // Apply filters
-    const handleApply = () => {
-      setColumnFilters({
-        ...columnFilters,
-        [column.key]: tempSelectedValues
-      });
-      setIsOpen(false);
-    };
-
-    // Cancel changes
-    const handleCancel = () => {
-      setTempSelectedValues(selectedValues);
-      setIsOpen(false);
-    };
-
-    // Clear all selections
-    const handleClearAll = () => {
-      setTempSelectedValues([]);
-    };
-
-    // Select all visible values
-    const handleSelectAll = () => {
-      setTempSelectedValues(filteredUniqueValues);
-    };
 
     // Sort values - numbers first, then text
     const sortedFilteredValues = useMemo(() => {
-      return [...filteredUniqueValues].sort((a, b) => {
+      return [...filteredValues].sort((a, b) => {
         const aIsNum = !isNaN(Number(a));
         const bIsNum = !isNaN(Number(b));
         
@@ -497,10 +468,51 @@ export function PaymentsLedgerTable() {
         } else if (!aIsNum && bIsNum) {
           return 1;
         } else {
-          return a.localeCompare(b);
+          return String(a).localeCompare(String(b));
         }
       });
-    }, [filteredUniqueValues]);
+    }, [filteredValues]);
+
+    // Reset temp values when opening
+    const handleOpenChange = (open: boolean) => {
+      setIsOpen(open);
+      if (open) {
+        setTempSelected(new Set(selectedValues));
+        setFilterSearchTerm('');
+      }
+    };
+
+    // Apply filters
+    const handleApply = () => {
+      handleFilterChange(column.key, tempSelected);
+      setIsOpen(false);
+    };
+
+    // Cancel changes
+    const handleCancel = () => {
+      setTempSelected(new Set(selectedValues));
+      setIsOpen(false);
+    };
+
+    // Clear all selections
+    const handleClearAll = () => {
+      setTempSelected(new Set());
+    };
+
+    // Select all visible values
+    const handleSelectAll = () => {
+      setTempSelected(new Set(filteredValues));
+    };
+
+    const handleToggle = (value: any) => {
+      const newSelected = new Set(tempSelected);
+      if (newSelected.has(value)) {
+        newSelected.delete(value);
+      } else {
+        newSelected.add(value);
+      }
+      setTempSelected(newSelected);
+    };
 
     return (
       <Popover open={isOpen} onOpenChange={handleOpenChange}>
@@ -508,11 +520,11 @@ export function PaymentsLedgerTable() {
           <Button 
             variant="ghost" 
             size="sm" 
-            className={`h-6 px-1 ${selectedValues.length > 0 ? 'text-blue-600' : ''}`}
+            className={`h-6 px-1 ${selectedValues.size > 0 ? 'text-blue-600' : ''}`}
           >
             <Filter className="h-3 w-3" />
-            {selectedValues.length > 0 && (
-              <span className="ml-1 text-xs">{selectedValues.length}</span>
+            {selectedValues.size > 0 && (
+              <span className="ml-1 text-xs">{selectedValues.size}</span>
             )}
           </Button>
         </PopoverTrigger>
@@ -522,7 +534,7 @@ export function PaymentsLedgerTable() {
             <div className="flex items-center justify-between border-b pb-2">
               <div className="font-medium text-sm">{column.label}</div>
               <div className="text-xs text-muted-foreground">
-                Displaying {filteredUniqueValues.length}
+                Displaying {filteredValues.length}
               </div>
             </div>
 
@@ -531,8 +543,9 @@ export function PaymentsLedgerTable() {
               <button 
                 className="w-full text-left text-sm py-1 px-2 hover:bg-muted rounded"
                 onClick={() => {
-                  const sorted = [...uniqueValues].sort();
-                  setTempSelectedValues(tempSelectedValues.filter(v => sorted.includes(v)));
+                  setSortColumn(column.key);
+                  setSortDirection('asc');
+                  setIsOpen(false);
                 }}
               >
                 Sort A to Z
@@ -540,8 +553,9 @@ export function PaymentsLedgerTable() {
               <button 
                 className="w-full text-left text-sm py-1 px-2 hover:bg-muted rounded"
                 onClick={() => {
-                  const sorted = [...uniqueValues].sort().reverse();
-                  setTempSelectedValues(tempSelectedValues.filter(v => sorted.includes(v)));
+                  setSortColumn(column.key);
+                  setSortDirection('desc');
+                  setIsOpen(false);
                 }}
               >
                 Sort Z to A
@@ -559,7 +573,7 @@ export function PaymentsLedgerTable() {
                     onClick={handleSelectAll}
                     className="text-xs text-blue-600 hover:underline"
                   >
-                    Select all {filteredUniqueValues.length}
+                    Select all {filteredValues.length}
                   </button>
                   <span className="text-xs text-muted-foreground">·</span>
                   <button
@@ -590,21 +604,15 @@ export function PaymentsLedgerTable() {
                   </div>
                 ) : (
                   sortedFilteredValues.map(value => (
-                    <div key={value} className="flex items-center space-x-2 py-1">
+                    <div key={String(value)} className="flex items-center space-x-2 py-1">
                       <Checkbox
                         id={`${column.key}-${value}`}
-                        checked={tempSelectedValues.includes(value)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setTempSelectedValues([...tempSelectedValues, value]);
-                          } else {
-                            setTempSelectedValues(tempSelectedValues.filter(v => v !== value));
-                          }
-                        }}
+                        checked={tempSelected.has(value)}
+                        onCheckedChange={() => handleToggle(value)}
                       />
-                      <Label htmlFor={`${column.key}-${value}`} className="text-sm flex-1 cursor-pointer">
-                        {value}
-                      </Label>
+                      <label htmlFor={`${column.key}-${value}`} className="text-sm flex-1 cursor-pointer">
+                        {String(value)}
+                      </label>
                     </div>
                   ))
                 )}
