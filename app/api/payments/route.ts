@@ -1,8 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const limit = searchParams.get('limit');
+    const sort = searchParams.get('sort');
+    
+    const limitClause = limit ? `LIMIT ${parseInt(limit)}` : '';
+    const orderClause = sort === 'desc' ? 'DESC' : 'ASC';
+    
     const payments = await prisma.$queryRawUnsafe(`
       SELECT 
         p.id,
@@ -20,6 +27,7 @@ export async function GET() {
         proj.project_index,
         c.counteragent as counteragent_name,
         fc.validation as financial_code_validation,
+        fc.code as financial_code,
         j.job_name,
         j.job_uuid as job_identifier,
         curr.code as currency_code
@@ -29,7 +37,8 @@ export async function GET() {
       LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
       LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
       LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
-      ORDER BY p.created_at DESC
+      ORDER BY p.created_at ${orderClause}
+      ${limitClause}
     `) as any[];
 
     const formattedPayments = payments.map((payment) => ({
@@ -48,6 +57,7 @@ export async function GET() {
       projectIndex: payment.project_index,
       counteragentName: payment.counteragent_name,
       financialCodeValidation: payment.financial_code_validation,
+      financialCode: payment.financial_code,
       jobName: payment.job_name,
       jobIdentifier: payment.job_identifier,
       currencyCode: payment.currency_code,
