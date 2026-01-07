@@ -393,7 +393,13 @@ export function PaymentsReportTable() {
     if (value === null || value === undefined) return '-';
     
     if (format === 'boolean') {
-      return value ? '✓' : '✗';
+      return (
+        <Checkbox
+          checked={value}
+          disabled
+          className="cursor-default"
+        />
+      );
     }
     
     if (format === 'date') {
@@ -770,9 +776,15 @@ export function PaymentsReportTable() {
                       className="overflow-hidden px-4 py-2 text-sm"
                       style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
                     >
-                      <div className="truncate">
-                        {formatValue(row[col.key], col.format)}
-                      </div>
+                      {col.format === 'boolean' ? (
+                        <div className="flex items-center">
+                          {formatValue(row[col.key], col.format)}
+                        </div>
+                      ) : (
+                        <div className="truncate">
+                          {formatValue(row[col.key], col.format)}
+                        </div>
+                      )}
                     </td>
                   ))}
                   <td className="px-4 py-2 text-sm text-center" style={{ width: 60, minWidth: 60, maxWidth: 60 }}>
