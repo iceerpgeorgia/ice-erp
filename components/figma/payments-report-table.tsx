@@ -13,13 +13,17 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  FileText
+  FileText,
+  Plus
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Label } from './ui/label';
+import { Combobox } from '../ui/combobox';
 
 
 type PaymentReport = {
@@ -89,6 +93,21 @@ export function PaymentsReportTable() {
   const [dateFilterMode, setDateFilterMode] = useState<'none' | 'today' | 'custom'>('none');
   const [customDate, setCustomDate] = useState<string>('');
 
+  // Add Entry form states
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [payments, setPayments] = useState<Array<{ 
+    paymentId: string; 
+    projectIndex?: string; 
+    jobName?: string;
+    financialCode?: string;
+    currencyCode?: string;
+  }>>([]);
+  const [selectedPaymentId, setSelectedPaymentId] = useState('');
+  const [effectiveDate, setEffectiveDate] = useState('');
+  const [accrual, setAccrual] = useState('');
+  const [order, setOrder] = useState('');
+  const [comment, setComment] = useState('');
+
   // Load saved column configuration and date filter after hydration
   useEffect(() => {
     const saved = localStorage.getItem('paymentsReportColumns');
@@ -147,6 +166,7 @@ export function PaymentsReportTable() {
   useEffect(() => {
     if (isInitialized) {
       fetchData();
+      fetchPayments(); // Also fetch payments for Add Entry dialog
     }
   }, [isInitialized, dateFilterMode, customDate]);
 
@@ -248,6 +268,72 @@ export function PaymentsReportTable() {
   const handleDragEnd = () => {
     setDraggedColumn(null);
     setDragOverColumn(null);
+  };
+
+  const fetchPayments = async () => {
+    try {
+      const response = await fetch('/api/payments?limit=5000&sort=desc');
+      if (!response.ok) throw new Error('Failed to fetch payments');
+      const data = await response.json();
+      setPayments(data.map((p: any) => ({
+        paymentId: p.paymentId,
+        projectIndex: p.projectIndex,
+        jobName: p.jobName,
+        financialCode: p.financialCode,
+        currencyCode: p.currencyCode
+      })));
+    } catch (error) {
+      console.error('Error fetching payments:', error);
+    }
+  };
+
+  const handleAddEntry = async () => {
+    if (!selectedPaymentId) {
+      alert('Please select a payment');
+      return;
+    }
+
+    const accrualValue = accrual ? parseFloat(accrual) : null;
+    const orderValue = order ? parseFloat(order) : null;
+
+    if ((!accrualValue || accrualValue === 0) && (!orderValue || orderValue === 0)) {
+      alert('Either Accrual or Order must be provided and cannot be zero');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/payments-ledger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentId: selectedPaymentId,
+          effectiveDate: effectiveDate || undefined,
+          accrual: accrualValue,
+          order: orderValue,
+          comment: comment || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create ledger entry');
+      }
+
+      setIsDialogOpen(false);
+      resetForm();
+      fetchData(); // Refresh the report data to show updated values
+    } catch (error: any) {
+      console.error('Error adding ledger entry:', error);
+      alert(error.message || 'Failed to add ledger entry');
+    }
+  };
+
+  const resetForm = () => {
+    setSelectedPaymentId('');
+    setEffectiveDate('');
+    setAccrual('');
+    setOrder('');
+    setComment('');
   };
 
   const fetchData = async () => {
@@ -460,11 +546,94 @@ export function PaymentsReportTable() {
                 Page {currentPage} of {totalPages}
               </span>
             )}
-            <span className="text-sm text-gray-500">
-              Page {currentPage} of {totalPages}
-            </span>
           </div>
           <div className="flex items-center gap-2">
+            {/* Add Entry Button */}
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="default">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Entry
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Add Ledger Entry</DialogTitle>
+                  <DialogDescription>
+                    Add a new entry to the payments ledger
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Payment</Label>
+                    <Combobox
+                      value={selectedPaymentId}
+                      onValueChange={setSelectedPaymentId}
+                      options={payments.map(p => {
+                        const parts = [
+                          p.projectIndex || 'No Project',
+                          p.jobName ? p.jobName : 'No Job',
+                          p.financialCode || '',
+                          p.currencyCode || ''
+                        ].filter(Boolean);
+                        const label = `${p.paymentId} - ${parts.join(' | ')}`;
+                        return {
+                          value: p.paymentId,
+                          label: label
+                        };
+                      })}
+                      placeholder="Select payment..."
+                      searchPlaceholder="Search payments..."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Effective Date (optional, defaults to now)</Label>
+                    <Input
+                      type="datetime-local"
+                      value={effectiveDate}
+                      onChange={(e) => setEffectiveDate(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Accrual (leave blank if Order is filled)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={accrual}
+                      onChange={(e) => setAccrual(e.target.value)}
+                      placeholder="Enter accrual amount"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Order (leave blank if Accrual is filled)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={order}
+                      onChange={(e) => setOrder(e.target.value)}
+                      placeholder="Enter order amount"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Comment (optional)</Label>
+                    <Input
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Enter comment"
+                    />
+                  </div>
+
+                  <Button onClick={handleAddEntry} className="w-full">
+                    Create Entry
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
