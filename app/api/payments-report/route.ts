@@ -12,6 +12,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get query parameters
+    const { searchParams } = new URL(request.url);
+    const maxDate = searchParams.get('maxDate');
+
+    // Build the HAVING clause for date filtering (must be applied after GROUP BY)
+    const dateFilter = maxDate 
+      ? `HAVING MAX(pl.effective_date) <= '${maxDate}'::date` 
+      : '';
+
     // Query to get payments with aggregated ledger data
     const query = `
       SELECT 
@@ -24,6 +33,7 @@ export async function GET(request: NextRequest) {
         p.currency_uuid,
         proj.project_index,
         proj.project_name,
+        ca.counteragent as counteragent_formatted,
         ca.name as counteragent_name,
         ca.identification_number as counteragent_id,
         fc.validation as financial_code_validation,
@@ -32,7 +42,9 @@ export async function GET(request: NextRequest) {
         j.floors,
         curr.code as currency_code,
         COALESCE(SUM(pl.accrual), 0) as total_accrual,
-        COALESCE(SUM(pl."order"), 0) as total_order
+        COALESCE(SUM(pl."order"), 0) as total_order,
+        COALESCE(SUM(ABS(cba.nominal_amount)), 0) as total_payment,
+        MAX(pl.effective_date) as latest_date
       FROM payments p
       LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
       LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
@@ -40,6 +52,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
       LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
       LEFT JOIN payments_ledger pl ON p.payment_id = pl.payment_id
+      LEFT JOIN consolidated_bank_accounts cba ON cba.payment_uuid::text = p.record_uuid
       WHERE p.is_active = true
       GROUP BY 
         p.payment_id,
@@ -51,6 +64,7 @@ export async function GET(request: NextRequest) {
         p.currency_uuid,
         proj.project_index,
         proj.project_name,
+        ca.counteragent,
         ca.name,
         ca.identification_number,
         fc.validation,
@@ -58,6 +72,7 @@ export async function GET(request: NextRequest) {
         j.job_name,
         j.floors,
         curr.code
+      ${dateFilter}
       ORDER BY p.payment_id DESC
     `;
 
@@ -65,9 +80,8 @@ export async function GET(request: NextRequest) {
 
     const formattedData = (reportData as any[]).map(row => ({
       paymentId: row.payment_id,
-      counteragent: row.counteragent_name,
-      counteragentId: row.counteragent_id,
-      project: row.project_index || row.project_name,
+      counteragent: row.counteragent_formatted || row.counteragent_name,
+      project: row.project_index,
       job: row.job_name,
       floors: row.floors ? Number(row.floors) : 0,
       financialCode: row.financial_code_validation || row.financial_code,
@@ -75,13 +89,17 @@ export async function GET(request: NextRequest) {
       currency: row.currency_code,
       accrual: row.total_accrual ? parseFloat(row.total_accrual) : 0,
       order: row.total_order ? parseFloat(row.total_order) : 0,
+      payment: row.total_payment ? parseFloat(row.total_payment) : 0,
+      latestDate: row.latest_date || null,
       // Calculated fields
       accrualPerFloor: row.floors && row.total_accrual 
         ? parseFloat((parseFloat(row.total_accrual) / Number(row.floors)).toFixed(2))
         : 0,
-      balance: row.total_accrual 
-        ? parseFloat((parseFloat(row.total_accrual) - parseFloat(row.total_order || 0)).toFixed(2))
+      paidPercent: row.total_accrual && parseFloat(row.total_accrual) !== 0
+        ? parseFloat(((parseFloat(row.total_payment || 0) / parseFloat(row.total_accrual)) * 100).toFixed(2))
         : 0,
+      due: parseFloat((parseFloat(row.total_order || 0) - parseFloat(row.total_payment || 0)).toFixed(2)),
+      balance: parseFloat((parseFloat(row.total_accrual || 0) - parseFloat(row.total_payment || 0)).toFixed(2)),
     }));
 
     return NextResponse.json(formattedData);

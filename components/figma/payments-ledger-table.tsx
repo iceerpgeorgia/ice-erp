@@ -217,6 +217,7 @@ export function PaymentsLedgerTable() {
       if (isResizing) {
         const deltaX = e.clientX - isResizing.startX;
         const newWidth = Math.max(100, isResizing.startWidth + deltaX);
+        console.log(`Resizing ${isResizing.column}: ${newWidth}px`);
         setColumnConfig(prev =>
           prev.map(col =>
             col.key === isResizing.column ? { ...col, width: newWidth } : col
@@ -227,6 +228,7 @@ export function PaymentsLedgerTable() {
 
     const handleMouseUp = () => {
       if (isResizing) {
+        console.log(`Resize complete for ${isResizing.column}`);
         setIsResizing(null);
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
@@ -234,6 +236,7 @@ export function PaymentsLedgerTable() {
     };
 
     if (isResizing) {
+      console.log(`Started resizing column: ${isResizing.column}`);
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = 'col-resize';
@@ -731,20 +734,20 @@ export function PaymentsLedgerTable() {
                 {visibleColumns.map(col => (
                   <TableHead 
                     key={col.key} 
-                    style={{ width: col.width }}
+                    style={{ width: col.width, position: 'relative' }}
                     draggable={!isResizing}
                     onDragStart={(e) => handleDragStart(e, col.key)}
                     onDragOver={(e) => handleDragOver(e, col.key)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, col.key)}
                     onDragEnd={handleDragEnd}
-                    className={`relative ${
+                    className={`relative select-none ${
                       draggedColumn === col.key ? 'opacity-50' : ''
                     } ${
                       dragOverColumn === col.key ? 'border-l-4 border-primary' : ''
                     }`}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 pr-4">
                       {col.sortable ? (
                         <button
                           onClick={() => handleSort(col.key)}
@@ -770,9 +773,9 @@ export function PaymentsLedgerTable() {
                     
                     {/* Resize handle */}
                     <div
-                      className="absolute top-0 right-0 w-4 h-full cursor-col-resize hover:bg-primary/20 active:bg-primary/40 flex items-center justify-center"
-                      style={{ right: '-8px' }}
+                      className="absolute top-0 right-0 bottom-0 w-3 cursor-col-resize hover:bg-blue-500/30 active:bg-blue-600/50 group z-20"
                       onMouseDown={(e) => {
+                        console.log(`MouseDown on resize handle for ${col.key}`);
                         e.preventDefault();
                         e.stopPropagation();
                         setIsResizing({
@@ -781,8 +784,10 @@ export function PaymentsLedgerTable() {
                           startWidth: col.width,
                         });
                       }}
+                      onMouseEnter={() => console.log(`Hovering resize handle: ${col.key}`)}
+                      title="Drag to resize"
                     >
-                      <div className="w-px h-4 bg-border" />
+                      <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-gray-300 group-hover:bg-blue-500 group-hover:w-1 transition-all" />
                     </div>
                   </TableHead>
                 ))}

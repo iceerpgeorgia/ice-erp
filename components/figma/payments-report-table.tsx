@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Search, 
   Filter, 
@@ -10,26 +10,21 @@ import {
   Settings,
   Eye,
   EyeOff,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight,
+  FileText
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from './ui/table';
+
 
 type PaymentReport = {
   paymentId: string;
   counteragent: string;
-  counteragentId: string;
   project: string;
   job: string;
   floors: number;
@@ -38,8 +33,12 @@ type PaymentReport = {
   currency: string;
   accrual: number;
   order: number;
+  payment: number;
   accrualPerFloor: number;
+  paidPercent: number;
+  due: number;
   balance: number;
+  latestDate: string | null;
 };
 
 type ColumnKey = keyof PaymentReport;
@@ -50,45 +49,229 @@ type ColumnConfig = {
   visible: boolean;
   sortable: boolean;
   filterable: boolean;
-  format?: 'currency' | 'number' | 'boolean';
+  format?: 'currency' | 'number' | 'boolean' | 'date' | 'percent';
+  width: number;
 };
 
 const defaultColumns: ColumnConfig[] = [
-  { key: 'counteragent', label: 'Counteragent', visible: true, sortable: true, filterable: true },
-  { key: 'paymentId', label: 'Payment ID', visible: true, sortable: true, filterable: true },
-  { key: 'counteragentId', label: 'ID', visible: true, sortable: true, filterable: true },
-  { key: 'currency', label: 'Currency', visible: true, sortable: true, filterable: true },
-  { key: 'financialCode', label: 'Financial Code', visible: true, sortable: true, filterable: true },
-  { key: 'incomeTax', label: 'Income Tax', visible: true, sortable: true, filterable: true, format: 'boolean' },
-  { key: 'project', label: 'Project', visible: true, sortable: true, filterable: true },
-  { key: 'job', label: 'Job', visible: true, sortable: true, filterable: true },
-  { key: 'floors', label: 'Floors', visible: true, sortable: true, filterable: false, format: 'number' },
-  { key: 'accrual', label: 'Accrual', visible: true, sortable: true, filterable: false, format: 'currency' },
-  { key: 'order', label: 'Order', visible: true, sortable: true, filterable: false, format: 'currency' },
-  { key: 'accrualPerFloor', label: 'Accrual/Floor', visible: true, sortable: true, filterable: false, format: 'currency' },
-  { key: 'balance', label: 'Balance', visible: true, sortable: true, filterable: false, format: 'currency' },
+  { key: 'counteragent', label: 'Counteragent', visible: true, sortable: true, filterable: true, width: 280 },
+  { key: 'paymentId', label: 'Payment ID', visible: true, sortable: true, filterable: true, width: 150 },
+  { key: 'currency', label: 'Currency', visible: true, sortable: true, filterable: true, width: 100 },
+  { key: 'financialCode', label: 'Financial Code', visible: true, sortable: true, filterable: true, width: 200 },
+  { key: 'incomeTax', label: 'Income Tax', visible: true, sortable: true, filterable: true, format: 'boolean', width: 100 },
+  { key: 'project', label: 'Project', visible: true, sortable: true, filterable: true, width: 200 },
+  { key: 'job', label: 'Job', visible: true, sortable: true, filterable: true, width: 150 },
+  { key: 'floors', label: 'Floors', visible: true, sortable: true, filterable: true, format: 'number', width: 100 },
+  { key: 'accrual', label: 'Accrual', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },
+  { key: 'order', label: 'Order', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },
+  { key: 'payment', label: 'Payment', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },
+  { key: 'paidPercent', label: 'Paid %', visible: true, sortable: true, filterable: true, format: 'percent', width: 100 },
+  { key: 'due', label: 'Due', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },
+  { key: 'accrualPerFloor', label: 'Accrual/Floor', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },
+  { key: 'balance', label: 'Balance', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },
+  { key: 'latestDate', label: 'Latest Date', visible: true, sortable: true, filterable: true, format: 'date', width: 120 },
 ];
 
 export function PaymentsReportTable() {
   const [data, setData] = useState<PaymentReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortColumn, setSortColumn] = useState<ColumnKey>('paymentId');
+  const [sortColumn, setSortColumn] = useState<ColumnKey>('latestDate');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
   const [filters, setFilters] = useState<Map<string, Set<any>>>(new Map());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+  const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number; element: HTMLElement } | null>(null);
+  const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [dateFilterMode, setDateFilterMode] = useState<'none' | 'today' | 'custom'>('none');
+  const [customDate, setCustomDate] = useState<string>('');
 
+  // Load saved column configuration and date filter after hydration
   useEffect(() => {
-    fetchData();
+    const saved = localStorage.getItem('paymentsReportColumns');
+    if (saved) {
+      try {
+        const savedColumns = JSON.parse(saved) as ColumnConfig[];
+        
+        // Create a map of default columns for easy lookup
+        const defaultColumnsMap = new Map(defaultColumns.map(col => [col.key, col]));
+        
+        // Filter out any columns that don't exist in defaultColumns (e.g., removed counteragentId)
+        const validSavedColumns = savedColumns.filter(savedCol => defaultColumnsMap.has(savedCol.key));
+        
+        // Update saved columns with latest defaults (format, filterable, etc.) while preserving user preferences (visible, width)
+        const updatedSavedColumns = validSavedColumns.map(savedCol => {
+          const defaultCol = defaultColumnsMap.get(savedCol.key);
+          if (defaultCol) {
+            // Preserve user preferences but update structure from defaults
+            return {
+              ...defaultCol,
+              visible: savedCol.visible,
+              width: savedCol.width
+            };
+          }
+          return savedCol;
+        });
+        
+        // Find completely new columns that don't exist in saved columns
+        const savedKeys = new Set(validSavedColumns.map(col => col.key));
+        const newColumns = defaultColumns.filter(col => !savedKeys.has(col.key));
+        
+        // Combine updated saved columns with new columns
+        setColumns([...updatedSavedColumns, ...newColumns]);
+      } catch (e) {
+        console.error('Failed to parse saved columns:', e);
+        setColumns(defaultColumns);
+      }
+    }
+    
+    // Load saved date filter settings
+    const savedDateFilter = localStorage.getItem('paymentsReportDateFilter');
+    if (savedDateFilter) {
+      try {
+        const { mode, date } = JSON.parse(savedDateFilter);
+        if (mode) setDateFilterMode(mode);
+        if (date) setCustomDate(date);
+      } catch (e) {
+        console.error('Failed to parse saved date filter:', e);
+      }
+    }
+    
+    setIsInitialized(true);
   }, []);
+
+  // Fetch data after initialization and when date filter changes
+  useEffect(() => {
+    if (isInitialized) {
+      fetchData();
+    }
+  }, [isInitialized, dateFilterMode, customDate]);
+
+  // Save column configuration to localStorage whenever it changes (but not on initial load)
+  useEffect(() => {
+    if (isInitialized && typeof window !== 'undefined') {
+      localStorage.setItem('paymentsReportColumns', JSON.stringify(columns));
+    }
+  }, [columns, isInitialized]);
+
+  // Save date filter settings to localStorage whenever they change
+  useEffect(() => {
+    if (isInitialized && typeof window !== 'undefined') {
+      localStorage.setItem('paymentsReportDateFilter', JSON.stringify({
+        mode: dateFilterMode,
+        date: customDate
+      }));
+    }
+  }, [dateFilterMode, customDate, isInitialized]);
+
+  // Column resize handlers - optimized to avoid re-renders during drag
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isResizing) {
+        const deltaX = e.clientX - isResizing.startX;
+        const newWidth = Math.max(20, isResizing.startWidth + deltaX); // Minimum 20px to keep resize handle visible
+        
+        // Update DOM directly without triggering re-render
+        isResizing.element.style.width = `${newWidth}px`;
+        isResizing.element.style.minWidth = `${newWidth}px`;
+        isResizing.element.style.maxWidth = `${newWidth}px`;
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (isResizing) {
+        // Only update state once when resize is complete
+        const finalWidth = parseInt(isResizing.element.style.width);
+        setColumns(prev =>
+          prev.map(col =>
+            col.key === isResizing.column ? { ...col, width: finalWidth } : col
+          )
+        );
+        
+        setIsResizing(null);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  // Column drag handlers for reordering
+  const handleDragStart = (e: React.DragEvent<HTMLTableCellElement>, key: ColumnKey) => {
+    setDraggedColumn(key);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>, key: ColumnKey) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedColumn && draggedColumn !== key) {
+      setDragOverColumn(key);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverColumn(null);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLTableCellElement>, targetKey: ColumnKey) => {
+    e.preventDefault();
+    if (!draggedColumn || draggedColumn === targetKey) return;
+
+    setColumns(prev => {
+      const draggedIndex = prev.findIndex(col => col.key === draggedColumn);
+      const targetIndex = prev.findIndex(col => col.key === targetKey);
+      const newConfig = [...prev];
+      const [draggedItem] = newConfig.splice(draggedIndex, 1);
+      newConfig.splice(targetIndex, 0, draggedItem);
+      return newConfig;
+    });
+
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/payments-report');
+      
+      // Build query params for date filter
+      const params = new URLSearchParams();
+      if (dateFilterMode === 'today') {
+        const today = new Date().toISOString().split('T')[0];
+        params.set('maxDate', today);
+      } else if (dateFilterMode === 'custom' && customDate) {
+        params.set('maxDate', customDate);
+      }
+      
+      const url = `/api/payments-report${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch report data');
       const result = await response.json();
       setData(result);
+      
+      // Always set default sort to latestDate descending after data loads
+      setSortColumn('latestDate');
+      setSortDirection('desc');
     } catch (error) {
       console.error('Error fetching report:', error);
     } finally {
@@ -155,6 +338,15 @@ export function PaymentsReportTable() {
       
       if (aVal === bVal) return 0;
       
+      // Special handling for date columns
+      const columnConfig = columns.find(col => col.key === sortColumn);
+      if (columnConfig?.format === 'date') {
+        const aDate = aVal ? new Date(aVal).getTime() : 0;
+        const bDate = bVal ? new Date(bVal).getTime() : 0;
+        const comparison = aDate < bDate ? -1 : 1;
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
+      
       const comparison = aVal < bVal ? -1 : 1;
       return sortDirection === 'asc' ? comparison : -comparison;
     });
@@ -162,16 +354,55 @@ export function PaymentsReportTable() {
     return result;
   }, [data, searchTerm, sortColumn, sortDirection, filters]);
 
-  const getUniqueValues = (columnKey: ColumnKey) => {
-    const values = new Set(data.map(row => row[columnKey]));
-    return Array.from(values).sort();
-  };
+  // Paginate data to limit DOM nodes
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredAndSortedData.slice(startIndex, endIndex);
+  }, [filteredAndSortedData, currentPage, pageSize]);
 
-  const formatValue = (value: any, format?: 'currency' | 'number' | 'boolean') => {
+  const totalPages = Math.ceil(filteredAndSortedData.length / pageSize);
+
+  // Reset to page 1 when filters/search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filters]);
+
+  // Memoize unique values to avoid recalculating on every render
+  const uniqueValuesCache = useMemo(() => {
+    const cache = new Map<ColumnKey, any[]>();
+    const filterableColumns = columns.filter(col => col.filterable);
+    
+    filterableColumns.forEach(col => {
+      const values = new Set(data.map(row => row[col.key]));
+      cache.set(col.key, Array.from(values).sort());
+    });
+    
+    return cache;
+  }, [data, columns]);
+
+  const getUniqueValues = useCallback((columnKey: ColumnKey): any[] => {
+    return uniqueValuesCache.get(columnKey) || [];
+  }, [uniqueValuesCache]);
+
+  const formatValue = (value: any, format?: 'currency' | 'number' | 'boolean' | 'date' | 'percent') => {
     if (value === null || value === undefined) return '-';
     
     if (format === 'boolean') {
       return value ? '✓' : '✗';
+    }
+    
+    if (format === 'date') {
+      if (!value) return '-';
+      const date = new Date(value);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}.${month}.${year}`;
+    }
+    
+    if (format === 'percent') {
+      return `${Number(value).toFixed(2)}%`;
     }
     
     if (format === 'currency' || format === 'number') {
@@ -189,24 +420,39 @@ export function PaymentsReportTable() {
 
   // Calculate totals
   const totals = useMemo(() => {
-    return filteredAndSortedData.reduce((acc, row) => ({
+    const sums = filteredAndSortedData.reduce((acc, row) => ({
       accrual: acc.accrual + row.accrual,
       order: acc.order + row.order,
+      payment: acc.payment + row.payment,
+      due: acc.due + row.due,
       balance: acc.balance + row.balance,
       floors: acc.floors + row.floors,
-    }), { accrual: 0, order: 0, balance: 0, floors: 0 });
+    }), { accrual: 0, order: 0, payment: 0, due: 0, balance: 0, floors: 0 });
+    
+    // Calculate overall paid percentage
+    const paidPercent = sums.accrual !== 0 ? (sums.payment / sums.accrual) * 100 : 0;
+    
+    return { ...sums, paidPercent };
   }, [filteredAndSortedData]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
+      <div className="sticky top-0 z-20 flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-semibold">Payments Report</h1>
             <Badge variant="secondary">
               {filteredAndSortedData.length} records
             </Badge>
+            {totalPages > 1 && (
+              <span className="text-sm text-gray-500">
+                Page {currentPage} of {totalPages}
+              </span>
+            )}
+            <span className="text-sm text-gray-500">
+              Page {currentPage} of {totalPages}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -230,6 +476,128 @@ export function PaymentsReportTable() {
                 Clear Filters
               </Button>
             )}
+
+            {/* Pagination Controls */}
+            {filteredAndSortedData.length > 0 && (
+              <>
+                <div className="flex items-center gap-2 border-l pl-2">
+                  <span className="text-sm text-gray-600">Rows per page:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="border rounded px-2 py-1 text-sm"
+                  >
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={250}>250</option>
+                    <option value={500}>500</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 border-l pl-2">
+                  <span className="text-sm text-gray-600">
+                    {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, filteredAndSortedData.length)} of {filteredAndSortedData.length}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </>
+            )}
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Filter className="w-4 h-4" />
+                  Date Filter
+                  {dateFilterMode !== 'none' && (
+                    <Badge variant="secondary" className="ml-1 h-4 px-1 text-xs">
+                      {dateFilterMode === 'today' ? 'Today' : 'Custom'}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64">
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm">Filter by Latest Date</h4>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="date-none"
+                        name="dateFilter"
+                        checked={dateFilterMode === 'none'}
+                        onChange={() => setDateFilterMode('none')}
+                        className="cursor-pointer"
+                      />
+                      <label htmlFor="date-none" className="text-sm cursor-pointer flex-1">
+                        None (All records)
+                      </label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="date-today"
+                        name="dateFilter"
+                        checked={dateFilterMode === 'today'}
+                        onChange={() => setDateFilterMode('today')}
+                        className="cursor-pointer"
+                      />
+                      <label htmlFor="date-today" className="text-sm cursor-pointer flex-1">
+                        Today ({new Date().toLocaleDateString()})
+                      </label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="date-custom"
+                        name="dateFilter"
+                        checked={dateFilterMode === 'custom'}
+                        onChange={() => setDateFilterMode('custom')}
+                        className="cursor-pointer"
+                      />
+                      <label htmlFor="date-custom" className="text-sm cursor-pointer flex-1">
+                        Custom Date
+                      </label>
+                    </div>
+
+                    {dateFilterMode === 'custom' && (
+                      <div className="ml-6">
+                        <Input
+                          type="date"
+                          value={customDate}
+                          onChange={(e) => setCustomDate(e.target.value)}
+                          className="w-full text-sm"
+                          max={new Date().toISOString().split('T')[0]}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Show records with latest date ≤ selected date
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             <Popover>
               <PopoverTrigger asChild>
@@ -261,7 +629,7 @@ export function PaymentsReportTable() {
       </div>
 
       {/* Totals Bar */}
-      <div className="flex-shrink-0 bg-blue-50 border-b border-blue-200 px-4 py-2">
+      <div className="sticky top-[60px] z-20 flex-shrink-0 bg-blue-50 border-b border-blue-200 px-4 py-2 border-t border-t-gray-200">
         <div className="flex items-center gap-6 text-sm">
           <div>
             <span className="text-gray-600">Total Accrual:</span>
@@ -273,6 +641,24 @@ export function PaymentsReportTable() {
             <span className="text-gray-600">Total Order:</span>
             <span className="ml-2 font-semibold text-blue-900">
               {formatValue(totals.order, 'currency')}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Total Payment:</span>
+            <span className="ml-2 font-semibold text-blue-900">
+              {formatValue(totals.payment, 'currency')}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Paid %:</span>
+            <span className="ml-2 font-semibold text-blue-900">
+              {formatValue(totals.paidPercent, 'percent')}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Total Due:</span>
+            <span className="ml-2 font-semibold text-blue-900">
+              {formatValue(totals.due, 'currency')}
             </span>
           </div>
           <div>
@@ -291,151 +677,318 @@ export function PaymentsReportTable() {
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto p-4">
-        <div className="rounded-lg border bg-white">
-          <Table>
-            <TableHeader>
-              <TableRow>
+      <div className="flex-1 p-4 overflow-hidden">
+        <div className="h-full overflow-auto rounded-lg border bg-white">
+          <table style={{ tableLayout: 'fixed', width: '100%' }} className="border-collapse">
+            <thead className="sticky top-0 z-10 bg-white">
+              <tr className="border-b-2 border-gray-200">
                 {visibleColumns.map(col => (
-                  <TableHead key={col.key} className="font-semibold">
-                    <div className="flex items-center gap-2">
-                      <span>{col.label}</span>
-                      {col.sortable && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => handleSort(col.key)}
-                        >
-                          {sortColumn === col.key ? (
-                            sortDirection === 'asc' ? (
-                              <ArrowUp className="h-3 w-3" />
-                            ) : (
-                              <ArrowDown className="h-3 w-3" />
-                            )
-                          ) : (
-                            <ArrowUpDown className="h-3 w-3" />
-                          )}
-                        </Button>
-                      )}
+                  <th 
+                    key={col.key} 
+                    className={`font-semibold relative cursor-move overflow-hidden bg-white text-left px-4 py-3 text-sm ${
+                      draggedColumn === col.key ? 'opacity-50' : ''
+                    } ${
+                      dragOverColumn === col.key ? 'border-l-4 border-blue-500' : ''
+                    }`}
+                    style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
+                    draggable={!isResizing}
+                    onDragStart={(e) => handleDragStart(e, col.key)}
+                    onDragOver={(e) => handleDragOver(e, col.key)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, col.key)}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div className="flex items-center gap-2 pr-4 overflow-hidden">
+                      <span className="truncate font-medium">{col.label}</span>
                       {col.filterable && (
                         <FilterPopover
                           columnKey={col.key}
+                          columnLabel={col.label}
                           values={getUniqueValues(col.key)}
                           activeFilters={filters.get(col.key) || new Set()}
                           onFilterChange={(values) => handleFilterChange(col.key, values)}
+                          onSort={(direction) => {
+                            setSortColumn(col.key);
+                            setSortDirection(direction);
+                          }}
                         />
                       )}
                     </div>
-                  </TableHead>
+                    
+                    {/* Resize handle */}
+                    <div 
+                      className="absolute top-0 right-0 bottom-0 w-5 cursor-col-resize hover:bg-blue-500/20 active:bg-blue-600/40 z-50"
+                      style={{ marginRight: '-10px' }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const thElement = e.currentTarget.parentElement as HTMLElement;
+                        setIsResizing({
+                          column: col.key,
+                          startX: e.clientX,
+                          startWidth: col.width,
+                          element: thElement
+                        });
+                      }}
+                      title="Drag to resize"
+                    >
+                      <div className="absolute right-2 top-0 bottom-0 w-1 bg-gray-300 hover:bg-blue-500 transition-colors" />
+                    </div>
+                  </th>
                 ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={visibleColumns.length} className="text-center py-8">
-                    Loading...
-                  </TableCell>
-                </TableRow>
-              ) : filteredAndSortedData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={visibleColumns.length} className="text-center py-8 text-muted-foreground">
-                    No records found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredAndSortedData.map((row, idx) => (
-                  <TableRow key={`${row.paymentId}-${idx}`}>
-                    {visibleColumns.map(col => (
-                      <TableCell key={col.key}>
+                <th 
+                  className="sticky top-0 bg-white px-4 py-3 text-left text-sm font-semibold border-b-2 border-gray-200"
+                  style={{ width: 60, minWidth: 60, maxWidth: 60 }}
+                >
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4">
+                  Loading...
+                </td>
+              </tr>
+            ) : filteredAndSortedData.length === 0 ? (
+              <tr>
+                <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4 text-gray-500">
+                  No records found
+                </td>
+              </tr>
+            ) : (
+              paginatedData.map((row, idx) => (
+                <tr key={`${row.paymentId}-${idx}`} className="border-b border-gray-200 hover:bg-gray-50">
+                  {visibleColumns.map(col => (
+                    <td 
+                      key={col.key}
+                      className="overflow-hidden px-4 py-2 text-sm"
+                      style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
+                    >
+                      <div className="truncate">
                         {formatValue(row[col.key], col.format)}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                      </div>
+                    </td>
+                  ))}
+                  <td className="px-4 py-2 text-sm text-center" style={{ width: 60, minWidth: 60, maxWidth: 60 }}>
+                    <a
+                      href={`/payment-statement/${row.paymentId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
+                      title="View statement (opens in new tab)"
+                    >
+                      <FileText className="w-4 h-4" />
+                    </a>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
+    </div>
     </div>
   );
 }
 
 function FilterPopover({
   columnKey,
+  columnLabel,
   values,
   activeFilters,
   onFilterChange,
+  onSort,
 }: {
   columnKey: string;
+  columnLabel: string;
   values: any[];
   activeFilters: Set<any>;
   onFilterChange: (values: Set<any>) => void;
+  onSort: (direction: 'asc' | 'desc') => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<Set<any>>(new Set(activeFilters));
+  const [tempSelected, setTempSelected] = useState<Set<any>>(new Set(activeFilters));
+  const [filterSearchTerm, setFilterSearchTerm] = useState('');
 
+  // Filter unique values based on search term
+  const filteredValues = useMemo(() => {
+    if (!filterSearchTerm) return values;
+    return values.filter(value => 
+      String(value).toLowerCase().includes(filterSearchTerm.toLowerCase())
+    );
+  }, [values, filterSearchTerm]);
+
+  // Sort values - numbers first, then text
+  const sortedFilteredValues = useMemo(() => {
+    return [...filteredValues].sort((a, b) => {
+      const aIsNum = !isNaN(Number(a));
+      const bIsNum = !isNaN(Number(b));
+      
+      if (aIsNum && bIsNum) {
+        return Number(a) - Number(b);
+      } else if (aIsNum && !bIsNum) {
+        return -1;
+      } else if (!aIsNum && bIsNum) {
+        return 1;
+      } else {
+        return String(a).localeCompare(String(b));
+      }
+    });
+  }, [filteredValues]);
+
+  // Reset temp values when opening
+  const handleOpenChange = (open: boolean) => {
+    setOpen(open);
+    if (open) {
+      setTempSelected(new Set(activeFilters));
+      setFilterSearchTerm('');
+    }
+  };
+
+  // Apply filters
   const handleApply = () => {
-    onFilterChange(selected);
+    onFilterChange(tempSelected);
     setOpen(false);
   };
 
+  // Cancel changes
+  const handleCancel = () => {
+    setTempSelected(new Set(activeFilters));
+    setOpen(false);
+  };
+
+  // Clear all selections
+  const handleClearAll = () => {
+    setTempSelected(new Set());
+  };
+
+  // Select all visible values
+  const handleSelectAll = () => {
+    setTempSelected(new Set(filteredValues));
+  };
+
   const handleToggle = (value: any) => {
-    const newSelected = new Set(selected);
+    const newSelected = new Set(tempSelected);
     if (newSelected.has(value)) {
       newSelected.delete(value);
     } else {
       newSelected.add(value);
     }
-    setSelected(newSelected);
+    setTempSelected(newSelected);
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 w-6 p-0"
+          className={`h-6 px-1 ${activeFilters.size > 0 ? 'text-blue-600' : ''}`}
         >
-          <Filter className={`h-3 w-3 ${activeFilters.size > 0 ? 'text-blue-600' : ''}`} />
+          <Filter className="h-3 w-3" />
+          {activeFilters.size > 0 && (
+            <span className="ml-1 text-xs">{activeFilters.size}</span>
+          )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64">
-        <div className="space-y-2 max-h-80 overflow-auto">
-          <h4 className="font-medium text-sm mb-2">Filter by {columnKey}</h4>
-          {values.map(value => (
-            <div key={String(value)} className="flex items-center space-x-2">
-              <Checkbox
-                id={`${columnKey}-${value}`}
-                checked={selected.has(value)}
-                onCheckedChange={() => handleToggle(value)}
-              />
-              <label 
-                htmlFor={`${columnKey}-${value}`}
-                className="text-sm cursor-pointer flex-1"
-              >
-                {String(value) || '(empty)'}
-              </label>
+      <PopoverContent className="w-72" align="start">
+        <div className="space-y-3">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b pb-2">
+            <div className="font-medium text-sm">{columnLabel}</div>
+            <div className="text-xs text-muted-foreground">
+              Displaying {filteredValues.length}
             </div>
-          ))}
-          <div className="flex gap-2 pt-2 border-t">
-            <Button size="sm" onClick={handleApply} className="flex-1">
-              Apply
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline" 
+          </div>
+
+          {/* Sort Options */}
+          <div className="space-y-1">
+            <button 
+              className="w-full text-left text-sm py-1 px-2 hover:bg-muted rounded"
               onClick={() => {
-                setSelected(new Set());
-                onFilterChange(new Set());
+                onSort('asc');
                 setOpen(false);
               }}
-              className="flex-1"
             >
-              Clear
+              Sort A to Z
+            </button>
+            <button 
+              className="w-full text-left text-sm py-1 px-2 hover:bg-muted rounded"
+              onClick={() => {
+                onSort('desc');
+                setOpen(false);
+              }}
+            >
+              Sort Z to A
+            </button>
+          </div>
+
+          {/* Filter by values section */}
+          <div className="border-t pt-3">
+            <div className="font-medium text-sm mb-2">Filter by values</div>
+            
+            {/* Select All / Clear controls */}
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSelectAll}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  Select all {filteredValues.length}
+                </button>
+                <span className="text-xs text-muted-foreground">·</span>
+                <button
+                  onClick={handleClearAll}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            {/* Search input */}
+            <div className="relative mb-3">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+              <Input
+                placeholder="Search values..."
+                value={filterSearchTerm}
+                onChange={(e) => setFilterSearchTerm(e.target.value)}
+                className="pl-7 h-8 text-sm"
+              />
+            </div>
+
+            {/* Values list */}
+            <div className="space-y-1 max-h-48 overflow-auto border rounded p-2">
+              {sortedFilteredValues.length === 0 ? (
+                <div className="text-xs text-muted-foreground py-2 text-center">
+                  No values found
+                </div>
+              ) : (
+                sortedFilteredValues.map(value => (
+                  <div key={String(value)} className="flex items-center space-x-2 py-1">
+                    <Checkbox
+                      id={`${columnKey}-${value}`}
+                      checked={tempSelected.has(value)}
+                      onCheckedChange={() => handleToggle(value)}
+                    />
+                    <label htmlFor={`${columnKey}-${value}`} className="text-sm flex-1 cursor-pointer">
+                      {String(value)}
+                    </label>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex justify-end space-x-2 pt-2 border-t">
+            <Button variant="outline" size="sm" onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleApply} className="bg-green-600 hover:bg-green-700">
+              OK
             </Button>
           </div>
         </div>

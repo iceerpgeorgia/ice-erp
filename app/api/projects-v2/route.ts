@@ -24,16 +24,8 @@ export async function GET(req: NextRequest) {
         p.currency,
         p.state,
         p.counteragent,
-        ARRAY_AGG(
-          JSON_BUILD_OBJECT(
-            'employeeUuid', pe.employee_uuid,
-            'employeeName', c.name
-          )
-        ) FILTER (WHERE pe.employee_uuid IS NOT NULL) as employees
+        '[]'::json as employees
       FROM projects p
-      LEFT JOIN project_employees pe ON p.project_uuid = pe.project_uuid
-      LEFT JOIN counteragents c ON pe.employee_uuid = c.counteragent_uuid
-      GROUP BY p.id
       ORDER BY p.created_at DESC
     `;
 
