@@ -726,33 +726,35 @@ export function PaymentsReportTable() {
                       type="date"
                       value={effectiveDate}
                       onChange={(e) => setEffectiveDate(e.target.value)}
-                      placeholder="yyyy-mm-dd"
+                      className="border-2 border-gray-400"
                     />
-                    <p className="text-xs text-gray-500">Optional. Defaults to today if not set.</p>
+                    <p className="text-xs text-gray-500">Optional. Defaults to today if not set. Format: DD.MM.YYYY</p>
                   </div>
 
                   <div className="space-y-2">
                     <Label>Amount <span className="text-red-500">*</span></Label>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
+                      <div>
+                        <Label className="text-xs text-gray-600 mb-1 block">Accrual</Label>
                         <Input
                           type="number"
                           step="0.01"
                           value={accrual}
                           onChange={(e) => setAccrual(e.target.value)}
-                          placeholder="Accrual"
+                          placeholder="0.00"
+                          className="border-[3px] border-gray-400 focus-visible:border-blue-500"
                         />
-                        <p className="text-xs text-gray-500">Accrual</p>
                       </div>
-                      <div className="space-y-1">
+                      <div>
+                        <Label className="text-xs text-gray-600 mb-1 block">Order</Label>
                         <Input
                           type="number"
                           step="0.01"
                           value={order}
                           onChange={(e) => setOrder(e.target.value)}
-                          placeholder="Order"
+                          placeholder="0.00"
+                          className="border-[3px] border-gray-400 focus-visible:border-blue-500"
                         />
-                        <p className="text-xs text-gray-500">Order</p>
                       </div>
                     </div>
                     <p className="text-xs text-gray-500">Enter at least one amount (Accrual or Order).</p>
