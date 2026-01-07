@@ -22,6 +22,7 @@ export interface ComboboxOption {
   value: string
   label: string
   keywords?: string // Optional search keywords
+  displayLabel?: string // Optional different label for dropdown items
 }
 
 interface ComboboxProps {
@@ -99,7 +100,7 @@ export function Combobox({
                     value === option.value ? "opacity-100" : "opacity-0"
                   )}
                 />
-                {option.label}
+                <span className="truncate">{option.displayLabel || option.label}</span>
               </CommandItem>
             ))}
           </CommandGroup>

@@ -580,66 +580,94 @@ export function PaymentsReportTable() {
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Payment {preSelectedPaymentId && <span className="text-xs text-gray-500">(locked)</span>}</Label>
+                    <Label>
+                      Payment
+                      {preSelectedPaymentId && <span className="ml-2 text-xs text-gray-500">(locked)</span>}
+                    </Label>
                     <Combobox
                       value={selectedPaymentId}
                       onValueChange={setSelectedPaymentId}
                       options={payments.map(p => {
-                        const parts = [
-                          p.projectIndex || 'No Project',
-                          p.jobName ? p.jobName : 'No Job',
+                        // Display: Short format for trigger button (selected value)
+                        const displayLabel = p.projectIndex 
+                          ? `${p.paymentId} (${p.projectIndex})`
+                          : p.paymentId;
+                        
+                        // Dropdown: Full details for dropdown items
+                        const fullLabel = [
+                          p.paymentId,
+                          p.projectIndex && `Project: ${p.projectIndex}`,
+                          p.jobName && `Job: ${p.jobName}`,
+                          p.financialCode,
+                          p.currencyCode
+                        ].filter(Boolean).join(' • ');
+                        
+                        // Search: All details for searching
+                        const searchKeywords = [
+                          p.paymentId,
+                          p.projectIndex || '',
+                          p.jobName || '',
                           p.financialCode || '',
                           p.currencyCode || ''
-                        ].filter(Boolean);
-                        const label = `${p.paymentId} - ${parts.join(' | ')}`;
+                        ].filter(Boolean).join(' ');
+                        
                         return {
                           value: p.paymentId,
-                          label: label
+                          label: displayLabel,
+                          displayLabel: fullLabel,
+                          keywords: searchKeywords
                         };
                       })}
                       placeholder="Select payment..."
-                      searchPlaceholder="Search payments..."
+                      searchPlaceholder="Search by payment ID, project, job..."
                       disabled={!!preSelectedPaymentId}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Effective Date (optional, defaults to now)</Label>
+                    <Label>Effective Date</Label>
                     <Input
-                      type="datetime-local"
+                      type="date"
                       value={effectiveDate}
                       onChange={(e) => setEffectiveDate(e.target.value)}
+                      placeholder="yyyy-mm-dd"
                     />
+                    <p className="text-xs text-gray-500">Optional. Defaults to today if not set.</p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Accrual (leave blank if Order is filled)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={accrual}
-                      onChange={(e) => setAccrual(e.target.value)}
-                      placeholder="Enter accrual amount"
-                    />
+                    <Label>Amount <span className="text-red-500">*</span></Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={accrual}
+                          onChange={(e) => setAccrual(e.target.value)}
+                          placeholder="Accrual"
+                        />
+                        <p className="text-xs text-gray-500">Accrual</p>
+                      </div>
+                      <div className="space-y-1">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={order}
+                          onChange={(e) => setOrder(e.target.value)}
+                          placeholder="Order"
+                        />
+                        <p className="text-xs text-gray-500">Order</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">Enter at least one amount (Accrual or Order).</p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Order (leave blank if Accrual is filled)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={order}
-                      onChange={(e) => setOrder(e.target.value)}
-                      placeholder="Enter order amount"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Comment (optional)</Label>
+                    <Label>Comment</Label>
                     <Input
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
-                      placeholder="Enter comment"
+                      placeholder="Optional notes or description"
                     />
                   </div>
 
