@@ -95,6 +95,7 @@ export function PaymentsReportTable() {
 
   // Add Entry form states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [preSelectedPaymentId, setPreSelectedPaymentId] = useState<string | null>(null);
   const [payments, setPayments] = useState<Array<{ 
     paymentId: string; 
     projectIndex?: string; 
@@ -330,10 +331,24 @@ export function PaymentsReportTable() {
 
   const resetForm = () => {
     setSelectedPaymentId('');
+    setPreSelectedPaymentId(null);
     setEffectiveDate('');
     setAccrual('');
     setOrder('');
     setComment('');
+  };
+
+  const openDialogForPayment = (paymentId: string) => {
+    setPreSelectedPaymentId(paymentId);
+    setSelectedPaymentId(paymentId);
+    setIsDialogOpen(true);
+  };
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      resetForm();
+    }
   };
 
   const fetchData = async () => {
@@ -549,7 +564,7 @@ export function PaymentsReportTable() {
           </div>
           <div className="flex items-center gap-2">
             {/* Add Entry Button */}
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
               <DialogTrigger asChild>
                 <Button variant="default">
                   <Plus className="mr-2 h-4 w-4" />
@@ -565,7 +580,7 @@ export function PaymentsReportTable() {
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Payment</Label>
+                    <Label>Payment {preSelectedPaymentId && <span className="text-xs text-gray-500">(locked)</span>}</Label>
                     <Combobox
                       value={selectedPaymentId}
                       onValueChange={setSelectedPaymentId}
@@ -584,6 +599,7 @@ export function PaymentsReportTable() {
                       })}
                       placeholder="Select payment..."
                       searchPlaceholder="Search payments..."
+                      disabled={!!preSelectedPaymentId}
                     />
                   </div>
 
@@ -917,7 +933,7 @@ export function PaymentsReportTable() {
                 ))}
                 <th 
                   className="sticky top-0 bg-white px-4 py-3 text-left text-sm font-semibold border-b-2 border-gray-200"
-                  style={{ width: 60, minWidth: 60, maxWidth: 60 }}
+                  style={{ width: 80, minWidth: 80, maxWidth: 80 }}
                 >
                   Actions
                 </th>
@@ -956,16 +972,25 @@ export function PaymentsReportTable() {
                       )}
                     </td>
                   ))}
-                  <td className="px-4 py-2 text-sm text-center" style={{ width: 60, minWidth: 60, maxWidth: 60 }}>
-                    <a
-                      href={`/payment-statement/${row.paymentId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
-                      title="View statement (opens in new tab)"
-                    >
-                      <FileText className="w-4 h-4" />
-                    </a>
+                  <td className="px-4 py-2 text-sm" style={{ width: 80, minWidth: 80, maxWidth: 80 }}>
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => openDialogForPayment(row.paymentId)}
+                        className="inline-block text-green-600 hover:text-green-800 hover:bg-green-50 p-1 rounded transition-colors"
+                        title="Add ledger entry for this payment"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                      <a
+                        href={`/payment-statement/${row.paymentId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
+                        title="View statement (opens in new tab)"
+                      >
+                        <FileText className="w-4 h-4" />
+                      </a>
+                    </div>
                   </td>
                 </tr>
               ))
