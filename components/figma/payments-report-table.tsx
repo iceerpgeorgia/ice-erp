@@ -315,13 +315,27 @@ export function PaymentsReportTable() {
       return;
     }
 
+    // Convert dd.mm.yyyy to ISO format (yyyy-mm-dd) if provided
+    let isoDate: string | undefined = undefined;
+    if (effectiveDate) {
+      const datePattern = /^(\d{2})\.(\d{2})\.(\d{4})$/;
+      const match = effectiveDate.match(datePattern);
+      if (match) {
+        const [, day, month, year] = match;
+        isoDate = `${year}-${month}-${day}`;
+      } else {
+        alert('Please enter date in dd.mm.yyyy format (e.g., 07.01.2026)');
+        return;
+      }
+    }
+
     try {
       const response = await fetch('/api/payments-ledger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentId: selectedPaymentId,
-          effectiveDate: effectiveDate || undefined,
+          effectiveDate: isoDate,
           accrual: accrualValue,
           order: orderValue,
           comment: comment || undefined,
@@ -723,12 +737,14 @@ export function PaymentsReportTable() {
                   <div className="space-y-2">
                     <Label>Effective Date</Label>
                     <Input
-                      type="date"
+                      type="text"
                       value={effectiveDate}
                       onChange={(e) => setEffectiveDate(e.target.value)}
+                      placeholder="dd.mm.yyyy"
+                      pattern="\d{2}\.\d{2}\.\d{4}"
                       className="border-2 border-gray-400"
                     />
-                    <p className="text-xs text-gray-500">Optional. Defaults to today if not set. Format: DD.MM.YYYY</p>
+                    <p className="text-xs text-gray-500">Optional. Defaults to today if not set. Format: dd.mm.yyyy (e.g., 07.01.2026)</p>
                   </div>
 
                   <div className="space-y-2">
@@ -766,6 +782,7 @@ export function PaymentsReportTable() {
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
                       placeholder="Optional notes or description"
+                      className="border-[3px] border-gray-400 focus-visible:border-blue-500"
                     />
                   </div>
 
