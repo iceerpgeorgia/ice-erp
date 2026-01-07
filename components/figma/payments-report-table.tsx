@@ -571,7 +571,7 @@ export function PaymentsReportTable() {
                   Add Ledger
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Add Ledger Entry</DialogTitle>
                   <DialogDescription>
@@ -588,8 +588,11 @@ export function PaymentsReportTable() {
                       value={selectedPaymentId}
                       onValueChange={setSelectedPaymentId}
                       options={payments.map(p => {
-                        // Build compact context (show most relevant available info)
-                        const context = p.projectIndex || p.jobName || p.financialCode || p.currencyCode || '';
+                        // Build compact context (show only project or job, limit to 30 chars)
+                        let context = p.projectIndex || p.jobName || '';
+                        if (context.length > 30) {
+                          context = context.substring(0, 27) + '...';
+                        }
                         
                         // Display: Short format for trigger button (selected value)
                         const displayLabel = context 
@@ -599,11 +602,11 @@ export function PaymentsReportTable() {
                         // Dropdown: Full details for dropdown items
                         const parts = [];
                         parts.push(p.paymentId);
-                        if (p.projectIndex) parts.push(`Project: ${p.projectIndex}`);
-                        if (p.jobName) parts.push(`Job: ${p.jobName}`);
+                        if (p.projectIndex) parts.push(p.projectIndex);
+                        if (p.jobName) parts.push(p.jobName);
                         if (p.financialCode) parts.push(p.financialCode);
                         if (p.currencyCode) parts.push(p.currencyCode);
-                        const fullLabel = parts.join(' • ');
+                        const fullLabel = parts.join(' | ');
                         
                         // Search: All details for searching
                         const searchKeywords = [
