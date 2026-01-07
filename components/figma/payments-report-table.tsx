@@ -614,41 +614,41 @@ export function PaymentsReportTable() {
                         <div className="grid grid-cols-3 gap-3">
                           <div className="space-y-1">
                             <Label className="text-xs text-gray-600">Payment ID</Label>
-                            <Input value={selectedPaymentDetails.paymentId} disabled className="bg-gray-100 text-black font-medium" />
+                            <Input value={selectedPaymentDetails.paymentId} disabled className="bg-gray-100 !text-black font-semibold opacity-100" style={{ color: '#000' }} />
                           </div>
                           
                           <div className="space-y-1">
                             <Label className="text-xs text-gray-600">Currency</Label>
-                            <Input value={selectedPaymentDetails.currency} disabled className="bg-gray-100 text-black font-medium" />
+                            <Input value={selectedPaymentDetails.currency} disabled className="bg-gray-100 !text-black font-semibold opacity-100" style={{ color: '#000' }} />
                           </div>
                           
                           <div className="space-y-1">
                             <Label className="text-xs text-gray-600">Income Tax</Label>
                             <div className="flex items-center h-10 px-3 border border-gray-300 rounded-md bg-gray-100">
                               <Checkbox checked={selectedPaymentDetails.incomeTax} disabled />
-                              <span className="ml-2 text-sm font-medium text-black">{selectedPaymentDetails.incomeTax ? 'Yes' : 'No'}</span>
+                              <span className="ml-2 text-sm font-semibold" style={{ color: '#000' }}>{selectedPaymentDetails.incomeTax ? 'Yes' : 'No'}</span>
                             </div>
                           </div>
                         </div>
                         
                         <div className="space-y-1">
                           <Label className="text-xs text-gray-600">Counteragent</Label>
-                          <Input value={selectedPaymentDetails.counteragent} disabled className="bg-gray-100 text-black font-medium" />
+                          <Input value={selectedPaymentDetails.counteragent} disabled className="bg-gray-100 !text-black font-semibold opacity-100" style={{ color: '#000' }} />
                         </div>
                         
                         <div className="space-y-1">
                           <Label className="text-xs text-gray-600">Project</Label>
-                          <Input value={selectedPaymentDetails.project} disabled className="bg-gray-100 text-black font-medium" />
+                          <Input value={selectedPaymentDetails.project} disabled className="bg-gray-100 !text-black font-semibold opacity-100" style={{ color: '#000' }} />
                         </div>
                         
                         <div className="space-y-1">
                           <Label className="text-xs text-gray-600">Job</Label>
-                          <Input value={selectedPaymentDetails.job} disabled className="bg-gray-100 text-black font-medium" />
+                          <Input value={selectedPaymentDetails.job} disabled className="bg-gray-100 !text-black font-semibold opacity-100" style={{ color: '#000' }} />
                         </div>
                         
                         <div className="space-y-1">
                           <Label className="text-xs text-gray-600">Financial Code</Label>
-                          <Input value={selectedPaymentDetails.financialCode} disabled className="bg-gray-100 text-black font-medium" />
+                          <Input value={selectedPaymentDetails.financialCode} disabled className="bg-gray-100 !text-black font-semibold opacity-100" style={{ color: '#000' }} />
                         </div>
                       </div>
                     </div>
