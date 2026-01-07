@@ -736,14 +736,43 @@ export function PaymentsReportTable() {
 
                   <div className="space-y-2">
                     <Label>Effective Date</Label>
-                    <Input
-                      type="text"
-                      value={effectiveDate}
-                      onChange={(e) => setEffectiveDate(e.target.value)}
-                      placeholder="dd.mm.yyyy"
-                      pattern="\d{2}\.\d{2}\.\d{4}"
-                      className="border-2 border-gray-400"
-                    />
+                    <div className="relative flex gap-2">
+                      <Input
+                        type="text"
+                        value={effectiveDate}
+                        onChange={(e) => {
+                          // Allow only numbers and dots
+                          let value = e.target.value.replace(/[^\d.]/g, '');
+                          
+                          // Auto-add dots after day and month
+                          if (value.length === 2 && !value.includes('.')) {
+                            value = value + '.';
+                          } else if (value.length === 5 && value.split('.').length === 2) {
+                            value = value + '.';
+                          }
+                          
+                          // Limit to dd.mm.yyyy format (10 chars)
+                          if (value.length <= 10) {
+                            setEffectiveDate(value);
+                          }
+                        }}
+                        placeholder="dd.mm.yyyy"
+                        maxLength={10}
+                        className="border-2 border-gray-400 flex-1"
+                      />
+                      <input
+                        type="date"
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            // Convert yyyy-mm-dd to dd.mm.yyyy
+                            const [year, month, day] = e.target.value.split('-');
+                            setEffectiveDate(`${day}.${month}.${year}`);
+                          }
+                        }}
+                        className="border-2 border-gray-400 rounded-md px-3 cursor-pointer w-12 flex-shrink-0"
+                        title="Pick date from calendar"
+                      />
+                    </div>
                     <p className="text-xs text-gray-500">Optional. Defaults to today if not set. Format: dd.mm.yyyy (e.g., 07.01.2026)</p>
                   </div>
 
