@@ -6,12 +6,7 @@ import {
   Plus, 
   Trash2,
   Filter, 
-  ArrowUpDown, 
-  ArrowUp, 
-  ArrowDown,
   Settings,
-  Eye,
-  EyeOff
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -21,14 +16,6 @@ import { Label } from './ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { Combobox } from '../ui/combobox';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from './ui/table';
 
 export type PaymentLedgerEntry = {
   id: number;
@@ -67,6 +54,7 @@ type ColumnConfig = {
   width: number;
   sortable: boolean;
   filterable: boolean;
+  format?: 'currency' | 'number' | 'boolean' | 'date';
 };
 
 const defaultColumns: ColumnConfig[] = [
@@ -78,14 +66,14 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'jobName', label: 'Job', visible: true, width: 120, sortable: true, filterable: true },
   { key: 'currencyCode', label: 'Currency', visible: true, width: 100, sortable: true, filterable: true },
   { key: 'incomeTax', label: 'Income Tax', visible: true, width: 100, sortable: true, filterable: true },
-  { key: 'effectiveDate', label: 'Effective Date', visible: true, width: 150, sortable: true, filterable: true },
+  { key: 'effectiveDate', label: 'Effective Date', visible: true, width: 150, sortable: true, filterable: true, format: 'date' },
   { key: 'accrual', label: 'Accrual', visible: true, width: 120, sortable: true, filterable: true },
   { key: 'order', label: 'Order', visible: true, width: 120, sortable: true, filterable: true },
   { key: 'comment', label: 'Comment', visible: true, width: 250, sortable: true, filterable: false },
   { key: 'userEmail', label: 'User', visible: true, width: 200, sortable: true, filterable: true },
   { key: 'recordUuid', label: 'Record UUID', visible: false, width: 250, sortable: false, filterable: false },
-  { key: 'createdAt', label: 'Created At', visible: true, width: 150, sortable: true, filterable: true },
-  { key: 'updatedAt', label: 'Updated At', visible: false, width: 150, sortable: true, filterable: true },
+  { key: 'createdAt', label: 'Created At', visible: true, width: 150, sortable: true, filterable: true, format: 'date' },
+  { key: 'updatedAt', label: 'Updated At', visible: false, width: 150, sortable: true, filterable: true, format: 'date' },
 ];
 
 export function PaymentsLedgerTable() {
@@ -348,6 +336,15 @@ export function PaymentsLedgerTable() {
 
       if (aVal === bVal) return 0;
 
+      // Special handling for date columns
+      const columnCfg = columnConfig.find(col => col.key === sortColumn);
+      if (columnCfg?.format === 'date') {
+        const aDate = aVal && typeof aVal !== 'boolean' ? new Date(aVal as string | number).getTime() : 0;
+        const bDate = bVal && typeof bVal !== 'boolean' ? new Date(bVal as string | number).getTime() : 0;
+        const comparison = aDate < bDate ? -1 : 1;
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
+
       // Handle null/undefined values
       if (aVal === null || aVal === undefined) return 1;
       if (bVal === null || bVal === undefined) return -1;
@@ -378,7 +375,11 @@ export function PaymentsLedgerTable() {
     if (value === null || value === undefined) return 'N/A';
     
     if (key === 'effectiveDate' || key === 'createdAt' || key === 'updatedAt') {
-      return new Date(value).toLocaleString();
+      const date = new Date(value);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}.${month}.${year}`;
     }
     
     if (key === 'accrual' || key === 'order') {
@@ -767,46 +768,27 @@ export function PaymentsLedgerTable() {
 
       <div className="border rounded-lg overflow-hidden">
         <div className="overflow-x-auto max-h-[calc(100vh-300px)] relative">
-          <Table>
-            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
-              <TableRow>
+          <table style={{ tableLayout: 'fixed', width: '100%' }} className="border-collapse">
+            <thead className="sticky top-0 z-10 bg-white">
+              <tr className="border-b-2 border-gray-200">
                 {visibleColumns.map(col => (
-                  <TableHead 
+                  <th 
                     key={col.key} 
-                    style={{ width: col.width, minWidth: col.width, maxWidth: col.width, position: 'relative' }}
+                    className={`font-semibold relative cursor-move overflow-hidden bg-white text-left px-4 py-3 text-sm ${
+                      draggedColumn === col.key ? 'opacity-50' : ''
+                    } ${
+                      dragOverColumn === col.key ? 'border-l-4 border-blue-500' : ''
+                    }`}
+                    style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
                     draggable={!isResizing}
                     onDragStart={(e) => handleDragStart(e, col.key)}
                     onDragOver={(e) => handleDragOver(e, col.key)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, col.key)}
                     onDragEnd={handleDragEnd}
-                    className={`relative select-none ${
-                      draggedColumn === col.key ? 'opacity-50' : ''
-                    } ${
-                      dragOverColumn === col.key ? 'border-l-4 border-primary' : ''
-                    }`}
                   >
-                    <div className="flex items-center gap-2 pr-4">
-                      {col.sortable ? (
-                        <button
-                          onClick={() => handleSort(col.key)}
-                          className="flex items-center gap-1 hover:text-foreground"
-                        >
-                          {col.label}
-                          {sortColumn === col.key ? (
-                            sortDirection === 'asc' ? (
-                              <ArrowUp className="h-3 w-3" />
-                            ) : (
-                              <ArrowDown className="h-3 w-3" />
-                            )
-                          ) : (
-                            <ArrowUpDown className="h-3 w-3 opacity-50" />
-                          )}
-                        </button>
-                      ) : (
-                        <span>{col.label}</span>
-                      )}
-                      
+                    <div className="flex items-center gap-2 pr-4 overflow-hidden">
+                      <span className="truncate font-medium">{col.label}</span>
                       {col.filterable && <ColumnFilter column={col} />}
                     </div>
                     
@@ -829,33 +811,44 @@ export function PaymentsLedgerTable() {
                     >
                       <div className="absolute right-2 top-0 bottom-0 w-1 bg-gray-300 hover:bg-blue-500 transition-colors" />
                     </div>
-                  </TableHead>
+                  </th>
                 ))}
-                <TableHead className="w-20">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+                <th 
+                  className="sticky top-0 bg-white px-4 py-3 text-left text-sm font-semibold border-b-2 border-gray-200"
+                  style={{ width: 80, minWidth: 80, maxWidth: 80 }}
+                >
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={visibleColumns.length + 1} className="text-center py-8">
+                <tr>
+                  <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4">
                     Loading...
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ) : filteredAndSortedEntries.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={visibleColumns.length + 1} className="text-center py-8">
+                <tr>
+                  <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4 text-gray-500">
                     No entries found
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ) : (
                 paginatedEntries.map((entry) => (
-                  <TableRow key={entry.id}>
+                  <tr key={entry.id} className="border-b border-gray-200 hover:bg-gray-50">
                     {visibleColumns.map(col => (
-                      <TableCell key={col.key}>
-                        {formatValue(col.key, entry[col.key], entry)}
-                      </TableCell>
+                      <td 
+                        key={col.key}
+                        className="overflow-hidden px-4 py-2 text-sm"
+                        style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
+                      >
+                        <div className="truncate">
+                          {formatValue(col.key, entry[col.key], entry)}
+                        </div>
+                      </td>
                     ))}
-                    <TableCell>
+                    <td className="px-4 py-2 text-sm text-center" style={{ width: 80, minWidth: 80, maxWidth: 80 }}>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -863,12 +856,12 @@ export function PaymentsLedgerTable() {
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 ))
               )}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
       </div>
 
