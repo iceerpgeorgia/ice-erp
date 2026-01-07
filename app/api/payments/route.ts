@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
         proj.project_index,
         c.counteragent as counteragent_name,
         fc.validation as financial_code_validation,
-        fc.code as financial_code,
+        fc.validation as financial_code,
         j.job_name,
         j.job_uuid as job_identifier,
         curr.code as currency_code

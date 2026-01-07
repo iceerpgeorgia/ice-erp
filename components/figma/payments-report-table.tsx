@@ -611,46 +611,44 @@ export function PaymentsReportTable() {
                       <div className="bg-gray-50 rounded-lg p-4 space-y-3 border border-gray-200">
                         <h3 className="text-sm font-semibold text-gray-700 mb-3">Payment Details</h3>
                         
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-3 gap-3">
                           <div className="space-y-1">
                             <Label className="text-xs text-gray-600">Payment ID</Label>
-                            <Input value={selectedPaymentDetails.paymentId} disabled className="bg-white" />
+                            <Input value={selectedPaymentDetails.paymentId} disabled className="bg-gray-100 text-gray-900 font-medium" />
                           </div>
                           
                           <div className="space-y-1">
                             <Label className="text-xs text-gray-600">Currency</Label>
-                            <Input value={selectedPaymentDetails.currency} disabled className="bg-white" />
+                            <Input value={selectedPaymentDetails.currency} disabled className="bg-gray-100 text-gray-900 font-medium" />
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <Label className="text-xs text-gray-600">Income Tax</Label>
+                            <div className="flex items-center h-10 px-3 border border-gray-300 rounded-md bg-gray-100">
+                              <Checkbox checked={selectedPaymentDetails.incomeTax} disabled />
+                              <span className="ml-2 text-sm font-medium text-gray-900">{selectedPaymentDetails.incomeTax ? 'Yes' : 'No'}</span>
+                            </div>
                           </div>
                         </div>
                         
                         <div className="space-y-1">
                           <Label className="text-xs text-gray-600">Counteragent</Label>
-                          <Input value={selectedPaymentDetails.counteragent} disabled className="bg-white" />
+                          <Input value={selectedPaymentDetails.counteragent} disabled className="bg-gray-100 text-gray-900 font-medium" />
                         </div>
                         
                         <div className="space-y-1">
                           <Label className="text-xs text-gray-600">Project</Label>
-                          <Input value={selectedPaymentDetails.project} disabled className="bg-white" />
+                          <Input value={selectedPaymentDetails.project} disabled className="bg-gray-100 text-gray-900 font-medium" />
                         </div>
                         
                         <div className="space-y-1">
                           <Label className="text-xs text-gray-600">Job</Label>
-                          <Input value={selectedPaymentDetails.job} disabled className="bg-white" />
+                          <Input value={selectedPaymentDetails.job} disabled className="bg-gray-100 text-gray-900 font-medium" />
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <Label className="text-xs text-gray-600">Financial Code</Label>
-                            <Input value={selectedPaymentDetails.financialCode} disabled className="bg-white" />
-                          </div>
-                          
-                          <div className="space-y-1">
-                            <Label className="text-xs text-gray-600">Income Tax</Label>
-                            <div className="flex items-center h-10 px-3 border border-gray-300 rounded-md bg-white">
-                              <Checkbox checked={selectedPaymentDetails.incomeTax} disabled />
-                              <span className="ml-2 text-sm">{selectedPaymentDetails.incomeTax ? 'Yes' : 'No'}</span>
-                            </div>
-                          </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-gray-600">Financial Code</Label>
+                          <Input value={selectedPaymentDetails.financialCode} disabled className="bg-gray-100 text-gray-900 font-medium" />
                         </div>
                       </div>
                     </div>
