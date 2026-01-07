@@ -347,6 +347,10 @@ export function PaymentsReportTable() {
         return sortDirection === 'asc' ? comparison : -comparison;
       }
       
+      // Handle null/undefined values
+      if (aVal === null || aVal === undefined) return 1;
+      if (bVal === null || bVal === undefined) return -1;
+      
       const comparison = aVal < bVal ? -1 : 1;
       return sortDirection === 'asc' ? comparison : -comparison;
     });
