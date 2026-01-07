@@ -97,6 +97,8 @@ export function PaymentsLedgerTable() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(defaultColumns);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [recordsPerPage, setRecordsPerPage] = useState(50);
 
   // Column resize and drag states
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number } | null>(null);
@@ -132,7 +134,8 @@ export function PaymentsLedgerTable() {
 
   const fetchPayments = async () => {
     try {
-      const response = await fetch('/api/payments');
+      // Fetch only recent payments with limit to reduce memory
+      const response = await fetch('/api/payments?limit=5000&sort=desc');
       if (!response.ok) throw new Error('Failed to fetch payments');
       const data = await response.json();
       setPayments(data.map((p: any) => ({
@@ -357,6 +360,18 @@ export function PaymentsLedgerTable() {
     return filtered;
   }, [entries, searchTerm, sortColumn, sortDirection, columnFilters]);
 
+  // Pagination
+  const totalRecords = filteredAndSortedEntries.length;
+  const totalPages = Math.ceil(totalRecords / recordsPerPage);
+  const startIndex = (currentPage - 1) * recordsPerPage;
+  const endIndex = startIndex + recordsPerPage;
+  const paginatedEntries = filteredAndSortedEntries.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, columnFilters]);
+
   const visibleColumns = columnConfig.filter(col => col.visible);
   const activeFilterCount = Object.keys(columnFilters).length;
 
@@ -403,14 +418,25 @@ export function PaymentsLedgerTable() {
     return String(value);
   };
 
-  // Get unique values for a column for filtering
-  const getUniqueValues = (column: ColumnKey) => {
-    return [...new Set(entries.map(entry => String(entry[column])))].sort();
-  };
+  // Get unique values for a column for filtering - memoized
+  const getUniqueValues = useMemo(() => {
+    const cache: Record<string, string[]> = {};
+    return (column: ColumnKey) => {
+      if (!cache[column]) {
+        const values = new Set<string>();
+        entries.forEach(entry => {
+          const value = entry[column];
+          values.add(value === null || value === undefined ? 'N/A' : String(value));
+        });
+        cache[column] = Array.from(values).sort().slice(0, 1000); // Limit to 1000 unique values
+      }
+      return cache[column];
+    };
+  }, [entries]);
 
-  // Column filter component with sophisticated filter UI
-  const ColumnFilter = ({ column }: { column: ColumnConfig }) => {
-    const uniqueValues = getUniqueValues(column.key);
+  // Column filter component with sophisticated filter UI - Memoized
+  const ColumnFilter = React.memo(({ column }: { column: ColumnConfig }) => {
+    const uniqueValues = useMemo(() => getUniqueValues(column.key), [column.key]);
     const selectedValues = columnFilters[column.key] || [];
     const [filterSearchTerm, setFilterSearchTerm] = useState('');
     const [tempSelectedValues, setTempSelectedValues] = useState<string[]>(selectedValues);
@@ -418,10 +444,10 @@ export function PaymentsLedgerTable() {
 
     // Filter unique values based on search term
     const filteredUniqueValues = useMemo(() => {
-      if (!filterSearchTerm) return uniqueValues;
+      if (!filterSearchTerm) return uniqueValues.slice(0, 100); // Limit to 100 for performance
       return uniqueValues.filter(value => 
         value.toLowerCase().includes(filterSearchTerm.toLowerCase())
-      );
+      ).slice(0, 100);
     }, [uniqueValues, filterSearchTerm]);
 
     // Reset temp values when opening
@@ -598,7 +624,7 @@ export function PaymentsLedgerTable() {
         </PopoverContent>
       </Popover>
     );
-  };
+  });
 
   return (
     <div className="space-y-4 p-6">
@@ -808,7 +834,7 @@ export function PaymentsLedgerTable() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredAndSortedEntries.map((entry) => (
+                paginatedEntries.map((entry) => (
                   <TableRow key={entry.id}>
                     {visibleColumns.map(col => (
                       <TableCell key={col.key}>
@@ -832,8 +858,69 @@ export function PaymentsLedgerTable() {
         </div>
       </div>
 
-      <div className="text-sm text-muted-foreground">
-        Showing {filteredAndSortedEntries.length} of {entries.length} entries
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          Showing {startIndex + 1} to {Math.min(endIndex, totalRecords)} of {totalRecords} entries
+          {entries.length !== totalRecords && ` (filtered from ${entries.length} total)`}
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">Rows per page:</span>
+            <select
+              value={recordsPerPage}
+              onChange={(e) => {
+                setRecordsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="border rounded px-2 py-1 text-sm"
+            >
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="200">200</option>
+            </select>
+          </div>
+          
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              First
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="px-3 text-sm">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              Last
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
