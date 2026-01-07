@@ -47,7 +47,10 @@ export function Combobox({
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
-  const selectedOption = options.find((option) => option.value === value)
+  // Ensure options is always an array
+  const safeOptions = React.useMemo(() => Array.isArray(options) ? options : [], [options])
+
+  const selectedOption = safeOptions.find((option) => option.value === value)
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -66,18 +69,18 @@ export function Combobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className={cn("w-full p-0", className)} align="start">
+      <PopoverContent className={cn("w-[var(--radix-popover-trigger-width)] p-0", className)} align="start">
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandEmpty>{emptyText}</CommandEmpty>
           <CommandGroup className="max-h-[300px] overflow-auto">
-            {options.map((option) => (
+            {safeOptions.map((option) => (
               <CommandItem
                 key={option.value}
                 value={option.keywords || option.label}
                 onSelect={(searchValue) => {
                   // Find the option that matches the search value (label)
-                  const selectedOption = options.find(
+                  const selectedOption = safeOptions.find(
                     (opt) => (opt.keywords || opt.label).toLowerCase() === searchValue.toLowerCase()
                   )
                   if (selectedOption) {
