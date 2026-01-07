@@ -101,7 +101,7 @@ export function PaymentsLedgerTable() {
   const [recordsPerPage, setRecordsPerPage] = useState(50);
 
   // Column resize and drag states
-  const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number } | null>(null);
+  const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number; element: HTMLElement } | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
 
@@ -214,24 +214,30 @@ export function PaymentsLedgerTable() {
     setComment('');
   };
 
-  // Column resize handlers
+  // Column resize handlers - optimized to avoid re-renders during drag
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isResizing) {
         const deltaX = e.clientX - isResizing.startX;
-        const newWidth = Math.max(100, isResizing.startWidth + deltaX);
-        console.log(`Resizing ${isResizing.column}: ${newWidth}px`);
-        setColumnConfig(prev =>
-          prev.map(col =>
-            col.key === isResizing.column ? { ...col, width: newWidth } : col
-          )
-        );
+        const newWidth = Math.max(80, isResizing.startWidth + deltaX); // Minimum 80px
+        
+        // Update DOM directly without triggering re-render
+        isResizing.element.style.width = `${newWidth}px`;
+        isResizing.element.style.minWidth = `${newWidth}px`;
+        isResizing.element.style.maxWidth = `${newWidth}px`;
       }
     };
 
     const handleMouseUp = () => {
       if (isResizing) {
-        console.log(`Resize complete for ${isResizing.column}`);
+        // Only update state once when resize is complete
+        const finalWidth = parseInt(isResizing.element.style.width);
+        setColumnConfig(prev =>
+          prev.map(col =>
+            col.key === isResizing.column ? { ...col, width: finalWidth } : col
+          )
+        );
+        
         setIsResizing(null);
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
@@ -239,7 +245,6 @@ export function PaymentsLedgerTable() {
     };
 
     if (isResizing) {
-      console.log(`Started resizing column: ${isResizing.column}`);
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = 'col-resize';
@@ -768,7 +773,7 @@ export function PaymentsLedgerTable() {
                 {visibleColumns.map(col => (
                   <TableHead 
                     key={col.key} 
-                    style={{ width: col.width, position: 'relative' }}
+                    style={{ width: col.width, minWidth: col.width, maxWidth: col.width, position: 'relative' }}
                     draggable={!isResizing}
                     onDragStart={(e) => handleDragStart(e, col.key)}
                     onDragOver={(e) => handleDragOver(e, col.key)}
@@ -807,21 +812,22 @@ export function PaymentsLedgerTable() {
                     
                     {/* Resize handle */}
                     <div
-                      className="absolute top-0 right-0 bottom-0 w-3 cursor-col-resize hover:bg-blue-500/30 active:bg-blue-600/50 group z-20"
+                      className="absolute top-0 right-0 bottom-0 w-5 cursor-col-resize hover:bg-blue-500/20 active:bg-blue-600/40 z-50"
+                      style={{ marginRight: '-10px' }}
                       onMouseDown={(e) => {
-                        console.log(`MouseDown on resize handle for ${col.key}`);
                         e.preventDefault();
                         e.stopPropagation();
+                        const thElement = e.currentTarget.parentElement as HTMLElement;
                         setIsResizing({
                           column: col.key,
                           startX: e.clientX,
                           startWidth: col.width,
+                          element: thElement
                         });
                       }}
-                      onMouseEnter={() => console.log(`Hovering resize handle: ${col.key}`)}
                       title="Drag to resize"
                     >
-                      <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-gray-300 group-hover:bg-blue-500 group-hover:w-1 transition-all" />
+                      <div className="absolute right-2 top-0 bottom-0 w-1 bg-gray-300 hover:bg-blue-500 transition-colors" />
                     </div>
                   </TableHead>
                 ))}
