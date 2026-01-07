@@ -78,7 +78,13 @@ const defaultColumns: ColumnConfig[] = [
 
 export function PaymentsLedgerTable() {
   const [entries, setEntries] = useState<PaymentLedgerEntry[]>([]);
-  const [payments, setPayments] = useState<Array<{ paymentId: string; projectIndex?: string; counteragentName?: string }>>([]);
+  const [payments, setPayments] = useState<Array<{ 
+    paymentId: string; 
+    projectIndex?: string; 
+    jobName?: string;
+    financialCode?: string;
+    currencyCode?: string;
+  }>>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<ColumnKey>('effectiveDate');
@@ -129,7 +135,9 @@ export function PaymentsLedgerTable() {
       setPayments(data.map((p: any) => ({
         paymentId: p.paymentId,
         projectIndex: p.projectIndex,
-        counteragentName: p.counteragentName
+        jobName: p.jobName,
+        financialCode: p.financialCode,
+        currencyCode: p.currencyCode
       })));
     } catch (error) {
       console.error('Error fetching payments:', error);
@@ -664,10 +672,19 @@ export function PaymentsLedgerTable() {
                 <Combobox
                   value={selectedPaymentId}
                   onValueChange={setSelectedPaymentId}
-                  options={payments.map(p => ({
-                    value: p.paymentId,
-                    label: p.paymentId
-                  }))}
+                  options={payments.map(p => {
+                    const parts = [
+                      p.projectIndex || 'No Project',
+                      p.jobName ? p.jobName : 'No Job',
+                      p.financialCode || '',
+                      p.currencyCode || ''
+                    ].filter(Boolean);
+                    const label = `${p.paymentId} - ${parts.join(' | ')}`;
+                    return {
+                      value: p.paymentId,
+                      label: label
+                    };
+                  })}
                   placeholder="Select payment..."
                   searchPlaceholder="Search payments..."
                 />
