@@ -96,11 +96,22 @@ export function PaymentsReportTable() {
   // Add Entry form states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [preSelectedPaymentId, setPreSelectedPaymentId] = useState<string | null>(null);
+  const [selectedPaymentDetails, setSelectedPaymentDetails] = useState<{
+    paymentId: string;
+    counteragent: string;
+    project: string;
+    job: string;
+    financialCode: string;
+    incomeTax: boolean;
+    currency: string;
+  } | null>(null);
   const [payments, setPayments] = useState<Array<{ 
     paymentId: string; 
+    counteragentName?: string;
     projectIndex?: string; 
     jobName?: string;
     financialCode?: string;
+    incomeTax?: boolean;
     currencyCode?: string;
   }>>([]);
   const [selectedPaymentId, setSelectedPaymentId] = useState('');
@@ -278,9 +289,11 @@ export function PaymentsReportTable() {
       const data = await response.json();
       setPayments(data.map((p: any) => ({
         paymentId: p.paymentId,
+        counteragentName: p.counteragentName,
         projectIndex: p.projectIndex,
         jobName: p.jobName,
         financialCode: p.financialCode,
+        incomeTax: p.incomeTax,
         currencyCode: p.currencyCode
       })));
     } catch (error) {
@@ -332,6 +345,7 @@ export function PaymentsReportTable() {
   const resetForm = () => {
     setSelectedPaymentId('');
     setPreSelectedPaymentId(null);
+    setSelectedPaymentDetails(null);
     setEffectiveDate('');
     setAccrual('');
     setOrder('');
@@ -339,8 +353,20 @@ export function PaymentsReportTable() {
   };
 
   const openDialogForPayment = (paymentId: string) => {
-    setPreSelectedPaymentId(paymentId);
-    setSelectedPaymentId(paymentId);
+    const payment = payments.find(p => p.paymentId === paymentId);
+    if (payment) {
+      setPreSelectedPaymentId(paymentId);
+      setSelectedPaymentId(paymentId);
+      setSelectedPaymentDetails({
+        paymentId: payment.paymentId,
+        counteragent: payment.counteragentName || 'N/A',
+        project: payment.projectIndex || 'N/A',
+        job: payment.jobName || 'N/A',
+        financialCode: payment.financialCode || 'N/A',
+        incomeTax: payment.incomeTax || false,
+        currency: payment.currencyCode || 'N/A'
+      });
+    }
     setIsDialogOpen(true);
   };
 
@@ -579,56 +605,110 @@ export function PaymentsReportTable() {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>
-                      Payment
-                      {preSelectedPaymentId && <span className="ml-2 text-xs text-gray-500">(locked)</span>}
-                    </Label>
-                    <Combobox
-                      value={selectedPaymentId}
-                      onValueChange={setSelectedPaymentId}
-                      options={payments.map(p => {
-                        // Build compact context (show only project or job, limit to 30 chars)
-                        let context = p.projectIndex || p.jobName || '';
-                        if (context.length > 30) {
-                          context = context.substring(0, 27) + '...';
-                        }
+                  {preSelectedPaymentId && selectedPaymentDetails ? (
+                    // Show payment details as read-only form fields
+                    <div className="space-y-4">
+                      <div className="bg-gray-50 rounded-lg p-4 space-y-3 border border-gray-200">
+                        <h3 className="text-sm font-semibold text-gray-700 mb-3">Payment Details</h3>
                         
-                        // Display: Short format for trigger button (selected value)
-                        const displayLabel = context 
-                          ? `${p.paymentId} (${context})`
-                          : p.paymentId;
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-gray-600">Payment ID</Label>
+                            <Input value={selectedPaymentDetails.paymentId} disabled className="bg-white" />
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <Label className="text-xs text-gray-600">Currency</Label>
+                            <Input value={selectedPaymentDetails.currency} disabled className="bg-white" />
+                          </div>
+                        </div>
                         
-                        // Dropdown: Full details for dropdown items
-                        const parts = [];
-                        parts.push(p.paymentId);
-                        if (p.projectIndex) parts.push(p.projectIndex);
-                        if (p.jobName) parts.push(p.jobName);
-                        if (p.financialCode) parts.push(p.financialCode);
-                        if (p.currencyCode) parts.push(p.currencyCode);
-                        const fullLabel = parts.join(' | ');
+                        <div className="space-y-1">
+                          <Label className="text-xs text-gray-600">Counteragent</Label>
+                          <Input value={selectedPaymentDetails.counteragent} disabled className="bg-white" />
+                        </div>
                         
-                        // Search: All details for searching
-                        const searchKeywords = [
-                          p.paymentId,
-                          p.projectIndex || '',
-                          p.jobName || '',
-                          p.financialCode || '',
-                          p.currencyCode || ''
-                        ].filter(Boolean).join(' ');
+                        <div className="space-y-1">
+                          <Label className="text-xs text-gray-600">Project</Label>
+                          <Input value={selectedPaymentDetails.project} disabled className="bg-white" />
+                        </div>
                         
-                        return {
-                          value: p.paymentId,
-                          label: displayLabel,
-                          displayLabel: fullLabel,
-                          keywords: searchKeywords
-                        };
-                      })}
-                      placeholder="Select payment..."
-                      searchPlaceholder="Search by payment ID, project, job..."
-                      disabled={!!preSelectedPaymentId}
-                    />
-                  </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-gray-600">Job</Label>
+                          <Input value={selectedPaymentDetails.job} disabled className="bg-white" />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-gray-600">Financial Code</Label>
+                            <Input value={selectedPaymentDetails.financialCode} disabled className="bg-white" />
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <Label className="text-xs text-gray-600">Income Tax</Label>
+                            <div className="flex items-center h-10 px-3 border border-gray-300 rounded-md bg-white">
+                              <Checkbox checked={selectedPaymentDetails.incomeTax} disabled />
+                              <span className="ml-2 text-sm">{selectedPaymentDetails.incomeTax ? 'Yes' : 'No'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    // Show payment selection dropdown
+                    <div className="space-y-2">
+                      <Label>Payment</Label>
+                      <Combobox
+                        value={selectedPaymentId}
+                        onValueChange={(value) => {
+                          setSelectedPaymentId(value);
+                          const payment = payments.find(p => p.paymentId === value);
+                          if (payment) {
+                            setSelectedPaymentDetails({
+                              paymentId: payment.paymentId,
+                              counteragent: payment.counteragentName || 'N/A',
+                              project: payment.projectIndex || 'N/A',
+                              job: payment.jobName || 'N/A',
+                              financialCode: payment.financialCode || 'N/A',
+                              incomeTax: payment.incomeTax || false,
+                              currency: payment.currencyCode || 'N/A'
+                            });
+                          }
+                        }}
+                        options={payments.map(p => {
+                          let context = p.projectIndex || p.jobName || '';
+                          if (context.length > 30) {
+                            context = context.substring(0, 27) + '...';
+                          }
+                          const displayLabel = context 
+                            ? `${p.paymentId} (${context})`
+                            : p.paymentId;
+                          const parts = [];
+                          parts.push(p.paymentId);
+                          if (p.projectIndex) parts.push(p.projectIndex);
+                          if (p.jobName) parts.push(p.jobName);
+                          if (p.financialCode) parts.push(p.financialCode);
+                          if (p.currencyCode) parts.push(p.currencyCode);
+                          const fullLabel = parts.join(' | ');
+                          const searchKeywords = [
+                            p.paymentId,
+                            p.projectIndex || '',
+                            p.jobName || '',
+                            p.financialCode || '',
+                            p.currencyCode || ''
+                          ].filter(Boolean).join(' ');
+                          return {
+                            value: p.paymentId,
+                            label: displayLabel,
+                            displayLabel: fullLabel,
+                            keywords: searchKeywords
+                          };
+                        })}
+                        placeholder="Select payment..."
+                        searchPlaceholder="Search by payment ID, project, job..."
+                      />
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label>Effective Date</Label>
