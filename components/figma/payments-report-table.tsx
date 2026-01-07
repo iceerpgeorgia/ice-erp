@@ -588,19 +588,22 @@ export function PaymentsReportTable() {
                       value={selectedPaymentId}
                       onValueChange={setSelectedPaymentId}
                       options={payments.map(p => {
+                        // Build compact context (show most relevant available info)
+                        const context = p.projectIndex || p.jobName || p.financialCode || p.currencyCode || '';
+                        
                         // Display: Short format for trigger button (selected value)
-                        const displayLabel = p.projectIndex 
-                          ? `${p.paymentId} (${p.projectIndex})`
+                        const displayLabel = context 
+                          ? `${p.paymentId} (${context})`
                           : p.paymentId;
                         
                         // Dropdown: Full details for dropdown items
-                        const fullLabel = [
-                          p.paymentId,
-                          p.projectIndex && `Project: ${p.projectIndex}`,
-                          p.jobName && `Job: ${p.jobName}`,
-                          p.financialCode,
-                          p.currencyCode
-                        ].filter(Boolean).join(' • ');
+                        const parts = [];
+                        parts.push(p.paymentId);
+                        if (p.projectIndex) parts.push(`Project: ${p.projectIndex}`);
+                        if (p.jobName) parts.push(`Job: ${p.jobName}`);
+                        if (p.financialCode) parts.push(p.financialCode);
+                        if (p.currencyCode) parts.push(p.currencyCode);
+                        const fullLabel = parts.join(' • ');
                         
                         // Search: All details for searching
                         const searchKeywords = [
