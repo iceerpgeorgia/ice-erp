@@ -693,7 +693,7 @@ export function PaymentsLedgerTable() {
               <div className="space-y-2">
                 <Label>Effective Date (optional, defaults to now)</Label>
                 <Input
-                  type="datetime-local"
+                  type="date"
                   value={effectiveDate}
                   onChange={(e) => setEffectiveDate(e.target.value)}
                 />
