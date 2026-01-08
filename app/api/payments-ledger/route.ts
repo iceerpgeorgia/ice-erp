@@ -169,9 +169,15 @@ export async function POST(request: NextRequest) {
       order || null,
       comment || null,
       session.user.email
-    );
+    ) as any[];
 
-    return NextResponse.json(result);
+    // Convert BigInt to Number for JSON serialization
+    const formattedResult = result.map(entry => ({
+      ...entry,
+      id: Number(entry.id),
+    }));
+
+    return NextResponse.json(formattedResult);
   } catch (error: any) {
     console.error('Error creating payment ledger entry:', error);
     return NextResponse.json(
