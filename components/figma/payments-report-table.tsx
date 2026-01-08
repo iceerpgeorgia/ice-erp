@@ -1049,19 +1049,27 @@ export function PaymentsReportTable() {
           <table style={{ tableLayout: 'fixed', width: '100%' }} className="border-collapse">
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b-2 border-gray-200">
-                {visibleColumns.map(col => (
-                  <th 
-                    key={col.key} 
-                    className={`font-semibold relative cursor-move overflow-hidden bg-white text-left px-4 py-3 text-sm ${
-                      draggedColumn === col.key ? 'opacity-50' : ''
-                    } ${
-                      dragOverColumn === col.key ? 'border-l-4 border-blue-500' : ''
-                    }`}
-                    style={{ 
-                      width: col.width, 
-                      minWidth: col.width, 
-                      maxWidth: col.width
-                    }}
+                {visibleColumns.map(col => {
+                  // Column background colors
+                  let bgColor = '';
+                  if (col.key === 'accrual') bgColor = '#ffebee'; // Light red
+                  if (col.key === 'payment') bgColor = '#e8f5e9'; // Light green
+                  if (col.key === 'order') bgColor = '#fff9e6'; // Light yellow
+                  
+                  return (
+                    <th 
+                      key={col.key} 
+                      className={`font-semibold relative cursor-move overflow-hidden text-left px-4 py-3 text-sm ${
+                        draggedColumn === col.key ? 'opacity-50' : ''
+                      } ${
+                        dragOverColumn === col.key ? 'border-l-4 border-blue-500' : ''
+                      }`}
+                      style={{ 
+                        width: col.width, 
+                        minWidth: col.width, 
+                        maxWidth: col.width,
+                        backgroundColor: bgColor || '#fff'
+                      }}
                     draggable={!isResizing}
                     onDragStart={(e) => handleDragStart(e, col.key)}
                     onDragOver={(e) => handleDragOver(e, col.key)}
@@ -1106,7 +1114,8 @@ export function PaymentsReportTable() {
                       <div className="absolute right-2 top-0 bottom-0 w-1 bg-gray-300 hover:bg-blue-500 transition-colors" />
                     </div>
                   </th>
-                ))}
+                  );
+                })}
                 <th 
                   className="sticky top-0 bg-white px-4 py-3 text-left text-sm font-semibold border-b-2 border-gray-200"
                   style={{ width: 80, minWidth: 80, maxWidth: 80 }}
@@ -1131,16 +1140,24 @@ export function PaymentsReportTable() {
             ) : (
               paginatedData.map((row, idx) => (
                 <tr key={`${row.paymentId}-${idx}`} className="border-b border-gray-200 hover:bg-gray-50">
-                  {visibleColumns.map(col => (
-                    <td 
-                      key={col.key}
-                      className="overflow-hidden px-4 py-2 text-sm"
-                      style={{ 
-                        width: col.width, 
-                        minWidth: col.width, 
-                        maxWidth: col.width
-                      }}
-                    >
+                  {visibleColumns.map(col => {
+                    // Column background colors
+                    let bgColor = '';
+                    if (col.key === 'accrual') bgColor = '#ffebee'; // Light red
+                    if (col.key === 'payment') bgColor = '#e8f5e9'; // Light green
+                    if (col.key === 'order') bgColor = '#fff9e6'; // Light yellow
+                    
+                    return (
+                      <td 
+                        key={col.key}
+                        className="overflow-hidden px-4 py-2 text-sm"
+                        style={{ 
+                          width: col.width, 
+                          minWidth: col.width, 
+                          maxWidth: col.width,
+                          backgroundColor: bgColor
+                        }}
+                      >
                       {col.format === 'boolean' ? (
                         <div className="flex items-center">
                           {formatValue(row[col.key], col.format)}
@@ -1151,7 +1168,8 @@ export function PaymentsReportTable() {
                         </div>
                       )}
                     </td>
-                  ))}
+                    );
+                  })}
                   <td className="px-4 py-2 text-sm" style={{ width: 80, minWidth: 80, maxWidth: 80 }}>
                     <div className="flex items-center justify-center gap-1">
                       <button
