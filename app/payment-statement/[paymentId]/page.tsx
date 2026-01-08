@@ -122,8 +122,9 @@ export default function PaymentStatementPage() {
                     <thead className="bg-gray-100">
                       <tr>
                         <th className="px-4 py-3 text-left font-semibold">Effective Date</th>
-                        <th className="px-4 py-3 text-right font-semibold">Accrual</th>
-                        <th className="px-4 py-3 text-right font-semibold">Order</th>
+                        <th className="px-4 py-3 text-right font-semibold" style={{ backgroundColor: '#ffebee' }}>Accrual</th>
+                        <th className="px-4 py-3 text-right font-semibold" style={{ backgroundColor: '#e8f5e9' }}>Payment</th>
+                        <th className="px-4 py-3 text-right font-semibold" style={{ backgroundColor: '#fff9e6' }}>Order</th>
                         <th className="px-4 py-3 text-left font-semibold">Comment</th>
                         <th className="px-4 py-3 text-left font-semibold">User</th>
                         <th className="px-4 py-3 text-left font-semibold">Created At</th>
@@ -133,11 +134,14 @@ export default function PaymentStatementPage() {
                       {statementData.ledgerEntries.map((entry: any, index: number) => (
                         <tr key={entry.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                           <td className="px-4 py-3">{new Date(entry.effectiveDate).toLocaleDateString()}</td>
-                          <td className="px-4 py-3 text-right font-mono">
-                            {entry.accrual.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          <td className="px-4 py-3 text-right font-mono" style={{ backgroundColor: '#ffebee' }}>
+                            {entry.accrual ? entry.accrual.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                           </td>
-                          <td className="px-4 py-3 text-right font-mono">
-                            {entry.order.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          <td className="px-4 py-3 text-right font-mono" style={{ backgroundColor: '#e8f5e9' }}>
+                            0.00
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono" style={{ backgroundColor: '#fff9e6' }}>
+                            {entry.order ? entry.order.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                           </td>
                           <td className="px-4 py-3">{entry.comment || '-'}</td>
                           <td className="px-4 py-3">{entry.userEmail}</td>
