@@ -59,6 +59,11 @@ export async function GET(request: NextRequest) {
     }
 
     query += ' ORDER BY pl.effective_date DESC, pl.created_at DESC';
+    
+    // Limit to most recent 1000 entries to prevent slow page loads
+    if (!paymentId) {
+      query += ' LIMIT 1000';
+    }
 
     const ledgerEntries = await prisma.$queryRawUnsafe(query, ...params);
 
@@ -123,8 +128,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use current timestamp if effectiveDate is not provided
-    const finalEffectiveDate = effectiveDate || new Date().toISOString();
+    // Convert date format from dd.mm.yyyy to yyyy-mm-dd if provided
+    let finalEffectiveDate;
+    if (effectiveDate) {
+      // Check if it's in dd.mm.yyyy format
+      const ddmmyyyyPattern = /^(\d{2})\.(\d{2})\.(\d{4})$/;
+      const match = effectiveDate.match(ddmmyyyyPattern);
+      
+      if (match) {
+        // Convert dd.mm.yyyy to yyyy-mm-dd
+        const [, day, month, year] = match;
+        finalEffectiveDate = `${year}-${month}-${day}`;
+      } else {
+        // Already in ISO format or other format
+        finalEffectiveDate = effectiveDate;
+      }
+    } else {
+      // Use current date in yyyy-mm-dd format
+      const now = new Date();
+      finalEffectiveDate = now.toISOString().split('T')[0];
+    }
 
     const query = `
       INSERT INTO payments_ledger (
