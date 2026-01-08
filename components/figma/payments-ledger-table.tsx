@@ -391,7 +391,10 @@ export function PaymentsLedgerTable() {
     }
     
     if (key === 'accrual' || key === 'order') {
-      return typeof value === 'number' ? value.toFixed(2) : '';
+      if (typeof value === 'number') {
+        return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      return '';
     }
     
     if (key === 'counteragentName' && entry) {
