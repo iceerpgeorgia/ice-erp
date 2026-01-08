@@ -796,7 +796,6 @@ export function PaymentsLedgerTable() {
                   let bgColor = '';
                   if (col.key === 'accrual') bgColor = '#ffebee'; // Light red
                   if (col.key === 'order') bgColor = '#fff9e6'; // Light yellow
-                  if (col.key === 'paymentId') bgColor = '#e8f5e9'; // Light green
                   
                   return (
                     <th 
@@ -875,7 +874,6 @@ export function PaymentsLedgerTable() {
                       let bgColor = '';
                       if (col.key === 'accrual') bgColor = '#ffebee'; // Light red
                       if (col.key === 'order') bgColor = '#fff9e6'; // Light yellow
-                      if (col.key === 'paymentId') bgColor = '#e8f5e9'; // Light green
                       
                       return (
                         <td 
