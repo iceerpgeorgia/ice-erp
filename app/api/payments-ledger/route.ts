@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
         "order",
         comment,
         user_email
-      ) VALUES ($1, $2, $3, $4, $5, $6)
+      ) VALUES ($1, $2::timestamp, $3, $4, $5, $6)
       RETURNING *
     `;
 
