@@ -454,7 +454,7 @@ export function PaymentsLedgerTable() {
   };
 
   // Column filter component with sophisticated filter UI - Memoized
-  const ColumnFilter = React.memo(({ column }: { column: ColumnConfig }) => {
+  const ColumnFilter = React.memo(function ColumnFilter({ column }: { column: ColumnConfig }) {
     const uniqueValues = useMemo(() => getUniqueValues(column.key), [column.key]);
     const selectedValues = filters.get(column.key) || new Set();
     const [filterSearchTerm, setFilterSearchTerm] = useState('');
