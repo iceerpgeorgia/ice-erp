@@ -380,7 +380,7 @@ export function PaymentsLedgerTable() {
   const activeFilterCount = filters.size;
 
   const formatValue = (key: ColumnKey, value: any, entry?: PaymentLedgerEntry) => {
-    if (value === null || value === undefined) return 'N/A';
+    if (value === null || value === undefined) return '';
     
     if (key === 'effectiveDate' || key === 'createdAt' || key === 'updatedAt') {
       const date = new Date(value);
@@ -391,28 +391,28 @@ export function PaymentsLedgerTable() {
     }
     
     if (key === 'accrual' || key === 'order') {
-      return typeof value === 'number' ? value.toFixed(2) : 'N/A';
+      return typeof value === 'number' ? value.toFixed(2) : '';
     }
     
     if (key === 'counteragentName' && entry) {
       const name = entry.counteragentName || '';
       const id = entry.counteragentId ? ` (ს.კ. ${entry.counteragentId})` : '';
       const entityType = entry.counteragentEntityType ? ` - ${entry.counteragentEntityType}` : '';
-      return name + id + entityType || 'N/A';
+      return name + id + entityType || '';
     }
     
     if (key === 'financialCodeValidation' && entry) {
       const validation = entry.financialCodeValidation || '';
       const code = entry.financialCode ? ` (${entry.financialCode})` : '';
-      return validation + code || 'N/A';
+      return validation + code || '';
     }
     
     if (key === 'projectIndex' && entry) {
-      return entry.projectIndex || entry.projectName || 'N/A';
+      return entry.projectIndex || entry.projectName || '';
     }
     
     if (key === 'jobName' && entry) {
-      return entry.jobName || 'N/A';
+      return entry.jobName || '';
     }
     
     if (key === 'incomeTax') {
