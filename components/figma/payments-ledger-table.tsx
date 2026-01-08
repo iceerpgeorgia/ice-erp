@@ -791,48 +791,61 @@ export function PaymentsLedgerTable() {
           <table style={{ tableLayout: 'fixed', width: '100%' }} className="border-collapse">
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b-2 border-gray-200">
-                {visibleColumns.map(col => (
-                  <th 
-                    key={col.key} 
-                    className={`font-semibold relative cursor-move overflow-hidden bg-white text-left px-4 py-3 text-sm ${
-                      draggedColumn === col.key ? 'opacity-50' : ''
-                    } ${
-                      dragOverColumn === col.key ? 'border-l-4 border-blue-500' : ''
-                    }`}
-                    style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
-                    draggable={!isResizing}
-                    onDragStart={(e) => handleDragStart(e, col.key)}
-                    onDragOver={(e) => handleDragOver(e, col.key)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, col.key)}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <div className="flex items-center gap-2 pr-4 overflow-hidden">
-                      <span className="truncate font-medium">{col.label}</span>
-                      {col.filterable && <ColumnFilter column={col} />}
-                    </div>
-                    
-                    {/* Resize handle */}
-                    <div
-                      className="absolute top-0 right-0 bottom-0 w-5 cursor-col-resize hover:bg-blue-500/20 active:bg-blue-600/40 z-50"
-                      style={{ marginRight: '-10px' }}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const thElement = e.currentTarget.parentElement as HTMLElement;
-                        setIsResizing({
-                          column: col.key,
-                          startX: e.clientX,
-                          startWidth: col.width,
-                          element: thElement
-                        });
+                {visibleColumns.map(col => {
+                  // Column background colors
+                  let bgColor = '';
+                  if (col.key === 'accrual') bgColor = '#ffebee'; // Light red
+                  if (col.key === 'order') bgColor = '#fff9e6'; // Light yellow
+                  if (col.key === 'paymentId') bgColor = '#e8f5e9'; // Light green
+                  
+                  return (
+                    <th 
+                      key={col.key} 
+                      className={`font-semibold relative cursor-move overflow-hidden text-left px-4 py-3 text-sm ${
+                        draggedColumn === col.key ? 'opacity-50' : ''
+                      } ${
+                        dragOverColumn === col.key ? 'border-l-4 border-blue-500' : ''
+                      }`}
+                      style={{ 
+                        width: col.width, 
+                        minWidth: col.width, 
+                        maxWidth: col.width,
+                        backgroundColor: bgColor || '#fff'
                       }}
-                      title="Drag to resize"
+                      draggable={!isResizing}
+                      onDragStart={(e) => handleDragStart(e, col.key)}
+                      onDragOver={(e) => handleDragOver(e, col.key)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, col.key)}
+                      onDragEnd={handleDragEnd}
                     >
-                      <div className="absolute right-2 top-0 bottom-0 w-1 bg-gray-300 hover:bg-blue-500 transition-colors" />
-                    </div>
-                  </th>
-                ))}
+                      <div className="flex items-center gap-2 pr-4 overflow-hidden">
+                        <span className="truncate font-medium">{col.label}</span>
+                        {col.filterable && <ColumnFilter column={col} />}
+                      </div>
+                      
+                      {/* Resize handle */}
+                      <div
+                        className="absolute top-0 right-0 bottom-0 w-5 cursor-col-resize hover:bg-blue-500/20 active:bg-blue-600/40 z-50"
+                        style={{ marginRight: '-10px' }}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const thElement = e.currentTarget.parentElement as HTMLElement;
+                          setIsResizing({
+                            column: col.key,
+                            startX: e.clientX,
+                            startWidth: col.width,
+                            element: thElement
+                          });
+                        }}
+                        title="Drag to resize"
+                      >
+                        <div className="absolute right-2 top-0 bottom-0 w-1 bg-gray-300 hover:bg-blue-500 transition-colors" />
+                      </div>
+                    </th>
+                  );
+                })}
                 <th 
                   className="sticky top-0 bg-white px-4 py-3 text-left text-sm font-semibold border-b-2 border-gray-200"
                   style={{ width: 80, minWidth: 80, maxWidth: 80 }}
@@ -857,17 +870,30 @@ export function PaymentsLedgerTable() {
               ) : (
                 paginatedEntries.map((entry) => (
                   <tr key={entry.id} className="border-b border-gray-200 hover:bg-gray-50">
-                    {visibleColumns.map(col => (
-                      <td 
-                        key={col.key}
-                        className="overflow-hidden px-4 py-2 text-sm"
-                        style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
-                      >
-                        <div className="truncate">
-                          {formatValue(col.key, entry[col.key], entry)}
-                        </div>
-                      </td>
-                    ))}
+                    {visibleColumns.map(col => {
+                      // Column background colors
+                      let bgColor = '';
+                      if (col.key === 'accrual') bgColor = '#ffebee'; // Light red
+                      if (col.key === 'order') bgColor = '#fff9e6'; // Light yellow
+                      if (col.key === 'paymentId') bgColor = '#e8f5e9'; // Light green
+                      
+                      return (
+                        <td 
+                          key={col.key}
+                          className="overflow-hidden px-4 py-2 text-sm"
+                          style={{ 
+                            width: col.width, 
+                            minWidth: col.width, 
+                            maxWidth: col.width,
+                            backgroundColor: bgColor 
+                          }}
+                        >
+                          <div className="truncate">
+                            {formatValue(col.key, entry[col.key], entry)}
+                          </div>
+                        </td>
+                      );
+                    })}
                     <td className="px-4 py-2 text-sm text-center" style={{ width: 80, minWidth: 80, maxWidth: 80 }}>
                       <Button
                         variant="ghost"
