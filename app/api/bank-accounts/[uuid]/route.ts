@@ -9,7 +9,7 @@ export async function PUT(
 ) {
   try {
     const body = await request.json();
-    const { accountNumber, currencyUuid, bankUuid } = body;
+    const { accountNumber, currencyUuid, bankUuid, balance, balanceDate, parsingSchemeUuid, rawTableName } = body;
 
     if (!accountNumber || !currencyUuid) {
       return NextResponse.json(
@@ -18,41 +18,21 @@ export async function PUT(
       );
     }
 
-    const bankAccount = await prisma.bankAccount.update({
-      where: { uuid: params.uuid },
-      data: {
-        accountNumber,
-        currencyUuid,
-        bankUuid: bankUuid || null,
-      },
-      include: {
-        currency: {
-          select: {
-            code: true,
-            name: true,
-          },
-        },
-        bank: {
-          select: {
-            bankName: true,
-          },
-        },
-      },
-    });
+    await prisma.$executeRaw`
+      UPDATE bank_accounts
+      SET 
+        account_number = ${accountNumber},
+        currency_uuid = ${currencyUuid}::uuid,
+        bank_uuid = ${bankUuid || null}::uuid,
+        balance = ${balance || null}::numeric,
+        balance_date = ${balanceDate || null}::date,
+        parsing_scheme_uuid = ${parsingSchemeUuid || null}::uuid,
+        raw_table_name = ${rawTableName || null},
+        updated_at = NOW()
+      WHERE uuid = ${params.uuid}::uuid
+    `;
 
-    return NextResponse.json({
-      id: Number(bankAccount.id),
-      uuid: bankAccount.uuid,
-      accountNumber: bankAccount.accountNumber,
-      currencyUuid: bankAccount.currencyUuid,
-      currencyCode: bankAccount.currency.code,
-      currencyName: bankAccount.currency.name,
-      bankUuid: bankAccount.bankUuid,
-      bankName: bankAccount.bank?.bankName,
-      isActive: bankAccount.isActive,
-      createdAt: bankAccount.createdAt.toISOString(),
-      updatedAt: bankAccount.updatedAt.toISOString(),
-    });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error updating bank account:", error);
     return NextResponse.json(
