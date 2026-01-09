@@ -7,7 +7,14 @@ import type { BankTransaction } from "@/components/figma/bank-transactions-table
 // Dynamically import the heavy table component
 const BankTransactionsTableDynamic = dynamic(
   () => import("@/components/figma/bank-transactions-table"),
-  { ssr: false }
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center p-12">
+        <p className="text-muted-foreground">Loading table component...</p>
+      </div>
+    )
+  }
 );
 
 // Safe date formatting helpers
@@ -33,13 +40,18 @@ function toISO(d: Date | null): string {
 export default function BankTransactionsTableFigma() {
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadTransactions() {
       try {
+        console.log('[BankTransactionsTableFigma] Fetching data...');
         const res = await fetch("/api/bank-transactions");
+        console.log('[BankTransactionsTableFigma] Response status:', res.status);
+        
         if (!res.ok) throw new Error("Failed to fetch");
         const data = await res.json();
+        console.log('[BankTransactionsTableFigma] Data received:', data.length, 'records');
 
         const mapped = data.map((row: any) => ({
           id: row.id || row.ID,
@@ -73,9 +85,11 @@ export default function BankTransactionsTableFigma() {
           nominalCurrencyCode: row.nominal_currency_code || null,
         }));
 
+        console.log('[BankTransactionsTableFigma] Mapped data:', mapped.length, 'records');
         setTransactions(mapped);
       } catch (err) {
         console.error("[BankTransactionsTableFigma] Load error:", err);
+        setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
         setLoading(false);
       }
@@ -92,5 +106,17 @@ export default function BankTransactionsTableFigma() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="text-center">
+          <p className="text-red-600 font-semibold mb-2">Error loading transactions</p>
+          <p className="text-sm text-gray-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  console.log('[BankTransactionsTableFigma] Rendering table with', transactions.length, 'transactions');
   return <BankTransactionsTableDynamic data={transactions} />;
 }

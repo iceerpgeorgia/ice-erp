@@ -993,9 +993,9 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const totalWidth = visibleColumns.reduce((sum, col) => sum + col.width, 0);
 
   return (
-    <div className="w-full space-y-4 p-4">
+    <div className="flex flex-col h-screen">
       {/* Header Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between p-4 border-b bg-white">
         <div className="flex-1 min-w-0 w-full sm:w-auto">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1068,41 +1068,35 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="flex gap-4 text-sm text-muted-foreground">
-        <span>Total: {transactions.length} transactions</span>
-        <span>Filtered: {filteredData.length} transactions</span>
-        <span>Showing: {paginatedData.length} transactions</span>
+      {/* Stats Bar */}
+      <div className="flex gap-6 px-4 py-3 text-sm bg-gray-50 border-b">
+        <div>
+          <span className="text-gray-600">Total:</span>
+          <span className="ml-2 font-semibold text-blue-900">{transactions.length}</span>
+        </div>
+        <div>
+          <span className="text-gray-600">Filtered:</span>
+          <span className="ml-2 font-semibold text-blue-900">{filteredData.length}</span>
+        </div>
+        <div>
+          <span className="text-gray-600">Showing:</span>
+          <span className="ml-2 font-semibold text-blue-900">{paginatedData.length}</span>
+        </div>
       </div>
 
-      {/* Top horizontal scroller */}
-      {needsBottomScroller && (
-        <div 
-          ref={bottomScrollRef}
-          className="overflow-x-auto border rounded bg-muted/50 hover:bg-muted"
-          style={{ height: '16px', cursor: 'ew-resize' }}
-        >
-          <div style={{ width: totalWidth, height: '1px' }} />
-        </div>
-      )}
-
       {/* Table */}
-      <div className="border rounded-lg overflow-hidden bg-card">
-        <div 
-          ref={scrollRef} 
-          className="overflow-x-auto overflow-y-auto"
-          style={{ maxHeight: '70vh' }}
-        >
-          <Table style={{ tableLayout: 'fixed', width: `${totalWidth}px` }}>
-            <TableHeader className="bg-muted">
-              <TableRow>
+      <div className="flex-1 p-4 overflow-hidden">
+        <div className="h-full overflow-auto rounded-lg border bg-white">
+          <table style={{ tableLayout: 'fixed', width: '100%' }}>
+            <thead className="sticky top-0 z-10 bg-white">
+              <tr className="border-b-2 border-gray-200">
                 {visibleColumns.map((col) => (
-                  <TableHead
+                  <th
                     key={col.key}
-                    className={`relative ${getResponsiveClass(col.responsive)} ${
-                      dragOverColumn === col.key ? 'border-l-2 border-primary' : ''
+                    className={`font-semibold relative cursor-move overflow-hidden text-left px-4 py-3 text-sm ${getResponsiveClass(col.responsive)} ${
+                      dragOverColumn === col.key ? 'border-l-4 border-blue-500' : ''
                     }`}
-                    style={{ width: col.width, maxWidth: col.width }}
+                    style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
                     draggable={!isResizing}
                     onDragStart={(e) => handleDragStart(e, col.key)}
                     onDragOver={(e) => handleDragOver(e, col.key)}
@@ -1110,13 +1104,13 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                     onDrop={(e) => handleDrop(e, col.key)}
                     onDragEnd={handleDragEnd}
                   >
-                    <div className="flex items-center gap-2 cursor-move">
-                      <span className="flex-1 truncate">{col.label}</span>
+                    <div className="flex items-center gap-2 pr-4 overflow-hidden">
+                      <span className="truncate font-medium">{col.label}</span>
                       {col.sortable && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 w-6 p-0"
+                          className="h-5 w-5 p-0"
                           onClick={() => handleSort(col.key)}
                         >
                           {sortField === col.key ? (
@@ -1129,13 +1123,10 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                       {col.filterable && <FilterPopover column={col} />}
                     </div>
                     
-                    {/* Resize handle - centered on column border (matching counteragents exactly) */}
+                    {/* Resize handle */}
                     <div
-                      className="absolute top-0 bottom-0 w-4 cursor-col-resize hover:bg-blue-400/30 active:bg-blue-500/50 transition-colors"
-                      style={{ 
-                        right: '-8px',
-                        zIndex: 30 
-                      }}
+                      className="absolute top-0 right-0 bottom-0 w-5 cursor-col-resize hover:bg-blue-500/20 active:bg-blue-600/40 z-50"
+                      style={{ marginRight: '-10px' }}
                       draggable={false}
                       onMouseDown={(e) => {
                         e.preventDefault();
@@ -1146,34 +1137,27 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                           startWidth: col.width
                         });
                       }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                      }}
-                      title="Drag to resize column"
-                    >
-                      {/* Visual indicator line at center */}
-                      <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-[2px] bg-gray-300 hover:bg-blue-500 transition-colors" />
-                    </div>
-                  </TableHead>
+                    />
+                  </th>
                 ))}
-                <TableHead className="w-24">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+                <th className="font-semibold text-left px-4 py-3 text-sm" style={{ width: 100 }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
               {paginatedData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={visibleColumns.length + 1} className="text-center text-muted-foreground py-8">
+                <tr>
+                  <td colSpan={visibleColumns.length + 1} className="text-center text-gray-500 py-8">
                     No transactions found
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ) : (
                 paginatedData.map((row) => (
-                  <TableRow key={row.id}>
+                  <tr key={row.id} className="border-b hover:bg-gray-50">
                     {visibleColumns.map((col) => (
-                      <TableCell
+                      <td
                         key={col.key}
-                        className={getResponsiveClass(col.responsive)}
-                        style={{ width: col.width, maxWidth: col.width }}
+                        className={`px-4 py-2 text-sm ${getResponsiveClass(col.responsive)}`}
+                        style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
                       >
                         <div className="truncate overflow-hidden" title={String(row[col.key] ?? '')}>
                           {col.key === 'accountCurrencyAmount' || col.key === 'nominalAmount' ? (
@@ -1186,9 +1170,9 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                             row[col.key] ?? '-'
                           )}
                         </div>
-                      </TableCell>
+                      </td>
                     ))}
-                    <TableCell className="w-24">
+                    <td className="px-4 py-2 text-sm" style={{ width: 100 }}>
                       <div className="flex items-center space-x-1">
                         <Button
                           size="sm"
@@ -1200,12 +1184,12 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                           <Edit2 className="h-3 w-3" />
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 ))
               )}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
       </div>
 
