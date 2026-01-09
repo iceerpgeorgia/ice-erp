@@ -743,32 +743,6 @@ export function ParsingSchemeRulesTable() {
                     )}
 
                     <div className="relative">
-                      {/* Highlighted overlay for column names */}
-                      <div 
-                        className="absolute inset-0 px-3 py-2 font-mono text-sm pointer-events-none whitespace-pre-wrap break-words overflow-hidden rounded border-2 border-transparent"
-                        style={{ 
-                          lineHeight: '1.5',
-                          color: 'transparent',
-                          zIndex: 1
-                        }}
-                      >
-                        {formData.condition.split(/(«[^»]+»)/g).map((part, i) => {
-                          if (part.startsWith('«') && part.endsWith('»')) {
-                            const columnName = part.slice(1, -1);
-                            return (
-                              <span 
-                                key={i} 
-                                className="bg-blue-200 text-blue-900 px-1 rounded"
-                                style={{ color: '#1e40af' }}
-                              >
-                                {columnName}
-                              </span>
-                            );
-                          }
-                          return <span key={i}>{part}</span>;
-                        })}
-                      </div>
-                      
                       <textarea
                         ref={textareaRef}
                         value={formData.condition}
@@ -786,13 +760,42 @@ export function ParsingSchemeRulesTable() {
                         placeholder="Type @ to insert column names..."
                         required
                         rows={3}
-                        className="relative w-full border-2 border-gray-400 rounded px-3 py-2 font-mono text-sm bg-transparent"
+                        className="relative w-full border-2 border-gray-400 rounded px-3 py-2 font-mono text-sm"
                         style={{ 
                           lineHeight: '1.5',
-                          zIndex: 2,
-                          resize: 'vertical'
+                          resize: 'vertical',
+                          color: 'transparent',
+                          caretColor: '#000',
+                          backgroundColor: 'white'
                         }}
                       />
+                      
+                      {/* Highlighted overlay for column names */}
+                      <div 
+                        className="absolute inset-0 px-3 py-2 font-mono text-sm pointer-events-none whitespace-pre-wrap overflow-hidden"
+                        style={{ 
+                          lineHeight: '1.5',
+                          wordBreak: 'break-word'
+                        }}
+                      >
+                        {formData.condition.split(/(«[^»]+»)/g).map((part, i) => {
+                          if (part.startsWith('«') && part.endsWith('»')) {
+                            const columnName = part.slice(1, -1);
+                            return (
+                              <span 
+                                key={i} 
+                                className="bg-blue-100 px-1 rounded"
+                                style={{ 
+                                  color: '#111827'
+                                }}
+                              >
+                                {columnName}
+                              </span>
+                            );
+                          }
+                          return <span key={i}>{part}</span>;
+                        })}
+                      </div>
                       
                       {/* Autocomplete Dropdown */}
                       {autocompleteShow && autocompleteSuggestions.length > 0 && (
