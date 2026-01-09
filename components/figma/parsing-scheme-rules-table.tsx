@@ -572,12 +572,12 @@ export function ParsingSchemeRulesTable() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate either paymentId OR all three UUIDs are provided
+    // Validate either paymentId OR counteragent+financialCode (currency is optional)
     const hasPaymentId = !!formData.paymentId;
-    const hasAllUuids = !!formData.counteragentUuid && !!formData.financialCodeUuid && !!formData.nominalCurrencyUuid;
+    const hasRequiredUuids = !!formData.counteragentUuid && !!formData.financialCodeUuid;
     
-    if (!hasPaymentId && !hasAllUuids) {
-      alert('You must provide either:\n- Payment ID\nOR\n- All three UUIDs (Counteragent, Financial Code, and Nominal Currency)');
+    if (!hasPaymentId && !hasRequiredUuids) {
+      alert('You must provide either:\n- Payment ID\nOR\n- Counteragent and Financial Code (Currency is optional)');
       return;
     }
     
@@ -682,7 +682,7 @@ export function ParsingSchemeRulesTable() {
                   Add Rule
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{isEditMode ? 'Edit Rule' : 'Add Rule'}</DialogTitle>
                   <DialogDescription>
@@ -871,7 +871,7 @@ export function ParsingSchemeRulesTable() {
                     <Label>Assignment (choose one option)</Label>
                     <p className="text-xs text-gray-500 mb-3">
                       Priority 1: Payment ID (if provided, UUIDs are ignored)<br/>
-                      Priority 2: All three UUIDs (counteragent, financial code, currency)
+                      Priority 2: Counteragent + Financial Code (currency optional)
                     </p>
                     
                     <div className="space-y-4 border p-4 rounded">
@@ -892,7 +892,7 @@ export function ParsingSchemeRulesTable() {
 
                       <div className="space-y-3">
                         <div>
-                          <Label>Counteragent</Label>
+                          <Label>Counteragent <span className="text-red-500">*</span></Label>
                           <Combobox
                             value={formData.counteragentUuid}
                             onValueChange={(value: string) => setFormData({ ...formData, counteragentUuid: value })}
@@ -906,7 +906,7 @@ export function ParsingSchemeRulesTable() {
                         </div>
 
                         <div>
-                          <Label>Financial Code</Label>
+                          <Label>Financial Code <span className="text-red-500">*</span></Label>
                           <Combobox
                             value={formData.financialCodeUuid}
                             onValueChange={(value: string) => setFormData({ ...formData, financialCodeUuid: value })}
@@ -920,7 +920,7 @@ export function ParsingSchemeRulesTable() {
                         </div>
 
                         <div>
-                          <Label>Nominal Currency</Label>
+                          <Label>Nominal Currency <span className="text-gray-400">(optional)</span></Label>
                           <Combobox
                             value={formData.nominalCurrencyUuid}
                             onValueChange={(value: string) => setFormData({ ...formData, nominalCurrencyUuid: value })}
@@ -928,12 +928,12 @@ export function ParsingSchemeRulesTable() {
                               value: c.uuid,
                               label: `${c.name} (${c.code})`
                             }))}
-                            placeholder="Select currency..."
+                            placeholder="Select currency (optional)..."
                             searchPlaceholder="Search currencies..."
                           />
                         </div>
                         <p className="text-xs text-gray-500">
-                          All three must be selected if not using Payment ID
+                          Counteragent and Financial Code are required. Currency is optional.
                         </p>
                       </div>
                     </div>
