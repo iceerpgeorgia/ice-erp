@@ -68,6 +68,36 @@ export async function GET(request: NextRequest) {
         const hasChildren = codes.some(c => c.parentUuid === code.uuid);
         return !hasChildren;
       });
+
+      // Apply custom sorting matching the financial codes table:
+      // 1. Sort by sortOrder first
+      // 2. Codes starting with "0" come after "9"
+      // 3. Compare numeric parts as integers
+      finalCodes.sort((a, b) => {
+        if (a.sortOrder !== b.sortOrder) {
+          return a.sortOrder - b.sortOrder;
+        }
+        
+        // Custom sort: codes starting with "0" should come after "9"
+        const aStartsWith0 = a.code.startsWith('0');
+        const bStartsWith0 = b.code.startsWith('0');
+        
+        if (aStartsWith0 && !bStartsWith0) return 1;  // a after b
+        if (!aStartsWith0 && bStartsWith0) return -1; // a before b
+        
+        // Split codes by dots and compare each part as integer
+        const aParts = a.code.split('.').map(p => parseInt(p, 10) || 0);
+        const bParts = b.code.split('.').map(p => parseInt(p, 10) || 0);
+        
+        const maxLen = Math.max(aParts.length, bParts.length);
+        for (let i = 0; i < maxLen; i++) {
+          const aVal = aParts[i] || 0;
+          const bVal = bParts[i] || 0;
+          if (aVal !== bVal) return aVal - bVal;
+        }
+        
+        return 0;
+      });
     }
 
     return NextResponse.json(finalCodes.map(serializeFinancialCode));
