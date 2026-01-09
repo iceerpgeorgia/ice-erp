@@ -59,44 +59,63 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    // If leafOnly is true, filter out codes that have children
+    // If leafOnly is true, filter out codes that have children and sort properly
     let finalCodes = codes;
     if (leafOnly) {
-      const allUuids = new Set(codes.map(c => c.uuid));
-      finalCodes = codes.filter(code => {
-        // A code is a leaf if no other code has it as parent
+      // First, build the tree structure
+      const buildTree = (parentUuid: string | null = null): any[] => {
+        return codes
+          .filter(c => c.parentUuid === parentUuid)
+          .sort((a, b) => {
+            if (a.sortOrder !== b.sortOrder) {
+              return a.sortOrder - b.sortOrder;
+            }
+            
+            // Custom sort: codes starting with "0" should come after "9"
+            const aStartsWith0 = a.code.startsWith('0');
+            const bStartsWith0 = b.code.startsWith('0');
+            
+            if (aStartsWith0 && !bStartsWith0) return 1;
+            if (!aStartsWith0 && bStartsWith0) return -1;
+            
+            // Split codes by dots and compare each part as integer
+            const aParts = a.code.split('.').map(p => parseInt(p, 10) || 0);
+            const bParts = b.code.split('.').map(p => parseInt(p, 10) || 0);
+            
+            const maxLen = Math.max(aParts.length, bParts.length);
+            for (let i = 0; i < maxLen; i++) {
+              const aVal = aParts[i] || 0;
+              const bVal = bParts[i] || 0;
+              if (aVal !== bVal) return aVal - bVal;
+            }
+            
+            return 0;
+          })
+          .map(node => ({
+            ...node,
+            children: buildTree(node.uuid)
+          }));
+      };
+
+      // Flatten tree in display order (depth-first traversal)
+      const flattenInDisplayOrder = (nodes: any[]): any[] => {
+        const result: any[] = [];
+        for (const node of nodes) {
+          result.push(node);
+          if (node.children && node.children.length > 0) {
+            result.push(...flattenInDisplayOrder(node.children));
+          }
+        }
+        return result;
+      };
+
+      const tree = buildTree(null);
+      const flattened = flattenInDisplayOrder(tree);
+      
+      // Filter to only leaf nodes (those without children)
+      finalCodes = flattened.filter(code => {
         const hasChildren = codes.some(c => c.parentUuid === code.uuid);
         return !hasChildren;
-      });
-
-      // Apply custom sorting matching the financial codes table:
-      // 1. Sort by sortOrder first
-      // 2. Codes starting with "0" come after "9"
-      // 3. Compare numeric parts as integers
-      finalCodes.sort((a, b) => {
-        if (a.sortOrder !== b.sortOrder) {
-          return a.sortOrder - b.sortOrder;
-        }
-        
-        // Custom sort: codes starting with "0" should come after "9"
-        const aStartsWith0 = a.code.startsWith('0');
-        const bStartsWith0 = b.code.startsWith('0');
-        
-        if (aStartsWith0 && !bStartsWith0) return 1;  // a after b
-        if (!aStartsWith0 && bStartsWith0) return -1; // a before b
-        
-        // Split codes by dots and compare each part as integer
-        const aParts = a.code.split('.').map(p => parseInt(p, 10) || 0);
-        const bParts = b.code.split('.').map(p => parseInt(p, 10) || 0);
-        
-        const maxLen = Math.max(aParts.length, bParts.length);
-        for (let i = 0; i < maxLen; i++) {
-          const aVal = aParts[i] || 0;
-          const bVal = bParts[i] || 0;
-          if (aVal !== bVal) return aVal - bVal;
-        }
-        
-        return 0;
       });
     }
 
