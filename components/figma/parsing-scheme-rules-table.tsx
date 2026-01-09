@@ -901,7 +901,7 @@ export function ParsingSchemeRulesTable() {
                           onValueChange={(value: string) => setFormData({ ...formData, paymentId: value })}
                           options={payments.map(payment => ({
                             value: payment.paymentId,
-                            label: `${payment.paymentId} | ${payment.currencyCode || '-'} | ${payment.projectIndex || '-'}${payment.jobName ? ` | ${payment.jobName}` : ''} | ${payment.financialCodeValidation || '-'}`
+                            label: `${payment.paymentId} | ${payment.counteragentName || '-'} | ${payment.currencyCode || '-'} | ${payment.projectIndex || '-'}${payment.jobName ? ` | ${payment.jobName}` : ''} | ${payment.financialCodeValidation || '-'}`
                           }))}
                           placeholder="Select payment ID..."
                           searchPlaceholder="Search payments..."
@@ -1140,9 +1140,10 @@ export function ParsingSchemeRulesTable() {
                             (() => {
                               const payment = payments.find(p => p.paymentId === row[col.key]);
                               return payment ? (
-                                <span title={`${payment.paymentId} | ${payment.currencyCode || '-'} | ${payment.projectIndex || '-'}${payment.jobName ? ` | ${payment.jobName}` : ''} | ${payment.financialCodeValidation || '-'}`}>
+                                <span title={`${payment.paymentId} | ${payment.counteragentName || '-'} | ${payment.currencyCode || '-'} | ${payment.projectIndex || '-'}${payment.jobName ? ` | ${payment.jobName}` : ''} | ${payment.financialCodeValidation || '-'}`}>
                                   {payment.paymentId}
                                   <span className="text-muted-foreground text-xs">
+                                    {' | '}{payment.counteragentName || '-'}
                                     {' | '}{payment.currencyCode || '-'}
                                     {' | '}{payment.projectIndex || '-'}
                                     {payment.jobName && ` | ${payment.jobName}`}
