@@ -68,11 +68,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { schemeUuid, condition, paymentId } = body;
+    const { schemeUuid, condition, paymentId, counteragentUuid, financialCodeUuid, nominalCurrencyUuid } = body;
 
-    if (!schemeUuid || !condition || !paymentId) {
+    if (!schemeUuid || !condition) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: schemeUuid and condition are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate: either paymentId OR all three UUIDs must be provided
+    const hasPaymentId = !!paymentId;
+    const hasAllUuids = !!counteragentUuid && !!financialCodeUuid && !!nominalCurrencyUuid;
+    
+    if (!hasPaymentId && !hasAllUuids) {
+      return NextResponse.json(
+        { error: 'Either paymentId OR all three UUIDs (counteragentUuid, financialCodeUuid, nominalCurrencyUuid) must be provided' },
         { status: 400 }
       );
     }
@@ -94,10 +105,19 @@ export async function POST(request: NextRequest) {
       scheme_uuid: string;
       condition: string;
       condition_script: string | null;
-      payment_id: bigint | null;
+      payment_id: string | null;
+      counteragent_uuid: string | null;
+      financial_code_uuid: string | null;
+      nominal_currency_uuid: string | null;
     }>>`
-      INSERT INTO parsing_scheme_rules (scheme_uuid, condition, condition_script, payment_id)
-      VALUES (${schemeUuid}::uuid, ${condition}, ${conditionScript}, ${paymentId})
+      INSERT INTO parsing_scheme_rules (
+        scheme_uuid, condition, condition_script, payment_id,
+        counteragent_uuid, financial_code_uuid, nominal_currency_uuid
+      )
+      VALUES (
+        ${schemeUuid}::uuid, ${condition}, ${conditionScript}, ${paymentId},
+        ${counteragentUuid}::uuid, ${financialCodeUuid}::uuid, ${nominalCurrencyUuid}::uuid
+      )
       RETURNING *
     `;
 
@@ -106,7 +126,10 @@ export async function POST(request: NextRequest) {
       id: Number(rule.id),
       schemeUuid: rule.scheme_uuid,
       condition: rule.condition,
-      paymentId: rule.payment_id
+      paymentId: rule.payment_id,
+      counteragentUuid: rule.counteragent_uuid,
+      financialCodeUuid: rule.financial_code_uuid,
+      nominalCurrencyUuid: rule.nominal_currency_uuid
     });
   } catch (error) {
     console.error('Error creating parsing scheme rule:', error);

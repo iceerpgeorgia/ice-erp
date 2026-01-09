@@ -24,7 +24,10 @@ type ParsingSchemeRule = {
   schemeUuid: string;
   scheme: string;
   condition: string;
-  paymentId: string;
+  paymentId: string | null;
+  counteragentUuid: string | null;
+  financialCodeUuid: string | null;
+  nominalCurrencyUuid: string | null;
 };
 
 type ColumnKey = keyof ParsingSchemeRule;
@@ -74,6 +77,9 @@ export function ParsingSchemeRulesTable() {
     schemeUuid: '',
     condition: '',
     paymentId: '',
+    counteragentUuid: '',
+    financialCodeUuid: '',
+    nominalCurrencyUuid: '',
   });
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [loadingColumns, setLoadingColumns] = useState(false);
@@ -495,6 +501,9 @@ export function ParsingSchemeRulesTable() {
       schemeUuid: schemes[0]?.uuid || '',
       condition: '',
       paymentId: '',
+      counteragentUuid: '',
+      financialCodeUuid: '',
+      nominalCurrencyUuid: '',
     });
     setFormulaValidation(null);
     setShowExamples(false);
@@ -507,7 +516,10 @@ export function ParsingSchemeRulesTable() {
     setFormData({
       schemeUuid: rule.schemeUuid,
       condition: rule.condition,
-      paymentId: rule.paymentId,
+      paymentId: rule.paymentId || '',
+      counteragentUuid: rule.counteragentUuid || '',
+      financialCodeUuid: rule.financialCodeUuid || '',
+      nominalCurrencyUuid: rule.nominalCurrencyUuid || '',
     });
     setFormulaValidation(null);
     setShowExamples(false);
@@ -516,6 +528,15 @@ export function ParsingSchemeRulesTable() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate either paymentId OR all three UUIDs are provided
+    const hasPaymentId = !!formData.paymentId;
+    const hasAllUuids = !!formData.counteragentUuid && !!formData.financialCodeUuid && !!formData.nominalCurrencyUuid;
+    
+    if (!hasPaymentId && !hasAllUuids) {
+      alert('You must provide either:\n- Payment ID\nOR\n- All three UUIDs (Counteragent, Financial Code, and Nominal Currency)');
+      return;
+    }
     
     // Validate formula before saving
     if (formData.condition) {
@@ -559,7 +580,12 @@ export function ParsingSchemeRulesTable() {
       // Strip highlighting markers before saving
       const cleanFormData = {
         ...formData,
-        condition: formData.condition.replace(/«|»/g, '')
+        condition: formData.condition.replace(/«|»/g, ''),
+        // Only send payment_id OR the UUIDs based on priority
+        paymentId: hasPaymentId ? formData.paymentId : null,
+        counteragentUuid: hasPaymentId ? null : formData.counteragentUuid,
+        financialCodeUuid: hasPaymentId ? null : formData.financialCodeUuid,
+        nominalCurrencyUuid: hasPaymentId ? null : formData.nominalCurrencyUuid,
       };
       
       const response = await fetch(url, {
@@ -799,17 +825,63 @@ export function ParsingSchemeRulesTable() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Payment ID <span className="text-red-500">*</span></Label>
-                    <Input
-                      value={formData.paymentId}
-                      onChange={(e) => setFormData({ ...formData, paymentId: e.target.value })}
-                      placeholder="e.g., SAL_001"
-                      required
-                      className="border-2 border-gray-400"
-                    />
-                    <p className="text-xs text-gray-500">
-                      The payment ID to assign when this rule matches
+                    <Label>Assignment (choose one option)</Label>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Priority 1: Payment ID (if provided, UUIDs are ignored)<br/>
+                      Priority 2: All three UUIDs (counteragent, financial code, currency)
                     </p>
+                    
+                    <div className="space-y-4 border p-4 rounded">
+                      <div>
+                        <Label>Payment ID</Label>
+                        <Input
+                          value={formData.paymentId}
+                          onChange={(e) => setFormData({ ...formData, paymentId: e.target.value })}
+                          placeholder="e.g., SAL_001"
+                          className="border-2 border-gray-400"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          The payment ID to assign when this rule matches
+                        </p>
+                      </div>
+
+                      <div className="text-center text-sm text-gray-500 font-semibold">OR</div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <Label>Counteragent UUID</Label>
+                          <Input
+                            value={formData.counteragentUuid}
+                            onChange={(e) => setFormData({ ...formData, counteragentUuid: e.target.value })}
+                            placeholder="UUID of counteragent"
+                            className="border-2 border-gray-400"
+                          />
+                        </div>
+
+                        <div>
+                          <Label>Financial Code UUID</Label>
+                          <Input
+                            value={formData.financialCodeUuid}
+                            onChange={(e) => setFormData({ ...formData, financialCodeUuid: e.target.value })}
+                            placeholder="UUID of financial code"
+                            className="border-2 border-gray-400"
+                          />
+                        </div>
+
+                        <div>
+                          <Label>Nominal Currency UUID</Label>
+                          <Input
+                            value={formData.nominalCurrencyUuid}
+                            onChange={(e) => setFormData({ ...formData, nominalCurrencyUuid: e.target.value })}
+                            placeholder="UUID of nominal currency"
+                            className="border-2 border-gray-400"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          All three UUIDs must be provided if not using Payment ID
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   <DialogFooter>
