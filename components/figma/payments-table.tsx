@@ -431,9 +431,14 @@ export function PaymentsTable() {
   };
 
   const handleAddPayment = async () => {
-    // Validate mandatory fields only
-    if (!selectedCounteragentUuid || !selectedFinancialCodeUuid || !selectedCurrencyUuid) {
-      alert('Please fill in all required fields: Counteragent, Financial Code, and Currency');
+    // Validate mandatory fields only - with specific error messages
+    const missingFields: string[] = [];
+    if (!selectedCounteragentUuid) missingFields.push('Counteragent');
+    if (!selectedFinancialCodeUuid) missingFields.push('Financial Code');
+    if (!selectedCurrencyUuid) missingFields.push('Currency');
+    
+    if (missingFields.length > 0) {
+      alert(`Missing required fields: ${missingFields.join(', ')}\n\nDebug info:\n- Counteragent UUID: ${selectedCounteragentUuid || 'MISSING'}\n- Financial Code UUID: ${selectedFinancialCodeUuid || 'MISSING'}\n- Currency UUID: ${selectedCurrencyUuid || 'MISSING'}`);
       return;
     }
 
