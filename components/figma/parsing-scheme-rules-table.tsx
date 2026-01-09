@@ -229,7 +229,7 @@ export function ParsingSchemeRulesTable() {
       const [rulesRes, counteragentsRes, financialCodesRes, currenciesRes] = await Promise.all([
         fetch('/api/parsing-scheme-rules'),
         fetch('/api/counteragents'),
-        fetch('/api/financial-codes'),
+        fetch('/api/financial-codes?leafOnly=true'),
         fetch('/api/currencies'),
       ]);
       

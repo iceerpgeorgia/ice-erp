@@ -17,11 +17,13 @@ function serializeFinancialCode(code: any) {
 //   - code: string (optional) - Get single code details
 //   - type: 'pl' | 'cf' (optional) - Filter by statement type
 //   - excludeFormulas: 'true' | 'false' (default 'true') - Exclude formula codes
+//   - leafOnly: 'true' | 'false' (default 'false') - Only return leaf nodes (codes without children)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const singleCode = searchParams.get('code');
     const statementType = searchParams.get('type');
+    const leafOnly = searchParams.get('leafOnly') === 'true';
 
     // Get single code details
     if (singleCode) {
@@ -57,7 +59,18 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    return NextResponse.json(codes.map(serializeFinancialCode));
+    // If leafOnly is true, filter out codes that have children
+    let finalCodes = codes;
+    if (leafOnly) {
+      const allUuids = new Set(codes.map(c => c.uuid));
+      finalCodes = codes.filter(code => {
+        // A code is a leaf if no other code has it as parent
+        const hasChildren = codes.some(c => c.parentUuid === code.uuid);
+        return !hasChildren;
+      });
+    }
+
+    return NextResponse.json(finalCodes.map(serializeFinancialCode));
   } catch (error: any) {
     console.error('Error fetching financial codes:', error);
     return NextResponse.json(
