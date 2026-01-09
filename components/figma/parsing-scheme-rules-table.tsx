@@ -649,15 +649,15 @@ export function ParsingSchemeRulesTable() {
                         <p className="font-semibold text-gray-700">Formula Examples (Type <span className="font-mono bg-white px-1 border">@</span> for columns):</p>
                         <div className="space-y-1 font-mono text-gray-600">
                           <p><strong>Type @:</strong> Shows all available columns</p>
-                          <p><strong>Type @doc:</strong> Shows columns starting with "doc"</p>
-                          <p><strong>Single column:</strong> SEARCH("გიორგი", <span className="bg-blue-200 px-1">@docsendername</span>)</p>
-                          <p><strong>Multiple columns:</strong> OR(SEARCH("salary", <span className="bg-blue-200 px-1">@docinformation</span>), SEARCH("ხელფასი", <span className="bg-blue-200 px-1">@docsendername</span>))</p>
-                          <p><strong>Amount + currency:</strong> AND(<span className="bg-blue-200 px-1">@docsrcamt</span> &gt; 1000, <span className="bg-blue-200 px-1">@docsrcccy</span> = "GEL")</p>
-                          <p><strong>Literal @ in string:</strong> <span className="bg-blue-200 px-1">@docinformation</span> = "@company.com"</p>
+                          <p><strong>Type @doc:</strong> Shows columns starting with &quot;doc&quot;</p>
+                          <p><strong>Single column:</strong> SEARCH(&quot;გიორგი&quot;, <span className="bg-blue-200 px-1">@docsendername</span>)</p>
+                          <p><strong>Multiple columns:</strong> OR(SEARCH(&quot;salary&quot;, <span className="bg-blue-200 px-1">@docinformation</span>), SEARCH(&quot;ხელფასი&quot;, <span className="bg-blue-200 px-1">@docsendername</span>))</p>
+                          <p><strong>Amount + currency:</strong> AND(<span className="bg-blue-200 px-1">@docsrcamt</span> &gt; 1000, <span className="bg-blue-200 px-1">@docsrcccy</span> = &quot;GEL&quot;)</p>
+                          <p><strong>Literal @ in string:</strong> <span className="bg-blue-200 px-1">@docinformation</span> = &quot;@company.com&quot;</p>
                         </div>
                         <p className="text-gray-600 pt-1">
                           <strong>Supported:</strong> OR, AND, NOT, SEARCH, EXACT, LEN, LEFT, RIGHT, UPPER, LOWER, ISBLANK, ISEMPTY<br/>
-                          <strong>Note:</strong> @ inside quotes ("@") is treated as literal text
+                          <strong>Note:</strong> @ inside quotes (&quot;@&quot;) is treated as literal text
                         </p>
                       </div>
                     )}
