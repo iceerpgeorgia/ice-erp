@@ -71,12 +71,22 @@ interface Currency {
   name: string;
 }
 
+interface Payment {
+  paymentId: string;
+  projectIndex: string | null;
+  jobName: string | null;
+  currencyCode: string | null;
+  financialCodeValidation: string | null;
+  counteragentName: string | null;
+}
+
 export function ParsingSchemeRulesTable() {
   const [data, setData] = useState<ParsingSchemeRule[]>([]);
   const [schemes, setSchemes] = useState<ParsingScheme[]>([]);
   const [counteragents, setCounteragents] = useState<Counteragent[]>([]);
   const [financialCodes, setFinancialCodes] = useState<FinancialCode[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<ColumnKey>('scheme');
@@ -226,11 +236,12 @@ export function ParsingSchemeRulesTable() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [rulesRes, counteragentsRes, financialCodesRes, currenciesRes] = await Promise.all([
+      const [rulesRes, counteragentsRes, financialCodesRes, currenciesRes, paymentsRes] = await Promise.all([
         fetch('/api/parsing-scheme-rules'),
         fetch('/api/counteragents'),
         fetch('/api/financial-codes?leafOnly=true'),
         fetch('/api/currencies'),
+        fetch('/api/payments'),
       ]);
       
       if (!rulesRes.ok) throw new Error('Failed to fetch rules');
@@ -250,6 +261,11 @@ export function ParsingSchemeRulesTable() {
       if (currenciesRes.ok) {
         const currenciesData = await currenciesRes.json();
         setCurrencies(currenciesData);
+      }
+
+      if (paymentsRes.ok) {
+        const paymentsData = await paymentsRes.json();
+        setPayments(paymentsData);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -880,11 +896,15 @@ export function ParsingSchemeRulesTable() {
                     <div className="space-y-4 border p-4 rounded">
                       <div>
                         <Label>Payment ID</Label>
-                        <Input
+                        <Combobox
                           value={formData.paymentId}
-                          onChange={(e) => setFormData({ ...formData, paymentId: e.target.value })}
-                          placeholder="e.g., SAL_001"
-                          className="border-2 border-gray-400"
+                          onValueChange={(value: string) => setFormData({ ...formData, paymentId: value })}
+                          options={payments.map(payment => ({
+                            value: payment.paymentId,
+                            label: `${payment.paymentId} | ${payment.currencyCode || '-'} | ${payment.projectIndex || '-'}${payment.jobName ? ` | ${payment.jobName}` : ''} | ${payment.financialCodeValidation || '-'}`
+                          }))}
+                          placeholder="Select payment ID..."
+                          searchPlaceholder="Search payments..."
                         />
                         <p className="text-xs text-gray-500 mt-1">
                           The payment ID to assign when this rule matches
@@ -1116,6 +1136,21 @@ export function ParsingSchemeRulesTable() {
                             <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
                               {row[col.key]}
                             </code>
+                          ) : col.key === 'paymentId' && row[col.key] ? (
+                            (() => {
+                              const payment = payments.find(p => p.paymentId === row[col.key]);
+                              return payment ? (
+                                <span title={`${payment.paymentId} | ${payment.currencyCode || '-'} | ${payment.projectIndex || '-'}${payment.jobName ? ` | ${payment.jobName}` : ''} | ${payment.financialCodeValidation || '-'}`}>
+                                  {payment.paymentId}
+                                  <span className="text-muted-foreground text-xs">
+                                    {' | '}{payment.currencyCode || '-'}
+                                    {' | '}{payment.projectIndex || '-'}
+                                    {payment.jobName && ` | ${payment.jobName}`}
+                                    {' | '}{payment.financialCodeValidation || '-'}
+                                  </span>
+                                </span>
+                              ) : row[col.key];
+                            })()
                           ) : (
                             row[col.key]
                           )}
