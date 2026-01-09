@@ -15,9 +15,18 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const schemeUuid = searchParams.get('schemeUuid');
 
-    let rules;
+    type RuleRow = {
+      id: bigint;
+      scheme_uuid: string;
+      scheme: string;
+      condition: string;
+      condition_script: string | null;
+      payment_id: bigint | null;
+    };
+
+    let rules: RuleRow[];
     if (schemeUuid) {
-      rules = await prisma.$queryRaw`
+      rules = await prisma.$queryRaw<RuleRow[]>`
         SELECT r.*, s.scheme
         FROM parsing_scheme_rules r
         JOIN parsing_schemes s ON r.scheme_uuid = s.uuid
@@ -25,7 +34,7 @@ export async function GET(request: NextRequest) {
         ORDER BY r.id DESC
       `;
     } else {
-      rules = await prisma.$queryRaw`
+      rules = await prisma.$queryRaw<RuleRow[]>`
         SELECT r.*, s.scheme
         FROM parsing_scheme_rules r
         JOIN parsing_schemes s ON r.scheme_uuid = s.uuid
@@ -80,7 +89,13 @@ export async function POST(request: NextRequest) {
     // Compile formula to JavaScript
     const conditionScript = compileFormulaToJS(condition);
 
-    const result = await prisma.$queryRaw`
+    const result = await prisma.$queryRaw<Array<{
+      id: bigint;
+      scheme_uuid: string;
+      condition: string;
+      condition_script: string | null;
+      payment_id: bigint | null;
+    }>>`
       INSERT INTO parsing_scheme_rules (scheme_uuid, condition, condition_script, payment_id)
       VALUES (${schemeUuid}::uuid, ${condition}, ${conditionScript}, ${paymentId})
       RETURNING *

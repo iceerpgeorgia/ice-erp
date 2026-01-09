@@ -522,20 +522,31 @@ export function ParsingSchemeRulesTable() {
       await validateFormula(formData.condition);
       
       // Check if validation failed
+      // Check if validation already failed
       if (formulaValidation && !formulaValidation.valid) {
-        alert(`Cannot save: Formula validation failed\n\n${formulaValidation.error}`);
+        alert(`Cannot save: Formula validation failed\n\n${formulaValidation.error || 'Unknown error'}`);
         return;
       }
       
-      // If validation hasn't run yet, run it now
+      // If validation hasn't run yet, run it now and wait for server response
       if (!formulaValidation) {
-        await validateFormula(formData.condition);
-        // Wait for validation state to update
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Check again after validation
-        if (formulaValidation && !formulaValidation.valid) {
-          alert(`Cannot save: Formula validation failed\n\n${formulaValidation.error}`);
+        try {
+          const response = await fetch('/api/validate-parsing-formula', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              formula: formData.condition,
+              availableColumns: availableColumns
+            })
+          });
+          
+          const result = await response.json();
+          if (!result.valid) {
+            alert(`Cannot save: Formula validation failed\n\n${result.error || 'Unknown error'}`);
+            return;
+          }
+        } catch (error) {
+          alert('Cannot save: Formula validation check failed');
           return;
         }
       }

@@ -395,6 +395,7 @@ export function BankAccountsTable() {
       balance: '',
       balanceDate: '',
       rawTableName: '',
+      parsingSchemeUuid: '',
     });
     setIsDialogOpen(true);
   };
