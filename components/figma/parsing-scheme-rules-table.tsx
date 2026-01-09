@@ -18,6 +18,7 @@ import { Checkbox } from './ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from './ui/dialog';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Combobox } from '@/components/ui/combobox';
 
 type ParsingSchemeRule = {
   id: number;
@@ -52,9 +53,30 @@ interface ParsingScheme {
   scheme: string;
 }
 
+interface Counteragent {
+  counteragentUuid: string;
+  name: string;
+  identificationNumber?: string;
+}
+
+interface FinancialCode {
+  uuid: string;
+  code: string;
+  validation: string;
+}
+
+interface Currency {
+  uuid: string;
+  code: string;
+  name: string;
+}
+
 export function ParsingSchemeRulesTable() {
   const [data, setData] = useState<ParsingSchemeRule[]>([]);
   const [schemes, setSchemes] = useState<ParsingScheme[]>([]);
+  const [counteragents, setCounteragents] = useState<Counteragent[]>([]);
+  const [financialCodes, setFinancialCodes] = useState<FinancialCode[]>([]);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<ColumnKey>('scheme');
@@ -204,12 +226,33 @@ export function ParsingSchemeRulesTable() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/parsing-scheme-rules');
-      if (!response.ok) throw new Error('Failed to fetch rules');
-      const result = await response.json();
-      setData(result);
+      const [rulesRes, counteragentsRes, financialCodesRes, currenciesRes] = await Promise.all([
+        fetch('/api/parsing-scheme-rules'),
+        fetch('/api/counteragents'),
+        fetch('/api/financial-codes'),
+        fetch('/api/currencies'),
+      ]);
+      
+      if (!rulesRes.ok) throw new Error('Failed to fetch rules');
+      const rules = await rulesRes.json();
+      setData(rules);
+
+      if (counteragentsRes.ok) {
+        const counteragentsData = await counteragentsRes.json();
+        setCounteragents(counteragentsData);
+      }
+
+      if (financialCodesRes.ok) {
+        const financialCodesData = await financialCodesRes.json();
+        setFinancialCodes(financialCodesData);
+      }
+
+      if (currenciesRes.ok) {
+        const currenciesData = await currenciesRes.json();
+        setCurrencies(currenciesData);
+      }
     } catch (error) {
-      console.error('Error fetching rules:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
@@ -849,36 +892,48 @@ export function ParsingSchemeRulesTable() {
 
                       <div className="space-y-3">
                         <div>
-                          <Label>Counteragent UUID</Label>
-                          <Input
+                          <Label>Counteragent</Label>
+                          <Combobox
                             value={formData.counteragentUuid}
-                            onChange={(e) => setFormData({ ...formData, counteragentUuid: e.target.value })}
-                            placeholder="UUID of counteragent"
-                            className="border-2 border-gray-400"
+                            onValueChange={(value: string) => setFormData({ ...formData, counteragentUuid: value })}
+                            options={counteragents.map(ca => ({
+                              value: ca.counteragentUuid,
+                              label: `${ca.name}${ca.identificationNumber ? ` (ს.კ. ${ca.identificationNumber})` : ''}`
+                            }))}
+                            placeholder="Select counteragent..."
+                            searchPlaceholder="Search counteragents..."
                           />
                         </div>
 
                         <div>
-                          <Label>Financial Code UUID</Label>
-                          <Input
+                          <Label>Financial Code</Label>
+                          <Combobox
                             value={formData.financialCodeUuid}
-                            onChange={(e) => setFormData({ ...formData, financialCodeUuid: e.target.value })}
-                            placeholder="UUID of financial code"
-                            className="border-2 border-gray-400"
+                            onValueChange={(value: string) => setFormData({ ...formData, financialCodeUuid: value })}
+                            options={financialCodes.map(fc => ({
+                              value: fc.uuid,
+                              label: `${fc.validation} (${fc.code})`
+                            }))}
+                            placeholder="Select financial code..."
+                            searchPlaceholder="Search financial codes..."
                           />
                         </div>
 
                         <div>
-                          <Label>Nominal Currency UUID</Label>
-                          <Input
+                          <Label>Nominal Currency</Label>
+                          <Combobox
                             value={formData.nominalCurrencyUuid}
-                            onChange={(e) => setFormData({ ...formData, nominalCurrencyUuid: e.target.value })}
-                            placeholder="UUID of nominal currency"
-                            className="border-2 border-gray-400"
+                            onValueChange={(value: string) => setFormData({ ...formData, nominalCurrencyUuid: value })}
+                            options={currencies.map(c => ({
+                              value: c.uuid,
+                              label: `${c.name} (${c.code})`
+                            }))}
+                            placeholder="Select currency..."
+                            searchPlaceholder="Search currencies..."
                           />
                         </div>
                         <p className="text-xs text-gray-500">
-                          All three UUIDs must be provided if not using Payment ID
+                          All three must be selected if not using Payment ID
                         </p>
                       </div>
                     </div>
