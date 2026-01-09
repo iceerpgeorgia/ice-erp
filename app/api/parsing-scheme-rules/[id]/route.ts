@@ -32,7 +32,13 @@ export async function PUT(
       conditionScript = compileFormulaToJS(condition);
     }
 
-    const result = await prisma.$queryRaw`
+    const result = await prisma.$queryRaw<Array<{
+      id: bigint;
+      scheme_uuid: string;
+      condition: string;
+      condition_script: string | null;
+      payment_id: bigint | null;
+    }>>`
       UPDATE parsing_scheme_rules
       SET 
         scheme_uuid = COALESCE(${schemeUuid}::uuid, scheme_uuid),
