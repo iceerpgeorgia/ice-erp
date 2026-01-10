@@ -43,7 +43,6 @@ export async function GET(req: NextRequest) {
         }
       },
       orderBy: [
-        { transactionDate: 'desc' },
         { id: 'desc' }
       ],
       take: 5000 // Limit for performance
