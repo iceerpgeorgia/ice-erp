@@ -314,34 +314,27 @@ model BankAccount {
 model ConsolidatedBankAccount {
   id                        BigInt       @id @default(autoincrement())
   uuid                      String       @unique @db.Uuid
-  accountUuid               String       @map("account_uuid") @db.Uuid
-  accountCurrencyUuid       String       @map("account_currency_uuid") @db.Uuid
-  accountCurrencyAmount     Decimal      @map("account_currency_amount") @db.Decimal(18, 2)
-  paymentUuid               String?      @map("payment_uuid") @db.Uuid
+  bankAccountUuid           String       @map("bank_account_uuid") @db.Uuid
+  rawRecordUuid             String       @map("raw_record_uuid") @db.Uuid
+  transactionDate           String       @map("transaction_date")
+  description               String?      @db.Text
   counteragentUuid          String?      @map("counteragent_uuid") @db.Uuid
   projectUuid               String?      @map("project_uuid") @db.Uuid
   financialCodeUuid         String?      @map("financial_code_uuid") @db.Uuid
+  accountCurrencyUuid       String       @map("account_currency_uuid") @db.Uuid
+  accountCurrencyAmount     Decimal      @map("account_currency_amount") @db.Decimal(18, 2)
   nominalCurrencyUuid       String?      @map("nominal_currency_uuid") @db.Uuid
   nominalAmount             Decimal?     @map("nominal_amount") @db.Decimal(18, 2)
-  date                      DateTime     @db.Date
-  correctionDate            DateTime?    @map("correction_date") @db.Date
-  id1                       String?      @map("id_1")
-  id2                       String?      @map("id_2")
-  recordUuid                String       @map("record_uuid")
-  counteragentAccountNumber String?      @map("counteragent_account_number")
-  description               String?      @db.Text
   createdAt                 DateTime     @default(now()) @map("created_at")
   updatedAt                 DateTime     @updatedAt @map("updated_at")
   
-  bankAccount               BankAccount  @relation(fields: [accountUuid], references: [uuid])
+  bankAccount               BankAccount  @relation(fields: [bankAccountUuid], references: [uuid])
   
-  @@unique([id1, id2], name: "unique_id1_id2")
-  @@index([accountUuid])
+  @@index([bankAccountUuid])
   @@index([counteragentUuid])
-  @@index([paymentUuid])
+  @@index([rawRecordUuid])
   @@index([projectUuid])
   @@index([financialCodeUuid])
-  @@index([date])
   @@map("consolidated_bank_accounts")
 }
 
