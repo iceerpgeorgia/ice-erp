@@ -56,21 +56,21 @@ export default function BankTransactionsTableFigma() {
         const mapped = data.map((row: any) => ({
           id: row.id || row.ID,
           uuid: row.uuid || "",
-          accountUuid: row.account_uuid || "",
+          accountUuid: row.bank_account_uuid || "",
           accountCurrencyUuid: row.account_currency_uuid || "",
           accountCurrencyAmount: row.account_currency_amount || "0",
-          paymentUuid: row.payment_uuid || null,
+          paymentUuid: null, // Not used in current schema
           counteragentUuid: row.counteragent_uuid || null,
           projectUuid: row.project_uuid || null,
           financialCodeUuid: row.financial_code_uuid || null,
           nominalCurrencyUuid: row.nominal_currency_uuid || null,
           nominalAmount: row.nominal_amount || null,
-          date: toYMD(toValidDate(row.date)),
-          correctionDate: row.correction_date ? toYMD(toValidDate(row.correction_date)) : null,
-          id1: row.id_1 || null,
-          id2: row.id_2 || null,
-          recordUuid: row.record_uuid || "",
-          counteragentAccountNumber: row.counteragent_account_number || null,
+          date: row.transaction_date || "",
+          correctionDate: null, // Not in current schema
+          id1: null, // Not in current schema
+          id2: null, // Not in current schema
+          recordUuid: row.raw_record_uuid || "",
+          counteragentAccountNumber: null, // Not in current schema
           description: row.description || null,
           createdAt: toISO(toValidDate(row.created_at || row.createdAt)),
           updatedAt: toISO(toValidDate(row.updated_at || row.updatedAt)),
@@ -81,7 +81,7 @@ export default function BankTransactionsTableFigma() {
           counteragentName: row.counteragent_name || null,
           projectIndex: row.project_index || null,
           financialCode: row.financial_code || null,
-          paymentId: row.payment_id || null,
+          paymentId: null, // Not used in current schema
           nominalCurrencyCode: row.nominal_currency_code || null,
         }));
 
