@@ -44,6 +44,11 @@ export default function DictionariesIndex() {
             </Link>
           </li>
           <li>
+            <Link className="text-blue-600 hover:underline" href="/bank-transaction-batches">
+              Bank Transaction Batches
+            </Link>
+          </li>
+          <li>
             <Link className="text-blue-600 hover:underline" href="/dictionaries/parsing-scheme-rules">
               Parsing Scheme Rules
             </Link>

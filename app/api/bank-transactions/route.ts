@@ -9,22 +9,17 @@ function toApi(row: any) {
   return {
     id: Number(row.id),
     uuid: row.uuid,
-    account_uuid: row.accountUuid,
-    account_currency_uuid: row.accountCurrencyUuid,
-    account_currency_amount: row.accountCurrencyAmount?.toString() ?? null,
-    payment_uuid: row.paymentUuid,
+    bank_account_uuid: row.bankAccountUuid,
+    raw_record_uuid: row.rawRecordUuid,
+    transaction_date: row.transactionDate,
+    description: row.description,
     counteragent_uuid: row.counteragentUuid,
     project_uuid: row.projectUuid,
     financial_code_uuid: row.financialCodeUuid,
+    account_currency_uuid: row.accountCurrencyUuid,
+    account_currency_amount: row.accountCurrencyAmount?.toString() ?? null,
     nominal_currency_uuid: row.nominalCurrencyUuid,
     nominal_amount: row.nominalAmount?.toString() ?? null,
-    date: row.date ? new Date(row.date).toISOString().slice(0, 10) : null,
-    correction_date: row.correctionDate ? new Date(row.correctionDate).toISOString().slice(0, 10) : null,
-    id_1: row.id1,
-    id_2: row.id2,
-    record_uuid: row.recordUuid,
-    counteragent_account_number: row.counteragentAccountNumber,
-    description: row.description,
     created_at: row.createdAt?.toISOString() ?? null,
     updated_at: row.updatedAt?.toISOString() ?? null,
     
@@ -34,7 +29,6 @@ function toApi(row: any) {
     counteragent_name: null, // Will be populated by separate query
     project_index: null, // Will be populated by separate query
     financial_code: null, // Will be populated by separate query
-    payment_id: null, // Will be populated by separate query
   };
 }
 
@@ -49,7 +43,7 @@ export async function GET(req: NextRequest) {
         }
       },
       orderBy: [
-        { date: 'desc' },
+        { transactionDate: 'desc' },
         { id: 'desc' }
       ],
       take: 5000 // Limit for performance
@@ -59,12 +53,11 @@ export async function GET(req: NextRequest) {
     const counteragentUuids = [...new Set(transactions.map(t => t.counteragentUuid).filter(Boolean))];
     const projectUuids = [...new Set(transactions.map(t => t.projectUuid).filter(Boolean))];
     const financialCodeUuids = [...new Set(transactions.map(t => t.financialCodeUuid).filter(Boolean))];
-    const paymentUuids = [...new Set(transactions.map(t => t.paymentUuid).filter(Boolean))];
     const accountCurrencyUuids = [...new Set(transactions.map(t => t.accountCurrencyUuid).filter(Boolean))];
     const nominalCurrencyUuids = [...new Set(transactions.map(t => t.nominalCurrencyUuid).filter(Boolean))];
 
     // Fetch lookup data
-    const [counteragents, projects, financialCodes, payments, currencies] = await Promise.all([
+    const [counteragents, projects, financialCodes, currencies] = await Promise.all([
       counteragentUuids.length > 0
         ? prisma.counteragent.findMany({
             where: { counteragent_uuid: { in: counteragentUuids as string[] } },
@@ -83,12 +76,6 @@ export async function GET(req: NextRequest) {
             select: { uuid: true, code: true, validation: true }
           })
         : [],
-      paymentUuids.length > 0
-        ? prisma.payment.findMany({
-            where: { recordUuid: { in: paymentUuids as string[] } },
-            select: { recordUuid: true, paymentId: true }
-          })
-        : [],
       (accountCurrencyUuids.length > 0 || nominalCurrencyUuids.length > 0)
         ? prisma.currency.findMany({
             where: { uuid: { in: [...accountCurrencyUuids, ...nominalCurrencyUuids] as string[] } },
@@ -104,7 +91,6 @@ export async function GET(req: NextRequest) {
     ]));
     const projectMap = new Map(projects.map(p => [p.projectUuid, p.projectIndex]));
     const financialCodeMap = new Map(financialCodes.map(f => [f.uuid, f.validation || f.code]));
-    const paymentMap = new Map(payments.map(p => [p.recordUuid, p.paymentId]));
     const currencyMap = new Map(currencies.map(c => [c.uuid, c.code]));
 
     // Map transactions with lookup data
@@ -119,7 +105,6 @@ export async function GET(req: NextRequest) {
         counteragent_name: row.counteragentUuid ? counteragentMap.get(row.counteragentUuid) ?? null : null,
         project_index: row.projectUuid ? projectMap.get(row.projectUuid) ?? null : null,
         financial_code: row.financialCodeUuid ? financialCodeMap.get(row.financialCodeUuid) ?? null : null,
-        payment_id: row.paymentUuid ? paymentMap.get(row.paymentUuid) ?? null : null,
         account_number: accountNumber && accountCurrencyCode ? `${accountNumber}${accountCurrencyCode}` : accountNumber,
         nominal_currency_code: nominalCurrencyCode,
       };

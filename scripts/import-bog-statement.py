@@ -143,6 +143,7 @@ print(f"\n📦 Found {len(details)} total transactions")
 
 raw_records_to_insert = []
 skipped_raw_duplicates = 0
+skipped_missing_keys = 0
 
 for detail in details:
     # Extract all fields from XML using exact tag names
@@ -153,19 +154,23 @@ for detail in details:
     DocKey = get_text('DocKey')
     EntriesId = get_text('EntriesId')
     
+    # MANDATORY: Skip records without DocKey or EntriesId
+    if not DocKey or not EntriesId:
+        skipped_missing_keys += 1
+        continue
+    
     # Check for duplicates in raw table
-    if DocKey and EntriesId:
-        cursor.execute(f"""
-            SELECT uuid FROM {raw_table_name} 
-            WHERE DocKey = %s AND EntriesId = %s
-        """, (DocKey, EntriesId))
-        
-        if cursor.fetchone():
-            skipped_raw_duplicates += 1
-            continue
+    cursor.execute(f"""
+        SELECT uuid FROM {raw_table_name} 
+        WHERE DocKey = %s AND EntriesId = %s
+    """, (DocKey, EntriesId))
+    
+    if cursor.fetchone():
+        skipped_raw_duplicates += 1
+        continue
     
     # Generate UUID for raw record
-    record_uuid_str = f"{DocKey}_{EntriesId}" if DocKey and EntriesId else str(uuid_lib.uuid4())
+    record_uuid_str = f"{DocKey}_{EntriesId}"
     record_uuid = str(uuid_lib.uuid5(uuid_lib.NAMESPACE_DNS, record_uuid_str))
     
     raw_records_to_insert.append({
@@ -226,6 +231,7 @@ for detail in details:
 print(f"\n📊 Raw Data Import Results:")
 print(f"  ✅ New raw records: {len(raw_records_to_insert)}")
 print(f"  🔄 Skipped duplicates: {skipped_raw_duplicates}")
+print(f"  ⚠️  Skipped missing keys: {skipped_missing_keys}")
 
 # Insert raw records
 if raw_records_to_insert:
