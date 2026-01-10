@@ -251,7 +251,7 @@ export function BatchEditor({
                 <div>
                   <Label htmlFor={`payment-${partition.id}`}>Payment ID</Label>
                   <Combobox
-                    items={payments.map((p) => ({
+                    options={payments.map((p) => ({
                       value: p.recordUuid,
                       label: `${p.paymentId} | ${p.counteragentName} | ${p.currencyCode} | ${p.projectIndex || 'No Project'} | ${p.financialCode}`,
                     }))}
