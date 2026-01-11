@@ -4,6 +4,10 @@ This script consolidates all XML import and processing logic:
 1. Identifies bank account and parsing scheme
 2. Parses XML and inserts raw data
 3. Three-phase processing: Counteragent → Parsing Rules → Payment ID
+
+Environment Detection:
+- On Vercel (production): Uses Supabase for both raw and consolidated data
+- On local: Uses LOCAL PostgreSQL for both raw and consolidated data
 """
 
 import xml.etree.ElementTree as ET
@@ -17,6 +21,10 @@ from datetime import datetime
 from decimal import Decimal
 import re
 import time
+
+# Detect environment
+IS_VERCEL = os.getenv('VERCEL') == '1' or os.getenv('VERCEL_ENV') is not None
+print(f"🌍 Environment: {'VERCEL (Production)' if IS_VERCEL else 'LOCAL (Development)'}")
 
 # Set UTF-8 encoding for stdout/stderr on Windows
 if sys.platform == 'win32':
@@ -73,7 +81,17 @@ def compute_case_description(case1, case2, case3, case4, case5, case6, case7, ca
     return "\n".join(cases) if cases else "No case matched"
 
 def get_db_connections():
-    """Get Supabase (remote) and Local database connections from .env.local"""
+    """
+    Get database connections based on environment.
+    
+    On Vercel (production):
+        - Returns (supabase_conn, supabase_conn) - both point to Supabase
+        - All operations (raw + consolidated) happen on Supabase
+    
+    On local (development):
+        - Returns (supabase_conn, local_conn) - separate connections
+        - Raw data on Supabase, consolidated on LOCAL PostgreSQL
+    """
     remote_db_url = None
     local_db_url = None
     
@@ -91,25 +109,32 @@ def get_db_connections():
 
     if not remote_db_url:
         raise ValueError("REMOTE_DATABASE_URL not found in .env.local")
-    if not local_db_url:
-        raise ValueError("DATABASE_URL not found in .env.local")
-
-    # Parse and clean connection strings
+    
+    # Parse and clean Supabase connection string
     parsed_remote = urlparse(remote_db_url)
     clean_remote_url = f"{parsed_remote.scheme}://{parsed_remote.netloc}{parsed_remote.path}"
-    
-    parsed_local = urlparse(local_db_url)
-    clean_local_url = f"{parsed_local.scheme}://{parsed_local.netloc}{parsed_local.path}"
     
     print("🔍 Connecting to databases...")
     remote_conn = psycopg2.connect(clean_remote_url)
     remote_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     
-    local_conn = psycopg2.connect(clean_local_url)
-    local_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-    
-    print("✅ Connected to Supabase (remote) and Local PostgreSQL")
-    return remote_conn, local_conn
+    if IS_VERCEL:
+        # On Vercel: use Supabase for everything
+        print("✅ Connected to Supabase (production mode - all data on Supabase)")
+        return remote_conn, remote_conn
+    else:
+        # On local: use separate connections
+        if not local_db_url:
+            raise ValueError("DATABASE_URL not found in .env.local")
+        
+        parsed_local = urlparse(local_db_url)
+        clean_local_url = f"{parsed_local.scheme}://{parsed_local.netloc}{parsed_local.path}"
+        
+        local_conn = psycopg2.connect(clean_local_url)
+        local_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        
+        print("✅ Connected to Supabase (remote) and Local PostgreSQL")
+        return remote_conn, local_conn
 
 def identify_bog_gel_account(xml_file):
     """Extract account information from BOG GEL XML format"""
