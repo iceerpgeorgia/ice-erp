@@ -801,17 +801,18 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
             'processing_case': case_description
         })
         
-        # Prepare raw table update
+        # Prepare raw table update with new 8-case schema
         raw_updates.append({
             'uuid': raw_uuid,
             'case1_counteragent_processed': case1_counteragent_processed,
-            'case2_counteragent_inn_blank': case2_counteragent_inn_blank,
-            'case3_counteragent_inn_nonblank_no_match': case3_counteragent_inn_nonblank_no_match,
-            'case4_payment_id_match': case4_payment_id_match,
-            'case5_payment_id_counteragent_mismatch': case5_payment_id_counteragent_mismatch,
-            'case6_parsing_rule_match': case6_parsing_rule_match,
-            'case7_parsing_rule_counteragent_mismatch': case7_parsing_rule_counteragent_mismatch,
-            'case8_parsing_rule_dominance': case8_parsing_rule_dominance
+            'case1_counteragent_found': case1_counteragent_by_inn,
+            'case3_counteragent_missing': case3_counteragent_inn_nonblank_no_match,
+            'case4_payment_id_matched': case4_payment_id_match,
+            'case5_payment_id_conflict': case5_payment_id_counteragent_mismatch,
+            'case6_parsing_rule_applied': case6_parsing_rule_match,
+            'case7_parsing_rule_conflict': case7_parsing_rule_counteragent_mismatch,
+            'counteragent_inn': counteragent_inn,
+            'processing_case': case_description
         })
         
         # Progress reporting with timing
@@ -878,16 +879,21 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
     step_start = log_step(5, f"UPDATING {len(raw_updates)} RAW TABLE FLAGS")
     
     if raw_updates:
+        # Note: This query is not actually used - we use bulk COPY/UPDATE instead
+        # Keeping for reference only
         update_raw_query = f"""
             UPDATE {raw_table_name} SET
                 counteragent_processed = %(case1_counteragent_processed)s,
-                counteragent_inn_blank = %(case2_counteragent_inn_blank)s,
-                counteragent_inn_nonblank_no_match = %(case3_counteragent_inn_nonblank_no_match)s,
-                payment_id_match = %(case4_payment_id_match)s,
-                payment_id_counteragent_mismatch = %(case5_payment_id_counteragent_mismatch)s,
-                parsing_rule_match = %(case6_parsing_rule_match)s,
-                parsing_rule_counteragent_mismatch = %(case7_parsing_rule_counteragent_mismatch)s,
-                parsing_rule_dominance = %(case8_parsing_rule_dominance)s,
+                counteragent_found = %(case1_counteragent_found)s,
+                counteragent_missing = %(case3_counteragent_missing)s,
+                payment_id_matched = %(case4_payment_id_matched)s,
+                payment_id_conflict = %(case5_payment_id_conflict)s,
+                parsing_rule_applied = %(case6_parsing_rule_applied)s,
+                parsing_rule_conflict = %(case7_parsing_rule_conflict)s,
+                parsing_rule_processed = TRUE,
+                payment_id_processed = TRUE,
+                counteragent_inn = %(counteragent_inn)s,
+                processing_case = %(processing_case)s,
                 is_processed = TRUE,
                 updated_at = NOW()
             WHERE uuid = %(uuid)s
@@ -904,14 +910,15 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
         remote_cursor.execute("""
             CREATE TEMP TABLE temp_flag_updates (
                 uuid UUID,
-                case1 BOOLEAN,
-                case2 BOOLEAN,
-                case3 BOOLEAN,
-                case4 BOOLEAN,
-                case5 BOOLEAN,
-                case6 BOOLEAN,
-                case7 BOOLEAN,
-                case8 BOOLEAN
+                counteragent_processed BOOLEAN,
+                counteragent_found BOOLEAN,
+                counteragent_missing BOOLEAN,
+                payment_id_matched BOOLEAN,
+                payment_id_conflict BOOLEAN,
+                parsing_rule_applied BOOLEAN,
+                parsing_rule_conflict BOOLEAN,
+                counteragent_inn TEXT,
+                processing_case TEXT
             )
         """)
         
@@ -921,9 +928,13 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
         from io import StringIO
         buffer = StringIO()
         for update in raw_updates:
-            buffer.write(f"{update['uuid']}\t{update['case1_counteragent_processed']}\t{update['case2_counteragent_inn_blank']}\t{update['case3_counteragent_inn_nonblank_no_match']}\t{update['case4_payment_id_match']}\t{update['case5_payment_id_counteragent_mismatch']}\t{update['case6_parsing_rule_match']}\t{update['case7_parsing_rule_counteragent_mismatch']}\t{update['case8_parsing_rule_dominance']}\n")
+            inn = update.get('counteragent_inn', '')
+            if inn is None:
+                inn = ''
+            processing_case = update.get('processing_case', '').replace('\n', ' ')
+            buffer.write(f"{update['uuid']}\t{update['case1_counteragent_processed']}\t{update['case1_counteragent_found']}\t{update['case3_counteragent_missing']}\t{update['case4_payment_id_matched']}\t{update['case5_payment_id_conflict']}\t{update['case6_parsing_rule_applied']}\t{update['case7_parsing_rule_conflict']}\t{inn}\t{processing_case}\n")
         buffer.seek(0)
-        remote_cursor.copy_from(buffer, 'temp_flag_updates', columns=('uuid', 'case1', 'case2', 'case3', 'case4', 'case5', 'case6', 'case7', 'case8'))
+        remote_cursor.copy_from(buffer, 'temp_flag_updates', columns=('uuid', 'counteragent_processed', 'counteragent_found', 'counteragent_missing', 'payment_id_matched', 'payment_id_conflict', 'parsing_rule_applied', 'parsing_rule_conflict', 'counteragent_inn', 'processing_case'))
         copy_time = time.time() - update_start
         print(f"  ✅ Temp table loaded in {copy_time:.2f}s")
         sys.stdout.flush()
@@ -933,14 +944,17 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
         sys.stdout.flush()
         remote_cursor.execute(f"""
             UPDATE {raw_table_name} AS raw SET
-                counteragent_processed = tmp.case1,
-                counteragent_inn_blank = tmp.case2,
-                counteragent_inn_nonblank_no_match = tmp.case3,
-                payment_id_match = tmp.case4,
-                payment_id_counteragent_mismatch = tmp.case5,
-                parsing_rule_match = tmp.case6,
-                parsing_rule_counteragent_mismatch = tmp.case7,
-                parsing_rule_dominance = tmp.case8,
+                counteragent_processed = tmp.counteragent_processed,
+                counteragent_found = tmp.counteragent_found,
+                counteragent_missing = tmp.counteragent_missing,
+                payment_id_matched = tmp.payment_id_matched,
+                payment_id_conflict = tmp.payment_id_conflict,
+                parsing_rule_applied = tmp.parsing_rule_applied,
+                parsing_rule_conflict = tmp.parsing_rule_conflict,
+                parsing_rule_processed = TRUE,
+                payment_id_processed = TRUE,
+                counteragent_inn = tmp.counteragent_inn,
+                processing_case = tmp.processing_case,
                 is_processed = TRUE,
                 updated_at = NOW()
             FROM temp_flag_updates AS tmp
@@ -1572,17 +1586,18 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
             'processing_case': case_description
         })
         
-        # Prepare raw table update
+        # Prepare raw table update with new 8-case schema
         raw_updates.append({
             'uuid': raw_uuid,
             'case1_counteragent_processed': case1_counteragent_processed,
-            'case2_counteragent_inn_blank': case2_counteragent_inn_blank,
-            'case3_counteragent_inn_nonblank_no_match': case3_counteragent_inn_nonblank_no_match,
-            'case4_payment_id_match': case4_payment_id_match,
-            'case5_payment_id_counteragent_mismatch': case5_payment_id_counteragent_mismatch,
-            'case6_parsing_rule_match': case6_parsing_rule_match,
-            'case7_parsing_rule_counteragent_mismatch': case7_parsing_rule_counteragent_mismatch,
-            'case8_parsing_rule_dominance': case8_parsing_rule_dominance
+            'case1_counteragent_found': case1_counteragent_by_inn,
+            'case3_counteragent_missing': case3_counteragent_inn_nonblank_no_match,
+            'case4_payment_id_matched': case4_payment_id_match,
+            'case5_payment_id_conflict': case5_payment_id_counteragent_mismatch,
+            'case6_parsing_rule_applied': case6_parsing_rule_match,
+            'case7_parsing_rule_conflict': case7_parsing_rule_counteragent_mismatch,
+            'counteragent_inn': counteragent_inn,
+            'processing_case': case_description
         })
         
         if idx % 1000 == 0 or idx == total_records:
