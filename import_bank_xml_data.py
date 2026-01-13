@@ -49,7 +49,7 @@ def log_step(step_num, title, start_time=None):
         print(f"{'='*80}\n")
         return time.time()
 
-def compute_case_description(case1, case2, case3, case4, case5, case6, case7, case8):
+def compute_case_description(case1, case2, case3, case4, case5, case6, case7, case8, applied_rule_id=None):
     """
     Compute case description based on 8-case flags.
     Returns a string describing which case(s) apply to this record.
@@ -64,17 +64,18 @@ def compute_case_description(case1, case2, case3, case4, case5, case6, case7, ca
     elif case3:
         cases.append("Case3 - INN exists but no counteragent match")
     
-    # Phase 2: Payment ID
+    # Phase 2: Parsing Rules
+    if case6:
+        rule_text = f"Case6 - parsing rule applied (ID: {applied_rule_id})" if applied_rule_id else "Case6 - parsing rule applied"
+        cases.append(rule_text)
+    elif case7:
+        cases.append("Case7 - parsing rule kept (INN conflict)")
+    
+    # Phase 3: Payment ID
     if case4:
         cases.append("Case4 - payment ID matched")
     elif case5:
-        cases.append("Case5 - payment ID conflict (counteragent kept)")
-    
-    # Phase 3: Parsing Rules
-    if case6:
-        cases.append("Case6 - parsing rule applied")
-    elif case7:
-        cases.append("Case7 - parsing rule conflict (counteragent kept)")
+        cases.append("Case5 - payment ID conflict (Phase 1/2 kept)")
     
     if case8:
         cases.append("Case8 - rule dominance (overrides payment)")
@@ -84,7 +85,10 @@ def compute_case_description(case1, case2, case3, case4, case5, case6, case7, ca
 def process_single_record(row, counteragents_map, parsing_rules, payments_map, idx, stats, missing_counteragents):
     """
     Common processing logic for a single BOG GEL record.
-    Implements the three-phase hierarchy: Counteragent → Rules → Payment
+    Implements the three-phase hierarchy (by PRIORITY):
+      PHASE 1: Parsing Rules (HIGHEST - immutable if matched)
+      PHASE 2: Counteragent by INN (Second priority)
+      PHASE 3: Payment ID (LOWEST - neglected if conflicts)
     
     Returns a dict with all processed values and flags.
     """
@@ -101,7 +105,7 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
     DocInformation = row.get('docinformation')
     debit = row.get('debit')
     
-    # Initialize return values with all 8 case flags
+    # Initialize return values
     result = {
         'counteragent_uuid': None,
         'counteragent_account_number': None,
@@ -110,6 +114,7 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
         'financial_code_uuid': None,
         'nominal_currency_uuid': None,
         'payment_id': None,
+        'applied_rule_id': None,
         'case1_counteragent_processed': False,
         'case1_counteragent_found': False,
         'case3_counteragent_missing': False,
@@ -119,19 +124,12 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
         'case7_parsing_rule_conflict': False
     }
     
-    # =============================
-    # PHASE 1: Counteragent Identification
-    # =============================
-    
-    # Use DocCorAcct if available
+    # Extract counteragent account and INN (needed for all phases)
     counteragent_account_number = None
     if DocCorAcct and str(DocCorAcct).strip():
         counteragent_account_number = str(DocCorAcct).strip()
     
-    # Determine transaction direction
     is_incoming = (debit is None or debit == 0)
-    
-    # Extract INN based on direction
     if is_incoming:
         counteragent_inn = normalize_inn(DocSenderInn)
         if not counteragent_account_number and DocSenderAcctNo and str(DocSenderAcctNo).strip():
@@ -144,35 +142,8 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
     result['counteragent_inn'] = counteragent_inn
     result['counteragent_account_number'] = counteragent_account_number
     
-    # Process Cases 1, 2, 3 (mutually exclusive)
-    if counteragent_inn:
-        counteragent_data = counteragents_map.get(counteragent_inn)
-        if counteragent_data:
-            # CASE 1: Counteragent matched by INN
-            result['counteragent_uuid'] = counteragent_data['uuid']
-            result['case1_counteragent_processed'] = True
-            result['case1_counteragent_found'] = True
-            stats['case1_counteragent_processed'] += 1
-            
-            if idx <= 3:
-                print(f"  ✅ [CASE 1] Record {DocKey}_{EntriesId}: Matched counteragent {counteragent_data['name']}")
-        else:
-            # CASE 3: INN exists but no match in database
-            result['case1_counteragent_processed'] = True
-            result['case3_counteragent_missing'] = True
-            stats['case3_counteragent_inn_nonblank_no_match'] += 1
-            
-            if counteragent_inn not in missing_counteragents:
-                missing_counteragents[counteragent_inn] = {'inn': counteragent_inn, 'count': 0, 'samples': []}
-            missing_counteragents[counteragent_inn]['count'] += 1
-            if len(missing_counteragents[counteragent_inn]['samples']) < 3:
-                missing_counteragents[counteragent_inn]['samples'].append(f"{DocKey}_{EntriesId}")
-            
-            if idx <= 3:
-                print(f"  ⚠️  [CASE 3] Record {DocKey}_{EntriesId}: INN {counteragent_inn} needs counteragent")
-    
     # =============================
-    # PHASE 2: Parsing Rules
+    # PHASE 1: Parsing Rules (HIGHEST PRIORITY - IMMUTABLE)
     # =============================
     
     matched_rule = None
@@ -182,13 +153,21 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
         if not column_name or not condition:
             continue
         
-        field_map = {'DocProdGroup': DocProdGroup, 'DocNomination': DocNomination, 
-                    'DocInformation': DocInformation, 'DocKey': DocKey}
-        field_value = field_map.get(column_name)
+        # Case-insensitive field mapping
+        field_map_case_insensitive = {
+            'docprodgroup': DocProdGroup,
+            'docnomination': DocNomination,
+            'docinformation': DocInformation,
+            'dockey': DocKey
+        }
+        
+        # Try both PascalCase and lowercase
+        field_value = field_map_case_insensitive.get(column_name.lower())
+        
         if field_value and str(field_value).strip() == str(condition).strip():
             matched_rule = rule
             if idx <= 3:
-                print(f"    🎯 [RULE MATCH] {column_name}='{condition}'")
+                print(f"    🎯 [PHASE 1 - RULE MATCH] {column_name}='{condition}' (HIGHEST PRIORITY)")
             break
     
     if matched_rule:
@@ -199,19 +178,19 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
             if idx <= 3:
                 print(f"    🎯 [RULE->PAYMENT] payment_id: {rule_payment_id}")
         
+        # Store which rule was applied
+        result['applied_rule_id'] = matched_rule['id']
+        
+        # Phase 1 has HIGHEST PRIORITY - sets counteragent (IMMUTABLE)
         rule_counteragent = matched_rule['counteragent_uuid']
         if not rule_counteragent and rule_payment_data:
             rule_counteragent = rule_payment_data['counteragent_uuid']
         
-        if result['counteragent_uuid']:
-            if rule_counteragent and rule_counteragent != result['counteragent_uuid']:
-                result['case7_parsing_rule_conflict'] = True
-                stats['case7_parsing_rule_counteragent_mismatch'] += 1
-        else:
-            if rule_counteragent:
-                result['counteragent_uuid'] = rule_counteragent
+        if rule_counteragent:
+            result['counteragent_uuid'] = rule_counteragent
+            result['case6_parsing_rule_applied'] = True
         
-        # Apply rule parameters
+        # Apply rule parameters (IMMUTABLE - highest priority)
         if matched_rule['financial_code_uuid']:
             result['financial_code_uuid'] = matched_rule['financial_code_uuid']
         elif rule_payment_data and rule_payment_data.get('financial_code_uuid'):
@@ -225,12 +204,52 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
         if rule_payment_data and rule_payment_data.get('project_uuid'):
             result['project_uuid'] = rule_payment_data['project_uuid']
         
-        if not result['case7_parsing_rule_conflict']:
-            result['case6_parsing_rule_applied'] = True
         stats['case6_parsing_rule_match'] += 1
+        
+        if idx <= 3:
+            print(f"    ✅ [PHASE 1] Parsing rule applied (IMMUTABLE)")
     
     # =============================
-    # PHASE 3: Payment ID
+    # PHASE 2: Counteragent by INN (Second Priority)
+    # =============================
+    
+    # Phase 2 can ONLY set counteragent if Phase 1 didn't set it
+    if not result['counteragent_uuid'] and counteragent_inn:
+        counteragent_data = counteragents_map.get(counteragent_inn)
+        if counteragent_data:
+            # Counteragent matched by INN
+            result['counteragent_uuid'] = counteragent_data['uuid']
+            result['case1_counteragent_processed'] = True
+            result['case1_counteragent_found'] = True
+            stats['case1_counteragent_processed'] += 1
+            
+            if idx <= 3:
+                print(f"  ✅ [PHASE 2 - INN] Record {DocKey}_{EntriesId}: Matched counteragent {counteragent_data['name']}")
+        else:
+            # INN exists but no match in database
+            result['case1_counteragent_processed'] = True
+            result['case3_counteragent_missing'] = True
+            stats['case3_counteragent_inn_nonblank_no_match'] += 1
+            
+            if counteragent_inn not in missing_counteragents:
+                missing_counteragents[counteragent_inn] = {'inn': counteragent_inn, 'count': 0, 'samples': []}
+            missing_counteragents[counteragent_inn]['count'] += 1
+            if len(missing_counteragents[counteragent_inn]['samples']) < 3:
+                missing_counteragents[counteragent_inn]['samples'].append(f"{DocKey}_{EntriesId}")
+            
+            if idx <= 3:
+                print(f"  ⚠️  [PHASE 2] Record {DocKey}_{EntriesId}: INN {counteragent_inn} needs counteragent")
+    elif result['counteragent_uuid'] and counteragent_inn:
+        # Phase 1 already set counteragent, check if INN would suggest different one
+        counteragent_data = counteragents_map.get(counteragent_inn)
+        if counteragent_data and counteragent_data['uuid'] != result['counteragent_uuid']:
+            result['case7_parsing_rule_conflict'] = True
+            stats['case7_parsing_rule_counteragent_mismatch'] += 1
+            if idx <= 3:
+                print(f"    ℹ️  [PHASE 2 OVERRIDE] INN suggests different counteragent, but Phase 1 rule is immutable")
+    
+    # =============================
+    # PHASE 3: Payment ID (LOWEST PRIORITY - Neglected if conflicts)
     # =============================
     
     extracted_payment_id = extract_payment_id(DocInformation)
@@ -238,17 +257,24 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
         payment_data = payments_map[extracted_payment_id]
         payment_counteragent = payment_data['counteragent_uuid']
         
+        # Phase 3 can ONLY set counteragent if Phase 1 AND Phase 2 didn't find one
         if result['counteragent_uuid']:
+            # Check for conflict - if conflict, NEGLECT payment data
             if payment_counteragent and payment_counteragent != result['counteragent_uuid']:
                 result['case5_payment_id_conflict'] = True
                 stats['case5_payment_id_counteragent_mismatch'] += 1
+                if idx <= 3:
+                    print(f"    ⚠️  [PHASE 3 NEGLECTED] Payment suggests different counteragent - keeping Phase 1/2 counteragent")
+                # DO NOT set payment_id or apply payment parameters - NEGLECTED due to conflict
+                return result
         else:
+            # Neither Phase 1 nor Phase 2 found counteragent - Phase 3 can set it
             if payment_counteragent:
                 result['counteragent_uuid'] = payment_counteragent
         
         result['payment_id'] = extracted_payment_id
         
-        # Apply payment parameters only if not already set
+        # Apply payment parameters only if not already set by Phase 1
         if not result['project_uuid'] and payment_data['project_uuid']:
             result['project_uuid'] = payment_data['project_uuid']
         if not result['financial_code_uuid'] and payment_data['financial_code_uuid']:
@@ -259,6 +285,9 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
         if not result['case5_payment_id_conflict']:
             result['case4_payment_id_matched'] = True
         stats['case4_payment_id_match'] += 1
+        
+        if idx <= 3:
+            print(f"    ✅ [PHASE 3] Payment ID matched: {extracted_payment_id}")
     
     return result
 
@@ -712,257 +741,56 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
         if not transaction_date:
             continue
         
-        # Initialize processing flags and data
-        counteragent_uuid = None
-        counteragent_inn = None
-        counteragent_account_number = None
-        project_uuid = None
-        financial_code_uuid = None
-        nominal_currency_uuid = account_currency_uuid
+        # Prepare row dict for shared processing function
+        row = {
+            'uuid': raw_uuid,
+            'dockey': DocKey,
+            'entriesid': EntriesId,
+            'docsenderinn': DocSenderInn,
+            'docbenefinn': DocBenefInn,
+            'doccorracct': DocCorAcct,
+            'docsenderacctno': DocSenderAcctNo,
+            'docbenefacctno': DocBenefAcctNo,
+            'docprodgroup': DocProdGroup,
+            'docnomination': DocNomination,
+            'docinformation': DocInformation,
+            'debit': debit
+        }
+        
+        # ===== USE SHARED PROCESSING FUNCTION =====
+        result = process_single_record(
+            row, 
+            counteragents_map, 
+            parsing_rules, 
+            payments_map, 
+            idx, 
+            stats, 
+            missing_counteragents
+        )
+        
+        # Extract results from shared function
+        counteragent_uuid = result['counteragent_uuid']
+        counteragent_account_number = result['counteragent_account_number']
+        counteragent_inn = result['counteragent_inn']
+        project_uuid = result['project_uuid']
+        financial_code_uuid = result['financial_code_uuid']
+        payment_id = result['payment_id']
+        
+        # Set defaults for missing values
+        nominal_currency_uuid = result['nominal_currency_uuid'] or account_currency_uuid
         nominal_amount = account_currency_amount
-        payment_id = None
         
-        # Initialize 8-case flags (Cases 1/2/3 are mutually exclusive)
-        case1_counteragent_processed = False
-        case2_counteragent_inn_blank = False
-        case3_counteragent_inn_nonblank_no_match = False
-        case4_payment_id_match = False
-        case5_payment_id_counteragent_mismatch = False
-        case6_parsing_rule_match = False
-        case7_parsing_rule_counteragent_mismatch = False
-        case8_parsing_rule_dominance = False
-        
-        # =============================
-        # PHASE 1: Counteragent Identification
-        # =============================
-        
-        # PRIORITY 1: Use DocCorAcct if available (correspondent account from bank statement)
-        counteragent_account_number = None
-        if DocCorAcct and str(DocCorAcct).strip():
-            counteragent_account_number = str(DocCorAcct).strip()
-        
-        # Determine transaction direction
-        is_incoming = (debit is None or debit == 0)
-        
-        # Extract INN based on direction
-        if is_incoming:
-            # Incoming payment - counteragent is the sender
-            counteragent_inn = normalize_inn(DocSenderInn)
-            # FALLBACK: Use DocSenderAcctNo only if DocCorAcct not available
-            if not counteragent_account_number and DocSenderAcctNo and str(DocSenderAcctNo).strip():
-                counteragent_account_number = str(DocSenderAcctNo).strip()
-        else:
-            # Outgoing payment - counteragent is the beneficiary
-            counteragent_inn = normalize_inn(DocBenefInn)
-            # FALLBACK: Use DocBenefAcctNo only if DocCorAcct not available
-            if not counteragent_account_number and DocBenefAcctNo and str(DocBenefAcctNo).strip():
-                counteragent_account_number = str(DocBenefAcctNo).strip()
-        
-        # Process Cases 1, 2, 3 (mutually exclusive)
-        if counteragent_inn:
-            counteragent_data = counteragents_map.get(counteragent_inn)
-            if counteragent_data:
-                # CASE 1: Counteragent matched by INN
-                counteragent_uuid = counteragent_data['uuid']
-                case1_counteragent_processed = True
-                case1_counteragent_found = True
-                stats['case1_counteragent_processed'] += 1
-                
-                if idx <= 3:
-                    print(f"  ✅ [CASE 1] Record {DocKey}_{EntriesId}: Matched counteragent {counteragent_data['name']}")
-            else:
-                # CASE 3: INN exists but no match in database
-                case3_counteragent_inn_nonblank_no_match = True
-                stats['case3_counteragent_inn_nonblank_no_match'] += 1
-                
-                if counteragent_inn not in missing_counteragents:
-                    missing_counteragents[counteragent_inn] = {
-                        'inn': counteragent_inn,
-                        'count': 0,
-                        'samples': []
-                    }
-                missing_counteragents[counteragent_inn]['count'] += 1
-                if len(missing_counteragents[counteragent_inn]['samples']) < 3:
-                    missing_counteragents[counteragent_inn]['samples'].append(f"{DocKey}_{EntriesId}")
-                
-                if idx <= 3:
-                    print(f"  ⚠️  [CASE 2] Record {DocKey}_{EntriesId}: INN {counteragent_inn} needs counteragent")
-        else:
-            # CASE 2: INN is blank
-            case2_counteragent_inn_blank = True
-            stats['case2_counteragent_inn_blank'] += 1
-            
-            if idx <= 3:
-                print(f"  ℹ️  [CASE 3] Record {DocKey}_{EntriesId}: INN blank - will try payment/rules")
-        
-        # =============================
-        # PHASE 2: Parsing Rules Application
-        # =============================
-        
-        # Try to match parsing rule
-        matched_rule = None
-        for rule in parsing_rules:
-            # Match by column_name and condition
-            column_name = rule.get('column_name', '')
-            condition = rule.get('condition', '')
-            
-            if not column_name or not condition:
-                continue
-            
-            # Dynamically check the raw data field specified in column_name
-            # Map database column names to our local variables
-            field_map = {
-                'DocProdGroup': DocProdGroup,
-                'DocNomination': DocNomination,
-                'DocInformation': DocInformation,
-                'DocKey': DocKey,
-            }
-            
-            field_value = field_map.get(column_name)
-            if field_value and str(field_value).strip() == str(condition).strip():
-                matched_rule = rule
-                if idx <= 3:
-                    print(f"    🎯 [RULE MATCH] {column_name}='{condition}'")
-                break
-        
-        if matched_rule:
-            # Check if rule provides a payment_id
-            rule_payment_id = matched_rule.get('payment_id')
-            rule_payment_data = None
-            if rule_payment_id and rule_payment_id in payments_map:
-                rule_payment_data = payments_map[rule_payment_id]
-                if idx <= 3:
-                    print(f"    🎯 [RULE->PAYMENT] Rule provides payment_id: {rule_payment_id}")
-            
-            # Phase 2 can ONLY set counteragent if Phase 1 didn't find one
-            # Check rule's direct counteragent first, then rule's payment
-            rule_counteragent = matched_rule['counteragent_uuid']
-            if not rule_counteragent and rule_payment_data:
-                rule_counteragent = rule_payment_data['counteragent_uuid']
-            
-            if counteragent_uuid:
-                # Phase 1 found counteragent - check for conflict but DON'T override
-                if rule_counteragent and rule_counteragent != counteragent_uuid:
-                    case7_parsing_rule_counteragent_mismatch = True
-                    parsing_rule_conflict = True
-                    stats['case7_parsing_rule_counteragent_mismatch'] += 1
-                    
-                    if idx <= 3:
-                        print(f"    ⚠️  [CONFLICT] Parsing rule suggests different counteragent - keeping Phase 1 counteragent")
-            else:
-                # Phase 1 didn't find counteragent - Phase 2 can set it
-                if rule_counteragent:
-                    counteragent_uuid = rule_counteragent
-            
-            # Phase 2 ALWAYS sets other parameters (will override Phase 3 if it runs later)
-            # Priority: rule's direct params > rule's payment params
-            if matched_rule['financial_code_uuid']:
-                financial_code_uuid = matched_rule['financial_code_uuid']
-            elif rule_payment_data and rule_payment_data.get('financial_code_uuid'):
-                financial_code_uuid = rule_payment_data['financial_code_uuid']
-            
-            if matched_rule['nominal_currency_uuid']:
-                nominal_currency_uuid = matched_rule['nominal_currency_uuid']
-            elif rule_payment_data and rule_payment_data.get('currency_uuid'):
-                nominal_currency_uuid = rule_payment_data['currency_uuid']
-            elif not nominal_currency_uuid:
-                nominal_currency_uuid = account_currency_uuid
-            
-            if rule_payment_data and rule_payment_data.get('project_uuid'):
-                project_uuid = rule_payment_data['project_uuid']
-            
-            # Set case6 flag only if no conflict (case7 not set)
-            if not case7_parsing_rule_counteragent_mismatch:
-                case6_parsing_rule_match = True
-            parsing_rule_processed = True
-            stats['case6_parsing_rule_match'] += 1
-            
-            if idx <= 3:
-                print(f"    ✅ [RULE] Applied parsing rule parameters")
-        else:
-            parsing_rule_processed = False
-        
-        # =============================
-        # PHASE 3: Payment ID Matching
-        # =============================
-        
-        # Extract payment_id from DocInformation
-        extracted_payment_id = extract_payment_id(DocInformation)
-        
-        if extracted_payment_id and extracted_payment_id in payments_map:
-            payment_data = payments_map[extracted_payment_id]
-            payment_counteragent = payment_data['counteragent_uuid']
-            
-            # Phase 3 can ONLY set counteragent if Phase 1 didn't find one
-            if counteragent_uuid:
-                # Phase 1 found counteragent - check for conflict but DON'T override
-                if payment_counteragent and payment_counteragent != counteragent_uuid:
-                    payment_conflict = True
-                    stats['case5_payment_id_counteragent_mismatch'] += 1
-                    
-                    if idx <= 3:
-                        print(f"    ⚠️  [CONFLICT] Payment suggests different counteragent - keeping Phase 1 counteragent")
-            else:
-                # Phase 1 didn't find counteragent - Phase 3 can set it
-                if payment_counteragent:
-                    counteragent_uuid = payment_counteragent
-            
-            payment_id = extracted_payment_id
-            
-            # Phase 3 can ONLY set parameters if Phase 2 didn't set them (Phase 2 has priority)
-            # Check if Phase 2 (parsing rule) already set these - if so, it's Case 8 (rule dominance)
-            rule_dominated = False
-            if parsing_rule_processed:
-                # Check if rule set any parameters that override payment
-                if (financial_code_uuid and payment_data.get('financial_code_uuid') and 
-                    financial_code_uuid != payment_data['financial_code_uuid']):
-                    rule_dominated = True
-                if (project_uuid and payment_data.get('project_uuid') and 
-                    project_uuid != payment_data['project_uuid']):
-                    rule_dominated = True
-                if (nominal_currency_uuid and nominal_currency_uuid != account_currency_uuid and
-                    payment_data.get('currency_uuid') and 
-                    nominal_currency_uuid != payment_data['currency_uuid']):
-                    rule_dominated = True
-            
-            if rule_dominated:
-                case8_parsing_rule_dominance = True
-                stats['case8_parsing_rule_dominance'] += 1
-                if idx <= 3:
-                    print(f"    🔄 [DOMINANCE] Parsing rule overrides payment parameters")
-            
-            # Apply payment parameters only if not already set by Phase 2
-            if not project_uuid and payment_data['project_uuid']:
-                project_uuid = payment_data['project_uuid']
-            if not financial_code_uuid and payment_data['financial_code_uuid']:
-                financial_code_uuid = payment_data['financial_code_uuid']
-            if (not nominal_currency_uuid or nominal_currency_uuid == account_currency_uuid) and payment_data['currency_uuid']:
-                nominal_currency_uuid = payment_data['currency_uuid']
-            
-            # Set case4 flag only if no conflict (case5 not set) and no dominance (case8 not set)
-            if not case5_payment_id_counteragent_mismatch and not case8_parsing_rule_dominance:
-                case4_payment_id_match = True
-            payment_id_processed = True
-            stats['case4_payment_id_match'] += 1
-            
-            if idx <= 3:
-                print(f"    ✅ [PAYMENT] Matched payment_id {payment_id}")
-        else:
-            payment_id_processed = False
-        
-        # Check if fully processed (tracked by 8 individual case flags)
-        is_fully_processed = True
-        
-        # Compute case description from 8 flags
+        # Generate case description (case2 and case8 deprecated, set to False)
         case_description = compute_case_description(
-            case1_counteragent_processed,
-            case2_counteragent_inn_blank,
-            case3_counteragent_inn_nonblank_no_match,
-            case4_payment_id_match,
-            case5_payment_id_counteragent_mismatch,
-            case6_parsing_rule_match,
-            case7_parsing_rule_counteragent_mismatch,
-            case8_parsing_rule_dominance
+            result['case1_counteragent_processed'],
+            False,  # case2 merged into case1
+            result['case3_counteragent_missing'],
+            result['case4_payment_id_matched'],
+            result['case5_payment_id_conflict'],
+            result['case6_parsing_rule_applied'],
+            result['case7_parsing_rule_conflict'],
+            False,  # case8 merged into other flags
+            result.get('applied_rule_id')
         )
         
         # Prepare consolidated record
@@ -984,17 +812,18 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
             'processing_case': case_description
         })
         
-        # Prepare raw table update with new 8-case schema
+        # Prepare raw table update with correct result dict keys
         raw_updates.append({
             'uuid': raw_uuid,
-            'case1_counteragent_processed': case1_counteragent_processed,
-            'case1_counteragent_found': case1_counteragent_by_inn,
-            'case3_counteragent_missing': case3_counteragent_inn_nonblank_no_match,
-            'case4_payment_id_matched': case4_payment_id_match,
-            'case5_payment_id_conflict': case5_payment_id_counteragent_mismatch,
-            'case6_parsing_rule_applied': case6_parsing_rule_match,
-            'case7_parsing_rule_conflict': case7_parsing_rule_counteragent_mismatch,
+            'counteragent_processed': result['case1_counteragent_processed'],
+            'counteragent_found': result['case1_counteragent_found'],
+            'counteragent_missing': result['case3_counteragent_missing'],
+            'payment_id_matched': result['case4_payment_id_matched'],
+            'payment_id_conflict': result['case5_payment_id_conflict'],
+            'parsing_rule_applied': result['case6_parsing_rule_applied'],
+            'parsing_rule_conflict': result['case7_parsing_rule_conflict'],
             'counteragent_inn': counteragent_inn,
+            'applied_rule_id': result['applied_rule_id'],
             'processing_case': case_description
         })
         
@@ -1101,6 +930,7 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
                 parsing_rule_applied BOOLEAN,
                 parsing_rule_conflict BOOLEAN,
                 counteragent_inn TEXT,
+                applied_rule_id INTEGER,
                 processing_case TEXT
             )
         """)
@@ -1115,9 +945,12 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
             if inn is None:
                 inn = ''
             processing_case = update.get('processing_case', '').replace('\n', ' ')
-            buffer.write(f"{update['uuid']}\t{update['case1_counteragent_processed']}\t{update['case1_counteragent_found']}\t{update['case3_counteragent_missing']}\t{update['case4_payment_id_matched']}\t{update['case5_payment_id_conflict']}\t{update['case6_parsing_rule_applied']}\t{update['case7_parsing_rule_conflict']}\t{inn}\t{processing_case}\n")
+            applied_rule = update.get('applied_rule_id')
+            if applied_rule is None or applied_rule == '':
+                applied_rule = '\\N'  # PostgreSQL NULL for COPY
+            buffer.write(f"{update['uuid']}\t{update['case1_counteragent_processed']}\t{update['case1_counteragent_found']}\t{update['case3_counteragent_missing']}\t{update['case4_payment_id_matched']}\t{update['case5_payment_id_conflict']}\t{update['case6_parsing_rule_applied']}\t{update['case7_parsing_rule_conflict']}\t{inn}\t{applied_rule}\t{processing_case}\n")
         buffer.seek(0)
-        remote_cursor.copy_from(buffer, 'temp_flag_updates', columns=('uuid', 'counteragent_processed', 'counteragent_found', 'counteragent_missing', 'payment_id_matched', 'payment_id_conflict', 'parsing_rule_applied', 'parsing_rule_conflict', 'counteragent_inn', 'processing_case'))
+        remote_cursor.copy_from(buffer, 'temp_flag_updates', columns=('uuid', 'counteragent_processed', 'counteragent_found', 'counteragent_missing', 'payment_id_matched', 'payment_id_conflict', 'parsing_rule_applied', 'parsing_rule_conflict', 'counteragent_inn', 'applied_rule_id', 'processing_case'))
         copy_time = time.time() - update_start
         print(f"  ✅ Temp table loaded in {copy_time:.2f}s")
         sys.stdout.flush()
@@ -1137,6 +970,7 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
                 parsing_rule_processed = TRUE,
                 payment_id_processed = TRUE,
                 counteragent_inn = tmp.counteragent_inn,
+                applied_rule_id = tmp.applied_rule_id,
                 processing_case = tmp.processing_case,
                 is_processed = TRUE,
                 updated_at = NOW()
@@ -1375,14 +1209,28 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
     """)
     parsing_rules = []
     for row in local_cursor.fetchall():
+        # Parse condition field which can be:
+        # - "column_name" + "value" (column_name and condition separate)
+        # - or "column_name=\"value\"" (combined in condition field)
+        column_name = row[5]  # may be NULL
+        condition = row[6]
+        
+        # If column_name is NULL but condition has format like: docprodgroup="COM"
+        if not column_name and condition and '=' in condition:
+            # Parse: docprodgroup="COM" -> column=docprodgroup, value=COM
+            parts = condition.split('=', 1)
+            if len(parts) == 2:
+                column_name = parts[0].strip()
+                condition = parts[1].strip().strip('"\'')
+        
         parsing_rules.append({
             'id': row[0],
             'counteragent_uuid': row[1],
             'financial_code_uuid': row[2],
             'nominal_currency_uuid': row[3],
             'payment_id': row[4],
-            'column_name': row[5],
-            'condition': row[6]
+            'column_name': column_name,
+            'condition': condition
         })
     print(f"  ✅ Loaded {len(parsing_rules)} parsing rules ({time.time()-dict_start:.2f}s)")
     
@@ -1502,253 +1350,56 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
         if not transaction_date:
             continue
         
-        # Initialize processing flags and data
-        counteragent_uuid = None
-        counteragent_inn = None
-        counteragent_account_number = None
-        project_uuid = None
-        financial_code_uuid = None
-        nominal_currency_uuid = account_currency_uuid
+        # Prepare row dict for shared processing function
+        row = {
+            'uuid': raw_uuid,
+            'dockey': DocKey,
+            'entriesid': EntriesId,
+            'docsenderinn': DocSenderInn,
+            'docbenefinn': DocBenefInn,
+            'doccorracct': DocCorAcct,
+            'docsenderacctno': DocSenderAcctNo,
+            'docbenefacctno': DocBenefAcctNo,
+            'docprodgroup': DocProdGroup,
+            'docnomination': DocNomination,
+            'docinformation': DocInformation,
+            'debit': debit
+        }
+        
+        # ===== USE SHARED PROCESSING FUNCTION =====
+        result = process_single_record(
+            row, 
+            counteragents_map, 
+            parsing_rules, 
+            payments_map, 
+            idx, 
+            stats, 
+            missing_counteragents
+        )
+        
+        # Extract results from shared function
+        counteragent_uuid = result['counteragent_uuid']
+        counteragent_account_number = result['counteragent_account_number']
+        counteragent_inn = result['counteragent_inn']
+        project_uuid = result['project_uuid']
+        financial_code_uuid = result['financial_code_uuid']
+        payment_id = result['payment_id']
+        
+        # Set defaults for missing values
+        nominal_currency_uuid = result['nominal_currency_uuid'] or account_currency_uuid
         nominal_amount = account_currency_amount
-        payment_id = None
         
-        # Initialize 8-case flags (Cases 1/2/3 are mutually exclusive)
-        case1_counteragent_processed = False
-        case2_counteragent_inn_blank = False
-        case3_counteragent_inn_nonblank_no_match = False
-        case4_payment_id_match = False
-        case5_payment_id_counteragent_mismatch = False
-        case6_parsing_rule_match = False
-        case7_parsing_rule_counteragent_mismatch = False
-        case8_parsing_rule_dominance = False
-        
-        # =============================
-        # PHASE 1: Counteragent Identification
-        # =============================
-        
-        # PRIORITY 1: Use DocCorAcct if available (correspondent account from bank statement)
-        counteragent_account_number = None
-        if DocCorAcct and str(DocCorAcct).strip():
-            counteragent_account_number = str(DocCorAcct).strip()
-        
-        # Determine transaction direction
-        is_incoming = (debit is None or debit == 0)
-        
-        if is_incoming:
-            # Incoming payment - counteragent is the sender
-            counteragent_inn = normalize_inn(DocSenderInn)
-            # FALLBACK: Use DocSenderAcctNo only if DocCorAcct not available
-            if not counteragent_account_number and DocSenderAcctNo and str(DocSenderAcctNo).strip():
-                counteragent_account_number = str(DocSenderAcctNo).strip()
-        else:
-            # Outgoing payment - counteragent is the beneficiary
-            counteragent_inn = normalize_inn(DocBenefInn)
-            # FALLBACK: Use DocBenefAcctNo only if DocCorAcct not available
-            if not counteragent_account_number and DocBenefAcctNo and str(DocBenefAcctNo).strip():
-                counteragent_account_number = str(DocBenefAcctNo).strip()
-        
-        if counteragent_inn:
-            counteragent_data = counteragents_map.get(counteragent_inn)
-            if counteragent_data:
-                counteragent_uuid = counteragent_data['uuid']
-                case1_counteragent_processed = True
-                case1_counteragent_found = True
-                stats['case1_counteragent_processed'] += 1
-                
-                if idx <= 3:
-                    print(f"  ✅ [CASE 1] Record {DocKey}_{EntriesId}: Matched counteragent {counteragent_data['name']}")
-            else:
-                case3_counteragent_inn_nonblank_no_match = True
-                counteragent_processed = False
-                stats['case3_counteragent_inn_nonblank_no_match'] += 1
-                
-                if counteragent_inn not in missing_counteragents:
-                    missing_counteragents[counteragent_inn] = {
-                        'inn': counteragent_inn,
-                        'count': 0,
-                        'samples': []
-                    }
-                missing_counteragents[counteragent_inn]['count'] += 1
-                if len(missing_counteragents[counteragent_inn]['samples']) < 3:
-                    missing_counteragents[counteragent_inn]['samples'].append(f"{DocKey}_{EntriesId}")
-                
-                if idx <= 3:
-                    print(f"  ⚠️  [CASE 3] Record {DocKey}_{EntriesId}: INN {counteragent_inn} needs counteragent")
-        else:
-            case2_counteragent_inn_blank = True
-            counteragent_processed = False
-            stats['case2_counteragent_inn_blank'] += 1
-            
-            if idx <= 3:
-                print(f"  ℹ️  [CASE 2] Record {DocKey}_{EntriesId}: No INN - will try rules/payment")
-        
-        # =============================
-        # PHASE 2: Parsing Rules Application
-        # =============================
-        
-        matched_rule = None
-        for rule in parsing_rules:
-            # Match by column_name and condition
-            column_name = rule.get('column_name', '')
-            condition = rule.get('condition', '')
-            
-            if not column_name or not condition:
-                continue
-            
-            # Dynamically check the raw data field specified in column_name
-            # Map database column names to our local variables
-            field_map = {
-                'DocProdGroup': DocProdGroup,
-                'DocNomination': DocNomination,
-                'DocInformation': DocInformation,
-                'DocKey': DocKey,
-            }
-            
-            field_value = field_map.get(column_name)
-            if field_value and str(field_value).strip() == str(condition).strip():
-                matched_rule = rule
-                if idx <= 3:
-                    print(f"    🎯 [RULE MATCH] {column_name}='{condition}'")
-                break
-        
-        if matched_rule:
-            # Check if rule provides a payment_id
-            rule_payment_id = matched_rule.get('payment_id')
-            rule_payment_data = None
-            if rule_payment_id and rule_payment_id in payments_map:
-                rule_payment_data = payments_map[rule_payment_id]
-                if idx <= 3:
-                    print(f"    🎯 [RULE->PAYMENT] Rule provides payment_id: {rule_payment_id}")
-            
-            # Phase 2 can ONLY set counteragent if Phase 1 didn't find one
-            # Check rule's direct counteragent first, then rule's payment
-            rule_counteragent = matched_rule['counteragent_uuid']
-            if not rule_counteragent and rule_payment_data:
-                rule_counteragent = rule_payment_data['counteragent_uuid']
-            
-            if counteragent_uuid:
-                # Phase 1 found counteragent - check for conflict but DON'T override
-                if rule_counteragent and rule_counteragent != counteragent_uuid:
-                    case7_parsing_rule_counteragent_mismatch = True
-                    parsing_rule_conflict = True
-                    stats['case7_parsing_rule_counteragent_mismatch'] += 1
-                    
-                    if idx <= 3:
-                        print(f"    ⚠️  [CONFLICT] Parsing rule suggests different counteragent - keeping Phase 1 counteragent")
-            else:
-                # Phase 1 didn't find counteragent - Phase 2 can set it
-                if rule_counteragent:
-                    counteragent_uuid = rule_counteragent
-            
-            # Phase 2 ALWAYS sets other parameters (will override Phase 3 if it runs later)
-            # Priority: rule's direct params > rule's payment params
-            if matched_rule['financial_code_uuid']:
-                financial_code_uuid = matched_rule['financial_code_uuid']
-            elif rule_payment_data and rule_payment_data.get('financial_code_uuid'):
-                financial_code_uuid = rule_payment_data['financial_code_uuid']
-            
-            if matched_rule['nominal_currency_uuid']:
-                nominal_currency_uuid = matched_rule['nominal_currency_uuid']
-            elif rule_payment_data and rule_payment_data.get('currency_uuid'):
-                nominal_currency_uuid = rule_payment_data['currency_uuid']
-            elif not nominal_currency_uuid:
-                nominal_currency_uuid = account_currency_uuid
-            
-            if rule_payment_data and rule_payment_data.get('project_uuid'):
-                project_uuid = rule_payment_data['project_uuid']
-            
-            # Set case6 flag only if no conflict (case7 not set)
-            if not case7_parsing_rule_counteragent_mismatch:
-                case6_parsing_rule_match = True
-            parsing_rule_processed = True
-            stats['case6_parsing_rule_match'] += 1
-            
-            if idx <= 3:
-                print(f"    ✅ [RULE] Applied parsing rule parameters")
-        else:
-            parsing_rule_processed = False
-        
-        # =============================
-        # PHASE 3: Payment ID Matching
-        # =============================
-        
-        extracted_payment_id = extract_payment_id(DocInformation)
-        
-        if extracted_payment_id and extracted_payment_id in payments_map:
-            payment_data = payments_map[extracted_payment_id]
-            payment_counteragent = payment_data['counteragent_uuid']
-            
-            # Phase 3 can ONLY set counteragent if Phase 1 didn't find one
-            if counteragent_uuid:
-                # Phase 1 found counteragent - check for conflict but DON'T override
-                if payment_counteragent and payment_counteragent != counteragent_uuid:
-                    case5_payment_id_counteragent_mismatch = True
-                    payment_conflict = True
-                    stats['case5_payment_id_counteragent_mismatch'] += 1
-                    
-                    if idx <= 3:
-                        print(f"    ⚠️  [CONFLICT] Payment suggests different counteragent - keeping Phase 1 counteragent")
-            else:
-                # Phase 1 didn't find counteragent - Phase 3 can set it
-                if payment_counteragent:
-                    counteragent_uuid = payment_counteragent
-            
-            payment_id = extracted_payment_id
-            
-            # Phase 3 can ONLY set parameters if Phase 2 didn't set them (Phase 2 has priority)
-            # Check if Phase 2 (parsing rule) already set these - if so, it's Case 8 (rule dominance)
-            rule_dominated = False
-            if parsing_rule_processed:
-                # Check if rule set any parameters that override payment
-                if (financial_code_uuid and payment_data.get('financial_code_uuid') and 
-                    financial_code_uuid != payment_data['financial_code_uuid']):
-                    rule_dominated = True
-                if (project_uuid and payment_data.get('project_uuid') and 
-                    project_uuid != payment_data['project_uuid']):
-                    rule_dominated = True
-                if (nominal_currency_uuid and nominal_currency_uuid != account_currency_uuid and
-                    payment_data.get('currency_uuid') and 
-                    nominal_currency_uuid != payment_data['currency_uuid']):
-                    rule_dominated = True
-            
-            if rule_dominated:
-                case8_parsing_rule_dominance = True
-                stats['case8_parsing_rule_dominance'] += 1
-                if idx <= 3:
-                    print(f"    🔄 [DOMINANCE] Parsing rule overrides payment parameters")
-            
-            # Apply payment parameters only if not already set by Phase 2
-            if not project_uuid and payment_data['project_uuid']:
-                project_uuid = payment_data['project_uuid']
-            if not financial_code_uuid and payment_data['financial_code_uuid']:
-                financial_code_uuid = payment_data['financial_code_uuid']
-            if (not nominal_currency_uuid or nominal_currency_uuid == account_currency_uuid) and payment_data['currency_uuid']:
-                nominal_currency_uuid = payment_data['currency_uuid']
-            
-            # Set case4 flag only if no conflict (case5 not set) and no dominance (case8 not set)
-            if not case5_payment_id_counteragent_mismatch and not case8_parsing_rule_dominance:
-                case4_payment_id_match = True
-            payment_id_processed = True
-            stats['case4_payment_id_match'] += 1
-            
-            if idx <= 3:
-                print(f"    ✅ [PAYMENT] Matched payment_id {payment_id}")
-        else:
-            payment_id_processed = False
-        
-        # All processing tracked by individual 8 case flags
-        is_fully_processed = True
-        
-        # Compute case description from 8 flags
+        # Generate case description (case2 and case8 deprecated, set to False)
         case_description = compute_case_description(
-            case1_counteragent_processed,
-            case2_counteragent_inn_blank,
-            case3_counteragent_inn_nonblank_no_match,
-            case4_payment_id_match,
-            case5_payment_id_counteragent_mismatch,
-            case6_parsing_rule_match,
-            case7_parsing_rule_counteragent_mismatch,
-            case8_parsing_rule_dominance
+            result['case1_counteragent_processed'],
+            False,  # case2 merged into case1
+            result['case3_counteragent_missing'],
+            result['case4_payment_id_matched'],
+            result['case5_payment_id_conflict'],
+            result['case6_parsing_rule_applied'],
+            result['case7_parsing_rule_conflict'],
+            False,  # case8 merged into other flags
+            result.get('applied_rule_id')
         )
         
         # Prepare consolidated record
@@ -1770,17 +1421,18 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
             'processing_case': case_description
         })
         
-        # Prepare raw table update with new 8-case schema
+        # Prepare raw table update with correct result dict keys
         raw_updates.append({
             'uuid': raw_uuid,
-            'case1_counteragent_processed': case1_counteragent_processed,
-            'case1_counteragent_found': case1_counteragent_by_inn,
-            'case3_counteragent_missing': case3_counteragent_inn_nonblank_no_match,
-            'case4_payment_id_matched': case4_payment_id_match,
-            'case5_payment_id_conflict': case5_payment_id_counteragent_mismatch,
-            'case6_parsing_rule_applied': case6_parsing_rule_match,
-            'case7_parsing_rule_conflict': case7_parsing_rule_counteragent_mismatch,
+            'counteragent_processed': result['case1_counteragent_processed'],
+            'counteragent_found': result['case1_counteragent_found'],
+            'counteragent_missing': result['case3_counteragent_missing'],
+            'payment_id_matched': result['case4_payment_id_matched'],
+            'payment_id_conflict': result['case5_payment_id_conflict'],
+            'parsing_rule_applied': result['case6_parsing_rule_applied'],
+            'parsing_rule_conflict': result['case7_parsing_rule_conflict'],
             'counteragent_inn': counteragent_inn,
+            'applied_rule_id': result['applied_rule_id'],
             'processing_case': case_description
         })
         
@@ -1871,14 +1523,16 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
         local_cursor.execute("""
             CREATE TEMP TABLE temp_flag_updates (
                 uuid UUID,
-                case1 BOOLEAN,
-                case2 BOOLEAN,
-                case3 BOOLEAN,
-                case4 BOOLEAN,
-                case5 BOOLEAN,
-                case6 BOOLEAN,
-                case7 BOOLEAN,
-                case8 BOOLEAN
+                counteragent_processed BOOLEAN,
+                counteragent_found BOOLEAN,
+                counteragent_missing BOOLEAN,
+                payment_id_matched BOOLEAN,
+                payment_id_conflict BOOLEAN,
+                parsing_rule_applied BOOLEAN,
+                parsing_rule_conflict BOOLEAN,
+                counteragent_inn TEXT,
+                applied_rule_id INTEGER,
+                processing_case TEXT
             )
         """)
         
@@ -1888,9 +1542,14 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
         from io import StringIO
         buffer = StringIO()
         for update in raw_updates:
-            buffer.write(f"{update['uuid']}\t{update['case1_counteragent_processed']}\t{update['case2_counteragent_inn_blank']}\t{update['case3_counteragent_inn_nonblank_no_match']}\t{update['case4_payment_id_match']}\t{update['case5_payment_id_counteragent_mismatch']}\t{update['case6_parsing_rule_match']}\t{update['case7_parsing_rule_counteragent_mismatch']}\t{update['case8_parsing_rule_dominance']}\n")
+            inn = update['counteragent_inn'] or ''
+            processing_case = update['processing_case'].replace('\n', '\\n') if update['processing_case'] else ''
+            applied_rule = update.get('applied_rule_id')
+            if applied_rule is None or applied_rule == '':
+                applied_rule = '\\N'  # PostgreSQL NULL for COPY
+            buffer.write(f"{update['uuid']}\t{update['counteragent_processed']}\t{update['counteragent_found']}\t{update['counteragent_missing']}\t{update['payment_id_matched']}\t{update['payment_id_conflict']}\t{update['parsing_rule_applied']}\t{update['parsing_rule_conflict']}\t{inn}\t{applied_rule}\t{processing_case}\n")
         buffer.seek(0)
-        local_cursor.copy_from(buffer, 'temp_flag_updates', columns=('uuid', 'case1', 'case2', 'case3', 'case4', 'case5', 'case6', 'case7', 'case8'))
+        local_cursor.copy_from(buffer, 'temp_flag_updates', columns=('uuid', 'counteragent_processed', 'counteragent_found', 'counteragent_missing', 'payment_id_matched', 'payment_id_conflict', 'parsing_rule_applied', 'parsing_rule_conflict', 'counteragent_inn', 'applied_rule_id', 'processing_case'))
         copy_time = time.time() - update_start
         print(f"  ✅ Temp table loaded in {copy_time:.2f}s")
         sys.stdout.flush()
@@ -1900,14 +1559,16 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
         sys.stdout.flush()
         local_cursor.execute(f"""
             UPDATE {raw_table_name} AS raw SET
-                counteragent_processed = tmp.case1,
-                counteragent_inn_blank = tmp.case2,
-                counteragent_inn_nonblank_no_match = tmp.case3,
-                payment_id_match = tmp.case4,
-                payment_id_counteragent_mismatch = tmp.case5,
-                parsing_rule_match = tmp.case6,
-                parsing_rule_counteragent_mismatch = tmp.case7,
-                parsing_rule_dominance = tmp.case8,
+                counteragent_processed = tmp.counteragent_processed,
+                counteragent_found = tmp.counteragent_found,
+                counteragent_missing = tmp.counteragent_missing,
+                payment_id_matched = tmp.payment_id_matched,
+                payment_id_conflict = tmp.payment_id_conflict,
+                parsing_rule_applied = tmp.parsing_rule_applied,
+                parsing_rule_conflict = tmp.parsing_rule_conflict,
+                counteragent_inn = tmp.counteragent_inn,
+                applied_rule_id = tmp.applied_rule_id,
+                processing_case = tmp.processing_case,
                 is_processed = TRUE,
                 updated_at = NOW()
             FROM temp_flag_updates AS tmp

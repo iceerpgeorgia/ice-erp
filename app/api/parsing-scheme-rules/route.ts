@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
       condition: string;
       condition_script: string | null;
       payment_id: bigint | null;
+      active: boolean;
     };
 
     let rules: RuleRow[];
@@ -47,7 +48,8 @@ export async function GET(request: NextRequest) {
       schemeUuid: rule.scheme_uuid,
       scheme: rule.scheme,
       condition: rule.condition,
-      paymentId: rule.payment_id
+      paymentId: rule.payment_id,
+      active: rule.active
     }));
 
     return NextResponse.json(formattedRules);
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { schemeUuid, condition, paymentId, counteragentUuid, financialCodeUuid, nominalCurrencyUuid } = body;
+    const { schemeUuid, condition, paymentId, counteragentUuid, financialCodeUuid, nominalCurrencyUuid, active } = body;
 
     if (!schemeUuid || !condition) {
       return NextResponse.json(
@@ -109,14 +111,15 @@ export async function POST(request: NextRequest) {
       counteragent_uuid: string | null;
       financial_code_uuid: string | null;
       nominal_currency_uuid: string | null;
+      active: boolean;
     }>>`
       INSERT INTO parsing_scheme_rules (
         scheme_uuid, condition, condition_script, payment_id,
-        counteragent_uuid, financial_code_uuid, nominal_currency_uuid
+        counteragent_uuid, financial_code_uuid, nominal_currency_uuid, active
       )
       VALUES (
         ${schemeUuid}::uuid, ${condition}, ${conditionScript}, ${paymentId},
-        ${counteragentUuid}::uuid, ${financialCodeUuid}::uuid, ${nominalCurrencyUuid}::uuid
+        ${counteragentUuid}::uuid, ${financialCodeUuid}::uuid, ${nominalCurrencyUuid}::uuid, ${active ?? true}
       )
       RETURNING *
     `;
@@ -129,7 +132,8 @@ export async function POST(request: NextRequest) {
       paymentId: rule.payment_id,
       counteragentUuid: rule.counteragent_uuid,
       financialCodeUuid: rule.financial_code_uuid,
-      nominalCurrencyUuid: rule.nominal_currency_uuid
+      nominalCurrencyUuid: rule.nominal_currency_uuid,
+      active: rule.active
     });
   } catch (error) {
     console.error('Error creating parsing scheme rule:', error);

@@ -37,16 +37,138 @@ function toISO(d: Date | null): string {
   return d ? d.toISOString() : "";
 }
 
+// Convert dd.mm.yyyy to yyyy-mm-dd
+function toApiDate(displayDate: string): string {
+  if (!displayDate || displayDate.length !== 10) return "";
+  const parts = displayDate.split(".");
+  if (parts.length !== 3) return "";
+  const [day, month, year] = parts;
+  if (!day || !month || !year || year.length !== 4) return "";
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+}
+
+// Convert yyyy-mm-dd to dd.mm.yyyy
+function toDisplayDate(apiDate: string): string {
+  if (!apiDate) return "";
+  const parts = apiDate.split("-");
+  if (parts.length !== 3) return "";
+  const [year, month, day] = parts;
+  return `${day}.${month}.${year}`;
+}
+
+// Format input value to dd.mm.yyyy as user types
+function formatDateInput(value: string): string {
+  // Remove non-digits
+  const digits = value.replace(/\D/g, "");
+  
+  // Build formatted string
+  if (digits.length === 0) return "";
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4, 8)}`;
+}
+
 export default function BankTransactionsTableFigma() {
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Initialize from localStorage
+  const [fromDateDisplay, setFromDateDisplay] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('bankTransactions_fromDate') || "";
+    }
+    return "";
+  });
+  const [toDateDisplay, setToDateDisplay] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('bankTransactions_toDate') || "";
+    }
+    return "";
+  });
+
+  // Applied filters - only these trigger data fetching
+  const [appliedFromDate, setAppliedFromDate] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('bankTransactions_appliedFromDate') || "";
+    }
+    return "";
+  });
+  const [appliedToDate, setAppliedToDate] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('bankTransactions_appliedToDate') || "";
+    }
+    return "";
+  });
+
+  // Save applied filters to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('bankTransactions_appliedFromDate', appliedFromDate);
+      localStorage.setItem('bankTransactions_appliedToDate', appliedToDate);
+      localStorage.setItem('bankTransactions_fromDate', appliedFromDate); // Sync display with applied
+      localStorage.setItem('bankTransactions_toDate', appliedToDate);
+    }
+  }, [appliedFromDate, appliedToDate]);
+
+  // Validation helper - check if date is valid dd.mm.yyyy format
+  const isValidDate = (date: string): boolean => {
+    if (!date) return true; // Empty is valid (means no filter)
+    if (date.length !== 10) return false;
+    const parts = date.split(".");
+    if (parts.length !== 3) return false;
+    const [day, month, year] = parts;
+    if (!day || !month || !year || year.length !== 4) return false;
+    const dayNum = parseInt(day, 10);
+    const monthNum = parseInt(month, 10);
+    const yearNum = parseInt(year, 10);
+    if (isNaN(dayNum) || isNaN(monthNum) || isNaN(yearNum)) return false;
+    if (dayNum < 1 || dayNum > 31) return false;
+    if (monthNum < 1 || monthNum > 12) return false;
+    if (yearNum < 1900 || yearNum > 2100) return false;
+    return true;
+  };
+
+  // Apply filters button handler
+  const handleApplyFilters = () => {
+    // Validate dates before applying
+    const fromValid = isValidDate(fromDateDisplay);
+    const toValid = isValidDate(toDateDisplay);
+
+    if (!fromValid || !toValid) {
+      alert("Please enter valid dates in dd.mm.yyyy format");
+      return;
+    }
+
+    // Apply the filters
+    setAppliedFromDate(fromDateDisplay);
+    setAppliedToDate(toDateDisplay);
+  };
+
+  // Clear filters
+  const handleClearFilters = () => {
+    setFromDateDisplay("");
+    setToDateDisplay("");
+    setAppliedFromDate("");
+    setAppliedToDate("");
+  };
 
   useEffect(() => {
     async function loadTransactions() {
       try {
         console.log('[BankTransactionsTableFigma] Fetching data...');
-        const res = await fetch("/api/bank-transactions");
+        const params = new URLSearchParams();
+        // Database stores dates in dd.mm.yyyy format - send as-is
+        console.log('[BankTransactionsTableFigma] Dates:', {
+          fromDate: appliedFromDate,
+          toDate: appliedToDate
+        });
+        if (appliedFromDate) params.set('fromDate', appliedFromDate);
+        if (appliedToDate) params.set('toDate', appliedToDate);
+        const queryString = params.toString();
+        const url = `/api/bank-transactions${queryString ? `?${queryString}` : ''}`;
+        const res = await fetch(url);
         console.log('[BankTransactionsTableFigma] Response status:', res.status);
         
         if (!res.ok) throw new Error("Failed to fetch");
@@ -70,10 +192,13 @@ export default function BankTransactionsTableFigma() {
           id1: null, // Not in current schema
           id2: null, // Not in current schema
           recordUuid: row.raw_record_uuid || "",
-          counteragentAccountNumber: null, // Not in current schema
+          counteragentAccountNumber: row.counteragent_account_number ? String(row.counteragent_account_number) : null,
           description: row.description || null,
+          processingCase: row.processing_case || null,
+          appliedRuleId: row.applied_rule_id || null,
           createdAt: toISO(toValidDate(row.created_at || row.createdAt)),
           updatedAt: toISO(toValidDate(row.updated_at || row.updatedAt)),
+          isBalanceRecord: row.is_balance_record || false, // Flag for balance records
           
           // Display fields (from joins)
           accountNumber: row.account_number || null,
@@ -92,11 +217,16 @@ export default function BankTransactionsTableFigma() {
         setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
         setLoading(false);
+        setIsInitialLoad(false);
       }
     }
 
-    loadTransactions();
-  }, []);
+    // Only load if not currently loading to prevent race conditions
+    if (!loading || isInitialLoad) {
+      setLoading(true);
+      loadTransactions();
+    }
+  }, [appliedFromDate, appliedToDate]); // Trigger only when applied filters change
 
   if (loading) {
     return (
@@ -118,5 +248,67 @@ export default function BankTransactionsTableFigma() {
   }
 
   console.log('[BankTransactionsTableFigma] Rendering table with', transactions.length, 'transactions');
-  return <BankTransactionsTableDynamic data={transactions} />;
+  
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-4 items-center p-4 bg-gray-50 rounded-lg">
+        <div className="flex items-center gap-2">
+          <label htmlFor="fromDate" className="text-sm font-medium text-gray-700">
+            From:
+          </label>
+          <input
+            id="fromDate"
+            type="text"
+            value={fromDateDisplay}
+            onChange={(e) => setFromDateDisplay(formatDateInput(e.target.value))}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleApplyFilters();
+              }
+            }}
+            placeholder="dd.mm.yyyy"
+            maxLength={10}
+            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="toDate" className="text-sm font-medium text-gray-700">
+            To:
+          </label>
+          <input
+            id="toDate"
+            type="text"
+            value={toDateDisplay}
+            onChange={(e) => setToDateDisplay(formatDateInput(e.target.value))}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleApplyFilters();
+              }
+            }}
+            placeholder="dd.mm.yyyy"
+            maxLength={10}
+            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32"
+          />
+        </div>
+        <button
+          onClick={handleApplyFilters}
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          Apply Filter
+        </button>
+        {(appliedFromDate || appliedToDate) && (
+          <button
+            onClick={handleClearFilters}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            Clear Filters
+          </button>
+        )}
+        <div className="ml-auto text-sm text-gray-600">
+          Showing {transactions.length.toLocaleString()} transactions
+        </div>
+      </div>
+      <BankTransactionsTableDynamic data={transactions} />
+    </div>
+  );
 }

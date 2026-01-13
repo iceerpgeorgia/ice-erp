@@ -17,7 +17,7 @@ export async function PUT(
 
     const id = BigInt(params.id);
     const body = await request.json();
-    const { schemeUuid, condition, paymentId, counteragentUuid, financialCodeUuid, nominalCurrencyUuid } = body;
+    const { schemeUuid, condition, paymentId, counteragentUuid, financialCodeUuid, nominalCurrencyUuid, active } = body;
 
     // Validate: if updating, ensure either paymentId OR all three UUIDs are provided
     if (paymentId === null || counteragentUuid !== undefined || financialCodeUuid !== undefined || nominalCurrencyUuid !== undefined) {
@@ -55,6 +55,7 @@ export async function PUT(
       counteragent_uuid: string | null;
       financial_code_uuid: string | null;
       nominal_currency_uuid: string | null;
+      active: boolean;
     }>>`
       UPDATE parsing_scheme_rules
       SET 
@@ -64,7 +65,8 @@ export async function PUT(
         payment_id = COALESCE(${paymentId}, payment_id),
         counteragent_uuid = COALESCE(${counteragentUuid}::uuid, counteragent_uuid),
         financial_code_uuid = COALESCE(${financialCodeUuid}::uuid, financial_code_uuid),
-        nominal_currency_uuid = COALESCE(${nominalCurrencyUuid}::uuid, nominal_currency_uuid)
+        nominal_currency_uuid = COALESCE(${nominalCurrencyUuid}::uuid, nominal_currency_uuid),
+        active = COALESCE(${active}, active)
       WHERE id = ${id}
       RETURNING *
     `;
@@ -81,7 +83,8 @@ export async function PUT(
       paymentId: rule.payment_id,
       counteragentUuid: rule.counteragent_uuid,
       financialCodeUuid: rule.financial_code_uuid,
-      nominalCurrencyUuid: rule.nominal_currency_uuid
+      nominalCurrencyUuid: rule.nominal_currency_uuid,
+      active: rule.active
     });
   } catch (error) {
     console.error('Error updating parsing scheme rule:', error);

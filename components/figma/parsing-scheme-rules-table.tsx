@@ -7,7 +7,7 @@ import {
   Settings,
   Plus,
   Pencil,
-  Trash2,
+  Play,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -29,6 +29,7 @@ type ParsingSchemeRule = {
   counteragentUuid: string | null;
   financialCodeUuid: string | null;
   nominalCurrencyUuid: string | null;
+  active: boolean;
 };
 
 type ColumnKey = keyof ParsingSchemeRule;
@@ -43,6 +44,7 @@ type ColumnConfig = {
 };
 
 const defaultColumns: ColumnConfig[] = [
+  { key: 'id', label: 'ID', visible: false, sortable: true, filterable: true, width: 80 },
   { key: 'scheme', label: 'Scheme', visible: true, sortable: true, filterable: true, width: 150 },
   { key: 'condition', label: 'Formula', visible: true, sortable: true, filterable: true, width: 400 },
   { key: 'paymentId', label: 'Payment ID', visible: true, sortable: true, filterable: true, width: 200 },
@@ -112,6 +114,7 @@ export function ParsingSchemeRulesTable() {
     counteragentUuid: '',
     financialCodeUuid: '',
     nominalCurrencyUuid: '',
+    active: true,
   });
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [loadingColumns, setLoadingColumns] = useState(false);
@@ -130,6 +133,22 @@ export function ParsingSchemeRulesTable() {
   const [autocompletePosition, setAutocompletePosition] = useState({ top: 0, left: 0 });
   const [atSymbolPosition, setAtSymbolPosition] = useState<number | null>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  // Test rule preview states
+  const [isTestDialogOpen, setIsTestDialogOpen] = useState(false);
+  const [testRuleData, setTestRuleData] = useState<{
+    rule: ParsingSchemeRule | null;
+    matchCount: number;
+    records: any[];
+    column: string;
+    value: string;
+  }>({
+    rule: null,
+    matchCount: 0,
+    records: [],
+    column: '',
+    value: ''
+  });
 
   // Load saved column configuration
   useEffect(() => {
@@ -563,6 +582,7 @@ export function ParsingSchemeRulesTable() {
       counteragentUuid: '',
       financialCodeUuid: '',
       nominalCurrencyUuid: '',
+      active: true,
     });
     setFormulaValidation(null);
     setShowExamples(false);
@@ -579,6 +599,7 @@ export function ParsingSchemeRulesTable() {
       counteragentUuid: rule.counteragentUuid || '',
       financialCodeUuid: rule.financialCodeUuid || '',
       nominalCurrencyUuid: rule.nominalCurrencyUuid || '',
+      active: rule.active,
     });
     setFormulaValidation(null);
     setShowExamples(false);
@@ -645,6 +666,7 @@ export function ParsingSchemeRulesTable() {
         counteragentUuid: hasPaymentId ? null : formData.counteragentUuid,
         financialCodeUuid: hasPaymentId ? null : formData.financialCodeUuid,
         nominalCurrencyUuid: hasPaymentId ? null : formData.nominalCurrencyUuid,
+        active: formData.active,
       };
       
       const response = await fetch(url, {
@@ -666,20 +688,49 @@ export function ParsingSchemeRulesTable() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this rule?')) return;
-
+  const handleTestRule = async (rule: ParsingSchemeRule, applyRule: boolean = false) => {
     try {
-      const response = await fetch(`/api/parsing-scheme-rules/${id}`, {
-        method: 'DELETE',
+      const response = await fetch('/api/parsing-scheme-rules/test-rule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          ruleId: rule.id,
+          apply: applyRule 
+        }),
       });
 
-      if (!response.ok) throw new Error('Failed to delete rule');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to test rule');
+      }
       
-      await fetchData();
+      const result = await response.json();
+      
+      if (!applyRule) {
+        // Show preview dialog with records
+        setTestRuleData({
+          rule,
+          matchCount: result.matchCount,
+          records: result.records || [],
+          column: result.column || '',
+          value: result.value || ''
+        });
+        setIsTestDialogOpen(true);
+      } else {
+        // Rule was applied
+        alert(`Successfully applied rule to ${result.matchCount} records`);
+        setIsTestDialogOpen(false);
+        await fetchData();
+      }
     } catch (error) {
-      console.error('Error deleting rule:', error);
-      alert('Failed to delete rule');
+      console.error('Error testing/applying rule:', error);
+      alert(`Failed to test/apply rule: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleApplyRule = async () => {
+    if (testRuleData.rule) {
+      await handleTestRule(testRuleData.rule, true);
     }
   };
 
@@ -698,7 +749,7 @@ export function ParsingSchemeRulesTable() {
                   Add Rule
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogContent className="w-[1400px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{isEditMode ? 'Edit Rule' : 'Add Rule'}</DialogTitle>
                   <DialogDescription>
@@ -899,9 +950,10 @@ export function ParsingSchemeRulesTable() {
                         <Combobox
                           value={formData.paymentId}
                           onValueChange={(value: string) => setFormData({ ...formData, paymentId: value })}
-                          options={payments.map(payment => ({
+                          options={payments.map((payment, index) => ({
                             value: payment.paymentId,
-                            label: `${payment.paymentId} | ${payment.counteragentName || '-'} | ${payment.currencyCode || '-'} | ${payment.projectIndex || '-'}${payment.jobName ? ` | ${payment.jobName}` : ''} | ${payment.financialCodeValidation || '-'}`
+                            label: `${payment.paymentId} | ${payment.counteragentName || '-'} | ${payment.currencyCode || '-'} | ${payment.projectIndex || '-'}${payment.jobName ? ` | ${payment.jobName}` : ''} | ${payment.financialCodeValidation || '-'}`,
+                            keywords: `${payment.paymentId} ${payment.counteragentName} ${payment.projectIndex} ${payment.jobName}`.toLowerCase()
                           }))}
                           placeholder="Select payment ID..."
                           searchPlaceholder="Search payments..."
@@ -960,6 +1012,33 @@ export function ParsingSchemeRulesTable() {
                         </p>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Active</Label>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs ${formData.active ? 'text-green-600' : 'text-gray-400'}`}>
+                          {formData.active ? 'ON' : 'OFF'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, active: !formData.active })}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            formData.active ? 'bg-green-600' : 'bg-gray-300'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              formData.active ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Only active rules are applied during processing.
+                    </p>
                   </div>
 
                   <DialogFooter>
@@ -1161,18 +1240,18 @@ export function ParsingSchemeRulesTable() {
                     <td className="px-4 py-2 text-sm" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>
                       <div className="flex items-center gap-1">
                         <button
+                          onClick={() => handleTestRule(row)}
+                          className="text-purple-600 hover:text-purple-800 hover:bg-purple-50 p-1 rounded transition-colors"
+                          title="Test and apply rule"
+                        >
+                          <Play className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => openEditDialog(row)}
                           className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
                           title="Edit"
                         >
                           <Pencil className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(row.id)}
-                          className="text-red-600 hover:text-red-800 hover:bg-red-50 p-1 rounded transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -1215,6 +1294,109 @@ export function ParsingSchemeRulesTable() {
           </div>
         </div>
       </div>
+
+      {/* Test Rule Preview Dialog */}
+      <Dialog open={isTestDialogOpen} onOpenChange={setIsTestDialogOpen}>
+        <DialogContent className="w-[1600px] max-w-[98vw] max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Rule Preview: {testRuleData.matchCount} Matching Records</DialogTitle>
+            <DialogDescription>
+              Found {testRuleData.matchCount} records where <span className="font-mono">{testRuleData.column}</span> = "{testRuleData.value}"
+              {testRuleData.matchCount > 100 && ' (showing first 100)'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto border rounded">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-gray-100 border-b">
+                <tr>
+                  <th className="px-2 py-2 text-left font-semibold">Date</th>
+                  <th className="px-2 py-2 text-right font-semibold">Debit</th>
+                  <th className="px-2 py-2 text-right font-semibold">Credit</th>
+                  <th className="px-2 py-2 text-left font-semibold">Description</th>
+                  <th className="px-2 py-2 text-left font-semibold">Sender</th>
+                  <th className="px-2 py-2 text-left font-semibold">Beneficiary</th>
+                  <th className="px-2 py-2 text-left font-semibold">Case</th>
+                </tr>
+              </thead>
+              <tbody>
+                {testRuleData.records.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-2 py-8 text-center text-gray-500">
+                      No matching records found
+                    </td>
+                  </tr>
+                ) : (
+                  testRuleData.records.map((record, index) => (
+                    <tr key={record.uuid || index} className="border-b hover:bg-gray-50">
+                      <td className="px-2 py-2 whitespace-nowrap">
+                        {record.transaction_date ? new Date(record.transaction_date).toLocaleDateString() : '-'}
+                      </td>
+                      <td className="px-2 py-2 text-right whitespace-nowrap">
+                        {record.debit ? Number(record.debit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                      </td>
+                      <td className="px-2 py-2 text-right whitespace-nowrap">
+                        {record.credit ? Number(record.credit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                      </td>
+                      <td className="px-2 py-2 max-w-xs truncate" title={record.description}>
+                        {record.description || '-'}
+                      </td>
+                      <td className="px-2 py-2">
+                        <div className="max-w-xs truncate" title={record.sender_name}>
+                          {record.sender_name || '-'}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate" title={record.sender_account}>
+                          {record.sender_account || ''}
+                        </div>
+                      </td>
+                      <td className="px-2 py-2">
+                        <div className="max-w-xs truncate" title={record.beneficiary_name}>
+                          {record.beneficiary_name || '-'}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate" title={record.beneficiary_account}>
+                          {record.beneficiary_account || ''}
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 text-xs">
+                        <span className={`px-1.5 py-0.5 rounded ${
+                          record.processing_case?.includes('Case 6') ? 'bg-purple-100 text-purple-700' :
+                          record.processing_case?.includes('Case 1') ? 'bg-green-100 text-green-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {record.processing_case || 'Unknown'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <DialogFooter className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              {testRuleData.matchCount > 0 && (
+                <span>
+                  Showing {Math.min(testRuleData.records.length, testRuleData.matchCount)} of {testRuleData.matchCount} records
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsTestDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                type="button" 
+                className="bg-green-600 hover:bg-green-700"
+                onClick={handleApplyRule}
+                disabled={testRuleData.matchCount === 0}
+              >
+                Apply Rule to All {testRuleData.matchCount} Records
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -54,8 +54,11 @@ export type BankTransaction = {
   recordUuid: string;
   counteragentAccountNumber: string | null;
   description: string | null;
+  processingCase: string | null;
+  appliedRuleId: number | null;
   createdAt: string;
   updatedAt: string;
+  isBalanceRecord?: boolean; // Flag for balance records (no view/edit actions)
   
   // Display fields (from joins)
   accountNumber: string | null;
@@ -85,6 +88,8 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'accountNumber', label: 'Account', width: 180, visible: true, sortable: true, filterable: true },
   { key: 'bankName', label: 'Bank', width: 150, visible: true, sortable: true, filterable: true },
   { key: 'accountCurrencyAmount', label: 'Amount', width: 120, visible: true, sortable: true, filterable: true },
+  { key: 'processingCase', label: 'Case', width: 220, visible: true, sortable: true, filterable: true },
+  { key: 'appliedRuleId', label: 'Applied Rule ID', width: 120, visible: false, sortable: true, filterable: true },
   { key: 'counteragentName', label: 'Counteragent', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'counteragentAccountNumber', label: 'CA Account', width: 180, visible: true, sortable: true, filterable: true },
   { key: 'projectIndex', label: 'Project', width: 120, visible: true, sortable: true, filterable: true },
@@ -113,7 +118,14 @@ const defaultColumns: ColumnConfig[] = [
 const formatDate = (dateString: string | null | undefined): string => {
   if (!dateString) return '-';
   try {
+    // Handle YYYY-MM-DD format directly
+    if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateString)) {
+      const [year, month, day] = dateString.split('T')[0].split('-');
+      return `${day}.${month}.${year}`;
+    }
+    // Fallback to Date parsing for other formats
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
@@ -151,7 +163,11 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const [needsBottomScroller, setNeedsBottomScroller] = useState(false);
   const [scrollContentWidth, setScrollContentWidth] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<ColumnKey | null>('date');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  
+  // Table sorting - default to date descending
+  const [sortField, setSortField] = useState<ColumnKey>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
@@ -178,6 +194,9 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     financial_code_uuid: string;
     nominal_currency_uuid: string;
   }>({ payment_uuid: '', project_uuid: '', job_uuid: '', financial_code_uuid: '', nominal_currency_uuid: '' });
+  const [isRawRecordDialogOpen, setIsRawRecordDialogOpen] = useState(false);
+  const [viewingRawRecord, setViewingRawRecord] = useState<any>(null);
+  const [loadingRawRecord, setLoadingRawRecord] = useState(false);
   
   // Store display labels from selected payment
   const [paymentDisplayValues, setPaymentDisplayValues] = useState<{
@@ -221,6 +240,26 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   useEffect(() => {
     if (data) setTransactions(data);
   }, [data]);
+
+  // Debounce search term to improve performance
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 150); // 150ms debounce - faster response
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [searchTerm]);
+
+  // Set isSearching flag
+  useEffect(() => {
+    if (searchTerm !== debouncedSearchTerm) {
+      setIsSearching(true);
+    } else {
+      setIsSearching(false);
+    }
+  }, [searchTerm, debouncedSearchTerm]);
 
   // Measure scroll content width
   useEffect(() => {
@@ -366,27 +405,46 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const filteredData = useMemo(() => {
     let result = [...transactions];
 
-    // Apply search filter
-    if (searchTerm) {
-      const lower = searchTerm.toLowerCase();
+    // Apply search filter - only search in commonly searched columns for performance
+    if (debouncedSearchTerm) {
+      const searchLower = debouncedSearchTerm.toLowerCase();
+      const searchableColumns: ColumnKey[] = [
+        'counteragentName',        // Counteragent
+        'counteragentAccountNumber', // CA Account
+        'projectIndex',            // Project
+        'paymentId',               // Payment ID
+        'financialCode',           // Fin. Code
+        'description'              // Description
+      ];
+      
       result = result.filter(row => {
-        return columns.some(col => {
-          if (!col.visible || !col.filterable) return false;
-          const val = row[col.key];
-          return val != null && String(val).toLowerCase().includes(lower);
-        });
+        // Early exit optimization - check each column and return immediately on match
+        for (const key of searchableColumns) {
+          const val = row[key];
+          if (val !== null && val !== undefined) {
+            const strVal = typeof val === 'string' ? val : String(val);
+            if (strVal.toLowerCase().includes(searchLower)) {
+              return true; // Found a match, include this row
+            }
+          }
+        }
+        return false; // No matches found
       });
     }
 
     // Apply column filters
-    Object.entries(columnFilters).forEach(([columnKey, selectedValues]) => {
-      if (selectedValues.length > 0) {
-        result = result.filter(row => {
-          const cellValue = String(row[columnKey as ColumnKey] ?? '');
-          return selectedValues.includes(cellValue);
-        });
-      }
-    });
+    if (Object.keys(columnFilters).length > 0) {
+      result = result.filter(row => {
+        for (const [columnKey, allowedValues] of Object.entries(columnFilters)) {
+          if (allowedValues.length === 0) continue;
+          const rowValue = row[columnKey as ColumnKey];
+          if (!allowedValues.includes(String(rowValue ?? ''))) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
 
     // Apply sorting
     if (sortField) {
@@ -394,15 +452,31 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
         const aVal = a[sortField];
         const bVal = b[sortField];
         
-        if (aVal == null && bVal == null) return 0;
-        if (aVal == null) return sortDirection === 'asc' ? 1 : -1;
-        if (bVal == null) return sortDirection === 'asc' ? -1 : 1;
+        if (aVal === bVal) return 0;
+        
+        // Handle null/undefined values
+        if (aVal === null || aVal === undefined) return 1;
+        if (bVal === null || bVal === undefined) return -1;
         
         let comparison = 0;
         if (typeof aVal === 'number' && typeof bVal === 'number') {
           comparison = aVal - bVal;
-        } else if (sortField === 'date' || sortField === 'correctionDate' || sortField === 'createdAt' || sortField === 'updatedAt') {
-          comparison = new Date(aVal).getTime() - new Date(bVal).getTime();
+        } else if (sortField === 'date') {
+          // Special handling for dd.mm.yyyy date format
+          const toComparable = (dateStr: any): string => {
+            if (!dateStr || typeof dateStr !== 'string') return '';
+            const parts = dateStr.split('.');
+            if (parts.length !== 3) return dateStr;
+            const [day, month, year] = parts;
+            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          };
+          const aComparable = toComparable(aVal);
+          const bComparable = toComparable(bVal);
+          comparison = aComparable < bComparable ? -1 : 1;
+        } else if (sortField === 'correctionDate' || sortField === 'createdAt' || sortField === 'updatedAt') {
+          const aDate = new Date(aVal as string | number).getTime();
+          const bDate = new Date(bVal as string | number).getTime();
+          comparison = aDate < bDate ? -1 : 1;
         } else {
           comparison = String(aVal).localeCompare(String(bVal));
         }
@@ -412,7 +486,24 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     }
 
     return result;
-  }, [transactions, searchTerm, columnFilters, sortField, sortDirection, columns]);
+  }, [transactions, debouncedSearchTerm, columnFilters, sortField, sortDirection]);
+
+  // Calculate summary statistics from filtered data
+  const summaryStats = useMemo(() => {
+    const inflow = filteredData.reduce((sum, row) => {
+      const amount = parseFloat(row.accountCurrencyAmount || '0');
+      return amount > 0 ? sum + amount : sum;
+    }, 0);
+
+    const outflow = filteredData.reduce((sum, row) => {
+      const amount = parseFloat(row.accountCurrencyAmount || '0');
+      return amount < 0 ? sum + amount : sum;
+    }, 0);
+
+    const balance = inflow + outflow;
+
+    return { inflow, outflow, balance };
+  }, [filteredData]);
 
   // Pagination
   const totalPages = Math.ceil(filteredData.length / pageSize);
@@ -424,16 +515,9 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, columnFilters, pageSize]);
+  }, [debouncedSearchTerm, columnFilters, pageSize]);
 
-  const handleSort = (field: ColumnKey) => {
-    if (sortField === field) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
+  // Sorting is locked to date descending - no handleSort needed
 
   const toggleColumnVisibility = (columnKey: ColumnKey) => {
     setColumns(cols => cols.map(col =>
@@ -504,6 +588,27 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+    }
+  };
+
+  const viewRawRecord = async (recordUuid: string) => {
+    setLoadingRawRecord(true);
+    setIsRawRecordDialogOpen(true);
+    setViewingRawRecord(null);
+    
+    try {
+      const response = await fetch(`/api/bank-transactions/raw-record/${recordUuid}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch raw record');
+      }
+      const data = await response.json();
+      setViewingRawRecord(data);
+    } catch (error) {
+      console.error('Error fetching raw record:', error);
+      alert('Failed to load raw record');
+      setIsRawRecordDialogOpen(false);
+    } finally {
+      setLoadingRawRecord(false);
     }
   };
 
@@ -807,6 +912,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     const [isOpen, setIsOpen] = useState(false);
     const [filterSearchTerm, setFilterSearchTerm] = useState('');
     const [tempSelectedValues, setTempSelectedValues] = useState<string[]>([]);
+    const [localSortDirection, setLocalSortDirection] = useState<'asc' | 'desc'>('asc');
 
     const uniqueValues = useMemo(() => getColumnUniqueValues(column.key), [column.key]);
     const selectedValues = columnFilters[column.key] || [];
@@ -849,7 +955,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     }, [uniqueValues, filterSearchTerm]);
 
     const sortedFilteredValues = useMemo(() => {
-      return [...filteredUniqueValues].sort((a, b) => {
+      const sorted = [...filteredUniqueValues].sort((a, b) => {
         const aIsNum = !isNaN(Number(a));
         const bIsNum = !isNaN(Number(b));
         
@@ -863,7 +969,10 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
           return a.localeCompare(b);
         }
       });
-    }, [filteredUniqueValues]);
+      
+      // Apply sort direction for filter dialog display
+      return localSortDirection === 'desc' ? sorted.reverse() : sorted;
+    }, [filteredUniqueValues, localSortDirection]);
 
     return (
       <Popover open={isOpen} onOpenChange={handleOpenChange}>
@@ -894,8 +1003,9 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
               <button 
                 className="w-full text-left text-sm py-1 px-2 hover:bg-muted rounded"
                 onClick={() => {
-                  const sorted = [...uniqueValues].sort();
-                  setTempSelectedValues(tempSelectedValues.filter(v => sorted.includes(v)));
+                  setSortField(column.key);
+                  setSortDirection('asc');
+                  setLocalSortDirection('asc');
                 }}
               >
                 Sort A to Z
@@ -903,8 +1013,9 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
               <button 
                 className="w-full text-left text-sm py-1 px-2 hover:bg-muted rounded"
                 onClick={() => {
-                  const sorted = [...uniqueValues].sort().reverse();
-                  setTempSelectedValues(tempSelectedValues.filter(v => sorted.includes(v)));
+                  setSortField(column.key);
+                  setSortDirection('desc');
+                  setLocalSortDirection('desc');
                 }}
               >
                 Sort Z to A
@@ -1004,9 +1115,17 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
               placeholder="Search transactions..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 w-full"
+              className="pl-9 pr-9 w-full"
             />
+            {isSearching && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
+            )}
           </div>
+          {debouncedSearchTerm && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Searching in: Counteragent, CA Account, Project, Payment ID, Fin. Code, Description
+            </p>
+          )}
         </div>
         
         <div className="flex items-center gap-2">
@@ -1082,6 +1201,24 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
           <span className="text-gray-600">Showing:</span>
           <span className="ml-2 font-semibold text-blue-900">{paginatedData.length}</span>
         </div>
+        <div className="border-l pl-6">
+          <span className="text-gray-600">Inflow:</span>
+          <span className="ml-2 font-semibold text-green-600">
+            {summaryStats.inflow.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </div>
+        <div>
+          <span className="text-gray-600">Outflow:</span>
+          <span className="ml-2 font-semibold text-red-600">
+            {summaryStats.outflow.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </div>
+        <div>
+          <span className="text-gray-600">Balance:</span>
+          <span className={`ml-2 font-semibold ${summaryStats.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {summaryStats.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </div>
       </div>
 
       {/* Table */}
@@ -1106,20 +1243,6 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                   >
                     <div className="flex items-center gap-2 pr-4 overflow-hidden">
                       <span className="truncate font-medium">{col.label}</span>
-                      {col.sortable && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-5 w-5 p-0"
-                          onClick={() => handleSort(col.key)}
-                        >
-                          {sortField === col.key ? (
-                            sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                          ) : (
-                            <ArrowUpDown className="h-3 w-3" />
-                          )}
-                        </Button>
-                      )}
                       {col.filterable && <FilterPopover column={col} />}
                     </div>
                     
@@ -1140,7 +1263,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                     />
                   </th>
                 ))}
-                <th className="font-semibold text-left px-4 py-3 text-sm" style={{ width: 100 }}>Actions</th>
+                <th className="font-semibold text-left px-4 py-3 text-sm" style={{ width: 140 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -1166,23 +1289,43 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                             </span>
                           ) : col.key === 'date' || col.key === 'correctionDate' || col.key === 'createdAt' || col.key === 'updatedAt' ? (
                             formatDate(row[col.key])
+                          ) : col.key === 'counteragentAccountNumber' ? (
+                            row[col.key] ? String(row[col.key]) : '-'
                           ) : (
                             row[col.key] ?? '-'
                           )}
                         </div>
                       </td>
                     ))}
-                    <td className="px-4 py-2 text-sm" style={{ width: 100 }}>
+                    <td className="px-4 py-2 text-sm" style={{ width: 140 }}>
                       <div className="flex items-center space-x-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => startEdit(row)}
-                          className="h-7 w-7 p-0"
-                          title="Edit transaction"
-                        >
-                          <Edit2 className="h-3 w-3" />
-                        </Button>
+                        {!row.isBalanceRecord && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => viewRawRecord(row.uuid)}
+                              className="h-7 w-7 p-0"
+                              title="View raw record"
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => startEdit(row)}
+                              className="h-7 w-7 p-0"
+                              title="Edit transaction"
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+                          </>
+                        )}
+                        {row.isBalanceRecord && (
+                          <span className="text-xs text-muted-foreground italic">
+                            Balance record
+                          </span>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1542,6 +1685,47 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                   {isSaving ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Raw Record Viewer Dialog */}
+      <Dialog open={isRawRecordDialogOpen} onOpenChange={setIsRawRecordDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Raw Record Data</DialogTitle>
+            <DialogDescription>
+              Headers and values from the raw bank statement record
+            </DialogDescription>
+          </DialogHeader>
+          {loadingRawRecord ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : viewingRawRecord ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-2 max-h-[60vh] overflow-y-auto border rounded p-4">
+                {Object.entries(viewingRawRecord).map(([key, value]) => (
+                  <div key={key} className="grid grid-cols-2 gap-4 py-2 border-b">
+                    <div className="font-medium text-sm text-gray-700 dark:text-gray-300">
+                      {key}
+                    </div>
+                    <div className="text-sm break-all">
+                      {value !== null && value !== undefined ? String(value) : '-'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={() => setIsRawRecordDialogOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No data available
             </div>
           )}
         </DialogContent>

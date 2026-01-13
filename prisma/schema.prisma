@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider          = "postgresql"
-  url               = env("DATABASE_URL")
-  // shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -14,7 +13,7 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
-  role          String    @default("user") // "user", "admin", "system_admin"
+  role          String    @default("user")
   isAuthorized  Boolean   @default(false)
   authorizedAt  DateTime?
   authorizedBy  String?
@@ -76,10 +75,10 @@ model Country {
 }
 
 model Counteragent {
-  id                          BigInt    @id @default(autoincrement())
-  createdAt                   DateTime  @default(now()) @map("created_at")
-  updatedAt                   DateTime  @updatedAt @map("updated_at")
-  ts                          DateTime  @default(now()) @db.Timestamptz(6)
+  id                          BigInt        @id @default(autoincrement())
+  createdAt                   DateTime      @default(now()) @map("created_at")
+  updatedAt                   DateTime      @updatedAt @map("updated_at")
+  ts                          DateTime      @default(now()) @db.Timestamptz(6)
   name                        String?
   identification_number       String?
   birth_or_incorporation_date DateTime?
@@ -94,21 +93,17 @@ model Counteragent {
   email                       String?
   phone                       String?
   oris_id                     String?
-  country_uuid                String?   @db.Uuid
-  entity_type_uuid            String?   @db.Uuid
-  counteragent_uuid           String    @unique @default(uuid()) @db.Uuid
-  
-  // Computed fields (auto-populated by database trigger)
-  entity_type                 String?   // Populated from entity_types.name_ka via trigger
-  country                     String?   // Populated from countries.name_ka via trigger
-  counteragent                String?   // Formatted: "name (ს.კ. id) - entity_type" via trigger
+  country_uuid                String?       @db.Uuid
+  entity_type_uuid            String?       @db.Uuid
+  counteragent_uuid           String        @unique @default(uuid()) @db.Uuid
+  entity_type                 String?
+  country                     String?
+  counteragent                String?
   internal_number             String?
   pension_scheme              Boolean?
-  is_emploee                  Boolean   @default(false)
-  is_active                   Boolean   @default(true)
-  was_emploee                 Boolean   @default(false)
-
-  // Relations
+  is_emploee                  Boolean       @default(false)
+  is_active                   Boolean       @default(true)
+  was_emploee                 Boolean       @default(false)
   transactions                Transaction[]
 
   @@map("counteragents")
@@ -155,27 +150,23 @@ model AuditLog {
 }
 
 model FinancialCode {
-  id           BigInt   @id @default(autoincrement())
-  uuid         String   @default(uuid()) @db.Uuid @unique
-  code         String   @unique
+  id           BigInt        @id @default(autoincrement())
+  uuid         String        @unique @default(uuid()) @db.Uuid
+  code         String        @unique
   name         String
-  validation   String?  @db.Text
-  appliesToPL  Boolean  @default(false) @map("applies_to_pl")
-  appliesToCF  Boolean  @default(false) @map("applies_to_cf")
-  isIncome     Boolean  @default(false) @map("is_income")
-  parentUuid   String?  @map("parent_uuid") @db.Uuid
-  description  String?  @db.Text
-  depth        Int      @default(1)
-  sortOrder    Int      @default(0) @map("sort_order")
-  
-  // System fields
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  
-  // Relations
+  validation   String?
+  appliesToPL  Boolean       @default(false) @map("applies_to_pl")
+  appliesToCF  Boolean       @default(false) @map("applies_to_cf")
+  isIncome     Boolean       @default(false) @map("is_income")
+  parentUuid   String?       @map("parent_uuid") @db.Uuid
+  description  String?
+  depth        Int           @default(1)
+  sortOrder    Int           @default(0) @map("sort_order")
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
   transactions Transaction[]
-  
+
   @@index([code])
   @@index([uuid])
   @@index([parentUuid])
@@ -188,23 +179,19 @@ model FinancialCode {
 }
 
 model Transaction {
-  id                String        @id @default(uuid()) @db.Uuid
-  date              DateTime      @db.Date
-  amount            Decimal       @db.Decimal(15, 2)
-  description       String
-  financialCodeId   BigInt        @map("financial_code_id")
-  counteragentId    BigInt?       @map("counteragent_id")
-  
-  // Relations
-  financialCode     FinancialCode @relation(fields: [financialCodeId], references: [id])
-  counteragent      Counteragent? @relation(fields: [counteragentId], references: [id])
-  
-  // Audit
-  createdAt         DateTime      @default(now()) @map("created_at")
-  createdBy         String?       @map("created_by")
-  updatedAt         DateTime      @updatedAt @map("updated_at")
-  updatedBy         String?       @map("updated_by")
-  
+  id              String        @id @default(uuid()) @db.Uuid
+  date            DateTime      @db.Date
+  amount          Decimal       @db.Decimal(15, 2)
+  description     String
+  financialCodeId BigInt        @map("financial_code_id")
+  counteragentId  BigInt?       @map("counteragent_id")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  createdBy       String?       @map("created_by")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  updatedBy       String?       @map("updated_by")
+  counteragent    Counteragent? @relation(fields: [counteragentId], references: [id])
+  financialCode   FinancialCode @relation(fields: [financialCodeId], references: [id])
+
   @@index([financialCodeId, date])
   @@index([date])
   @@index([counteragentId])
@@ -212,34 +199,26 @@ model Transaction {
 }
 
 model Project {
-  id                  BigInt        @id @default(autoincrement())
-  createdAt           DateTime      @default(now()) @map("created_at")
-  updatedAt           DateTime      @updatedAt @map("updated_at")
-  
-  // UUIDs (used as foreign keys)
-  projectUuid         String        @unique @default(uuid()) @db.Uuid @map("project_uuid")
-  counteragentUuid    String        @db.Uuid @map("counteragent_uuid")
-  financialCodeUuid   String        @db.Uuid @map("financial_code_uuid")
-  currencyUuid        String        @db.Uuid @map("currency_uuid")
-  stateUuid           String        @db.Uuid @map("state_uuid")
-  
-  // User-entered fields (in form)
-  projectName         String        @map("project_name") // Only English letters and numbers
-  date                DateTime      @db.Date // Valid date
-  value               Decimal       @db.Decimal(15, 2) // Valid number > 0
-  oris1630            String?       @map("oris_1630") // Optional ORIS field
-  
-  // Computed/derived fields (not in form, populated by triggers)
-  counteragent        String?       // Derived from counteragents.counteragent
-  financialCode       String?       @map("financial_code") // Derived from financial_codes.validation
-  currency            String?       // Derived from currencies.code
-  state               String?       // Derived from project_states.name
-  contractNo          String?       @map("contract_no") // Computed: counteragent_internal_number + "." + padded_project_count
-  projectIndex        String?       @map("project_index") // Computed: project_name | financial_code | counteragent | formatted_value | currency | formatted_date
-  
-  // Relations: Employees (many-to-many through ProjectEmployee)
-  employees           ProjectEmployee[]
-  
+  id                BigInt            @id @default(autoincrement())
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  projectUuid       String            @unique @default(uuid()) @map("project_uuid") @db.Uuid
+  counteragentUuid  String            @map("counteragent_uuid") @db.Uuid
+  financialCodeUuid String            @map("financial_code_uuid") @db.Uuid
+  currencyUuid      String            @map("currency_uuid") @db.Uuid
+  stateUuid         String            @map("state_uuid") @db.Uuid
+  projectName       String            @map("project_name")
+  date              DateTime          @db.Date
+  value             Decimal           @db.Decimal(15, 2)
+  oris1630          String?           @map("oris_1630")
+  counteragent      String?
+  financialCode     String?           @map("financial_code")
+  currency          String?
+  state             String?
+  contractNo        String?           @map("contract_no")
+  projectIndex      String?           @map("project_index")
+  employees         ProjectEmployee[]
+
   @@index([counteragentUuid])
   @@index([financialCodeUuid])
   @@index([currencyUuid])
@@ -249,15 +228,13 @@ model Project {
 }
 
 model ProjectEmployee {
-  id              BigInt   @id @default(autoincrement())
-  projectId       BigInt   @map("project_id")
-  employeeUuid    String   @db.Uuid @map("employee_uuid") // UUID of counteragent with is_emploee=true
-  employeeName    String?  @map("employee_name") // Derived from counteragents.name
-
-  project         Project  @relation(fields: [projectId], references: [id])
-
-  isActive      Boolean  @default(true)
-  assignedAt    DateTime @default(now())
+  id           BigInt   @id @default(autoincrement())
+  projectId    BigInt   @map("project_id")
+  employeeUuid String   @map("employee_uuid") @db.Uuid
+  employeeName String?  @map("employee_name")
+  isActive     Boolean  @default(true)
+  assignedAt   DateTime @default(now())
+  project      Project  @relation(fields: [projectId], references: [id])
 
   @@index([projectId])
   @@index([employeeUuid])
@@ -267,43 +244,46 @@ model ProjectEmployee {
 model Currency {
   id           BigInt        @id @default(autoincrement())
   uuid         String        @unique @default(uuid()) @db.Uuid
-  code         String        @unique // GEL, USD, EUR, etc.
-  name         String        // Full name in Georgian
+  code         String        @unique
+  name         String
   isActive     Boolean       @default(true) @map("is_active")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
   bankAccounts BankAccount[]
-  
+
   @@map("currencies")
 }
 
 model Bank {
   id           BigInt        @id @default(autoincrement())
-  uuid         String        @unique @default(uuid()) @db.Uuid
+  uuid         String        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   bankName     String        @map("bank_name")
   isActive     Boolean       @default(true) @map("is_active")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
   bankAccounts BankAccount[]
-  
+
   @@map("banks")
 }
 
 model BankAccount {
-  id                        BigInt                     @id @default(autoincrement())
-  uuid                      String                     @unique @default(uuid()) @db.Uuid
-  accountNumber             String                     @map("account_number")
-  currencyUuid              String                     @map("currency_uuid") @db.Uuid
-  bankUuid                  String?                    @map("bank_uuid") @db.Uuid
-  parsingSchemeId           BigInt?                    @map("parsing_scheme_id") // Link to parsing scheme
-  currency                  Currency                   @relation(fields: [currencyUuid], references: [uuid])
-  bank                      Bank?                      @relation(fields: [bankUuid], references: [uuid])
-  parsingScheme             ParsingScheme?             @relation(fields: [parsingSchemeId], references: [id])
-  isActive                  Boolean                    @default(true) @map("is_active")
-  createdAt                 DateTime                   @default(now()) @map("created_at")
-  updatedAt                 DateTime                   @updatedAt @map("updated_at")
-  consolidatedBankAccounts  ConsolidatedBankAccount[]
-  
+  id                  BigInt    @id @default(autoincrement())
+  uuid                String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountNumber       String    @map("account_number")
+  currencyUuid        String    @map("currency_uuid") @db.Uuid
+  isActive            Boolean   @default(true) @map("is_active")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  bankUuid            String?   @map("bank_uuid") @db.Uuid
+  balance             Decimal?  @db.Decimal(18, 2)
+  balance_date        DateTime? @db.Date
+  parsing_scheme_uuid String?   @db.Uuid
+  raw_table_name      String?   @db.VarChar(255)
+  parsingSchemeId     BigInt?   @map("parsing_scheme_id")
+  bank                Bank?     @relation(fields: [bankUuid], references: [uuid])
+  currency            Currency  @relation(fields: [currencyUuid], references: [uuid])
+  consolidatedBankAccounts ConsolidatedBankAccount[]
+
   @@unique([accountNumber, currencyUuid], name: "unique_account_currency")
   @@index([currencyUuid])
   @@index([bankUuid])
@@ -312,48 +292,51 @@ model BankAccount {
 }
 
 model ConsolidatedBankAccount {
-  id                        BigInt       @id @default(autoincrement())
-  uuid                      String       @unique @db.Uuid
-  bankAccountUuid           String       @map("bank_account_uuid") @db.Uuid
-  rawRecordUuid             String       @map("raw_record_uuid") @db.Uuid
-  transactionDate           String       @map("transaction_date")
-  description               String?      @db.Text
-  counteragentUuid          String?      @map("counteragent_uuid") @db.Uuid
-  projectUuid               String?      @map("project_uuid") @db.Uuid
-  financialCodeUuid         String?      @map("financial_code_uuid") @db.Uuid
-  accountCurrencyUuid       String       @map("account_currency_uuid") @db.Uuid
-  accountCurrencyAmount     Decimal      @map("account_currency_amount") @db.Decimal(18, 2)
-  nominalCurrencyUuid       String?      @map("nominal_currency_uuid") @db.Uuid
-  nominalAmount             Decimal?     @map("nominal_amount") @db.Decimal(18, 2)
-  createdAt                 DateTime     @default(now()) @map("created_at")
-  updatedAt                 DateTime     @updatedAt @map("updated_at")
-  
-  bankAccount               BankAccount  @relation(fields: [bankAccountUuid], references: [uuid])
-  
-  @@index([bankAccountUuid])
-  @@index([counteragentUuid])
-  @@index([rawRecordUuid])
-  @@index([projectUuid])
-  @@index([financialCodeUuid])
+  id                    BigInt   @id @default(autoincrement())
+  uuid                  String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bankAccountUuid       String   @map("bank_account_uuid") @db.Uuid
+  rawRecordUuid         String   @map("raw_record_uuid") @db.Uuid
+  transactionDate         String   @map("transaction_date")
+  description             String?
+  counteragentUuid        String?  @map("counteragent_uuid") @db.Uuid
+  counteragentAccountNumber String?  @map("counteragent_account_number")
+  projectUuid             String?  @map("project_uuid") @db.Uuid
+  financialCodeUuid     String?  @map("financial_code_uuid") @db.Uuid
+  accountCurrencyUuid   String   @map("account_currency_uuid") @db.Uuid
+  accountCurrencyAmount Decimal  @map("account_currency_amount") @db.Decimal(20, 2)
+  nominalCurrencyUuid   String   @map("nominal_currency_uuid") @db.Uuid
+  nominalAmount         Decimal  @map("nominal_amount") @db.Decimal(20, 2)
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  processingCase        String?  @map("processing_case")
+
+  // Relations
+  bankAccount           BankAccount @relation(fields: [bankAccountUuid], references: [uuid])
+
+  @@index([bankAccountUuid], map: "idx_consolidated_bank_account_uuid")
+  @@index([counteragentUuid], map: "idx_consolidated_counteragent_uuid")
+  @@index([processingCase], map: "idx_consolidated_processing_case")
+  @@index([projectUuid], map: "idx_consolidated_project_uuid")
+  @@index([rawRecordUuid], map: "idx_consolidated_raw_record_uuid")
+  @@index([transactionDate], map: "idx_consolidated_transaction_date")
   @@map("consolidated_bank_accounts")
 }
 
 model NBGExchangeRate {
   id        BigInt   @id @default(autoincrement())
   uuid      String   @unique @default(uuid()) @db.Uuid
-  date      DateTime @db.Date // Exchange rate date
-  usdRate   Decimal? @map("usd_rate") @db.Decimal(18, 6) // USD/GEL
-  eurRate   Decimal? @map("eur_rate") @db.Decimal(18, 6) // EUR/GEL
-  cnyRate   Decimal? @map("cny_rate") @db.Decimal(18, 6) // CNY/GEL
-  gbpRate   Decimal? @map("gbp_rate") @db.Decimal(18, 6) // GBP/GEL
-  rubRate   Decimal? @map("rub_rate") @db.Decimal(18, 6) // RUB/GEL
-  tryRate   Decimal? @map("try_rate") @db.Decimal(18, 6) // TRY/GEL
-  aedRate   Decimal? @map("aed_rate") @db.Decimal(18, 6) // AED/GEL
-  kztRate   Decimal? @map("kzt_rate") @db.Decimal(18, 6) // KZT/GEL
+  date      DateTime @unique @db.Date
+  usdRate   Decimal? @map("usd_rate") @db.Decimal(18, 6)
+  eurRate   Decimal? @map("eur_rate") @db.Decimal(18, 6)
+  cnyRate   Decimal? @map("cny_rate") @db.Decimal(18, 6)
+  gbpRate   Decimal? @map("gbp_rate") @db.Decimal(18, 6)
+  rubRate   Decimal? @map("rub_rate") @db.Decimal(18, 6)
+  tryRate   Decimal? @map("try_rate") @db.Decimal(18, 6)
+  aedRate   Decimal? @map("aed_rate") @db.Decimal(18, 6)
+  kztRate   Decimal? @map("kzt_rate") @db.Decimal(18, 6)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  
-  @@unique([date])
+
   @@map("nbg_exchange_rates")
 }
 
@@ -364,7 +347,7 @@ model DocumentType {
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  
+
   @@map("document_types")
 }
 
@@ -375,65 +358,71 @@ model ProjectState {
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  
+
   @@map("project_states")
 }
 
 model MIDimension {
   id        BigInt   @id @default(autoincrement())
   uuid      String   @unique @default(uuid()) @db.Uuid
-  name      String   @unique // მეტრი, ცალი, კგ, etc.
+  name      String   @unique
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  
+
   @@map("mi_dimensions")
 }
 
 model Brand {
-  id                  BigInt   @id @default(autoincrement())
-  uuid                String   @unique @default(uuid()) @db.Uuid
-  name                String   @unique
-  counteragentUuids   String[] @map("counteragent_uuids") // Array of counteragent UUIDs
-  isActive            Boolean  @default(true) @map("is_active")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
-  
+  id                BigInt   @id @default(autoincrement())
+  uuid              String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String   @unique
+  counteragentUuids String[] @default([]) @map("counteragent_uuids") @db.Uuid
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
+  jobs              Job[]
+
+  @@index([name], map: "idx_brands_name")
+  @@index([uuid], map: "idx_brands_uuid")
   @@map("brands")
 }
 
 model Job {
   id          BigInt   @id @default(autoincrement())
-  jobUuid     String   @unique @default(uuid()) @map("job_uuid") @db.Uuid
+  jobUuid     String   @unique @default(dbgenerated("gen_random_uuid()")) @map("job_uuid") @db.Uuid
   projectUuid String   @map("project_uuid") @db.Uuid
   jobName     String   @map("job_name")
   floors      Int?
   weight      Int?
-  isFf        Boolean  @map("is_ff")
-  brandUuid   String?  @map("brand_uuid") @db.Uuid
+  isFf        Boolean  @default(false) @map("is_ff")
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  brandUuid   String?  @map("brand_uuid") @db.Uuid
+  brands      Brand?   @relation(fields: [brandUuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "fk_jobs_brand_uuid")
+
+  @@index([jobUuid], map: "idx_jobs_job_uuid")
+  @@index([projectUuid], map: "idx_jobs_project_uuid")
   @@map("jobs")
 }
 
 model Payment {
-  id                 BigInt          @id @default(autoincrement())
-  projectUuid        String?         @map("project_uuid") @db.Uuid
-  counteragentUuid   String          @map("counteragent_uuid") @db.Uuid
-  financialCodeUuid  String          @map("financial_code_uuid") @db.Uuid
-  jobUuid            String?         @map("job_uuid") @db.Uuid
-  incomeTax          Boolean         @map("income_tax")
-  currencyUuid       String          @map("currency_uuid") @db.Uuid
-  paymentId          String          @unique @map("payment_id") // Auto-generated unique ID (format: 6hex_2hex_4hex)
-  recordUuid         String          @unique @map("record_uuid") // Custom UUID format (6hex_2hex_4hex)
-  isActive           Boolean         @default(true) @map("is_active")
-  createdAt          DateTime        @default(now()) @map("created_at")
-  updatedAt          DateTime        @updatedAt @map("updated_at")
-  ledgerEntries      PaymentLedger[]
-  
-  @@unique([projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid], name: "unique_payment_combination")
+  id                BigInt          @id @default(autoincrement())
+  projectUuid       String?         @map("project_uuid") @db.Uuid
+  counteragentUuid  String          @map("counteragent_uuid") @db.Uuid
+  financialCodeUuid String          @map("financial_code_uuid") @db.Uuid
+  jobUuid           String?         @map("job_uuid") @db.Uuid
+  paymentId         String          @unique @map("payment_id")
+  recordUuid        String          @unique @map("record_uuid")
+  isActive          Boolean         @default(true) @map("is_active")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  incomeTax         Boolean         @default(false) @map("income_tax")
+  currencyUuid      String          @map("currency_uuid") @db.Uuid
+  ledgerEntries     PaymentLedger[]
+
+  @@unique([projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid], map: "payments_project_uuid_counteragent_uuid_financial_code_uu_key")
   @@index([projectUuid])
   @@index([counteragentUuid])
   @@index([financialCodeUuid])
@@ -448,12 +437,12 @@ model PaymentLedger {
   effectiveDate DateTime @map("effective_date")
   accrual       Decimal? @db.Decimal(18, 2)
   order         Decimal? @map("order") @db.Decimal(18, 2)
-  comment       String?  @db.Text
-  recordUuid    String   @unique @map("record_uuid") @db.Uuid
+  recordUuid    String   @unique @default(dbgenerated("gen_random_uuid()")) @map("record_uuid") @db.Uuid
   userEmail     String   @map("user_email")
   createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-  payment       Payment  @relation(fields: [paymentId], references: [paymentId], onDelete: Cascade)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+  comment       String?
+  payment       Payment  @relation(fields: [paymentId], references: [paymentId], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_ledger_payment")
 
   @@index([paymentId])
   @@index([effectiveDate])
@@ -461,35 +450,81 @@ model PaymentLedger {
 }
 
 model ParsingScheme {
-  id          BigInt                     @id @default(autoincrement())
-  name        String                     @unique @db.VarChar(100) // e.g., 'BOG_GEL', 'TBC_USD'
-  description String?                    @db.Text
-  isActive    Boolean                    @default(true) @map("is_active")
-  createdAt   DateTime                   @default(now()) @map("created_at")
-  updatedAt   DateTime                   @updatedAt @map("updated_at")
-  
-  bankAccounts BankAccount[]
-  parsingRules BankAccountParsingRule[]
-  
+  scheme String @id @db.VarChar(50)
+  uuid   String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
   @@map("parsing_schemes")
 }
 
-model BankAccountParsingRule {
-  id                  BigInt        @id @default(autoincrement())
-  parsingSchemeId     BigInt        @map("parsing_scheme_id")
-  columnName          String        @map("column_name") @db.VarChar(100) // Raw data column to check
-  conditionOperator   String        @map("condition_operator") @db.VarChar(50) // equals, contains, starts_with, etc.
-  conditionValue      String?       @map("condition_value") @db.Text // Value to compare against
-  paymentId           String        @map("payment_id") @db.VarChar(255) // Payment ID to use if match
-  priority            Int           @default(0) // Lower number = higher priority
-  isActive            Boolean       @default(true) @map("is_active")
-  createdAt           DateTime      @default(now()) @map("created_at")
-  updatedAt           DateTime      @updatedAt @map("updated_at")
-  
-  parsingScheme       ParsingScheme @relation(fields: [parsingSchemeId], references: [id], onDelete: Cascade)
-  
-  @@index([parsingSchemeId])
-  @@index([priority])
-  @@index([isActive])
-  @@map("bank_accounts_parsing_rules")
+model bog_gel_raw_893486000 {
+  id               BigInt   @id @default(autoincrement())
+  uuid             String   @db.Uuid
+  cancopydocument  String?
+  canviewdocument  String?
+  canprintdocument String?
+  isreval          String?
+  docnomination    String?
+  docinformation   String?
+  docsrcamt        String?
+  docsrcccy        String?
+  docdstamt        String?
+  docdstccy        String?
+  dockey           String?
+  docrecdate       String?
+  docbranch        String?
+  docdepartment    String?
+  docprodgroup     String?
+  docno            String?
+  docvaluedate     String?
+  docsendername    String?
+  docsenderinn     String?
+  docsenderacctno  String?
+  docsenderbic     String?
+  docactualdate    String?
+  doccoracct       String?
+  doccorbic        String?
+  doccorbankname   String?
+  entriesid        String?
+  doccomment       String?
+  ccyrate          String?
+  entrypdate       String?
+  entrydocno       String?
+  entrylacct       String?
+  entrylacctold    String?
+  entrydbamt       String?
+  entrydbamtbase   String?
+  entrycramt       String?
+  entrycramtbase   String?
+  outbalance       String?
+  entryamtbase     String?
+  entrycomment     String?
+  entrydepartment  String?
+  entryacctpoint   String?
+  docsenderbicname String?
+  docbenefname     String?
+  docbenefinn      String?
+  docbenefacctno   String?
+  docbenefbic      String?
+  docbenefbicname  String?
+  docpayername     String?
+  docpayerinn      String?
+  import_batch_id  String?
+  import_date      DateTime @default(now()) @db.Timestamp(6)
+  is_processed     Boolean  @default(false)
+  created_at       DateTime @default(now()) @db.Timestamp(6)
+  updated_at       DateTime @default(now()) @db.Timestamp(6)
+}
+
+model parsing_scheme_rules {
+  id                    BigInt  @id @default(autoincrement())
+  scheme_uuid           String  @db.Uuid
+  column_name           String? @db.VarChar(100)
+  condition             String
+  payment_id            String? @db.VarChar(255)
+  condition_script      String?
+  counteragent_uuid     String? @db.Uuid
+  financial_code_uuid   String? @db.Uuid
+  nominal_currency_uuid String? @db.Uuid
+
+  @@index([scheme_uuid])
 }
