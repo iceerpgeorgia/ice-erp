@@ -19,15 +19,15 @@ export async function PUT(
     const body = await request.json();
     const { schemeUuid, condition, paymentId, counteragentUuid, financialCodeUuid, nominalCurrencyUuid, active } = body;
 
-    // Validate: if updating, ensure either paymentId OR all three UUIDs are provided
-    if (paymentId === null || counteragentUuid !== undefined || financialCodeUuid !== undefined || nominalCurrencyUuid !== undefined) {
+    // Validate: if updating, ensure either paymentId OR counteragent is provided (financialCode and currency are optional)
+    if (paymentId === null || counteragentUuid !== undefined) {
       const hasPaymentId = !!paymentId;
-      const hasAllUuids = !!counteragentUuid && !!financialCodeUuid && !!nominalCurrencyUuid;
-      const hasNoUuids = !counteragentUuid && !financialCodeUuid && !nominalCurrencyUuid;
+      const hasCounteragent = !!counteragentUuid;
+      const hasNoCounteragent = !counteragentUuid;
       
-      if (!hasPaymentId && !hasAllUuids && !hasNoUuids) {
+      if (!hasPaymentId && !hasCounteragent && !hasNoCounteragent) {
         return NextResponse.json(
-          { error: 'Either paymentId OR all three UUIDs (counteragentUuid, financialCodeUuid, nominalCurrencyUuid) must be provided' },
+          { error: 'Either paymentId OR counteragentUuid must be provided (financialCodeUuid and nominalCurrencyUuid are optional)' },
           { status: 400 }
         );
       }

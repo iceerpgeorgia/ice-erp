@@ -79,13 +79,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate: either paymentId OR all three UUIDs must be provided
+    // Validate: either paymentId OR counteragent must be provided (financialCode and currency are optional)
     const hasPaymentId = !!paymentId;
-    const hasAllUuids = !!counteragentUuid && !!financialCodeUuid && !!nominalCurrencyUuid;
+    const hasCounteragent = !!counteragentUuid;
     
-    if (!hasPaymentId && !hasAllUuids) {
+    if (!hasPaymentId && !hasCounteragent) {
       return NextResponse.json(
-        { error: 'Either paymentId OR all three UUIDs (counteragentUuid, financialCodeUuid, nominalCurrencyUuid) must be provided' },
+        { error: 'Either paymentId OR counteragentUuid must be provided (financialCodeUuid and nominalCurrencyUuid are optional)' },
         { status: 400 }
       );
     }
