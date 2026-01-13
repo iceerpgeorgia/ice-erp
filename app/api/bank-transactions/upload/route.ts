@@ -57,10 +57,10 @@ export async function POST(req: NextRequest) {
         await writeFile(filepath, buffer);
         allLogs += `✓ File saved: ${filename}\n\n`;
 
-        // Run the XML parser script
-        allLogs += `Running XML parser...\n`;
+        // Run the XML parser orchestrator (identifies account and delegates to appropriate parser)
+        allLogs += `Running XML parser orchestrator...\n`;
         const { stdout, stderr } = await execPromise(
-          `python parse-bog-xml.py "${filepath}"`,
+          `python import_bank_xml_data.py "${filepath}"`,
           { cwd: process.cwd(), maxBuffer: 1024 * 1024 * 10 }
         );
         

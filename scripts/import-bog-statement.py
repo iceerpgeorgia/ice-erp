@@ -7,6 +7,12 @@ from decimal import Decimal
 import uuid as uuid_lib
 import sys
 
+# Set UTF-8 encoding for stdout/stderr on Windows
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 # Generate unique batch ID for this import
 import_batch_id = str(uuid_lib.uuid4())
 
@@ -35,13 +41,17 @@ conn = psycopg2.connect(clean_url)
 conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 cursor = conn.cursor()
 
-# Parse XML file
+# Parse XML file and optional account UUID
 if len(sys.argv) < 2:
-    print("Usage: python import-bog-statement.py <xml_file_path>")
+    print("Usage: python import-bog-statement.py <xml_file_path> [account_uuid]")
     sys.exit(1)
 
 xml_file = sys.argv[1]
+provided_account_uuid = sys.argv[2] if len(sys.argv) > 2 else None
+
 print(f"\n📄 Parsing XML file: {xml_file}")
+if provided_account_uuid:
+    print(f"🔐 Using provided account UUID: {provided_account_uuid}")
 
 tree = ET.parse(xml_file)
 root = tree.getroot()
@@ -65,29 +75,69 @@ else:
 print(f"📊 Account: {account_number}")
 print(f"💱 Currency: {currency_code}")
 
-# Lookup account_uuid from bank_accounts
-cursor.execute("""
-    SELECT ba.uuid, ba.currency_uuid
-    FROM bank_accounts ba
-    JOIN currencies c ON ba.currency_uuid = c.uuid
-    WHERE ba.account_number = %s AND c.code = %s
-""", (account_number, currency_code))
+# If account UUID was provided, use it directly and get raw_table_name from database
+if provided_account_uuid:
+    cursor.execute("""
+        SELECT ba.uuid, ba.currency_uuid, ba.raw_table_name, ba.account_number, c.code
+        FROM bank_accounts ba
+        JOIN currencies c ON ba.currency_uuid = c.uuid
+        WHERE ba.uuid = %s
+    """, (provided_account_uuid,))
+    
+    account_result = cursor.fetchone()
+    if not account_result:
+        print(f"❌ Account UUID not found in database: {provided_account_uuid}")
+        sys.exit(1)
+    
+    account_uuid = account_result[0]
+    account_currency_uuid = account_result[1]
+    raw_table_name = account_result[2]
+    db_account_number = account_result[3]
+    db_currency_code = account_result[4]
+    
+    # Verify the account from XML matches the provided UUID
+    if db_account_number != account_number or db_currency_code != currency_code:
+        print(f"⚠️ Warning: XML account ({account_number} {currency_code}) doesn't match database account ({db_account_number} {db_currency_code})")
+        print(f"❌ Account mismatch detected. Aborting import.")
+        sys.exit(1)
+    
+    if not raw_table_name:
+        print(f"❌ No raw_table_name configured for account: {account_number}")
+        print(f"💡 Please set raw_table_name in bank_accounts table")
+        sys.exit(1)
+    
+    print(f"✅ Account UUID: {account_uuid}")
+    print(f"📋 Raw table (from database): {raw_table_name}")
+else:
+    # Legacy behavior: Lookup account_uuid from bank_accounts
+    cursor.execute("""
+        SELECT ba.uuid, ba.currency_uuid, ba.raw_table_name
+        FROM bank_accounts ba
+        JOIN currencies c ON ba.currency_uuid = c.uuid
+        WHERE ba.account_number = %s AND c.code = %s
+    """, (account_number, currency_code))
 
-account_result = cursor.fetchone()
-if not account_result:
-    print(f"❌ Account not found in database: {account_number} ({currency_code})")
-    print("💡 Please create the bank account first in the system")
-    sys.exit(1)
+    account_result = cursor.fetchone()
+    if not account_result:
+        print(f"❌ Account not found in database: {account_number} ({currency_code})")
+        print("💡 Please create the bank account first in the system")
+        sys.exit(1)
 
-account_uuid = account_result[0]
-account_currency_uuid = account_result[1]
-print(f"✅ Account UUID: {account_uuid}")
-
-# Determine raw table name based on account number
-# For GE78BG0000000893486000, we want 893486000
-account_suffix = account_number[-9:]  # Last 9 digits
-raw_table_name = f"bog_gel_raw_{account_suffix}"
-print(f"📋 Raw table: {raw_table_name}")
+    account_uuid = account_result[0]
+    account_currency_uuid = account_result[1]
+    raw_table_name = account_result[2]
+    
+    print(f"✅ Account UUID: {account_uuid}")
+    
+    # Use raw_table_name from database if available, otherwise calculate
+    if raw_table_name:
+        print(f"📋 Raw table (from database): {raw_table_name}")
+    else:
+        # Fallback: Determine raw table name based on account number
+        # For GE78BG0000000893486000, we want 893486000
+        account_suffix = account_number[-9:]  # Last 9 digits
+        raw_table_name = f"bog_gel_raw_{account_suffix}"
+        print(f"📋 Raw table (calculated): {raw_table_name}")
 
 # Get GEL currency UUID for nominal currency calculations
 cursor.execute("SELECT uuid FROM currencies WHERE code = 'GEL'")

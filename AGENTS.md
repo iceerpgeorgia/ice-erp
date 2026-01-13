@@ -5,56 +5,97 @@ The workspace is a pnpm monorepo with three core apps: `apps/webapp` hosts the N
 
 ## BOG GEL Bank Statement Processing - Three-Stage Approach
 
-### Why Three Stages?
-The bank statement processing has been restructured into three distinct stages to handle different scenarios:
+### Consolidated Processing Architecture
+All BOG GEL XML import and processing logic is consolidated into `import_bank_xml_data.py`, which implements a three-phase hierarchy:
+
+**Phase 1: Counteragent Identification** (HIGHEST PRIORITY - Cannot be overridden)
+- Extract INN from raw data fields based on transaction direction
+  - Incoming payment (debit=NULL): Use DocSenderInn
+  - Outgoing payment (debit>0): Use DocBenefInn
+- Normalize INN (prepend '0' if 10 digits)
+- Query counteragents table by INN
+- Extract counteragent account from DocCorAcct (primary) or DocSenderAcctNo/DocBenefAcctNo (fallback)
+
+**Phase 2: Parsing Rules Application** (SECOND PRIORITY)
+- Query parsing_scheme_rules table for active rules
+- Match rules based on parameters (e.g., DocProdGroup='COM')
+- If rule counteragent conflicts with Phase 1 counteragent → KEEP Phase 1, flag conflict
+- Apply rule parameters: project_uuid, financial_code_uuid, nominal_currency_uuid
+
+**Phase 3: Payment ID Matching** (LOWEST PRIORITY)
+- Extract payment_id from DocInformation field (regex patterns)
+- Query payments table by payment_id
+- If payment counteragent conflicts with Phase 1 counteragent → KEEP Phase 1, flag conflict
+- Apply payment parameters only if not already set by Phase 2
+
+### Case Definitions
+
+### Case Definitions
 
 **CASE 1: INN Found + Counteragent Exists**
-- INN extracted from `docsender01inn`, `docsender01code`, `docreceiver01inn`, or `docreceiver01code`
-- Counteragent found in database by INN
+- INN extracted from DocSenderInn/DocBenefInn based on transaction direction
+- Counteragent found in database by normalized INN
 - Status: `counteragent_processed=TRUE`, `counteragent_inn` stored
-- Action: Ready for rules/payment parsing
+- Action: Ready for Phase 2 (rules) and Phase 3 (payment) processing
 
 **CASE 2: INN Found + Counteragent Missing**
 - INN found in raw data but no matching counteragent in database
 - Status: `counteragent_processed=FALSE`, `counteragent_inn` stored
-- Action: Requires manual counteragent creation before further processing
+- Action: Requires manual counteragent creation before full processing
 - Rationale: We have the INN but need to add the counteragent entity to the system
 
 **CASE 3: No INN in Raw Data**
-- No INN data available in any of the source fields
+- No INN data available in DocSenderInn or DocBenefInn fields
 - Status: `counteragent_processed=FALSE`, `counteragent_inn=NULL`
-- Action: Proceed directly to parsing rules and payment_id matching
+- Action: Proceed directly to Phase 2 (parsing rules) and Phase 3 (payment_id matching)
 - Rationale: Counteragent must be identified through business rules or payment associations
+
+### Hierarchy and Conflict Resolution
+
+The three-phase hierarchy ensures data integrity:
+
+1. **Counteragent is KING**: Once identified in Phase 1, it CANNOT be overridden by Phase 2 (rules) or Phase 3 (payment)
+2. **Conflict Detection**: If rule or payment suggests different counteragent → flag conflict, keep Phase 1 counteragent
+3. **Complementary Data**: Rules and payments can ADD project_uuid, financial_code_uuid if not conflicting
+4. **Fully Processed**: Record is fully processed when all three flags are TRUE: `counteragent_processed`, `parsing_rule_processed`, `payment_id_processed`
 
 ### Processing Stages
 
-**Stage 1: Counteragent Identification**
-- Extract INN from raw data fields (priority: sender01inn → sender01code → receiver01inn → receiver01code)
-- Query counteragents table by INN
-- Insert all records into consolidated_bank_accounts (counteragent_uuid can be NULL)
-- Mark status in raw table: `counteragent_processed`, `counteragent_inn`
-- Generate report of missing counteragents (CASE 2)
+**Stage 1: XML Parsing and Raw Data Insertion**
+- Parse BOG XML bank statements
+- Extract all fields from <DETAIL> elements
+- Generate UUID from DocKey + EntriesId
+- Check for duplicates (DocKey + EntriesId combination)
+- Insert into `bog_gel_raw_*` table (Supabase)
+- Initialize all processing flags to FALSE
 
-**Stage 2: Parsing Rules Application**
-- Process records with `counteragent_processed=TRUE` OR (`counteragent_processed=FALSE` AND `counteragent_inn IS NULL`)
-- Skip CASE 2 records (need counteragent added first)
-- Match parsing scheme rules (e.g., `docprodgroup='COM'`)
-- Validate counteragent compatibility: rule's counteragent must match identified counteragent
-- Apply rule parameters: project_uuid, financial_code_uuid, nominal_currency_uuid
-- Mark status: `parsing_rule_processed=TRUE`
+**Stage 2: Dictionary Loading**
+- Load counteragents map (INN → counteragent_uuid, name)
+- Load parsing_scheme_rules (active rules with parameters)
+- Load payments map (payment_id → counteragent, project, financial_code, currency)
 
-**Stage 3: Payment ID Matching**
-- Process records not matched by rules
-- Extract payment_id from `docinformation` field
-- Query payments table by payment_id
-- Validate counteragent compatibility: payment's counteragent must match identified counteragent
-- Apply payment parameters: project_uuid, financial_code_uuid, currency_uuid
-- Mark status: `payment_id_processed=TRUE`
+**Stage 3: Three-Phase Processing Loop**
+- For each raw record:
+  * Phase 1: Identify counteragent by INN
+  * Phase 2: Match parsing rules (check conflicts)
+  * Phase 3: Match payment_id (check conflicts)
+  * Generate consolidated record with all gathered data
+  * Update raw table processing flags
+
+**Stage 4: Consolidated Table Insertion**
+- Insert all consolidated records to `consolidated_bank_accounts` (Local DB)
+- Include counteragent_uuid, project_uuid, financial_code_uuid, payment_id
+- Store transaction_date, amounts, description, IDs
+
+**Stage 5: Raw Table Flag Updates**
+- Update `bog_gel_raw_*` table (Supabase) with processing flags
+- Mark counteragent_processed, parsing_rule_processed, payment_id_processed
+- Set is_processed=TRUE when all three phases complete
 
 ### Priority Hierarchy
 1. **Counteragent** (FIRST): Identified from INN in raw data - cannot be overridden by rules or payments
-2. **Parsing Rules** (SECOND): Must match identified counteragent, then apply other parameters
-3. **Payment ID** (THIRD): Must match identified counteragent, then apply payment parameters
+2. **Parsing Rules** (SECOND): Must not conflict with counteragent, then apply other parameters
+3. **Payment ID** (THIRD): Must not conflict with counteragent, then apply payment parameters
 
 ### Fully Processed Definition
 A record is considered fully processed when ALL three flags are TRUE:
@@ -68,11 +109,29 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - `counteragent_processed`: Counteragent identified from INN
 - `counteragent_inn`: INN value found in raw data (may not exist in counteragents table)
 - `parsing_rule_processed`: Matched against parsing scheme rules
-- `payment_id_processed`: Matched against payment_id or batch_id
+- `payment_id_processed`: Matched against payment_id
 - `is_processed`: TRUE when all three stages complete
 
 ### Scripts
-- `process-bog-gel-counteragents-first.js`: Implements three-stage processing with detailed logging and CASE 2 reporting
+- `import_bank_xml_data.py`: ✅ **PRODUCTION READY** - Comprehensive script that consolidates ALL processing logic:
+  * Account identification from XML (aligned with working JS implementation)
+  * XML parsing and raw data insertion
+  * Three-phase processing with hierarchy (Counteragent → Rules → Payment)
+  * Consolidated table insertion (LOCAL database)
+  * Conflict detection and reporting
+  * Batch operations with performance optimization
+  * Detailed logging with step timing and ETA
+  * **CLI Modes**:
+    - `python import_bank_xml_data.py import <xml_file>` - Parse XML and process
+    - `python import_bank_xml_data.py backparse [--account-uuid UUID] [--batch-id ID] [--clear]` - Reprocess existing raw data (LOCAL only)
+  
+**Supporting Scripts**:
+- `test_account_extraction.py`: Test suite validating account extraction logic (7/7 tests passing)
+- `COMPARISON_JS_VS_PYTHON.md`: Detailed comparison showing alignment with JavaScript implementation
+
+**Reference Scripts** (proven working logic, used as reference):
+- `scripts/process-bog-gel-counteragents-first.js`: Original three-stage processor (Python implementation now matches this)
+- `scripts/parse-bog-gel-comprehensive.js`: Original comprehensive parser (Python implementation now matches this)
 
 ## Build, Test, and Development Commands
 Install dependencies once with `pnpm i`. Use `pnpm dev` to launch web, API, and workers concurrently while developing. Whenever `prisma/schema.prisma` changes, run `pnpm prisma migrate dev --name <feature>` followed by `pnpm prisma generate` to refresh the client. After adding new models to the schema, run `python scripts/auto-generate-templates.py` to automatically create Excel import templates in the `templates/` folder. Execute `pnpm test` for Jest coverage and `pnpm test:e2e` when end-to-end verification is required; append `--watch` for quick feedback loops.

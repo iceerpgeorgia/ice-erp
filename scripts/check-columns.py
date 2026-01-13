@@ -1,0 +1,10 @@
+import psycopg2
+conn = psycopg2.connect('postgresql://postgres:fulebimojviT1985%25@localhost:5432/ICE_ERP')
+cursor = conn.cursor()
+print("=== consolidated_bank_accounts columns ===")
+cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'consolidated_bank_accounts' ORDER BY ordinal_position")
+print([r[0] for r in cursor.fetchall()])
+print("\n=== bog_gel_raw_893486000 columns ===")
+cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'bog_gel_raw_893486000' ORDER BY ordinal_position")
+print([r[0] for r in cursor.fetchall()])
+conn.close()

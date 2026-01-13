@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         curr.code as currency_code,
         COALESCE(SUM(pl.accrual), 0) as total_accrual,
         COALESCE(SUM(pl."order"), 0) as total_order,
-        COALESCE(SUM(ABS(cba.nominal_amount)), 0) as total_payment,
+        0 as total_payment,
         MAX(pl.effective_date) as latest_date
       FROM payments p
       LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
@@ -52,7 +52,6 @@ export async function GET(request: NextRequest) {
       LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
       LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
       LEFT JOIN payments_ledger pl ON p.payment_id = pl.payment_id
-      LEFT JOIN consolidated_bank_accounts cba ON cba.payment_uuid::text = p.record_uuid
       WHERE p.is_active = true
       GROUP BY 
         p.payment_id,

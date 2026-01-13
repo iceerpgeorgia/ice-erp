@@ -1,0 +1,19 @@
+﻿
+============================================================
+python : Traceback (most recent call last):
+At line:1 char:1
++ python import_bank_xml_data.py Statement_206598021.xml 2>&1 | Out-Fil ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "C:\next-postgres-starter\import_bank_xml_data.py", line 200, in <module>
+    main()
+    ~~~~^^
+  File "C:\next-postgres-starter\import_bank_xml_data.py", line 77, in main
+    print(f"\U0001f4c1 Processing XML file: {os.path.basename(xml_file)}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f4c1' in position 0: character maps to <undefined>

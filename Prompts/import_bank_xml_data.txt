@@ -1,0 +1,20 @@
+Ok let’s structure up our brand new script which will be connected to upload XML button in Bank Transactions Table. 
+
+So we must have general script, let’s call it import_bank_xml_data
+
+The only function of this script should be to identify which bank account is referred by uploaded xml, identify it’s parsing scheme using data inputted in bank_account table. For now existing xml import script should have identification logic of BOG_GEL parsing scheme, which is the only depicted scheme for now in bank accounts table. So I want you to create this import_bank_xml_data script which for now will check xml file with only logic we have now in existing xml import script we have and come up returning variables and logs for:
+account_uuid (also put information about account_number, account_currency)
+parsing_scheme 
+
+So my main idea is to put all parsing logic into one script so we dont have it scattered, which will be out import_bank_xml_data.py, and after we don't need old scripts we just delete all other scripts not to create confusion. So if our new script already has ability to identify which parse scheme should be used lets consolidated to it some logics from two scripts we already have like parse_counteragents_first and existing xml import which works.
+
+Generally we divide parsing into 3 phazes with following hierarchy:
+
+1. Counteragents parsing;
+2. Parsing rule outcome;
+3. Payment_ID lookup
+
+So if the BOG GEL parsing scheme is selected the flow must be following: 1. load all necessary dictionaries for lookup; 2. next we must create a loop structured optimized which will apply logic of parse_counteragents_first script to identify counteragents from file, then we do parsing_rules check as in existing script we have attached to upload xml button in bank transactions table and last we do payment_id check as in the same script. Main is to follow hierarchy as follows : if counteragent is identified, nor parsing rule output or payment_id check can override it if it is in conflict. By the way we must make possible to add cases for if payment counteragent or parsing rule counteragent doe not match counteragent parsed in first step. So I want you to look at this closely, identify how mane cases of errors there can be given our structure of BOG_GEL and add case flags to the table like we did it before and parse_counteragents_first applies it. 
+
+
+I want you also to create a backparse script which will apply the exact logic given in import_bank_xml_data script, so we can backtest it to existing data for raw tables, however I want to have single file with two options to import or to backparse - tell me how appropriate it is to keep both functions in one script

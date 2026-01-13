@@ -15,7 +15,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the rule
-    const rule = await prisma.$queryRawUnsafe(`
+    const rule = await prisma.$queryRawUnsafe<Array<{
+      id: number;
+      column_name: string | null;
+      condition: string | null;
+      counteragent_uuid: string | null;
+      financial_code_uuid: string | null;
+      nominal_currency_uuid: string | null;
+      payment_id: string | null;
+    }>>(`
       SELECT id, column_name, condition, counteragent_uuid, 
              financial_code_uuid, nominal_currency_uuid, payment_id
       FROM parsing_scheme_rules
@@ -55,7 +63,7 @@ export async function POST(request: NextRequest) {
       WHERE LOWER(${columnName}) = LOWER($1)
     `;
 
-    const countResult = await prisma.$queryRawUnsafe(countQuery, conditionValue);
+    const countResult = await prisma.$queryRawUnsafe<Array<{ count: bigint }>>(countQuery, conditionValue);
     const matchCount = Number(countResult[0].count);
 
     if (matchCount === 0) {
@@ -90,7 +98,7 @@ export async function POST(request: NextRequest) {
         LIMIT 100
       `;
 
-      const records = await prisma.$queryRawUnsafe(recordsQuery, conditionValue);
+      const records = await prisma.$queryRawUnsafe<Array<any>>(recordsQuery, conditionValue);
 
       return NextResponse.json({
         success: true,

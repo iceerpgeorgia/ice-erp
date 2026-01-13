@@ -1,25 +1,33 @@
 const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
 
-const pool = new Pool({
+// SUPABASE connection for reading RAW data
+const supabasePool = new Pool({
   connectionString: 'postgresql://postgres.fojbzghphznbslqwurrm:fulebimojviT1985%25@aws-1-eu-west-1.pooler.supabase.com:5432/postgres',
   ssl: { rejectUnauthorized: false }
 });
 
+// LOCAL connection for writing CONSOLIDATED data
+const localPool = new Pool({
+  connectionString: 'postgresql://postgres:fulebimojviT1985%25@localhost:5432/ICE_ERP',
+  ssl: false
+});
+
 async function parseCounteragentsFromRawData() {
-  const client = await pool.connect();
+  const supabaseClient = await supabasePool.connect();
+  const localClient = await localPool.connect();
   
   try {
     console.log('🔄 Starting counteragent parsing for all BOG GEL raw records...\n');
 
-    // Step 1: Truncate consolidated_bank_accounts
-    console.log('🗑️  Truncating consolidated_bank_accounts table...');
-    await client.query('TRUNCATE TABLE consolidated_bank_accounts');
-    console.log('✅ Consolidated table truncated\n');
+    // Step 1: Truncate consolidated_bank_accounts (LOCAL)
+    console.log('🗑️  Truncating local consolidated_bank_accounts table...');
+    await localClient.query('TRUNCATE TABLE consolidated_bank_accounts');
+    console.log('✅ Local consolidated table truncated\n');
 
-    // Step 2: Reset processing flags
-    console.log('🔄 Resetting processing flags...');
-    await client.query(`
+    // Step 2: Reset processing flags (SUPABASE)
+    console.log('🔄 Resetting processing flags in Supabase...');
+    await supabaseClient.query(`
       UPDATE bog_gel_raw_893486000 
       SET 
         counteragent_processed = FALSE,
@@ -29,8 +37,8 @@ async function parseCounteragentsFromRawData() {
     `);
     console.log('✅ Processing flags reset\n');
 
-    // Step 3: Get account info
-    const accountResult = await client.query(`
+    // Step 3: Get account info (LOCAL)
+    const accountResult = await localClient.query(`
       SELECT uuid, currency_uuid 
       FROM bank_accounts 
       WHERE account_number = 'GE78BG0000000893486000' 
@@ -38,7 +46,7 @@ async function parseCounteragentsFromRawData() {
     `);
     
     if (accountResult.rows.length === 0) {
-      throw new Error('Bank account not found');
+      throw new Error('Bank account not found in local database');
     }
     
     const bankAccountUuid = accountResult.rows[0].uuid;
@@ -47,9 +55,9 @@ async function parseCounteragentsFromRawData() {
     console.log(`📊 Bank Account UUID: ${bankAccountUuid}`);
     console.log(`💱 Account Currency UUID: ${accountCurrencyUuid}\n`);
 
-    // Step 4: Get all unprocessed records for counteragent parsing
-    console.log('📥 Fetching all records for counteragent parsing...');
-    const rawRecordsResult = await client.query(`
+    // Step 4: Get all unprocessed records for counteragent parsing (SUPABASE)
+    console.log('📥 Fetching all records from Supabase for counteragent parsing...');
+    const rawRecordsResult = await supabaseClient.query(`
       SELECT *
       FROM bog_gel_raw_893486000
       WHERE counteragent_processed = FALSE
@@ -60,9 +68,9 @@ async function parseCounteragentsFromRawData() {
     const totalRecords = rawRecordsResult.rows.length;
     console.log(`✅ Found ${totalRecords} records to process\n`);
 
-    // Step 5: Load all counteragents into memory for fast lookup
-    console.log('📚 Loading counteragents into memory...');
-    const counteragentsResult = await client.query('SELECT counteragent_uuid, identification_number, counteragent FROM counteragents WHERE identification_number IS NOT NULL');
+    // Step 5: Load all counteragents into memory for fast lookup (LOCAL)
+    console.log('📚 Loading counteragents from local database into memory...');
+    const counteragentsResult = await localClient.query('SELECT counteragent_uuid, identification_number, counteragent FROM counteragents WHERE identification_number IS NOT NULL');
     const counteragentsMap = new Map();
     counteragentsResult.rows.forEach(ca => {
       counteragentsMap.set(ca.identification_number, {
@@ -95,12 +103,18 @@ async function parseCounteragentsFromRawData() {
         // Calculate amount for consolidated table
         const accountCurrencyAmount = (record.entrycramt || 0) - (record.entrydbamt || 0);
         
-        // Extract counteragent INN based on simple rule:
-        // If entrydbamt is NULL → incoming payment → counteragent = sender (docsenderinn)
-        // If entrydbamt has value → outgoing payment → counteragent = beneficiary (docbenefinn)
+        // Extract counteragent INN and account number based on simple rule:
+        // If entrydbamt is NULL → incoming payment → counteragent = sender
+        // If entrydbamt has value → outgoing payment → counteragent = beneficiary
         let counteragentInn = null;
+        let counteragentAccountNumber = null;
         let counteragentUuid = null;
         let innSource = null;
+
+        // PRIORITY 1: Use doccoracct if available (correspondent account from bank statement)
+        if (record.doccoracct && record.doccoracct.trim()) {
+          counteragentAccountNumber = record.doccoracct.trim();
+        }
 
         if (record.entrydbamt === null || record.entrydbamt === undefined) {
           // Incoming payment - counteragent is the sender
@@ -108,16 +122,29 @@ async function parseCounteragentsFromRawData() {
             counteragentInn = record.docsenderinn.trim();
             innSource = 'docsenderinn (incoming)';
           }
+          // FALLBACK: Use docsenderacctno only if doccoracct not available
+          if (!counteragentAccountNumber && record.docsenderacctno && record.docsenderacctno.trim()) {
+            counteragentAccountNumber = record.docsenderacctno.trim();
+          }
         } else {
           // Outgoing payment - counteragent is the beneficiary
           if (record.docbenefinn && record.docbenefinn.trim()) {
             counteragentInn = record.docbenefinn.trim();
             innSource = 'docbenefinn (outgoing)';
           }
+          // FALLBACK: Use docbenefacctno only if doccoracct not available
+          if (!counteragentAccountNumber && record.docbenefacctno && record.docbenefacctno.trim()) {
+            counteragentAccountNumber = record.docbenefacctno.trim();
+          }
         }
 
         // CASE ANALYSIS using in-memory lookup:
         if (counteragentInn) {
+          // Normalize INN: if length is 10, prepend "0" to make it 11 digits
+          if (counteragentInn.length === 10 && /^\d+$/.test(counteragentInn)) {
+            counteragentInn = '0' + counteragentInn;
+          }
+          
           // INN found - look up in memory
           const counteragentData = counteragentsMap.get(counteragentInn);
 
@@ -174,6 +201,7 @@ async function parseCounteragentsFromRawData() {
           transaction_date: record.docvaluedate,
           description: record.docnomination || '',
           counteragent_uuid: counteragentUuid,
+          counteragent_account_number: counteragentAccountNumber,
           account_currency_uuid: accountCurrencyUuid,
           account_currency_amount: accountCurrencyAmount,
           nominal_currency_uuid: accountCurrencyUuid,
@@ -193,8 +221,8 @@ async function parseCounteragentsFromRawData() {
         if (consolidatedInserts.length >= BATCH_SIZE) {
           // Batch insert to consolidated table
           const values = consolidatedInserts.map((item, idx) => {
-            const offset = idx * 10;
-            return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, NOW())`;
+            const offset = idx * 11;
+            return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11}, NOW())`;
           }).join(',');
           
           const params = consolidatedInserts.flatMap(item => [
@@ -204,16 +232,17 @@ async function parseCounteragentsFromRawData() {
             item.transaction_date,
             item.description,
             item.counteragent_uuid,
+            item.counteragent_account_number,
             item.account_currency_uuid,
             item.account_currency_amount,
             item.nominal_currency_uuid,
             item.nominal_amount
           ]);
 
-          await client.query(`
+          await localClient.query(`
             INSERT INTO consolidated_bank_accounts (
               uuid, bank_account_uuid, raw_record_uuid, transaction_date, description,
-              counteragent_uuid, account_currency_uuid, account_currency_amount,
+              counteragent_uuid, counteragent_account_number, account_currency_uuid, account_currency_amount,
               nominal_currency_uuid, nominal_amount, created_at
             ) VALUES ${values}
           `, params);
@@ -223,7 +252,7 @@ async function parseCounteragentsFromRawData() {
           const updateProcessed = rawUpdates.map(u => u.counteragent_processed);
           const updateInns = rawUpdates.map(u => u.counteragent_inn);
           
-          await client.query(`
+          await supabaseClient.query(`
             UPDATE bog_gel_raw_893486000 AS r
             SET 
               counteragent_processed = data.processed,
@@ -266,8 +295,8 @@ async function parseCounteragentsFromRawData() {
       console.log(`\n📤 Processing final batch of ${consolidatedInserts.length} records...`);
       
       const values = consolidatedInserts.map((item, idx) => {
-        const offset = idx * 10;
-        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, NOW())`;
+        const offset = idx * 11;
+        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11}, NOW())`;
       }).join(',');
       
       const params = consolidatedInserts.flatMap(item => [
@@ -277,16 +306,17 @@ async function parseCounteragentsFromRawData() {
         item.transaction_date,
         item.description,
         item.counteragent_uuid,
+        item.counteragent_account_number,
         item.account_currency_uuid,
         item.account_currency_amount,
         item.nominal_currency_uuid,
         item.nominal_amount
       ]);
 
-      await client.query(`
+      await localClient.query(`
         INSERT INTO consolidated_bank_accounts (
           uuid, bank_account_uuid, raw_record_uuid, transaction_date, description,
-          counteragent_uuid, account_currency_uuid, account_currency_amount,
+          counteragent_uuid, counteragent_account_number, account_currency_uuid, account_currency_amount,
           nominal_currency_uuid, nominal_amount, created_at
         ) VALUES ${values}
       `, params);
@@ -296,7 +326,7 @@ async function parseCounteragentsFromRawData() {
       const updateProcessed = rawUpdates.map(u => u.counteragent_processed);
       const updateInns = rawUpdates.map(u => u.counteragent_inn);
       
-      await client.query(`
+      await supabaseClient.query(`
         UPDATE bog_gel_raw_893486000 AS r
         SET 
           counteragent_processed = data.processed,
@@ -347,7 +377,7 @@ async function parseCounteragentsFromRawData() {
     console.log('📊 FINAL SUMMARY - Counteragent Identification Only');
     console.log('='.repeat(60));
     
-    const summaryResult = await client.query(`
+    const summaryResult = await supabaseClient.query(`
       SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN counteragent_processed THEN 1 ELSE 0 END) as counteragent_done
@@ -359,8 +389,8 @@ async function parseCounteragentsFromRawData() {
     console.log(`   Total records: ${summary.total}`);
     console.log(`   Counteragent processed: ${summary.counteragent_done} (${Math.round(summary.counteragent_done/summary.total*100)}%)`);
 
-    const consolidatedResult = await client.query('SELECT COUNT(*) as count FROM consolidated_bank_accounts');
-    const consolidatedWithCounteragent = await client.query('SELECT COUNT(*) as count FROM consolidated_bank_accounts WHERE counteragent_uuid IS NOT NULL');
+    const consolidatedResult = await localClient.query('SELECT COUNT(*) as count FROM consolidated_bank_accounts');
+    const consolidatedWithCounteragent = await localClient.query('SELECT COUNT(*) as count FROM consolidated_bank_accounts WHERE counteragent_uuid IS NOT NULL');
     
     console.log(`\n📊 Consolidated Table Status:`);
     console.log(`   Total records: ${consolidatedResult.rows[0].count}`);
@@ -374,8 +404,10 @@ async function parseCounteragentsFromRawData() {
     console.error('❌ Error:', error);
     throw error;
   } finally {
-    client.release();
-    await pool.end();
+    supabaseClient.release();
+    localClient.release();
+    await supabasePool.end();
+    await localPool.end();
   }
 }
 
