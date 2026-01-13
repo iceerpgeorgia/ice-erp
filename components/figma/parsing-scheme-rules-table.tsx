@@ -56,9 +56,10 @@ interface ParsingScheme {
 }
 
 interface Counteragent {
-  counteragentUuid: string;
+  counteragent_uuid: string;
+  counteragent: string;
   name: string;
-  identificationNumber?: string;
+  identification_number?: string;
 }
 
 interface FinancialCode {
@@ -269,7 +270,14 @@ export function ParsingSchemeRulesTable() {
 
       if (counteragentsRes.ok) {
         const counteragentsData = await counteragentsRes.json();
-        setCounteragents(counteragentsData);
+        // Map API response to Counteragent interface
+        const mappedCounteragents = counteragentsData.map((ca: any) => ({
+          counteragent_uuid: ca.counteragent_uuid,
+          counteragent: ca.counteragent || ca.name,
+          name: ca.name,
+          identification_number: ca.identification_number
+        }));
+        setCounteragents(mappedCounteragents);
       }
 
       if (financialCodesRes.ok) {
@@ -609,12 +617,12 @@ export function ParsingSchemeRulesTable() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate either paymentId OR counteragent+financialCode (currency is optional)
+    // Validate either paymentId OR counteragent (financial code and currency are optional)
     const hasPaymentId = !!formData.paymentId;
-    const hasRequiredUuids = !!formData.counteragentUuid && !!formData.financialCodeUuid;
+    const hasCounteragent = !!formData.counteragentUuid;
     
-    if (!hasPaymentId && !hasRequiredUuids) {
-      alert('You must provide either:\n- Payment ID\nOR\n- Counteragent and Financial Code (Currency is optional)');
+    if (!hasPaymentId && !hasCounteragent) {
+      alert('You must provide either:\n- Payment ID\nOR\n- Counteragent (Financial Code and Currency are optional)');
       return;
     }
     
@@ -972,8 +980,10 @@ export function ParsingSchemeRulesTable() {
                             value={formData.counteragentUuid}
                             onValueChange={(value: string) => setFormData({ ...formData, counteragentUuid: value })}
                             options={counteragents.map(ca => ({
-                              value: ca.counteragentUuid,
-                              label: `${ca.name}${ca.identificationNumber ? ` (ს.კ. ${ca.identificationNumber})` : ''}`
+                              value: ca.counteragent_uuid,
+                              label: ca.counteragent || ca.name,
+                              keywords: `${ca.counteragent} ${ca.name} ${ca.identification_number || ''}`.toLowerCase(),
+                              displayLabel: `${ca.counteragent || ca.name}${ca.identification_number ? ` (ს.კ. ${ca.identification_number})` : ''}`
                             }))}
                             placeholder="Select counteragent..."
                             searchPlaceholder="Search counteragents..."
@@ -981,7 +991,7 @@ export function ParsingSchemeRulesTable() {
                         </div>
 
                         <div>
-                          <Label>Financial Code <span className="text-red-500">*</span></Label>
+                          <Label>Financial Code <span className="text-gray-400">(optional)</span></Label>
                           <Combobox
                             value={formData.financialCodeUuid}
                             onValueChange={(value: string) => setFormData({ ...formData, financialCodeUuid: value })}
@@ -989,7 +999,7 @@ export function ParsingSchemeRulesTable() {
                               value: fc.uuid,
                               label: `${fc.validation} (${fc.code})`
                             }))}
-                            placeholder="Select financial code..."
+                            placeholder="Select financial code (optional)..."
                             searchPlaceholder="Search financial codes..."
                           />
                         </div>
@@ -1008,7 +1018,7 @@ export function ParsingSchemeRulesTable() {
                           />
                         </div>
                         <p className="text-xs text-gray-500">
-                          Counteragent and Financial Code are required. Currency is optional.
+                          Counteragent is required. Financial Code and Currency are optional.
                         </p>
                       </div>
                     </div>
