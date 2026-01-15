@@ -3,19 +3,19 @@ import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = global as unknown as { prisma?: PrismaClient };
 
+// Always use Supabase connection (REMOTE_DATABASE_URL) when available
+// Falls back to DATABASE_URL for local development without Supabase
+const databaseUrl = process.env.REMOTE_DATABASE_URL || process.env.DATABASE_URL;
+
 // Configure for Supabase pooler with pgbouncer
 const prismaClientOptions = {
   log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-} as any;
-
-// Only set datasources in production to ensure fresh connection
-if (process.env.NODE_ENV === "production") {
-  prismaClientOptions.datasources = {
+  datasources: {
     db: {
-      url: process.env.DATABASE_URL,
+      url: databaseUrl,
     },
-  };
-}
+  },
+} as any;
 
 export const prisma =
   globalForPrisma.prisma ??
