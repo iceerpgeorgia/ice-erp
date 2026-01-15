@@ -16,14 +16,15 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const maxDate = searchParams.get('maxDate');
 
-    // Build the HAVING clause for date filtering (must be applied after GROUP BY)
-    // Include both ledger dates AND bank transaction dates
-    // Use COALESCE to handle NULL dates (when one source has no data)
+    // Build the WHERE clause for date filtering
+    // Since we're using subqueries, we can't use HAVING anymore
+    // Filter on the computed latest_date in the outer query
     const dateFilter = maxDate 
-      ? `HAVING COALESCE(GREATEST(MAX(pl.effective_date), MAX(cba.transaction_date::date)), MAX(pl.effective_date), MAX(cba.transaction_date::date)) <= '${maxDate}'::date` 
+      ? `AND COALESCE(GREATEST(ledger_agg.latest_ledger_date, bank_agg.latest_bank_date), ledger_agg.latest_ledger_date, bank_agg.latest_bank_date) <= '${maxDate}'::date` 
       : '';
 
     // Query to get payments with aggregated ledger data and actual payments from bank accounts
+    // Use subqueries to prevent Cartesian product when payment has multiple ledger entries AND bank transactions
     const query = `
       SELECT 
         p.payment_id,
@@ -43,37 +44,34 @@ export async function GET(request: NextRequest) {
         j.job_name,
         j.floors,
         curr.code as currency_code,
-        COALESCE(SUM(pl.accrual), 0) as total_accrual,
-        COALESCE(SUM(pl."order"), 0) as total_order,
-        COALESCE(SUM(cba.nominal_amount), 0) as total_payment,
-        COALESCE(GREATEST(MAX(pl.effective_date), MAX(cba.transaction_date::date)), MAX(pl.effective_date), MAX(cba.transaction_date::date)) as latest_date
+        COALESCE(ledger_agg.total_accrual, 0) as total_accrual,
+        COALESCE(ledger_agg.total_order, 0) as total_order,
+        COALESCE(bank_agg.total_payment, 0) as total_payment,
+        COALESCE(GREATEST(ledger_agg.latest_ledger_date, bank_agg.latest_bank_date), ledger_agg.latest_ledger_date, bank_agg.latest_bank_date) as latest_date
       FROM payments p
       LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
       LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
       LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
       LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
       LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
-      LEFT JOIN payments_ledger pl ON p.payment_id = pl.payment_id
-      LEFT JOIN consolidated_bank_accounts cba ON p.payment_id = cba.payment_id
+      LEFT JOIN (
+        SELECT 
+          payment_id,
+          SUM(accrual) as total_accrual,
+          SUM("order") as total_order,
+          MAX(effective_date) as latest_ledger_date
+        FROM payments_ledger
+        GROUP BY payment_id
+      ) ledger_agg ON p.payment_id = ledger_agg.payment_id
+      LEFT JOIN (
+        SELECT 
+          payment_id,
+          SUM(nominal_amount) as total_payment,
+          MAX(transaction_date::date) as latest_bank_date
+        FROM consolidated_bank_accounts
+        GROUP BY payment_id
+      ) bank_agg ON p.payment_id = bank_agg.payment_id
       WHERE p.is_active = true
-      GROUP BY 
-        p.payment_id,
-        p.project_uuid,
-        p.counteragent_uuid,
-        p.financial_code_uuid,
-        p.job_uuid,
-        p.income_tax,
-        p.currency_uuid,
-        proj.project_index,
-        proj.project_name,
-        ca.counteragent,
-        ca.name,
-        ca.identification_number,
-        fc.validation,
-        fc.code,
-        j.job_name,
-        j.floors,
-        curr.code
       ${dateFilter}
       ORDER BY p.payment_id DESC
     `;
