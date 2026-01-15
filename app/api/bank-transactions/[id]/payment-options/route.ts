@@ -46,25 +46,31 @@ export async function GET(
         let job: any = null;
         if (payment.jobUuid) {
           console.log('[payment-options] Fetching job:', payment.jobUuid);
-          const jobRows: any[] = await prisma.$queryRaw`
-            SELECT 
-              j.job_name,
-              CONCAT(
+          try {
+            const jobRows: any[] = await prisma.$queryRaw`
+              SELECT 
                 j.job_name,
-                ' | ',
-                COALESCE(b.name, 'No Brand'),
-                ' | ',
-                j.floors,
-                ' | ',
-                j.weight,
-                CASE WHEN j.is_ff THEN ' | FF' ELSE '' END
-              ) as job_display
-            FROM jobs j
-            LEFT JOIN brands b ON j.brand_uuid = b.uuid
-            WHERE j.job_uuid = ${payment.jobUuid}::uuid
-            LIMIT 1
-          `;
-          job = jobRows[0] || null;
+                CONCAT(
+                  j.job_name,
+                  ' | ',
+                  COALESCE(b.name, 'No Brand'),
+                  ' | ',
+                  j.floors,
+                  ' | ',
+                  j.weight,
+                  CASE WHEN j.is_ff THEN ' | FF' ELSE '' END
+                ) as job_display
+              FROM jobs j
+              LEFT JOIN brands b ON j.brand_uuid = b.uuid
+              WHERE j.job_uuid::text = ${payment.jobUuid}
+              LIMIT 1
+            `;
+            job = jobRows[0] || null;
+          } catch (jobError: any) {
+            console.error('[payment-options] Error fetching job:', jobError.message);
+            // Continue without job data
+            job = null;
+          }
         }
 
         const [currency, project, financialCode] = await Promise.all([
