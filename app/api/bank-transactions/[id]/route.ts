@@ -54,9 +54,108 @@ export async function PATCH(
       changes.push(`counteragent: ${current.counteragentUuid} → ${counteragent_uuid}`);
     }
     
+    // Handle payment_uuid change - this triggers currency and amount recalculation
     if (payment_uuid !== undefined && payment_uuid !== current.paymentId) {
       updateData.paymentId = payment_uuid;
       changes.push(`payment_id: ${current.paymentId} → ${payment_uuid}`);
+      
+      // When payment changes, update nominal currency and recalculate amount
+      if (payment_uuid) {
+        try {
+          // Get payment's currency
+          const payment = await prisma.payment.findUnique({
+            where: { paymentId: payment_uuid },
+            select: { currencyUuid: true }
+          });
+          
+          if (payment && payment.currencyUuid) {
+            // Update nominal currency to match payment currency
+            updateData.nominalCurrencyUuid = payment.currencyUuid;
+            changes.push(`nominal_currency: ${current.nominalCurrencyUuid} → ${payment.currencyUuid} (from payment)`);
+            
+            // Recalculate nominal amount with new currency
+            const transactionDate = new Date(current.transactionDate.split('.').reverse().join('-'));
+            const dateStr = transactionDate.toISOString().split('T')[0];
+            
+            // Get account currency code
+            const accountCurrency = await prisma.$queryRaw<Array<{ code: string }>>`
+              SELECT code FROM currencies WHERE uuid = ${current.accountCurrencyUuid}::uuid LIMIT 1
+            `;
+            
+            // Get payment (nominal) currency code
+            const nominalCurrency = await prisma.$queryRaw<Array<{ code: string }>>`
+              SELECT code FROM currencies WHERE uuid = ${payment.currencyUuid}::uuid LIMIT 1
+            `;
+            
+            if (accountCurrency.length > 0 && nominalCurrency.length > 0) {
+              const accountCode = accountCurrency[0].code;
+              const nominalCode = nominalCurrency[0].code;
+              
+              console.log(`[PATCH] Recalculating amount: ${accountCode} → ${nominalCode}`);
+              
+              if (accountCode === nominalCode) {
+                // Same currency - no conversion needed
+                updateData.nominalAmount = current.accountCurrencyAmount;
+                changes.push(`nominal_amount: ${current.nominalAmount?.toString()} → ${current.accountCurrencyAmount.toString()} (same currency)`);
+              } else {
+                // Different currencies - need exchange rate
+                const rates = await prisma.$queryRaw<Array<any>>`
+                  SELECT * FROM nbg_exchange_rates 
+                  WHERE date = ${dateStr}::date LIMIT 1
+                `;
+                
+                if (rates.length > 0) {
+                  const rate = rates[0];
+                  let calculatedAmount = current.accountCurrencyAmount;
+                  
+                  // Calculate based on currency pair
+                  if (accountCode === 'GEL' && nominalCode !== 'GEL') {
+                    // GEL → Foreign: divide by rate
+                    const rateField = `${nominalCode.toLowerCase()}Rate`;
+                    if (rate[rateField]) {
+                      calculatedAmount = new Decimal(current.accountCurrencyAmount.toString()).div(new Decimal(rate[rateField].toString()));
+                      console.log(`[PATCH] GEL → ${nominalCode}: ${current.accountCurrencyAmount} / ${rate[rateField]} = ${calculatedAmount}`);
+                    }
+                  } else if (accountCode !== 'GEL' && nominalCode === 'GEL') {
+                    // Foreign → GEL: multiply by rate
+                    const rateField = `${accountCode.toLowerCase()}Rate`;
+                    if (rate[rateField]) {
+                      calculatedAmount = new Decimal(current.accountCurrencyAmount.toString()).mul(new Decimal(rate[rateField].toString()));
+                      console.log(`[PATCH] ${accountCode} → GEL: ${current.accountCurrencyAmount} * ${rate[rateField]} = ${calculatedAmount}`);
+                    }
+                  } else if (accountCode !== 'GEL' && nominalCode !== 'GEL') {
+                    // Foreign → Foreign: convert through GEL
+                    const accountRateField = `${accountCode.toLowerCase()}Rate`;
+                    const nominalRateField = `${nominalCode.toLowerCase()}Rate`;
+                    if (rate[accountRateField] && rate[nominalRateField]) {
+                      const gelAmount = new Decimal(current.accountCurrencyAmount.toString()).mul(new Decimal(rate[accountRateField].toString()));
+                      calculatedAmount = gelAmount.div(new Decimal(rate[nominalRateField].toString()));
+                      console.log(`[PATCH] ${accountCode} → ${nominalCode}: ${current.accountCurrencyAmount} * ${rate[accountRateField]} / ${rate[nominalRateField]} = ${calculatedAmount}`);
+                    }
+                  }
+                  
+                  updateData.nominalAmount = calculatedAmount;
+                  changes.push(`nominal_amount: ${current.nominalAmount?.toString()} → ${calculatedAmount.toString()} (recalculated from payment currency)`);
+                } else {
+                  console.warn(`[PATCH] No exchange rate found for ${dateStr}`);
+                  // No rate available - use account amount as fallback
+                  updateData.nominalAmount = current.accountCurrencyAmount;
+                  changes.push(`nominal_amount: ${current.nominalAmount?.toString()} → ${current.accountCurrencyAmount.toString()} (no rate available)`);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[PATCH] Error processing payment currency change:', error);
+          // Continue with update even if calculation fails
+        }
+      } else {
+        // Payment cleared - reset to account currency
+        updateData.nominalCurrencyUuid = current.accountCurrencyUuid;
+        updateData.nominalAmount = current.accountCurrencyAmount;
+        changes.push(`nominal_currency: ${current.nominalCurrencyUuid} → ${current.accountCurrencyUuid} (cleared payment)`);
+        changes.push(`nominal_amount: ${current.nominalAmount?.toString()} → ${current.accountCurrencyAmount.toString()} (cleared payment)`);
+      }
     }
     
     if (project_uuid !== undefined && project_uuid !== current.projectUuid) {
@@ -68,12 +167,14 @@ export async function PATCH(
       changes.push(`financial_code: ${current.financialCodeUuid} → ${financial_code_uuid}`);
     }
     
-    // Handle nominal currency change - may need to recalculate amount
-    if (nominal_currency_uuid !== undefined && nominal_currency_uuid !== current.nominalCurrencyUuid) {
+    // Handle manual nominal currency change (only if not already set by payment change)
+    if (nominal_currency_uuid !== undefined && 
+        nominal_currency_uuid !== current.nominalCurrencyUuid && 
+        !updateData.nominalCurrencyUuid) {
       updateData.nominalCurrencyUuid = nominal_currency_uuid;
-      changes.push(`nominal_currency: ${current.nominalCurrencyUuid} → ${nominal_currency_uuid}`);
+      changes.push(`nominal_currency: ${current.nominalCurrencyUuid} → ${nominal_currency_uuid} (manual)`);
       
-      // If currency changed, recalculate nominal amount using exchange rates
+      // If currency changed manually, recalculate nominal amount using exchange rates
       if (nominal_currency_uuid && nominal_currency_uuid !== current.accountCurrencyUuid) {
         try {
           // Get transaction date and currencies
@@ -136,13 +237,15 @@ export async function PATCH(
           // Continue with update even if calculation fails
         }
       } else if (!nominal_currency_uuid || nominal_currency_uuid === current.accountCurrencyUuid) {
-        // Same currency or cleared - use account amount
-        updateData.nominalAmount = current.accountCurrencyAmount;
-        changes.push(`nominal_amount: ${current.nominalAmount?.toString()} → ${current.accountCurrencyAmount.toString()} (same currency)`);
+        // Same currency or cleared - use account amount (only if not already set by payment)
+        if (!updateData.nominalAmount) {
+          updateData.nominalAmount = current.accountCurrencyAmount;
+          changes.push(`nominal_amount: ${current.nominalAmount?.toString()} → ${current.accountCurrencyAmount.toString()} (same currency, manual)`);
+        }
       }
     }
     
-    // Explicit nominal amount update (manual override)
+    // Explicit nominal amount update (manual override) - only if not already calculated
     if (nominal_amount !== undefined && !updateData.nominalAmount) {
       const newAmount = nominal_amount ? new Decimal(nominal_amount) : null;
       const currentAmount = current.nominalAmount?.toString() || null;
