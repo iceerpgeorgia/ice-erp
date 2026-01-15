@@ -1,32 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { Pool } from 'pg';
 import { Decimal } from '@prisma/client/runtime/library';
 
 export const revalidate = 0;
+
+// Use Supabase connection for consolidated_bank_accounts table
+const getSupabasePool = () => new Pool({
+  connectionString: process.env.REMOTE_DATABASE_URL || process.env.DATABASE_URL,
+  ssl: process.env.REMOTE_DATABASE_URL ? { rejectUnauthorized: false } : undefined,
+});
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const pool = getSupabasePool();
+  
   try {
-    const id = BigInt(params.id);
+    const id = params.id;
     const body = await req.json();
 
-    console.log(`[PATCH /bank-transactions/${params.id}] Update request received`);
+    console.log(`[PATCH /bank-transactions/${id}] Update request received`);
     console.log('[PATCH] Request body:', JSON.stringify(body, null, 2));
 
-    // Get current transaction
-    const current = await prisma.consolidatedBankAccount.findUnique({
-      where: { id },
-    });
+    // Get current transaction from Supabase
+    const currentResult = await pool.query(
+      `SELECT * FROM consolidated_bank_accounts WHERE id = $1`,
+      [id]
+    );
 
-    if (!current) {
-      console.log(`[PATCH /bank-transactions/${params.id}] Transaction not found`);
+    if (currentResult.rows.length === 0) {
+      console.log(`[PATCH /bank-transactions/${id}] Transaction not found`);
+      await pool.end();
       return NextResponse.json(
         { error: "Transaction not found" },
         { status: 404 }
       );
     }
+    
+    const current = currentResult.rows[0];
 
     console.log(`[PATCH /bank-transactions/${params.id}] Current state:`, {
       counteragentUuid: current.counteragentUuid,
