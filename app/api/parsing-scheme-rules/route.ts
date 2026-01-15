@@ -22,33 +22,69 @@ export async function GET(request: NextRequest) {
       condition: string;
       condition_script: string | null;
       payment_id: bigint | null;
+      counteragent_uuid: string | null;
+      financial_code_uuid: string | null;
+      nominal_currency_uuid: string | null;
       active: boolean;
+      counteragent_name: string | null;
+      financial_code: string | null;
+      currency_code: string | null;
+      applied_count: bigint;
     };
 
     let rules: RuleRow[];
     if (schemeUuid) {
       rules = await prisma.$queryRaw<RuleRow[]>`
-        SELECT r.*, s.scheme
+        SELECT r.*, s.scheme,
+          ca.name as counteragent_name,
+          fc.code as financial_code,
+          cur.code as currency_code,
+          COALESCE(
+            (SELECT COUNT(*) FROM consolidated_bank_accounts cba 
+             WHERE cba.processing_case LIKE '%Applied rule manually, rule ID ' || r.id || '%'),
+            0
+          ) as applied_count
         FROM parsing_scheme_rules r
         JOIN parsing_schemes s ON r.scheme_uuid = s.uuid
+        LEFT JOIN counteragents ca ON r.counteragent_uuid = ca.counteragent_uuid
+        LEFT JOIN financial_codes fc ON r.financial_code_uuid = fc.uuid
+        LEFT JOIN currencies cur ON r.nominal_currency_uuid = cur.uuid
         WHERE r.scheme_uuid = ${schemeUuid}::uuid
         ORDER BY r.id DESC
       `;
     } else {
       rules = await prisma.$queryRaw<RuleRow[]>`
-        SELECT r.*, s.scheme
+        SELECT r.*, s.scheme,
+          ca.name as counteragent_name,
+          fc.code as financial_code,
+          cur.code as currency_code,
+          COALESCE(
+            (SELECT COUNT(*) FROM consolidated_bank_accounts cba 
+             WHERE cba.processing_case LIKE '%Applied rule manually, rule ID ' || r.id || '%'),
+            0
+          ) as applied_count
         FROM parsing_scheme_rules r
         JOIN parsing_schemes s ON r.scheme_uuid = s.uuid
+        LEFT JOIN counteragents ca ON r.counteragent_uuid = ca.counteragent_uuid
+        LEFT JOIN financial_codes fc ON r.financial_code_uuid = fc.uuid
+        LEFT JOIN currencies cur ON r.nominal_currency_uuid = cur.uuid
         ORDER BY s.scheme, r.id DESC
       `;
     }
 
     const formattedRules = rules.map(rule => ({
       id: Number(rule.id),
+      appliedCount: Number(rule.applied_count),
       schemeUuid: rule.scheme_uuid,
       scheme: rule.scheme,
       condition: rule.condition,
       paymentId: rule.payment_id,
+      counteragentUuid: rule.counteragent_uuid,
+      financialCodeUuid: rule.financial_code_uuid,
+      nominalCurrencyUuid: rule.nominal_currency_uuid,
+      counteragentName: rule.counteragent_name,
+      financialCode: rule.financial_code,
+      currencyCode: rule.currency_code,
       active: rule.active
     }));
 
@@ -102,6 +138,12 @@ export async function POST(request: NextRequest) {
     // Compile formula to JavaScript
     const conditionScript = compileFormulaToJS(condition);
 
+    // Convert empty strings to null for optional UUID fields
+    const cleanCounteragentUuid = counteragentUuid || null;
+    const cleanFinancialCodeUuid = financialCodeUuid || null;
+    const cleanNominalCurrencyUuid = nominalCurrencyUuid || null;
+    const cleanPaymentId = paymentId || null;
+
     const result = await prisma.$queryRaw<Array<{
       id: bigint;
       scheme_uuid: string;
@@ -118,8 +160,8 @@ export async function POST(request: NextRequest) {
         counteragent_uuid, financial_code_uuid, nominal_currency_uuid, active
       )
       VALUES (
-        ${schemeUuid}::uuid, ${condition}, ${conditionScript}, ${paymentId},
-        ${counteragentUuid}::uuid, ${financialCodeUuid}::uuid, ${nominalCurrencyUuid}::uuid, ${active ?? true}
+        ${schemeUuid}::uuid, ${condition}, ${conditionScript}, ${cleanPaymentId},
+        ${cleanCounteragentUuid}::uuid, ${cleanFinancialCodeUuid}::uuid, ${cleanNominalCurrencyUuid}::uuid, ${active ?? true}
       )
       RETURNING *
     `;

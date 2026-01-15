@@ -8,15 +8,83 @@ export function compileFormulaToJS(formula: string): string {
   
   // Replace Excel functions with JavaScript equivalents
   
-  // SEARCH(text, column) -> column.toLowerCase().includes(text.toLowerCase())
+  // Handle the common pattern: NOT(ISERROR(SEARCH(text, column, start))) - returns true if found
   code = code.replace(
-    /SEARCH\s*\(\s*"([^"]+)"\s*,\s*(\w+)\s*\)/gi,
+    /NOT\s*\(\s*ISERROR\s*\(\s*SEARCH\s*\(\s*"([^"]+)"\s*,\s*(\w+)\s*,\s*\d+\s*\)\s*\)\s*\)/gi,
     (_, text, col) => `(row.${col} && String(row.${col}).toLowerCase().includes("${text}".toLowerCase()))`
   );
   
   code = code.replace(
-    /SEARCH\s*\(\s*'([^']+)'\s*,\s*(\w+)\s*\)/gi,
+    /NOT\s*\(\s*ISERROR\s*\(\s*SEARCH\s*\(\s*'([^']+)'\s*,\s*(\w+)\s*,\s*\d+\s*\)\s*\)\s*\)/gi,
     (_, text, col) => `(row.${col} && String(row.${col}).toLowerCase().includes('${text}'.toLowerCase()))`
+  );
+  
+  // 2-parameter NOT(ISERROR(SEARCH(...)))
+  code = code.replace(
+    /NOT\s*\(\s*ISERROR\s*\(\s*SEARCH\s*\(\s*"([^"]+)"\s*,\s*(\w+)\s*\)\s*\)\s*\)/gi,
+    (_, text, col) => `(row.${col} && String(row.${col}).toLowerCase().includes("${text}".toLowerCase()))`
+  );
+  
+  code = code.replace(
+    /NOT\s*\(\s*ISERROR\s*\(\s*SEARCH\s*\(\s*'([^']+)'\s*,\s*(\w+)\s*\)\s*\)\s*\)/gi,
+    (_, text, col) => `(row.${col} && String(row.${col}).toLowerCase().includes('${text}'.toLowerCase()))`
+  );
+  
+  // Handle ISNUMBER(SEARCH(text, column, start)) - returns true if found (3-parameter)
+  code = code.replace(
+    /ISNUMBER\s*\(\s*SEARCH\s*\(\s*"([^"]+)"\s*,\s*(\w+)\s*,\s*\d+\s*\)\s*\)/gi,
+    (_, text, col) => `(row.${col} && String(row.${col}).toLowerCase().includes("${text}".toLowerCase()))`
+  );
+  
+  code = code.replace(
+    /ISNUMBER\s*\(\s*SEARCH\s*\(\s*'([^']+)'\s*,\s*(\w+)\s*,\s*\d+\s*\)\s*\)/gi,
+    (_, text, col) => `(row.${col} && String(row.${col}).toLowerCase().includes('${text}'.toLowerCase()))`
+  );
+  
+  // Handle ISNUMBER(SEARCH(text, column)) - returns true if found (2-parameter)
+  code = code.replace(
+    /ISNUMBER\s*\(\s*SEARCH\s*\(\s*"([^"]+)"\s*,\s*(\w+)\s*\)\s*\)/gi,
+    (_, text, col) => `(row.${col} && String(row.${col}).toLowerCase().includes("${text}".toLowerCase()))`
+  );
+  
+  code = code.replace(
+    /ISNUMBER\s*\(\s*SEARCH\s*\(\s*'([^']+)'\s*,\s*(\w+)\s*\)\s*\)/gi,
+    (_, text, col) => `(row.${col} && String(row.${col}).toLowerCase().includes('${text}'.toLowerCase()))`
+  );
+  
+  // Standalone SEARCH - returns position number or -1
+  // 3-parameter version: SEARCH(text, column, start_position)
+  code = code.replace(
+    /SEARCH\s*\(\s*"([^"]+)"\s*,\s*(\w+)\s*,\s*\d+\s*\)/gi,
+    (_, text, col) => `((row.${col} ? String(row.${col}).toLowerCase().indexOf("${text}".toLowerCase()) : -1) + 1)`
+  );
+  
+  code = code.replace(
+    /SEARCH\s*\(\s*'([^']+)'\s*,\s*(\w+)\s*,\s*\d+\s*\)/gi,
+    (_, text, col) => `((row.${col} ? String(row.${col}).toLowerCase().indexOf('${text}'.toLowerCase()) : -1) + 1)`
+  );
+  
+  // 2-parameter version: SEARCH(text, column)
+  code = code.replace(
+    /SEARCH\s*\(\s*"([^"]+)"\s*,\s*(\w+)\s*\)/gi,
+    (_, text, col) => `((row.${col} ? String(row.${col}).toLowerCase().indexOf("${text}".toLowerCase()) : -1) + 1)`
+  );
+  
+  code = code.replace(
+    /SEARCH\s*\(\s*'([^']+)'\s*,\s*(\w+)\s*\)/gi,
+    (_, text, col) => `((row.${col} ? String(row.${col}).toLowerCase().indexOf('${text}'.toLowerCase()) : -1) + 1)`
+  );
+  
+  // ISERROR(expression) -> simple error checking (for remaining cases)
+  code = code.replace(
+    /ISERROR\s*\(/gi,
+    '(function(){ try { var result = ('
+  );
+  
+  // ISNUMBER(expression) -> typeof check
+  code = code.replace(
+    /ISNUMBER\s*\(/gi,
+    '(typeof ('
   );
   
   // EXACT(text, column) -> column === text

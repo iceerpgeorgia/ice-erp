@@ -289,6 +289,30 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
         if idx <= 3:
             print(f"    ✅ [PHASE 3] Payment ID matched: {extracted_payment_id}")
     
+    # =============================
+    # PHASE 4: Reverse Payment Lookup (OPTIONAL - No conflicts, just link)
+    # =============================
+    # If we have counteragent + project + financial_code + currency but no payment_id yet,
+    # try to find a matching payment record
+    if (not result['payment_id'] and 
+        result['counteragent_uuid'] and 
+        result['financial_code_uuid'] and 
+        result['nominal_currency_uuid']):
+        
+        # Build lookup key - project can be NULL
+        lookup_key = f"{result['counteragent_uuid']}_{result['project_uuid']}_{result['financial_code_uuid']}_{result['nominal_currency_uuid']}"
+        
+        # Search payments_map for matching payment
+        for payment_id, payment_data in payments_map.items():
+            if (payment_data['counteragent_uuid'] == result['counteragent_uuid'] and
+                payment_data['project_uuid'] == result['project_uuid'] and
+                payment_data['financial_code_uuid'] == result['financial_code_uuid'] and
+                payment_data['currency_uuid'] == result['nominal_currency_uuid']):
+                result['payment_id'] = payment_id
+                if idx <= 3:
+                    print(f"    🔗 [REVERSE LOOKUP] Linked to payment: {payment_id}")
+                break
+    
     return result
 
 def get_db_connections():
@@ -372,6 +396,77 @@ def identify_bog_gel_account(xml_file):
     except Exception as e:
         print(f"⚠️ Could not parse as BOG GEL format: {e}")
         return None
+
+def parse_bog_date(date_str):
+    """Parse BOG date format (YYYY-MM-DD) to date object"""
+    if not date_str:
+        return None
+    try:
+        return datetime.strptime(str(date_str).strip(), '%Y-%m-%d').date()
+    except:
+        return None
+
+def calculate_nominal_amount(account_currency_amount, account_currency_code, nominal_currency_uuid, 
+                             transaction_date, nbg_rates_map, currency_cache):
+    """
+    Calculate nominal amount using NBG exchange rates.
+    
+    NBG rates represent: 1 foreign currency unit = X GEL
+    For example: 1 USD = 2.8 GEL means usd_rate = 2.8
+    
+    Conversion formulas:
+    - GEL → Foreign Currency: gel_amount / rate = foreign_amount
+      Example: 1000 GEL / 2.8 = 357.14 USD
+    - Foreign Currency → GEL: foreign_amount * rate = gel_amount  
+      Example: 357.14 USD * 2.8 = 1000 GEL
+    - Same currencies: No conversion
+    """
+    # Default to account currency amount
+    nominal_amount = account_currency_amount
+    
+    if not nominal_currency_uuid:
+        return nominal_amount
+    
+    # Get nominal currency code from cache
+    if nominal_currency_uuid not in currency_cache:
+        return nominal_amount
+    
+    nominal_currency_code = currency_cache[nominal_currency_uuid]
+    
+    # If account currency is same as nominal currency, no conversion needed
+    if account_currency_code == nominal_currency_code:
+        return account_currency_amount
+    
+    # Get NBG rate for the date
+    date_key = transaction_date.strftime('%Y-%m-%d')
+    if date_key not in nbg_rates_map:
+        # No rate available for this date, return original amount
+        return account_currency_amount
+    
+    # Case 1: GEL account → Foreign nominal currency (divide by rate)
+    if account_currency_code == 'GEL' and nominal_currency_code in ['USD', 'EUR', 'CNY', 'GBP', 'RUB', 'TRY', 'AED', 'KZT']:
+        rate = nbg_rates_map[date_key].get(nominal_currency_code)
+        if rate and rate > 0:
+            # GEL → Foreign: divide by rate
+            nominal_amount = account_currency_amount / Decimal(str(rate))
+    
+    # Case 2: Foreign account → GEL nominal currency (multiply by rate)
+    elif account_currency_code in ['USD', 'EUR', 'CNY', 'GBP', 'RUB', 'TRY', 'AED', 'KZT'] and nominal_currency_code == 'GEL':
+        rate = nbg_rates_map[date_key].get(account_currency_code)
+        if rate and rate > 0:
+            # Foreign → GEL: multiply by rate
+            nominal_amount = account_currency_amount * Decimal(str(rate))
+    
+    # Case 3: Foreign → Different Foreign (convert through GEL)
+    elif account_currency_code in ['USD', 'EUR', 'CNY', 'GBP', 'RUB', 'TRY', 'AED', 'KZT'] and nominal_currency_code in ['USD', 'EUR', 'CNY', 'GBP', 'RUB', 'TRY', 'AED', 'KZT']:
+        account_rate = nbg_rates_map[date_key].get(account_currency_code)
+        nominal_rate = nbg_rates_map[date_key].get(nominal_currency_code)
+        if account_rate and nominal_rate and account_rate > 0 and nominal_rate > 0:
+            # Convert to GEL first, then to target currency
+            gel_amount = account_currency_amount * Decimal(str(account_rate))
+            nominal_amount = gel_amount / Decimal(str(nominal_rate))
+    
+    return nominal_amount
 
 def parse_bog_date(date_str):
     """Parse BOG date format (DD.MM.YYYY or DD.MM.YY)"""
@@ -653,6 +748,28 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
     print(f"  ✅ Loaded {len(parsing_rules)} parsing rules ({time.time()-dict_start:.2f}s)")
     sys.stdout.flush()
     
+    # Load NBG exchange rates
+    dict_start = time.time()
+    local_cursor.execute("""
+        SELECT date, usd_rate, eur_rate, cny_rate, gbp_rate, rub_rate, try_rate, aed_rate, kzt_rate
+        FROM nbg_exchange_rates
+    """)
+    nbg_rates_map = {}
+    for row in local_cursor.fetchall():
+        date_key = row[0].strftime('%Y-%m-%d')
+        nbg_rates_map[date_key] = {
+            'USD': row[1],
+            'EUR': row[2],
+            'CNY': row[3],
+            'GBP': row[4],
+            'RUB': row[5],
+            'TRY': row[6],
+            'AED': row[7],
+            'KZT': row[8]
+        }
+    print(f"  ✅ Loaded NBG rates for {len(nbg_rates_map)} dates ({time.time()-dict_start:.2f}s)")
+    sys.stdout.flush()
+    
     # Load payments
     dict_start = time.time()
     local_cursor.execute("""
@@ -686,7 +803,7 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
             uuid, DocKey, EntriesId, DocRecDate, DocValueDate,
             EntryCrAmt, EntryDbAmt, DocSenderInn, DocBenefInn,
             DocSenderAcctNo, DocBenefAcctNo, DocCorAcct,
-            DocNomination, DocInformation, DocProdGroup
+            DocNomination, DocInformation, DocProdGroup, CcyRate
         FROM {raw_table_name}
         WHERE import_batch_id = %s
         ORDER BY DocValueDate DESC
@@ -695,6 +812,12 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
     raw_records = remote_cursor.fetchall()
     total_records = len(raw_records)
     print(f"📦 Processing {total_records} records...\n")
+    
+    # Load currency cache once (avoid repeated queries)
+    print(f"  \ud83d\udd04 Loading currency cache...")
+    remote_cursor.execute("SELECT uuid, code FROM currencies")
+    currency_cache = {row[0]: row[1] for row in remote_cursor.fetchall()}
+    print(f"  \u2705 Loaded {len(currency_cache)} currencies\n")
     
     # Statistics for 8-case hierarchical logic
     stats = {
@@ -728,12 +851,14 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
         DocNomination = raw_record[12]
         DocInformation = raw_record[13]
         DocProdGroup = raw_record[14]
+        CcyRate = raw_record[15]
         
         # Calculate amounts
         credit = Decimal(EntryCrAmt) if EntryCrAmt else Decimal('0')
         debit = Decimal(EntryDbAmt) if EntryDbAmt else Decimal('0')
         account_currency_amount = credit - debit
         
+
         # Parse dates
         transaction_date = parse_bog_date(DocValueDate)
         correction_date = parse_bog_date(DocRecDate)
@@ -777,8 +902,16 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
         payment_id = result['payment_id']
         
         # Set defaults for missing values
+        # Calculate nominal amount using NBG exchange rates
         nominal_currency_uuid = result['nominal_currency_uuid'] or account_currency_uuid
-        nominal_amount = account_currency_amount
+        nominal_amount = calculate_nominal_amount(
+            account_currency_amount,
+            currency_code,
+            nominal_currency_uuid,
+            transaction_date,
+            nbg_rates_map,
+            local_cursor
+        )
         
         # Generate case description (case2 and case8 deprecated, set to False)
         case_description = compute_case_description(
@@ -805,6 +938,7 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
             'counteragent_account_number': counteragent_account_number,
             'project_uuid': project_uuid,
             'financial_code_uuid': financial_code_uuid,
+            'payment_id': result.get('payment_id'),
             'account_currency_uuid': account_currency_uuid,
             'account_currency_amount': float(account_currency_amount),
             'nominal_currency_uuid': nominal_currency_uuid,
@@ -846,14 +980,14 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
             INSERT INTO consolidated_bank_accounts (
                 uuid, bank_account_uuid, raw_record_uuid, transaction_date,
                 description, counteragent_uuid, counteragent_account_number,
-                project_uuid, financial_code_uuid,
+                project_uuid, financial_code_uuid, payment_id,
                 account_currency_uuid, account_currency_amount,
                 nominal_currency_uuid, nominal_amount,
                 processing_case, created_at
             ) VALUES (
                 %(uuid)s, %(bank_account_uuid)s, %(raw_record_uuid)s, %(transaction_date)s,
                 %(description)s, %(counteragent_uuid)s, %(counteragent_account_number)s,
-                %(project_uuid)s, %(financial_code_uuid)s,
+                %(project_uuid)s, %(financial_code_uuid)s, %(payment_id)s,
                 %(account_currency_uuid)s, %(account_currency_amount)s,
                 %(nominal_currency_uuid)s, %(nominal_amount)s,
                 %(processing_case)s, NOW()
@@ -1104,24 +1238,25 @@ def backparse_existing_data(account_uuid=None, batch_id=None, clear_consolidated
                     DELETE FROM consolidated_bank_accounts 
                     WHERE bank_account_uuid = %s
                 """, (acc_uuid,))
+                local_conn.commit()
                 print(f"✅ Cleared consolidated records\n")
-            
-            # Note: Processing flags (counteragent_processed, etc.) are Supabase-specific
-            # LOCAL raw tables only have is_processed flag
-            print(f"🔄 Resetting is_processed flags...")
-            if batch_id:
-                local_cursor.execute(f"""
-                    UPDATE {raw_table_name} 
-                    SET is_processed = FALSE
-                    WHERE import_batch_id = %s
-                """, (batch_id,))
+                print(f"ℹ️  Skipping flag reset (flags will be updated during processing)\n")
             else:
-                local_cursor.execute(f"""
-                    UPDATE {raw_table_name} 
-                    SET is_processed = FALSE
-                """)
-            local_conn.commit()
-            print(f"✅ Processing flags reset\n")
+                # Only reset flags if not clearing (incremental mode)
+                print(f"🔄 Resetting is_processed flags...")
+                if batch_id:
+                    local_cursor.execute(f"""
+                        UPDATE {raw_table_name} 
+                        SET is_processed = FALSE
+                        WHERE import_batch_id = %s
+                    """, (batch_id,))
+                else:
+                    local_cursor.execute(f"""
+                        UPDATE {raw_table_name} 
+                        SET is_processed = FALSE
+                    """)
+                local_conn.commit()
+                print(f"✅ Processing flags reset\n")
             
             # Now run the three-phase processing on existing data
             # We'll reuse the processing logic but without XML import
@@ -1234,6 +1369,27 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
         })
     print(f"  ✅ Loaded {len(parsing_rules)} parsing rules ({time.time()-dict_start:.2f}s)")
     
+    # Load NBG exchange rates
+    dict_start = time.time()
+    local_cursor.execute("""
+        SELECT date, usd_rate, eur_rate, cny_rate, gbp_rate, rub_rate, try_rate, aed_rate, kzt_rate
+        FROM nbg_exchange_rates
+    """)
+    nbg_rates_map = {}
+    for row in local_cursor.fetchall():
+        date_key = row[0].strftime('%Y-%m-%d')
+        nbg_rates_map[date_key] = {
+            'USD': row[1],
+            'EUR': row[2],
+            'CNY': row[3],
+            'GBP': row[4],
+            'RUB': row[5],
+            'TRY': row[6],
+            'AED': row[7],
+            'KZT': row[8]
+        }
+    print(f"  ✅ Loaded NBG rates for {len(nbg_rates_map)} dates ({time.time()-dict_start:.2f}s)")
+    
     # Load payments
     dict_start = time.time()
     local_cursor.execute("""
@@ -1268,7 +1424,7 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
                 uuid, DocKey, EntriesId, DocRecDate, DocValueDate,
                 EntryCrAmt, EntryDbAmt, DocSenderInn, DocBenefInn,
                 DocSenderAcctNo, DocBenefAcctNo, DocCorAcct,
-                DocNomination, DocInformation, DocProdGroup
+                DocNomination, DocInformation, DocProdGroup, CcyRate
             FROM {raw_table_name}
             WHERE import_batch_id = %s
             ORDER BY DocValueDate DESC
@@ -1280,17 +1436,44 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
                 uuid, DocKey, EntriesId, DocRecDate, DocValueDate,
                 EntryCrAmt, EntryDbAmt, DocSenderInn, DocBenefInn,
                 DocSenderAcctNo, DocBenefAcctNo, DocCorAcct,
-                DocNomination, DocInformation, DocProdGroup
+                DocNomination, DocInformation, DocProdGroup, CcyRate
             FROM {raw_table_name}
             WHERE DocValueDate IS NOT NULL
             ORDER BY DocValueDate DESC
         """
         params = ()
     
+    # Fetch all records at once (faster for network connections)
+    print(f"📦 Fetching records from database...")
+    sys.stdout.flush()
+    fetch_start = time.time()
+    
     local_cursor.execute(query, params)
     raw_records = local_cursor.fetchall()
     total_records = len(raw_records)
-    print(f"📦 Processing {total_records} records from LOCAL database...\n")
+    
+    print(f"  ✅ Loaded {total_records} records in {time.time()-fetch_start:.2f}s\n")
+    sys.stdout.flush()
+    
+    # Load currency cache once (avoid repeated queries)
+    print(f"  \ud83d\udd04 Loading currency cache...")
+    sys.stdout.flush()
+    local_cursor.execute("SELECT uuid, code FROM currencies")
+    currency_cache = {row[0]: row[1] for row in local_cursor.fetchall()}
+    print(f"  \u2705 Loaded {len(currency_cache)} currencies\n")
+    sys.stdout.flush()
+    
+    # Load currency cache once (avoid repeated queries)
+    print(f"  🔄 Loading currency cache...")
+    local_cursor.execute("SELECT uuid, code FROM currencies")
+    currency_cache = {row[0]: row[1] for row in local_cursor.fetchall()}
+    print(f"  ✅ Loaded {len(currency_cache)} currencies")
+    
+    # Load currency cache once (avoid repeated queries)
+    print(f"  🔄 Loading currency cache...")
+    local_cursor.execute("SELECT uuid, code FROM currencies")
+    currency_cache = {row[0]: row[1] for row in local_cursor.fetchall()}
+    print(f"  ✅ Loaded {len(currency_cache)} currencies")
     
     # Statistics for 8 cases
     stats = {
@@ -1337,12 +1520,14 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
         DocNomination = raw_record[12]
         DocInformation = raw_record[13]
         DocProdGroup = raw_record[14]
+        CcyRate = raw_record[15]
         
         # Calculate amounts
         credit = Decimal(EntryCrAmt) if EntryCrAmt else Decimal('0')
         debit = Decimal(EntryDbAmt) if EntryDbAmt else Decimal('0')
         account_currency_amount = credit - debit
         
+
         # Parse dates
         transaction_date = parse_bog_date(DocValueDate)
         correction_date = parse_bog_date(DocRecDate)
@@ -1386,8 +1571,16 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
         payment_id = result['payment_id']
         
         # Set defaults for missing values
+        # Calculate nominal amount using NBG exchange rates
         nominal_currency_uuid = result['nominal_currency_uuid'] or account_currency_uuid
-        nominal_amount = account_currency_amount
+        nominal_amount = calculate_nominal_amount(
+            account_currency_amount,
+            currency_code,
+            nominal_currency_uuid,
+            transaction_date,
+            nbg_rates_map,
+            local_cursor
+        )
         
         # Generate case description (case2 and case8 deprecated, set to False)
         case_description = compute_case_description(
@@ -1414,6 +1607,7 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
             'counteragent_account_number': counteragent_account_number,
             'project_uuid': project_uuid,
             'financial_code_uuid': financial_code_uuid,
+            'payment_id': result.get('payment_id'),
             'account_currency_uuid': account_currency_uuid,
             'account_currency_amount': float(account_currency_amount),
             'nominal_currency_uuid': nominal_currency_uuid,
@@ -1445,50 +1639,70 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
     log_step(3, "THREE-PHASE PROCESSING", step_start)
     
     # ===================
-    # STEP 4: Insert Consolidated Records
+    # STEP 4: Insert Consolidated Records (ULTRA-FAST COPY METHOD)
     # ===================
     step_start = log_step(4, f"INSERTING {len(consolidated_records)} CONSOLIDATED RECORDS")
     
     if consolidated_records:
-        insert_consolidated_query = """
-            INSERT INTO consolidated_bank_accounts (
-                uuid, bank_account_uuid, raw_record_uuid, transaction_date,
-                description, counteragent_uuid, counteragent_account_number,
-                project_uuid, financial_code_uuid,
-                account_currency_uuid, account_currency_amount,
-                nominal_currency_uuid, nominal_amount,
-                processing_case, created_at
-            ) VALUES (
-                %(uuid)s, %(bank_account_uuid)s, %(raw_record_uuid)s, %(transaction_date)s,
-                %(description)s, %(counteragent_uuid)s, %(counteragent_account_number)s,
-                %(project_uuid)s, %(financial_code_uuid)s,
-                %(account_currency_uuid)s, %(account_currency_amount)s,
-                %(nominal_currency_uuid)s, %(nominal_amount)s,
-                %(processing_case)s, NOW()
-            )
-        """
-        
-        print(f"  🚀 Starting batch insert of {len(consolidated_records)} records to LOCAL database...")
+        print(f"  🚀 Starting ULTRA-FAST COPY insert of {len(consolidated_records)} records...")
         sys.stdout.flush()
         insert_start = time.time()
         
-        # Insert in chunks to show progress
-        chunk_size = 5000
-        total_chunks = (len(consolidated_records) + chunk_size - 1) // chunk_size
+        # Use PostgreSQL COPY for maximum insert speed
+        from io import StringIO
+        buffer = StringIO()
         
-        for chunk_idx in range(0, len(consolidated_records), chunk_size):
-            chunk = consolidated_records[chunk_idx:chunk_idx + chunk_size]
-            chunk_num = chunk_idx // chunk_size + 1
-            local_cursor.executemany(insert_consolidated_query, chunk)
-            elapsed = time.time() - insert_start
-            pct = (chunk_idx + len(chunk)) * 100 // len(consolidated_records)
-            print(f"  📊 Insert progress: {chunk_num}/{total_chunks} chunks ({pct}%) - {elapsed:.1f}s elapsed")
-            sys.stdout.flush()
+        for rec in consolidated_records:
+            # Convert None to \N (PostgreSQL NULL in COPY format)
+            def fmt(val):
+                if val is None:
+                    return '\\N'
+                if isinstance(val, str):
+                    # Escape tabs, newlines, backslashes
+                    return val.replace('\\', '\\\\').replace('\t', '\\t').replace('\n', '\\n').replace('\r', '\\r')
+                return str(val)
+            
+            line = '\t'.join([
+                fmt(rec['uuid']),
+                fmt(rec['bank_account_uuid']),
+                fmt(rec['raw_record_uuid']),
+                fmt(rec['transaction_date']),
+                fmt(rec['description']),
+                fmt(rec['counteragent_uuid']),
+                fmt(rec['counteragent_account_number']),
+                fmt(rec['project_uuid']),
+                fmt(rec['financial_code_uuid']),
+                fmt(rec['payment_id']),
+                fmt(rec['account_currency_uuid']),
+                fmt(rec['account_currency_amount']),
+                fmt(rec['nominal_currency_uuid']),
+                fmt(rec['nominal_amount']),
+                fmt(rec['processing_case'])
+            ])
+            buffer.write(line + '\n')
         
-        print(f"  ⏳ Committing transaction to LOCAL database...")
+        buffer.seek(0)
+        
+        # COPY is 10-50x faster than INSERT for bulk data
+        print(f"  ⬆️ Executing COPY command (this is very fast)...")
+        sys.stdout.flush()
+        local_cursor.copy_expert(
+            """
+            COPY consolidated_bank_accounts (
+                uuid, bank_account_uuid, raw_record_uuid, transaction_date,
+                description, counteragent_uuid, counteragent_account_number,
+                project_uuid, financial_code_uuid, payment_id,
+                account_currency_uuid, account_currency_amount,
+                nominal_currency_uuid, nominal_amount, processing_case
+            ) FROM STDIN WITH (FORMAT text, NULL '\\N')
+            """,
+            buffer
+        )
+        
+        print(f"  ⏳ Committing transaction...")
         sys.stdout.flush()
         local_conn.commit()
-        print(f"  ✅ Insert completed in {time.time()-insert_start:.2f}s")
+        print(f"  ✅ Insert completed in {time.time()-insert_start:.2f}s ({len(consolidated_records)/(time.time()-insert_start):.0f} rec/s)")
         
         log_step(4, "CONSOLIDATED RECORDS INSERTION", step_start)
     
@@ -1568,7 +1782,6 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
                 parsing_rule_conflict = tmp.parsing_rule_conflict,
                 counteragent_inn = tmp.counteragent_inn,
                 applied_rule_id = tmp.applied_rule_id,
-                processing_case = tmp.processing_case,
                 is_processed = TRUE,
                 updated_at = NOW()
             FROM temp_flag_updates AS tmp

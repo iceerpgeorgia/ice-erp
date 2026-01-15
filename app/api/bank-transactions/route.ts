@@ -21,6 +21,7 @@ function toApi(row: any) {
     account_currency_amount: row.accountCurrencyAmount?.toString() ?? null,
     nominal_currency_uuid: row.nominalCurrencyUuid,
     nominal_amount: row.nominalAmount?.toString() ?? null,
+    payment_id: row.paymentId ?? null,
     processing_case: row.processingCase,
     created_at: row.createdAt?.toISOString() ?? null,
     updated_at: row.updatedAt?.toISOString() ?? null,
@@ -149,13 +150,19 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // Fetch applied_rule_id from raw table
-    const rawRecordsWithRules = rawRecordUuids.length > 0
-      ? await prisma.$queryRawUnsafe<Array<{ uuid: string; applied_rule_id: number | null }>>(
+    // Fetch applied_rule_id from raw table (optional - may not exist on all environments)
+    let rawRecordsWithRules: Array<{ uuid: string; applied_rule_id: number | null }> = [];
+    try {
+      if (rawRecordUuids.length > 0) {
+        rawRecordsWithRules = await prisma.$queryRawUnsafe<Array<{ uuid: string; applied_rule_id: number | null }>>(
           `SELECT uuid, applied_rule_id FROM bog_gel_raw_893486000 WHERE uuid = ANY($1::uuid[])`,
           rawRecordUuids
-        )
-      : [];
+        );
+      }
+    } catch (rawTableError) {
+      console.warn('[API] Could not fetch applied_rule_id from raw table:', rawTableError);
+      // Continue without applied_rule_id data
+    }
     const appliedRuleMap = new Map(rawRecordsWithRules.map(r => [r.uuid, r.applied_rule_id]));
 
     // Fetch lookup data

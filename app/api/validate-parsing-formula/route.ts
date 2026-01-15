@@ -67,7 +67,7 @@ function validateFormula(formula: string, availableColumns: string[]): {
       'OR', 'AND', 'NOT',
       'SEARCH', 'EXACT', 
       'LEN', 'LEFT', 'RIGHT', 'UPPER', 'LOWER',
-      'ISBLANK', 'ISEMPTY'
+      'ISBLANK', 'ISEMPTY', 'ISNUMBER', 'ISERROR'
     ];
 
     // Extract all function names used

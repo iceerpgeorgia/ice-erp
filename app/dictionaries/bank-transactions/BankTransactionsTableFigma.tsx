@@ -206,7 +206,7 @@ export default function BankTransactionsTableFigma() {
           counteragentName: row.counteragent_name || null,
           projectIndex: row.project_index || null,
           financialCode: row.financial_code || null,
-          paymentId: null, // Not used in current schema
+          paymentId: row.payment_id || null,
           nominalCurrencyCode: row.nominal_currency_code || null,
         }));
 

@@ -302,6 +302,7 @@ model ConsolidatedBankAccount {
   counteragentAccountNumber String?  @map("counteragent_account_number")
   projectUuid             String?  @map("project_uuid") @db.Uuid
   financialCodeUuid     String?  @map("financial_code_uuid") @db.Uuid
+  paymentId             String?  @map("payment_id")
   accountCurrencyUuid   String   @map("account_currency_uuid") @db.Uuid
   accountCurrencyAmount Decimal  @map("account_currency_amount") @db.Decimal(20, 2)
   nominalCurrencyUuid   String   @map("nominal_currency_uuid") @db.Uuid
@@ -319,6 +320,7 @@ model ConsolidatedBankAccount {
   @@index([projectUuid], map: "idx_consolidated_project_uuid")
   @@index([rawRecordUuid], map: "idx_consolidated_raw_record_uuid")
   @@index([transactionDate], map: "idx_consolidated_transaction_date")
+  @@index([paymentId], map: "idx_consolidated_payment_id")
   @@map("consolidated_bank_accounts")
 }
 

@@ -613,42 +613,63 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   };
 
   const startEdit = async (transaction: BankTransaction) => {
+    console.log('[startEdit] Transaction:', transaction);
     setEditingTransaction(transaction);
-    setFormData({
-      payment_uuid: transaction.paymentId || '',
+    
+    // Initialize form with transaction data - use UUID fields for form values
+    const initialFormData = {
+      payment_uuid: transaction.paymentUuid || '',
       project_uuid: transaction.projectUuid || '',
-      job_uuid: '', // Will be loaded based on project
+      job_uuid: '', // Will be populated after jobs load
       financial_code_uuid: transaction.financialCodeUuid || '',
       nominal_currency_uuid: transaction.nominalCurrencyUuid || '',
-    });
+    };
+    console.log('[startEdit] Initial formData:', initialFormData);
+    setFormData(initialFormData);
     setLoadingOptions(true);
     setIsEditDialogOpen(true); // Open dialog immediately with loading state
+    
+    // Reset all search states
+    setPaymentSearch('');
+    setProjectSearch('');
+    setJobSearch('');
+    setFinancialCodeSearch('');
+    setCurrencySearch('');
     
     try {
       // Fetch payment options for this transaction's counteragent
       const res = await fetch(`/api/bank-transactions/${transaction.id}/payment-options`);
       const data = await res.json();
       console.log('Payment options received from API:', data.payments);
-      setPaymentOptions(data.payments || []);
+      const payments = data.payments || [];
+      console.log('[startEdit] Payment options received:', payments.length, 'payments');
+      console.log('[startEdit] First payment:', payments[0]);
+      console.log('[startEdit] Transaction paymentUuid:', transaction.paymentUuid);
+      setPaymentOptions(payments);
       
       // If transaction already has a payment, find it and populate display values
-      if (transaction.paymentId && data.payments) {
-        const selectedPayment = data.payments.find((p: any) => p.paymentId === transaction.paymentId);
-        console.log('Looking for payment:', transaction.paymentId);
-        console.log('Found payment:', selectedPayment);
+      if (transaction.paymentUuid && payments && payments.length > 0) {
+        // Try to find by paymentId (the display value)
+        const selectedPayment = payments.find((p: any) => p.paymentId === transaction.paymentId);
+        console.log('[startEdit] Looking for payment:', transaction.paymentId);
+        console.log('[startEdit] Found payment:', selectedPayment);
+        
         if (selectedPayment) {
+          // Update formData with the correct payment ID for Select value
+          setFormData(prev => ({
+            ...prev,
+            payment_uuid: selectedPayment.paymentId // Use paymentId as the value
+          }));
+          
           setPaymentDisplayValues({
             projectLabel: selectedPayment.projectName || '',
             jobLabel: selectedPayment.jobDisplay || selectedPayment.jobName || '',
             financialCodeLabel: selectedPayment.financialCodeValidation || '',
             currencyLabel: selectedPayment.currencyCode || '',
           });
-          console.log('Set display values:', {
-            projectLabel: selectedPayment.projectName,
-            jobLabel: selectedPayment.jobDisplay || selectedPayment.jobName,
-            financialCodeLabel: selectedPayment.financialCodeValidation,
-            currencyLabel: selectedPayment.currencyCode,
-          });
+          console.log('[startEdit] Set display values for locked fields');
+        } else {
+          console.warn('[startEdit] Payment exists but not found in options');
         }
       }
       
@@ -699,7 +720,18 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       if (transaction.projectUuid) {
         const jobsRes = await fetch(`/api/jobs?projectUuid=${transaction.projectUuid}`);
         const jobsData = await jobsRes.json();
-        setJobOptions(Array.isArray(jobsData) ? jobsData : []);
+        const jobs = Array.isArray(jobsData) ? jobsData : [];
+        console.log('[startEdit] Loaded jobs:', jobs.length);
+        setJobOptions(jobs);
+        
+        // Now set the job_uuid in formData if transaction has one
+        // We need to find the matching job by UUID
+        // Transaction stores jobUuid, jobs array has job_uuid field
+        if (transaction.projectUuid && jobs.length > 0) {
+          // Find if there's a job that matches - need to check transaction for job reference
+          // For now, we'll rely on the payment's job if it exists
+          console.log('[startEdit] Transaction has project, jobs available');
+        }
       } else {
         setJobOptions([]);
       }

@@ -17,11 +17,12 @@ export async function GET(request: NextRequest) {
     const maxDate = searchParams.get('maxDate');
 
     // Build the HAVING clause for date filtering (must be applied after GROUP BY)
+    // Include both ledger dates AND bank transaction dates
     const dateFilter = maxDate 
-      ? `HAVING MAX(pl.effective_date) <= '${maxDate}'::date` 
+      ? `HAVING GREATEST(MAX(pl.effective_date), MAX(cba.transaction_date::date)) <= '${maxDate}'::date` 
       : '';
 
-    // Query to get payments with aggregated ledger data
+    // Query to get payments with aggregated ledger data and actual payments from bank accounts
     const query = `
       SELECT 
         p.payment_id,
@@ -43,8 +44,8 @@ export async function GET(request: NextRequest) {
         curr.code as currency_code,
         COALESCE(SUM(pl.accrual), 0) as total_accrual,
         COALESCE(SUM(pl."order"), 0) as total_order,
-        0 as total_payment,
-        MAX(pl.effective_date) as latest_date
+        COALESCE(SUM(cba.nominal_amount), 0) as total_payment,
+        GREATEST(MAX(pl.effective_date), MAX(cba.transaction_date::date)) as latest_date
       FROM payments p
       LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
       LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
@@ -52,6 +53,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
       LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
       LEFT JOIN payments_ledger pl ON p.payment_id = pl.payment_id
+      LEFT JOIN consolidated_bank_accounts cba ON p.payment_id = cba.payment_id
       WHERE p.is_active = true
       GROUP BY 
         p.payment_id,

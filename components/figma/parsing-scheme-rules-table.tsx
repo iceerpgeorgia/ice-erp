@@ -29,6 +29,10 @@ type ParsingSchemeRule = {
   counteragentUuid: string | null;
   financialCodeUuid: string | null;
   nominalCurrencyUuid: string | null;
+  counteragentName?: string | null;
+  financialCode?: string | null;
+  currencyCode?: string | null;
+  appliedCount?: number;
   active: boolean;
 };
 
@@ -48,6 +52,10 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'scheme', label: 'Scheme', visible: true, sortable: true, filterable: true, width: 150 },
   { key: 'condition', label: 'Formula', visible: true, sortable: true, filterable: true, width: 400 },
   { key: 'paymentId', label: 'Payment ID', visible: true, sortable: true, filterable: true, width: 200 },
+  { key: 'counteragentUuid', label: 'Counteragent', visible: true, sortable: true, filterable: true, width: 200 },
+  { key: 'financialCodeUuid', label: 'Financial Code', visible: true, sortable: true, filterable: true, width: 150 },
+  { key: 'nominalCurrencyUuid', label: 'Currency', visible: true, sortable: true, filterable: true, width: 120 },
+  { key: 'appliedCount', label: 'Applied to', visible: true, sortable: true, filterable: false, width: 100 },
 ];
 
 interface ParsingScheme {
@@ -103,6 +111,10 @@ export function ParsingSchemeRulesTable() {
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [selectedSchemeFilter, setSelectedSchemeFilter] = useState<string>('');
+  
+  // Selection state
+  const [selectedRules, setSelectedRules] = useState<Set<number>>(new Set());
+  const [isRunningBatch, setIsRunningBatch] = useState(false);
 
   // Dialog states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -137,6 +149,9 @@ export function ParsingSchemeRulesTable() {
 
   // Test rule preview states
   const [isTestDialogOpen, setIsTestDialogOpen] = useState(false);
+  const [testDialogSearch, setTestDialogSearch] = useState('');
+  const [testDialogPage, setTestDialogPage] = useState(1);
+  const [testDialogPageSize, setTestDialogPageSize] = useState(100);
   const [testRuleData, setTestRuleData] = useState<{
     rule: ParsingSchemeRule | null;
     matchCount: number;
@@ -742,6 +757,57 @@ export function ParsingSchemeRulesTable() {
     }
   };
 
+  const handleBatchRun = async () => {
+    if (selectedRules.size === 0) return;
+    
+    setIsRunningBatch(true);
+    try {
+      const response = await fetch('/api/parsing-scheme-rules/batch-run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ruleIds: Array.from(selectedRules) })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`Successfully processed ${result.results.length} rules:\n${result.results.map((r: any) => `Rule ${r.ruleId}: ${r.matchedRecords} records`).join('\n')}`);
+        setSelectedRules(new Set()); // Clear selection
+        fetchData(); // Refresh data
+      } else {
+        alert(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Batch run error:', error);
+      alert('Failed to run batch operation');
+    } finally {
+      setIsRunningBatch(false);
+    }
+  };
+
+  const handleToggleRule = (ruleId: number) => {
+    const newSelected = new Set(selectedRules);
+    if (newSelected.has(ruleId)) {
+      newSelected.delete(ruleId);
+    } else {
+      newSelected.add(ruleId);
+    }
+    setSelectedRules(newSelected);
+  };
+
+  const handleToggleAll = () => {
+    if (selectedRules.size === filteredAndSortedData.length) {
+      setSelectedRules(new Set());
+    } else {
+      setSelectedRules(new Set(filteredAndSortedData.map(r => r.id)));
+    }
+  };
+
+  // Debug log
+  console.log('ParsingSchemeRulesTable: selectedRules size =', selectedRules.size, 'filteredAndSortedData length =', filteredAndSortedData.length);
+  console.log('Checkbox component:', Checkbox);
+  console.log('handleToggleAll function:', handleToggleAll);
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
@@ -750,6 +816,16 @@ export function ParsingSchemeRulesTable() {
           <h1 className="text-2xl font-bold text-gray-900">Parsing Scheme Rules</h1>
           
           <div className="flex items-center gap-3">
+            {selectedRules.size > 0 && (
+              <Button 
+                onClick={handleBatchRun} 
+                disabled={isRunningBatch}
+                className="gap-2 bg-purple-600 hover:bg-purple-700"
+              >
+                <Play className="w-4 h-4" />
+                {isRunningBatch ? `Running ${selectedRules.size} rules...` : `Run ${selectedRules.size} Selected Rules`}
+              </Button>
+            )}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button onClick={openAddDialog} className="gap-2 bg-green-600 hover:bg-green-700">
@@ -1129,6 +1205,15 @@ export function ParsingSchemeRulesTable() {
           <table style={{ tableLayout: 'fixed', width: '100%' }} className="border-collapse">
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b-2 border-gray-200">
+                <th 
+                  className="px-4 py-3 text-center text-sm font-semibold"
+                  style={{ width: 60, minWidth: 60, maxWidth: 60 }}
+                >
+                  <Checkbox
+                    checked={selectedRules.size === filteredAndSortedData.length && filteredAndSortedData.length > 0}
+                    onCheckedChange={handleToggleAll}
+                  />
+                </th>
                 {visibleColumns.map(col => (
                   <th 
                     key={col.key} 
@@ -1197,19 +1282,25 @@ export function ParsingSchemeRulesTable() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4">
+                  <td colSpan={visibleColumns.length + 2} className="text-center py-8 px-4">
                     Loading...
                   </td>
                 </tr>
               ) : filteredAndSortedData.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4 text-gray-500">
+                  <td colSpan={visibleColumns.length + 2} className="text-center py-8 px-4 text-gray-500">
                     No rules found
                   </td>
                 </tr>
               ) : (
                 paginatedData.map((row) => (
                   <tr key={row.id} className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-4 py-2 text-center text-sm" style={{ width: 60, minWidth: 60, maxWidth: 60 }}>
+                      <Checkbox
+                        checked={selectedRules.has(row.id)}
+                        onCheckedChange={() => handleToggleRule(row.id)}
+                      />
+                    </td>
                     {visibleColumns.map(col => (
                       <td 
                         key={col.key}
@@ -1225,6 +1316,10 @@ export function ParsingSchemeRulesTable() {
                             <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
                               {row[col.key]}
                             </code>
+                          ) : col.key === 'appliedCount' ? (
+                            <span className="font-semibold">
+                              {row.appliedCount || 0}
+                            </span>
                           ) : col.key === 'paymentId' && row[col.key] ? (
                             (() => {
                               const payment = payments.find(p => p.paymentId === row[col.key]);
@@ -1241,6 +1336,18 @@ export function ParsingSchemeRulesTable() {
                                 </span>
                               ) : row[col.key];
                             })()
+                          ) : col.key === 'counteragentUuid' && row[col.key] ? (
+                            <span title={row.counteragentName || row[col.key] as string}>
+                              {row.counteragentName || row[col.key]}
+                            </span>
+                          ) : col.key === 'financialCodeUuid' && row[col.key] ? (
+                            <span title={row.financialCode || row[col.key] as string}>
+                              {row.financialCode || row[col.key]}
+                            </span>
+                          ) : col.key === 'nominalCurrencyUuid' && row[col.key] ? (
+                            <span title={row.currencyCode || row[col.key] as string}>
+                              {row.currencyCode || row[col.key]}
+                            </span>
                           ) : (
                             row[col.key]
                           )}
@@ -1307,13 +1414,87 @@ export function ParsingSchemeRulesTable() {
 
       {/* Test Rule Preview Dialog */}
       <Dialog open={isTestDialogOpen} onOpenChange={setIsTestDialogOpen}>
+        {(() => {
+          // Format date helper
+          const formatDate = (dateStr: string) => {
+            if (!dateStr) return '-';
+            try {
+              // Parse various date formats (YYYY-MM-DD, DD/MM/YYYY, etc.)
+              const parts = dateStr.match(/(\d{1,4})[/-](\d{1,2})[/-](\d{1,4})/);
+              if (!parts) return dateStr;
+              
+              let day, month, year;
+              if (parts[1].length === 4) {
+                // YYYY-MM-DD or YYYY/MM/DD
+                year = parts[1];
+                month = parts[2].padStart(2, '0');
+                day = parts[3].padStart(2, '0');
+              } else {
+                // DD-MM-YYYY or DD/MM/YYYY  
+                day = parts[1].padStart(2, '0');
+                month = parts[2].padStart(2, '0');
+                year = parts[3];
+              }
+              return `${day}.${month}.${year}`;
+            } catch {
+              return dateStr;
+            }
+          };
+          
+          // Filter records based on search
+          const filteredRecords = testRuleData.records.filter(record => {
+            if (!testDialogSearch) return true;
+            const searchLower = testDialogSearch.toLowerCase();
+            return (
+              record.description?.toLowerCase().includes(searchLower) ||
+              record.sender_name?.toLowerCase().includes(searchLower) ||
+              record.beneficiary_name?.toLowerCase().includes(searchLower) ||
+              record.sender_account?.toLowerCase().includes(searchLower) ||
+              record.beneficiary_account?.toLowerCase().includes(searchLower) ||
+              formatDate(record.transaction_date)?.includes(searchLower)
+            );
+          });
+          
+          // Pagination
+          const totalPages = Math.ceil(filteredRecords.length / testDialogPageSize);
+          const startIndex = (testDialogPage - 1) * testDialogPageSize;
+          const endIndex = startIndex + testDialogPageSize;
+          const paginatedRecords = filteredRecords.slice(startIndex, endIndex);
+          
+          return (<>
         <DialogContent className="w-[1600px] max-w-[98vw] max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Rule Preview: {testRuleData.matchCount} Matching Records</DialogTitle>
             <DialogDescription>
               Found {testRuleData.matchCount} records where <span className="font-mono">{testRuleData.column}</span> = "{testRuleData.value}"
-              {testRuleData.matchCount > 100 && ' (showing first 100)'}
             </DialogDescription>
+            <div className="mt-4 flex gap-4 items-center">
+              <Input
+                placeholder="Search in results..."
+                value={testDialogSearch}
+                onChange={(e) => { setTestDialogSearch(e.target.value); setTestDialogPage(1); }}
+                className="max-w-sm"
+              />
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Records per page:</span>
+                <Select value={testDialogPageSize.toString()} onValueChange={(val) => { setTestDialogPageSize(Number(val)); setTestDialogPage(1); }}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                    <SelectItem value="200">200</SelectItem>
+                    <SelectItem value="500">500</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {testDialogSearch && (
+                <div className="text-sm text-gray-600">
+                  {filteredRecords.length} result{filteredRecords.length !== 1 ? 's' : ''}
+                </div>
+              )}
+            </div>
           </DialogHeader>
           
           <div className="flex-1 overflow-auto border rounded">
@@ -1330,17 +1511,17 @@ export function ParsingSchemeRulesTable() {
                 </tr>
               </thead>
               <tbody>
-                {testRuleData.records.length === 0 ? (
+                {paginatedRecords.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-2 py-8 text-center text-gray-500">
-                      No matching records found
+                      {testDialogSearch ? 'No records match your search' : 'No matching records found'}
                     </td>
                   </tr>
                 ) : (
-                  testRuleData.records.map((record, index) => (
+                  paginatedRecords.map((record, index) => (
                     <tr key={record.uuid || index} className="border-b hover:bg-gray-50">
                       <td className="px-2 py-2 whitespace-nowrap">
-                        {record.transaction_date ? new Date(record.transaction_date).toLocaleDateString() : '-'}
+                        {formatDate(record.transaction_date)}
                       </td>
                       <td className="px-2 py-2 text-right whitespace-nowrap">
                         {record.debit ? Number(record.debit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
@@ -1384,11 +1565,39 @@ export function ParsingSchemeRulesTable() {
           </div>
 
           <DialogFooter className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              {testRuleData.matchCount > 0 && (
-                <span>
-                  Showing {Math.min(testRuleData.records.length, testRuleData.matchCount)} of {testRuleData.matchCount} records
-                </span>
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-600">
+                {filteredRecords.length > 0 && (
+                  <span>
+                    Showing {startIndex + 1}-{Math.min(endIndex, filteredRecords.length)} of {filteredRecords.length} records
+                    {testDialogSearch && ' (filtered)'}
+                  </span>
+                )}
+              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTestDialogPage(p => Math.max(1, p - 1))}
+                    disabled={testDialogPage === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm">
+                    Page {testDialogPage} of {totalPages}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTestDialogPage(p => Math.min(totalPages, p + 1))}
+                    disabled={testDialogPage === totalPages}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
               )}
             </div>
             <div className="flex gap-2">
@@ -1406,6 +1615,8 @@ export function ParsingSchemeRulesTable() {
             </div>
           </DialogFooter>
         </DialogContent>
+        </>) 
+        })()}
       </Dialog>
     </div>
   );

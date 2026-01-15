@@ -400,14 +400,20 @@ export function PaymentsReportTable() {
       if (dateFilterMode === 'today') {
         const today = new Date().toISOString().split('T')[0];
         params.set('maxDate', today);
+        console.log('[Payments Report] Filtering by today:', today);
       } else if (dateFilterMode === 'custom' && customDate) {
         params.set('maxDate', customDate);
+        console.log('[Payments Report] Filtering by custom date:', customDate);
+      } else {
+        console.log('[Payments Report] No date filter applied');
       }
       
       const url = `/api/payments-report${params.toString() ? '?' + params.toString() : ''}`;
+      console.log('[Payments Report] Fetching from:', url);
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch report data');
       const result = await response.json();
+      console.log('[Payments Report] Received', result.length, 'records');
       setData(result);
       
       // Always set default sort to latestDate descending after data loads

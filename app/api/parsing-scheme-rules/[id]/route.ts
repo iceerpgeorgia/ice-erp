@@ -46,6 +46,12 @@ export async function PUT(
       conditionScript = compileFormulaToJS(condition);
     }
 
+    // Convert empty strings to null for optional UUID fields
+    const cleanCounteragentUuid = counteragentUuid === '' ? null : counteragentUuid;
+    const cleanFinancialCodeUuid = financialCodeUuid === '' ? null : financialCodeUuid;
+    const cleanNominalCurrencyUuid = nominalCurrencyUuid === '' ? null : nominalCurrencyUuid;
+    const cleanPaymentId = paymentId === '' ? null : paymentId;
+
     const result = await prisma.$queryRaw<Array<{
       id: bigint;
       scheme_uuid: string;
@@ -62,10 +68,10 @@ export async function PUT(
         scheme_uuid = COALESCE(${schemeUuid}::uuid, scheme_uuid),
         condition = COALESCE(${condition}, condition),
         condition_script = COALESCE(${conditionScript}, condition_script),
-        payment_id = COALESCE(${paymentId}, payment_id),
-        counteragent_uuid = COALESCE(${counteragentUuid}::uuid, counteragent_uuid),
-        financial_code_uuid = COALESCE(${financialCodeUuid}::uuid, financial_code_uuid),
-        nominal_currency_uuid = COALESCE(${nominalCurrencyUuid}::uuid, nominal_currency_uuid),
+        payment_id = COALESCE(${cleanPaymentId}, payment_id),
+        counteragent_uuid = COALESCE(${cleanCounteragentUuid}::uuid, counteragent_uuid),
+        financial_code_uuid = COALESCE(${cleanFinancialCodeUuid}::uuid, financial_code_uuid),
+        nominal_currency_uuid = COALESCE(${cleanNominalCurrencyUuid}::uuid, nominal_currency_uuid),
         active = COALESCE(${active}, active)
       WHERE id = ${id}
       RETURNING *
