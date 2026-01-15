@@ -92,6 +92,8 @@ export function PaymentsReportTable() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [dateFilterMode, setDateFilterMode] = useState<'none' | 'today' | 'custom'>('none');
   const [customDate, setCustomDate] = useState<string>('');
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
 
   // Add Entry form states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -181,6 +183,18 @@ export function PaymentsReportTable() {
       fetchPayments(); // Also fetch payments for Add Entry dialog
     }
   }, [isInitialized, dateFilterMode, customDate]);
+
+  // Auto-refresh polling
+  useEffect(() => {
+    if (!autoRefresh || !isInitialized) return;
+
+    const intervalId = setInterval(() => {
+      console.log('[Payments Report] Auto-refreshing data...');
+      fetchData();
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(intervalId);
+  }, [autoRefresh, isInitialized]);
 
   // Save column configuration to localStorage whenever it changes (but not on initial load)
   useEffect(() => {
@@ -415,6 +429,7 @@ export function PaymentsReportTable() {
       const result = await response.json();
       console.log('[Payments Report] Received', result.length, 'records');
       setData(result);
+      setLastRefreshTime(new Date());
       
       // Always set default sort to latestDate descending after data loads
       setSortColumn('latestDate');
@@ -971,6 +986,22 @@ export function PaymentsReportTable() {
                 </div>
               </PopoverContent>
             </Popover>
+
+            <Button 
+              variant={autoRefresh ? "default" : "outline"} 
+              size="sm" 
+              className="gap-2"
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              title={autoRefresh ? "Auto-refresh enabled (every 30s)" : "Enable auto-refresh"}
+            >
+              <span className={autoRefresh ? "animate-spin" : ""}>🔄</span>
+              Auto-Refresh
+              {autoRefresh && lastRefreshTime && (
+                <Badge variant="secondary" className="ml-1 h-4 px-1 text-xs">
+                  {lastRefreshTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </Badge>
+              )}
+            </Button>
 
             <Popover>
               <PopoverTrigger asChild>
