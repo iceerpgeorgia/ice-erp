@@ -177,6 +177,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const [editingTransaction, setEditingTransaction] = useState<BankTransaction | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [paymentOptions, setPaymentOptions] = useState<any[]>([]);
+  const [allPayments, setAllPayments] = useState<any[]>([]); // All payments for search
   const [projectOptions, setProjectOptions] = useState<any[]>([]);
   const [jobOptions, setJobOptions] = useState<any[]>([]);
   const [financialCodeOptions, setFinancialCodeOptions] = useState<any[]>([]);
@@ -240,6 +241,22 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   useEffect(() => {
     if (data) setTransactions(data);
   }, [data]);
+
+  // Fetch all payments on mount
+  useEffect(() => {
+    const fetchAllPayments = async () => {
+      try {
+        const response = await fetch('/api/payments');
+        if (!response.ok) throw new Error('Failed to fetch payments');
+        const paymentsData = await response.json();
+        setAllPayments(paymentsData);
+        console.log('[BankTransactionsTable] Loaded all payments:', paymentsData.length);
+      } catch (error) {
+        console.error('[BankTransactionsTable] Error fetching all payments:', error);
+      }
+    };
+    fetchAllPayments();
+  }, []);
 
   // Debounce search term to improve performance
   useEffect(() => {
@@ -637,13 +654,9 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     setCurrencySearch('');
     
     try {
-      // Fetch payment options for this transaction's counteragent
-      const res = await fetch(`/api/bank-transactions/${transaction.id}/payment-options`);
-      const data = await res.json();
-      console.log('Payment options received from API:', data.payments);
-      const payments = data.payments || [];
-      console.log('[startEdit] Payment options received:', payments.length, 'payments');
-      console.log('[startEdit] First payment:', payments[0]);
+      // Use all payments (not filtered by counteragent) - like parsing rules dialog
+      const payments = allPayments;
+      console.log('[startEdit] Using all payments:', payments.length, 'available');
       console.log('[startEdit] Transaction paymentUuid:', transaction.paymentUuid);
       setPaymentOptions(payments);
       
