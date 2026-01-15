@@ -642,6 +642,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       job_uuid: '', // Will be populated after jobs load
       financial_code_uuid: transaction.financialCodeUuid || '',
       nominal_currency_uuid: transaction.nominalCurrencyUuid || '',
+      nominal_amount: transaction.nominalAmount || '',
     };
     console.log('[startEdit] Initial formData:', initialFormData);
     setFormData(initialFormData);
