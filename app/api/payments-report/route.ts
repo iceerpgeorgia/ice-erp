@@ -18,8 +18,9 @@ export async function GET(request: NextRequest) {
 
     // Build the HAVING clause for date filtering (must be applied after GROUP BY)
     // Include both ledger dates AND bank transaction dates
+    // Use COALESCE to handle NULL dates (when one source has no data)
     const dateFilter = maxDate 
-      ? `HAVING GREATEST(MAX(pl.effective_date), MAX(cba.transaction_date::date)) <= '${maxDate}'::date` 
+      ? `HAVING COALESCE(GREATEST(MAX(pl.effective_date), MAX(cba.transaction_date::date)), MAX(pl.effective_date), MAX(cba.transaction_date::date)) <= '${maxDate}'::date` 
       : '';
 
     // Query to get payments with aggregated ledger data and actual payments from bank accounts
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
         COALESCE(SUM(pl.accrual), 0) as total_accrual,
         COALESCE(SUM(pl."order"), 0) as total_order,
         COALESCE(SUM(cba.nominal_amount), 0) as total_payment,
-        GREATEST(MAX(pl.effective_date), MAX(cba.transaction_date::date)) as latest_date
+        COALESCE(GREATEST(MAX(pl.effective_date), MAX(cba.transaction_date::date)), MAX(pl.effective_date), MAX(cba.transaction_date::date)) as latest_date
       FROM payments p
       LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
       LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
