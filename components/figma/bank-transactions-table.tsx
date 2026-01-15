@@ -194,7 +194,8 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     job_uuid: string;
     financial_code_uuid: string;
     nominal_currency_uuid: string;
-  }>({ payment_uuid: '', project_uuid: '', job_uuid: '', financial_code_uuid: '', nominal_currency_uuid: '' });
+    nominal_amount: string;
+  }>({ payment_uuid: '', project_uuid: '', job_uuid: '', financial_code_uuid: '', nominal_currency_uuid: '', nominal_amount: '' });
   const [isRawRecordDialogOpen, setIsRawRecordDialogOpen] = useState(false);
   const [viewingRawRecord, setViewingRawRecord] = useState<any>(null);
   const [loadingRawRecord, setLoadingRawRecord] = useState(false);
@@ -205,7 +206,8 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     jobLabel: string;
     financialCodeLabel: string;
     currencyLabel: string;
-  }>({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '' });
+    nominalAmountLabel: string;
+  }>({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '', nominalAmountLabel: '' });
   
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
@@ -760,8 +762,8 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const cancelEdit = () => {
     setEditingTransaction(null);
     setIsEditDialogOpen(false);
-    setFormData({ payment_uuid: '', project_uuid: '', job_uuid: '', financial_code_uuid: '', nominal_currency_uuid: '' });
-    setPaymentDisplayValues({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '' });
+    setFormData({ payment_uuid: '', project_uuid: '', job_uuid: '', financial_code_uuid: '', nominal_currency_uuid: '', nominal_amount: '' });
+    setPaymentDisplayValues({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '', nominalAmountLabel: '' });
     setJobOptions([]);
   };
 
@@ -771,7 +773,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     
     if (paymentId && paymentId !== '__none__') {
       const selectedPayment = paymentOptions.find(p => p.paymentId === paymentId);
-      if (selectedPayment) {
+      if (selectedPayment && editingTransaction) {
         newFormData.project_uuid = selectedPayment.projectUuid || '';
         newFormData.job_uuid = selectedPayment.jobUuid || '';
         newFormData.financial_code_uuid = selectedPayment.financialCodeUuid || '';
@@ -783,6 +785,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
           jobLabel: selectedPayment.jobName || '',
           financialCodeLabel: selectedPayment.financialCodeValidation || '',
           currencyLabel: selectedPayment.currencyCode || '',
+          nominalAmountLabel: `Will be recalculated to ${selectedPayment.currencyCode || 'selected currency'}`,
         });
         
         // Load jobs for the selected payment's project
@@ -805,6 +808,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
         jobLabel: '',
         financialCodeLabel: '',
         currencyLabel: '',
+        nominalAmountLabel: '',
       });
       
       setJobOptions([]);
@@ -816,11 +820,12 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
 
   // Handle project change - load jobs for new project
   const handleProjectChange = async (projectUuid: string) => {
-    const newFormData = { ...formData, project_uuid: projectUuid === '__none__' ? '' : projectUuid, job_uuid: '' };
+    const isClearing = projectUuid === '__none__' || !projectUuid;
+    const newFormData = { ...formData, project_uuid: isClearing ? '' : projectUuid, job_uuid: '' };
     setFormData(newFormData);
     setProjectSearch('');
     
-    if (projectUuid && projectUuid !== '__none__') {
+    if (!isClearing) {
       try {
         console.log(`Loading jobs for project: ${projectUuid}`);
         const jobsRes = await fetch(`/api/jobs?projectUuid=${projectUuid}`);
@@ -914,6 +919,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       if (formData.nominal_currency_uuid !== (editingTransaction.nominalCurrencyUuid || '')) {
         updateData.nominal_currency_uuid = formData.nominal_currency_uuid || null;
       }
+      // Note: nominal_amount is calculated on backend based on currency change
 
       // If nothing changed, just close
       if (Object.keys(updateData).length === 0) {
@@ -1720,6 +1726,32 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                   )}
                   {!!formData.payment_uuid && (
                     <p className="text-xs text-muted-foreground mt-1">Clear Payment ID to edit manually</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Nominal Amount */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-nominal-amount" className="text-right">Nominal Amount</Label>
+                <div className="col-span-3">
+                  {!!formData.payment_uuid ? (
+                    <>
+                      <Input
+                        value={paymentDisplayValues.nominalAmountLabel}
+                        readOnly
+                        className="bg-muted"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Amount will be recalculated based on payment currency</p>
+                    </>
+                  ) : (
+                    <>
+                      <Input
+                        value={editingTransaction?.nominalAmount || ''}
+                        readOnly
+                        className="bg-gray-50"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Automatically calculated based on currency selection</p>
+                    </>
                   )}
                 </div>
               </div>

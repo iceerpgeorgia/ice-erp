@@ -42,6 +42,7 @@ export async function PATCH(
       financial_code_uuid,
       nominal_currency_uuid,
       nominal_amount,
+      payment_uuid,
     } = body;
 
     const updateData: any = {};
@@ -52,6 +53,12 @@ export async function PATCH(
       updateData.counteragentUuid = counteragent_uuid;
       changes.push(`counteragent: ${current.counteragentUuid} → ${counteragent_uuid}`);
     }
+    
+    if (payment_uuid !== undefined && payment_uuid !== current.paymentId) {
+      updateData.paymentId = payment_uuid;
+      changes.push(`payment_id: ${current.paymentId} → ${payment_uuid}`);
+    }
+    
     if (project_uuid !== undefined && project_uuid !== current.projectUuid) {
       updateData.projectUuid = project_uuid;
       changes.push(`project: ${current.projectUuid} → ${project_uuid}`);
@@ -60,17 +67,89 @@ export async function PATCH(
       updateData.financialCodeUuid = financial_code_uuid;
       changes.push(`financial_code: ${current.financialCodeUuid} → ${financial_code_uuid}`);
     }
+    
+    // Handle nominal currency change - may need to recalculate amount
     if (nominal_currency_uuid !== undefined && nominal_currency_uuid !== current.nominalCurrencyUuid) {
       updateData.nominalCurrencyUuid = nominal_currency_uuid;
       changes.push(`nominal_currency: ${current.nominalCurrencyUuid} → ${nominal_currency_uuid}`);
+      
+      // If currency changed, recalculate nominal amount using exchange rates
+      if (nominal_currency_uuid && nominal_currency_uuid !== current.accountCurrencyUuid) {
+        try {
+          // Get transaction date and currencies
+          const transactionDate = new Date(current.transactionDate.split('.').reverse().join('-'));
+          const dateStr = transactionDate.toISOString().split('T')[0];
+          
+          // Get account currency code
+          const accountCurrency = await prisma.$queryRaw<Array<{ code: string }>>`
+            SELECT code FROM currencies WHERE uuid = ${current.accountCurrencyUuid}::uuid LIMIT 1
+          `;
+          
+          // Get nominal currency code
+          const nominalCurrency = await prisma.$queryRaw<Array<{ code: string }>>`
+            SELECT code FROM currencies WHERE uuid = ${nominal_currency_uuid}::uuid LIMIT 1
+          `;
+          
+          if (accountCurrency.length > 0 && nominalCurrency.length > 0) {
+            const accountCode = accountCurrency[0].code;
+            const nominalCode = nominalCurrency[0].code;
+            
+            // Get exchange rates for transaction date
+            const rates = await prisma.$queryRaw<Array<any>>`
+              SELECT * FROM nbg_exchange_rates 
+              WHERE date = ${dateStr}::date LIMIT 1
+            `;
+            
+            if (rates.length > 0) {
+              const rate = rates[0];
+              let calculatedAmount = current.accountCurrencyAmount;
+              
+              // Calculate based on currency pair
+              if (accountCode === 'GEL' && nominalCode !== 'GEL') {
+                // GEL → Foreign: divide by rate
+                const rateField = `${nominalCode.toLowerCase()}Rate`;
+                if (rate[rateField]) {
+                  calculatedAmount = new Decimal(current.accountCurrencyAmount.toString()).div(new Decimal(rate[rateField].toString()));
+                }
+              } else if (accountCode !== 'GEL' && nominalCode === 'GEL') {
+                // Foreign → GEL: multiply by rate  
+                const rateField = `${accountCode.toLowerCase()}Rate`;
+                if (rate[rateField]) {
+                  calculatedAmount = new Decimal(current.accountCurrencyAmount.toString()).mul(new Decimal(rate[rateField].toString()));
+                }
+              } else if (accountCode !== 'GEL' && nominalCode !== 'GEL') {
+                // Foreign → Foreign: convert through GEL
+                const accountRateField = `${accountCode.toLowerCase()}Rate`;
+                const nominalRateField = `${nominalCode.toLowerCase()}Rate`;
+                if (rate[accountRateField] && rate[nominalRateField]) {
+                  const gelAmount = new Decimal(current.accountCurrencyAmount.toString()).mul(new Decimal(rate[accountRateField].toString()));
+                  calculatedAmount = gelAmount.div(new Decimal(rate[nominalRateField].toString()));
+                }
+              }
+              
+              updateData.nominalAmount = calculatedAmount;
+              changes.push(`nominal_amount: ${current.nominalAmount?.toString()} → ${calculatedAmount.toString()} (recalculated)`);
+            }
+          }
+        } catch (error) {
+          console.error('[PATCH] Error calculating nominal amount:', error);
+          // Continue with update even if calculation fails
+        }
+      } else if (!nominal_currency_uuid || nominal_currency_uuid === current.accountCurrencyUuid) {
+        // Same currency or cleared - use account amount
+        updateData.nominalAmount = current.accountCurrencyAmount;
+        changes.push(`nominal_amount: ${current.nominalAmount?.toString()} → ${current.accountCurrencyAmount.toString()} (same currency)`);
+      }
     }
-    if (nominal_amount !== undefined) {
+    
+    // Explicit nominal amount update (manual override)
+    if (nominal_amount !== undefined && !updateData.nominalAmount) {
       const newAmount = nominal_amount ? new Decimal(nominal_amount) : null;
       const currentAmount = current.nominalAmount?.toString() || null;
       const newAmountStr = newAmount?.toString() || null;
       if (currentAmount !== newAmountStr) {
         updateData.nominalAmount = newAmount;
-        changes.push(`nominal_amount: ${currentAmount} → ${newAmountStr}`);
+        changes.push(`nominal_amount: ${currentAmount} → ${newAmountStr} (manual)`);
       }
     }
 
