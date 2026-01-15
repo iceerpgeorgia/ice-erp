@@ -75,12 +75,13 @@ function balanceToApi(row: any, currencyCode: string) {
 
 export async function GET(req: NextRequest) {
   try {
-    // Parse query parameters for date filtering
+    // Parse query parameters for date filtering and ID filtering
     const searchParams = req.nextUrl.searchParams;
     const fromDate = searchParams.get('fromDate'); // dd.mm.yyyy format
     const toDate = searchParams.get('toDate');     // dd.mm.yyyy format
+    const idsParam = searchParams.get('ids');      // Comma-separated IDs for fetching specific records
     
-    console.log('[API] Date filters received (dd.mm.yyyy):', { fromDate, toDate });
+    console.log('[API] Query params:', { fromDate, toDate, idsParam });
     
     // Helper to convert dd.mm.yyyy to yyyy-mm-dd for comparison
     const toComparableDate = (ddmmyyyy: string | null): string | null => {
@@ -95,6 +96,13 @@ export async function GET(req: NextRequest) {
     // We need to fetch all and filter in memory since string comparison doesn't work correctly
     const whereClause: any = {};
     
+    // If specific IDs requested, fetch only those
+    if (idsParam) {
+      const ids = idsParam.split(',').map(id => BigInt(id.trim()));
+      whereClause.id = { in: ids };
+      console.log('[API] Fetching specific IDs:', ids);
+    }
+    
     const transactions = await prisma.consolidatedBankAccount.findMany({
       where: whereClause,
       include: {
@@ -107,12 +115,12 @@ export async function GET(req: NextRequest) {
       orderBy: [
         { id: 'desc' }
       ],
-      take: 100000
+      take: idsParam ? undefined : 100000 // No limit when fetching specific IDs
     });
 
     // Filter in memory by converting dates to comparable format
     let filteredTransactions = transactions;
-    if (fromDate || toDate) {
+    if ((fromDate || toDate) && !idsParam) { // Skip date filtering when fetching specific IDs
       const fromComparable = toComparableDate(fromDate);
       const toComparable = toComparableDate(toDate);
       console.log('[API] Comparable dates:', { fromComparable, toComparable });

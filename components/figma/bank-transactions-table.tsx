@@ -939,8 +939,26 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
       const result = await response.json();
 
       if (response.ok) {
-        // Refresh page to get updated values from database
-        window.location.reload();
+        // Fetch the updated transaction to get calculated values (like nominal_amount)
+        const updatedResponse = await fetch(`/api/bank-transactions?ids=${editingTransaction.id}`);
+        if (updatedResponse.ok) {
+          const updatedData = await updatedResponse.json();
+          
+          // Update the transaction in local state
+          setTransactions(prev => 
+            prev.map(t => 
+              t.id === editingTransaction.id 
+                ? { ...t, ...updatedData[0] } 
+                : t
+            )
+          );
+          
+          // Close dialog and reset state
+          cancelEdit();
+        } else {
+          // Fallback to reload if fetch fails
+          window.location.reload();
+        }
       } else {
         alert(`Error: ${result.error}`);
       }
