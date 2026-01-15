@@ -682,6 +682,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
             jobLabel: selectedPayment.jobDisplay || selectedPayment.jobName || '',
             financialCodeLabel: selectedPayment.financialCodeValidation || '',
             currencyLabel: selectedPayment.currencyCode || '',
+            nominalAmountLabel: `Will be recalculated to ${selectedPayment.currencyCode || 'currency'}`,
           });
           console.log('[startEdit] Set display values for locked fields');
         } else {
@@ -870,6 +871,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
           jobLabel: matchingPayment.jobName || '',
           financialCodeLabel: matchingPayment.financialCodeValidation || '',
           currencyLabel: matchingPayment.currencyCode || '',
+          nominalAmountLabel: `Will be recalculated to ${matchingPayment.currencyCode || 'currency'}`,
         });
       }
     }
