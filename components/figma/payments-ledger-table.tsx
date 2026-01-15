@@ -84,6 +84,7 @@ export function PaymentsLedgerTable() {
     jobName?: string;
     financialCode?: string;
     currencyCode?: string;
+    counteragentName?: string;
   }>>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -137,7 +138,8 @@ export function PaymentsLedgerTable() {
         projectIndex: p.projectIndex,
         jobName: p.jobName,
         financialCode: p.financialCode,
-        currencyCode: p.currencyCode
+        currencyCode: p.currencyCode,
+        counteragentName: p.counteragentName
       })));
     } catch (error) {
       console.error('Error fetching payments:', error);
@@ -677,12 +679,14 @@ export function PaymentsLedgerTable() {
                   onValueChange={setSelectedPaymentId}
                   options={payments.map(p => {
                     const parts = [
-                      p.projectIndex || 'No Project',
-                      p.jobName ? p.jobName : 'No Job',
-                      p.financialCode || '',
-                      p.currencyCode || ''
+                      p.paymentId,
+                      p.counteragentName || 'Unknown',
+                      p.currencyCode || '',
+                      p.projectIndex || '',
+                      p.jobName || '',
+                      p.financialCode || ''
                     ].filter(Boolean);
-                    const label = `${p.paymentId} - ${parts.join(' | ')}`;
+                    const label = parts.join(' | ');
                     return {
                       value: p.paymentId,
                       label: label
