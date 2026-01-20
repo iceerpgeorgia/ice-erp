@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       args.push('--clear');
     }
 
-    return new Promise((resolve) => {
+    return new Promise<Response>((resolve) => {
       const process = spawn('python', args);
       let stdout = '';
       let stderr = '';
@@ -49,14 +49,14 @@ export async function POST(request: NextRequest) {
             success: true,
             message: 'Backparse completed successfully',
             output: stdout
-          }));
+          }) as Response);
         } else {
           resolve(NextResponse.json({
             success: false,
             error: 'Backparse failed',
             stdout,
             stderr
-          }, { status: 500 }));
+          }, { status: 500 }) as Response);
         }
       });
     });
