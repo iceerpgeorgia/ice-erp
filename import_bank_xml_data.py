@@ -173,10 +173,13 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
     if matched_rule:
         rule_payment_id = matched_rule.get('payment_id')
         rule_payment_data = None
-        if rule_payment_id and rule_payment_id in payments_map:
-            rule_payment_data = payments_map[rule_payment_id]
-            if idx <= 3:
-                print(f"    🎯 [RULE->PAYMENT] payment_id: {rule_payment_id}")
+        if rule_payment_id:
+            # Case-insensitive lookup
+            rule_payment_id_lower = rule_payment_id.lower()
+            if rule_payment_id_lower in payments_map:
+                rule_payment_data = payments_map[rule_payment_id_lower]
+                if idx <= 3:
+                    print(f"    🎯 [RULE->PAYMENT] payment_id: {rule_payment_id}")
         
         # Store which rule was applied
         result['applied_rule_id'] = matched_rule['id']
@@ -253,34 +256,37 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
     # =============================
     
     extracted_payment_id = extract_payment_id(DocInformation)
-    if extracted_payment_id and extracted_payment_id in payments_map:
-        payment_data = payments_map[extracted_payment_id]
-        payment_counteragent = payment_data['counteragent_uuid']
-        
-        # Phase 3 can ONLY set counteragent if Phase 1 AND Phase 2 didn't find one
-        if result['counteragent_uuid']:
-            # Check for conflict - if conflict, NEGLECT payment data
-            if payment_counteragent and payment_counteragent != result['counteragent_uuid']:
-                result['case5_payment_id_conflict'] = True
-                stats['case5_payment_id_counteragent_mismatch'] += 1
-                if idx <= 3:
-                    print(f"    ⚠️  [PHASE 3 NEGLECTED] Payment suggests different counteragent - keeping Phase 1/2 counteragent")
-                # DO NOT set payment_id or apply payment parameters - NEGLECTED due to conflict
-                return result
-        else:
-            # Neither Phase 1 nor Phase 2 found counteragent - Phase 3 can set it
-            if payment_counteragent:
-                result['counteragent_uuid'] = payment_counteragent
-        
-        result['payment_id'] = extracted_payment_id
-        
-        # Apply payment parameters only if not already set by Phase 1
-        if not result['project_uuid'] and payment_data['project_uuid']:
-            result['project_uuid'] = payment_data['project_uuid']
-        if not result['financial_code_uuid'] and payment_data['financial_code_uuid']:
-            result['financial_code_uuid'] = payment_data['financial_code_uuid']
-        if not result['nominal_currency_uuid'] and payment_data['currency_uuid']:
-            result['nominal_currency_uuid'] = payment_data['currency_uuid']
+    if extracted_payment_id:
+        # Case-insensitive lookup
+        payment_id_lower = extracted_payment_id.lower()
+        if payment_id_lower in payments_map:
+            payment_data = payments_map[payment_id_lower]
+            payment_counteragent = payment_data['counteragent_uuid']
+            
+            # Phase 3 can ONLY set counteragent if Phase 1 AND Phase 2 didn't find one
+            if result['counteragent_uuid']:
+                # Check for conflict - if conflict, NEGLECT payment data
+                if payment_counteragent and payment_counteragent != result['counteragent_uuid']:
+                    result['case5_payment_id_conflict'] = True
+                    stats['case5_payment_id_counteragent_mismatch'] += 1
+                    if idx <= 3:
+                        print(f"    ⚠️  [PHASE 3 NEGLECTED] Payment suggests different counteragent - keeping Phase 1/2 counteragent")
+                    # DO NOT set payment_id or apply payment parameters - NEGLECTED due to conflict
+                    return result
+            else:
+                # Neither Phase 1 nor Phase 2 found counteragent - Phase 3 can set it
+                if payment_counteragent:
+                    result['counteragent_uuid'] = payment_counteragent
+            
+            result['payment_id'] = extracted_payment_id
+            
+            # Apply payment parameters only if not already set by Phase 1
+            if not result['project_uuid'] and payment_data['project_uuid']:
+                result['project_uuid'] = payment_data['project_uuid']
+            if not result['financial_code_uuid'] and payment_data['financial_code_uuid']:
+                result['financial_code_uuid'] = payment_data['financial_code_uuid']
+            if not result['nominal_currency_uuid'] and payment_data['currency_uuid']:
+                result['nominal_currency_uuid'] = payment_data['currency_uuid']
         
         if not result['case5_payment_id_conflict']:
             result['case4_payment_id_matched'] = True
@@ -317,18 +323,13 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
 
 def get_db_connections():
     """
-    Get database connections based on environment.
+    Get database connection - ALWAYS uses Supabase.
+    Returns the same Supabase connection for both remote and local parameters
+    for backward compatibility with existing code.
     
-    On Vercel (production):
-        - Returns (supabase_conn, supabase_conn) - both point to Supabase
-        - All operations (raw + consolidated) happen on Supabase
-    
-    On local (development):
-        - Returns (supabase_conn, local_conn) - separate connections
-        - Raw data on Supabase, consolidated on LOCAL PostgreSQL
+    All operations (raw data, consolidated data, dictionaries) happen on Supabase.
     """
     remote_db_url = None
-    local_db_url = None
     
     try:
         with open('.env.local', 'r', encoding='utf-8') as f:
@@ -336,8 +337,7 @@ def get_db_connections():
                 line = line.strip()
                 if line.startswith('REMOTE_DATABASE_URL='):
                     remote_db_url = line.split('=', 1)[1].strip('"').strip("'")
-                elif line.startswith('DATABASE_URL='):
-                    local_db_url = line.split('=', 1)[1].strip('"').strip("'")
+                    break
     except Exception as e:
         print(f"❌ Error reading .env.local: {e}")
         sys.exit(1)
@@ -346,30 +346,17 @@ def get_db_connections():
         raise ValueError("REMOTE_DATABASE_URL not found in .env.local")
     
     # Parse and clean Supabase connection string
+    # Replace pooler port 6543 with direct port 6543 (keep pooler for compatibility)
     parsed_remote = urlparse(remote_db_url)
     clean_remote_url = f"{parsed_remote.scheme}://{parsed_remote.netloc}{parsed_remote.path}"
     
-    print("🔍 Connecting to databases...")
-    remote_conn = psycopg2.connect(clean_remote_url)
-    remote_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+    print("🔍 Connecting to Supabase...")
+    supabase_conn = psycopg2.connect(clean_remote_url, connect_timeout=30, keepalives=1, keepalives_idle=30)
+    supabase_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     
-    if IS_VERCEL:
-        # On Vercel: use Supabase for everything
-        print("✅ Connected to Supabase (production mode - all data on Supabase)")
-        return remote_conn, remote_conn
-    else:
-        # On local: use separate connections
-        if not local_db_url:
-            raise ValueError("DATABASE_URL not found in .env.local")
-        
-        parsed_local = urlparse(local_db_url)
-        clean_local_url = f"{parsed_local.scheme}://{parsed_local.netloc}{parsed_local.path}"
-        
-        local_conn = psycopg2.connect(clean_local_url)
-        local_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        
-        print("✅ Connected to Supabase (remote) and Local PostgreSQL")
-        return remote_conn, local_conn
+    print("✅ Connected to Supabase (all operations on Supabase)")
+    # Return same connection twice for backward compatibility
+    return supabase_conn, supabase_conn
 
 def identify_bog_gel_account(xml_file):
     """Extract account information from BOG GEL XML format"""
@@ -511,35 +498,46 @@ def extract_payment_id(doc_information):
     if match:
         return match.group(1)
     
-    # Strategy 4: If entire text is alphanumeric and reasonable length (5-20 chars), treat as payment_id
-    if re.match(r'^[A-Z0-9-_]+$', text, re.IGNORECASE) and 5 <= len(text) <= 20:
+    # Strategy 4: Look for salary accrual payment ID pattern (NP_xxx_NJ_xxx_PRLxxx)
+    # This matches the format: NP_{6hex}_NJ_{6hex}_PRL{MMYYYY}
+    # Support both uppercase and lowercase hex (a-f, A-F)
+    match = re.search(r'NP_[A-Fa-f0-9]{6}_NJ_[A-Fa-f0-9]{6}_PRL\d{6}', text)
+    if match:
+        return match.group(0)
+    
+    # Strategy 5: If entire text is alphanumeric and reasonable length (5-50 chars), treat as payment_id
+    # Increased limit from 20 to 50 to accommodate longer payment IDs
+    if re.match(r'^[A-Z0-9-_]+$', text, re.IGNORECASE) and 5 <= len(text) <= 50:
         return text
     
     return None
 
 def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_table_name, 
-                   remote_conn, local_conn):
+                   remote_conn, _unused_conn):
     """
     Process BOG GEL XML file with three-phase hierarchy:
     Phase 1: Counteragent identification
     Phase 2: Parsing rules application
     Phase 3: Payment ID matching
+    
+    All operations on Supabase (remote_conn).
+    _unused_conn parameter kept for backward compatibility.
     """
     
     remote_cursor = remote_conn.cursor()
-    local_cursor = local_conn.cursor()
+    # All operations use remote_cursor (Supabase)
     
     print(f"\n{'='*80}")
     print(f"🚀 BOG GEL PROCESSING - Three-Phase Hierarchy")
     print(f"{'='*80}\n")
     
-    # Get account details from local database
-    local_cursor.execute("""
+    # Get account details from Supabase
+    remote_cursor.execute("""
         SELECT uuid, currency_uuid FROM bank_accounts 
         WHERE uuid = %s
     """, (account_uuid,))
     
-    account_result = local_cursor.fetchone()
+    account_result = remote_cursor.fetchone()
     if not account_result:
         print(f"❌ Account UUID not found: {account_uuid}")
         sys.exit(1)
@@ -700,29 +698,29 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
     # ===================
     step_start = log_step(2, "LOADING DICTIONARIES")
     
-    # Load counteragents
+    # Load counteragents from Supabase
     dict_start = time.time()
-    local_cursor.execute("""
+    remote_cursor.execute("""
         SELECT counteragent_uuid, identification_number, counteragent 
         FROM counteragents 
         WHERE identification_number IS NOT NULL
     """)
     counteragents_map = {}
-    for row in local_cursor.fetchall():
+    for row in remote_cursor.fetchall():
         inn = normalize_inn(row[1])
         if inn:
             counteragents_map[inn] = {
                 'uuid': row[0],
                 'name': row[2]
             }
-    print(f"  ✅ Loaded {len(counteragents_map)} counteragents ({time.time()-dict_start:.2f}s)")
+    print(f"  ✅ Loaded {len(counteragents_map)} counteragents from Supabase ({time.time()-dict_start:.2f}s)")
     sys.stdout.flush()
     
-    # Load parsing rules
+    # Load parsing rules from Supabase
     dict_start = time.time()
-    print(f"  ⏳ Loading parsing rules...")
+    print(f"  ⏳ Loading parsing rules from Supabase...")
     sys.stdout.flush()
-    local_cursor.execute("""
+    remote_cursor.execute("""
         SELECT 
             id,
             counteragent_uuid,
@@ -732,8 +730,8 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
             condition
         FROM parsing_scheme_rules
     """)
-    rows = local_cursor.fetchall()
-    print(f"  📊 Fetched {len(rows)} parsing rule records from database")
+    rows = remote_cursor.fetchall()
+    print(f"  📊 Fetched {len(rows)} parsing rule records from Supabase")
     sys.stdout.flush()
     parsing_rules = []
     for row in rows:
@@ -745,17 +743,17 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
             'column_name': row[4],
             'condition': row[5]
         })
-    print(f"  ✅ Loaded {len(parsing_rules)} parsing rules ({time.time()-dict_start:.2f}s)")
+    print(f"  ✅ Loaded {len(parsing_rules)} parsing rules from Supabase ({time.time()-dict_start:.2f}s)")
     sys.stdout.flush()
     
-    # Load NBG exchange rates
+    # Load NBG exchange rates from Supabase
     dict_start = time.time()
-    local_cursor.execute("""
+    remote_cursor.execute("""
         SELECT date, usd_rate, eur_rate, cny_rate, gbp_rate, rub_rate, try_rate, aed_rate, kzt_rate
         FROM nbg_exchange_rates
     """)
     nbg_rates_map = {}
-    for row in local_cursor.fetchall():
+    for row in remote_cursor.fetchall():
         date_key = row[0].strftime('%Y-%m-%d')
         nbg_rates_map[date_key] = {
             'USD': row[1],
@@ -770,25 +768,49 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
     print(f"  ✅ Loaded NBG rates for {len(nbg_rates_map)} dates ({time.time()-dict_start:.2f}s)")
     sys.stdout.flush()
     
-    # Load payments
+    # Load payments and salary_accruals using UNION from Supabase
     dict_start = time.time()
-    local_cursor.execute("""
-        SELECT payment_id, counteragent_uuid, project_uuid, financial_code_uuid, currency_uuid
-        FROM payments 
+    print(f"  ⏳ Loading payments and salary_accruals from Supabase...")
+    sys.stdout.flush()
+    remote_cursor.execute("""
+        SELECT payment_id, counteragent_uuid, project_uuid, financial_code_uuid, currency_uuid, 'payments' as source
+        FROM payments
+        WHERE payment_id IS NOT NULL
+        UNION ALL
+        SELECT payment_id, counteragent_uuid, NULL as project_uuid, financial_code_uuid, nominal_currency_uuid, 'salary' as source
+        FROM salary_accruals 
         WHERE payment_id IS NOT NULL
     """)
+    
     payments_map = {}
-    for row in local_cursor.fetchall():
+    payments_count = 0
+    salary_count = 0
+    
+    for row in remote_cursor.fetchall():
         payment_id = row[0].strip() if row[0] else None
+        source = row[5]
+        
         if payment_id:
-            payments_map[payment_id] = {
-                'payment_id': payment_id,
-                'counteragent_uuid': row[1],
-                'project_uuid': row[2],
-                'financial_code_uuid': row[3],
-                'currency_uuid': row[4]
-            }
-    print(f"  ✅ Loaded {len(payments_map)} payments ({time.time()-dict_start:.2f}s)")
+            # Priority: payments table over salary_accruals (first occurrence wins)
+            # Use lowercase key for case-insensitive matching
+            payment_id_lower = payment_id.lower()
+            if payment_id_lower not in payments_map:
+                payments_map[payment_id_lower] = {
+                    'payment_id': payment_id,
+                    'counteragent_uuid': row[1],
+                    'project_uuid': row[2],
+                    'financial_code_uuid': row[3],
+                    'currency_uuid': row[4],
+                    'source': source
+                }
+                if source == 'payments':
+                    payments_count += 1
+                else:
+                    salary_count += 1
+    
+    print(f"  ✅ Loaded {len(payments_map)} payment IDs from Supabase via UNION query ({time.time()-dict_start:.2f}s)")
+    print(f"     └─ payments: {payments_count}, salary_accruals: {salary_count}")
+    sys.stdout.flush()
     
     log_step(2, "LOADING DICTIONARIES", step_start)
     
@@ -910,7 +932,7 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
             nominal_currency_uuid,
             transaction_date,
             nbg_rates_map,
-            local_cursor
+            currency_cache
         )
         
         # Generate case description (case2 and case8 deprecated, set to False)
@@ -943,7 +965,8 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
             'account_currency_amount': float(account_currency_amount),
             'nominal_currency_uuid': nominal_currency_uuid,
             'nominal_amount': float(nominal_amount),
-            'processing_case': case_description
+            'processing_case': case_description,
+            'applied_rule_id': result.get('applied_rule_id')
         })
         
         # Prepare raw table update with correct result dict keys
@@ -976,6 +999,10 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
     step_start = log_step(4, f"INSERTING {len(consolidated_records)} CONSOLIDATED RECORDS")
     
     if consolidated_records:
+        print(f"  🚀 Starting batch insert of {len(consolidated_records)} records to Supabase...")
+        sys.stdout.flush()
+        insert_start = time.time()
+        
         insert_consolidated_query = """
             INSERT INTO consolidated_bank_accounts (
                 uuid, bank_account_uuid, raw_record_uuid, transaction_date,
@@ -1164,24 +1191,24 @@ def backparse_existing_data(account_uuid=None, batch_id=None, clear_consolidated
     """
     Backparse existing raw data without importing new XML.
     Applies the same three-phase processing logic to existing records.
-    ALL OPERATIONS USE LOCAL DATABASE ONLY.
+    ALL OPERATIONS USE SUPABASE.
     """
     
     print(f"\n{'='*80}")
-    print(f"🔄 BACKPARSE MODE - Reprocessing Existing Raw Data (LOCAL DB)")
+    print(f"🔄 BACKPARSE MODE - Reprocessing Existing Raw Data")
     print(f"{'='*80}\n")
     
-    # Connect to LOCAL database only
-    print("🔍 Connecting to LOCAL database...")
-    _, local_conn = get_db_connections()
-    local_cursor = local_conn.cursor()
-    print("✅ Connected to LOCAL PostgreSQL\n")
+    # Connect to Supabase (all operations)
+    print("🔍 Connecting to Supabase...")
+    supabase_conn, _ = get_db_connections()
+    supabase_cursor = supabase_conn.cursor()
+    print("✅ Connected to Supabase (all operations)\n")
     
     try:
         # Get account information
         if account_uuid:
             print(f"🔍 Looking up account by UUID: {account_uuid}...")
-            local_cursor.execute("""
+            supabase_cursor.execute("""
                 SELECT 
                     ba.uuid,
                     ba.account_number,
@@ -1197,7 +1224,7 @@ def backparse_existing_data(account_uuid=None, batch_id=None, clear_consolidated
             """, (account_uuid,))
         else:
             print(f"🔍 Looking up all BOG_GEL accounts...")
-            local_cursor.execute("""
+            supabase_cursor.execute("""
                 SELECT 
                     ba.uuid,
                     ba.account_number,
@@ -1212,7 +1239,7 @@ def backparse_existing_data(account_uuid=None, batch_id=None, clear_consolidated
                 WHERE ps.scheme = 'BOG_GEL'
             """)
         
-        accounts = local_cursor.fetchall()
+        accounts = supabase_cursor.fetchall()
         
         if not accounts:
             print(f"❌ No accounts found")
@@ -1234,34 +1261,34 @@ def backparse_existing_data(account_uuid=None, batch_id=None, clear_consolidated
             # Optional: Clear existing consolidated records for this account
             if clear_consolidated:
                 print(f"🗑️ Clearing existing consolidated records for this account...")
-                local_cursor.execute("""
+                supabase_cursor.execute("""
                     DELETE FROM consolidated_bank_accounts 
                     WHERE bank_account_uuid = %s
                 """, (acc_uuid,))
-                local_conn.commit()
+                supabase_conn.commit()
                 print(f"✅ Cleared consolidated records\n")
                 print(f"ℹ️  Skipping flag reset (flags will be updated during processing)\n")
             else:
                 # Only reset flags if not clearing (incremental mode)
                 print(f"🔄 Resetting is_processed flags...")
                 if batch_id:
-                    local_cursor.execute(f"""
+                    supabase_cursor.execute(f"""
                         UPDATE {raw_table_name} 
                         SET is_processed = FALSE
                         WHERE import_batch_id = %s
                     """, (batch_id,))
                 else:
-                    local_cursor.execute(f"""
+                    supabase_cursor.execute(f"""
                         UPDATE {raw_table_name} 
                         SET is_processed = FALSE
                     """)
-                local_conn.commit()
+                supabase_conn.commit()
                 print(f"✅ Processing flags reset\n")
             
             # Now run the three-phase processing on existing data
             # We'll reuse the processing logic but without XML import
             backparse_bog_gel(acc_uuid, acc_number, currency_code, raw_table_name, 
-                            local_conn, batch_id)
+                            supabase_conn, batch_id)
         
         print(f"\n{'='*80}")
         print(f"✅ Backparse completed successfully!")
@@ -1273,28 +1300,29 @@ def backparse_existing_data(account_uuid=None, batch_id=None, clear_consolidated
         traceback.print_exc()
         sys.exit(1)
     finally:
-        local_cursor.close()
-        local_conn.close()
+        supabase_cursor.close()
+        supabase_conn.close()
 
 def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_name, 
-                     local_conn, batch_id=None):
+                     supabase_conn, batch_id=None):
     """
     Backparse existing BOG GEL raw data (without XML import step)
     Uses the same three-phase processing logic as process_bog_gel
-    ALL OPERATIONS ARE LOCAL DATABASE ONLY
+    All operations on Supabase.
     """
     
-    local_cursor = local_conn.cursor()
+    supabase_cursor = supabase_conn.cursor()
     
-    print(f"🚀 BOG GEL BACKPARSE - Three-Phase Hierarchy (LOCAL DB ONLY)")
+    print(f"🚀 BOG GEL BACKPARSE - Three-Phase Hierarchy")
+    print(f"   └─ All operations on Supabase\n")
     
-    # Get account details
-    local_cursor.execute("""
+    # Get account details from Supabase
+    supabase_cursor.execute("""
         SELECT uuid, currency_uuid FROM bank_accounts 
         WHERE uuid = %s
     """, (account_uuid,))
     
-    account_result = local_cursor.fetchone()
+    account_result = supabase_cursor.fetchone()
     if not account_result:
         print(f"❌ Account UUID not found: {account_uuid}")
         return
@@ -1312,26 +1340,47 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
     # ===================
     step_start = log_step(2, "LOADING DICTIONARIES")
     
-    # Load counteragents
+    # Load counteragents from Supabase with retry
     dict_start = time.time()
-    local_cursor.execute("""
-        SELECT counteragent_uuid, identification_number, counteragent 
-        FROM counteragents 
-        WHERE identification_number IS NOT NULL
-    """)
-    counteragents_map = {}
-    for row in local_cursor.fetchall():
-        inn = normalize_inn(row[1])
-        if inn:
-            counteragents_map[inn] = {
-                'uuid': row[0],
-                'name': row[2]
-            }
-    print(f"  ✅ Loaded {len(counteragents_map)} counteragents ({time.time()-dict_start:.2f}s)")
+    print(f"  ⏳ Loading counteragents from Supabase...")
+    sys.stdout.flush()
     
-    # Load parsing rules
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            print(f"    🔄 Attempt {attempt + 1}/{max_retries}...")
+            sys.stdout.flush()
+            supabase_cursor.execute("""
+                SELECT counteragent_uuid, identification_number, counteragent 
+                FROM counteragents 
+                WHERE identification_number IS NOT NULL
+            """)
+            counteragents_map = {}
+            for row in supabase_cursor.fetchall():
+                inn = normalize_inn(row[1])
+                if inn:
+                    counteragents_map[inn] = {
+                        'uuid': row[0],
+                        'name': row[2]
+                    }
+            print(f"  ✅ Loaded {len(counteragents_map)} counteragents from Supabase ({time.time()-dict_start:.2f}s)")
+            break
+        except Exception as e:
+            print(f"    ⚠️ Failed: {type(e).__name__}")
+            if attempt < max_retries - 1:
+                time.sleep(2)
+                try:
+                    supabase_cursor.close()
+                    supabase_cursor = supabase_conn.cursor()
+                except:
+                    pass
+            else:
+                print(f"  ❌ Failed to load counteragents after {max_retries} attempts")
+                raise
+    
+    # Load parsing rules from Supabase
     dict_start = time.time()
-    local_cursor.execute("""
+    supabase_cursor.execute("""
         SELECT 
             id,
             counteragent_uuid,
@@ -1343,7 +1392,7 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
         FROM parsing_scheme_rules
     """)
     parsing_rules = []
-    for row in local_cursor.fetchall():
+    for row in supabase_cursor.fetchall():
         # Parse condition field which can be:
         # - "column_name" + "value" (column_name and condition separate)
         # - or "column_name=\"value\"" (combined in condition field)
@@ -1367,16 +1416,16 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
             'column_name': column_name,
             'condition': condition
         })
-    print(f"  ✅ Loaded {len(parsing_rules)} parsing rules ({time.time()-dict_start:.2f}s)")
+    print(f"  ✅ Loaded {len(parsing_rules)} parsing rules from Supabase ({time.time()-dict_start:.2f}s)")
     
-    # Load NBG exchange rates
+    # Load NBG exchange rates from Supabase
     dict_start = time.time()
-    local_cursor.execute("""
+    supabase_cursor.execute("""
         SELECT date, usd_rate, eur_rate, cny_rate, gbp_rate, rub_rate, try_rate, aed_rate, kzt_rate
         FROM nbg_exchange_rates
     """)
     nbg_rates_map = {}
-    for row in local_cursor.fetchall():
+    for row in supabase_cursor.fetchall():
         date_key = row[0].strftime('%Y-%m-%d')
         nbg_rates_map[date_key] = {
             'USD': row[1],
@@ -1388,27 +1437,49 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
             'AED': row[7],
             'KZT': row[8]
         }
-    print(f"  ✅ Loaded NBG rates for {len(nbg_rates_map)} dates ({time.time()-dict_start:.2f}s)")
+    print(f"  ✅ Loaded NBG rates for {len(nbg_rates_map)} dates from Supabase ({time.time()-dict_start:.2f}s)")
     
-    # Load payments
+    # Load payments and salary_accruals using UNION from Supabase
     dict_start = time.time()
-    local_cursor.execute("""
-        SELECT payment_id, counteragent_uuid, project_uuid, financial_code_uuid, currency_uuid
-        FROM payments 
+    print(f"  ⏳ Loading payments and salary_accruals from Supabase...")
+    supabase_cursor.execute("""
+        SELECT payment_id, counteragent_uuid, project_uuid, financial_code_uuid, currency_uuid, 'payments' as source
+        FROM payments
+        WHERE payment_id IS NOT NULL
+        UNION ALL
+        SELECT payment_id, counteragent_uuid, NULL as project_uuid, financial_code_uuid, nominal_currency_uuid, 'salary' as source
+        FROM salary_accruals 
         WHERE payment_id IS NOT NULL
     """)
+    
     payments_map = {}
-    for row in local_cursor.fetchall():
+    payments_count = 0
+    salary_count = 0
+    
+    for row in supabase_cursor.fetchall():
         payment_id = row[0].strip() if row[0] else None
+        source = row[5]
+        
         if payment_id:
-            payments_map[payment_id] = {
-                'payment_id': payment_id,
-                'counteragent_uuid': row[1],
-                'project_uuid': row[2],
-                'financial_code_uuid': row[3],
-                'currency_uuid': row[4]
-            }
-    print(f"  ✅ Loaded {len(payments_map)} payments ({time.time()-dict_start:.2f}s)")
+            # Priority: payments table over salary_accruals (first occurrence wins)
+            # Use lowercase key for case-insensitive matching
+            payment_id_lower = payment_id.lower()
+            if payment_id_lower not in payments_map:
+                payments_map[payment_id_lower] = {
+                    'payment_id': payment_id,
+                    'counteragent_uuid': row[1],
+                    'project_uuid': row[2],
+                    'financial_code_uuid': row[3],
+                    'currency_uuid': row[4],
+                    'source': source
+                }
+                if source == 'payments':
+                    payments_count += 1
+                else:
+                    salary_count += 1
+    
+    print(f"  ✅ Loaded {len(payments_map)} payment IDs from Supabase via UNION query ({time.time()-dict_start:.2f}s)")
+    print(f"     └─ payments: {payments_count}, salary_accruals: {salary_count}")
     
     log_step(2, "LOADING DICTIONARIES", step_start)
     
@@ -1443,37 +1514,51 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
         """
         params = ()
     
-    # Fetch all records at once (faster for network connections)
-    print(f"📦 Fetching records from database...")
+    # Fetch records in batches to avoid timeout with large Georgian text data
+    print(f"📦 Fetching records from database in batches...")
     sys.stdout.flush()
     fetch_start = time.time()
     
-    local_cursor.execute(query, params)
-    raw_records = local_cursor.fetchall()
+    raw_records = []
+    batch_size = 1000
+    offset = 0
+    
+    while True:
+        batch_query = f"{query.rstrip()} LIMIT {batch_size} OFFSET {offset}"
+        
+        try:
+            print(f"  🔄 Fetching batch at offset {offset}...", end='', flush=True)
+            supabase_cursor.execute(batch_query, params)
+            batch = supabase_cursor.fetchall()
+            
+            if not batch:
+                break  # No more records
+            
+            raw_records.extend(batch)
+            offset += len(batch)
+            print(f" ✅ Got {len(batch)} records (total: {len(raw_records)})")
+            
+            if len(batch) < batch_size:
+                break  # Last batch
+                
+        except Exception as e:
+            print(f"\n  ⚠️ Fetch failed at offset {offset}: {type(e).__name__}")
+            print(f"  ℹ️  Continuing with {len(raw_records)} records already fetched...")
+            # Continue with what we have
+            break
+    
     total_records = len(raw_records)
     
     print(f"  ✅ Loaded {total_records} records in {time.time()-fetch_start:.2f}s\n")
     sys.stdout.flush()
     
     # Load currency cache once (avoid repeated queries)
-    print(f"  \ud83d\udd04 Loading currency cache...")
-    sys.stdout.flush()
-    local_cursor.execute("SELECT uuid, code FROM currencies")
-    currency_cache = {row[0]: row[1] for row in local_cursor.fetchall()}
-    print(f"  \u2705 Loaded {len(currency_cache)} currencies\n")
-    sys.stdout.flush()
-    
-    # Load currency cache once (avoid repeated queries)
     print(f"  🔄 Loading currency cache...")
-    local_cursor.execute("SELECT uuid, code FROM currencies")
-    currency_cache = {row[0]: row[1] for row in local_cursor.fetchall()}
-    print(f"  ✅ Loaded {len(currency_cache)} currencies")
-    
-    # Load currency cache once (avoid repeated queries)
-    print(f"  🔄 Loading currency cache...")
-    local_cursor.execute("SELECT uuid, code FROM currencies")
-    currency_cache = {row[0]: row[1] for row in local_cursor.fetchall()}
-    print(f"  ✅ Loaded {len(currency_cache)} currencies")
+    sys.stdout.flush()
+    supabase_cursor.execute("SELECT uuid, code FROM currencies")
+    currency_cache = {row[0]: row[1] for row in supabase_cursor.fetchall()}
+    print(f"  ✅ Loaded {len(currency_cache)} currencies\n")
+    sys.stdout.flush()
     
     # Statistics for 8 cases
     stats = {
@@ -1579,7 +1664,7 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
             nominal_currency_uuid,
             transaction_date,
             nbg_rates_map,
-            local_cursor
+            currency_cache
         )
         
         # Generate case description (case2 and case8 deprecated, set to False)
@@ -1612,7 +1697,8 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
             'account_currency_amount': float(account_currency_amount),
             'nominal_currency_uuid': nominal_currency_uuid,
             'nominal_amount': float(nominal_amount),
-            'processing_case': case_description
+            'processing_case': case_description,
+            'applied_rule_id': result.get('applied_rule_id')
         })
         
         # Prepare raw table update with correct result dict keys
@@ -1644,64 +1730,62 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
     step_start = log_step(4, f"INSERTING {len(consolidated_records)} CONSOLIDATED RECORDS")
     
     if consolidated_records:
-        print(f"  🚀 Starting ULTRA-FAST COPY insert of {len(consolidated_records)} records...")
+        print(f"  🚀 Starting batch insert of {len(consolidated_records)} records...")
         sys.stdout.flush()
         insert_start = time.time()
         
-        # Use PostgreSQL COPY for maximum insert speed
-        from io import StringIO
-        buffer = StringIO()
-        
-        for rec in consolidated_records:
-            # Convert None to \N (PostgreSQL NULL in COPY format)
-            def fmt(val):
-                if val is None:
-                    return '\\N'
-                if isinstance(val, str):
-                    # Escape tabs, newlines, backslashes
-                    return val.replace('\\', '\\\\').replace('\t', '\\t').replace('\n', '\\n').replace('\r', '\\r')
-                return str(val)
-            
-            line = '\t'.join([
-                fmt(rec['uuid']),
-                fmt(rec['bank_account_uuid']),
-                fmt(rec['raw_record_uuid']),
-                fmt(rec['transaction_date']),
-                fmt(rec['description']),
-                fmt(rec['counteragent_uuid']),
-                fmt(rec['counteragent_account_number']),
-                fmt(rec['project_uuid']),
-                fmt(rec['financial_code_uuid']),
-                fmt(rec['payment_id']),
-                fmt(rec['account_currency_uuid']),
-                fmt(rec['account_currency_amount']),
-                fmt(rec['nominal_currency_uuid']),
-                fmt(rec['nominal_amount']),
-                fmt(rec['processing_case'])
-            ])
-            buffer.write(line + '\n')
-        
-        buffer.seek(0)
-        
-        # COPY is 10-50x faster than INSERT for bulk data
-        print(f"  ⬆️ Executing COPY command (this is very fast)...")
-        sys.stdout.flush()
-        local_cursor.copy_expert(
-            """
-            COPY consolidated_bank_accounts (
+        # Use executemany with batches for pgbouncer compatibility
+        insert_consolidated_query = """
+            INSERT INTO consolidated_bank_accounts (
                 uuid, bank_account_uuid, raw_record_uuid, transaction_date,
                 description, counteragent_uuid, counteragent_account_number,
                 project_uuid, financial_code_uuid, payment_id,
                 account_currency_uuid, account_currency_amount,
-                nominal_currency_uuid, nominal_amount, processing_case
-            ) FROM STDIN WITH (FORMAT text, NULL '\\N')
-            """,
-            buffer
-        )
+                nominal_currency_uuid, nominal_amount, processing_case,
+                applied_rule_id
+            ) VALUES (
+                %(uuid)s, %(bank_account_uuid)s, %(raw_record_uuid)s, %(transaction_date)s,
+                %(description)s, %(counteragent_uuid)s, %(counteragent_account_number)s,
+                %(project_uuid)s, %(financial_code_uuid)s, %(payment_id)s,
+                %(account_currency_uuid)s, %(account_currency_amount)s,
+                %(nominal_currency_uuid)s, %(nominal_amount)s, %(processing_case)s,
+                %(applied_rule_id)s
+            )
+        """
         
-        print(f"  ⏳ Committing transaction...")
-        sys.stdout.flush()
-        local_conn.commit()
+        # Process in chunks of 1000 for better pgbouncer compatibility
+        chunk_size = 1000
+        total_chunks = (len(consolidated_records) + chunk_size - 1) // chunk_size
+        
+        for i in range(0, len(consolidated_records), chunk_size):
+            chunk = consolidated_records[i:i + chunk_size]
+            chunk_num = i // chunk_size + 1
+            print(f"  📦 Inserting chunk {chunk_num}/{total_chunks} ({len(chunk)} records)...", end='', flush=True)
+            chunk_start = time.time()
+            
+            try:
+                supabase_cursor.executemany(insert_consolidated_query, chunk)
+                print(f" ✅ {time.time()-chunk_start:.2f}s")
+            except Exception as e:
+                print(f" ❌ ERROR!")
+                print(f"     Error type: {type(e).__name__}")
+                print(f"     Error message: {str(e)}")
+                print(f"     Chunk {chunk_num} records: {i} to {i+len(chunk)}")
+                
+                # Try to identify problematic record
+                print(f"     Attempting individual inserts to find problem record...")
+                for idx, rec in enumerate(chunk):
+                    try:
+                        supabase_cursor.execute(insert_consolidated_query, rec)
+                        if (idx + 1) % 50 == 0:
+                            print(f"       ✅ {idx+1}/{len(chunk)} records inserted")
+                    except Exception as rec_error:
+                        print(f"       ❌ Failed at record {i+idx}: {type(rec_error).__name__}: {str(rec_error)}")
+                        print(f"          Record UUID: {rec.get('uuid')}")
+                        print(f"          Description sample: {rec.get('description', '')[:100]}")
+                        raise
+                raise
+        
         print(f"  ✅ Insert completed in {time.time()-insert_start:.2f}s ({len(consolidated_records)/(time.time()-insert_start):.0f} rec/s)")
         
         log_step(4, "CONSOLIDATED RECORDS INSERTION", step_start)
@@ -1734,7 +1818,8 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
         # Create temporary table for bulk update (much faster than executemany)
         print(f"  📄 Creating temporary table...")
         sys.stdout.flush()
-        local_cursor.execute("""
+        supabase_cursor.execute("""
+            DROP TABLE IF EXISTS temp_flag_updates;
             CREATE TEMP TABLE temp_flag_updates (
                 uuid UUID,
                 counteragent_processed BOOLEAN,
@@ -1763,7 +1848,7 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
                 applied_rule = '\\N'  # PostgreSQL NULL for COPY
             buffer.write(f"{update['uuid']}\t{update['counteragent_processed']}\t{update['counteragent_found']}\t{update['counteragent_missing']}\t{update['payment_id_matched']}\t{update['payment_id_conflict']}\t{update['parsing_rule_applied']}\t{update['parsing_rule_conflict']}\t{inn}\t{applied_rule}\t{processing_case}\n")
         buffer.seek(0)
-        local_cursor.copy_from(buffer, 'temp_flag_updates', columns=('uuid', 'counteragent_processed', 'counteragent_found', 'counteragent_missing', 'payment_id_matched', 'payment_id_conflict', 'parsing_rule_applied', 'parsing_rule_conflict', 'counteragent_inn', 'applied_rule_id', 'processing_case'))
+        supabase_cursor.copy_from(buffer, 'temp_flag_updates', columns=('uuid', 'counteragent_processed', 'counteragent_found', 'counteragent_missing', 'payment_id_matched', 'payment_id_conflict', 'parsing_rule_applied', 'parsing_rule_conflict', 'counteragent_inn', 'applied_rule_id', 'processing_case'))
         copy_time = time.time() - update_start
         print(f"  ✅ Temp table loaded in {copy_time:.2f}s")
         sys.stdout.flush()
@@ -1771,7 +1856,7 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
         # Bulk update from temp table (single operation)
         print(f"  🔄 Executing bulk UPDATE FROM temp table...")
         sys.stdout.flush()
-        local_cursor.execute(f"""
+        supabase_cursor.execute(f"""
             UPDATE {raw_table_name} AS raw SET
                 counteragent_processed = tmp.counteragent_processed,
                 counteragent_found = tmp.counteragent_found,
@@ -1791,9 +1876,9 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
         print(f"  ✅ Bulk update completed in {bulk_time:.2f}s")
         sys.stdout.flush()
         
-        print(f"  ⏳ Committing transaction to LOCAL database...")
+        print(f"  ⏳ Committing transaction to Supabase...")
         sys.stdout.flush()
-        local_conn.commit()
+        supabase_conn.commit()
         print(f"  ✅ Update completed in {time.time()-update_start:.2f}s")
         
         log_step(5, "RAW TABLE FLAGS UPDATE", step_start)
@@ -1863,9 +1948,9 @@ def main():
         print(f"📁 IMPORT MODE - Processing XML file: {os.path.basename(xml_file)}")
         print(f"{'='*80}\n")
 
-        # Connect to databases
-        remote_conn, local_conn = get_db_connections()
-        local_cursor = local_conn.cursor()
+        # Connect to Supabase (all operations)
+        supabase_conn, _ = get_db_connections()
+        supabase_cursor = supabase_conn.cursor()
         
         try:
             # Step 1: Try to identify account from XML
@@ -1885,7 +1970,7 @@ def main():
             # Step 2: Look up account in database
             print("🔍 Step 2: Looking up account in database...")
             
-            local_cursor.execute("""
+            supabase_cursor.execute("""
                 SELECT 
                     ba.uuid,
                     ba.account_number,
@@ -1901,7 +1986,7 @@ def main():
                 WHERE ba.account_number = %s AND c.code = %s
             """, (account_number, currency_code))
             
-            result = local_cursor.fetchone()
+            result = supabase_cursor.fetchone()
             
             if not result:
                 print(f"❌ Account not found in database: {account_number} ({currency_code})")
@@ -1930,7 +2015,7 @@ def main():
             # Step 3: Process based on parsing scheme
             if parsing_scheme == 'BOG_GEL':
                 process_bog_gel(xml_file, account_uuid, account_number, currency_code, 
-                              raw_table_name, remote_conn, local_conn)
+                              raw_table_name, supabase_conn, supabase_conn)
             else:
                 print(f"❌ Unsupported parsing scheme: {parsing_scheme}")
                 sys.exit(1)
@@ -1941,9 +2026,8 @@ def main():
             traceback.print_exc()
             sys.exit(1)
         finally:
-            local_cursor.close()
-            local_conn.close()
-            remote_conn.close()
+            supabase_cursor.close()
+            supabase_conn.close()
     
     elif mode == 'backparse':
         # BACKPARSE MODE: Reprocess existing raw data
@@ -1977,3 +2061,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

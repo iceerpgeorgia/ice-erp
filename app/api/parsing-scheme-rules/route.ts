@@ -39,16 +39,18 @@ export async function GET(request: NextRequest) {
           ca.name as counteragent_name,
           fc.code as financial_code,
           cur.code as currency_code,
-          COALESCE(
-            (SELECT COUNT(*) FROM consolidated_bank_accounts cba 
-             WHERE cba.processing_case LIKE '%Applied rule manually, rule ID ' || r.id || '%'),
-            0
-          ) as applied_count
+          COALESCE(cba_counts.applied_count, 0) as applied_count
         FROM parsing_scheme_rules r
         JOIN parsing_schemes s ON r.scheme_uuid = s.uuid
         LEFT JOIN counteragents ca ON r.counteragent_uuid = ca.counteragent_uuid
         LEFT JOIN financial_codes fc ON r.financial_code_uuid = fc.uuid
         LEFT JOIN currencies cur ON r.nominal_currency_uuid = cur.uuid
+        LEFT JOIN (
+          SELECT applied_rule_id, COUNT(*) as applied_count
+          FROM consolidated_bank_accounts
+          WHERE applied_rule_id IS NOT NULL
+          GROUP BY applied_rule_id
+        ) cba_counts ON cba_counts.applied_rule_id = r.id
         WHERE r.scheme_uuid = ${schemeUuid}::uuid
         ORDER BY r.id DESC
       `;
@@ -58,16 +60,18 @@ export async function GET(request: NextRequest) {
           ca.name as counteragent_name,
           fc.code as financial_code,
           cur.code as currency_code,
-          COALESCE(
-            (SELECT COUNT(*) FROM consolidated_bank_accounts cba 
-             WHERE cba.processing_case LIKE '%Applied rule manually, rule ID ' || r.id || '%'),
-            0
-          ) as applied_count
+          COALESCE(cba_counts.applied_count, 0) as applied_count
         FROM parsing_scheme_rules r
         JOIN parsing_schemes s ON r.scheme_uuid = s.uuid
         LEFT JOIN counteragents ca ON r.counteragent_uuid = ca.counteragent_uuid
         LEFT JOIN financial_codes fc ON r.financial_code_uuid = fc.uuid
         LEFT JOIN currencies cur ON r.nominal_currency_uuid = cur.uuid
+        LEFT JOIN (
+          SELECT applied_rule_id, COUNT(*) as applied_count
+          FROM consolidated_bank_accounts
+          WHERE applied_rule_id IS NOT NULL
+          GROUP BY applied_rule_id
+        ) cba_counts ON cba_counts.applied_rule_id = r.id
         ORDER BY s.scheme, r.id DESC
       `;
     }
