@@ -213,7 +213,7 @@ export async function GET(req: NextRequest) {
     const balanceRecords = await prisma.bankAccount.findMany({
       where: {
         balance: { not: null },
-        balanceDate: { not: null },
+        balance_date: { not: null },
         isActive: true
       },
       include: {
