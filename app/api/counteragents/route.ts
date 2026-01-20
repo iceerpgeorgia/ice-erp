@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
       where.is_emploee = true;
     }
     
-    const rows = await prisma.counteragents.findMany({
+    const rows = await prisma.counteragent.findMany({
       where,
       orderBy: { id: "asc" },
       select: {
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    const created = await prisma.counteragents.create({
+    const created = await prisma.counteragent.create({
       data: {
         name: body.name?.trim(),
         identification_number: body.identification_number ?? null,
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
     const internalNumber = `ICE${zeros}${idStr}`;
 
     // Update the record with internal_number and fetch complete data
-    const updated = await prisma.counteragents.update({
+    const updated = await prisma.counteragent.update({
       where: { id: created.id },
       data: { internal_number: internalNumber },
       select: {
@@ -214,7 +214,7 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     
     // Fetch existing record for change tracking
-    const existing = await prisma.counteragents.findUnique({
+    const existing = await prisma.counteragent.findUnique({
       where: { id: BigInt(id) },
     });
 
@@ -281,7 +281,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Update the record
-    const updated = await prisma.counteragents.update({
+    const updated = await prisma.counteragent.update({
       where: { id: BigInt(id) },
       data: {
         name: body.name !== undefined ? body.name?.trim() : undefined,
