@@ -70,6 +70,7 @@ function formatDateInput(value: string): string {
 
 export default function BankTransactionsTableFigma() {
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
+  const [currencySummaries, setCurrencySummaries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -102,6 +103,20 @@ export default function BankTransactionsTableFigma() {
     return "";
   });
 
+  // Record limit setting
+  const [recordLimitInput, setRecordLimitInput] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('bankTransactions_recordLimit') || "5000";
+    }
+    return "5000";
+  });
+  const [appliedRecordLimit, setAppliedRecordLimit] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('bankTransactions_appliedRecordLimit') || "5000";
+    }
+    return "5000";
+  });
+
   // Save applied filters to localStorage whenever they change
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -109,8 +124,10 @@ export default function BankTransactionsTableFigma() {
       localStorage.setItem('bankTransactions_appliedToDate', appliedToDate);
       localStorage.setItem('bankTransactions_fromDate', appliedFromDate); // Sync display with applied
       localStorage.setItem('bankTransactions_toDate', appliedToDate);
+      localStorage.setItem('bankTransactions_appliedRecordLimit', appliedRecordLimit);
+      localStorage.setItem('bankTransactions_recordLimit', appliedRecordLimit);
     }
-  }, [appliedFromDate, appliedToDate]);
+  }, [appliedFromDate, appliedToDate, appliedRecordLimit]);
 
   // Validation helper - check if date is valid dd.mm.yyyy format
   const isValidDate = (date: string): boolean => {
@@ -141,9 +158,30 @@ export default function BankTransactionsTableFigma() {
       return;
     }
 
+    // Validate record limit
+    const limitValue = recordLimitInput.toLowerCase();
+    if (limitValue !== 'all' && limitValue !== '') {
+      const limitNum = parseInt(limitValue, 10);
+      if (isNaN(limitNum) || limitNum < 1) {
+        alert("Please enter a valid number or 'all' for record limit");
+        return;
+      }
+      // Warn if limit is too high (API caps at 10,000)
+      if (limitNum > 10000) {
+        if (!confirm(`⚠️ You requested ${limitNum} records.\n\nFor performance reasons, the API is capped at 10,000 records maximum.\n\nContinue with 10,000 records?`)) {
+          return;
+        }
+        // Auto-adjust to 10,000
+        setRecordLimitInput("10000");
+        setAppliedRecordLimit("10000");
+        return;
+      }
+    }
+
     // Apply the filters
     setAppliedFromDate(fromDateDisplay);
     setAppliedToDate(toDateDisplay);
+    setAppliedRecordLimit(recordLimitInput);
   };
 
   // Clear filters
@@ -152,6 +190,8 @@ export default function BankTransactionsTableFigma() {
     setToDateDisplay("");
     setAppliedFromDate("");
     setAppliedToDate("");
+    setRecordLimitInput("5000");
+    setAppliedRecordLimit("5000");
   };
 
   useEffect(() => {
@@ -166,13 +206,39 @@ export default function BankTransactionsTableFigma() {
         });
         if (appliedFromDate) params.set('fromDate', appliedFromDate);
         if (appliedToDate) params.set('toDate', appliedToDate);
+        
+        // Apply record limit (if not 'all')
+        const limitValue = appliedRecordLimit.toLowerCase();
+        if (limitValue !== 'all' && limitValue !== '') {
+          params.set('limit', appliedRecordLimit);
+        }
+        // If 'all', don't set limit parameter (will use API default or fetch all available)
+        
         const queryString = params.toString();
         const url = `/api/bank-transactions${queryString ? `?${queryString}` : ''}`;
         const res = await fetch(url);
         console.log('[BankTransactionsTableFigma] Response status:', res.status);
         
         if (!res.ok) throw new Error("Failed to fetch");
-        const data = await res.json();
+        const response = await res.json();
+        
+        // Handle new response format with pagination
+        const data = response.data || response; // Support both old and new formats
+        const pagination = response.pagination;
+        const summaries = response.currency_summaries || [];
+        
+        if (pagination) {
+          console.log('[BankTransactionsTableFigma] Pagination info:', pagination);
+        }
+        
+        if (summaries.length > 0) {
+          console.log('[BankTransactionsTableFigma] Currency summaries:', summaries);
+          setCurrencySummaries(summaries);
+        } else {
+          console.log('[BankTransactionsTableFigma] No currency summaries received');
+          setCurrencySummaries([]);
+        }
+        
         console.log('[BankTransactionsTableFigma] Data received:', data.length, 'records');
 
         const mapped = data.map((row: any) => ({
@@ -188,7 +254,8 @@ export default function BankTransactionsTableFigma() {
           nominalCurrencyUuid: row.nominal_currency_uuid || null,
           nominalAmount: row.nominal_amount || null,
           date: row.transaction_date || "",
-          correctionDate: null, // Not in current schema
+          correctionDate: row.correction_date || null,
+          exchangeRate: row.exchange_rate || null,
           id1: null, // Not in current schema
           id2: null, // Not in current schema
           recordUuid: row.raw_record_uuid || "",
@@ -226,7 +293,7 @@ export default function BankTransactionsTableFigma() {
       setLoading(true);
       loadTransactions();
     }
-  }, [appliedFromDate, appliedToDate]); // Trigger only when applied filters change
+  }, [appliedFromDate, appliedToDate, appliedRecordLimit]); // Trigger only when applied filters change
 
   if (loading) {
     return (
@@ -248,6 +315,7 @@ export default function BankTransactionsTableFigma() {
   }
 
   console.log('[BankTransactionsTableFigma] Rendering table with', transactions.length, 'transactions');
+  console.log('[BankTransactionsTableFigma] Currency summaries to pass:', currencySummaries);
   
   return (
     <div className="space-y-4">
@@ -290,6 +358,25 @@ export default function BankTransactionsTableFigma() {
             className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32"
           />
         </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="recordLimit" className="text-sm font-medium text-gray-700">
+            Records:
+          </label>
+          <input
+            id="recordLimit"
+            type="text"
+            value={recordLimitInput}
+            onChange={(e) => setRecordLimitInput(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleApplyFilters();
+              }
+            }}
+            placeholder="5000 or 'all'"
+            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32"
+          />
+          <span className="text-xs text-gray-500 whitespace-nowrap">(max 10K)</span>
+        </div>
         <button
           onClick={handleApplyFilters}
           className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -308,7 +395,7 @@ export default function BankTransactionsTableFigma() {
           Showing {transactions.length.toLocaleString()} transactions
         </div>
       </div>
-      <BankTransactionsTableDynamic data={transactions} />
+      <BankTransactionsTableDynamic data={transactions} currencySummaries={currencySummaries} />
     </div>
   );
 }

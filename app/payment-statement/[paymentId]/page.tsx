@@ -3,12 +3,107 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 
+const formatDate = (date: string | Date): string => {
+  const d = new Date(date);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}.${month}.${year}`;
+};
+
+type TransactionRow = {
+  id: string;
+  type: 'ledger' | 'bank';
+  date: string;
+  accrual: number;
+  payment: number;
+  order: number;
+  ppc: number;
+  paidPercent: number;
+  due: number;
+  balance: number;
+  comment: string;
+  user: string;
+  caAccount: string;
+  account: string;
+  createdAt: string;
+};
+
+type ColumnConfig = {
+  key: keyof TransactionRow;
+  label: string;
+  visible: boolean;
+  width: number;
+  align?: 'left' | 'right';
+};
+
+const defaultColumns: ColumnConfig[] = [
+  { key: 'date', label: 'Date', visible: true, width: 120, align: 'left' },
+  { key: 'accrual', label: 'Accrual', visible: true, width: 120, align: 'right' },
+  { key: 'payment', label: 'Payment', visible: true, width: 120, align: 'right' },
+  { key: 'order', label: 'Order', visible: true, width: 120, align: 'right' },
+  { key: 'ppc', label: 'PPC', visible: true, width: 120, align: 'right' },
+  { key: 'paidPercent', label: 'Paid %', visible: true, width: 100, align: 'right' },
+  { key: 'due', label: 'Due', visible: true, width: 120, align: 'right' },
+  { key: 'balance', label: 'Balance', visible: true, width: 120, align: 'right' },
+  { key: 'comment', label: 'Comment', visible: true, width: 300, align: 'left' },
+  { key: 'user', label: 'User', visible: true, width: 180, align: 'left' },
+  { key: 'caAccount', label: 'CA Account', visible: true, width: 180, align: 'left' },
+  { key: 'account', label: 'Account', visible: true, width: 200, align: 'left' },
+  { key: 'createdAt', label: 'Created At', visible: true, width: 180, align: 'left' },
+];
+
 export default function PaymentStatementPage() {
   const params = useParams();
   const paymentId = params.paymentId as string;
   const [statementData, setStatementData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
+  const [isResizing, setIsResizing] = useState<{ column: keyof TransactionRow; startX: number; startWidth: number; element: HTMLElement } | null>(null);
+  const [draggedColumn, setDraggedColumn] = useState<keyof TransactionRow | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<keyof TransactionRow | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Load saved column configuration from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedColumns = localStorage.getItem('paymentStatementColumns');
+      if (savedColumns) {
+        try {
+          const parsed = JSON.parse(savedColumns);
+          
+          // Validate saved columns structure
+          const validSavedColumns = parsed.filter((col: any) => 
+            col.key && col.label && typeof col.width === 'number' && typeof col.visible === 'boolean'
+          );
+          
+          // Merge saved columns with defaults to handle new columns
+          const updatedSavedColumns = validSavedColumns.map((savedCol: any) => {
+            const defaultCol = defaultColumns.find(col => col.key === savedCol.key);
+            return defaultCol ? { ...defaultCol, ...savedCol } : savedCol;
+          });
+          
+          // Find new columns that don't exist in saved columns
+          const savedKeys = new Set(validSavedColumns.map((col: any) => col.key));
+          const newColumns = defaultColumns.filter(col => !savedKeys.has(col.key));
+          
+          setColumns([...updatedSavedColumns, ...newColumns]);
+        } catch (e) {
+          console.error('Failed to parse saved columns:', e);
+          setColumns(defaultColumns);
+        }
+      }
+    }
+    setIsInitialized(true);
+  }, []);
+
+  // Save column configuration to localStorage whenever it changes
+  useEffect(() => {
+    if (isInitialized && typeof window !== 'undefined') {
+      localStorage.setItem('paymentStatementColumns', JSON.stringify(columns));
+    }
+  }, [columns, isInitialized]);
 
   useEffect(() => {
     const fetchStatement = async () => {
@@ -29,6 +124,154 @@ export default function PaymentStatementPage() {
       fetchStatement();
     }
   }, [paymentId]);
+
+  // Column resize handlers
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isResizing) {
+        const deltaX = e.clientX - isResizing.startX;
+        const newWidth = Math.max(50, isResizing.startWidth + deltaX);
+        
+        isResizing.element.style.width = `${newWidth}px`;
+        isResizing.element.style.minWidth = `${newWidth}px`;
+        isResizing.element.style.maxWidth = `${newWidth}px`;
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (isResizing) {
+        const finalWidth = parseInt(isResizing.element.style.width);
+        setColumns(prev =>
+          prev.map(col =>
+            col.key === isResizing.column ? { ...col, width: finalWidth } : col
+          )
+        );
+        
+        setIsResizing(null);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isResizing]);
+
+  const handleResizeStart = (e: React.MouseEvent, column: keyof TransactionRow) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const th = (e.target as HTMLElement).parentElement as HTMLElement;
+    setIsResizing({
+      column,
+      startX: e.clientX,
+      startWidth: th.offsetWidth,
+      element: th
+    });
+  };
+
+  const handleDragStart = (e: React.DragEvent, columnKey: keyof TransactionRow) => {
+    setDraggedColumn(columnKey);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, columnKey: keyof TransactionRow) => {
+    e.preventDefault();
+    if (draggedColumn && draggedColumn !== columnKey) {
+      setDragOverColumn(columnKey);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetKey: keyof TransactionRow) => {
+    e.preventDefault();
+    if (draggedColumn && draggedColumn !== targetKey) {
+      const draggedIndex = columns.findIndex(col => col.key === draggedColumn);
+      const targetIndex = columns.findIndex(col => col.key === targetKey);
+      
+      const newColumns = [...columns];
+      const [removed] = newColumns.splice(draggedIndex, 1);
+      newColumns.splice(targetIndex, 0, removed);
+      
+      setColumns(newColumns);
+    }
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  const mergedTransactions: TransactionRow[] = statementData ? [
+    ...statementData.ledgerEntries.map((entry: any) => ({
+      id: `ledger-${entry.id}`,
+      type: 'ledger' as const,
+      date: formatDate(entry.effectiveDate),
+      dateSort: new Date(entry.effectiveDate).getTime(),
+      accrual: entry.accrual,
+      payment: 0,
+      order: entry.order,
+      ppc: 0,
+      paidPercent: 0,
+      due: 0,
+      balance: 0,
+      comment: entry.comment || '-',
+      user: entry.userEmail,
+      caAccount: '-',
+      account: '-',
+      createdAt: `${formatDate(entry.createdAt)} ${new Date(entry.createdAt).toLocaleTimeString()}`,
+    })),
+    ...statementData.bankTransactions.map((tx: any) => ({
+      id: `bank-${tx.id}`,
+      type: 'bank' as const,
+      date: formatDate(tx.date),
+      dateSort: new Date(tx.date).getTime(),
+      accrual: 0,
+      payment: Math.abs(tx.nominalAmount),
+      order: 0,
+      ppc: Math.abs(tx.accountCurrencyAmount),
+      paidPercent: 0,
+      due: 0,
+      balance: 0,
+      comment: tx.description || '-',
+      user: '-',
+      caAccount: tx.counteragentAccountNumber || '-',
+      account: tx.accountLabel || '-',
+      createdAt: `${formatDate(tx.createdAt)} ${new Date(tx.createdAt).toLocaleTimeString()}`,
+    }))
+  ].sort((a, b) => a.dateSort - b.dateSort) : []; // Sort by date ascending for cumulative calculation
+
+  // Calculate cumulative values for each row (from oldest to newest)
+  if (mergedTransactions.length > 0) {
+    let cumulativeAccrual = 0;
+    let cumulativePayment = 0;
+    let cumulativeOrder = 0;
+
+    mergedTransactions.forEach(row => {
+      cumulativeAccrual += row.accrual;
+      cumulativePayment += row.payment; // Already absolute value
+      cumulativeOrder += row.order;
+
+      // Calculate Paid % = (cumulative payment / cumulative accrual) * 100
+      row.paidPercent = cumulativeAccrual !== 0 
+        ? parseFloat(((cumulativePayment / cumulativeAccrual) * 100).toFixed(2))
+        : 0;
+
+      // Calculate Due = cumulative order - cumulative payment
+      row.due = parseFloat((cumulativeOrder - cumulativePayment).toFixed(2));
+
+      // Calculate Balance = cumulative accrual - cumulative payment
+      row.balance = parseFloat((cumulativeAccrual - cumulativePayment).toFixed(2));
+    });
+
+    // Now reverse to show newest first in the table
+    mergedTransactions.reverse();
+  }
+
 
   if (loading) {
     return (
@@ -55,9 +298,9 @@ export default function PaymentStatementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
+    <div className="min-h-screen bg-white">
+      <div className="w-full">
+        <div className="space-y-6">
           {/* Header */}
           <div className="border-b pb-4">
             <h1 className="text-2xl font-bold">Payment Statement</h1>
@@ -107,97 +350,82 @@ export default function PaymentStatementPage() {
             </div>
           </div>
 
-          {/* Ledger Entries */}
+          {/* Merged Payment Transactions */}
           <div>
             <h3 className="font-semibold mb-3 text-lg">
-              Payment Ledger Entries 
+              Payment Transactions 
               <span className="ml-2 text-sm font-normal text-gray-600">
-                ({statementData.ledgerEntries.length} {statementData.ledgerEntries.length === 1 ? 'entry' : 'entries'})
+                ({mergedTransactions.length} {mergedTransactions.length === 1 ? 'entry' : 'entries'})
               </span>
             </h3>
-            {statementData.ledgerEntries.length > 0 ? (
+            {mergedTransactions.length > 0 ? (
               <div className="border rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="px-4 py-3 text-left font-semibold">Effective Date</th>
-                        <th className="px-4 py-3 text-right font-semibold" style={{ backgroundColor: '#ffebee' }}>Accrual</th>
-                        <th className="px-4 py-3 text-right font-semibold" style={{ backgroundColor: '#e8f5e9' }}>Payment</th>
-                        <th className="px-4 py-3 text-right font-semibold" style={{ backgroundColor: '#fff9e6' }}>Order</th>
-                        <th className="px-4 py-3 text-left font-semibold">Comment</th>
-                        <th className="px-4 py-3 text-left font-semibold">User</th>
-                        <th className="px-4 py-3 text-left font-semibold">Created At</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {statementData.ledgerEntries.map((entry: any, index: number) => (
-                        <tr key={entry.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="px-4 py-3">{new Date(entry.effectiveDate).toLocaleDateString()}</td>
-                          <td className="px-4 py-3 text-right font-mono" style={{ backgroundColor: '#ffebee' }}>
-                            {entry.accrual ? entry.accrual.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                          </td>
-                          <td className="px-4 py-3 text-right font-mono" style={{ backgroundColor: '#e8f5e9' }}>
-                            0.00
-                          </td>
-                          <td className="px-4 py-3 text-right font-mono" style={{ backgroundColor: '#fff9e6' }}>
-                            {entry.order ? entry.order.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                          </td>
-                          <td className="px-4 py-3">{entry.comment || '-'}</td>
-                          <td className="px-4 py-3">{entry.userEmail}</td>
-                          <td className="px-4 py-3">{new Date(entry.createdAt).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500 border rounded-lg">No ledger entries found</div>
-            )}
-          </div>
-
-          {/* Bank Transactions */}
-          <div>
-            <h3 className="font-semibold mb-3 text-lg">
-              Bank Transactions 
-              <span className="ml-2 text-sm font-normal text-gray-600">
-                ({statementData.bankTransactions.length} {statementData.bankTransactions.length === 1 ? 'transaction' : 'transactions'})
-              </span>
-            </h3>
-            {statementData.bankTransactions.length > 0 ? (
-              <div className="border rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-semibold">Date</th>
-                        <th className="px-4 py-3 text-right font-semibold">Account Amount</th>
-                        <th className="px-4 py-3 text-right font-semibold">Nominal Amount</th>
-                        <th className="px-4 py-3 text-left font-semibold">ID 1</th>
-                        <th className="px-4 py-3 text-left font-semibold">ID 2</th>
-                        <th className="px-4 py-3 text-left font-semibold">Account Number</th>
-                        <th className="px-4 py-3 text-left font-semibold">Description</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {statementData.bankTransactions.map((tx: any, index: number) => (
-                        <tr key={tx.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="px-4 py-3">{new Date(tx.date).toLocaleDateString()}</td>
-                          <td className="px-4 py-3 text-right font-mono">
-                            {tx.accountCurrencyAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                          <td className="px-4 py-3 text-right font-mono">
-                            {tx.nominalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                          <td className="px-4 py-3">{tx.id1 || '-'}</td>
-                          <td className="px-4 py-3">{tx.id2 || '-'}</td>
-                          <td className="px-4 py-3">{tx.counteragentAccountNumber || '-'}</td>
-                          <td className="px-4 py-3">
-                            <div className="max-w-md truncate" title={tx.description}>
-                              {tx.description || '-'}
+                        {columns.filter(col => col.visible).map((column) => (
+                          <th
+                            key={column.key}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, column.key)}
+                            onDragOver={(e) => handleDragOver(e, column.key)}
+                            onDrop={(e) => handleDrop(e, column.key)}
+                            className={`px-4 py-3 font-semibold relative cursor-move select-none ${
+                              column.align === 'right' ? 'text-right' : 'text-left'
+                            } ${dragOverColumn === column.key ? 'bg-blue-100' : ''}`}
+                            style={{
+                              width: `${column.width}px`,
+                              minWidth: `${column.width}px`,
+                              maxWidth: `${column.width}px`,
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className={column.align === 'right' ? 'ml-auto' : ''}>{column.label}</span>
+                              <div
+                                className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 z-10"
+                                onMouseDown={(e) => handleResizeStart(e, column.key)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
                             </div>
-                          </td>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mergedTransactions.map((row, index) => (
+                        <tr key={row.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          {columns.filter(col => col.visible).map((column) => {
+                            let displayValue = row[column.key];
+                            
+                            // Format numeric values
+                            if (column.align === 'right' && typeof displayValue === 'number') {
+                              if (column.key === 'paidPercent') {
+                                displayValue = `${displayValue.toFixed(2)}%`;
+                              } else {
+                                displayValue = displayValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                              }
+                            }
+                            
+                            return (
+                              <td
+                                key={column.key}
+                                className={`px-4 py-3 ${
+                                  column.align === 'right' ? 'text-right font-mono' : 'text-left'
+                                }`}
+                                style={{
+                                  width: `${column.width}px`,
+                                  minWidth: `${column.width}px`,
+                                  maxWidth: `${column.width}px`,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {displayValue}
+                              </td>
+                            );
+                          })}
                         </tr>
                       ))}
                     </tbody>
@@ -205,7 +433,7 @@ export default function PaymentStatementPage() {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500 border rounded-lg">No bank transactions found</div>
+              <div className="text-center py-8 text-gray-500 border rounded-lg">No transactions found</div>
             )}
           </div>
 

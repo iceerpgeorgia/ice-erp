@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     // Get single code details
     if (singleCode) {
-      const code = await prisma.financialCode.findUnique({
+      const code = await prisma.financial_codes.findUnique({
         where: { code: singleCode },
       });
 
@@ -45,17 +45,25 @@ export async function GET(request: NextRequest) {
     const where: any = {};
 
     if (statementType === 'pl') {
-      where.appliesToPL = true;
+      where.applies_to_pl = true;
     } else if (statementType === 'cf') {
-      where.appliesToCF = true;
+      where.applies_to_cf = true;
     }
 
-    // Get all codes matching filters, ordered by depth and sortOrder
-    const codes = await prisma.financialCode.findMany({
+    // Filter by isIncome
+    const isIncomeFilter = searchParams.get('isIncome');
+    if (isIncomeFilter === 'true') {
+      where.is_income = true;
+    } else if (isIncomeFilter === 'false') {
+      where.is_income = false;
+    }
+
+    // Get all codes matching filters, ordered by depth and sort_order
+    const codes = await prisma.financial_codes.findMany({
       where,
       orderBy: [
         { depth: 'asc' },
-        { sortOrder: 'asc' },
+        { sort_order: 'asc' },
       ],
     });
 
@@ -65,10 +73,10 @@ export async function GET(request: NextRequest) {
       // First, build the tree structure
       const buildTree = (parentUuid: string | null = null): any[] => {
         return codes
-          .filter(c => c.parentUuid === parentUuid)
+          .filter(c => c.parent_uuid === parentUuid)
           .sort((a, b) => {
-            if (a.sortOrder !== b.sortOrder) {
-              return a.sortOrder - b.sortOrder;
+            if (a.sort_order !== b.sort_order) {
+              return a.sort_order - b.sort_order;
             }
             
             // Custom sort: codes starting with "0" should come after "9"
@@ -114,7 +122,7 @@ export async function GET(request: NextRequest) {
       
       // Filter to only leaf nodes (those without children)
       finalCodes = flattened.filter(code => {
-        const hasChildren = codes.some(c => c.parentUuid === code.uuid);
+        const hasChildren = codes.some(c => c.parent_uuid === code.uuid);
         return !hasChildren;
       });
     }
@@ -198,7 +206,7 @@ export async function POST(req: NextRequest) {
     console.log('[API POST] Validated payload:', payload);
 
     // Check for duplicate code
-    const existing = await prisma.financialCode.findUnique({
+    const existing = await prisma.financial_codes.findUnique({
       where: { code: payload.code },
     });
 
@@ -213,42 +221,42 @@ export async function POST(req: NextRequest) {
     // Calculate depth from code
     const depth = payload.code.split(".").length;
 
-    // Calculate sortOrder: find max sortOrder for siblings and increment
+    // Calculate sortOrder: find max sort_order for siblings and increment
     let sortOrder = 1;
     if (payload.parentUuid) {
-      const siblings = await prisma.financialCode.findMany({
-        where: { parentUuid: payload.parentUuid },
-        orderBy: { sortOrder: 'desc' },
+      const siblings = await prisma.financial_codes.findMany({
+        where: { parent_uuid: payload.parentUuid },
+        orderBy: { sort_order: 'desc' },
         take: 1,
       });
       if (siblings.length > 0) {
-        sortOrder = (siblings[0].sortOrder || 0) + 1;
+        sortOrder = (siblings[0].sort_order || 0) + 1;
       }
     } else {
-      // Root level - find max sortOrder among roots
-      const roots = await prisma.financialCode.findMany({
-        where: { parentUuid: null },
-        orderBy: { sortOrder: 'desc' },
+      // Root level - find max sort_order among roots
+      const roots = await prisma.financial_codes.findMany({
+        where: { parent_uuid: null },
+        orderBy: { sort_order: 'desc' },
         take: 1,
       });
       if (roots.length > 0) {
-        sortOrder = (roots[0].sortOrder || 0) + 1;
+        sortOrder = (roots[0].sort_order || 0) + 1;
       }
     }
 
-    const created = await prisma.financialCode.create({
+    const created = await prisma.financial_codes.create({
       data: {
         code: payload.code,
         name: payload.name,
         ...(payload.description && { description: payload.description }),
         ...(payload.validation && { validation: payload.validation }),
-        isIncome: payload.isIncome,
-        appliesToPL: payload.appliesToPL,
-        appliesToCF: payload.appliesToCF,
-        isActive: payload.isActive,
-        ...(payload.parentUuid && { parentUuid: payload.parentUuid }),
+        is_income: payload.isIncome,
+        applies_to_pl: payload.appliesToPL,
+        applies_to_cf: payload.appliesToCF,
+        is_active: payload.isActive,
+        ...(payload.parentUuid && { parent_uuid: payload.parentUuid }),
         depth,
-        sortOrder,
+        sort_order: sortOrder,
       },
     });
 
@@ -293,7 +301,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Fetch existing record
-    const existing = await prisma.financialCode.findUnique({
+    const existing = await prisma.financial_codes.findUnique({
       where: { id },
     });
 
@@ -303,7 +311,7 @@ export async function PATCH(req: NextRequest) {
 
     // Check for code conflicts (if code changed)
     if (payload.code !== existing.code) {
-      const duplicate = await prisma.financialCode.findUnique({
+      const duplicate = await prisma.financial_codes.findUnique({
         where: { code: payload.code },
       });
       if (duplicate) {
@@ -333,11 +341,11 @@ export async function PATCH(req: NextRequest) {
       name: payload.name,
       description: payload.description,
       validation: payload.validation,
-      isIncome: payload.isIncome,
-      appliesToPL: payload.appliesToPL,
-      appliesToCF: payload.appliesToCF,
-      isActive: payload.isActive,
-      parentUuid: payload.parentUuid,
+      is_income: payload.isIncome,
+      applies_to_pl: payload.appliesToPL,
+      applies_to_cf: payload.appliesToCF,
+      is_active: payload.isActive,
+      parent_uuid: payload.parentUuid,
     };
 
     if (payload.code !== existing.code) {
@@ -345,7 +353,7 @@ export async function PATCH(req: NextRequest) {
       updateData.depth = payload.code.split(".").length;
     }
 
-    const updated = await prisma.financialCode.update({
+    const updated = await prisma.financial_codes.update({
       where: { id },
       data: updateData,
     });
@@ -382,7 +390,7 @@ export async function DELETE(req: NextRequest) {
 
     const id = BigInt(idString);
 
-    const existing = await prisma.financialCode.findUnique({
+    const existing = await prisma.financial_codes.findUnique({
       where: { id },
     });
 
@@ -390,10 +398,10 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ errors: { id: "Financial code not found" } }, { status: 404 });
     }
 
-    // Soft delete by setting isActive to false
-    const updated = await prisma.financialCode.update({
+    // Soft delete by setting is_active to false
+    const updated = await prisma.financial_codes.update({
       where: { id },
-      data: { isActive: false },
+      data: { is_active: false },
     });
 
     await logAudit({
@@ -413,3 +421,4 @@ export async function DELETE(req: NextRequest) {
     );
   }
 }
+

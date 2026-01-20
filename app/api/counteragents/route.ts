@@ -5,12 +5,12 @@ import { logAudit } from "@/lib/audit";
 
 export const revalidate = 0;
 
-// Map Prisma (camelCase) to snake_case JSON keys your UI expects
+// Map Prisma (snake_case) to API JSON
 function toApi(row: any) {
   return {
     id: Number(row.id),
-    created_at: row.createdAt?.toISOString() ?? null,
-    updated_at: row.updatedAt?.toISOString() ?? null,
+    created_at: row.created_at?.toISOString() ?? null,
+    updated_at: row.updated_at?.toISOString() ?? null,
     ts: row.ts?.toISOString() ?? null,
 
     name: row.name,
@@ -54,13 +54,13 @@ export async function GET(req: NextRequest) {
       where.is_emploee = true;
     }
     
-    const rows = await prisma.counteragent.findMany({
+    const rows = await prisma.counteragents.findMany({
       where,
       orderBy: { id: "asc" },
       select: {
         id: true,
-        createdAt: true, // Prisma uses camelCase in client
-        updatedAt: true,
+        created_at: true,
+        updated_at: true,
         ts: true,
 
         name: true,
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    const created = await prisma.counteragent.create({
+    const created = await prisma.counteragents.create({
       data: {
         name: body.name?.trim(),
         identification_number: body.identification_number ?? null,
@@ -129,6 +129,7 @@ export async function POST(req: NextRequest) {
         is_active: body.is_active ?? true,
         is_emploee: body.is_emploee ?? null,
         was_emploee: body.was_emploee ?? null,
+        updated_at: new Date(),
       },
       select: {
         id: true,
@@ -141,13 +142,13 @@ export async function POST(req: NextRequest) {
     const internalNumber = `ICE${zeros}${idStr}`;
 
     // Update the record with internal_number and fetch complete data
-    const updated = await prisma.counteragent.update({
+    const updated = await prisma.counteragents.update({
       where: { id: created.id },
       data: { internal_number: internalNumber },
       select: {
         id: true,
-        createdAt: true,
-        updatedAt: true,
+        created_at: true,
+        updated_at: true,
         ts: true,
 
         name: true,
@@ -213,7 +214,7 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     
     // Fetch existing record for change tracking
-    const existing = await prisma.counteragent.findUnique({
+    const existing = await prisma.counteragents.findUnique({
       where: { id: BigInt(id) },
     });
 
@@ -280,7 +281,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Update the record
-    const updated = await prisma.counteragent.update({
+    const updated = await prisma.counteragents.update({
       where: { id: BigInt(id) },
       data: {
         name: body.name !== undefined ? body.name?.trim() : undefined,
@@ -311,8 +312,8 @@ export async function PATCH(req: NextRequest) {
       },
       select: {
         id: true,
-        createdAt: true,
-        updatedAt: true,
+        created_at: true,
+        updated_at: true,
         ts: true,
         name: true,
         identification_number: true,
@@ -374,3 +375,4 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: err.message ?? "Server error" }, { status: 500 });
   }
 }
+

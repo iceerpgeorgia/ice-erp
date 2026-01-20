@@ -30,16 +30,16 @@ function validatePayload(body: any) {
 
 export async function GET() {
   try {
-    const rows = await prisma.currency.findMany({
+    const rows = await prisma.currencies.findMany({
       orderBy: { code: "asc" },
       select: {
         id: true,
         uuid: true,
         code: true,
         name: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
+        is_active: true,
+        created_at: true,
+        updated_at: true,
       },
     });
 
@@ -56,13 +56,14 @@ export async function GET() {
       id: typeof row.id === 'bigint' ? Number(row.id) : row.id,
       uuid: row.uuid,
       code: row.code,
+      currencyCode: row.code,
       name: row.name,
-      isActive: row.isActive,
-      createdAt: formatDate(row.createdAt),
-      updatedAt: formatDate(row.updatedAt),
+      isActive: row.is_active,
+      createdAt: formatDate(row.created_at),
+      updatedAt: formatDate(row.updated_at),
     }));
 
-    return NextResponse.json(camelRows);
+    return NextResponse.json({ data: camelRows });
   } catch (error: any) {
     console.error("[currencies] GET error", error);
     return NextResponse.json(
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check for duplicate code
-    const existing = await prisma.currency.findUnique({
+    const existing = await prisma.currencies.findUnique({
       where: { code: payload.code },
     });
 
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const created = await prisma.currency.create({
+    const created = await prisma.currencies.create({
       data: {
         code: payload.code,
         name: payload.name,
@@ -152,7 +153,7 @@ export async function PATCH(req: NextRequest) {
     // If only toggling active status
     if (body.active !== undefined && Object.keys(body).length === 1) {
       const active = typeof body.active === "boolean" ? body.active : true;
-      await prisma.currency.update({ 
+      await prisma.currencies.update({ 
         where: { id: BigInt(Number(idParam)) }, 
         data: { isActive: active } 
       });
@@ -171,7 +172,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Get existing record
-    const existing = await prisma.currency.findUnique({
+    const existing = await prisma.currencies.findUnique({
       where: { id: BigInt(Number(idParam)) },
     });
 
@@ -181,7 +182,7 @@ export async function PATCH(req: NextRequest) {
 
     // Check for code conflicts (if code changed)
     if (payload.code !== existing.code) {
-      const duplicate = await prisma.currency.findUnique({
+      const duplicate = await prisma.currencies.findUnique({
         where: { code: payload.code },
       });
       if (duplicate) {
@@ -192,7 +193,7 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    const updated = await prisma.currency.update({
+    const updated = await prisma.currencies.update({
       where: { id: BigInt(Number(idParam)) },
       data: {
         code: payload.code,
@@ -247,7 +248,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Missing id" }, { status: 400 });
     }
     
-    await prisma.currency.update({ 
+    await prisma.currencies.update({ 
       where: { id: BigInt(Number(idParam)) }, 
       data: { isActive: false } 
     });
@@ -263,3 +264,4 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: e.message ?? "Server error" }, { status: 500 });
   }
 }
+

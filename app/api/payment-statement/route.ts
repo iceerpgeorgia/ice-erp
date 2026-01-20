@@ -78,22 +78,25 @@ export async function GET(request: NextRequest) {
     // Get bank transactions
     const bankQuery = `
       SELECT 
-        id,
-        account_currency_amount,
-        nominal_amount,
-        date,
-        correction_date,
-        id_1,
-        id_2,
-        counteragent_account_number,
-        description,
-        created_at
-      FROM consolidated_bank_accounts
-      WHERE payment_uuid::text = $1
-      ORDER BY date DESC
+        cba.id,
+        cba.account_currency_amount,
+        cba.nominal_amount,
+        cba.transaction_date,
+        cba.counteragent_account_number,
+        cba.description,
+        cba.created_at,
+        cba.bank_account_uuid,
+        cba.account_currency_uuid,
+        ba.account_number as bank_account_number,
+        curr.code as account_currency_code
+      FROM consolidated_bank_accounts cba
+      LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
+      LEFT JOIN currencies curr ON cba.account_currency_uuid = curr.uuid
+      WHERE cba.payment_id = $1
+      ORDER BY cba.transaction_date DESC
     `;
 
-    const bankResult = await prisma.$queryRawUnsafe(bankQuery, payment.record_uuid);
+    const bankResult = await prisma.$queryRawUnsafe(bankQuery, paymentId);
 
     // Format response
     const response = {
@@ -124,13 +127,11 @@ export async function GET(request: NextRequest) {
         id: Number(tx.id),
         accountCurrencyAmount: tx.account_currency_amount ? parseFloat(tx.account_currency_amount) : 0,
         nominalAmount: tx.nominal_amount ? parseFloat(tx.nominal_amount) : 0,
-        date: tx.date,
-        correctionDate: tx.correction_date,
-        id1: tx.id_1,
-        id2: tx.id_2,
+        date: tx.transaction_date,
         counteragentAccountNumber: tx.counteragent_account_number,
         description: tx.description,
         createdAt: tx.created_at,
+        accountLabel: `${tx.bank_account_number || ''} ${tx.account_currency_code || ''}`.trim() || '-',
       })),
     };
 

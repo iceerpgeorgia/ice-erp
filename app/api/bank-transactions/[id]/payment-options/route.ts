@@ -22,7 +22,7 @@ export async function GET(
     }
 
     // Get all payments for this counteragent with related data
-    const payments = await prisma.payment.findMany({
+    const payments = await prisma.payments.findMany({
       where: {
         counteragentUuid: transaction.counteragentUuid,
         isActive: true,
@@ -75,19 +75,19 @@ export async function GET(
 
         const [currency, project, financialCode] = await Promise.all([
           payment.currencyUuid
-            ? prisma.currency.findUnique({
+            ? prisma.currencies.findUnique({
                 where: { uuid: payment.currencyUuid },
                 select: { code: true },
               })
             : null,
           payment.projectUuid
-            ? prisma.project.findUnique({
+            ? prisma.projects.findUnique({
                 where: { projectUuid: payment.projectUuid },
                 select: { projectName: true },
               })
             : null,
           payment.financialCodeUuid
-            ? prisma.financialCode.findUnique({
+            ? prisma.financial_codes.findUnique({
                 where: { uuid: payment.financialCodeUuid },
                 select: { validation: true },
               })

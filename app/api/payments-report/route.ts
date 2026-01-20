@@ -96,10 +96,10 @@ export async function GET(request: NextRequest) {
         ? parseFloat((parseFloat(row.total_accrual) / Number(row.floors)).toFixed(2))
         : 0,
       paidPercent: row.total_accrual && parseFloat(row.total_accrual) !== 0
-        ? parseFloat(((parseFloat(row.total_payment || 0) / parseFloat(row.total_accrual)) * 100).toFixed(2))
+        ? parseFloat(((Math.abs(parseFloat(row.total_payment || 0)) / parseFloat(row.total_accrual)) * 100).toFixed(2))
         : 0,
-      due: parseFloat((parseFloat(row.total_order || 0) - parseFloat(row.total_payment || 0)).toFixed(2)),
-      balance: parseFloat((parseFloat(row.total_accrual || 0) - parseFloat(row.total_payment || 0)).toFixed(2)),
+      due: parseFloat((parseFloat(row.total_order || 0) - Math.abs(parseFloat(row.total_payment || 0))).toFixed(2)),
+      balance: parseFloat((parseFloat(row.total_accrual || 0) - Math.abs(parseFloat(row.total_payment || 0))).toFixed(2)),
     }));
 
     return NextResponse.json(formattedData);
