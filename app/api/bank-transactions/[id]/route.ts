@@ -229,7 +229,7 @@ export async function PATCH(
       if (payment_uuid) {
         try {
           // Get payment's currency
-          const payment = await prisma.payments.findUnique({
+          const payment = await prisma.payment.findUnique({
             where: { paymentId: payment_uuid },
             select: { currencyUuid: true }
           });
