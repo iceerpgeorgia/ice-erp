@@ -12,7 +12,7 @@ const prismaClientOptions = {
   log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   datasources: {
     db: {
-      url: databaseUrl,
+      url: databaseUrl + (databaseUrl?.includes('?') ? '&' : '?') + 'connection_limit=10&pool_timeout=20',
     },
   },
 } as any;

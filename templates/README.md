@@ -2,27 +2,158 @@
 
 This folder contains Excel templates for importing data into the system.
 
-**Auto-generated:** 2026-01-05 00:22:39
+**Auto-generated:** 2026-01-20 01:11:14
 
 ## Available Templates
 
 
-### Country (`country_import_template.xlsx`)
+### AuditLog (`auditlog_import_template.xlsx`)
 
 **Required columns:**
-- `ts`: DateTime
-- `country_uuid`: String
-- `name_en`: String
-- `name_ka`: String
-- `iso2`: String
-- `iso3`: String
-- `is_active`: Boolean (TRUE/FALSE)
+- `table`: String
+- `record_id`: String
+- `action`: String
 
 **Optional columns:**
-- `un_code`: Int
-- `country`: String
+- `user_email`: String
+- `user_id`: String
+- `changes`: Json
 
-### Counteragent (`counteragent_import_template.xlsx`)
+### Entry (`entry_import_template.xlsx`)
+
+**Required columns:**
+- `userId`: String
+- `project`: String
+- `hours`: Int
+
+### BankAccount (`bankaccount_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `accountNumber`: String
+- `currencyUuid`: String
+- `isActive`: Boolean (TRUE/FALSE)
+
+**Optional columns:**
+- `bankUuid`: String
+- `balance`: Decimal
+- `balanceDate`: DateTime
+- `parsingSchemeUuid`: String
+- `rawTableName`: String
+- `parsingSchemeId`: BigInt
+
+### Bank (`bank_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `bankName`: String
+- `isActive`: Boolean (TRUE/FALSE)
+
+### bog_gel_raw_893486000 (`bog_gel_raw_893486000_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `import_date`: DateTime
+- `is_processed`: Boolean (TRUE/FALSE)
+
+**Optional columns:**
+- `cancopydocument`: String
+- `canviewdocument`: String
+- `canprintdocument`: String
+- `isreval`: String
+- `docnomination`: String
+- `docinformation`: String
+- `docsrcamt`: String
+- `docsrcccy`: String
+- `docdstamt`: String
+- `docdstccy`: String
+- `dockey`: String
+- `docrecdate`: String
+- `docbranch`: String
+- `docdepartment`: String
+- `docprodgroup`: String
+- `docno`: String
+- `docvaluedate`: String
+- `docsendername`: String
+- `docsenderinn`: String
+- `docsenderacctno`: String
+- `docsenderbic`: String
+- `docactualdate`: String
+- `doccoracct`: String
+- `doccorbic`: String
+- `doccorbankname`: String
+- `entriesid`: String
+- `doccomment`: String
+- `ccyrate`: String
+- `entrypdate`: String
+- `entrydocno`: String
+- `entrylacct`: String
+- `entrylacctold`: String
+- `entrydbamt`: String
+- `entrydbamtbase`: String
+- `entrycramt`: String
+- `entrycramtbase`: String
+- `outbalance`: String
+- `entryamtbase`: String
+- `entrycomment`: String
+- `entrydepartment`: String
+- `entryacctpoint`: String
+- `docsenderbicname`: String
+- `docbenefname`: String
+- `docbenefinn`: String
+- `docbenefacctno`: String
+- `docbenefbic`: String
+- `docbenefbicname`: String
+- `docpayername`: String
+- `docpayerinn`: String
+- `import_batch_id`: String
+- `counteragent_processed`: Boolean (TRUE/FALSE)
+- `counteragent_inn_blank`: Boolean (TRUE/FALSE)
+- `parsing_rule_dominance`: Boolean (TRUE/FALSE)
+- `parsing_rule_processed`: Boolean (TRUE/FALSE)
+- `payment_id_processed`: Boolean (TRUE/FALSE)
+- `counteragent_inn`: String
+- `processing_case`: String
+- `counteragent_found`: Boolean (TRUE/FALSE)
+- `counteragent_missing`: Boolean (TRUE/FALSE)
+- `payment_id_matched`: Boolean (TRUE/FALSE)
+- `payment_id_conflict`: Boolean (TRUE/FALSE)
+- `parsing_rule_applied`: Boolean (TRUE/FALSE)
+- `parsing_rule_conflict`: Boolean (TRUE/FALSE)
+- `applied_rule_id`: Int
+
+### brands (`brands_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `name`: String
+- `counteragent_uuids`: String
+- `is_active`: Boolean (TRUE/FALSE)
+
+### ConsolidatedBankAccount (`consolidatedbankaccount_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `bankAccountUuid`: String
+- `rawRecordUuid`: String
+- `transactionDate`: String
+- `accountCurrencyUuid`: String
+- `accountCurrencyAmount`: Decimal
+- `nominalCurrencyUuid`: String
+- `nominalAmount`: Decimal
+
+**Optional columns:**
+- `description`: String
+- `counteragentUuid`: String
+- `projectUuid`: String
+- `financialCodeUuid`: String
+- `processingCase`: String
+- `counteragentAccountNumber`: String
+- `paymentId`: String
+- `correctionDate`: DateTime
+- `exchangeRate`: Decimal
+
+### counteragents (`counteragents_import_template.xlsx`)
 
 **Required columns:**
 - `ts`: DateTime
@@ -54,7 +185,37 @@ This folder contains Excel templates for importing data into the system.
 - `internal_number`: String
 - `pension_scheme`: Boolean (TRUE/FALSE)
 
-### EntityType (`entitytype_import_template.xlsx`)
+### countries (`countries_import_template.xlsx`)
+
+**Required columns:**
+- `ts`: DateTime
+- `country_uuid`: String
+- `name_en`: String
+- `name_ka`: String
+- `iso2`: String
+- `iso3`: String
+- `is_active`: Boolean (TRUE/FALSE)
+
+**Optional columns:**
+- `un_code`: Int
+- `country`: String
+
+### currencies (`currencies_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `code`: String
+- `name`: String
+- `is_active`: Boolean (TRUE/FALSE)
+
+### document_types (`document_types_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `name`: String
+- `is_active`: Boolean (TRUE/FALSE)
+
+### entity_types (`entity_types_import_template.xlsx`)
 
 **Required columns:**
 - `ts`: DateTime
@@ -64,223 +225,180 @@ This folder contains Excel templates for importing data into the system.
 - `name_ka`: String
 - `is_active`: Boolean (TRUE/FALSE)
 
-### Entry (`entry_import_template.xlsx`)
-
-**Required columns:**
-- `userId`: String
-- `project`: String
-- `hours`: Int
-
-### AuditLog (`auditlog_import_template.xlsx`)
-
-**Required columns:**
-- `table`: String
-- `recordId`: String
-- `action`: String
-
-**Optional columns:**
-- `userEmail`: String
-- `userId`: String
-- `changes`: Json
-
-### FinancialCode (`financialcode_import_template.xlsx`)
+### financial_codes (`financial_codes_import_template.xlsx`)
 
 **Required columns:**
 - `uuid`: String
 - `code`: String
 - `name`: String
-- `appliesToPL`: Boolean (TRUE/FALSE)
-- `appliesToCF`: Boolean (TRUE/FALSE)
-- `isIncome`: Boolean (TRUE/FALSE)
+- `applies_to_pl`: Boolean (TRUE/FALSE)
+- `applies_to_cf`: Boolean (TRUE/FALSE)
+- `is_income`: Boolean (TRUE/FALSE)
 - `depth`: Int
-- `sortOrder`: Int
-- `isActive`: Boolean (TRUE/FALSE)
+- `sort_order`: Int
+- `is_active`: Boolean (TRUE/FALSE)
 
 **Optional columns:**
 - `validation`: String
-- `parentUuid`: String
+- `parent_uuid`: String
 - `description`: String
 
-### Transaction (`transaction_import_template.xlsx`)
+### jobs (`jobs_import_template.xlsx`)
 
 **Required columns:**
-- `date`: DateTime
-- `amount`: Decimal
-- `description`: String
-- `financialCodeId`: BigInt
-
-**Optional columns:**
-- `counteragentId`: BigInt
-- `createdBy`: String
-- `updatedBy`: String
-
-### Project (`project_import_template.xlsx`)
-
-**Required columns:**
-- `projectUuid`: String
-- `counteragentUuid`: String
-- `financialCodeUuid`: String
-- `currencyUuid`: String
-- `stateUuid`: String
-- `projectName`: String
-- `date`: DateTime
-- `value`: Decimal
-
-**Optional columns:**
-- `oris1630`: String
-- `counteragent`: String
-- `financialCode`: String
-- `currency`: String
-- `state`: String
-- `contractNo`: String
-- `projectIndex`: String
-
-### ProjectEmployee (`projectemployee_import_template.xlsx`)
-
-**Required columns:**
-- `projectId`: BigInt
-- `employeeUuid`: String
-- `isActive`: Boolean (TRUE/FALSE)
-- `assignedAt`: DateTime
-
-**Optional columns:**
-- `employeeName`: String
-
-### Currency (`currency_import_template.xlsx`)
-
-**Required columns:**
-- `uuid`: String
-- `code`: String
-- `name`: String
-- `isActive`: Boolean (TRUE/FALSE)
-
-### Bank (`bank_import_template.xlsx`)
-
-**Required columns:**
-- `uuid`: String
-- `bankName`: String
-- `isActive`: Boolean (TRUE/FALSE)
-
-### BankAccount (`bankaccount_import_template.xlsx`)
-
-**Required columns:**
-- `uuid`: String
-- `accountNumber`: String
-- `currencyUuid`: String
-- `isActive`: Boolean (TRUE/FALSE)
-
-**Optional columns:**
-- `bankUuid`: String
-
-### ConsolidatedBankAccount (`consolidatedbankaccount_import_template.xlsx`)
-
-**Required columns:**
-- `uuid`: String
-- `accountUuid`: String
-- `accountCurrencyUuid`: String
-- `accountCurrencyAmount`: Decimal
-- `date`: DateTime
-- `recordUuid`: String
-
-**Optional columns:**
-- `paymentUuid`: String
-- `counteragentUuid`: String
-- `projectUuid`: String
-- `financialCodeUuid`: String
-- `nominalCurrencyUuid`: String
-- `nominalAmount`: Decimal
-- `correctionDate`: DateTime
-- `id1`: String
-- `id2`: String
-- `counteragentAccountNumber`: String
-- `description`: String
-
-### NBGExchangeRate (`nbgexchangerate_import_template.xlsx`)
-
-**Required columns:**
-- `uuid`: String
-- `date`: DateTime
-
-**Optional columns:**
-- `usdRate`: Decimal
-- `eurRate`: Decimal
-- `cnyRate`: Decimal
-- `gbpRate`: Decimal
-- `rubRate`: Decimal
-- `tryRate`: Decimal
-- `aedRate`: Decimal
-- `kztRate`: Decimal
-
-### DocumentType (`documenttype_import_template.xlsx`)
-
-**Required columns:**
-- `uuid`: String
-- `name`: String
-- `isActive`: Boolean (TRUE/FALSE)
-
-### ProjectState (`projectstate_import_template.xlsx`)
-
-**Required columns:**
-- `uuid`: String
-- `name`: String
-- `isActive`: Boolean (TRUE/FALSE)
-
-### MIDimension (`midimension_import_template.xlsx`)
-
-**Required columns:**
-- `uuid`: String
-- `name`: String
-- `isActive`: Boolean (TRUE/FALSE)
-
-### Brand (`brand_import_template.xlsx`)
-
-**Required columns:**
-- `uuid`: String
-- `name`: String
-- `counteragentUuids`: String
-- `isActive`: Boolean (TRUE/FALSE)
-
-### Job (`job_import_template.xlsx`)
-
-**Required columns:**
-- `jobUuid`: String
-- `projectUuid`: String
-- `jobName`: String
-- `isFf`: Boolean (TRUE/FALSE)
-- `isActive`: Boolean (TRUE/FALSE)
+- `job_uuid`: String
+- `project_uuid`: String
+- `job_name`: String
+- `is_ff`: Boolean (TRUE/FALSE)
+- `is_active`: Boolean (TRUE/FALSE)
 
 **Optional columns:**
 - `floors`: Int
 - `weight`: Int
-- `brandUuid`: String
+- `brand_uuid`: String
 
-### Payment (`payment_import_template.xlsx`)
+### mi_dimensions (`mi_dimensions_import_template.xlsx`)
 
 **Required columns:**
-- `counteragentUuid`: String
-- `financialCodeUuid`: String
-- `incomeTax`: Boolean (TRUE/FALSE)
-- `currencyUuid`: String
-- `paymentId`: String
-- `recordUuid`: String
-- `isActive`: Boolean (TRUE/FALSE)
+- `uuid`: String
+- `name`: String
+- `is_active`: Boolean (TRUE/FALSE)
+
+### nbg_exchange_rates (`nbg_exchange_rates_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `date`: DateTime
 
 **Optional columns:**
-- `projectUuid`: String
-- `jobUuid`: String
+- `usd_rate`: Decimal
+- `eur_rate`: Decimal
+- `cny_rate`: Decimal
+- `gbp_rate`: Decimal
+- `rub_rate`: Decimal
+- `try_rate`: Decimal
+- `aed_rate`: Decimal
+- `kzt_rate`: Decimal
 
-### PaymentLedger (`paymentledger_import_template.xlsx`)
+### parsing_scheme_rules (`parsing_scheme_rules_import_template.xlsx`)
 
 **Required columns:**
-- `paymentId`: String
-- `effectiveDate`: DateTime
-- `recordUuid`: String
-- `userEmail`: String
+- `scheme_uuid`: String
+- `condition`: String
+
+**Optional columns:**
+- `column_name`: String
+- `payment_id`: String
+- `condition_script`: String
+- `counteragent_uuid`: String
+- `financial_code_uuid`: String
+- `nominal_currency_uuid`: String
+- `active`: Boolean (TRUE/FALSE)
+
+### parsing_schemes (`parsing_schemes_import_template.xlsx`)
+
+**Required columns:**
+- `scheme`: String
+- `uuid`: String
+
+### payments (`payments_import_template.xlsx`)
+
+**Required columns:**
+- `counteragent_uuid`: String
+- `financial_code_uuid`: String
+- `payment_id`: String
+- `record_uuid`: String
+- `is_active`: Boolean (TRUE/FALSE)
+- `income_tax`: Boolean (TRUE/FALSE)
+- `currency_uuid`: String
+
+**Optional columns:**
+- `project_uuid`: String
+- `job_uuid`: String
+
+### payments_ledger (`payments_ledger_import_template.xlsx`)
+
+**Required columns:**
+- `payment_id`: String
+- `effective_date`: DateTime
+- `record_uuid`: String
+- `user_email`: String
 
 **Optional columns:**
 - `accrual`: Decimal
 - `order`: Decimal
 - `comment`: String
+
+### project_employees (`project_employees_import_template.xlsx`)
+
+**Required columns:**
+- `project_id`: BigInt
+- `employee_uuid`: String
+- `isActive`: Boolean (TRUE/FALSE)
+- `assignedAt`: DateTime
+
+**Optional columns:**
+- `employee_name`: String
+
+### project_states (`project_states_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `name`: String
+- `is_active`: Boolean (TRUE/FALSE)
+
+### projects (`projects_import_template.xlsx`)
+
+**Required columns:**
+- `project_uuid`: String
+- `counteragent_uuid`: String
+- `financial_code_uuid`: String
+- `currency_uuid`: String
+- `state_uuid`: String
+- `project_name`: String
+- `date`: DateTime
+- `value`: Decimal
+
+**Optional columns:**
+- `oris_1630`: String
+- `counteragent`: String
+- `financial_code`: String
+- `currency`: String
+- `state`: String
+- `contract_no`: String
+- `project_index`: String
+
+### transactions (`transactions_import_template.xlsx`)
+
+**Required columns:**
+- `date`: DateTime
+- `amount`: Decimal
+- `description`: String
+- `financial_code_id`: BigInt
+
+**Optional columns:**
+- `counteragent_id`: BigInt
+- `created_by`: String
+- `updated_by`: String
+
+### salary_accruals (`salary_accruals_import_template.xlsx`)
+
+**Required columns:**
+- `uuid`: String
+- `counteragent_uuid`: String
+- `financial_code_uuid`: String
+- `nominal_currency_uuid`: String
+- `payment_id`: String
+- `salary_month`: DateTime
+- `net_sum`: Decimal
+- `created_by`: String
+- `updated_by`: String
+
+**Optional columns:**
+- `surplus_insurance`: Decimal
+- `deducted_insurance`: Decimal
+- `deducted_fitness`: Decimal
+- `deducted_fine`: Decimal
 
 
 ## General Guidelines

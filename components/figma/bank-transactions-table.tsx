@@ -49,6 +49,7 @@ export type BankTransaction = {
   nominalAmount: string | null;
   date: string;
   correctionDate: string | null;
+  exchangeRate: string | null;
   id1: string | null;
   id2: string | null;
   recordUuid: string;
@@ -99,6 +100,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'description', label: 'Description', width: 300, visible: true, sortable: true, filterable: true },
   { key: 'nominalAmount', label: 'Nominal Amt', width: 120, visible: false, sortable: true, filterable: true },
   { key: 'correctionDate', label: 'Correction Date', width: 120, visible: false, sortable: true, filterable: true },
+  { key: 'exchangeRate', label: 'Exchange Rate', width: 120, visible: false, sortable: true, filterable: true },
   { key: 'id1', label: 'DocKey', width: 120, visible: false, sortable: true, filterable: true },
   { key: 'id2', label: 'EntriesId', width: 120, visible: false, sortable: true, filterable: true },
   { key: 'recordUuid', label: 'Record UUID', width: 200, visible: false, sortable: true, filterable: true },
@@ -154,8 +156,12 @@ const getResponsiveClass = (responsive?: string) => {
   }
 };
 
-export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
+export function BankTransactionsTable({ data, currencySummaries }: { data?: BankTransaction[], currencySummaries?: any[] }) {
   const [transactions, setTransactions] = useState<BankTransaction[]>(data ?? []);
+  
+  console.log('[BankTransactionsTable] currencySummaries:', currencySummaries);
+  console.log('[BankTransactionsTable] currencySummaries[0]:', currencySummaries?.[0]);
+  console.log('[BankTransactionsTable] opening_balance:', currencySummaries?.[0]?.opening_balance);
   
   // Horizontal scroll synchronization
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -188,6 +194,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const [jobSearch, setJobSearch] = useState('');
   const [financialCodeSearch, setFinancialCodeSearch] = useState('');
   const [currencySearch, setCurrencySearch] = useState('');
+  const [exchangeRates, setExchangeRates] = useState<any>(null); // Store exchange rates for transaction date
   const [formData, setFormData] = useState<{
     payment_uuid: string;
     project_uuid: string;
@@ -214,7 +221,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     if (typeof window !== 'undefined') {
       const savedColumns = localStorage.getItem('bank-transactions-table-columns');
       const savedVersion = localStorage.getItem('bank-transactions-table-version');
-      const currentVersion = '3'; // Increment this when defaultColumns structure changes
+      const currentVersion = '4'; // Increment this when defaultColumns structure changes
       
       if (savedColumns && savedVersion === currentVersion) {
         try {
@@ -424,9 +431,8 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
   const filteredData = useMemo(() => {
     let result = [...transactions];
 
-    // Apply search filter - only search in commonly searched columns for performance
+    // Apply search filter - supports regex patterns
     if (debouncedSearchTerm) {
-      const searchLower = debouncedSearchTerm.toLowerCase();
       const searchableColumns: ColumnKey[] = [
         'counteragentName',        // Counteragent
         'counteragentAccountNumber', // CA Account
@@ -436,14 +442,34 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
         'description'              // Description
       ];
       
+      // Try to compile as regex, fallback to literal string search if invalid
+      let searchRegex: RegExp | null = null;
+      let isValidRegex = false;
+      try {
+        searchRegex = new RegExp(debouncedSearchTerm, 'i'); // Case-insensitive
+        isValidRegex = true;
+      } catch (e) {
+        // Invalid regex - will use literal string search as fallback
+        console.warn('Invalid regex pattern, using literal search:', debouncedSearchTerm);
+      }
+      
       result = result.filter(row => {
         // Early exit optimization - check each column and return immediately on match
         for (const key of searchableColumns) {
           const val = row[key];
           if (val !== null && val !== undefined) {
             const strVal = typeof val === 'string' ? val : String(val);
-            if (strVal.toLowerCase().includes(searchLower)) {
-              return true; // Found a match, include this row
+            
+            if (isValidRegex && searchRegex) {
+              // Use regex matching
+              if (searchRegex.test(strVal)) {
+                return true; // Found a match, include this row
+              }
+            } else {
+              // Fallback to case-insensitive literal search
+              if (strVal.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) {
+                return true;
+              }
             }
           }
         }
@@ -635,9 +661,9 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     console.log('[startEdit] Transaction:', transaction);
     setEditingTransaction(transaction);
     
-    // Initialize form with transaction data - use UUID fields for form values
+    // Initialize form with transaction data - use paymentId (not UUID) for the Select value
     const initialFormData = {
-      payment_uuid: transaction.paymentUuid || '',
+      payment_uuid: transaction.paymentId || '', // Use paymentId as the form value
       project_uuid: transaction.projectUuid || '',
       job_uuid: '', // Will be populated after jobs load
       financial_code_uuid: transaction.financialCodeUuid || '',
@@ -657,34 +683,57 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
     setCurrencySearch('');
     
     try {
-      // Use all payments (not filtered by counteragent) - like parsing rules dialog
-      const payments = allPayments;
-      console.log('[startEdit] Using all payments:', payments.length, 'available');
-      console.log('[startEdit] Transaction paymentUuid:', transaction.paymentUuid);
+      // Fetch exchange rates for the transaction date upfront
+      const dateStr = transaction.date.split('T')[0];
+      const ratesResponse = await fetch(`/api/exchange-rates?date=${dateStr}`);
+      const ratesData = await ratesResponse.json();
+      const rates = ratesData && ratesData.length > 0 ? ratesData[0] : null;
+      setExchangeRates(rates);
+      console.log('[startEdit] Loaded exchange rates for', dateStr, ':', rates);
+      
+      // Filter payments by counteragent if one exists
+      let payments = allPayments;
+      
+      console.log('[startEdit] Total allPayments available:', allPayments.length);
+      console.log('[startEdit] Transaction counteragentUuid:', transaction.counteragentUuid);
+      console.log('[startEdit] Sample payment counteragentUuids:', allPayments.slice(0, 3).map((p: any) => ({ paymentId: p.paymentId, counteragentUuid: p.counteragentUuid })));
+      
+      if (transaction.counteragentUuid) {
+        // If counteragent is parsed, only show payment IDs for that counteragent
+        console.log('[startEdit] Filtering payments for counteragent:', transaction.counteragentUuid);
+        payments = allPayments.filter((p: any) => p.counteragentUuid === transaction.counteragentUuid);
+        console.log('[startEdit] Filtered to', payments.length, 'payments for this counteragent');
+        
+        if (payments.length === 0) {
+          console.warn('[startEdit] No payments found for this counteragent!');
+        }
+      } else {
+        // If no counteragent, show all payments
+        console.log('[startEdit] No counteragent parsed, showing all', allPayments.length, 'payments');
+      }
+      
       setPaymentOptions(payments);
       
       // If transaction already has a payment, find it and populate display values
-      if (transaction.paymentUuid && payments && payments.length > 0) {
+      if (transaction.paymentId && payments && payments.length > 0) {
         // Try to find by paymentId (the display value)
         const selectedPayment = payments.find((p: any) => p.paymentId === transaction.paymentId);
         console.log('[startEdit] Looking for payment:', transaction.paymentId);
         console.log('[startEdit] Found payment:', selectedPayment);
         
         if (selectedPayment) {
-          // Update formData with the correct payment ID for Select value
-          setFormData(prev => ({
-            ...prev,
-            payment_uuid: selectedPayment.paymentId // Use paymentId as the value
-          }));
-          
+          // Store selected payment for later calculation (after currencies load)
+          // Will be recalculated below when we have currency options
           setPaymentDisplayValues({
-            projectLabel: selectedPayment.projectName || '',
-            jobLabel: selectedPayment.jobDisplay || selectedPayment.jobName || '',
+            projectLabel: selectedPayment.projectIndex || 'N/A',
+            jobLabel: selectedPayment.jobName || 'N/A',
             financialCodeLabel: selectedPayment.financialCodeValidation || '',
             currencyLabel: selectedPayment.currencyCode || '',
-            nominalAmountLabel: `Will be recalculated to ${selectedPayment.currencyCode || 'currency'}`,
+            nominalAmountLabel: formatAmount(transaction.nominalAmount || transaction.accountCurrencyAmount),
           });
           console.log('[startEdit] Set display values for locked fields');
+          console.log('[startEdit] payment_uuid in formData:', transaction.paymentId);
+          console.log('[startEdit] selectedPayment data:', selectedPayment);
         } else {
           console.warn('[startEdit] Payment exists but not found in options');
         }
@@ -771,23 +820,94 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
 
   // Handle payment selection - auto-fill related fields
   const handlePaymentChange = (paymentId: string) => {
+    console.log('[handlePaymentChange] START - paymentId:', paymentId);
+    console.log('[handlePaymentChange] exchangeRates:', exchangeRates);
+    console.log('[handlePaymentChange] currencyOptions count:', currencyOptions.length);
+    console.log('[handlePaymentChange] editingTransaction:', editingTransaction);
+    
     const newFormData = { ...formData, payment_uuid: paymentId === '__none__' ? '' : paymentId };
     
     if (paymentId && paymentId !== '__none__') {
       const selectedPayment = paymentOptions.find(p => p.paymentId === paymentId);
+      console.log('[handlePaymentChange] selectedPayment:', selectedPayment);
+      
       if (selectedPayment && editingTransaction) {
         newFormData.project_uuid = selectedPayment.projectUuid || '';
         newFormData.job_uuid = selectedPayment.jobUuid || '';
         newFormData.financial_code_uuid = selectedPayment.financialCodeUuid || '';
         newFormData.nominal_currency_uuid = selectedPayment.currencyUuid || '';
         
+        // Calculate nominal amount using cached exchange rates
+        let calculatedAmount = formatAmount(editingTransaction.accountCurrencyAmount);
+        
+        if (exchangeRates && currencyOptions.length > 0) {
+          try {
+            const accountAmount = Number(editingTransaction.accountCurrencyAmount);
+            
+            // Get currency codes
+            const accountCurrency = currencyOptions.find(c => c.uuid === editingTransaction.accountCurrencyUuid);
+            const accountCode = accountCurrency?.code || 'GEL';
+            const nominalCode = selectedPayment.currencyCode;
+            
+            console.log('[handlePaymentChange] Converting:', accountCode, '→', nominalCode, 'Amount:', accountAmount);
+            console.log('[handlePaymentChange] Exchange rates object:', exchangeRates);
+            
+            if (accountCode === nominalCode) {
+              // Same currency - no conversion
+              calculatedAmount = formatAmount(accountAmount);
+              console.log('[handlePaymentChange] Same currency, no conversion needed');
+            } else if (accountCode === 'GEL' && nominalCode !== 'GEL') {
+              // GEL → Foreign: divide by rate
+              const rateField = nominalCode.toLowerCase();
+              console.log('[handlePaymentChange] Looking for rate field:', rateField, 'Value:', exchangeRates[rateField]);
+              if (exchangeRates[rateField]) {
+                const converted = accountAmount / Number(exchangeRates[rateField]);
+                calculatedAmount = formatAmount(converted);
+                console.log('[handlePaymentChange] GEL →', nominalCode, ':', accountAmount, '/', exchangeRates[rateField], '=', converted);
+              } else {
+                console.warn('[handlePaymentChange] Rate field not found:', rateField);
+              }
+            } else if (accountCode !== 'GEL' && nominalCode === 'GEL') {
+              // Foreign → GEL: multiply by rate
+              const rateField = accountCode.toLowerCase();
+              console.log('[handlePaymentChange] Looking for rate field:', rateField, 'Value:', exchangeRates[rateField]);
+              if (exchangeRates[rateField]) {
+                const converted = accountAmount * Number(exchangeRates[rateField]);
+                calculatedAmount = formatAmount(converted);
+                console.log('[handlePaymentChange]', accountCode, '→ GEL:', accountAmount, '*', exchangeRates[rateField], '=', converted);
+              } else {
+                console.warn('[handlePaymentChange] Rate field not found:', rateField);
+              }
+            } else {
+              // Foreign → Foreign: convert through GEL
+              const accountRateField = accountCode.toLowerCase();
+              const nominalRateField = nominalCode.toLowerCase();
+              console.log('[handlePaymentChange] Looking for rate fields:', accountRateField, nominalRateField);
+              if (exchangeRates[accountRateField] && exchangeRates[nominalRateField]) {
+                const gelAmount = accountAmount * Number(exchangeRates[accountRateField]);
+                const converted = gelAmount / Number(exchangeRates[nominalRateField]);
+                calculatedAmount = formatAmount(converted);
+                console.log('[handlePaymentChange]', accountCode, '→', nominalCode, ':', accountAmount, '*', exchangeRates[accountRateField], '/', exchangeRates[nominalRateField], '=', converted);
+              } else {
+                console.warn('[handlePaymentChange] Rate fields not found:', accountRateField, nominalRateField);
+              }
+            }
+          } catch (error) {
+            console.error('[handlePaymentChange] Calculation error:', error);
+          }
+        } else {
+          console.warn('[handlePaymentChange] Missing exchangeRates or currencyOptions');
+        }
+        
+        console.log('[handlePaymentChange] Final calculatedAmount:', calculatedAmount);
+        
         // Store display labels
         setPaymentDisplayValues({
-          projectLabel: selectedPayment.projectName || '',
-          jobLabel: selectedPayment.jobName || '',
+          projectLabel: selectedPayment.projectIndex || 'N/A',
+          jobLabel: selectedPayment.jobName || 'N/A',
           financialCodeLabel: selectedPayment.financialCodeValidation || '',
           currencyLabel: selectedPayment.currencyCode || '',
-          nominalAmountLabel: `Will be recalculated to ${selectedPayment.currencyCode || 'selected currency'}`,
+          nominalAmountLabel: calculatedAmount,
         });
         
         // Load jobs for the selected payment's project
@@ -944,11 +1064,62 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
         if (updatedResponse.ok) {
           const updatedData = await updatedResponse.json();
           
+          // Check if we got data back
+          if (!updatedData || !Array.isArray(updatedData) || updatedData.length === 0) {
+            console.error('No data returned from API after save, reloading page...');
+            window.location.reload();
+            return;
+          }
+          
+          // Map snake_case API response to camelCase component format
+          const row = updatedData[0];
+          
+          // Additional safety check
+          if (!row || !row.id) {
+            console.error('Invalid data structure returned from API, reloading page...');
+            window.location.reload();
+            return;
+          }
+          
+          const mapped = {
+            id: row.id,
+            uuid: row.uuid || "",
+            accountUuid: row.bank_account_uuid || "",
+            accountCurrencyUuid: row.account_currency_uuid || "",
+            accountCurrencyAmount: row.account_currency_amount || "0",
+            paymentUuid: null,
+            counteragentUuid: row.counteragent_uuid || null,
+            projectUuid: row.project_uuid || null,
+            financialCodeUuid: row.financial_code_uuid || null,
+            nominalCurrencyUuid: row.nominal_currency_uuid || null,
+            nominalAmount: row.nominal_amount || null,
+            date: row.transaction_date || "",
+            correctionDate: null,
+            exchangeRate: null,
+            id1: null,
+            id2: null,
+            recordUuid: row.raw_record_uuid || "",
+            counteragentAccountNumber: row.counteragent_account_number || null,
+            description: row.description || null,
+            processingCase: row.processing_case || null,
+            appliedRuleId: row.applied_rule_id || null,
+            createdAt: row.created_at || "",
+            updatedAt: row.updated_at || "",
+            isBalanceRecord: row.is_balance_record || false,
+            accountNumber: row.account_number || null,
+            bankName: row.bank_name || null,
+            counteragentName: row.counteragent_name || null,
+            projectIndex: row.project_index || null,
+            financialCode: row.financial_code || null,
+            paymentId: row.payment_id || null,
+            nominalCurrencyCode: row.nominal_currency_code || null,
+          };
+          
           // Update the transaction in local state
           setTransactions(prev => 
             prev.map(t => 
               t.id === editingTransaction.id 
-                ? { ...t, ...updatedData[0] } 
+                ? mapped 
                 : t
             )
           );
@@ -957,6 +1128,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
           cancelEdit();
         } else {
           // Fallback to reload if fetch fails
+          console.error('Failed to fetch updated transaction, reloading page...');
           window.location.reload();
         }
       } else {
@@ -1184,7 +1356,7 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search transactions..."
+              placeholder="Search transactions (regex supported)..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 pr-9 w-full"
@@ -1274,6 +1446,14 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
           <span className="ml-2 font-semibold text-blue-900">{paginatedData.length}</span>
         </div>
         <div className="border-l pl-6">
+          {currencySummaries && currencySummaries.length > 0 && (
+            <span className="mr-4">
+              <span className="text-gray-600">Opening:</span>
+              <span className="ml-2 font-semibold text-blue-900">
+                {parseFloat(currencySummaries[0].opening_balance || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </span>
+          )}
           <span className="text-gray-600">Inflow:</span>
           <span className="ml-2 font-semibold text-green-600">
             {summaryStats.inflow.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1359,6 +1539,8 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                             <span className={Number(row[col.key]) >= 0 ? 'text-green-600' : 'text-red-600'}>
                               {formatAmount(row[col.key])}
                             </span>
+                          ) : col.key === 'exchangeRate' ? (
+                            row[col.key] ? Number(row[col.key]).toFixed(10) : '-'
                           ) : col.key === 'date' || col.key === 'correctionDate' || col.key === 'createdAt' || col.key === 'updatedAt' ? (
                             formatDate(row[col.key])
                           ) : col.key === 'counteragentAccountNumber' ? (
@@ -1464,11 +1646,11 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[1120px]">
           <DialogHeader>
             <DialogTitle>Edit Bank Transaction</DialogTitle>
             <DialogDescription>
-              Update transaction details. Payment ID controls which fields can be edited.
+              Update transaction details and link to a payment
             </DialogDescription>
           </DialogHeader>
           {loadingOptions ? (
@@ -1477,30 +1659,29 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
               <p className="text-sm text-muted-foreground">Loading transaction data...</p>
             </div>
           ) : (
-            <div className="grid gap-4 py-4">
-              {/* Payment ID */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-payment" className="text-right">Payment ID</Label>
-                <div className="col-span-3">
-                  <Select 
-                    value={formData.payment_uuid || '__none__'} 
-                    onValueChange={handlePaymentChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="-- No Payment --" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div className="flex items-center border-b px-3 pb-2">
-                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                        <Input
-                          placeholder="Search payments..."
-                          value={paymentSearch}
-                          onChange={(e) => setPaymentSearch(e.target.value)}
-                          className="h-8 w-full border-0 p-0 focus-visible:ring-0"
-                        />
-                      </div>
-                      <div className="max-h-[300px] overflow-y-auto">
-                        <SelectItem value="__none__">-- No Payment --</SelectItem>
+            <div className="space-y-4">
+              {/* Payment ID Selection - Always visible at top */}
+              <div className="space-y-2">
+                <Label>Payment ID</Label>
+                <Select 
+                  value={formData.payment_uuid || '__none__'} 
+                  onValueChange={handlePaymentChange}
+                >
+                  <SelectTrigger className="border-2 border-gray-400 w-full">
+                    <SelectValue placeholder="-- Select Payment --" />
+                  </SelectTrigger>
+                  <SelectContent className="w-full">
+                    <div className="flex items-center border-b px-3 pb-2">
+                      <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                      <Input
+                        placeholder="Search payments..."
+                        value={paymentSearch}
+                        onChange={(e) => setPaymentSearch(e.target.value)}
+                        className="h-8 w-full border-0 p-0 focus-visible:ring-0"
+                      />
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto">
+                      <SelectItem value="__none__">-- No Payment --</SelectItem>
                         {paymentOptions
                           .filter((payment) => {
                             if (!paymentSearch) return true;
@@ -1517,10 +1698,8 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                           .map((payment) => (
                             <SelectItem key={payment.paymentId} value={payment.paymentId}>
                               {payment.paymentId}
-                              {(payment.counteragentName || payment.currencyCode || payment.projectIndex || payment.jobName || payment.financialCodeValidation) && (
-                                <span className="text-muted-foreground">
-                                  {' | '}{payment.counteragentName || '-'}
-                                  {' | '}{payment.currencyCode || '-'}
+                              {(payment.projectIndex || payment.jobName || payment.financialCodeValidation) && (
+                                <span className="text-muted-foreground text-xs">
                                   {' | '}{payment.projectIndex || '-'}
                                   {payment.jobName && ` | ${payment.jobName}`}
                                   {' | '}{payment.financialCodeValidation || '-'}
@@ -1531,86 +1710,123 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                       </div>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formData.payment_uuid ? 'Clears auto-fill other fields' : 'Select to auto-fill fields below'}
+                  <p className="text-xs text-gray-500">
+                    {editingTransaction?.counteragentUuid 
+                      ? paymentOptions.length > 0
+                        ? `Showing ${paymentOptions.length} payment${paymentOptions.length === 1 ? '' : 's'} for counteragent: ${editingTransaction.counteragentName || 'Unknown'}`
+                        : `⚠️ No payments found for counteragent: ${editingTransaction.counteragentName || 'Unknown'}. Create a payment for this counteragent first.`
+                      : `Showing all ${paymentOptions.length} payments (no counteragent parsed)`}
                   </p>
                 </div>
-              </div>
 
-              {/* Project */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-project" className="text-right">Project</Label>
-                <div className="col-span-3">
-                  {!!formData.payment_uuid ? (
-                    <Input
-                      value={paymentDisplayValues.projectLabel}
-                      readOnly
-                      className="bg-muted"
-                    />
-                  ) : (
-                    <>
-                      {console.log('Project options count:', projectOptions.length)}
-                      <Select 
-                        value={formData.project_uuid || '__none__'} 
-                        onValueChange={handleProjectChange}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="-- Select Project --" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <div className="flex items-center border-b px-3 pb-2">
-                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                            <Input
-                              placeholder="Search projects..."
-                              value={projectSearch}
-                              onChange={(e) => setProjectSearch(e.target.value)}
-                              className="h-8 w-full border-0 p-0 focus-visible:ring-0"
-                            />
-                          </div>
-                          <div className="max-h-[300px] overflow-y-auto">
-                            <SelectItem value="__none__">-- No Project --</SelectItem>
-                            {projectOptions
-                              .filter((project) => {
-                                if (!projectSearch) return true;
-                                const searchLower = projectSearch.toLowerCase();
-                                return (
-                                  project.projectIndex?.toLowerCase().includes(searchLower) ||
-                                  project.projectName?.toLowerCase().includes(searchLower)
-                                );
-                              })
-                              .map((project) => (
-                                <SelectItem key={project.uuid} value={project.uuid}>
-                                  {project.projectIndex} - {project.projectName}
-                                </SelectItem>
-                              ))}
-                          </div>
-                        </SelectContent>
-                      </Select>
-                    </>
-                  )}
-                  {!!formData.payment_uuid && (
-                    <p className="text-xs text-muted-foreground mt-1">Clear Payment ID to edit manually</p>
-                  )}
+              {/* Payment Details Section - Read-only when payment is selected */}
+              {formData.payment_uuid && (
+                <div className="bg-gray-50 rounded-lg p-4 space-y-3 border border-gray-200">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Payment Details</h3>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-600">Counteragent</Label>
+                      <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                        <span className="font-bold" style={{ color: '#000' }}>
+                          {editingTransaction?.counteragentName || 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-600">Currency</Label>
+                      <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                        <span className="font-bold" style={{ color: '#000' }}>{paymentDisplayValues.currencyLabel || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-600">Project</Label>
+                    <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                      <span className="font-bold" style={{ color: '#000' }}>{paymentDisplayValues.projectLabel || 'N/A'}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-600">Job</Label>
+                    <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                      <span className="font-bold" style={{ color: '#000' }}>{paymentDisplayValues.jobLabel || 'N/A'}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-600">Financial Code</Label>
+                    <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                      <span className="font-bold" style={{ color: '#000' }}>{paymentDisplayValues.financialCodeLabel || 'N/A'}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-600">Nominal Amount</Label>
+                    <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                      <span className="font-bold" style={{ color: '#000' }}>
+                        {paymentDisplayValues.nominalAmountLabel || editingTransaction?.nominalAmount || '0.00'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Job Name */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-job" className="text-right">Job Name</Label>
-                <div className="col-span-3">
-                  {!!formData.payment_uuid ? (
-                    <Input
-                      value={paymentDisplayValues.jobLabel || '-- No Job --'}
-                      readOnly
-                      className="bg-muted"
-                    />
-                  ) : (
+              {/* Manual Entry Fields - Only show when no payment selected */}
+              {!formData.payment_uuid && (
+                <div className="space-y-4 pt-2">
+                  {/* Project */}
+                  <div className="space-y-2">
+                    <Label>Project</Label>
+                    <Select 
+                      value={formData.project_uuid || '__none__'} 
+                      onValueChange={handleProjectChange}
+                    >
+                      <SelectTrigger className="border-2 border-gray-400">
+                        <SelectValue placeholder="-- Select Project --" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <div className="flex items-center border-b px-3 pb-2">
+                          <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                          <Input
+                            placeholder="Search projects..."
+                            value={projectSearch}
+                            onChange={(e) => setProjectSearch(e.target.value)}
+                            className="h-8 w-full border-0 p-0 focus-visible:ring-0"
+                          />
+                        </div>
+                        <div className="max-h-[300px] overflow-y-auto">
+                          <SelectItem value="__none__">-- No Project --</SelectItem>
+                          {projectOptions
+                            .filter((project) => {
+                              if (!projectSearch) return true;
+                              const searchLower = projectSearch.toLowerCase();
+                              return (
+                                project.projectIndex?.toLowerCase().includes(searchLower) ||
+                                project.projectName?.toLowerCase().includes(searchLower)
+                              );
+                            })
+                            .map((project) => (
+                              <SelectItem key={project.uuid} value={project.uuid}>
+                                {project.projectIndex} - {project.projectName}
+                              </SelectItem>
+                            ))}
+                        </div>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Job */}
+                  <div className="space-y-2">
+                    <Label>Job</Label>
                     <Select 
                       value={formData.job_uuid || '__none__'} 
                       onValueChange={handleJobChange}
                       disabled={!formData.project_uuid}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="border-2 border-gray-400">
                         <SelectValue placeholder={formData.project_uuid ? "-- No Job --" : "Select project first"} />
                       </SelectTrigger>
                       <SelectContent>
@@ -1640,29 +1856,16 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                         </div>
                       </SelectContent>
                     </Select>
-                  )}
-                  {!!formData.payment_uuid && (
-                    <p className="text-xs text-muted-foreground mt-1">Clear Payment ID to edit manually</p>
-                  )}
-                </div>
-              </div>
+                  </div>
 
-              {/* Financial Code */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-financial-code" className="text-right">Financial Code</Label>
-                <div className="col-span-3">
-                  {!!formData.payment_uuid ? (
-                    <Input
-                      value={paymentDisplayValues.financialCodeLabel}
-                      readOnly
-                      className="bg-muted"
-                    />
-                  ) : (
+                  {/* Financial Code */}
+                  <div className="space-y-2">
+                    <Label>Financial Code</Label>
                     <Select 
                       value={formData.financial_code_uuid || '__none__'} 
                       onValueChange={handleFinancialCodeChange}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="border-2 border-gray-400">
                         <SelectValue placeholder="-- Select Financial Code --" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1690,90 +1893,138 @@ export function BankTransactionsTable({ data }: { data?: BankTransaction[] }) {
                         </div>
                       </SelectContent>
                     </Select>
-                  )}
-                  {!!formData.payment_uuid && (
-                    <p className="text-xs text-muted-foreground mt-1">Clear Payment ID to edit manually</p>
-                  )}
-                </div>
-              </div>
+                  </div>
 
-              {/* Nominal Currency */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-nominal-currency" className="text-right">Nominal Currency</Label>
-                <div className="col-span-3">
-                  {!!formData.payment_uuid ? (
-                    <Input
-                      value={paymentDisplayValues.currencyLabel}
-                      readOnly
-                      className="bg-muted"
-                    />
-                  ) : (
-                    <Select 
-                      value={formData.nominal_currency_uuid || '__none__'} 
-                      onValueChange={handleCurrencyChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="-- Select Currency --" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <div className="flex items-center border-b px-3 pb-2">
-                          <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                          <Input
-                            placeholder="Search currencies..."
-                            value={currencySearch}
-                            onChange={(e) => setCurrencySearch(e.target.value)}
-                            className="h-8 w-full border-0 p-0 focus-visible:ring-0"
-                          />
-                        </div>
-                        <div className="max-h-[300px] overflow-y-auto">
-                          <SelectItem value="__none__">-- No Currency --</SelectItem>
-                          {currencyOptions
-                            .filter((currency) => {
-                              if (!currencySearch) return true;
-                              const searchLower = currencySearch.toLowerCase();
-                              return (
-                                currency.code?.toLowerCase().includes(searchLower) ||
-                                currency.name?.toLowerCase().includes(searchLower)
-                              );
-                            })
-                            .map((currency) => (
-                              <SelectItem key={currency.uuid} value={currency.uuid}>
-                                {currency.code} - {currency.name}
-                              </SelectItem>
-                            ))}
-                        </div>
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {!!formData.payment_uuid && (
-                    <p className="text-xs text-muted-foreground mt-1">Clear Payment ID to edit manually</p>
-                  )}
+                  {/* Currency and Amount */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Nominal Currency</Label>
+                      <Select 
+                        value={formData.nominal_currency_uuid || '__none__'} 
+                        onValueChange={handleCurrencyChange}
+                      >
+                        <SelectTrigger className="border-2 border-gray-400">
+                          <SelectValue placeholder="-- Select Currency --" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <div className="flex items-center border-b px-3 pb-2">
+                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                            <Input
+                              placeholder="Search currencies..."
+                              value={currencySearch}
+                              onChange={(e) => setCurrencySearch(e.target.value)}
+                              className="h-8 w-full border-0 p-0 focus-visible:ring-0"
+                            />
+                          </div>
+                          <div className="max-h-[300px] overflow-y-auto">
+                            <SelectItem value="__none__">-- No Currency --</SelectItem>
+                            {currencyOptions
+                              .filter((currency) => {
+                                if (!currencySearch) return true;
+                                const searchLower = currencySearch.toLowerCase();
+                                return (
+                                  currency.code?.toLowerCase().includes(searchLower) ||
+                                  currency.name?.toLowerCase().includes(searchLower)
+                                );
+                              })
+                              .map((currency) => (
+                                <SelectItem key={currency.uuid} value={currency.uuid}>
+                                  {currency.code} - {currency.name}
+                                </SelectItem>
+                              ))}
+                          </div>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Nominal Amount</Label>
+                      <Input
+                        value={editingTransaction?.nominalAmount || '0.00'}
+                        readOnly
+                        className="bg-gray-100 border-gray-300"
+                      />
+                      <p className="text-xs text-gray-500">Automatically calculated</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Nominal Amount */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-nominal-amount" className="text-right">Nominal Amount</Label>
-                <div className="col-span-3">
-                  {!!formData.payment_uuid ? (
-                    <>
-                      <Input
-                        value={paymentDisplayValues.nominalAmountLabel}
-                        readOnly
-                        className="bg-muted"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">Amount will be recalculated based on payment currency</p>
-                    </>
-                  ) : (
-                    <>
-                      <Input
-                        value={editingTransaction?.nominalAmount || ''}
-                        readOnly
-                        className="bg-gray-50"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">Automatically calculated based on currency selection</p>
-                    </>
-                  )}
+              {/* Transaction Details - Always visible */}
+              <div className="space-y-4 pt-2 border-t">
+                <h3 className="text-sm font-semibold text-gray-700">Transaction Information</h3>
+                
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-600">Record ID</Label>
+                  <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                    <span className="font-bold" style={{ color: '#000' }}>
+                      {editingTransaction?.id || 'N/A'}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-600">Transaction Date</Label>
+                    <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                      <span className="font-bold" style={{ color: '#000' }}>
+                        {editingTransaction?.date 
+                          ? new Date(editingTransaction.date).toLocaleDateString('en-GB') 
+                          : 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-600">Correction Date</Label>
+                    <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                      <span className="font-bold" style={{ color: '#000' }}>
+                        {editingTransaction?.correctionDate 
+                          ? new Date(editingTransaction.correctionDate).toLocaleDateString('en-GB') 
+                          : 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-600">Bank Account</Label>
+                    <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                      <span className="font-bold" style={{ color: '#000' }}>
+                        {editingTransaction?.accountNumber || 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-600">Exchange Rate</Label>
+                    <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                      <span className="font-bold" style={{ color: '#000' }}>
+                        {editingTransaction?.exchangeRate 
+                          ? Number(editingTransaction.exchangeRate).toFixed(10)
+                          : 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-600">Account Currency Amount (Face amount)</Label>
+                  <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                    <span className="font-bold" style={{ color: '#000' }}>
+                      {formatAmount(editingTransaction?.accountCurrencyAmount)}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-600">Description</Label>
+                  <div className="flex min-h-[60px] w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-2 text-sm">
+                    <span className="font-bold whitespace-pre-wrap" style={{ color: '#000' }}>
+                      {editingTransaction?.description || 'N/A'}
+                    </span>
+                  </div>
                 </div>
               </div>
 

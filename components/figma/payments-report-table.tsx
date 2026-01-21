@@ -578,7 +578,7 @@ export function PaymentsReportTable() {
     }
     
     if (format === 'currency' || format === 'number') {
-      return Number(value).toLocaleString('en-US', {
+      return Math.abs(Number(value)).toLocaleString('en-US', {
         minimumFractionDigits: format === 'currency' ? 2 : 0,
         maximumFractionDigits: 2,
       });

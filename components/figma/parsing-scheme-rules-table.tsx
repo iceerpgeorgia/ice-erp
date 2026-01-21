@@ -302,7 +302,7 @@ export function ParsingSchemeRulesTable() {
 
       if (currenciesRes.ok) {
         const currenciesData = await currenciesRes.json();
-        setCurrencies(currenciesData);
+        setCurrencies(currenciesData.data || []);
       }
 
       if (paymentsRes.ok) {
