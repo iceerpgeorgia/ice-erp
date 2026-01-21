@@ -75,19 +75,19 @@ export async function GET(
 
         const [currency, project, financialCode] = await Promise.all([
           payment.currency_uuid
-            ? prisma.currency.findUnique({
+            ? prisma.currencies.findUnique({
                 where: { uuid: payment.currency_uuid },
                 select: { code: true },
               })
             : null,
           payment.project_uuid
-            ? prisma.project.findUnique({
+            ? prisma.projects.findUnique({
                 where: { projectUuid: payment.project_uuid },
                 select: { projectName: true },
               })
             : null,
           payment.financial_code_uuid
-            ? prisma.financialCode.findUnique({
+            ? prisma.financial_codes.findUnique({
                 where: { uuid: payment.financial_code_uuid },
                 select: { validation: true },
               })
