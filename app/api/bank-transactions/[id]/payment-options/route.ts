@@ -28,14 +28,14 @@ export async function GET(
         is_active: true,
       },
       select: {
-        paymentId: true,
-        projectUuid: true,
-        financialCodeUuid: true,
-        currencyUuid: true,
-        jobUuid: true,
+        payment_id: true,
+        project_uuid: true,
+        financial_code_uuid: true,
+        currency_uuid: true,
+        job_uuid: true,
       },
       orderBy: {
-        paymentId: 'asc',
+        payment_id: 'asc',
       },
     });
 
@@ -44,8 +44,8 @@ export async function GET(
       payments.map(async (payment) => {
         // Fetch job with brand info separately if needed
         let job: any = null;
-        if (payment.jobUuid) {
-          console.log('[payment-options] Fetching job:', payment.jobUuid);
+        if (payment.job_uuid) {
+          console.log('[payment-options] Fetching job:', payment.job_uuid);
           try {
             const jobRows: any[] = await prisma.$queryRaw`
               SELECT 
@@ -62,7 +62,7 @@ export async function GET(
                 ) as job_display
               FROM jobs j
               LEFT JOIN brands b ON j.brand_uuid = b.uuid
-              WHERE j.job_uuid::text = ${payment.jobUuid}
+              WHERE j.job_uuid::text = ${payment.job_uuid}
               LIMIT 1
             `;
             job = jobRows[0] || null;
@@ -74,32 +74,32 @@ export async function GET(
         }
 
         const [currency, project, financialCode] = await Promise.all([
-          payment.currencyUuid
+          payment.currency_uuid
             ? prisma.currency.findUnique({
-                where: { uuid: payment.currencyUuid },
+                where: { uuid: payment.currency_uuid },
                 select: { code: true },
               })
             : null,
-          payment.projectUuid
+          payment.project_uuid
             ? prisma.project.findUnique({
-                where: { projectUuid: payment.projectUuid },
+                where: { projectUuid: payment.project_uuid },
                 select: { projectName: true },
               })
             : null,
-          payment.financialCodeUuid
+          payment.financial_code_uuid
             ? prisma.financialCode.findUnique({
-                where: { uuid: payment.financialCodeUuid },
+                where: { uuid: payment.financial_code_uuid },
                 select: { validation: true },
               })
             : null,
         ]);
 
         return {
-          paymentId: payment.paymentId,
-          projectUuid: payment.projectUuid,
-          financialCodeUuid: payment.financialCodeUuid,
-          currencyUuid: payment.currencyUuid,
-          jobUuid: payment.jobUuid,
+          paymentId: payment.payment_id,
+          projectUuid: payment.project_uuid,
+          financialCodeUuid: payment.financial_code_uuid,
+          currencyUuid: payment.currency_uuid,
+          jobUuid: payment.job_uuid,
           currencyCode: currency?.code || '',
           projectName: project?.projectName || '',
           jobName: job?.job_name || '',
