@@ -22,14 +22,20 @@ export async function POST(request: Request) {
   const user = await prisma.user.upsert({
     where: { email: session.user.email! },
     update: { name: session.user.name || undefined },
-    create: { email: session.user.email!, name: session.user.name || undefined },
+    create: { 
+      id: crypto.randomUUID(),
+      email: session.user.email!, 
+      name: session.user.name || undefined 
+    },
   });
 
   await prisma.entry.create({
     data: {
+      id: crypto.randomUUID(),
       userId: user.id,
       project: parsed.data.project,
       hours: parsed.data.hours,
+      updatedAt: new Date(),
     },
   });
 

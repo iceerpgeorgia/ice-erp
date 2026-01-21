@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all codes
-    const codes = await prisma.financialCode.findMany({
+    const codes = await prisma.financial_codes.findMany({
       where,
       orderBy: {
         code: 'asc',

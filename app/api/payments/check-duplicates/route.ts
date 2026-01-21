@@ -40,16 +40,16 @@ export async function POST(req: NextRequest) {
       where.id = { not: Number(excludeId) };
     }
 
-    const matches = await prisma.payment.findMany({
+    const matches = await prisma.payments.findMany({
       where,
       select: {
         id: true,
-        paymentId: true,
+        payment_id: true,
         project_uuid: true,
         counteragent_uuid: true,
         financial_code_uuid: true,
-        jobUuid: true,
-        currencyUuid: true,
+        job_uuid: true,
+        currency_uuid: true,
         incomeTax: true,
       },
     });
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       count: matches.length,
       matches: matches.map(m => ({
         id: m.id,
-        paymentId: m.paymentId,
+        payment_id: m.paymentId,
       })),
     });
   } catch (error: any) {
@@ -69,4 +69,5 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
 
