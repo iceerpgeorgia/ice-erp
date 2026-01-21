@@ -38,8 +38,8 @@ export async function GET() {
         code: true,
         name: true,
         is_active: true,
-        createdAt: true,
-        updatedAt: true,
+        created_at: true,
+        updated_at: true,
       },
     });
 
@@ -96,9 +96,11 @@ export async function POST(req: NextRequest) {
 
     const created = await prisma.currencies.create({
       data: {
+        uuid: crypto.randomUUID(),
         code: payload.code,
         name: payload.name,
         is_active: payload.is_active,
+        updated_at: new Date(),
       },
       select: {
         id: true,
@@ -106,8 +108,8 @@ export async function POST(req: NextRequest) {
         code: true,
         name: true,
         is_active: true,
-        createdAt: true,
-        updatedAt: true,
+        created_at: true,
+        updated_at: true,
       },
     });
 
@@ -126,9 +128,9 @@ export async function POST(req: NextRequest) {
       uuid: created.uuid,
       code: created.code,
       name: created.name,
-      is_active: created.isActive,
-      createdAt: formatDate(created.createdAt),
-      updatedAt: formatDate(created.updatedAt),
+      is_active: created.is_active,
+      createdAt: formatDate(created.created_at),
+      updatedAt: formatDate(created.updated_at),
     }, { status: 201 });
   } catch (error: any) {
     console.error("[currencies] POST error", error);
@@ -206,8 +208,8 @@ export async function PATCH(req: NextRequest) {
         code: true,
         name: true,
         is_active: true,
-        createdAt: true,
-        updatedAt: true,
+        created_at: true,
+        updated_at: true,
       },
     });
 
@@ -229,9 +231,9 @@ export async function PATCH(req: NextRequest) {
       uuid: updated.uuid,
       code: updated.code,
       name: updated.name,
-      is_active: updated.isActive,
-      createdAt: formatDate(updated.createdAt),
-      updatedAt: formatDate(updated.updatedAt),
+      is_active: updated.is_active,
+      createdAt: formatDate(updated.created_at),
+      updatedAt: formatDate(updated.updated_at),
     });
   } catch (e: any) {
     console.error("[currencies] PATCH error", e);

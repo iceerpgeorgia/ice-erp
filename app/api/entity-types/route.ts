@@ -21,12 +21,12 @@ function validatePayload(body: any) {
 }
 
 export async function GET() {
-  const rows = await prisma.entityType.findMany({
+  const rows = await prisma.entity_types.findMany({
     orderBy: { code: "asc" },
     select: {
       id: true,
-      createdAt: true,
-      updatedAt: true,
+      created_at: true,
+      updated_at: true,
       ts: true,
       entity_type_uuid: true,
       code: true,
@@ -47,8 +47,8 @@ export async function GET() {
 
   const camelRows = rows.map(row => ({
     id: typeof row.id === 'bigint' ? Number(row.id) : row.id,
-    createdAt: formatDate(row.createdAt),
-    updatedAt: formatDate(row.updatedAt),
+    createdAt: formatDate(row.created_at),
+    updatedAt: formatDate(row.updated_at),
     ts: formatDate(row.ts),
     entity_type_uuid: row.entity_type_uuid,
     code: row.code,
@@ -70,13 +70,14 @@ export async function POST(req: NextRequest) {
 
     // Generate UUID for entity_type_uuid
     const { randomUUID } = await import('crypto');
-    const newEntityType = await prisma.entityType.create({
+    const newEntityType = await prisma.entity_types.create({
       data: {
         entity_type_uuid: randomUUID(),
         code: payload.code,
         name_en: payload.name_en,
         name_ka: payload.name_ka,
         is_active: payload.is_active,
+        updated_at: new Date(),
       },
     });
 
@@ -104,7 +105,7 @@ export async function PATCH(req: NextRequest) {
     // If only toggling active status
     if (body.active !== undefined && Object.keys(body).length === 1) {
       const active = typeof body.active === "boolean" ? body.active : true;
-      await prisma.entityType.update({ 
+      await prisma.entity_types.update({ 
         where: { id: BigInt(Number(idParam)) }, 
         data: { is_active: active } 
       });
@@ -123,12 +124,12 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Get existing record for change tracking
-    const existing = await prisma.entityType.findUnique({
+    const existing = await prisma.entity_types.findUnique({
       where: { id: BigInt(Number(idParam)) },
       select: { code: true, name_en: true, name_ka: true, is_active: true },
     });
 
-    const updated = await prisma.entityType.update({
+    const updated = await prisma.entity_types.update({
       where: { id: BigInt(Number(idParam)) },
       data: {
         code: payload.code,
@@ -138,8 +139,8 @@ export async function PATCH(req: NextRequest) {
       },
       select: {
         id: true,
-        createdAt: true,
-        updatedAt: true,
+        created_at: true,
+        updated_at: true,
         ts: true,
         entity_type_uuid: true,
         code: true,
@@ -174,8 +175,8 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({
       id: typeof updated.id === 'bigint' ? Number(updated.id) : updated.id,
-      createdAt: formatDate(updated.createdAt),
-      updatedAt: formatDate(updated.updatedAt),
+      createdAt: formatDate(updated.created_at),
+      updatedAt: formatDate(updated.updated_at),
       ts: formatDate(updated.ts),
       entity_type_uuid: updated.entity_type_uuid,
       code: updated.code,
