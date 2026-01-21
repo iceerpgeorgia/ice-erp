@@ -370,7 +370,7 @@ export async function GET(req: NextRequest) {
     
     const currenciesToFetch = Array.from(allCurrencyUuids);
     const currencyData = currenciesToFetch.length > 0 
-      ? await prisma.currency.findMany({
+      ? await prisma.currencies.findMany({
           where: { uuid: { in: currenciesToFetch } },
           select: { uuid: true, code: true }
         })
