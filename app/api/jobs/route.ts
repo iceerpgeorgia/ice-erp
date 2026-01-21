@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
     const serialized = (jobs as any[]).map((job: any) => ({
       id: Number(job.id),
       jobUuid: job.job_uuid,
-      projectUuid: job.project_uuid,
+      project_uuid: job.project_uuid,
       jobName: job.job_name,
       floors: job.floors,
       weight: job.weight,
@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
       projectName: job.project_name,
       brandName: job.brand_name,
       jobIndex: job.job_index,
-      isActive: job.is_active,
+      is_active: job.is_active,
       createdAt: job.created_at,
       updatedAt: job.updated_at,
     }));
@@ -213,3 +213,4 @@ export async function DELETE(req: NextRequest) {
     );
   }
 }
+

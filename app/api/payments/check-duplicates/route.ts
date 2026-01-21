@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
 
     // Build where clause based on provided fields
     const where: any = {
-      isActive: true,
+      is_active: true,
     };
 
     // Mandatory fields
@@ -45,9 +45,9 @@ export async function POST(req: NextRequest) {
       select: {
         id: true,
         paymentId: true,
-        projectUuid: true,
-        counteragentUuid: true,
-        financialCodeUuid: true,
+        project_uuid: true,
+        counteragent_uuid: true,
+        financial_code_uuid: true,
         jobUuid: true,
         currencyUuid: true,
         incomeTax: true,
@@ -69,3 +69,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+

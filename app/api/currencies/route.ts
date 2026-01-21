@@ -37,7 +37,7 @@ export async function GET() {
         uuid: true,
         code: true,
         name: true,
-        isActive: true,
+        is_active: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -58,7 +58,7 @@ export async function GET() {
       code: row.code,
       currencyCode: row.code,
       name: row.name,
-      isActive: row.is_active,
+      is_active: row.is_active,
       createdAt: formatDate(row.created_at),
       updatedAt: formatDate(row.updated_at),
     }));
@@ -98,14 +98,14 @@ export async function POST(req: NextRequest) {
       data: {
         code: payload.code,
         name: payload.name,
-        isActive: payload.is_active,
+        is_active: payload.is_active,
       },
       select: {
         id: true,
         uuid: true,
         code: true,
         name: true,
-        isActive: true,
+        is_active: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
       uuid: created.uuid,
       code: created.code,
       name: created.name,
-      isActive: created.isActive,
+      is_active: created.isActive,
       createdAt: formatDate(created.createdAt),
       updatedAt: formatDate(created.updatedAt),
     }, { status: 201 });
@@ -155,7 +155,7 @@ export async function PATCH(req: NextRequest) {
       const active = typeof body.active === "boolean" ? body.active : true;
       await prisma.currency.update({ 
         where: { id: BigInt(Number(idParam)) }, 
-        data: { isActive: active } 
+        data: { is_active: active } 
       });
       await logAudit({ 
         table: "currencies", 
@@ -198,14 +198,14 @@ export async function PATCH(req: NextRequest) {
       data: {
         code: payload.code,
         name: payload.name,
-        isActive: payload.is_active,
+        is_active: payload.is_active,
       },
       select: {
         id: true,
         uuid: true,
         code: true,
         name: true,
-        isActive: true,
+        is_active: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -229,7 +229,7 @@ export async function PATCH(req: NextRequest) {
       uuid: updated.uuid,
       code: updated.code,
       name: updated.name,
-      isActive: updated.isActive,
+      is_active: updated.isActive,
       createdAt: formatDate(updated.createdAt),
       updatedAt: formatDate(updated.updatedAt),
     });
@@ -250,7 +250,7 @@ export async function DELETE(req: NextRequest) {
     
     await prisma.currency.update({ 
       where: { id: BigInt(Number(idParam)) }, 
-      data: { isActive: false } 
+      data: { is_active: false } 
     });
     
     await logAudit({ 
@@ -264,4 +264,5 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: e.message ?? "Server error" }, { status: 500 });
   }
 }
+
 

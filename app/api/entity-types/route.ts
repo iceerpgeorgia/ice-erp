@@ -28,11 +28,11 @@ export async function GET() {
       createdAt: true,
       updatedAt: true,
       ts: true,
-      entityTypeUuid: true,
+      entity_type_uuid: true,
       code: true,
       name_en: true,
       name_ka: true,
-      isActive: true,
+      is_active: true,
     },
   });
   
@@ -50,11 +50,11 @@ export async function GET() {
     createdAt: formatDate(row.createdAt),
     updatedAt: formatDate(row.updatedAt),
     ts: formatDate(row.ts),
-    entityTypeUuid: row.entity_type_uuid,
+    entity_type_uuid: row.entity_type_uuid,
     code: row.code,
     nameEn: row.name_en,
     nameKa: row.name_ka,
-    isActive: row.is_active,
+    is_active: row.is_active,
   }));
   
   return NextResponse.json(camelRows);
@@ -72,11 +72,11 @@ export async function POST(req: NextRequest) {
     const { randomUUID } = await import('crypto');
     const newEntityType = await prisma.entityType.create({
       data: {
-        entityTypeUuid: randomUUID(),
+        entity_type_uuid: randomUUID(),
         code: payload.code,
         name_en: payload.name_en,
         name_ka: payload.name_ka,
-        isActive: payload.is_active,
+        is_active: payload.is_active,
       },
     });
 
@@ -106,7 +106,7 @@ export async function PATCH(req: NextRequest) {
       const active = typeof body.active === "boolean" ? body.active : true;
       await prisma.entityType.update({ 
         where: { id: BigInt(Number(idParam)) }, 
-        data: { isActive: active } 
+        data: { is_active: active } 
       });
       await logAudit({ 
         table: "entity_types", 
@@ -134,18 +134,18 @@ export async function PATCH(req: NextRequest) {
         code: payload.code,
         name_en: payload.name_en,
         name_ka: payload.name_ka,
-        isActive: payload.is_active,
+        is_active: payload.is_active,
       },
       select: {
         id: true,
         createdAt: true,
         updatedAt: true,
         ts: true,
-        entityTypeUuid: true,
+        entity_type_uuid: true,
         code: true,
         name_en: true,
         name_ka: true,
-        isActive: true,
+        is_active: true,
       },
     });
 
@@ -177,14 +177,15 @@ export async function PATCH(req: NextRequest) {
       createdAt: formatDate(updated.createdAt),
       updatedAt: formatDate(updated.updatedAt),
       ts: formatDate(updated.ts),
-      entityTypeUuid: updated.entity_type_uuid,
+      entity_type_uuid: updated.entity_type_uuid,
       code: updated.code,
       nameEn: updated.name_en,
       nameKa: updated.name_ka,
-      isActive: updated.is_active,
+      is_active: updated.is_active,
     });
   } catch (e: any) {
     console.error("[entity-types] PATCH error", e);
     return NextResponse.json({ error: e.message ?? "Server error" }, { status: 500 });
   }
 }
+

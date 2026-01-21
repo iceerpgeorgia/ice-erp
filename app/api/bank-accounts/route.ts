@@ -40,11 +40,11 @@ export async function GET() {
       bankUuid: account.bank_uuid,
       bankName: account.bank_name,
       balance: account.balance ? Number(account.balance) : null,
-      balanceDate: account.balance_date,
+      balance_date: account.balance_date,
       parsingSchemeUuid: account.parsing_scheme_uuid,
       parsingSchemeName: account.parsing_scheme_name,
       rawTableName: account.raw_table_name,
-      isActive: account.is_active,
+      is_active: account.is_active,
       createdAt: account.created_at,
       updatedAt: account.updated_at,
     }));
@@ -106,3 +106,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

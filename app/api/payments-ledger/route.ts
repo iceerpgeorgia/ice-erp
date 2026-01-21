@@ -78,9 +78,9 @@ export async function GET(request: NextRequest) {
       userEmail: entry.user_email,
       createdAt: entry.created_at,
       updatedAt: entry.updated_at,
-      projectUuid: entry.project_uuid,
-      counteragentUuid: entry.counteragent_uuid,
-      financialCodeUuid: entry.financial_code_uuid,
+      project_uuid: entry.project_uuid,
+      counteragent_uuid: entry.counteragent_uuid,
+      financial_code_uuid: entry.financial_code_uuid,
       jobUuid: entry.job_uuid,
       incomeTax: entry.income_tax,
       currencyUuid: entry.currency_uuid,
@@ -212,3 +212,4 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+

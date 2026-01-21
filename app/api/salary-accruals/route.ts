@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 // Helper function to generate payment_id
-function generatePaymentId(counteragentUuid: string, financialCodeUuid: string, salaryMonth: Date): string {
+function generatePaymentId(counteragentUuid: string, financial_code_uuid: string, salaryMonth: Date): string {
   // Extract characters at positions 2, 4, 6, 8, 10, 12 (1-indexed Excel MID)
   // This corresponds to indices 1, 3, 5, 7, 9, 11 (0-indexed) from UUID WITH hyphens
   const extractChars = (uuid: string) => {
@@ -234,3 +234,4 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+

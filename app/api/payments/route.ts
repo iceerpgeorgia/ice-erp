@@ -43,15 +43,15 @@ export async function GET(request: NextRequest) {
 
     const formattedPayments = payments.map((payment) => ({
       id: Number(payment.id),
-      projectUuid: payment.project_uuid,
-      counteragentUuid: payment.counteragent_uuid,
-      financialCodeUuid: payment.financial_code_uuid,
+      project_uuid: payment.project_uuid,
+      counteragent_uuid: payment.counteragent_uuid,
+      financial_code_uuid: payment.financial_code_uuid,
       jobUuid: payment.job_uuid,
       incomeTax: payment.income_tax,
       currencyUuid: payment.currency_uuid,
       paymentId: payment.payment_id,
       recordUuid: payment.record_uuid,
-      isActive: payment.is_active,
+      is_active: payment.is_active,
       createdAt: payment.created_at,
       updatedAt: payment.updated_at,
       projectIndex: payment.project_index,
@@ -179,3 +179,4 @@ export async function PATCH(request: Request) {
     );
   }
 }
+

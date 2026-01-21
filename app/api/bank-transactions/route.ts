@@ -16,7 +16,7 @@ function toApi(row: any) {
     correction_date: row.correction_date || null, // NEW COLUMN
     exchange_rate: row.exchange_rate ? Number(row.exchange_rate) : null, // NEW COLUMN
     description: row.description,
-    counteragentUuid: row.counteragent_uuid,
+    counteragent_uuid: row.counteragent_uuid,
     counteragent_account_number: row.counteragent_account_number ? String(row.counteragent_account_number) : null,
     project_uuid: row.project_uuid,
     financial_code_uuid: row.financial_code_uuid,
@@ -52,7 +52,7 @@ function balanceToApi(row: any, currencyCode: string) {
     raw_record_uuid: null,
     transaction_date: balanceDate,
     description: 'Balance Depiction',
-    counteragentUuid: null,
+    counteragent_uuid: null,
     counteragent_account_number: `${row.accountNumber}${currencyCode}`, // Account number + currency
     project_uuid: null,
     financial_code_uuid: null,
@@ -214,7 +214,7 @@ export async function GET(req: NextRequest) {
       where: {
         balance: { not: null },
         balance_date: { not: null },
-        isActive: true
+        is_active: true
       },
       include: {
         bank: true,
@@ -322,7 +322,7 @@ export async function GET(req: NextRequest) {
     const bankAccountBalances = await prisma.bankAccount.findMany({
       where: {
         balance: { not: null },
-        isActive: true
+        is_active: true
       },
       select: {
         currencyUuid: true,
@@ -415,3 +415,4 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+

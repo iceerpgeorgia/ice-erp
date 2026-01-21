@@ -14,33 +14,33 @@ function toApi(row: any) {
     ts: row.ts?.toISOString() ?? null,
 
     name: row.name,
-    identificationNumber: row.identification_number,
-    birthOrIncorporationDate: row.birth_or_incorporation_date
+    identification_number: row.identification_number,
+    birth_or_incorporation_date: row.birth_or_incorporation_date
       ? new Date(row.birth_or_incorporation_date).toISOString().slice(0, 10)
       : null,
     entityType: row.entity_type,
     sex: row.sex,
-    pensionScheme: row.pension_scheme,
+    pension_scheme: row.pension_scheme,
     country: row.country,
-    addressLine1: row.address_line_1,
-    addressLine2: row.address_line_2,
-    zipCode: row.zip_code,
+    address_line_1: row.address_line_1,
+    address_line_2: row.address_line_2,
+    zip_code: row.zip_code,
     iban: row.iban,
     swift: row.swift,
     director: row.director,
-    directorId: row.director_id,
+    director_id: row.director_id,
     email: row.email,
     phone: row.phone,
-    orisId: row.oris_id,
+    oris_id: row.oris_id,
 
     counteragent: row.counteragent,
-    countryUuid: row.country_uuid,
-    entityTypeUuid: row.entity_type_uuid,
-    counteragentUuid: row.counteragent_uuid,
-    internalNumber: row.internal_number ?? null,
-    isActive: row.is_active ?? true,
-    isEmploee: row.is_emploee ?? null,
-    wasEmploee: row.was_emploee ?? null,
+    country_uuid: row.country_uuid,
+    entity_type_uuid: row.entity_type_uuid,
+    counteragent_uuid: row.counteragent_uuid,
+    internal_number: row.internal_number ?? null,
+    is_active: row.is_active ?? true,
+    is_emploee: row.is_emploee ?? null,
+    was_emploee: row.was_emploee ?? null,
   };
 }
 
@@ -229,26 +229,26 @@ export async function PATCH(req: NextRequest) {
     // Note: entity_type, country, counteragent are auto-populated by triggers from UUIDs
     const fieldMap: Record<string, keyof typeof body> = {
       name: 'name',
-      identificationNumber: 'identification_number',
-      birthOrIncorporationDate: 'birth_or_incorporation_date',
+      identification_number: 'identification_number',
+      birth_or_incorporation_date: 'birth_or_incorporation_date',
       sex: 'sex',
-      pensionScheme: 'pension_scheme',
-      addressLine1: 'address_line_1',
-      addressLine2: 'address_line_2',
-      zipCode: 'zip_code',
+      pension_scheme: 'pension_scheme',
+      address_line_1: 'address_line_1',
+      address_line_2: 'address_line_2',
+      zip_code: 'zip_code',
       iban: 'iban',
       swift: 'swift',
       director: 'director',
-      directorId: 'director_id',
+      director_id: 'director_id',
       email: 'email',
       phone: 'phone',
-      orisId: 'oris_id',
-      countryUuid: 'country_uuid',
-      entityTypeUuid: 'entity_type_uuid',
-      internalNumber: 'internal_number',
-      isActive: 'is_active',
-      isEmploee: 'is_emploee',
-      wasEmploee: 'was_emploee',
+      oris_id: 'oris_id',
+      country_uuid: 'country_uuid',
+      entity_type_uuid: 'entity_type_uuid',
+      internal_number: 'internal_number',
+      is_active: 'is_active',
+      is_emploee: 'is_emploee',
+      was_emploee: 'was_emploee',
     };
 
     Object.entries(fieldMap).forEach(([dbField, bodyField]) => {
@@ -375,6 +375,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: err.message ?? "Server error" }, { status: 500 });
   }
 }
+
 
 
 

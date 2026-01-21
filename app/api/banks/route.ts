@@ -15,7 +15,7 @@ export async function GET() {
       id: Number(bank.id),
       uuid: bank.uuid,
       bankName: bank.bankName,
-      isActive: bank.isActive,
+      is_active: bank.isActive,
       createdAt: bank.createdAt.toISOString(),
       updatedAt: bank.updatedAt.toISOString(),
     }));
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       id: Number(bank.id),
       uuid: bank.uuid,
       bankName: bank.bankName,
-      isActive: bank.isActive,
+      is_active: bank.isActive,
       createdAt: bank.createdAt.toISOString(),
       updatedAt: bank.updatedAt.toISOString(),
     });
@@ -64,3 +64,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

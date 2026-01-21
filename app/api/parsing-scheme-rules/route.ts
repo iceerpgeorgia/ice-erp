@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       condition: string;
       condition_script: string | null;
       payment_id: bigint | null;
-      counteragentUuid: string | null;
+      counteragent_uuid: string | null;
       financial_code_uuid: string | null;
       nominal_currency_uuid: string | null;
       active: boolean;
@@ -83,9 +83,9 @@ export async function GET(request: NextRequest) {
       scheme: rule.scheme,
       condition: rule.condition,
       paymentId: rule.payment_id,
-      counteragentUuid: rule.counteragent_uuid,
-      financialCodeUuid: rule.financial_code_uuid,
-      nominalCurrencyUuid: rule.nominal_currency_uuid,
+      counteragent_uuid: rule.counteragent_uuid,
+      financial_code_uuid: rule.financial_code_uuid,
+      nominal_currency_uuid: rule.nominal_currency_uuid,
       counteragentName: rule.counteragent_name,
       financialCode: rule.financial_code,
       currencyCode: rule.currency_code,
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
       condition: string;
       condition_script: string | null;
       payment_id: string | null;
-      counteragentUuid: string | null;
+      counteragent_uuid: string | null;
       financial_code_uuid: string | null;
       nominal_currency_uuid: string | null;
       active: boolean;
@@ -176,9 +176,9 @@ export async function POST(request: NextRequest) {
       schemeUuid: rule.scheme_uuid,
       condition: rule.condition,
       paymentId: rule.payment_id,
-      counteragentUuid: rule.counteragent_uuid,
-      financialCodeUuid: rule.financial_code_uuid,
-      nominalCurrencyUuid: rule.nominal_currency_uuid,
+      counteragent_uuid: rule.counteragent_uuid,
+      financial_code_uuid: rule.financial_code_uuid,
+      nominal_currency_uuid: rule.nominal_currency_uuid,
       active: rule.active
     });
   } catch (error) {
@@ -189,3 +189,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
