@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     
     const where: any = {};
     if (table) where.table = table;
-  if (recordId) where.recordId = recordId;
+  if (recordId) where.record_id = recordId;
     
     const logs = await prisma.auditLog.findMany({
       where,
@@ -21,10 +21,10 @@ export async function GET(req: NextRequest) {
       select: {
         id: true,
         table: true,
-        recordId: true,
+        record_id: true,
         action: true,
-        userEmail: true,
-        userId: true,
+        user_email: true,
+        user_id: true,
         changes: true,
         created_at: true,
       },
@@ -34,9 +34,10 @@ export async function GET(req: NextRequest) {
     const serialized = logs.map(log => ({
       ...log,
       id: Number(log.id),
-      recordId: Number(log.recordId),
-      userId: log.userId ? Number(log.userId) : null,
-      createdAt: log.createdAt.toISOString(),
+      recordId: log.record_id,
+      userId: log.user_id,
+      userEmail: log.user_email,
+      createdAt: log.created_at.toISOString(),
     }));
     
     return NextResponse.json(serialized);
