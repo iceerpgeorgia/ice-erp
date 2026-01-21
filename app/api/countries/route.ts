@@ -189,7 +189,7 @@ export async function PATCH(req: NextRequest) {
         iso3: payload.iso3,
         un_code: payload.un_code ?? undefined,
         country: payload.country,
-        isActive: payload.is_active,
+        is_active: payload.is_active,
       },
       select: {
         id: true,
