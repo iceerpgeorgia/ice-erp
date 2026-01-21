@@ -45,6 +45,7 @@ export async function POST(request: Request) {
     const bank = await prisma.bank.create({
       data: {
         bankName,
+        updatedAt: new Date(),
       },
     });
 
