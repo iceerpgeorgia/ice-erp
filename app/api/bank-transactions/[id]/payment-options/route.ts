@@ -82,8 +82,8 @@ export async function GET(
             : null,
           payment.project_uuid
             ? prisma.projects.findUnique({
-                where: { projectUuid: payment.project_uuid },
-                select: { projectName: true },
+                where: { project_uuid: payment.project_uuid },
+                select: { project_name: true },
               })
             : null,
           payment.financial_code_uuid
@@ -101,7 +101,7 @@ export async function GET(
           currencyUuid: payment.currency_uuid,
           jobUuid: payment.job_uuid,
           currencyCode: currency?.code || '',
-          projectName: project?.projectName || '',
+          projectName: project?.project_name || '',
           jobName: job?.job_name || '',
           jobDisplay: job?.job_display || '',
           financialCodeValidation: financialCode?.validation || '',
