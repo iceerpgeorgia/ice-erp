@@ -198,7 +198,7 @@ export async function PATCH(req: NextRequest) {
       data: {
         code: payload.code,
         name: payload.name,
-        is_active: payload.is_active,
+        isActive: payload.is_active,
       },
       select: {
         id: true,

@@ -176,7 +176,7 @@ export async function PATCH(req: NextRequest) {
         iso3: true,
         un_code: true,
         country: true,
-        is_active: true,
+        isActive: true,
       },
     });
 
@@ -189,7 +189,7 @@ export async function PATCH(req: NextRequest) {
         iso3: payload.iso3,
         un_code: payload.un_code ?? undefined,
         country: payload.country,
-        is_active: payload.is_active,
+        isActive: payload.is_active,
       },
       select: {
         id: true,

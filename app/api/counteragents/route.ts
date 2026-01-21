@@ -306,7 +306,7 @@ export async function PATCH(req: NextRequest) {
         country_uuid: body.country_uuid !== undefined ? body.country_uuid : undefined,
         entity_type_uuid: body.entity_type_uuid !== undefined ? body.entity_type_uuid : undefined,
         internal_number: body.internal_number !== undefined ? body.internal_number : undefined,
-        is_active: body.is_active !== undefined ? body.is_active : undefined,
+        isActive: body.is_active !== undefined ? body.is_active : undefined,
         is_emploee: body.is_emploee !== undefined ? body.is_emploee : undefined,
         was_emploee: body.was_emploee !== undefined ? body.was_emploee : undefined,
       },

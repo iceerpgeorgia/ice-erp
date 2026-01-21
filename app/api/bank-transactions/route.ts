@@ -322,7 +322,7 @@ export async function GET(req: NextRequest) {
     const bankAccountBalances = await prisma.bankAccount.findMany({
       where: {
         balance: { not: null },
-        is_active: true
+        isActive: true
       },
       select: {
         currencyUuid: true,
