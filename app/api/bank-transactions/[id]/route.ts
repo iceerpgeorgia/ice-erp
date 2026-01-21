@@ -229,15 +229,15 @@ export async function PATCH(
       if (payment_uuid) {
         try {
           // Get payment's currency
-          const payment = await prisma.payment.findUnique({
-            where: { paymentId: payment_uuid },
-            select: { currencyUuid: true }
+          const payment = await prisma.payments.findUnique({
+            where: { payment_id: payment_uuid },
+            select: { currency_uuid: true }
           });
           
-          if (payment && payment.currencyUuid) {
+          if (payment && payment.currency_uuid) {
             // Update nominal currency to match payment currency
-            updateData.nominalCurrencyUuid = payment.currencyUuid;
-            changes.push(`nominal_currency: ${current.nominal_currency_uuid} → ${payment.currencyUuid} (from payment)`);
+            updateData.nominalCurrencyUuid = payment.currency_uuid;
+            changes.push(`nominal_currency: ${current.nominal_currency_uuid} → ${payment.currency_uuid} (from payment)`);
             
             // Calculate exchange rate and nominal amount
             const result = await calculateExchangeRateAndAmount(
