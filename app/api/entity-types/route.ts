@@ -125,7 +125,7 @@ export async function PATCH(req: NextRequest) {
     // Get existing record for change tracking
     const existing = await prisma.entityType.findUnique({
       where: { id: BigInt(Number(idParam)) },
-      select: { code: true, name_en: true, name_ka: true, isActive: true },
+      select: { code: true, name_en: true, name_ka: true, is_active: true },
     });
 
     const updated = await prisma.entityType.update({

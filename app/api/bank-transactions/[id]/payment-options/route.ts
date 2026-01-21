@@ -14,7 +14,7 @@ export async function GET(
     // Get the transaction to find counteragent
     const transaction = await prisma.consolidatedBankAccount.findUnique({
       where: { id },
-      select: { counteragentUuid: true },
+      select: { counteragent_uuid: true },
     });
 
     if (!transaction || !transaction.counteragentUuid) {
