@@ -214,7 +214,7 @@ export async function GET(req: NextRequest) {
       where: {
         balance: { not: null },
         balance_date: { not: null },
-        is_active: true
+        isActive: true
       },
       include: {
         bank: true,
