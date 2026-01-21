@@ -173,9 +173,9 @@ export async function POST(req: NextRequest) {
         country_uuid: true,
         entity_type_uuid: true,
         counteragent_uuid: true,
-        internalNumber: true,
-        isEmploee: true,
-        wasEmploee: true,
+        internal_number: true,
+        is_emploee: true,
+        was_emploee: true,
       },
     });
 
@@ -375,5 +375,6 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: err.message ?? "Server error" }, { status: 500 });
   }
 }
+
 
 
