@@ -242,7 +242,7 @@ export async function PATCH(
             // Calculate exchange rate and nominal amount
             const result = await calculateExchangeRateAndAmount(
               current.account_currency_uuid,
-              payment.currencyUuid,
+              payment.currency_uuid,
               current.account_currency_amount,
               current.transaction_date,
               current.correction_date
