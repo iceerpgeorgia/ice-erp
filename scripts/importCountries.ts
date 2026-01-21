@@ -136,11 +136,13 @@ async function upsertCountries(rows: ReturnType<typeof cleanAndValidate>["cleane
               // DO NOT set `country`; DB trigger keeps it in sync
             },
             create: {
+              country_uuid: crypto.randomUUID(),
               name_ka: r.name_ka,
               name_en: r.name_en,
               iso2: r.iso2,
               iso3: r.iso3,
               un_code: r.un_code ?? null,
+              updated_at: new Date(),
             },
           });
           ok++;
