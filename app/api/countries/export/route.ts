@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   if (where.AND.length === 0) delete where.AND;
 
   // IMPORTANT: no pagination here — we export ALL rows matching filters
-  const rows = await prisma.country.findMany({
+  const rows = await prisma.countries.findMany({
     where,
     orderBy: { id: "asc" },
     select: {

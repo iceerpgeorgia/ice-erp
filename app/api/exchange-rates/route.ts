@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       const date = new Date(dateParam);
       const currency = currencyParam.toUpperCase();
       
-      const rate = await prisma.nBGExchangeRate.findUnique({
+      const rate = await prisma.nbg_exchange_rates.findUnique({
         where: { date },
       });
 
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
       const start = new Date(startDate);
       const end = new Date(endDate);
 
-      const rates = await prisma.nBGExchangeRate.findMany({
+      const rates = await prisma.nbg_exchange_rates.findMany({
         where: {
           date: {
             gte: start,
@@ -76,35 +76,35 @@ export async function GET(req: NextRequest) {
       const formattedRates = rates.map(rate => ({
         id: Number(rate.id),
         date: rate.date.toISOString().split('T')[0],
-        usd: rate.usdRate ? Number(rate.usdRate) : null,
-        eur: rate.eurRate ? Number(rate.eurRate) : null,
-        cny: rate.cnyRate ? Number(rate.cnyRate) : null,
-        gbp: rate.gbpRate ? Number(rate.gbpRate) : null,
-        rub: rate.rubRate ? Number(rate.rubRate) : null,
-        try: rate.tryRate ? Number(rate.tryRate) : null,
-        aed: rate.aedRate ? Number(rate.aedRate) : null,
-        kzt: rate.kztRate ? Number(rate.kztRate) : null,
+        usd: rate.usd_rate ? Number(rate.usd_rate) : null,
+        eur: rate.eur_rate ? Number(rate.eur_rate) : null,
+        cny: rate.cny_rate ? Number(rate.cny_rate) : null,
+        gbp: rate.gbp_rate ? Number(rate.gbp_rate) : null,
+        rub: rate.rub_rate ? Number(rate.rub_rate) : null,
+        try: rate.try_rate ? Number(rate.try_rate) : null,
+        aed: rate.aed_rate ? Number(rate.aed_rate) : null,
+        kzt: rate.kzt_rate ? Number(rate.kzt_rate) : null,
       }));
 
       return NextResponse.json(formattedRates);
     }
 
     // Default: return all rates
-    const rates = await prisma.nBGExchangeRate.findMany({
+    const rates = await prisma.nbg_exchange_rates.findMany({
       orderBy: { date: "desc" },
     });
 
     const formattedRates = rates.map(rate => ({
       id: Number(rate.id),
       date: rate.date.toISOString().split('T')[0],
-      usd: rate.usdRate ? Number(rate.usdRate) : null,
-      eur: rate.eurRate ? Number(rate.eurRate) : null,
-      cny: rate.cnyRate ? Number(rate.cnyRate) : null,
-      gbp: rate.gbpRate ? Number(rate.gbpRate) : null,
-      rub: rate.rubRate ? Number(rate.rubRate) : null,
-      try: rate.tryRate ? Number(rate.tryRate) : null,
-      aed: rate.aedRate ? Number(rate.aedRate) : null,
-      kzt: rate.kztRate ? Number(rate.kztRate) : null,
+      usd: rate.usd_rate ? Number(rate.usd_rate) : null,
+      eur: rate.eur_rate ? Number(rate.eur_rate) : null,
+      cny: rate.cny_rate ? Number(rate.cny_rate) : null,
+      gbp: rate.gbp_rate ? Number(rate.gbp_rate) : null,
+      rub: rate.rub_rate ? Number(rate.rub_rate) : null,
+      try: rate.try_rate ? Number(rate.try_rate) : null,
+      aed: rate.aed_rate ? Number(rate.aed_rate) : null,
+      kzt: rate.kzt_rate ? Number(rate.kzt_rate) : null,
     }));
 
     return NextResponse.json(formattedRates);
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if date already exists
-    const existing = await prisma.nBGExchangeRate.findUnique({
+    const existing = await prisma.nbg_exchange_rates.findUnique({
       where: { date },
     });
 
@@ -152,31 +152,31 @@ export async function POST(req: NextRequest) {
     const data: any = { date };
     
     if (body.usd !== undefined && body.usd !== null && body.usd !== "") {
-      data.usdRate = new Prisma.Decimal(body.usd);
+      data.usd_rate = new Prisma.Decimal(body.usd);
     }
     if (body.eur !== undefined && body.eur !== null && body.eur !== "") {
-      data.eurRate = new Prisma.Decimal(body.eur);
+      data.eur_rate = new Prisma.Decimal(body.eur);
     }
     if (body.cny !== undefined && body.cny !== null && body.cny !== "") {
-      data.cnyRate = new Prisma.Decimal(body.cny);
+      data.cny_rate = new Prisma.Decimal(body.cny);
     }
     if (body.gbp !== undefined && body.gbp !== null && body.gbp !== "") {
-      data.gbpRate = new Prisma.Decimal(body.gbp);
+      data.gbp_rate = new Prisma.Decimal(body.gbp);
     }
     if (body.rub !== undefined && body.rub !== null && body.rub !== "") {
-      data.rubRate = new Prisma.Decimal(body.rub);
+      data.rub_rate = new Prisma.Decimal(body.rub);
     }
     if (body.try !== undefined && body.try !== null && body.try !== "") {
-      data.tryRate = new Prisma.Decimal(body.try);
+      data.try_rate = new Prisma.Decimal(body.try);
     }
     if (body.aed !== undefined && body.aed !== null && body.aed !== "") {
-      data.aedRate = new Prisma.Decimal(body.aed);
+      data.aed_rate = new Prisma.Decimal(body.aed);
     }
     if (body.kzt !== undefined && body.kzt !== null && body.kzt !== "") {
-      data.kztRate = new Prisma.Decimal(body.kzt);
+      data.kzt_rate = new Prisma.Decimal(body.kzt);
     }
 
-    const created = await prisma.nBGExchangeRate.create({
+    const created = await prisma.nbg_exchange_rates.create({
       data,
     });
 
@@ -190,14 +190,14 @@ export async function POST(req: NextRequest) {
       {
         id: Number(created.id),
         date: created.date.toISOString().split('T')[0],
-        usd: created.usdRate ? Number(created.usdRate) : null,
-        eur: created.eurRate ? Number(created.eurRate) : null,
-        cny: created.cnyRate ? Number(created.cnyRate) : null,
-        gbp: created.gbpRate ? Number(created.gbpRate) : null,
-        rub: created.rubRate ? Number(created.rubRate) : null,
-        try: created.tryRate ? Number(created.tryRate) : null,
-        aed: created.aedRate ? Number(created.aedRate) : null,
-        kzt: created.kztRate ? Number(created.kztRate) : null,
+        usd: created.usd_rate ? Number(created.usd_rate) : null,
+        eur: created.eur_rate ? Number(created.eur_rate) : null,
+        cny: created.cny_rate ? Number(created.cny_rate) : null,
+        gbp: created.gbp_rate ? Number(created.gbp_rate) : null,
+        rub: created.rub_rate ? Number(created.rub_rate) : null,
+        try: created.try_rate ? Number(created.try_rate) : null,
+        aed: created.aed_rate ? Number(created.aed_rate) : null,
+        kzt: created.kzt_rate ? Number(created.kzt_rate) : null,
       },
       { status: 201 }
     );
@@ -235,31 +235,31 @@ export async function PATCH(req: NextRequest) {
     if (date) data.date = date;
     
     if (body.usd !== undefined && body.usd !== null && body.usd !== "") {
-      data.usdRate = new Prisma.Decimal(body.usd);
+      data.usd_rate = new Prisma.Decimal(body.usd);
     }
     if (body.eur !== undefined && body.eur !== null && body.eur !== "") {
-      data.eurRate = new Prisma.Decimal(body.eur);
+      data.eur_rate = new Prisma.Decimal(body.eur);
     }
     if (body.cny !== undefined && body.cny !== null && body.cny !== "") {
-      data.cnyRate = new Prisma.Decimal(body.cny);
+      data.cny_rate = new Prisma.Decimal(body.cny);
     }
     if (body.gbp !== undefined && body.gbp !== null && body.gbp !== "") {
-      data.gbpRate = new Prisma.Decimal(body.gbp);
+      data.gbp_rate = new Prisma.Decimal(body.gbp);
     }
     if (body.rub !== undefined && body.rub !== null && body.rub !== "") {
-      data.rubRate = new Prisma.Decimal(body.rub);
+      data.rub_rate = new Prisma.Decimal(body.rub);
     }
     if (body.try !== undefined && body.try !== null && body.try !== "") {
-      data.tryRate = new Prisma.Decimal(body.try);
+      data.try_rate = new Prisma.Decimal(body.try);
     }
     if (body.aed !== undefined && body.aed !== null && body.aed !== "") {
-      data.aedRate = new Prisma.Decimal(body.aed);
+      data.aed_rate = new Prisma.Decimal(body.aed);
     }
     if (body.kzt !== undefined && body.kzt !== null && body.kzt !== "") {
-      data.kztRate = new Prisma.Decimal(body.kzt);
+      data.kzt_rate = new Prisma.Decimal(body.kzt);
     }
 
-    const updated = await prisma.nBGExchangeRate.update({
+    const updated = await prisma.nbg_exchange_rates.update({
       where: { id: BigInt(idParam) },
       data,
     });
@@ -273,14 +273,14 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({
       id: Number(updated.id),
       date: updated.date.toISOString().split('T')[0],
-      usd: updated.usdRate ? Number(updated.usdRate) : null,
-      eur: updated.eurRate ? Number(updated.eurRate) : null,
-      cny: updated.cnyRate ? Number(updated.cnyRate) : null,
-      gbp: updated.gbpRate ? Number(updated.gbpRate) : null,
-      rub: updated.rubRate ? Number(updated.rubRate) : null,
-      try: updated.tryRate ? Number(updated.tryRate) : null,
-      aed: updated.aedRate ? Number(updated.aedRate) : null,
-      kzt: updated.kztRate ? Number(updated.kztRate) : null,
+      usd: updated.usd_rate ? Number(updated.usd_rate) : null,
+      eur: updated.eur_rate ? Number(updated.eur_rate) : null,
+      cny: updated.cny_rate ? Number(updated.cny_rate) : null,
+      gbp: updated.gbp_rate ? Number(updated.gbp_rate) : null,
+      rub: updated.rub_rate ? Number(updated.rub_rate) : null,
+      try: updated.try_rate ? Number(updated.try_rate) : null,
+      aed: updated.aed_rate ? Number(updated.aed_rate) : null,
+      kzt: updated.kzt_rate ? Number(updated.kzt_rate) : null,
     });
   } catch (error: any) {
     console.error("[exchange-rates] PATCH error", error);
@@ -300,7 +300,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Missing id" }, { status: 400 });
     }
 
-    await prisma.nBGExchangeRate.delete({
+    await prisma.nbg_exchange_rates.delete({
       where: { id: BigInt(idParam) },
     });
 

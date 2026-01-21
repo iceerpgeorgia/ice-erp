@@ -45,19 +45,19 @@ export async function POST(req: NextRequest) {
         const ratePerUnit = rate / quantity;
         
         // Map to our database columns
-        if (code === 'USD') rates.usdRate = new Prisma.Decimal(ratePerUnit);
-        if (code === 'EUR') rates.eurRate = new Prisma.Decimal(ratePerUnit);
-        if (code === 'CNY') rates.cnyRate = new Prisma.Decimal(ratePerUnit);
-        if (code === 'GBP') rates.gbpRate = new Prisma.Decimal(ratePerUnit);
-        if (code === 'RUB') rates.rubRate = new Prisma.Decimal(ratePerUnit);
-        if (code === 'TRY') rates.tryRate = new Prisma.Decimal(ratePerUnit);
-        if (code === 'AED') rates.aedRate = new Prisma.Decimal(ratePerUnit);
-        if (code === 'KZT') rates.kztRate = new Prisma.Decimal(ratePerUnit);
+        if (code === 'USD') rates.usd_rate = new Prisma.Decimal(ratePerUnit);
+        if (code === 'EUR') rates.eur_rate = new Prisma.Decimal(ratePerUnit);
+        if (code === 'CNY') rates.cny_rate = new Prisma.Decimal(ratePerUnit);
+        if (code === 'GBP') rates.gbp_rate = new Prisma.Decimal(ratePerUnit);
+        if (code === 'RUB') rates.rub_rate = new Prisma.Decimal(ratePerUnit);
+        if (code === 'TRY') rates.try_rate = new Prisma.Decimal(ratePerUnit);
+        if (code === 'AED') rates.aed_rate = new Prisma.Decimal(ratePerUnit);
+        if (code === 'KZT') rates.kzt_rate = new Prisma.Decimal(ratePerUnit);
       }
     }
 
     // Check if today's date exists
-    const existing = await prisma.nBGExchangeRate.findUnique({
+    const existing = await prisma.nbg_exchange_rates.findUnique({
       where: { date: today },
     });
 
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
 
     if (existing) {
       // Update existing
-      result = await prisma.nBGExchangeRate.update({
+      result = await prisma.nbg_exchange_rates.update({
         where: { date: today },
         data: rates,
       });
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
       });
     } else {
       // Create new
-      result = await prisma.nBGExchangeRate.create({
+      result = await prisma.nbg_exchange_rates.create({
         data: {
           date: today,
           ...rates,
@@ -99,14 +99,14 @@ export async function POST(req: NextRequest) {
       date: result.date.toISOString().split('T')[0],
       message: existing ? "Updated existing rates" : "Created new rates",
       rates: {
-        usd: result.usdRate ? Number(result.usdRate) : null,
-        eur: result.eurRate ? Number(result.eurRate) : null,
-        cny: result.cnyRate ? Number(result.cnyRate) : null,
-        gbp: result.gbpRate ? Number(result.gbpRate) : null,
-        rub: result.rubRate ? Number(result.rubRate) : null,
-        try: result.tryRate ? Number(result.tryRate) : null,
-        aed: result.aedRate ? Number(result.aedRate) : null,
-        kzt: result.kztRate ? Number(result.kztRate) : null,
+        usd: result.usd_rate ? Number(result.usd_rate) : null,
+        eur: result.eur_rate ? Number(result.eur_rate) : null,
+        cny: result.cny_rate ? Number(result.cny_rate) : null,
+        gbp: result.gbp_rate ? Number(result.gbp_rate) : null,
+        rub: result.rub_rate ? Number(result.rub_rate) : null,
+        try: result.try_rate ? Number(result.try_rate) : null,
+        aed: result.aed_rate ? Number(result.aed_rate) : null,
+        kzt: result.kzt_rate ? Number(result.kzt_rate) : null,
       },
     });
   } catch (error: any) {
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
 async function backfillMissingDates(currentDate: Date) {
   try {
     // Get the last date before today
-    const lastRecord = await prisma.nBGExchangeRate.findFirst({
+    const lastRecord = await prisma.nbg_exchange_rates.findFirst({
       where: {
         date: {
           lt: currentDate,
@@ -154,7 +154,7 @@ async function backfillMissingDates(currentDate: Date) {
     console.log(`[exchange-rates/update] Backfilling ${daysToBackfill - 1} missing dates`);
 
     // Get all existing dates in one query to reduce database calls
-    const existingDates = await prisma.nBGExchangeRate.findMany({
+    const existingDates = await prisma.nbg_exchange_rates.findMany({
       where: {
         date: {
           gt: lastDate,
@@ -211,19 +211,19 @@ async function backfillMissingDates(currentDate: Date) {
 
           if (code && rate > 0) {
             const ratePerUnit = rate / quantity;
-            if (code === 'USD') ratesToUse.usdRate = new Prisma.Decimal(ratePerUnit);
-            if (code === 'EUR') ratesToUse.eurRate = new Prisma.Decimal(ratePerUnit);
-            if (code === 'CNY') ratesToUse.cnyRate = new Prisma.Decimal(ratePerUnit);
-            if (code === 'GBP') ratesToUse.gbpRate = new Prisma.Decimal(ratePerUnit);
-            if (code === 'RUB') ratesToUse.rubRate = new Prisma.Decimal(ratePerUnit);
-            if (code === 'TRY') ratesToUse.tryRate = new Prisma.Decimal(ratePerUnit);
-            if (code === 'AED') ratesToUse.aedRate = new Prisma.Decimal(ratePerUnit);
-            if (code === 'KZT') ratesToUse.kztRate = new Prisma.Decimal(ratePerUnit);
+            if (code === 'USD') ratesToUse.usd_rate = new Prisma.Decimal(ratePerUnit);
+            if (code === 'EUR') ratesToUse.eur_rate = new Prisma.Decimal(ratePerUnit);
+            if (code === 'CNY') ratesToUse.cny_rate = new Prisma.Decimal(ratePerUnit);
+            if (code === 'GBP') ratesToUse.gbp_rate = new Prisma.Decimal(ratePerUnit);
+            if (code === 'RUB') ratesToUse.rub_rate = new Prisma.Decimal(ratePerUnit);
+            if (code === 'TRY') ratesToUse.try_rate = new Prisma.Decimal(ratePerUnit);
+            if (code === 'AED') ratesToUse.aed_rate = new Prisma.Decimal(ratePerUnit);
+            if (code === 'KZT') ratesToUse.kzt_rate = new Prisma.Decimal(ratePerUnit);
           }
         }
 
         // Insert the missing date
-        await prisma.nBGExchangeRate.create({
+        await prisma.nbg_exchange_rates.create({
           data: {
             date: missingDate,
             ...ratesToUse,

@@ -37,12 +37,12 @@ function validatePayload(body: any) {
 }
 
 export async function GET() {
-  const rows = await prisma.country.findMany({
+  const rows = await prisma.countries.findMany({
     orderBy: { name_en: "asc" },
     select: {
       id: true,
-      createdAt: true,
-      updatedAt: true,
+      created_at: true,
+      updated_at: true,
       ts: true,
       country_uuid: true,
       name_en: true,
@@ -65,8 +65,8 @@ export async function GET() {
 
   const camelRows = rows.map(row => ({
     id: typeof row.id === 'bigint' ? Number(row.id) : row.id,
-    createdAt: formatDate(row.createdAt),
-    updatedAt: formatDate(row.updatedAt),
+    createdAt: formatDate(row.created_at),
+    updatedAt: formatDate(row.updated_at),
     ts: formatDate(row.ts),
     country_uuid: row.country_uuid,
     nameEn: row.name_en,
@@ -88,8 +88,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Validation failed", details: errors }, { status: 400 });
     }
 
-    const created = await prisma.country.create({
+    const created = await prisma.countries.create({
       data: {
+        country_uuid: crypto.randomUUID(),
         name_en: payload.name_en,
         name_ka: payload.name_ka,
         iso2: payload.iso2,
@@ -97,6 +98,7 @@ export async function POST(req: NextRequest) {
         un_code: payload.un_code ?? undefined,
         country: payload.country,
         is_active: payload.is_active,
+        updated_at: new Date(),
       },
       select: {
         id: true,
@@ -129,7 +131,7 @@ export async function DELETE(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const idParam = searchParams.get("id");
     if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-    await prisma.country.update({ where: { id: BigInt(Number(idParam)) }, data: { is_active: false } });
+    await prisma.countries.update({ where: { id: BigInt(Number(idParam)) }, data: { is_active: false } });
     await logAudit({ table: "countries", recordId: BigInt(Number(idParam)), action: "deactivate" });
     return NextResponse.json({ id: Number(idParam) });
   } catch (e: any) {
@@ -148,7 +150,7 @@ export async function PATCH(req: NextRequest) {
     // If only toggling active status
     if (body.active !== undefined && Object.keys(body).length === 1) {
       const active = typeof body.active === "boolean" ? body.active : true;
-      await prisma.country.update({ 
+      await prisma.countries.update({ 
         where: { id: BigInt(Number(idParam)) }, 
         data: { is_active: active } 
       });
@@ -167,7 +169,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Get the existing record to track changes
-    const existing = await prisma.country.findUnique({
+    const existing = await prisma.countries.findUnique({
       where: { id: BigInt(Number(idParam)) },
       select: {
         name_en: true,
@@ -180,7 +182,7 @@ export async function PATCH(req: NextRequest) {
       },
     });
 
-    const updated = await prisma.country.update({
+    const updated = await prisma.countries.update({
       where: { id: BigInt(Number(idParam)) },
       data: {
         name_en: payload.name_en,
@@ -193,8 +195,8 @@ export async function PATCH(req: NextRequest) {
       },
       select: {
         id: true,
-        createdAt: true,
-        updatedAt: true,
+        created_at: true,
+        updated_at: true,
         ts: true,
         country_uuid: true,
         name_en: true,
@@ -235,8 +237,8 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({
       id: typeof updated.id === 'bigint' ? Number(updated.id) : updated.id,
-      createdAt: formatDate(updated.createdAt),
-      updatedAt: formatDate(updated.updatedAt),
+      createdAt: formatDate(updated.created_at),
+      updatedAt: formatDate(updated.updated_at),
       ts: formatDate(updated.ts),
       country_uuid: updated.country_uuid,
       nameEn: updated.name_en,
