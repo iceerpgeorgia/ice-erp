@@ -416,28 +416,27 @@ model parsing_schemes {
   uuid   String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 }
 
-model Payment {
-  id                 BigInt            @id @default(autoincrement())
-  projectUuid        String?           @map("project_uuid") @db.Uuid
-  counteragentUuid   String            @map("counteragent_uuid") @db.Uuid
-  financialCodeUuid  String            @map("financial_code_uuid") @db.Uuid
-  jobUuid            String?           @map("job_uuid") @db.Uuid
-  paymentId          String            @unique @map("payment_id")
-  recordUuid         String            @unique @map("record_uuid")
-  isActive           Boolean           @default(true) @map("is_active")
-  createdAt          DateTime          @default(now()) @map("created_at")
-  updatedAt          DateTime          @map("updated_at")
-  incomeTax          Boolean           @default(false) @map("income_tax")
-  currencyUuid       String            @map("currency_uuid") @db.Uuid
-  paymentsLedger     payments_ledger[]
+model payments {
+  id                  BigInt            @id @default(autoincrement())
+  project_uuid        String?           @db.Uuid
+  counteragent_uuid   String            @db.Uuid
+  financial_code_uuid String            @db.Uuid
+  job_uuid            String?           @db.Uuid
+  payment_id          String            @unique
+  record_uuid         String            @unique
+  is_active           Boolean           @default(true)
+  created_at          DateTime          @default(now())
+  updated_at          DateTime
+  income_tax          Boolean           @default(false)
+  currency_uuid       String            @db.Uuid
+  payments_ledger     payments_ledger[]
 
-  @@unique([projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid], map: "payments_project_uuid_counteragent_uuid_financial_code_uu_key")
-  @@index([counteragentUuid])
-  @@index([currencyUuid])
-  @@index([financialCodeUuid])
-  @@index([jobUuid])
-  @@index([projectUuid])
-  @@map("payments")
+  @@unique([project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid], map: "payments_project_uuid_counteragent_uuid_financial_code_uu_key")
+  @@index([counteragent_uuid])
+  @@index([currency_uuid])
+  @@index([financial_code_uuid])
+  @@index([job_uuid])
+  @@index([project_uuid])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

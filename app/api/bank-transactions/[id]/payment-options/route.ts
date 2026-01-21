@@ -22,10 +22,10 @@ export async function GET(
     }
 
     // Get all payments for this counteragent with related data
-    const payments = await prisma.payment.findMany({
+    const payments = await prisma.payments.findMany({
       where: {
-        counteragentUuid: transaction.counteragentUuid,
-        isActive: true,
+        counteragent_uuid: transaction.counteragentUuid,
+        is_active: true,
       },
       select: {
         paymentId: true,
