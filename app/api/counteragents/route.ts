@@ -59,8 +59,8 @@ export async function GET(req: NextRequest) {
       orderBy: { id: "asc" },
       select: {
         id: true,
-        createdAt: true,
-        updatedAt: true,
+        created_at: true,
+        updated_at: true,
         ts: true,
 
         name: true,
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
         is_active: body.is_active ?? true,
         is_emploee: body.is_emploee ?? null,
         was_emploee: body.was_emploee ?? null,
-        updatedAt: new Date(),
+        updated_at: new Date(),
       },
       select: {
         id: true,
@@ -147,8 +147,8 @@ export async function POST(req: NextRequest) {
       data: { internal_number: internalNumber },
       select: {
         id: true,
-        createdAt: true,
-        updatedAt: true,
+        created_at: true,
+        updated_at: true,
         ts: true,
 
         name: true,
@@ -312,8 +312,8 @@ export async function PATCH(req: NextRequest) {
       },
       select: {
         id: true,
-        createdAt: true,
-        updatedAt: true,
+        created_at: true,
+        updated_at: true,
         ts: true,
         name: true,
         identification_number: true,
