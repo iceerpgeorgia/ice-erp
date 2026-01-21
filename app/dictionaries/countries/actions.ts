@@ -19,8 +19,16 @@ export async function createCountry(formData: FormData) {
   const un_code_raw = s(formData.get("un_code"));
   const un_code = un_code_raw ? Number(un_code_raw) : null;
 
-  const created = await prisma.country.create({
-    data: { name_en, name_ka, iso2, iso3, un_code: un_code ?? undefined },
+  const created = await prisma.countries.create({
+    data: { 
+      country_uuid: crypto.randomUUID(),
+      name_en, 
+      name_ka, 
+      iso2, 
+      iso3, 
+      un_code: un_code ?? undefined,
+      updated_at: new Date(),
+    },
     select: { id: true },
   });
   await logAudit({ table: "countries", recordId: BigInt(created.id), action: "create" });
@@ -37,7 +45,7 @@ export async function updateCountry(id: string, formData: FormData) {
   const un_code_raw = s(formData.get("un_code"));
   const un_code = un_code_raw ? Number(un_code_raw) : null;
 
-  await prisma.country.update({
+  await prisma.countries.update({
     where: { id: BigInt(Number(id)) },
     data: { name_en, name_ka, iso2, iso3, un_code: un_code ?? undefined },
   });
@@ -48,7 +56,7 @@ export async function updateCountry(id: string, formData: FormData) {
 }
 
 export async function deleteCountry(id: string) {
-  await prisma.country.update({ where: { id: BigInt(Number(id)) }, data: { is_active: false } });
+  await prisma.countries.update({ where: { id: BigInt(Number(id)) }, data: { is_active: false } });
   await logAudit({ table: "countries", recordId: BigInt(Number(id)), action: "deactivate" });
   revalidatePath("/dictionaries/countries");
   redirect("/dictionaries/countries");

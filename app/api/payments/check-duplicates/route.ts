@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         financial_code_uuid: true,
         job_uuid: true,
         currency_uuid: true,
-        incomeTax: true,
+        income_tax: true,
       },
     });
 
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       count: matches.length,
       matches: matches.map(m => ({
         id: m.id,
-        payment_id: m.paymentId,
+        payment_id: m.payment_id,
       })),
     });
   } catch (error: any) {

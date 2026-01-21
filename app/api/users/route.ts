@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
     // Create new user
     const newUser = await prisma.user.create({
       data: {
+        id: crypto.randomUUID(),
         email,
         name: name || null,
         role: role && ['user', 'admin', 'system_admin'].includes(role) ? role : 'user',

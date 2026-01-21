@@ -33,10 +33,10 @@ export async function logAudit(params: {
     const result = await prisma.auditLog.create({
       data: {
         table: params.table,
-        recordId: recordIdStr,
+        record_id: recordIdStr,
         action: params.action,
-        userEmail: email ?? undefined,
-        userId: userId ?? undefined,
+        user_email: email ?? undefined,
+        user_id: userId ?? undefined,
         changes: params.changes ?? undefined,
       },
       select: { id: true },
@@ -61,14 +61,14 @@ export async function loadLatestEditors(
   );
   
   const rows = await prisma.auditLog.findMany({
-    where: { table, recordId: { in: stringIds } },
-    orderBy: { createdAt: "desc" },
-    select: { recordId: true, userEmail: true },
+    where: { table, record_id: { in: stringIds } },
+    orderBy: { created_at: "desc" },
+    select: { record_id: true, user_email: true },
   });
   const map = new Map<string, string>();
   for (const r of rows) {
-    const key = r.recordId;
-    if (!map.has(key)) map.set(key, r.userEmail ?? "");
+    const key = r.record_id;
+    if (!map.has(key)) map.set(key, r.user_email ?? "");
   }
   return map;
 }

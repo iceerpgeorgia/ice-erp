@@ -4,7 +4,7 @@ import { logAudit } from "@/lib/audit";
 const prisma = new PrismaClient();
 
 export async function GET() {
-  const rows = await prisma.entityType.findMany({
+  const rows = await prisma.entity_types.findMany({
     orderBy: { name_en: "asc" },
     select: { entity_type_uuid: true, code: true, name_en: true, name_ka: true },
   });
@@ -17,7 +17,7 @@ export async function DELETE(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const idParam = searchParams.get("id");
     if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-    await prisma.entityType.update({
+    await prisma.entity_types.update({
       where: { id: BigInt(Number(idParam)) },
       data: { is_active: false },
     });
@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest) {
     if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });
     const body = await req.json().catch(() => ({} as any));
     const active = typeof body.active === 'boolean' ? body.active : true;
-    await prisma.entityType.update({
+    await prisma.entity_types.update({
       where: { id: BigInt(Number(idParam)) },
       data: { is_active: active },
     });

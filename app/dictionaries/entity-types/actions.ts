@@ -17,7 +17,7 @@ export async function updateEntityType(id: string, formData: FormData) {
   const name_ka = s(formData.get("name_ka"));
   const is_active = formData.get("is_active") ? true : false;
 
-  await prisma.entityType.update({
+  await prisma.entity_types.update({
     where: { id: BigInt(Number(id)) },
     data: { code, name_en, name_ka, is_active },
   });
@@ -33,13 +33,14 @@ export async function createEntityType(formData: FormData) {
   const name_ka = s(formData.get("name_ka"));
   const is_active = formData.get("is_active") ? true : false;
 
-  const created = await prisma.entityType.create({
+  const created = await prisma.entity_types.create({
     data: { 
       entity_type_uuid: randomUUID(),
       code, 
       name_en, 
       name_ka, 
-      is_active 
+      is_active,
+      updated_at: new Date(),
     },
     select: { id: true },
   });
@@ -50,7 +51,7 @@ export async function createEntityType(formData: FormData) {
 }
 
 export async function deleteEntityType(id: string) {
-  await prisma.entityType.update({ where: { id: BigInt(Number(id)) }, data: { is_active: false } });
+  await prisma.entity_types.update({ where: { id: BigInt(Number(id)) }, data: { is_active: false } });
   await logAudit({ table: "entity_types", recordId: BigInt(Number(id)), action: "deactivate" });
   revalidatePath("/dictionaries/entity-types");
   redirect("/dictionaries/entity-types");

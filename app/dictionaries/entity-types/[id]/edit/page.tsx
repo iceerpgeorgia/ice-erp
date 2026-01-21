@@ -11,7 +11,7 @@ export default async function EditEntityTypePage({ params }: { params: { id: str
   if (!session) redirect("/api/auth/signin");
 
   const id = BigInt(Number(params.id));
-  const item = await prisma.entityType.findUnique({ where: { id } });
+  const item = await prisma.entity_types.findUnique({ where: { id } });
   if (!item) redirect("/dictionaries/entity-types");
 
   return (

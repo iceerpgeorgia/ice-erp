@@ -12,7 +12,7 @@ export default async function EditCountryPage({ params }: { params: { id: string
 
   const idNum = Number(params.id);
   const id = BigInt(idNum);
-  const c = await prisma.country.findUnique({ where: { id } });
+  const c = await prisma.countries.findUnique({ where: { id } });
   if (!c) redirect("/dictionaries/countries");
 
   return (

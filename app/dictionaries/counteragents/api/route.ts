@@ -13,7 +13,7 @@ export async function PUT(req: NextRequest) {
     // Special handling for booleans
     if ("is_emploee" in body) updateData.is_emploee = toBool(body.is_emploee);
     if ("was_emploee" in body) updateData.was_emploee = toBool(body.was_emploee);
-    const updated = await prisma.counteragent.update({
+    const updated = await prisma.counteragents.update({
       where: { id: BigInt(Number(idParam)) },
       data: updateData,
       select: pick,
@@ -96,7 +96,7 @@ const toBool = (val: any): boolean | null => {
 
 export async function GET() {
   try {
-    const rows = await prisma.counteragent.findMany({
+    const rows = await prisma.counteragents.findMany({
       orderBy: { id: "asc" },
       select: pick,
     });
@@ -114,8 +114,9 @@ export async function POST(req: NextRequest) {
     const isEmp = toBool(b.is_emploee);
     const wasEmp = toBool(b.was_emploee);
 
-    const created = await prisma.counteragent.create({
+    const created = await prisma.counteragents.create({
       data: {
+        counteragent_uuid: crypto.randomUUID(),
         name: b.name ?? null,
         identification_number: b.identification_number ?? null,
         birth_or_incorporation_date: b.birth_or_incorporation_date ? new Date(b.birth_or_incorporation_date) : null,
@@ -136,8 +137,8 @@ export async function POST(req: NextRequest) {
         counteragent: b.counteragent ?? null,
         country_uuid: b.country_uuid ?? null,
         entity_type_uuid: b.entity_type_uuid ?? null,
-        counteragent_uuid: b.counteragent_uuid ?? null,
         internal_number: b.internal_number ?? null,
+        updated_at: new Date(),
 
         ...(isEmp === null ? {} : { is_emploee: isEmp }),
         ...(wasEmp === null ? {} : { was_emploee: wasEmp }),
@@ -157,7 +158,7 @@ export async function DELETE(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const idParam = searchParams.get("id");
     if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-    await prisma.counteragent.delete({ where: { id: BigInt(Number(idParam)) } });
+    await prisma.counteragents.delete({ where: { id: BigInt(Number(idParam)) } });
     await logAudit({ table: "counteragents", recordId: BigInt(Number(idParam)), action: "delete" });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
@@ -173,7 +174,7 @@ export async function PATCH(req: NextRequest) {
     if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });
     const body = await req.json().catch(() => ({} as any));
     const active = typeof body.active === 'boolean' ? body.active : true;
-    await prisma.counteragent.update({
+    await prisma.counteragents.update({
       where: { id: BigInt(Number(idParam)) },
       data: { is_active: active },
     });

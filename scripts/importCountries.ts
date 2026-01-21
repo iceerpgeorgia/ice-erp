@@ -126,7 +126,7 @@ async function upsertCountries(rows: ReturnType<typeof cleanAndValidate>["cleane
     await Promise.all(
       slice.map(async (r) => {
         try {
-          await prisma.country.upsert({
+          await prisma.countries.upsert({
             where: { iso3: r.iso3 }, // unique
             update: {
               name_ka: r.name_ka,

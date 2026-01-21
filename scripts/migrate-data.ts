@@ -43,7 +43,7 @@ async function migrateCountries() {
   
   try {
     // Fetch all countries from local
-    const countries = await localPrisma.country.findMany({
+    const countries = await localprisma.countries.findMany({
       orderBy: { id: 'asc' },
     });
     
@@ -55,7 +55,7 @@ async function migrateCountries() {
     }
     
     // Check existing in production
-    const existingCount = await prodPrisma.country.count();
+    const existingCount = await prodprisma.countries.count();
     console.log(`   Found ${existingCount} countries already in production`);
     
     if (existingCount > 0) {
@@ -70,7 +70,7 @@ async function migrateCountries() {
     
     for (const country of countries) {
       try {
-        await prodPrisma.country.create({
+        await prodprisma.countries.create({
           data: {
             name_en: country.name_en,
             name_ka: country.name_ka,
@@ -80,6 +80,7 @@ async function migrateCountries() {
             country: country.country,
             is_active: country.is_active,
             country_uuid: country.country_uuid,
+            updated_at: new Date(),
           },
         });
         successCount++;
@@ -105,7 +106,7 @@ async function migrateCounteragents() {
   
   try {
     // Fetch all counteragents from local
-    const counteragents = await localPrisma.counteragent.findMany({
+    const counteragents = await localprisma.counteragents.findMany({
       orderBy: { id: 'asc' },
     });
     
@@ -117,7 +118,7 @@ async function migrateCounteragents() {
     }
     
     // Check existing in production
-    const existingCount = await prodPrisma.counteragent.count();
+    const existingCount = await prodprisma.counteragents.count();
     console.log(`   Found ${existingCount} counteragents already in production`);
     
     if (existingCount > 0) {
@@ -132,7 +133,7 @@ async function migrateCounteragents() {
     
     for (const counteragent of counteragents) {
       try {
-        await prodPrisma.counteragent.create({
+        await prodprisma.counteragents.create({
           data: {
             name: counteragent.name,
             identification_number: counteragent.identification_number,
@@ -197,12 +198,12 @@ async function main() {
     // Final summary
     console.log('\n📊 Final Summary:');
     const localCounts = await localPrisma.$transaction([
-      localPrisma.country.count(),
-      localPrisma.counteragent.count(),
+      localprisma.countries.count(),
+      localprisma.counteragents.count(),
     ]);
     const prodCounts = await prodPrisma.$transaction([
-      prodPrisma.country.count(),
-      prodPrisma.counteragent.count(),
+      prodprisma.countries.count(),
+      prodprisma.counteragents.count(),
     ]);
     
     console.log('   Local Database:');

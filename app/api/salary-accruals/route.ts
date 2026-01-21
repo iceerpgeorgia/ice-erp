@@ -13,7 +13,7 @@ function generatePaymentId(counteragentUuid: string, financial_code_uuid: string
   };
   
   const counteragentPart = extractChars(counteragentUuid);
-  const financialPart = extractChars(financialCodeUuid);
+  const financialPart = extractChars(financial_code_uuid);
   
   const month = salaryMonth.getMonth() + 1;
   const year = salaryMonth.getFullYear();
@@ -200,7 +200,7 @@ export async function PUT(request: NextRequest) {
         deducted_insurance: deducted_insurance ? parseFloat(deducted_insurance) : null,
         deducted_fitness: deducted_fitness ? parseFloat(deducted_fitness) : null,
         deducted_fine: deducted_fine ? parseFloat(deducted_fine) : null,
-        updatedAt: new Date(),
+        updated_at: new Date(),
         updated_by: updated_by || 'system',
       },
     });

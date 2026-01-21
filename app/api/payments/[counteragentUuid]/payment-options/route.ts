@@ -35,7 +35,7 @@ export async function GET(
       payments.map(async (payment) => {
         // Fetch job with brand info separately if needed
         let job: any = null;
-        if (payment.jobUuid) {
+        if (payment.job_uuid) {
           const jobRows: any[] = await prisma.$queryRaw`
             SELECT 
               j.job_name,
@@ -51,40 +51,40 @@ export async function GET(
               ) as job_display
             FROM jobs j
             LEFT JOIN brands b ON j.brand_uuid = b.uuid
-            WHERE j.job_uuid = ${payment.jobUuid}::uuid
+            WHERE j.job_uuid = ${payment.job_uuid}::uuid
             LIMIT 1
           `;
           job = jobRows[0] || null;
         }
 
         const [currency, project, financialCode] = await Promise.all([
-          payment.currencyUuid
-            ? prisma.currency.findUnique({
-                where: { uuid: payment.currencyUuid },
+          payment.currency_uuid
+            ? prisma.currencies.findUnique({
+                where: { uuid: payment.currency_uuid },
                 select: { code: true },
               })
             : null,
-          payment.projectUuid
-            ? prisma.project.findUnique({
-                where: { projectUuid: payment.projectUuid },
-                select: { projectName: true },
+          payment.project_uuid
+            ? prisma.projects.findUnique({
+                where: { project_uuid: payment.project_uuid },
+                select: { project_name: true },
               })
             : null,
-          payment.financialCodeUuid
-            ? prisma.financialCode.findUnique({
-                where: { uuid: payment.financialCodeUuid },
+          payment.financial_code_uuid
+            ? prisma.financial_codes.findUnique({
+                where: { uuid: payment.financial_code_uuid },
                 select: { validation: true },
               })
             : null,
         ]);
 
         return {
-          paymentId: payment.paymentId,
-          projectUuid: payment.projectUuid,
-          jobUuid: payment.jobUuid,
-          financialCodeUuid: payment.financialCodeUuid,
-          currencyUuid: payment.currencyUuid,
-          projectName: project?.projectName || '',
+          paymentId: payment.payment_id,
+          projectUuid: payment.project_uuid,
+          jobUuid: payment.job_uuid,
+          financialCodeUuid: payment.financial_code_uuid,
+          currencyUuid: payment.currency_uuid,
+          projectName: project?.project_name || '',
           jobName: job?.job_name || '',
           jobDisplay: job?.job_display || '',
           currencyCode: currency?.code || '',
