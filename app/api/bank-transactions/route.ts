@@ -16,7 +16,7 @@ function toApi(row: any) {
     correction_date: row.correction_date || null, // NEW COLUMN
     exchange_rate: row.exchange_rate ? Number(row.exchange_rate) : null, // NEW COLUMN
     description: row.description,
-    counteragent_uuid: row.counteragent_uuid,
+    counteragentUuid: row.counteragent_uuid,
     counteragent_account_number: row.counteragent_account_number ? String(row.counteragent_account_number) : null,
     project_uuid: row.project_uuid,
     financial_code_uuid: row.financial_code_uuid,
@@ -26,8 +26,8 @@ function toApi(row: any) {
     nominal_amount: row.nominal_amount ? Number(row.nominal_amount) : null,
     payment_id: row.payment_id ?? null,
     processing_case: row.processing_case,
-    created_at: row.created_at || null,
-    updated_at: row.updated_at || null,
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
     is_balance_record: false, // Regular transaction
     
     // Join data from raw SQL
@@ -52,7 +52,7 @@ function balanceToApi(row: any, currencyCode: string) {
     raw_record_uuid: null,
     transaction_date: balanceDate,
     description: 'Balance Depiction',
-    counteragent_uuid: null,
+    counteragentUuid: null,
     counteragent_account_number: `${row.accountNumber}${currencyCode}`, // Account number + currency
     project_uuid: null,
     financial_code_uuid: null,
@@ -61,8 +61,8 @@ function balanceToApi(row: any, currencyCode: string) {
     nominal_currency_uuid: row.currencyUuid,
     nominal_amount: row.balance?.toString() ?? null,
     processing_case: null,
-    created_at: null,
-    updated_at: null,
+    createdAt: null,
+    updatedAt: null,
     is_balance_record: true, // Flag to disable view/edit actions
     applied_rule_id: null,
     

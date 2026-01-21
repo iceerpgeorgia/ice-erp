@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
           id: bigint;
           condition: string;
           condition_script: string | null;
-          counteragent_uuid: string | null;
+          counteragentUuid: string | null;
           financial_code_uuid: string | null;
           nominal_currency_uuid: string | null;
           payment_id: string | null;
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
 
         // Fetch rule parameters
         const ruleWithParams = await prisma.$queryRawUnsafe<Array<{
-          counteragent_uuid: string | null;
+          counteragentUuid: string | null;
           financial_code_uuid: string | null;
           nominal_currency_uuid: string | null;
         }>>(`

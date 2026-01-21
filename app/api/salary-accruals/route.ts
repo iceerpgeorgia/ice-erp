@@ -200,7 +200,7 @@ export async function PUT(request: NextRequest) {
         deducted_insurance: deducted_insurance ? parseFloat(deducted_insurance) : null,
         deducted_fitness: deducted_fitness ? parseFloat(deducted_fitness) : null,
         deducted_fine: deducted_fine ? parseFloat(deducted_fine) : null,
-        updated_at: new Date(),
+        updatedAt: new Date(),
         updated_by: updated_by || 'system',
       },
     });

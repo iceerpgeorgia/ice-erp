@@ -44,14 +44,14 @@ export async function GET() {
       createdAt: true,
       updatedAt: true,
       ts: true,
-      country_uuid: true,
+      countryUuid: true,
       name_en: true,
       name_ka: true,
       iso2: true,
       iso3: true,
       un_code: true,
       country: true,
-      is_active: true,
+      isActive: true,
     },
   });
   console.log(`[API] Countries fetched: ${rows.length}`);
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
         iso3: payload.iso3,
         un_code: payload.un_code ?? undefined,
         country: payload.country,
-        is_active: payload.is_active,
+        isActive: payload.is_active,
       },
       select: {
         id: true,
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
         iso3: true,
         un_code: true,
         country: true,
-        is_active: true,
+        isActive: true,
       },
     });
 
@@ -129,7 +129,7 @@ export async function DELETE(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const idParam = searchParams.get("id");
     if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-    await prisma.country.update({ where: { id: BigInt(Number(idParam)) }, data: { is_active: false } });
+    await prisma.country.update({ where: { id: BigInt(Number(idParam)) }, data: { isActive: false } });
     await logAudit({ table: "countries", recordId: BigInt(Number(idParam)), action: "deactivate" });
     return NextResponse.json({ id: Number(idParam) });
   } catch (e: any) {
@@ -150,7 +150,7 @@ export async function PATCH(req: NextRequest) {
       const active = typeof body.active === "boolean" ? body.active : true;
       await prisma.country.update({ 
         where: { id: BigInt(Number(idParam)) }, 
-        data: { is_active: active } 
+        data: { isActive: active } 
       });
       await logAudit({ 
         table: "countries", 
@@ -176,7 +176,7 @@ export async function PATCH(req: NextRequest) {
         iso3: true,
         un_code: true,
         country: true,
-        is_active: true,
+        isActive: true,
       },
     });
 
@@ -189,21 +189,21 @@ export async function PATCH(req: NextRequest) {
         iso3: payload.iso3,
         un_code: payload.un_code ?? undefined,
         country: payload.country,
-        is_active: payload.is_active,
+        isActive: payload.is_active,
       },
       select: {
         id: true,
         createdAt: true,
         updatedAt: true,
         ts: true,
-        country_uuid: true,
+        countryUuid: true,
         name_en: true,
         name_ka: true,
         iso2: true,
         iso3: true,
         un_code: true,
         country: true,
-        is_active: true,
+        isActive: true,
       },
     });
 

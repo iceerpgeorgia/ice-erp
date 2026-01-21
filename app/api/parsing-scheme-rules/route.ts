@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       condition: string;
       condition_script: string | null;
       payment_id: bigint | null;
-      counteragent_uuid: string | null;
+      counteragentUuid: string | null;
       financial_code_uuid: string | null;
       nominal_currency_uuid: string | null;
       active: boolean;
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
       condition: string;
       condition_script: string | null;
       payment_id: string | null;
-      counteragent_uuid: string | null;
+      counteragentUuid: string | null;
       financial_code_uuid: string | null;
       nominal_currency_uuid: string | null;
       active: boolean;

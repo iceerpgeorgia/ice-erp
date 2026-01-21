@@ -28,11 +28,11 @@ export async function GET() {
       createdAt: true,
       updatedAt: true,
       ts: true,
-      entity_type_uuid: true,
+      entityTypeUuid: true,
       code: true,
       name_en: true,
       name_ka: true,
-      is_active: true,
+      isActive: true,
     },
   });
   
@@ -72,11 +72,11 @@ export async function POST(req: NextRequest) {
     const { randomUUID } = await import('crypto');
     const newEntityType = await prisma.entityType.create({
       data: {
-        entity_type_uuid: randomUUID(),
+        entityTypeUuid: randomUUID(),
         code: payload.code,
         name_en: payload.name_en,
         name_ka: payload.name_ka,
-        is_active: payload.is_active,
+        isActive: payload.is_active,
       },
     });
 
@@ -106,7 +106,7 @@ export async function PATCH(req: NextRequest) {
       const active = typeof body.active === "boolean" ? body.active : true;
       await prisma.entityType.update({ 
         where: { id: BigInt(Number(idParam)) }, 
-        data: { is_active: active } 
+        data: { isActive: active } 
       });
       await logAudit({ 
         table: "entity_types", 
@@ -125,7 +125,7 @@ export async function PATCH(req: NextRequest) {
     // Get existing record for change tracking
     const existing = await prisma.entityType.findUnique({
       where: { id: BigInt(Number(idParam)) },
-      select: { code: true, name_en: true, name_ka: true, is_active: true },
+      select: { code: true, name_en: true, name_ka: true, isActive: true },
     });
 
     const updated = await prisma.entityType.update({
@@ -134,18 +134,18 @@ export async function PATCH(req: NextRequest) {
         code: payload.code,
         name_en: payload.name_en,
         name_ka: payload.name_ka,
-        is_active: payload.is_active,
+        isActive: payload.is_active,
       },
       select: {
         id: true,
         createdAt: true,
         updatedAt: true,
         ts: true,
-        entity_type_uuid: true,
+        entityTypeUuid: true,
         code: true,
         name_en: true,
         name_ka: true,
-        is_active: true,
+        isActive: true,
       },
     });
 

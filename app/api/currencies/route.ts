@@ -37,9 +37,9 @@ export async function GET() {
         uuid: true,
         code: true,
         name: true,
-        is_active: true,
-        created_at: true,
-        updated_at: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 

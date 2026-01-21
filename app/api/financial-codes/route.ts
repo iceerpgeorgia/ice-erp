@@ -253,7 +253,7 @@ export async function POST(req: NextRequest) {
         is_income: payload.isIncome,
         applies_to_pl: payload.appliesToPL,
         applies_to_cf: payload.appliesToCF,
-        is_active: payload.isActive,
+        isActive: payload.isActive,
         ...(payload.parentUuid && { parent_uuid: payload.parentUuid }),
         depth,
         sort_order: sortOrder,
@@ -344,7 +344,7 @@ export async function PATCH(req: NextRequest) {
       is_income: payload.isIncome,
       applies_to_pl: payload.appliesToPL,
       applies_to_cf: payload.appliesToCF,
-      is_active: payload.isActive,
+      isActive: payload.isActive,
       parent_uuid: payload.parentUuid,
     };
 
@@ -401,7 +401,7 @@ export async function DELETE(req: NextRequest) {
     // Soft delete by setting is_active to false
     const updated = await prisma.financial_codes.update({
       where: { id },
-      data: { is_active: false },
+      data: { isActive: false },
     });
 
     await logAudit({
