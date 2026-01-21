@@ -176,7 +176,7 @@ export async function PATCH(req: NextRequest) {
         iso3: true,
         un_code: true,
         country: true,
-        isActive: true,
+        is_active: true,
       },
     });
 
