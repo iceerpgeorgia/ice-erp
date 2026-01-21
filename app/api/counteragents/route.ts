@@ -102,8 +102,12 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
+    // Generate UUID for counteragent_uuid using crypto
+    const counteragent_uuid = crypto.randomUUID();
+
     const created = await prisma.counteragents.create({
       data: {
+        counteragent_uuid,
         name: body.name?.trim(),
         identification_number: body.identification_number ?? null,
         birth_or_incorporation_date: body.birth_or_incorporation_date
