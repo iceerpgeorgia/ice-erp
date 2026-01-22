@@ -1,0 +1,36 @@
+event_message,id,timestamp
+Schema cache loaded in 4.4 milliseconds,6c0362ec-bdeb-4e62-87f8-d579793c0b85,1768855259483049
+"Schema cache loaded 30 Relations, 18 Relationships, 3 Functions, 0 Domain Representations, 4 Media Type Handlers, 1194 Timezones",1c6ca98a-06a2-445f-aa88-d8f55a5207a3,1768855259480542
+Schema cache queried in 14.4 milliseconds,bd1e8a01-28a4-4738-ac9f-d649b18503cb,1768855259374433
+Config reloaded,24f76907-d49c-427a-8d16-d0767e9ecaeb,1768855258503128
+Connection Pool initialized with a maximum size of 10 connections,5126ab2d-42f8-4fe7-aeb5-cf129165b521,1768855257964387
+"Successfully connected to PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 13.2.0, 64-bit",13ce0f83-120c-473d-b16b-4b0cc3d388a2,1768855257960774
+"Received a schema cache reload message on the ""pgrst"" channel",5f05fed8-2a0c-4b34-859e-c36816677951,1768855257744809
+Schema cache loaded in 4.7 milliseconds,a311785d-cd20-46d6-bf15-af7e8f56281b,1768854483100503
+"Schema cache loaded 30 Relations, 18 Relationships, 3 Functions, 0 Domain Representations, 4 Media Type Handlers, 1194 Timezones",1deef467-a4fd-46f0-b7d8-830136230cdf,1768854483097395
+Schema cache queried in 12.2 milliseconds,ba88fa84-96bf-4112-b1cb-9ce209f7f149,1768854482984965
+Config reloaded,ec3114df-3b11-496c-b432-c12119aa901e,1768854481893198
+Connection Pool initialized with a maximum size of 10 connections,2227eb13-01ce-4d73-b48a-ecb4a278187c,1768854481650853
+"Successfully connected to PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 13.2.0, 64-bit",ac3a800a-9c1e-46d1-a52b-070a3e62bb97,1768854481643558
+"Received a schema cache reload message on the ""pgrst"" channel",1f0e077f-2fd4-4848-bc60-e5a4fef543f7,1768854481446067
+Schema cache loaded in 0.8 milliseconds,db08f85d-9193-4705-91f9-d62c7af09882,1768823605508585
+"Schema cache loaded 30 Relations, 18 Relationships, 3 Functions, 0 Domain Representations, 4 Media Type Handlers, 1194 Timezones",e0540bac-7ddf-4670-9e69-4cbf00982c28,1768823605508530
+Schema cache queried in 8.4 milliseconds,b440b9d1-1a11-42e6-ac58-3e1a83a10842,1768823605507173
+Config reloaded,4cd9acb1-1754-4320-a187-53dc4b46e812,1768823605341488
+Connection Pool initialized with a maximum size of 10 connections,edbfce49-2805-41a4-9981-f8c9a835b828,1768823605323772
+"Successfully connected to PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 13.2.0, 64-bit",483513a4-bb9d-4d8c-8e05-df33ab24e73c,1768823605322976
+Schema cache loaded in 1.0 milliseconds,5df97af5-1cf9-4a56-9f70-361411280d5b,1768823605203505
+"Schema cache loaded 30 Relations, 18 Relationships, 3 Functions, 0 Domain Representations, 4 Media Type Handlers, 1194 Timezones",1f535f1b-6bf9-46d0-8653-8152076631dc,1768823605202577
+Schema cache queried in 10.4 milliseconds,1e144039-1a7c-455e-be93-39fd0d8a87cb,1768823605199836
+Config reloaded,1866ca65-c3a8-4f72-9176-d31a8a6b72d6,1768823604342526
+"Received a schema cache reload message on the ""pgrst"" channel",5320030e-c3c4-454f-b911-5173b8c8811a,1768823604138942
+Connection Pool initialized with a maximum size of 10 connections,f0d95b3a-cc4e-4c0e-b4f5-4cd61c929b35,1768823604108833
+"Successfully connected to PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 13.2.0, 64-bit",c0d8e78a-f2f9-4f79-9846-c728018ff594,1768823604106733
+"Received a schema cache reload message on the ""pgrst"" channel",98e6bfd6-a68c-4994-8660-4d7b1229ad43,1768823603983548
+Schema cache loaded in 3.5 milliseconds,d75e188f-285a-4f2f-8ced-c99d77daa83d,1768823420909297
+"Schema cache loaded 30 Relations, 18 Relationships, 3 Functions, 0 Domain Representations, 4 Media Type Handlers, 1194 Timezones",c557a184-aa1d-4775-9556-1cfe0f66b26f,1768823420909164
+Schema cache queried in 14.9 milliseconds,bd50e64c-8ea4-4819-ab58-abe8aed4f68b,1768823420834218
+Config reloaded,9a357c4a-2684-429c-be59-d4a87df900d9,1768823419759938
+Connection Pool initialized with a maximum size of 10 connections,e1345a9e-8e6a-46a6-99bc-78247ce6cc2a,1768823419463598
+"Successfully connected to PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 13.2.0, 64-bit",ef9a7d08-e459-4d22-b590-4c0c267eba59,1768823419455619
+"Received a schema cache reload message on the ""pgrst"" channel",1c69d4ee-b549-4076-8cf2-a0343d6aaaf6,1768823419227736

@@ -1,0 +1,149 @@
+query,rolname,calls,mean_time,min_time,max_time,total_time,rows_read,cache_hit_rate,prop_total_time,index_advisor_result
+"SELECT COUNT(*) as count FROM ""bog_gel_raw_893486000""",postgres,27,39319.0956224444,0.050502,1059914.497621,1061615.581806,27,55.2097528636145998,18.558658296531856,"{""has_suggestion"":true,""startup_cost_before"":35215.45,""startup_cost_after"":34871.88,""total_cost_before"":35215.46,""total_cost_after"":34871.89,""index_statements"":[""CREATE INDEX ON public.bog_gel_raw_893486000 USING btree (docpayerinn)""]}"
+"WITH pgrst_source AS ( SELECT ""public"".""counteragents"".* FROM ""public"".""counteragents""   LIMIT $1 OFFSET $2 )  SELECT $3::bigint AS total_result_set, pg_catalog.count(_postgrest_t) AS page_total, coalesce(json_agg(_postgrest_t), $4) AS body, nullif(current_setting($5, $6), $7) AS response_headers, nullif(current_setting($8, $9), $10) AS response_status, $11 AS response_inserted FROM ( SELECT * FROM pgrst_source ) _postgrest_t",anon,58382,12.5356731851255,0.979906,297.695394,731857.671893996,58382,100.0000000000000000,12.793987472631152,null
+"WITH pgrst_source AS ( SELECT ""public"".""counteragents"".* FROM ""public"".""counteragents""  ORDER BY ""public"".""counteragents"".""ts"" ASC  LIMIT $1 OFFSET $2 )  SELECT $3::bigint AS total_result_set, pg_catalog.count(_postgrest_t) AS page_total, coalesce(json_agg(_postgrest_t), $4) AS body, nullif(current_setting($5, $6), $7) AS response_headers, nullif(current_setting($8, $9), $10) AS response_status, $11 AS response_inserted FROM ( SELECT * FROM pgrst_source ) _postgrest_t",anon,29408,16.7002422489118,6.838965,442.384135,491120.724056001,29408,100.0000000000000000,8.585538735777739,"{""has_suggestion"":true,""startup_cost_before"":1613.23,""startup_cost_after"":166.34,""total_cost_before"":1613.25,""total_cost_after"":166.36,""index_statements"":[""CREATE INDEX ON public.counteragents USING btree (ts)""]}"
+"SELECT cba.*, ba.account_number, b.bank_name
+        FROM consolidated_bank_accounts cba
+        LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
+        LEFT JOIN banks b ON ba.bank_uuid = b.uuid
+        WHERE $3=$4
+        ORDER BY cba.transaction_date DESC, cba.id DESC
+        LIMIT $1 OFFSET $2",postgres,46,7433.66433673913,4.425099,103447.540689,341948.55949,832840,76.4486483844160923,5.977781957354403,null
+"SELECT 
+                uuid, DocKey, EntriesId, DocRecDate, DocValueDate,
+                EntryCrAmt, EntryDbAmt, DocSenderInn, DocBenefInn,
+                DocSenderAcctNo, DocBenefAcctNo, DocCorAcct,
+                DocNomination, DocInformation, DocProdGroup, CcyRate
+            FROM bog_gel_raw_893486000
+            WHERE DocValueDate IS NOT NULL
+            ORDER BY DocValueDate DESC",postgres,44,7457.31085620455,599.015899,24995.048002,328121.677673,2117452,59.8408706419147228,5.736066990707347,"{""has_suggestion"":true,""startup_cost_before"":59610,""startup_cost_after"":41468.49,""total_cost_before"":62889.22,""total_cost_after"":44747.72,""index_statements"":[""CREATE INDEX ON public.bog_gel_raw_893486000 USING btree (docvaluedate)""]}"
+SELECT * FROM pgbouncer.get_auth($1),pgbouncer,139400,2.31239862350071,0.046359,10215.314316,322348.368116001,139400,99.9517988843547602,5.6351407409944585,null
+"SELECT uuid, applied_rule_id FROM bog_gel_raw_893486000 WHERE uuid = ANY($1::uuid[])",postgres,174,1811.39741081035,0.020898,20299.757035,315183.149481,2770238,89.8164781774384518,5.509881799296646,null
+UPDATE bog_gel_raw_893486000 SET is_processed = $1,postgres,35,8693.80453194286,15.588046,65723.183958,304283.158618,1349835,99.5604131447855532,5.3193333471746405,null
+"SELECT 
+                uuid, DocKey, EntriesId, DocRecDate, DocValueDate,
+                EntryCrAmt, EntryDbAmt, DocSenderInn, DocBenefInn,
+                DocSenderAcctNo, DocBenefAcctNo, DocCorAcct,
+                DocNomination, DocInformation, DocProdGroup, CcyRate
+            FROM bog_gel_raw_893486000
+            WHERE DocValueDate IS NOT NULL
+            ORDER BY DocValueDate DESC LIMIT $1 OFFSET $2",postgres,112,2698.68240542857,1062.454907,13583.249035,302252.429408,126958,34.0958617452999475,5.28383310570582,"{""has_suggestion"":true,""startup_cost_before"":59937.98,""startup_cost_after"":5332.9,""total_cost_before"":60265.96,""total_cost_after"":10665.76,""index_statements"":[""CREATE INDEX ON public.bog_gel_raw_893486000 USING btree (docvaluedate)""]}"
+"SELECT r.*, s.scheme,
+          ca.name as counteragent_name,
+          fc.code as financial_code,
+          cur.code as currency_code,
+          COALESCE(
+            (SELECT COUNT(*) FROM consolidated_bank_accounts cba 
+             WHERE cba.processing_case LIKE $1 || r.id || $2),
+            $3
+          ) as applied_count
+        FROM parsing_scheme_rules r
+        JOIN parsing_schemes s ON r.scheme_uuid = s.uuid
+        LEFT JOIN counteragents ca ON r.counteragent_uuid = ca.counteragent_uuid
+        LEFT JOIN financial_codes fc ON r.financial_code_uuid = fc.uuid
+        LEFT JOIN currencies cur ON r.nominal_currency_uuid = cur.uuid
+        ORDER BY s.scheme, r.id DESC",postgres,3,72263.754891,11239.333919,110685.623163,216791.264673,270,58.3838730483891263,3.7898417013574255,"{""has_suggestion"":true,""startup_cost_before"":23738.86,""startup_cost_after"":2495.83,""total_cost_before"":2134637.06,""total_cost_after"":222763.94,""index_statements"":[""CREATE INDEX ON public.consolidated_bank_accounts USING btree (processing_case)""]}"
+"SELECT ""public"".""consolidated_bank_accounts"".""id"", ""public"".""consolidated_bank_accounts"".""uuid"", ""public"".""consolidated_bank_accounts"".""bank_account_uuid"", ""public"".""consolidated_bank_accounts"".""raw_record_uuid"", ""public"".""consolidated_bank_accounts"".""transaction_date"", ""public"".""consolidated_bank_accounts"".""description"", ""public"".""consolidated_bank_accounts"".""counteragent_uuid"", ""public"".""consolidated_bank_accounts"".""counteragent_account_number"", ""public"".""consolidated_bank_accounts"".""project_uuid"", ""public"".""consolidated_bank_accounts"".""financial_code_uuid"", ""public"".""consolidated_bank_accounts"".""payment_id"", ""public"".""consolidated_bank_accounts"".""account_currency_uuid"", ""public"".""consolidated_bank_accounts"".""account_currency_amount"", ""public"".""consolidated_bank_accounts"".""nominal_currency_uuid"", ""public"".""consolidated_bank_accounts"".""nominal_amount"", ""public"".""consolidated_bank_accounts"".""created_at"", ""public"".""consolidated_bank_accounts"".""updated_at"", ""public"".""consolidated_bank_accounts"".""processing_case"" FROM ""public"".""consolidated_bank_accounts"" WHERE $3=$4 ORDER BY ""public"".""consolidated_bank_accounts"".""id"" DESC LIMIT $1 OFFSET $2",postgres,35,5295.0731964,5.733684,22669.021522,185327.561874,1457830,81.9936396534707753,3.2398082250242,null
+"UPDATE bog_gel_raw_893486000 
+      SET 
+        counteragent_processed = $1,
+        parsing_rule_processed = $2,
+        payment_id_processed = $3,
+        is_processed = $4",postgres,27,6225.51326307407,1907.766968,11901.863181,168088.858103,1338822,99.9976301929960099,2.938449410926097,null
+"with top_queries as (
+  select
+    statements.query,
+    statements.calls,
+    statements.total_exec_time + statements.total_plan_time as total_time,
+    statements.mean_exec_time + statements.mean_plan_time as mean_time
+  from pg_stat_statements as statements
+    inner join pg_authid as auth on statements.userid = auth.oid
+  where 
+    -- Filter for SELECT queries only (index_advisor only works with SELECT)
+    (lower(statements.query) like $1 or lower(statements.query) like $2)
+    -- Filter for queries involving our table (handles schema.table and just table references)
+    and (
+      lower(statements.query) like $3
+      or lower(statements.query) like $4
+      or lower(statements.query) like $5
+    )
+    -- Exclude system queries
+    and statements.query not like $6
+    and statements.query not like $7
+  order by statements.calls desc
+  limit $8
+)
+select
+  tq.query,
+  tq.calls,
+  tq.total_time,
+  tq.mean_time,
+  coalesce(ia.index_statements, $9) as index_statements,
+  coalesce((ia.startup_cost_before)::numeric, $10) as startup_cost_before,
+  coalesce((ia.startup_cost_after)::numeric, $11) as startup_cost_after,
+  coalesce((ia.total_cost_before)::numeric, $12) as total_cost_before,
+  coalesce((ia.total_cost_after)::numeric, $13) as total_cost_after
+from top_queries tq
+left join lateral (
+  select * from index_advisor(tq.query)
+) ia on $14",postgres,465,339.898565623656,15.806094,35670.224374,158052.833015,1989,99.9952772259346216,2.7630043972548024,null
+"SELECT COUNT(*) as total,
+           COUNT(*) FILTER (WHERE is_processed = $1) as processed,
+           COUNT(*) FILTER (WHERE is_processed = $2) as unprocessed
+    FROM bog_gel_raw_893486000",postgres,12,11768.68292075,11009.913114,13109.403796,141224.195049,12,10.2582543622141998,2.468814158377817,null
+"SELECT
+  e.name,
+  n.nspname AS schema,
+  e.default_version,
+  x.extversion AS installed_version,
+  e.comment
+FROM
+  pg_available_extensions() e(name, default_version, comment)
+  LEFT JOIN pg_extension x ON e.name = x.extname
+  LEFT JOIN pg_namespace n ON x.extnamespace = n.oid
+WHERE
+  $1",postgres,745,186.426398151678,2.075623,10343.610856,138887.666623,56620,99.9464453072700495,2.4279680805682777,null
+"COPY consolidated_bank_accounts (
+                uuid, bank_account_uuid, raw_record_uuid, transaction_date,
+                correction_date, description, counteragent_uuid, counteragent_account_number,
+                project_uuid, financial_code_uuid, payment_id,
+                account_currency_uuid, account_currency_amount,
+                nominal_currency_uuid, nominal_amount, exchange_rate, processing_case
+            ) FROM STDIN WITH (FORMAT text, NULL '\N')",postgres,16,7643.6361249375,3993.195664,16948.728386,122298.177999,775664,99.9996365686867723,2.13795853665855,null
+"DELETE FROM consolidated_bank_accounts 
+                    WHERE bank_account_uuid = $1",postgres,45,2366.88847188889,0.005392,6736.202609,106509.981235,667967,87.6056690899823327,1.8619567956488459,null
+"SELECT 
+        p.id,
+        p.project_uuid,
+        p.counteragent_uuid,
+        p.financial_code_uuid,
+        p.job_uuid,
+        p.income_tax,
+        p.currency_uuid,
+        p.payment_id,
+        p.record_uuid,
+        p.is_active,
+        p.created_at,
+        p.updated_at,
+        proj.project_index,
+        c.counteragent as counteragent_name,
+        fc.validation as financial_code_validation,
+        fc.validation as financial_code,
+        j.job_name,
+        j.job_uuid as job_identifier,
+        curr.code as currency_code
+      FROM payments p
+      LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
+      LEFT JOIN counteragents c ON p.counteragent_uuid = c.counteragent_uuid
+      LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
+      LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
+      LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
+      ORDER BY p.created_at ASC",postgres,220,479.185982204546,21.870705,38145.429243,105420.916085,934098,99.3465220470081978,1.8429182770665096,"{""has_suggestion"":true,""startup_cost_before"":1810.89,""startup_cost_after"":1.21,""total_cost_before"":1821.56,""total_cost_after"":1373.42,""index_statements"":[""CREATE INDEX ON public.payments USING btree (created_at)""]}"
+"COPY consolidated_bank_accounts (
+                uuid, bank_account_uuid, raw_record_uuid, transaction_date,
+                description, counteragent_uuid, counteragent_account_number,
+                project_uuid, financial_code_uuid, payment_id,
+                account_currency_uuid, account_currency_amount,
+                nominal_currency_uuid, nominal_amount, processing_case
+            ) FROM STDIN WITH (FORMAT text, NULL '\N')",postgres,7,13996.828773,9496.177509,20939.86875,97977.801411,339353,99.8128770213909411,1.7128012890870408,null
+"with base_table_info as ( select c.oid::int8 as id, nc.nspname as schema, c.relname as name, c.relkind, c.relrowsecurity as rls_enabled, c.relforcerowsecurity as rls_forced, c.relreplident, c.relowner, obj_description(c.oid) as comment, fs.srvname as foreign_server_name, fdw.fdwname as foreign_data_wrapper_name, fdw_handler.proname as foreign_data_wrapper_handler from pg_class c join pg_namespace nc on nc.oid = c.relnamespace left join pg_foreign_table ft on ft.ftrelid = c.oid left join pg_foreign_server fs on fs.oid = ft.ftserver left join pg_foreign_data_wrapper fdw on fdw.oid = fs.srvfdw left join pg_proc fdw_handler on fdw.fdwhandler = fdw_handler.oid where c.oid = $1 and not pg_is_other_temp_schema(nc.oid) and ( pg_has_role(c.relowner, $2) or has_table_privilege( c.oid, $3 ) or has_any_column_privilege(c.oid, $4) ) ), table_stats as ( select b.id, case when b.relreplident = $5 then $6 when b.relreplident = $7 then $8 when b.relreplident = $9 then $10 else $11 end as replica_identity, pg_total_relation_size(format($12, b.schema, b.name))::int8 as bytes, pg_size_pretty(pg_total_relation_size(format($13, b.schema, b.name))) as size, pg_stat_get_live_tuples(b.id) as live_rows_estimate, pg_stat_get_dead_tuples(b.id) as dead_rows_estimate from base_table_info b where b.relkind in ($14, $15) ), primary_keys as ( select i.indrelid as table_id, jsonb_agg( jsonb_build_object( $16, n.nspname, $17, c.relname, $18, i.indrelid::int8, $19, a.attname ) order by array_position(i.indkey, a.attnum) ) as primary_keys from pg_index i join pg_class c on i.indrelid = c.oid join pg_namespace n on c.relnamespace = n.oid join pg_attribute a on a.attrelid = c.oid and a.attnum = any(i.indkey) where i.indisprimary group by i.indrelid ), index_cols as ( select i.indrelid as table_id, i.indkey, array_agg( a.attname order by array_position(i.indkey, a.attnum) ) as columns from pg_index i join pg_class c on i.indrelid = c.oid join pg_attribute a on a.attrelid = c.oid and a.attnum = any(i.indkey) where i.indisunique and i.indisprimary = $20 group by i.indrelid, i.indkey ), unique_indexes as ( select ic.table_id, jsonb_agg( jsonb_build_object( $21, n.nspname, $22, c.relname, $23, ic.table_id::int8, $24, ic.columns ) ) as unique_indexes from index_cols ic join pg_class c on c.oid = ic.table_id join pg_namespace n on n.oid = c.relnamespace group by ic.table_id ), relationships as ( select c.conrelid as source_id, c.confrelid as target_id, jsonb_build_object( $25, c.oid::int8, $26, c.conname, $27, c.confdeltype, $28, c.confupdtype, $29, nsa.nspname, $30, csa.relname, $31, sa.attname, $32, nta.nspname, $33, cta.relname, $34, ta.attname ) as rel_info from pg_constraint c join pg_class csa on c.conrelid = csa.oid join pg_namespace nsa on csa.relnamespace = nsa.oid join pg_attribute sa on (sa.attrelid = c.conrelid and sa.attnum = any(c.conkey)) join pg_class cta on c.confrelid = cta.oid join pg_namespace nta on cta.relnamespace = nta.oid join pg_attribute ta on (ta.attrelid = c.confrelid and ta.attnum = any(c.confkey)) where c.contype = $35 ), columns as ( select a.attrelid as table_id, jsonb_agg(jsonb_build_object( $36, (a.attrelid || $37 || a.attnum), $38, c.oid::int8, $39, nc.nspname, $40, c.relname, $41, a.attnum, $42, a.attname, $43, case when a.atthasdef then pg_get_expr(ad.adbin, ad.adrelid) else $44 end, $45, case when t.typtype = $46 then case when bt.typelem <> $47::oid and bt.typlen = $48 then $49 when nbt.nspname = $50 then format_type(t.typbasetype, $51) else $52 end else case when t.typelem <> $53::oid and t.typlen = $54 then $55 when nt.nspname = $56 then format_type(a.atttypid, $57) else $58 end end, $59, case when t.typtype = $60 then case when nt.nspname <> $61 then concat(nt.nspname, $62, coalesce(bt.typname, t.typname)) else coalesce(bt.typname, t.typname) end else coalesce(bt.typname, t.typname) end, $63, a.attidentity in ($64, $65), $66, case a.attidentity when $67 then $68 when $69 then $70 else $71 end, $72, a.attgenerated in ($73), $74, not (a.attnotnull or t.typtype = $75 and t.typnotnull), $76, ( b.relkind in ($77, $78) or (b.relkind in ($79, $80) and pg_column_is_updatable(b.id, a.attnum, $81)) ), $82, uniques.table_id is not null, $83, check_constraints.definition, $84, col_description(c.oid, a.attnum), $85, coalesce( ( select jsonb_agg(e.enumlabel order by e.enumsortorder) from pg_catalog.pg_enum e where e.enumtypid = coalesce(bt.oid, t.oid) or e.enumtypid = coalesce(bt.typelem, t.typelem) ), $86::jsonb ) ) order by a.attnum) as columns from pg_attribute a join base_table_info b on a.attrelid = b.id join pg_class c on a.attrelid = c.oid join pg_namespace nc on c.relnamespace = nc.oid left join pg_attrdef ad on (a.attrelid = ad.adrelid and a.attnum = ad.adnum) join pg_type t on a.atttypid = t.oid join pg_namespace nt on t.typnamespace = nt.oid left join pg_type bt on (t.typtype = $87 and t.typbasetype = bt.oid) left join pg_namespace nbt on bt.typnamespace = nbt.oid left join ( select conrelid as table_id, conkey[$88] as ordinal_position from pg_catalog.pg_constraint where contype = $89 and cardinality(conkey) = $90 group by conrelid, conkey[1] ) as uniques on uniques.table_id = a.attrelid and uniques.ordinal_position = a.attnum left join ( select distinct on (conrelid, conkey[1]) conrelid as table_id, conkey[$91] as ordinal_position, substring( pg_get_constraintdef(oid, $92), $93, length(pg_get_constraintdef(oid, $94)) - $95 ) as definition from pg_constraint where contype = $96 and cardinality(conkey) = $97 order by conrelid, conkey[1], oid asc ) as check_constraints on check_constraints.table_id = a.attrelid and check_constraints.ordinal_position = a.attnum where a.attnum > $98 and not a.attisdropped group by a.attrelid ) select case b.relkind when $99 then jsonb_build_object( $100, b.relkind, $101, b.id, $102, b.schema, $103, b.name, $104, b.rls_enabled, $105, b.rls_forced, $106, ts.replica_identity, $107, ts.bytes, $108, ts.size, $109, ts.live_rows_estimate, $110, ts.dead_rows_estimate, $111, b.comment, $112, coalesce(pk.primary_keys, $113::jsonb), $114, coalesce(ui.unique_indexes, $115::jsonb), $116, coalesce( (select jsonb_agg(r.rel_info) from relationships r where r.source_id = b.id or r.target_id = b.id), $117::jsonb ), $118, coalesce(c.columns, $119::jsonb) ) when $120 then jsonb_build_object( $121, b.relkind, $122, b.id, $123, b.schema, $124, b.name, $125, b.rls_enabled, $126, b.rls_forced, $127, ts.replica_identity, $128, ts.bytes, $129, ts.size, $130, ts.live_rows_estimate, $131, ts.dead_rows_estimate, $132, b.comment, $133, coalesce(pk.primary_keys, $134::jsonb), $135, coalesce(ui.unique_indexes, $136::jsonb), $137, coalesce( (select jsonb_agg(r.rel_info) from relationships r where r.source_id = b.id or r.target_id = b.id), $138::jsonb ), $139, coalesce(c.columns, $140::jsonb) ) when $141 then jsonb_build_object( $142, b.relkind, $143, b.id, $144, b.schema, $145, b.name, $146, (pg_relation_is_updatable(b.id, $147) & $148) = $149, $150, b.comment, $151, coalesce(c.columns, $152::jsonb) ) when $153 then jsonb_build_object( $154, b.relkind, $155, b.id, $156, b.schema, $157, b.name, $158, $159, $160, b.comment, $161, coalesce(c.columns, $162::jsonb) ) when $163 then jsonb_build_object( $164, b.relkind, $165, b.id, $166, b.schema, $167, b.name, $168, b.comment, $169, b.foreign_server_name, $170, b.foreign_data_wrapper_name, $171, b.foreign_data_wrapper_handler, $172, coalesce(c.columns, $173::jsonb) ) end as entity from base_table_info b left join table_stats ts on b.id = ts.id left join primary_keys pk on b.id = pk.table_id left join unique_indexes ui on b.id = ui.table_id left join columns c on b.id = c.table_id",postgres,1539,52.6409915022742,0.049099,35179.076047,81014.4859219999,1535,99.9945273565671394,1.416256681856371,null

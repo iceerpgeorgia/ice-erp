@@ -1,16 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
-import { exec } from "child_process";
-import { promisify } from "util";
+import { v4 as uuidv4 } from "uuid";
+import { processBOGGEL } from "@/lib/bank-import/bog-gel-processor";
+import { getSupabaseClient } from "@/lib/bank-import/db-utils";
 
-const execPromise = promisify(exec);
-
+/**
+ * Bank XML Upload API - TypeScript Implementation
+ * Processes BOG GEL XML files on Vercel using TypeScript
+ * Equivalent to Python import_bank_xml_data.py
+ */
 export async function POST(req: NextRequest) {
+  const importBatchId = uuidv4();
+  let allLogs = "";
+
+  // Capture console.log output
+  const originalLog = console.log;
+  console.log = (...args: any[]) => {
+    const message = args.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+    ).join(' ');
+    allLogs += message + '\n';
+    originalLog(...args);
+  };
+
   try {
     const formData = await req.formData();
     const files = formData.getAll("file") as File[];
-    
+
     if (!files || files.length === 0) {
       return NextResponse.json(
         { error: "No files provided" },
@@ -27,100 +42,123 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), "uploads");
-    try {
-      await mkdir(uploadsDir, { recursive: true });
-    } catch (err) {
-      // Directory might already exist
-    }
-
     const results = [];
-    let allLogs = `Processing ${files.length} file(s)...\n\n`;
+    console.log(`Processing ${files.length} file(s)...\n`);
+    console.log(`Import Batch ID: ${importBatchId}\n`);
 
     // Process each file
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const fileNum = i + 1;
-      allLogs += `\n${'='.repeat(60)}\n`;
-      allLogs += `FILE ${fileNum}/${files.length}: ${file.name}\n`;
-      allLogs += `${'='.repeat(60)}\n\n`;
+      console.log('\n' + '='.repeat(60));
+      console.log(`FILE ${fileNum}/${files.length}: ${file.name}`);
+      console.log('='.repeat(60) + '\n');
 
       try {
-        // Save the file
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        const timestamp = new Date().getTime();
-        const filename = `bog_${timestamp}_${file.name}`;
-        const filepath = join(uploadsDir, filename);
-        
-        await writeFile(filepath, buffer);
-        allLogs += `✓ File saved: ${filename}\n\n`;
+        // Read XML content
+        const xmlContent = await file.text();
+        console.log(`✓ File read: ${file.name} (${xmlContent.length} bytes)\n`);
 
-        // Run the XML parser orchestrator (identifies account and delegates to appropriate parser)
-        allLogs += `Running XML parser orchestrator...\n`;
-        const { stdout, stderr } = await execPromise(
-          `python import_bank_xml_data.py "${filepath}"`,
-          { cwd: process.cwd(), maxBuffer: 1024 * 1024 * 10 }
-        );
-        
-        allLogs += stdout;
-        if (stderr) {
-          allLogs += `\nWarnings/Errors:\n${stderr}\n`;
+        // Parse XML to identify account
+        const { parseStringPromise } = await import('xml2js');
+        const parsed = await parseStringPromise(xmlContent);
+        const header = parsed.STATEMENT?.HEADER?.[0];
+
+        if (!header) {
+          throw new Error('Invalid BOG GEL XML format - missing HEADER');
         }
+
+        const accountInfoText = header.AcctNo?.[0] || '';
+        const accountFull = accountInfoText.split(' ')[0];
+
+        if (accountFull.length <= 3) {
+          throw new Error('Invalid account number in XML');
+        }
+
+        const currencyCode = accountFull.substring(accountFull.length - 3);
+        const accountNumber = accountFull;
+
+        console.log(`📊 Identified Account: ${accountNumber}`);
+        console.log(`💱 Currency: ${currencyCode}\n`);
+
+        // Find account UUID in database
+        const supabase = getSupabaseClient();
+        const { data: accountData, error: accountError } = await supabase
+          .from('bank_accounts')
+          .select('uuid, parsing_scheme_uuid')
+          .eq('account', accountNumber)
+          .single();
+
+        if (accountError || !accountData) {
+          throw new Error(`Account not found in database: ${accountNumber}`);
+        }
+
+        const accountUuid = accountData.uuid;
+        console.log(`✅ Account UUID: ${accountUuid}\n`);
+
+        // Determine raw table name (format: bog_gel_raw_XXXXXXXXXX)
+        const accountDigits = accountNumber.replace(/\D/g, '').slice(-10);
+        const rawTableName = `bog_gel_raw_${accountDigits}`;
+        console.log(`📋 Raw Table: ${rawTableName}\n`);
+
+        // Process the XML using TypeScript implementation
+        await processBOGGEL(
+          xmlContent,
+          accountUuid,
+          accountNumber,
+          currencyCode,
+          rawTableName,
+          importBatchId
+        );
 
         results.push({
           filename: file.name,
           success: true,
-          savedAs: filename
+          accountNumber: accountNumber,
+          rawTable: rawTableName,
         });
+
+        console.log(`\n✅ Successfully processed ${file.name}`);
       } catch (error: any) {
-        allLogs += `\n✗ ERROR processing ${file.name}:\n${error.message}\n`;
-        if (error.stdout) allLogs += `\nOutput:\n${error.stdout}\n`;
-        if (error.stderr) allLogs += `\nError details:\n${error.stderr}\n`;
-        
+        console.log(`\n✗ ERROR processing ${file.name}:`);
+        console.log(error.message);
+        if (error.stack) {
+          console.log('\nStack trace:');
+          console.log(error.stack);
+        }
+
         results.push({
           filename: file.name,
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
-    }
-
-    // Run consolidation once after all files
-    allLogs += `\n${'='.repeat(60)}\n`;
-    allLogs += `CONSOLIDATION PROCESS\n`;
-    allLogs += `${'='.repeat(60)}\n\n`;
-
-    try {
-      const { stdout: stdout2, stderr: stderr2 } = await execPromise(
-        `python process-raw-to-consolidated.py`,
-        { cwd: process.cwd(), maxBuffer: 1024 * 1024 * 10 }
-      );
-      
-      allLogs += stdout2;
-      if (stderr2) {
-        allLogs += `\nWarnings/Errors:\n${stderr2}\n`;
-      }
-    } catch (error: any) {
-      allLogs += `\n✗ CONSOLIDATION ERROR:\n${error.message}\n`;
-      if (error.stdout) allLogs += `\nOutput:\n${error.stdout}\n`;
-      if (error.stderr) allLogs += `\nError details:\n${error.stderr}\n`;
     }
 
     const successCount = results.filter(r => r.success).length;
     const failCount = results.filter(r => !r.success).length;
 
+    // Restore original console.log
+    console.log = originalLog;
+
     return NextResponse.json({
       success: failCount === 0,
       message: `Processed ${files.length} file(s): ${successCount} succeeded, ${failCount} failed`,
       results,
-      logs: allLogs
+      logs: allLogs,
+      importBatchId,
+      detailedErrors: results.filter(r => !r.success).map(r => ({
+        file: r.filename,
+        error: r.error,
+      })),
     });
   } catch (error: any) {
+    // Restore original console.log
+    console.log = originalLog;
+
     console.error("[Upload] Error:", error);
     return NextResponse.json(
-      { error: error?.message || "Failed to upload files" },
+      { error: error?.message || "Failed to upload files", logs: allLogs },
       { status: 500 }
     );
   }

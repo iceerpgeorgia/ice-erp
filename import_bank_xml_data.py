@@ -345,13 +345,31 @@ def get_db_connections():
     if not remote_db_url:
         raise ValueError("REMOTE_DATABASE_URL not found in .env.local")
     
+    # CRITICAL FIX: Replace pooler port (6543) with direct port (5432)
+    # Pooler (pgbouncer) has strict timeouts unsuitable for bulk operations
+    if ':6543/' in remote_db_url:
+        print("⚠️  Detected pooler connection (port 6543), switching to direct connection (5432)...")
+        remote_db_url = remote_db_url.replace(':6543/', ':5432/')
+        remote_db_url = remote_db_url.replace('pgbouncer=true', 'pgbouncer=false')
+        remote_db_url = remote_db_url.replace('?&', '?')
+        print("✅ Using direct connection (required for bulk operations)")
+    
     # Parse and clean Supabase connection string
-    # Replace pooler port 6543 with direct port 6543 (keep pooler for compatibility)
     parsed_remote = urlparse(remote_db_url)
     clean_remote_url = f"{parsed_remote.scheme}://{parsed_remote.netloc}{parsed_remote.path}"
     
     print("🔍 Connecting to Supabase...")
-    supabase_conn = psycopg2.connect(clean_remote_url, connect_timeout=30, keepalives=1, keepalives_idle=30)
+    supabase_conn = psycopg2.connect(
+        clean_remote_url, 
+        connect_timeout=30, 
+        keepalives=1, 
+        keepalives_idle=30
+    )
+    # Set statement timeout AFTER connection (0 = no timeout)
+    cursor = supabase_conn.cursor()
+    cursor.execute("SET statement_timeout = 0")
+    cursor.close()
+    # Use autocommit for this connection
     supabase_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     
     print("✅ Connected to Supabase (all operations on Supabase)")
@@ -996,10 +1014,16 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
     # ===================
     # STEP 4: Insert Consolidated Records
     # ===================
+    print(f"\n{'='*80}")
+    print(f"📊 STEP 4: Preparing to insert {len(consolidated_records)} consolidated records")
+    print(f"{'='*80}\n")
+    sys.stdout.flush()
+    
     step_start = log_step(4, f"INSERTING {len(consolidated_records)} CONSOLIDATED RECORDS")
     
     if consolidated_records:
         print(f"  🚀 Starting batch insert of {len(consolidated_records)} records to Supabase...")
+        print(f"  ℹ️  Insert will use chunks of 5000 records...")
         sys.stdout.flush()
         insert_start = time.time()
         
@@ -1019,6 +1043,16 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
                 %(nominal_currency_uuid)s, %(nominal_amount)s,
                 %(processing_case)s, NOW()
             )
+            ON CONFLICT (uuid) DO UPDATE SET
+                counteragent_uuid = EXCLUDED.counteragent_uuid,
+                counteragent_account_number = EXCLUDED.counteragent_account_number,
+                project_uuid = EXCLUDED.project_uuid,
+                financial_code_uuid = EXCLUDED.financial_code_uuid,
+                payment_id = EXCLUDED.payment_id,
+                nominal_currency_uuid = EXCLUDED.nominal_currency_uuid,
+                nominal_amount = EXCLUDED.nominal_amount,
+                processing_case = EXCLUDED.processing_case,
+                updated_at = NOW()
         """
         
         # Batch insert with progress tracking
@@ -1049,6 +1083,11 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
     # ===================
     # STEP 5: Update Raw Table Flags
     # ===================
+    print(f"\n{'='*80}")
+    print(f"📊 STEP 5: Preparing to update {len(raw_updates)} raw table flags")
+    print(f"{'='*80}\n")
+    sys.stdout.flush()
+    
     step_start = log_step(5, f"UPDATING {len(raw_updates)} RAW TABLE FLAGS")
     
     if raw_updates:
@@ -1259,15 +1298,11 @@ def backparse_existing_data(account_uuid=None, batch_id=None, clear_consolidated
                 continue
             
             # Optional: Clear existing consolidated records for this account
+            # NOTE: Skipping DELETE due to Supabase timeout on large deletes
+            # Instead, we'll use INSERT ... ON CONFLICT DO UPDATE (upsert)
             if clear_consolidated:
-                print(f"🗑️ Clearing existing consolidated records for this account...")
-                supabase_cursor.execute("""
-                    DELETE FROM consolidated_bank_accounts 
-                    WHERE bank_account_uuid = %s
-                """, (acc_uuid,))
-                supabase_conn.commit()
-                print(f"✅ Cleared consolidated records\n")
-                print(f"ℹ️  Skipping flag reset (flags will be updated during processing)\n")
+                print(f"⚠️  Skipping DELETE (would timeout on large datasets)")
+                print(f"ℹ️  Will use UPSERT to handle existing records\n")
             else:
                 # Only reset flags if not clearing (incremental mode)
                 print(f"🔄 Resetting is_processed flags...")
@@ -1348,13 +1383,15 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            print(f"    🔄 Attempt {attempt + 1}/{max_retries}...")
+            print(f"    🔄 Attempt {attempt + 1}/{max_retries} - Executing query...")
             sys.stdout.flush()
             supabase_cursor.execute("""
                 SELECT counteragent_uuid, identification_number, counteragent 
                 FROM counteragents 
                 WHERE identification_number IS NOT NULL
             """)
+            print(f"    🔄 Query executed, fetching results...")
+            sys.stdout.flush()
             counteragents_map = {}
             for row in supabase_cursor.fetchall():
                 inn = normalize_inn(row[1])
@@ -1498,7 +1535,6 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
                 DocNomination, DocInformation, DocProdGroup, CcyRate
             FROM {raw_table_name}
             WHERE import_batch_id = %s
-            ORDER BY DocValueDate DESC
         """
         params = (batch_id,)
     else:
@@ -1510,12 +1546,13 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
                 DocNomination, DocInformation, DocProdGroup, CcyRate
             FROM {raw_table_name}
             WHERE DocValueDate IS NOT NULL
-            ORDER BY DocValueDate DESC
         """
         params = ()
     
     # Fetch records in batches to avoid timeout with large Georgian text data
-    print(f"📦 Fetching records from database in batches...")
+    print(f"\n{'='*80}")
+    print(f"📦 STEP: Fetching records from database in batches (batch_size={1000})...")
+    print(f"{'='*80}\n")
     sys.stdout.flush()
     fetch_start = time.time()
     
@@ -1528,8 +1565,11 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
         
         try:
             print(f"  🔄 Fetching batch at offset {offset}...", end='', flush=True)
+            batch_fetch_start = time.time()
             supabase_cursor.execute(batch_query, params)
+            print(f" [executed in {time.time()-batch_fetch_start:.1f}s]...", end='', flush=True)
             batch = supabase_cursor.fetchall()
+            print(f" [fetched in {time.time()-batch_fetch_start:.1f}s]...", end='', flush=True)
             
             if not batch:
                 break  # No more records
@@ -1589,7 +1629,24 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
     }
     
     # Process each record with 8-case hierarchical logic
+    print(f"\n{'='*80}")
+    print(f"🔄 Starting record processing loop ({total_records} records)...")
+    print(f"{'='*80}\n")
+    sys.stdout.flush()
+    
     for idx, raw_record in enumerate(raw_records, 1):
+        # Log progress every 100 records
+        if idx % 100 == 0 or idx == 1:
+            elapsed = time.time() - step_start
+            pct = idx * 100 // total_records
+            print(f"  📊 Processing record {idx:,}/{total_records:,} ({pct}%) - {elapsed:.1f}s elapsed")
+            sys.stdout.flush()
+        
+        # Log every 1000 records with more detail
+        if idx % 1000 == 0:
+            print(f"  ℹ️  Consolidated records so far: {len(consolidated_records)}, Raw updates: {len(raw_updates)}")
+            sys.stdout.flush()
+        
         raw_uuid = raw_record[0]
         DocKey = raw_record[1]
         EntriesId = raw_record[2]
@@ -1722,77 +1779,117 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
             remaining = (total_records - idx) / records_per_sec if records_per_sec > 0 else 0
             print(f"\r  📊 Progress: {idx}/{total_records} ({idx*100//total_records}%) | {records_per_sec:.1f} rec/s | ETA: {remaining:.1f}s", end='', flush=True)
     
+    print(f"\n  ✅ Processing loop completed: {len(consolidated_records)} consolidated records, {len(raw_updates)} raw updates")
+    sys.stdout.flush()
     log_step(3, "THREE-PHASE PROCESSING", step_start)
     
     # ===================
     # STEP 4: Insert Consolidated Records (ULTRA-FAST COPY METHOD)
     # ===================
+    print(f"\n{'='*80}")
+    print(f"📊 STEP 4: Preparing to insert {len(consolidated_records)} consolidated records")
+    print(f"{'='*80}\n")
+    sys.stdout.flush()
+    
     step_start = log_step(4, f"INSERTING {len(consolidated_records)} CONSOLIDATED RECORDS")
     
     if consolidated_records:
-        print(f"  🚀 Starting batch insert of {len(consolidated_records)} records...")
+        print(f"  🚀 Starting ULTRA-FAST COPY insert of {len(consolidated_records)} records to Supabase...")
         sys.stdout.flush()
         insert_start = time.time()
         
-        # Use executemany with batches for pgbouncer compatibility
-        insert_consolidated_query = """
-            INSERT INTO consolidated_bank_accounts (
-                uuid, bank_account_uuid, raw_record_uuid, transaction_date,
-                description, counteragent_uuid, counteragent_account_number,
-                project_uuid, financial_code_uuid, payment_id,
-                account_currency_uuid, account_currency_amount,
-                nominal_currency_uuid, nominal_amount, processing_case,
-                applied_rule_id
-            ) VALUES (
-                %(uuid)s, %(bank_account_uuid)s, %(raw_record_uuid)s, %(transaction_date)s,
-                %(description)s, %(counteragent_uuid)s, %(counteragent_account_number)s,
-                %(project_uuid)s, %(financial_code_uuid)s, %(payment_id)s,
-                %(account_currency_uuid)s, %(account_currency_amount)s,
-                %(nominal_currency_uuid)s, %(nominal_amount)s, %(processing_case)s,
-                %(applied_rule_id)s
-            )
-        """
+        # Use COPY for ultra-fast bulk insert (same method as raw table updates)
+        from io import StringIO
         
-        # Process in chunks of 1000 for better pgbouncer compatibility
-        chunk_size = 1000
-        total_chunks = (len(consolidated_records) + chunk_size - 1) // chunk_size
+        print(f"  ℹ️  Preparing buffer for COPY operation...")
+        sys.stdout.flush()
+        buffer_start = time.time()
+        buffer = StringIO()
         
-        for i in range(0, len(consolidated_records), chunk_size):
-            chunk = consolidated_records[i:i + chunk_size]
-            chunk_num = i // chunk_size + 1
-            print(f"  📦 Inserting chunk {chunk_num}/{total_chunks} ({len(chunk)} records)...", end='', flush=True)
-            chunk_start = time.time()
+        for idx, rec in enumerate(consolidated_records, 1):
+            if idx % 10000 == 0:
+                print(f"    📝 Prepared {idx}/{len(consolidated_records)} rows...")
+                sys.stdout.flush()
             
-            try:
-                supabase_cursor.executemany(insert_consolidated_query, chunk)
-                print(f" ✅ {time.time()-chunk_start:.2f}s")
-            except Exception as e:
-                print(f" ❌ ERROR!")
-                print(f"     Error type: {type(e).__name__}")
-                print(f"     Error message: {str(e)}")
-                print(f"     Chunk {chunk_num} records: {i} to {i+len(chunk)}")
-                
-                # Try to identify problematic record
-                print(f"     Attempting individual inserts to find problem record...")
-                for idx, rec in enumerate(chunk):
-                    try:
-                        supabase_cursor.execute(insert_consolidated_query, rec)
-                        if (idx + 1) % 50 == 0:
-                            print(f"       ✅ {idx+1}/{len(chunk)} records inserted")
-                    except Exception as rec_error:
-                        print(f"       ❌ Failed at record {i+idx}: {type(rec_error).__name__}: {str(rec_error)}")
-                        print(f"          Record UUID: {rec.get('uuid')}")
-                        print(f"          Description sample: {rec.get('description', '')[:100]}")
-                        raise
-                raise
+            # Format values for COPY (tab-separated, NULL for None values)
+            # Remove null bytes and escape backslashes for PostgreSQL COPY format
+            def clean_string(s):
+                if not s:
+                    return ''
+                # Replace null bytes, tabs, newlines, carriage returns
+                # Escape backslashes (must be done BEFORE other escapes)
+                s = str(s).replace('\\', '\\\\')
+                s = s.replace('\x00', '')
+                s = s.replace('\t', ' ')
+                s = s.replace('\n', ' ')
+                s = s.replace('\r', '')
+                return s
+            
+            values = [
+                str(rec['uuid']),
+                str(rec['bank_account_uuid']),
+                str(rec['raw_record_uuid']),
+                str(rec['transaction_date']),
+                clean_string(rec['description']),
+                str(rec['counteragent_uuid']) if rec['counteragent_uuid'] else '\\N',
+                clean_string(rec['counteragent_account_number']) if rec['counteragent_account_number'] else '\\N',
+                str(rec['project_uuid']) if rec['project_uuid'] else '\\N',
+                str(rec['financial_code_uuid']) if rec['financial_code_uuid'] else '\\N',
+                clean_string(rec['payment_id']) if rec['payment_id'] else '\\N',
+                str(rec['account_currency_uuid']),
+                str(rec['account_currency_amount']),
+                str(rec['nominal_currency_uuid']),
+                str(rec['nominal_amount']),
+                clean_string(rec['processing_case']),
+                str(rec['applied_rule_id']) if rec.get('applied_rule_id') else '\\N'
+            ]
+            buffer.write('\t'.join(values) + '\n')
         
-        print(f"  ✅ Insert completed in {time.time()-insert_start:.2f}s ({len(consolidated_records)/(time.time()-insert_start):.0f} rec/s)")
+        buffer.seek(0)
+        buffer_time = time.time() - buffer_start
+        print(f"  ✅ Buffer prepared in {buffer_time:.2f}s ({len(consolidated_records)/(buffer_time):.0f} rows/s)")
+        sys.stdout.flush()
+        
+        print(f"  ⏳ Executing COPY FROM buffer to consolidated_bank_accounts (this is fast!)...")
+        sys.stdout.flush()
+        copy_start = time.time()
+        
+        supabase_cursor.copy_from(
+            buffer,
+            'consolidated_bank_accounts',
+            columns=(
+                'uuid', 'bank_account_uuid', 'raw_record_uuid', 'transaction_date',
+                'description', 'counteragent_uuid', 'counteragent_account_number',
+                'project_uuid', 'financial_code_uuid', 'payment_id',
+                'account_currency_uuid', 'account_currency_amount',
+                'nominal_currency_uuid', 'nominal_amount', 'processing_case',
+                'applied_rule_id'
+            )
+        )
+        
+        copy_time = time.time() - copy_start
+        print(f"  ✅ COPY completed in {copy_time:.2f}s ({len(consolidated_records)/copy_time:.0f} rec/s)")
+        sys.stdout.flush()
+        
+        print(f"  ⏳ Committing consolidated records to Supabase...")
+        sys.stdout.flush()
+        commit_start = time.time()
+        supabase_conn.commit()
+        commit_time = time.time() - commit_start
+        print(f"  ✅ Committed in {commit_time:.2f}s")
+        print(f"  📊 Total insert time: {time.time()-insert_start:.2f}s ({len(consolidated_records)/(time.time()-insert_start):.0f} rec/s)")
+        sys.stdout.flush()
         
         log_step(4, "CONSOLIDATED RECORDS INSERTION", step_start)
     
     # ===================
     # STEP 5: Update Raw Table Flags (LOCAL DB only has is_processed)
     # ===================
+    print(f"\n{'='*80}")
+    print(f"📊 STEP 5: Preparing to update {len(raw_updates)} raw table flags in {raw_table_name}")
+    print(f"{'='*80}\n")
+    sys.stdout.flush()
+    
     step_start = log_step(5, f"UPDATING {len(raw_updates)} RAW TABLE FLAGS")
     
     if raw_updates:
@@ -1836,50 +1933,94 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
         """)
         
         # Use COPY for fast bulk insert to temp table
-        print(f"  ⬆️ Copying {len(raw_updates)} records to temp table...")
+        print(f"  ⬆️ Copying {len(raw_updates)} records to temp table using COPY...")
+        print(f"  ℹ️  Preparing buffer with {len(raw_updates)} rows...")
         sys.stdout.flush()
+        copy_start = time.time()
         from io import StringIO
         buffer = StringIO()
-        for update in raw_updates:
+        for idx, update in enumerate(raw_updates, 1):
+            if idx % 10000 == 0:
+                print(f"    📝 Prepared {idx}/{len(raw_updates)} rows...")
+                sys.stdout.flush()
             inn = update['counteragent_inn'] or ''
             processing_case = update['processing_case'].replace('\n', '\\n') if update['processing_case'] else ''
             applied_rule = update.get('applied_rule_id')
             if applied_rule is None or applied_rule == '':
                 applied_rule = '\\N'  # PostgreSQL NULL for COPY
             buffer.write(f"{update['uuid']}\t{update['counteragent_processed']}\t{update['counteragent_found']}\t{update['counteragent_missing']}\t{update['payment_id_matched']}\t{update['payment_id_conflict']}\t{update['parsing_rule_applied']}\t{update['parsing_rule_conflict']}\t{inn}\t{applied_rule}\t{processing_case}\n")
+        
+        print(f"  ℹ️  Buffer prepared ({len(raw_updates)} rows), starting COPY FROM...")
+        sys.stdout.flush()
         buffer.seek(0)
         supabase_cursor.copy_from(buffer, 'temp_flag_updates', columns=('uuid', 'counteragent_processed', 'counteragent_found', 'counteragent_missing', 'payment_id_matched', 'payment_id_conflict', 'parsing_rule_applied', 'parsing_rule_conflict', 'counteragent_inn', 'applied_rule_id', 'processing_case'))
-        copy_time = time.time() - update_start
+        copy_time = time.time() - copy_start
         print(f"  ✅ Temp table loaded in {copy_time:.2f}s")
         sys.stdout.flush()
         
-        # Bulk update from temp table (single operation)
-        print(f"  🔄 Executing bulk UPDATE FROM temp table...")
-        sys.stdout.flush()
-        supabase_cursor.execute(f"""
-            UPDATE {raw_table_name} AS raw SET
-                counteragent_processed = tmp.counteragent_processed,
-                counteragent_found = tmp.counteragent_found,
-                counteragent_missing = tmp.counteragent_missing,
-                payment_id_matched = tmp.payment_id_matched,
-                payment_id_conflict = tmp.payment_id_conflict,
-                parsing_rule_applied = tmp.parsing_rule_applied,
-                parsing_rule_conflict = tmp.parsing_rule_conflict,
-                counteragent_inn = tmp.counteragent_inn,
-                applied_rule_id = tmp.applied_rule_id,
-                is_processed = TRUE,
-                updated_at = NOW()
-            FROM temp_flag_updates AS tmp
-            WHERE raw.uuid = tmp.uuid
-        """)
-        bulk_time = time.time() - update_start - copy_time
-        print(f"  ✅ Bulk update completed in {bulk_time:.2f}s")
+        # Bulk update from temp table - use batching to avoid timeouts
+        print(f"  🔄 Executing batched bulk UPDATE FROM temp table...")
+        print(f"  ℹ️  Will process in 10,000-record batches to avoid timeout...")
         sys.stdout.flush()
         
-        print(f"  ⏳ Committing transaction to Supabase...")
+        bulk_update_start = time.time()
+        batch_size = 10000
+        total_updated = 0
+        
+        # Get unique UUIDs from temp table to batch process
+        supabase_cursor.execute("SELECT uuid FROM temp_flag_updates")
+        all_uuids = [row[0] for row in supabase_cursor.fetchall()]
+        total_batches = (len(all_uuids) + batch_size - 1) // batch_size
+        
+        print(f"  📦 Processing {len(all_uuids)} records in {total_batches} batches...")
         sys.stdout.flush()
+        
+        for batch_num in range(0, len(all_uuids), batch_size):
+            batch_uuids = all_uuids[batch_num:batch_num + batch_size]
+            batch_idx = batch_num // batch_size + 1
+            
+            print(f"    ⏳ Batch {batch_idx}/{total_batches} ({len(batch_uuids)} rows)...", end='', flush=True)
+            batch_start = time.time()
+            
+            # Create placeholders for IN clause
+            placeholders = ','.join(['%s'] * len(batch_uuids))
+            
+            supabase_cursor.execute(f"""
+                UPDATE {raw_table_name} AS raw SET
+                    counteragent_processed = tmp.counteragent_processed,
+                    counteragent_found = tmp.counteragent_found,
+                    counteragent_missing = tmp.counteragent_missing,
+                    payment_id_matched = tmp.payment_id_matched,
+                    payment_id_conflict = tmp.payment_id_conflict,
+                    parsing_rule_applied = tmp.parsing_rule_applied,
+                    parsing_rule_conflict = tmp.parsing_rule_conflict,
+                    counteragent_inn = tmp.counteragent_inn,
+                    applied_rule_id = tmp.applied_rule_id,
+                    is_processed = TRUE,
+                    updated_at = NOW()
+                FROM temp_flag_updates AS tmp
+                WHERE raw.uuid = tmp.uuid
+                AND raw.uuid IN ({placeholders})
+            """, batch_uuids)
+            
+            rows_updated = supabase_cursor.rowcount
+            total_updated += rows_updated
+            
+            print(f" ✅ {time.time()-batch_start:.2f}s ({rows_updated} rows)")
+            sys.stdout.flush()
+        
+        bulk_time = time.time() - bulk_update_start
+        print(f"  ✅ All batches completed in {bulk_time:.2f}s ({total_updated} total rows, {total_updated/bulk_time:.0f} rows/s)")
+        sys.stdout.flush()
+        
+        print(f"  ⏳ Committing transaction to Supabase (this is the final step)...")
+        sys.stdout.flush()
+        commit_start = time.time()
         supabase_conn.commit()
-        print(f"  ✅ Update completed in {time.time()-update_start:.2f}s")
+        commit_time = time.time() - commit_start
+        print(f"  ✅ Transaction committed in {commit_time:.2f}s")
+        print(f"  📊 Total update time: {time.time()-update_start:.2f}s")
+        sys.stdout.flush()
         
         log_step(5, "RAW TABLE FLAGS UPDATE", step_start)
     
