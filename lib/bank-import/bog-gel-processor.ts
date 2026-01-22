@@ -398,14 +398,21 @@ function processSingleRecord(
  */
 async function identifyBOGGELAccount(xmlContent: string): Promise<AccountInfo | null> {
   try {
-    const parsed = await parseStringPromise(xmlContent);
+    const parsed = await parseStringPromise(xmlContent, {
+      tagNameProcessors: [
+        // Remove namespace prefixes (gemini:AccountStatement -> AccountStatement)
+        (name) => name.replace(/^[^:]+:/, '')
+      ]
+    });
     
-    // BOG GEL format: root element contains HEADER and DETAIL elements directly
-    // Try different possible root element names
-    let root = parsed.STATEMENT || parsed.ROWDATA || parsed;
+    // BOG GEL format can have different root elements:
+    // - gemini:AccountStatement (with namespace)
+    // - AccountStatement (without namespace)
+    // - STATEMENT, ROWDATA, etc.
+    let root = parsed.AccountStatement || parsed.STATEMENT || parsed.ROWDATA || parsed;
     
     // Handle case where xml2js wraps everything in an extra layer
-    if (root && typeof root === 'object' && !root.HEADER && !root.DETAIL) {
+    if (root && typeof root === 'object' && !root.HEADER && !root.DETAILS && !root.DETAIL) {
       const keys = Object.keys(root);
       if (keys.length === 1) {
         root = root[keys[0]];
@@ -416,6 +423,7 @@ async function identifyBOGGELAccount(xmlContent: string): Promise<AccountInfo | 
 
     if (!header) {
       console.log('⚠️ No HEADER found in XML. Root keys:', Object.keys(root || {}));
+      console.log('Parsed structure:', JSON.stringify(Object.keys(parsed), null, 2));
       return null;
     }
 
@@ -482,7 +490,9 @@ export async function processBOGGEL(
     throw new Error('Failed to parse XML');
   }
 
-  const details = accountInfo.xml_root.DETAIL || [];
+  // DETAILS (plural) contains multiple DETAIL elements
+  const detailsContainer = accountInfo.xml_root.DETAILS?.[0] || accountInfo.xml_root;
+  const details = detailsContainer.DETAIL || [];
   console.log(`📦 Found ${details.length} transactions in XML\n`);
 
   const rawRecordsToInsert: any[] = [];
