@@ -22,7 +22,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
   // Convert boolean values to strings for select elements
   const normalizeInitial = (data: any) => {
     if (!data) return {};
-    const normalized = {
+    return {
       ...data,
       entity_type_uuid: data.entity_type_uuid || "",
       sex: data.sex || "",
@@ -31,31 +31,22 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       is_emploee: data.is_emploee === null || data.is_emploee === undefined ? "" : String(data.is_emploee),
       was_emploee: data.was_emploee === null || data.was_emploee === undefined ? "" : String(data.was_emploee),
     };
-    console.log('[CounteragentForm] Normalized initial data:', normalized);
-    return normalized;
   };
   
-  const [v, setV] = React.useState<any>(() => {
-    const initialState = {
-      entity_type_uuid: "",
-      sex: "",
-      pension_scheme: "",
-      country: "",
-      is_emploee: "",
-      was_emploee: "",
-      ...normalizeInitial(initial)
-    };
-    console.log('[CounteragentForm] Initial state:', initialState);
-    return initialState;
-  });
+  const [v, setV] = React.useState<any>(() => ({
+    entity_type_uuid: "",
+    sex: "",
+    pension_scheme: "",
+    country: "",
+    is_emploee: "",
+    was_emploee: "",
+    ...normalizeInitial(initial)
+  }));
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
 
   const etUuid = v.entity_type_uuid || "";
   
-  React.useEffect(() => {
-    console.log('[CounteragentForm] Current state:', v);
-  }, [v]);
   const mandatory = {
     name: true,
     identification_number: !EXEMPT.has(etUuid),
@@ -77,8 +68,10 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
   React.useEffect(() => {
     setV((s:any)=>({
       ...s,
-      sex: SEX_REQ.has(etUuid) ? s.sex : "",
-      pension_scheme: etUuid === PENS_REQ ? (s.pension_scheme || "") : ""
+      sex: SEX_REQ.has(etUuid) ? (s.sex ?? "") : "",
+      pension_scheme: etUuid === PENS_REQ ? (s.pension_scheme ?? "") : "",
+      is_emploee: s.is_emploee ?? "",
+      was_emploee: s.was_emploee ?? ""
     }));
   }, [etUuid]);
 
