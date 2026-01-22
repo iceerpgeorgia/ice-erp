@@ -341,8 +341,13 @@ export function PaymentsTable() {
     try {
       const response = await fetch('/api/currencies');
       if (!response.ok) throw new Error('Failed to fetch currencies');
-      const data = await response.json();
-      const currencyData = data.map((c: any) => ({ 
+      const result = await response.json();
+      // API returns { data: [...] }, not direct array
+      const currenciesArray = result.data || result;
+      if (!Array.isArray(currenciesArray)) {
+        throw new Error('Invalid currencies data format');
+      }
+      const currencyData = currenciesArray.map((c: any) => ({ 
         uuid: c.uuid, 
         code: c.code, 
         name: c.name 
