@@ -134,14 +134,14 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
         value={v.birth_or_incorporation_date ?? ""} onChange={(e)=>setV((s:any)=>({ ...s, birth_or_incorporation_date:e.target.value }))} />,
       mandatory.birth_or_incorporation_date),
     field("Entity Type","entity_type",
-      <select className="w-full border rounded px-3 py-2" value={etUuid}
+      <select className="w-full border rounded px-3 py-2" value={etUuid || ""}
         onChange={(e)=>setV((s:any)=>({ ...s, entity_type_uuid:e.target.value }))}>
         <option value="">-- select --</option>
         {entityTypes.map(et => <option key={et.entity_type_uuid} value={et.entity_type_uuid}>{et.name_ka}</option>)}
       </select>,
       mandatory.entity_type),
     field("Sex","sex",
-      <select className="w-full border rounded px-3 py-2" disabled={!SEX_REQ.has(etUuid)} value={v.sex ?? ""}
+      <select className="w-full border rounded px-3 py-2" disabled={!SEX_REQ.has(etUuid)} value={v.sex || ""}
         onChange={(e)=>setV((s:any)=>({ ...s, sex:e.target.value }))}>
         <option value="">--</option>
         <option value="Male">Male</option>
