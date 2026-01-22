@@ -248,7 +248,9 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
         // Fetch currencies (limited to USD, GEL, EUR)
         const currenciesRes = await fetch('/api/currencies');
         if (currenciesRes.ok) {
-          const currenciesData = await currenciesRes.json();
+          const currenciesResponse = await currenciesRes.json();
+          // Handle both { data: [...] } and [...] response formats
+          const currenciesData = Array.isArray(currenciesResponse) ? currenciesResponse : currenciesResponse.data;
           const allowedCurrencies = ['USD', 'GEL', 'EUR'];
           const filteredCurrencies = allowedCurrencies
             .map(code => currenciesData.find((c: any) => c.code === code))
