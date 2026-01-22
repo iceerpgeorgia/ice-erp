@@ -637,7 +637,7 @@ export function PaymentsReportTable() {
                   Add Ledger
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="w-[80%] max-w-6xl">
                 <DialogHeader>
                   <DialogTitle>Add Ledger Entry</DialogTitle>
                   <DialogDescription>
@@ -747,9 +747,6 @@ export function PaymentsReportTable() {
                           
                           const fullLabel = parts.join(' | ');
                           
-                          // Shortened label for button display
-                          const displayLabel = `${p.paymentId} | ${p.counteragentName || 'N/A'}`;
-                          
                           const searchKeywords = [
                             p.paymentId,
                             p.counteragentName || '',
@@ -761,7 +758,7 @@ export function PaymentsReportTable() {
                           
                           return {
                             value: p.paymentId,
-                            label: displayLabel,
+                            label: fullLabel,
                             displayLabel: fullLabel,
                             keywords: searchKeywords
                           };
