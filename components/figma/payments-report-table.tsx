@@ -109,7 +109,8 @@ export function PaymentsReportTable() {
   const [payments, setPayments] = useState<Array<{ 
     paymentId: string; 
     counteragentName?: string;
-    projectIndex?: string; 
+    projectIndex?: string;
+    projectName?: string;
     jobName?: string;
     financialCode?: string;
     incomeTax?: boolean;
