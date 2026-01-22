@@ -303,6 +303,7 @@ export function PaymentsReportTable() {
         paymentId: p.paymentId,
         counteragentName: p.counteragentName,
         projectIndex: p.projectIndex,
+        projectName: p.projectName,
         jobName: p.jobName,
         financialCode: p.financialCode,
         incomeTax: p.incomeTax,
@@ -735,27 +736,28 @@ export function PaymentsReportTable() {
                           }
                         }}
                         options={payments.map(p => {
-                          let context = p.projectIndex || p.jobName || '';
-                          if (context.length > 30) {
-                            context = context.substring(0, 27) + '...';
-                          }
-                          const displayLabel = context 
-                            ? `${p.paymentId} (${context})`
-                            : p.paymentId;
-                          const parts = [];
-                          parts.push(p.paymentId);
-                          if (p.projectIndex) parts.push(p.projectIndex);
+                          // Build label: PaymentID | Counteragent | ProjectName | [JobName |] FinancialCode | Currency
+                          const parts = [p.paymentId];
+                          if (p.counteragentName) parts.push(p.counteragentName);
+                          if (p.projectName) parts.push(p.projectName);
                           if (p.jobName) parts.push(p.jobName);
                           if (p.financialCode) parts.push(p.financialCode);
                           if (p.currencyCode) parts.push(p.currencyCode);
+                          
                           const fullLabel = parts.join(' | ');
+                          
+                          // Shortened label for button display
+                          const displayLabel = `${p.paymentId} | ${p.counteragentName || 'N/A'}`;
+                          
                           const searchKeywords = [
                             p.paymentId,
-                            p.projectIndex || '',
+                            p.counteragentName || '',
+                            p.projectName || '',
                             p.jobName || '',
                             p.financialCode || '',
                             p.currencyCode || ''
                           ].filter(Boolean).join(' ');
+                          
                           return {
                             value: p.paymentId,
                             label: displayLabel,
