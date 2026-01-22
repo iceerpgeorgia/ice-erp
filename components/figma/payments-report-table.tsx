@@ -189,7 +189,7 @@ export function PaymentsReportTable() {
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await fetchData();
+      await Promise.all([fetchData(), fetchPayments()]);
     } finally {
       setTimeout(() => setIsRefreshing(false), 500); // Keep spinning for visual feedback
     }
