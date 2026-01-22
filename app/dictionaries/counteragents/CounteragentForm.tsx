@@ -18,7 +18,15 @@ const PENS_REQ  = "bf4d83f9-5064-4958-af6e-e4c21b2e4880";
 
 export default function CounteragentForm({ mode, initial, countries, entityTypes }: Props) {
   const r = useRouter();
-  const [v, setV] = React.useState<any>(() => initial ?? {});
+  const [v, setV] = React.useState<any>(() => ({
+    entity_type_uuid: "",
+    sex: "",
+    pension_scheme: "",
+    country: "",
+    is_emploee: "",
+    was_emploee: "",
+    ...initial
+  }));
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
 
