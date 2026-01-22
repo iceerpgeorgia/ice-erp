@@ -35,6 +35,7 @@ interface ComboboxProps {
   className?: string
   triggerClassName?: string
   disabled?: boolean
+  filter?: (value: string, search: string) => number
 }
 
 export function Combobox({
@@ -47,6 +48,7 @@ export function Combobox({
   className,
   triggerClassName,
   disabled = false,
+  filter,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -74,7 +76,7 @@ export function Combobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className={cn("w-[var(--radix-popover-trigger-width)] p-0", className)} align="start">
-        <Command>
+        <Command filter={filter}>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandEmpty>{emptyText}</CommandEmpty>
           <CommandGroup className="max-h-[300px] overflow-auto">

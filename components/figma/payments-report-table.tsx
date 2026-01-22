@@ -723,6 +723,17 @@ export function PaymentsReportTable() {
                             });
                           }
                         }}
+                        filter={(value, search) => {
+                          // Custom regex-based filter
+                          if (!search) return 1;
+                          try {
+                            const regex = new RegExp(search, 'i');
+                            return regex.test(value) ? 1 : 0;
+                          } catch {
+                            // If invalid regex, fall back to case-insensitive includes
+                            return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+                          }
+                        }}
                         options={payments.map(p => {
                           let context = p.projectIndex || p.jobName || '';
                           if (context.length > 30) {
