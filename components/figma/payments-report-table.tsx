@@ -433,7 +433,6 @@ export function PaymentsReportTable() {
       const result = await response.json();
       console.log('[Payments Report] Received', result.length, 'records');
       setData(result);
-      setLastRefreshTime(new Date());
       
       // Always set default sort to latestDate descending after data loads
       setSortColumn('latestDate');
