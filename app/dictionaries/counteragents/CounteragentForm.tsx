@@ -178,7 +178,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       </select>,
       mandatory.sex),
     field("Pension Scheme","pension_scheme",
-      <select className="w-full border rounded px-3 py-2" disabled={etUuid!==PENS_REQ} value={v.pension_scheme ?? ""} onChange={(e)=>setV((s:any)=>({ ...s, pension_scheme: e.target.value===''? null : e.target.value==='true' }))}
+      <select className="w-full border rounded px-3 py-2" disabled={etUuid!==PENS_REQ} value={v.pension_scheme === null ? "" : String(v.pension_scheme)} onChange={(e)=>setV((s:any)=>({ ...s, pension_scheme: e.target.value===''? null : e.target.value==='true' }))}
         onMouseDown={(e) => e.stopPropagation()}>
         <option value="">--</option>
         <option value="true">True</option>
@@ -206,7 +206,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
     field("Phone","phone", inputText("phone")),
     field("ORIS ID","oris_id", inputText("oris_id")),
     field("Is Employee","is_emploee",
-      <select className="w-full border rounded px-3 py-2" value={v.is_emploee ?? ""}
+      <select className="w-full border rounded px-3 py-2" value={v.is_emploee === null ? "" : String(v.is_emploee)}
         onChange={(e)=>setV((s:any)=>({ ...s, is_emploee: e.target.value===''? null : e.target.value==='true' }))}
         onMouseDown={(e) => e.stopPropagation()}>
         <option value="">--</option>
@@ -215,7 +215,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       </select>
     ),
     field("Was Employee","was_emploee",
-      <select className="w-full border rounded px-3 py-2" value={v.was_emploee ?? ""}
+      <select className="w-full border rounded px-3 py-2" value={v.was_emploee === null ? "" : String(v.was_emploee)}
         onChange={(e)=>setV((s:any)=>({ ...s, was_emploee: e.target.value===''? null : e.target.value==='true' }))}
         onMouseDown={(e) => e.stopPropagation()}>
         <option value="">--</option>
