@@ -342,13 +342,16 @@ export function PaymentsTable() {
       const response = await fetch('/api/currencies');
       if (!response.ok) throw new Error('Failed to fetch currencies');
       const data = await response.json();
-      setCurrencies(data.map((c: any) => ({ 
+      const currencyData = data.map((c: any) => ({ 
         uuid: c.uuid, 
         code: c.code, 
         name: c.name 
-      })));
+      }));
+      console.log(`✅ Loaded ${currencyData.length} currencies:`, currencyData);
+      setCurrencies(currencyData);
     } catch (error) {
-      console.error('Failed to fetch currencies:', error);
+      console.error('❌ Failed to fetch currencies:', error);
+      setCurrencies([]);
     }
   };
 
@@ -903,6 +906,7 @@ export function PaymentsTable() {
               <div className="space-y-2">
                 <Label className={!selectedFinancialCodeUuid ? 'text-muted-foreground' : ''}>
                   Currency <span className="text-red-500">*</span>
+                  {!selectedFinancialCodeUuid && <span className="ml-2 text-xs font-normal text-amber-600">(Select financial code first)</span>}
                 </Label>
                 {selectedFinancialCodeUuid ? (
                   <Combobox
@@ -912,11 +916,12 @@ export function PaymentsTable() {
                       value: c.uuid,
                       label: `${c.code} - ${c.name}`
                     }))}
-                    placeholder="Select currency..."
+                    placeholder={currencies.length === 0 ? "Loading currencies..." : "Select currency..."}
                     searchPlaceholder="Search currencies..."
+                    disabled={currencies.length === 0}
                   />
                 ) : (
-                  <Input value="" placeholder="Select financial code first" disabled className="bg-muted" />
+                  <Input value="" placeholder="⚠️ Select financial code first" disabled className="bg-muted" />
                 )}
               </div>
 
