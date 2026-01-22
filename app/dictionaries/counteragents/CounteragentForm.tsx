@@ -45,7 +45,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
     setV((s:any)=>({
       ...s,
       sex: SEX_REQ.has(etUuid) ? s.sex : "",
-      pension_scheme: etUuid === PENS_REQ ? (s.pension_scheme ?? null) : null
+      pension_scheme: etUuid === PENS_REQ ? (s.pension_scheme || "") : ""
     }));
   }, [etUuid]);
 
@@ -135,7 +135,8 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       mandatory.birth_or_incorporation_date),
     field("Entity Type","entity_type",
       <select className="w-full border rounded px-3 py-2" value={etUuid || ""}
-        onChange={(e)=>setV((s:any)=>({ ...s, entity_type_uuid:e.target.value }))}>
+        onChange={(e)=>setV((s:any)=>({ ...s, entity_type_uuid:e.target.value }))}
+        onMouseDown={(e) => e.stopPropagation()}>
         <option value="">-- select --</option>
         {entityTypes.map(et => <option key={et.entity_type_uuid} value={et.entity_type_uuid}>{et.name_ka}</option>)}
       </select>,
@@ -149,7 +150,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       </select>,
       mandatory.sex),
     field("Pension Scheme","pension_scheme",
-      <select className="w-full border rounded px-3 py-2" disabled={etUuid!==PENS_REQ} value={v.pension_scheme ?? ""} onChange={(e)=>setV((s:any)=>({ ...s, pension_scheme: e.target.value || null }))}>
+      <select className="w-full border rounded px-3 py-2" disabled={etUuid!==PENS_REQ} value={v.pension_scheme ?? ""} onChange={(e)=>setV((s:any)=>({ ...s, pension_scheme: e.target.value }))}>
         <option value="">--</option>
         <option value="true">True</option>
         <option value="false">False</option>
@@ -176,7 +177,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
     field("ORIS ID","oris_id", inputText("oris_id")),
     field("Is Employee","is_emploee",
       <select className="w-full border rounded px-3 py-2" value={v.is_emploee ?? ""}
-        onChange={(e)=>setV((s:any)=>({ ...s, is_emploee: e.target.value || null }))}>
+        onChange={(e)=>setV((s:any)=>({ ...s, is_emploee: e.target.value }))}>
         <option value="">--</option>
         <option value="true">True</option>
         <option value="false">False</option>
@@ -184,7 +185,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
     ),
     field("Was Employee","was_emploee",
       <select className="w-full border rounded px-3 py-2" value={v.was_emploee ?? ""}
-        onChange={(e)=>setV((s:any)=>({ ...s, was_emploee: e.target.value || null }))}>
+        onChange={(e)=>setV((s:any)=>({ ...s, was_emploee: e.target.value }))}>
         <option value="">--</option>
         <option value="true">True</option>
         <option value="false">False</option>
