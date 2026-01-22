@@ -61,10 +61,29 @@ export async function POST(req: NextRequest) {
 
         // Parse XML to identify account
         const { parseStringPromise } = await import('xml2js');
-        const parsed = await parseStringPromise(xmlContent);
-        const header = parsed.STATEMENT?.HEADER?.[0];
+        const parsed = await parseStringPromise(xmlContent, {
+          tagNameProcessors: [
+            // Remove namespace prefixes (gemini:AccountStatement -> AccountStatement)
+            (name) => name.replace(/^[^:]+:/, '')
+          ]
+        });
+        
+        // BOG GEL XML can have different root elements
+        let root = parsed.AccountStatement || parsed.STATEMENT || parsed.ROWDATA || parsed;
+        
+        // Handle xml2js wrapping
+        if (root && typeof root === 'object' && !root.HEADER && !root.DETAILS && !root.DETAIL) {
+          const keys = Object.keys(root);
+          if (keys.length === 1) {
+            root = root[keys[0]];
+          }
+        }
+        
+        const header = root?.HEADER?.[0];
 
         if (!header) {
+          console.log('⚠️ XML parsing failed. Root keys:', Object.keys(root || {}));
+          console.log('⚠️ Parsed structure:', JSON.stringify(Object.keys(parsed), null, 2));
           throw new Error('Invalid BOG GEL XML format - missing HEADER');
         }
 
