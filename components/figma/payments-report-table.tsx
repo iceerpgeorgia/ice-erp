@@ -92,8 +92,7 @@ export function PaymentsReportTable() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [dateFilterMode, setDateFilterMode] = useState<'none' | 'today' | 'custom'>('none');
   const [customDate, setCustomDate] = useState<string>('');
-  const [autoRefresh, setAutoRefresh] = useState(false);
-  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Add Entry form states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -185,17 +184,15 @@ export function PaymentsReportTable() {
     }
   }, [isInitialized, dateFilterMode, customDate]);
 
-  // Auto-refresh polling
-  useEffect(() => {
-    if (!autoRefresh || !isInitialized) return;
-
-    const intervalId = setInterval(() => {
-      console.log('[Payments Report] Auto-refreshing data...');
-      fetchData();
-    }, 30000); // Refresh every 30 seconds
-
-    return () => clearInterval(intervalId);
-  }, [autoRefresh, isInitialized]);
+  // Manual refresh handler
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchData();
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500); // Keep spinning for visual feedback
+    }
+  };
 
   // Save column configuration to localStorage whenever it changes (but not on initial load)
   useEffect(() => {
@@ -999,19 +996,15 @@ export function PaymentsReportTable() {
             </Popover>
 
             <Button 
-              variant={autoRefresh ? "default" : "outline"} 
+              variant="outline" 
               size="sm" 
               className="gap-2"
-              onClick={() => setAutoRefresh(!autoRefresh)}
-              title={autoRefresh ? "Auto-refresh enabled (every 30s)" : "Enable auto-refresh"}
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              title="Refresh data"
             >
-              <span className={autoRefresh ? "animate-spin" : ""}>🔄</span>
-              Auto-Refresh
-              {autoRefresh && lastRefreshTime && (
-                <Badge variant="secondary" className="ml-1 h-4 px-1 text-xs">
-                  {lastRefreshTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </Badge>
-              )}
+              <span className={isRefreshing ? "animate-spin" : ""}>🔄</span>
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
             </Button>
 
             <Popover>
