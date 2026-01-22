@@ -212,15 +212,20 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
+        console.log('[ProjectsTable] Fetching dropdown data...');
+        
         // Fetch counteragents
         const counteragentsRes = await fetch('/api/counteragents');
         if (counteragentsRes.ok) {
           const counteragentsData = await counteragentsRes.json();
+          console.log('[ProjectsTable] Counteragents loaded:', counteragentsData.length);
           setCounteragentsList(counteragentsData.map((c: any) => ({
             id: c.id,
             name: c.counteragent || c.name,
             counteragentUuid: c.counteragent_uuid || c.counteragentUuid
           })));
+        } else {
+          console.error('[ProjectsTable] Failed to load counteragents:', counteragentsRes.status);
         }
         
         // Fetch financial codes (filtered by is_income=true and applies_to_pl=true)
@@ -230,11 +235,14 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
           const filteredCodes = financialCodesData.filter((fc: any) => 
             fc.isIncome === true && fc.appliesToPL === true
           );
+          console.log('[ProjectsTable] Financial codes loaded:', filteredCodes.length, 'of', financialCodesData.length);
           setFinancialCodesList(filteredCodes.map((fc: any) => ({
             id: fc.id,
             validation: fc.validation,
             uuid: fc.uuid || fc.financial_code_uuid
           })));
+        } else {
+          console.error('[ProjectsTable] Failed to load financial codes:', financialCodesRes.status);
         }
         
         // Fetch currencies (limited to USD, GEL, EUR)
@@ -245,33 +253,42 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
           const filteredCurrencies = allowedCurrencies
             .map(code => currenciesData.find((c: any) => c.code === code))
             .filter(Boolean);
+          console.log('[ProjectsTable] Currencies loaded:', filteredCurrencies.length);
           setCurrenciesList(filteredCurrencies.map((c: any) => ({
             id: c.id,
             code: c.code,
             uuid: c.uuid || c.currency_uuid
           })));
+        } else {
+          console.error('[ProjectsTable] Failed to load currencies:', currenciesRes.status);
         }
         
         // Fetch states
         const statesRes = await fetch('/api/project-states');
         if (statesRes.ok) {
           const statesData = await statesRes.json();
+          console.log('[ProjectsTable] States loaded:', statesData.length);
           setStatesList(statesData.map((s: any) => ({
             id: s.id,
             name: s.name,
             uuid: s.uuid || s.state_uuid
           })));
+        } else {
+          console.error('[ProjectsTable] Failed to load states:', statesRes.status);
         }
         
         // Fetch employees (counteragents with is_emploee=true)
         const employeesRes = await fetch('/api/counteragents?is_emploee=true');
         if (employeesRes.ok) {
           const employeesData = await employeesRes.json();
+          console.log('[ProjectsTable] Employees loaded:', employeesData.length);
           setEmployeesList(employeesData.map((e: any) => ({
             id: e.id,
             name: e.counteragent || e.name,
             counteragentUuid: e.counteragent_uuid || e.counteragentUuid
           })));
+        } else {
+          console.error('[ProjectsTable] Failed to load employees:', employeesRes.status);
         }
       } catch (error) {
         console.error('Failed to fetch dropdown data:', error);
