@@ -18,6 +18,18 @@ const PENS_REQ  = "bf4d83f9-5064-4958-af6e-e4c21b2e4880";
 
 export default function CounteragentForm({ mode, initial, countries, entityTypes }: Props) {
   const r = useRouter();
+  
+  // Convert boolean values to strings for select elements
+  const normalizeInitial = (data: any) => {
+    if (!data) return {};
+    return {
+      ...data,
+      pension_scheme: data.pension_scheme === null || data.pension_scheme === undefined ? "" : String(data.pension_scheme),
+      is_emploee: data.is_emploee === null || data.is_emploee === undefined ? "" : String(data.is_emploee),
+      was_emploee: data.was_emploee === null || data.was_emploee === undefined ? "" : String(data.was_emploee),
+    };
+  };
+  
   const [v, setV] = React.useState<any>(() => ({
     entity_type_uuid: "",
     sex: "",
@@ -25,7 +37,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
     country: "",
     is_emploee: "",
     was_emploee: "",
-    ...initial
+    ...normalizeInitial(initial)
   }));
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
@@ -151,21 +163,24 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       mandatory.entity_type),
     field("Sex","sex",
       <select className="w-full border rounded px-3 py-2" disabled={!SEX_REQ.has(etUuid)} value={v.sex || ""}
-        onChange={(e)=>setV((s:any)=>({ ...s, sex:e.target.value }))}>
+        onChange={(e)=>setV((s:any)=>({ ...s, sex:e.target.value }))}
+        onMouseDown={(e) => e.stopPropagation()}>
         <option value="">--</option>
         <option value="Male">Male</option>
         <option value="Female">Female</option>
       </select>,
       mandatory.sex),
     field("Pension Scheme","pension_scheme",
-      <select className="w-full border rounded px-3 py-2" disabled={etUuid!==PENS_REQ} value={v.pension_scheme ?? ""} onChange={(e)=>setV((s:any)=>({ ...s, pension_scheme: e.target.value }))}>
+      <select className="w-full border rounded px-3 py-2" disabled={etUuid!==PENS_REQ} value={v.pension_scheme ?? ""} onChange={(e)=>setV((s:any)=>({ ...s, pension_scheme: e.target.value }))}
+        onMouseDown={(e) => e.stopPropagation()}>
         <option value="">--</option>
         <option value="true">True</option>
         <option value="false">False</option>
       </select>,
       mandatory.pension_scheme),
     field("Country","country",
-      <select className="w-full border rounded px-3 py-2" value={v.country || ""} onChange={(e)=>setV((s:any)=>({ ...s, country:e.target.value }))}>
+      <select className="w-full border rounded px-3 py-2" value={v.country || ""} onChange={(e)=>setV((s:any)=>({ ...s, country:e.target.value }))}
+        onMouseDown={(e) => e.stopPropagation()}>
         <option value="">-- select --</option>
         {countries.map(c => <option key={c} value={c}>{c}</option>)}
       </select>,
@@ -185,7 +200,8 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
     field("ORIS ID","oris_id", inputText("oris_id")),
     field("Is Employee","is_emploee",
       <select className="w-full border rounded px-3 py-2" value={v.is_emploee ?? ""}
-        onChange={(e)=>setV((s:any)=>({ ...s, is_emploee: e.target.value }))}>
+        onChange={(e)=>setV((s:any)=>({ ...s, is_emploee: e.target.value }))}
+        onMouseDown={(e) => e.stopPropagation()}>
         <option value="">--</option>
         <option value="true">True</option>
         <option value="false">False</option>
@@ -193,7 +209,8 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
     ),
     field("Was Employee","was_emploee",
       <select className="w-full border rounded px-3 py-2" value={v.was_emploee ?? ""}
-        onChange={(e)=>setV((s:any)=>({ ...s, was_emploee: e.target.value }))}>
+        onChange={(e)=>setV((s:any)=>({ ...s, was_emploee: e.target.value }))}
+        onMouseDown={(e) => e.stopPropagation()}>
         <option value="">--</option>
         <option value="true">True</option>
         <option value="false">False</option>
