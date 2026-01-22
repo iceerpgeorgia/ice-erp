@@ -121,6 +121,7 @@ export function PaymentsReportTable() {
   const [accrual, setAccrual] = useState('');
   const [order, setOrder] = useState('');
   const [comment, setComment] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Load saved column configuration and date filter after hydration
   useEffect(() => {
@@ -316,6 +317,8 @@ export function PaymentsReportTable() {
   };
 
   const handleAddEntry = async () => {
+    if (isSubmitting) return; // Prevent double submission
+    
     if (!selectedPaymentId) {
       alert('Please select a payment');
       return;
@@ -343,6 +346,7 @@ export function PaymentsReportTable() {
       }
     }
 
+    setIsSubmitting(true);
     try {
       const response = await fetch('/api/payments-ledger', {
         method: 'POST',
@@ -367,6 +371,8 @@ export function PaymentsReportTable() {
     } catch (error: any) {
       console.error('Error adding ledger entry:', error);
       alert(error.message || 'Failed to add ledger entry');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -378,6 +384,7 @@ export function PaymentsReportTable() {
     setAccrual('');
     setOrder('');
     setComment('');
+    setIsSubmitting(false);
   };
 
   const openDialogForPayment = (paymentId: string) => {
@@ -836,8 +843,12 @@ export function PaymentsReportTable() {
                     />
                   </div>
 
-                  <Button onClick={handleAddEntry} className="w-full">
-                    Create Entry
+                  <Button 
+                    onClick={handleAddEntry} 
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Creating...' : 'Create Entry'}
                   </Button>
                 </div>
               </DialogContent>
