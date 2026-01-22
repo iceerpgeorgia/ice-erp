@@ -48,6 +48,12 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
 
   const etUuid = v.entity_type_uuid || "";
   
+  // Compute conditional field values directly (no useEffect side effects)
+  const sexValue = SEX_REQ.has(etUuid) ? (v.sex || "") : "";
+  const pensionValue = etUuid === PENS_REQ ? (v.pension_scheme === null ? "" : String(v.pension_scheme)) : "";
+  const isEmployeeValue = v.is_emploee === null ? "" : String(v.is_emploee);
+  const wasEmployeeValue = v.was_emploee === null ? "" : String(v.was_emploee);
+  
   const mandatory = {
     name: true,
     identification_number: !EXEMPT.has(etUuid),
@@ -64,17 +70,6 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
     const found = entityTypes.find(e => e.entity_type_uuid === etUuid);
     setV((s:any)=>({ ...s, entity_type: found?.name_ka ?? s.entity_type }));
   }, [etUuid]); // eslint-disable-line
-
-  // clear conditionals when not applicable
-  React.useEffect(() => {
-    setV((s:any)=>({
-      ...s,
-      sex: SEX_REQ.has(etUuid) ? (s.sex ?? "") : "",
-      pension_scheme: etUuid === PENS_REQ ? s.pension_scheme : null,
-      is_emploee: s.is_emploee ?? null,
-      was_emploee: s.was_emploee ?? null
-    }));
-  }, [etUuid]);
 
   function field(label:string, name:string, input:React.ReactNode, req=false) {
     return (
@@ -169,7 +164,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       </select>,
       mandatory.entity_type),
     field("Sex","sex",
-      <select className="w-full border rounded px-3 py-2" disabled={!SEX_REQ.has(etUuid)} value={v.sex || ""}
+      <select className="w-full border rounded px-3 py-2" disabled={!SEX_REQ.has(etUuid)} value={sexValue}
         onChange={(e)=>setV((s:any)=>({ ...s, sex:e.target.value }))}
         onMouseDown={(e) => e.stopPropagation()}>
         <option value="">--</option>
@@ -178,7 +173,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       </select>,
       mandatory.sex),
     field("Pension Scheme","pension_scheme",
-      <select className="w-full border rounded px-3 py-2" disabled={etUuid!==PENS_REQ} value={v.pension_scheme === null ? "" : String(v.pension_scheme)} onChange={(e)=>setV((s:any)=>({ ...s, pension_scheme: e.target.value===''? null : e.target.value==='true' }))}
+      <select className="w-full border rounded px-3 py-2" disabled={etUuid!==PENS_REQ} value={pensionValue} onChange={(e)=>setV((s:any)=>({ ...s, pension_scheme: e.target.value===''? null : e.target.value==='true' }))}
         onMouseDown={(e) => e.stopPropagation()}>
         <option value="">--</option>
         <option value="true">True</option>
@@ -206,7 +201,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
     field("Phone","phone", inputText("phone")),
     field("ORIS ID","oris_id", inputText("oris_id")),
     field("Is Employee","is_emploee",
-      <select className="w-full border rounded px-3 py-2" value={v.is_emploee === null ? "" : String(v.is_emploee)}
+      <select className="w-full border rounded px-3 py-2" value={isEmployeeValue}
         onChange={(e)=>setV((s:any)=>({ ...s, is_emploee: e.target.value===''? null : e.target.value==='true' }))}
         onMouseDown={(e) => e.stopPropagation()}>
         <option value="">--</option>
@@ -215,7 +210,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       </select>
     ),
     field("Was Employee","was_emploee",
-      <select className="w-full border rounded px-3 py-2" value={v.was_emploee === null ? "" : String(v.was_emploee)}
+      <select className="w-full border rounded px-3 py-2" value={wasEmployeeValue}
         onChange={(e)=>setV((s:any)=>({ ...s, was_emploee: e.target.value===''? null : e.target.value==='true' }))}
         onMouseDown={(e) => e.stopPropagation()}>
         <option value="">--</option>
