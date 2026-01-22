@@ -843,11 +843,12 @@ export function PaymentsReportTable() {
 
                   <div className="space-y-2">
                     <Label>Comment</Label>
-                    <Input
+                    <textarea
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
                       placeholder="Optional notes or description"
-                      className="border-[3px] border-gray-400 focus-visible:border-blue-500"
+                      className="flex min-h-[240px] w-full rounded-md border-[3px] border-gray-400 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      rows={10}
                     />
                   </div>
 
