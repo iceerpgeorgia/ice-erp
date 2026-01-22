@@ -399,11 +399,23 @@ function processSingleRecord(
 async function identifyBOGGELAccount(xmlContent: string): Promise<AccountInfo | null> {
   try {
     const parsed = await parseStringPromise(xmlContent);
-    const root = parsed.STATEMENT;
+    
+    // BOG GEL format: root element contains HEADER and DETAIL elements directly
+    // Try different possible root element names
+    let root = parsed.STATEMENT || parsed.ROWDATA || parsed;
+    
+    // Handle case where xml2js wraps everything in an extra layer
+    if (root && typeof root === 'object' && !root.HEADER && !root.DETAIL) {
+      const keys = Object.keys(root);
+      if (keys.length === 1) {
+        root = root[keys[0]];
+      }
+    }
+    
     const header = root?.HEADER?.[0];
 
     if (!header) {
-      console.log('⚠️ No HEADER found in XML');
+      console.log('⚠️ No HEADER found in XML. Root keys:', Object.keys(root || {}));
       return null;
     }
 
