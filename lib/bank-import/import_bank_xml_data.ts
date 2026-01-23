@@ -512,8 +512,8 @@ export async function processBOGGEL(
     const { data: existing } = await supabase
       .from(rawTableName)
       .select('uuid')
-      .eq('DocKey', DocKey)
-      .eq('EntriesId', EntriesId)
+      .eq('dockey', DocKey)
+      .eq('entriesid', EntriesId)
       .single();
 
     if (existing) {
@@ -527,55 +527,55 @@ export async function processBOGGEL(
 
     rawRecordsToInsert.push({
       uuid: recordUuid,
-      CanCopyDocument: getText('CanCopyDocument'),
-      CanViewDocument: getText('CanViewDocument'),
-      CanPrintDocument: getText('CanPrintDocument'),
-      IsReval: getText('IsReval'),
-      DocNomination: getText('DocNomination'),
-      DocInformation: getText('DocInformation'),
-      DocSrcAmt: getText('DocSrcAmt'),
-      DocSrcCcy: getText('DocSrcCcy'),
-      DocDstAmt: getText('DocDstAmt'),
-      DocDstCcy: getText('DocDstCcy'),
-      DocKey: DocKey,
-      DocRecDate: getText('DocRecDate'),
-      DocBranch: getText('DocBranch'),
-      DocDepartment: getText('DocDepartment'),
-      DocProdGroup: getText('DocProdGroup'),
-      DocNo: getText('DocNo'),
-      DocValueDate: getText('DocValueDate'),
-      DocSenderName: getText('DocSenderName'),
-      DocSenderInn: getText('DocSenderInn'),
-      DocSenderAcctNo: getText('DocSenderAcctNo'),
-      DocSenderBic: getText('DocSenderBic'),
-      DocActualDate: getText('DocActualDate'),
-      DocCorAcct: getText('DocCorAcct'),
-      DocCorBic: getText('DocCorBic'),
-      DocCorBankName: getText('DocCorBankName'),
-      EntriesId: EntriesId,
-      DocComment: getText('DocComment'),
-      CcyRate: getText('CcyRate'),
-      EntryPDate: getText('EntryPDate'),
-      EntryDocNo: getText('EntryDocNo'),
-      EntryLAcct: getText('EntryLAcct'),
-      EntryLAcctOld: getText('EntryLAcctOld'),
-      EntryDbAmt: getText('EntryDbAmt'),
-      EntryDbAmtBase: getText('EntryDbAmtBase'),
-      EntryCrAmt: getText('EntryCrAmt'),
-      EntryCrAmtBase: getText('EntryCrAmtBase'),
-      OutBalance: getText('OutBalance'),
-      EntryAmtBase: getText('EntryAmtBase'),
-      EntryComment: getText('EntryComment'),
-      EntryDepartment: getText('EntryDepartment'),
-      EntryAcctPoint: getText('EntryAcctPoint'),
-      DocSenderBicName: getText('DocSenderBicName'),
-      DocBenefName: getText('DocBenefName'),
-      DocBenefInn: getText('DocBenefInn'),
-      DocBenefAcctNo: getText('DocBenefAcctNo'),
-      DocBenefBic: getText('DocBenefBic'),
-      DocBenefBicName: getText('DocBenefBicName'),
-      DocPayerName: getText('DocPayerName'),
-      DocPayerInn: getText('DocPayerInn'),
+      cancopydocument: getText('CanCopyDocument'),
+      canviewdocument: getText('CanViewDocument'),
+      canprintdocument: getText('CanPrintDocument'),
+      isreval: getText('IsReval'),
+      docnomination: getText('DocNomination'),
+      docinformation: getText('DocInformation'),
+      docsrcamt: getText('DocSrcAmt'),
+      docsrcccy: getText('DocSrcCcy'),
+      docdstamt: getText('DocDstAmt'),
+      docdstccy: getText('DocDstCcy'),
+      dockey: DocKey,
+      docrecdate: getText('DocRecDate'),
+      docbranch: getText('DocBranch'),
+      docdepartment: getText('DocDepartment'),
+      docprodgroup: getText('DocProdGroup'),
+      docno: getText('DocNo'),
+      docvaluedate: getText('DocValueDate'),
+      docsendername: getText('DocSenderName'),
+      docsenderinn: getText('DocSenderInn'),
+      docsenderacctno: getText('DocSenderAcctNo'),
+      docsenderbic: getText('DocSenderBic'),
+      docactualdate: getText('DocActualDate'),
+      doccoracct: getText('DocCorAcct'),
+      doccorbic: getText('DocCorBic'),
+      doccorbankname: getText('DocCorBankName'),
+      entriesid: EntriesId,
+      doccomment: getText('DocComment'),
+      ccyrate: getText('CcyRate'),
+      entrypdate: getText('EntryPDate'),
+      entrydocno: getText('EntryDocNo'),
+      entrylacct: getText('EntryLAcct'),
+      entrylacctold: getText('EntryLAcctOld'),
+      entrydbamt: getText('EntryDbAmt'),
+      entrydbamtbase: getText('EntryDbAmtBase'),
+      entrycramt: getText('EntryCrAmt'),
+      entrycramtbase: getText('EntryCrAmtBase'),
+      outbalance: getText('OutBalance'),
+      entryamtbase: getText('EntryAmtBase'),
+      entrycomment: getText('EntryComment'),
+      entrydepartment: getText('EntryDepartment'),
+      entryacctpoint: getText('EntryAcctPoint'),
+      docsenderbicname: getText('DocSenderBicName'),
+      docbenefname: getText('DocBenefName'),
+      docbenefinn: getText('DocBenefInn'),
+      docbenefacctno: getText('DocBenefAcctNo'),
+      docbenefbic: getText('DocBenefBic'),
+      docbenefbicname: getText('DocBenefBicName'),
+      docpayername: getText('DocPayerName'),
+      docpayerinn: getText('DocPayerInn'),
       import_batch_id: importBatchId,
       counteragent_processed: false,
       parsing_rule_processed: false,
@@ -629,7 +629,7 @@ export async function processBOGGEL(
   const { data: rawRecords, error: fetchError } = await supabase
     .from(rawTableName)
     .select(
-      'uuid, DocKey, EntriesId, DocRecDate, DocValueDate, EntryCrAmt, EntryDbAmt, DocSenderInn, DocBenefInn, DocSenderAcctNo, DocBenefAcctNo, DocCorAcct, DocNomination, DocInformation, DocProdGroup, CcyRate'
+      'uuid, dockey, entriesid, docrecdate, docvaluedate, entrycramt, entrydbamt, docsenderinn, docbenefinn, docsenderacctno, docbenefacctno, doccoracct, docnomination, docinformation, docprodgroup, ccyrate'
     )
     .eq('import_batch_id', importBatchId)
     .order('DocValueDate', { ascending: false });
@@ -660,25 +660,25 @@ export async function processBOGGEL(
   for (let idx = 0; idx < totalRecords; idx++) {
     const rawRecord = rawRecords[idx];
 
-    const credit = rawRecord.EntryCrAmt ? parseFloat(rawRecord.EntryCrAmt) : 0;
-    const debit = rawRecord.EntryDbAmt ? parseFloat(rawRecord.EntryDbAmt) : 0;
+    const credit = rawRecord.entrycramt ? parseFloat(rawRecord.entrycramt) : 0;
+    const debit = rawRecord.entrydbamt ? parseFloat(rawRecord.entrydbamt) : 0;
     const accountCurrencyAmount = credit - debit;
 
-    const transactionDate = parseBOGDate(rawRecord.DocValueDate);
+    const transactionDate = parseBOGDate(rawRecord.docvaluedate);
     if (!transactionDate) continue;
 
     const row = {
       uuid: rawRecord.uuid,
-      dockey: rawRecord.DocKey,
-      entriesid: rawRecord.EntriesId,
-      docsenderinn: rawRecord.DocSenderInn,
-      docbenefinn: rawRecord.DocBenefInn,
-      doccorracct: rawRecord.DocCorAcct,
-      docsenderacctno: rawRecord.DocSenderAcctNo,
-      docbenefacctno: rawRecord.DocBenefAcctNo,
-      docprodgroup: rawRecord.DocProdGroup,
-      docnomination: rawRecord.DocNomination,
-      docinformation: rawRecord.DocInformation,
+      dockey: rawRecord.dockey,
+      entriesid: rawRecord.entriesid,
+      docsenderinn: rawRecord.docsenderinn,
+      docbenefinn: rawRecord.docbenefinn,
+      doccorracct: rawRecord.doccorracct,
+      docsenderacctno: rawRecord.docsenderacctno,
+      docbenefacctno: rawRecord.docbenefacctno,
+      docprodgroup: rawRecord.docprodgroup,
+      docnomination: rawRecord.docnomination,
+      docinformation: rawRecord.docinformation,
       debit: debit,
     };
 
@@ -720,7 +720,7 @@ export async function processBOGGEL(
       bank_account_uuid: bankAccountUuid,
       raw_record_uuid: rawRecord.uuid,
       transaction_date: transactionDate,
-      description: rawRecord.DocNomination || '',
+      description: rawRecord.docnomination || '',
       counteragent_uuid: result.counteragent_uuid,
       counteragent_account_number: result.counteragent_account_number,
       project_uuid: result.project_uuid,
@@ -960,7 +960,7 @@ export async function backparseExistingData(
     let rawQuery = supabase
       .from(rawTableName)
       .select(
-        'uuid, DocKey, EntriesId, DocRecDate, DocValueDate, EntryCrAmt, EntryDbAmt, DocSenderInn, DocBenefInn, DocSenderAcctNo, DocBenefAcctNo, DocCorAcct, DocNomination, DocInformation, DocProdGroup, CcyRate'
+        'uuid, dockey, entriesid, docrecdate, docvaluedate, entrycramt, entrydbamt, docsenderinn, docbenefinn, docsenderacctno, docbenefacctno, doccoracct, docnomination, docinformation, docprodgroup, ccyrate'
       );
 
     if (batchId) {
@@ -998,25 +998,25 @@ export async function backparseExistingData(
     for (let idx = 0; idx < totalRecords; idx++) {
       const rawRecord = rawRecords[idx];
 
-      const credit = rawRecord.EntryCrAmt ? parseFloat(rawRecord.EntryCrAmt) : 0;
-      const debit = rawRecord.EntryDbAmt ? parseFloat(rawRecord.EntryDbAmt) : 0;
+      const credit = rawRecord.entrycramt ? parseFloat(rawRecord.entrycramt) : 0;
+      const debit = rawRecord.entrydbamt ? parseFloat(rawRecord.entrydbamt) : 0;
       const accountCurrencyAmount = credit - debit;
 
-      const transactionDate = parseBOGDate(rawRecord.DocValueDate);
+      const transactionDate = parseBOGDate(rawRecord.docvaluedate);
       if (!transactionDate) continue;
 
       const row = {
         uuid: rawRecord.uuid,
-        dockey: rawRecord.DocKey,
-        entriesid: rawRecord.EntriesId,
-        docsenderinn: rawRecord.DocSenderInn,
-        docbenefinn: rawRecord.DocBenefInn,
-        doccorracct: rawRecord.DocCorAcct,
-        docsenderacctno: rawRecord.DocSenderAcctNo,
-        docbenefacctno: rawRecord.DocBenefAcctNo,
-        docprodgroup: rawRecord.DocProdGroup,
-        docnomination: rawRecord.DocNomination,
-        docinformation: rawRecord.DocInformation,
+        dockey: rawRecord.dockey,
+        entriesid: rawRecord.entriesid,
+        docsenderinn: rawRecord.docsenderinn,
+        docbenefinn: rawRecord.docbenefinn,
+        doccorracct: rawRecord.doccorracct,
+        docsenderacctno: rawRecord.docsenderacctno,
+        docbenefacctno: rawRecord.docbenefacctno,
+        docprodgroup: rawRecord.docprodgroup,
+        docnomination: rawRecord.docnomination,
+        docinformation: rawRecord.docinformation,
         debit: debit,
       };
 
@@ -1058,7 +1058,7 @@ export async function backparseExistingData(
         bank_account_uuid: account.uuid,
         raw_record_uuid: rawRecord.uuid,
         transaction_date: transactionDate,
-        description: rawRecord.DocNomination || '',
+        description: rawRecord.docnomination || '',
         counteragent_uuid: result.counteragent_uuid,
         counteragent_account_number: result.counteragent_account_number,
         project_uuid: result.project_uuid,
