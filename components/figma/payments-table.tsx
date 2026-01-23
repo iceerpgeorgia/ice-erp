@@ -14,6 +14,8 @@ import {
   Settings,
   Eye,
   EyeOff,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -24,14 +26,6 @@ import { Switch } from './ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from './ui/table';
 
 export type Payment = {
   id: number;
@@ -100,7 +94,8 @@ export function PaymentsTable() {
   const [sortColumn, setSortColumn] = useState<ColumnKey>('createdAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(defaultColumns);
-  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [filters, setFilters] = useState<Map<string, Set<any>>>(new Map());
+  const [isInitialized, setIsInitialized] = useState(false);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -108,7 +103,7 @@ export function PaymentsTable() {
   const pageSizeOptions = [50, 100, 200, 500, 1000];
   
   // Column dragging and resizing states
-  const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number } | null>(null);
+  const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number; element: HTMLElement } | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
 
@@ -147,6 +142,39 @@ export function PaymentsTable() {
   const [duplicateCount, setDuplicateCount] = useState(0);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
   const [duplicatePaymentIds, setDuplicatePaymentIds] = useState<string[]>([]);
+
+  // Load saved column configuration after hydration
+  useEffect(() => {
+    const saved = localStorage.getItem('paymentsTableColumns');
+    if (saved) {
+      try {
+        const savedColumns = JSON.parse(saved) as ColumnConfig[];
+        const defaultColumnsMap = new Map(defaultColumns.map(col => [col.key, col]));
+        const validSavedColumns = savedColumns.filter(savedCol => defaultColumnsMap.has(savedCol.key));
+        const updatedSavedColumns = validSavedColumns.map(savedCol => {
+          const defaultCol = defaultColumnsMap.get(savedCol.key);
+          if (defaultCol) {
+            return { ...defaultCol, visible: savedCol.visible, width: savedCol.width };
+          }
+          return savedCol;
+        });
+        const savedKeys = new Set(validSavedColumns.map(col => col.key));
+        const newColumns = defaultColumns.filter(col => !savedKeys.has(col.key));
+        setColumnConfig([...updatedSavedColumns, ...newColumns]);
+      } catch (e) {
+        console.error('Failed to parse saved columns:', e);
+        setColumnConfig(defaultColumns);
+      }
+    }
+    setIsInitialized(true);
+  }, []);
+
+  // Save column configuration to localStorage whenever it changes
+  useEffect(() => {
+    if (isInitialized && typeof window !== 'undefined') {
+      localStorage.setItem('paymentsTableColumns', JSON.stringify(columnConfig));
+    }
+  }, [columnConfig, isInitialized]);
 
   useEffect(() => {
     fetchPayments();
@@ -547,18 +575,28 @@ export function PaymentsTable() {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
       
-      const diff = e.clientX - isResizing.startX;
-      const newWidth = Math.max(60, isResizing.startWidth + diff);
+      const deltaX = e.clientX - isResizing.startX;
+      const newWidth = Math.max(60, isResizing.startWidth + deltaX);
       
-      setColumnConfig(cols => cols.map(col => 
-        col.key === isResizing.column 
-          ? { ...col, width: newWidth }
-          : col
-      ));
+      // Update DOM directly without triggering re-render
+      isResizing.element.style.width = `${newWidth}px`;
+      isResizing.element.style.minWidth = `${newWidth}px`;
+      isResizing.element.style.maxWidth = `${newWidth}px`;
     };
 
     const handleMouseUp = () => {
+      if (!isResizing) return;
+      
+      const finalWidth = parseInt(isResizing.element.style.width);
+      setColumnConfig(prev =>
+        prev.map(col =>
+          col.key === isResizing.column ? { ...col, width: finalWidth } : col
+        )
+      );
+      
       setIsResizing(null);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
 
     if (isResizing) {
@@ -566,9 +604,6 @@ export function PaymentsTable() {
       document.addEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
-    } else {
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
     }
 
     return () => {
@@ -632,11 +667,38 @@ export function PaymentsTable() {
     }
   };
 
-  const getUniqueValues = (key: ColumnKey): string[] => {
-    const values = payments
-      .map(payment => String(payment[key] || ''))
-      .filter((value, index, self) => value && self.indexOf(value) === index);
-    return values.sort();
+  const handleToggleColumn = (columnKey: string) => {
+    setColumnConfig(prev => 
+      prev.map(col => 
+        col.key === columnKey ? { ...col, visible: !col.visible } : col
+      )
+    );
+  };
+
+  const handleFilterChange = (columnKey: string, values: Set<any>) => {
+    const newFilters = new Map(filters);
+    if (values.size === 0) {
+      newFilters.delete(columnKey);
+    } else {
+      newFilters.set(columnKey, values);
+    }
+    setFilters(newFilters);
+  };
+
+  const uniqueValuesCache = useMemo(() => {
+    const cache = new Map<ColumnKey, any[]>();
+    const filterableColumns = columnConfig.filter(col => col.filterable);
+    
+    filterableColumns.forEach(col => {
+      const values = new Set(payments.map(row => row[col.key]));
+      cache.set(col.key, Array.from(values).sort());
+    });
+    
+    return cache;
+  }, [payments, columnConfig]);
+
+  const getUniqueValues = (columnKey: ColumnKey): any[] => {
+    return uniqueValuesCache.get(columnKey) || [];
   };
 
   const filteredAndSortedPayments = useMemo(() => {
@@ -653,14 +715,17 @@ export function PaymentsTable() {
     }
 
     // Apply column filters
-    Object.entries(columnFilters).forEach(([column, values]) => {
-      if (values.length > 0) {
-        filtered = filtered.filter(payment => {
-          const cellValue = String(payment[column as ColumnKey] || '');
-          return values.includes(cellValue);
-        });
-      }
-    });
+    if (filters.size > 0) {
+      filtered = filtered.filter(row => {
+        for (const [columnKey, allowedValues] of filters.entries()) {
+          const rowValue = row[columnKey as ColumnKey];
+          if (!allowedValues.has(rowValue)) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
 
     // Apply sorting
     filtered.sort((a, b) => {
@@ -685,7 +750,7 @@ export function PaymentsTable() {
     });
 
     return filtered;
-  }, [payments, searchTerm, sortColumn, sortDirection, columnFilters]);
+  }, [payments, searchTerm, sortColumn, sortDirection, filters]);
 
   // Pagination
   const totalRecords = filteredAndSortedPayments.length;
@@ -700,169 +765,44 @@ export function PaymentsTable() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, columnFilters, pageSize]);
-
-  // Column filter component (matching counteragents style)
-  function ColumnFilter({ column }: { column: ColumnConfig }) {
-    const uniqueValues = getUniqueValues(column.key);
-    const [searchValue, setSearchValue] = useState('');
-    const [tempSelected, setTempSelected] = useState<string[]>(columnFilters[column.key] || []);
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-
-    const filteredValues = uniqueValues.filter(value =>
-      value.toLowerCase().includes(searchValue.toLowerCase())
-    );
-
-    const sortedValues = [...filteredValues].sort((a, b) => {
-      return sortOrder === 'asc' ? a.localeCompare(b) : b.localeCompare(a);
-    });
-
-    const handleApply = () => {
-      setColumnFilters(prev => ({
-        ...prev,
-        [column.key]: tempSelected
-      }));
-    };
-
-    const handleCancel = () => {
-      setTempSelected(columnFilters[column.key] || []);
-    };
-
-    const handleSelectAll = () => {
-      setTempSelected(sortedValues);
-    };
-
-    const handleClearAll = () => {
-      setTempSelected([]);
-    };
-
-    const toggleSort = () => {
-      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
-    };
-
-    return (
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-6 px-2 hover:bg-gray-100"
-          >
-            <Filter className="h-3 w-3" />
-            {columnFilters[column.key]?.length > 0 && (
-              <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
-                {columnFilters[column.key].length}
-              </Badge>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-64 p-0" align="start">
-          <div className="p-2 border-b">
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search..."
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                className="pl-8 h-9"
-              />
-            </div>
-          </div>
-          <div className="p-2 border-b flex items-center justify-between">
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleSort}
-                className="h-7 px-2"
-              >
-                {sortOrder === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-              </Button>
-            </div>
-            <div className="flex gap-2 text-xs">
-              <button
-                onClick={handleSelectAll}
-                className="text-blue-600 hover:underline"
-              >
-                Select all
-              </button>
-              <span className="text-gray-400">|</span>
-              <button
-                onClick={handleClearAll}
-                className="text-blue-600 hover:underline"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-          <div className="max-h-48 overflow-y-auto p-2">
-            {sortedValues.map(value => (
-              <div key={value} className="flex items-center space-x-2 py-1">
-                <Checkbox
-                  id={`${column.key}-${value}`}
-                  checked={tempSelected.includes(value)}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setTempSelected([...tempSelected, value]);
-                    } else {
-                      setTempSelected(tempSelected.filter(v => v !== value));
-                    }
-                  }}
-                />
-                <label
-                  htmlFor={`${column.key}-${value}`}
-                  className="text-sm cursor-pointer flex-1"
-                >
-                  {value || '(empty)'}
-                </label>
-              </div>
-            ))}
-          </div>
-          <div className="p-2 border-t flex justify-end gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleCancel}
-              className="h-8"
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleApply}
-              className="h-8 bg-green-600 hover:bg-green-700"
-            >
-              OK
-            </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
-    );
-  }
+  }, [searchTerm, filters, pageSize]);
 
   const visibleColumns = columnConfig.filter(col => col.visible);
+  const activeFilterCount = filters.size;
 
   if (loading) {
     return <div className="p-8 text-center">Loading payments...</div>;
   }
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Payments</h1>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (open) {
-            // Reset form when dialog opens to ensure blank state
-            resetForm();
-          }
-        }}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Add Payment
-            </Button>
-          </DialogTrigger>
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* Header */}
+      <div className="sticky top-0 z-20 flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-semibold">Payments</h1>
+            <Badge variant="secondary">
+              {filteredAndSortedPayments.length} records
+            </Badge>
+            {totalPages > 1 && (
+              <span className="text-sm text-gray-500">
+                Page {currentPage} of {totalPages}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (open) {
+                resetForm();
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Payment
+                </Button>
+              </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Add New Payment</DialogTitle>
@@ -1091,186 +1031,237 @@ export function PaymentsTable() {
         </div>
       </div>
 
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Page {currentPage} of {totalPages}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(1)}
-              disabled={currentPage === 1}
-            >
-              First
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(totalPages)}
-              disabled={currentPage === totalPages}
-            >
-              Last
-            </Button>
+              </DialogContent>
+            </Dialog>
+
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8 w-64"
+              />
+            </div>
+            
+            {activeFilterCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFilters(new Map())}
+                className="gap-2"
+              >
+                <X className="w-4 h-4" />
+                Clear Filters
+              </Button>
+            )}
+
+            {/* Pagination Controls */}
+            {filteredAndSortedPayments.length > 0 && (
+              <>
+                <div className="flex items-center gap-2 border-l pl-2">
+                  <span className="text-sm text-gray-600">Rows per page:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="border rounded px-2 py-1 text-sm"
+                  >
+                    {pageSizeOptions.map(size => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 border-l pl-2">
+                  <span className="text-sm text-gray-600">
+                    {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, filteredAndSortedPayments.length)} of {filteredAndSortedPayments.length}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </>
+            )}
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Settings className="w-4 h-4" />
+                  Columns
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56">
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Toggle Columns</h4>
+                  {columnConfig.map(col => (
+                    <div key={col.key} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={col.key}
+                        checked={col.visible}
+                        onCheckedChange={() => handleToggleColumn(col.key)}
+                      />
+                      <label htmlFor={col.key} className="text-sm cursor-pointer">
+                        {col.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
-      )}
-
-      <div className="flex items-center gap-4">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4 mr-2" />
-              Columns
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-64">
-            <div className="space-y-2">
-              <h4 className="font-medium text-sm mb-3">Toggle Columns</h4>
-              {columnConfig.map((column) => (
-                <div key={column.key} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`col-${column.key}`}
-                    checked={column.visible}
-                    onCheckedChange={(checked) => {
-                      setColumnConfig(
-                        columnConfig.map(col =>
-                          col.key === column.key ? { ...col, visible: !!checked } : col
-                        )
-                      );
-                    }}
-                  />
-                  <label
-                    htmlFor={`col-${column.key}`}
-                    className="text-sm cursor-pointer"
-                  >
-                    {column.label}
-                  </label>
-                </div>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
       </div>
 
-      <div className="border rounded-lg overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {visibleColumns.map((column) => (
-                <TableHead 
-                  key={column.key} 
-                  draggable={!isResizing}
-                  onDragStart={(e) => handleDragStart(e, column.key)}
-                  onDragOver={(e) => handleDragOver(e, column.key)}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, column.key)}
-                  onDragEnd={handleDragEnd}
-                  className={`relative group ${
-                    draggedColumn === column.key ? 'opacity-50' : ''
-                  } ${
-                    dragOverColumn === column.key ? 'border-l-4 border-l-blue-500' : ''
-                  }`}
-                  style={{ 
-                    width: column.width,
-                    cursor: isResizing ? 'col-resize' : 'grab'
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      {column.sortable ? (
+      {/* Table */}
+      <div className="flex-1 p-4 overflow-hidden">
+        <div className="h-full overflow-auto rounded-lg border bg-white">
+          <table style={{ tableLayout: 'fixed', width: '100%' }} className="border-collapse">
+            <thead className="sticky top-0 z-10 bg-white">
+              <tr className="border-b-2 border-gray-200">
+                {visibleColumns.map(col => (
+                  <th 
+                    key={col.key} 
+                    className={`font-semibold relative cursor-move overflow-hidden text-left px-4 py-3 text-sm ${
+                      draggedColumn === col.key ? 'opacity-50' : ''
+                    } ${
+                      dragOverColumn === col.key ? 'border-l-4 border-blue-500' : ''
+                    }`}
+                    style={{ 
+                      width: col.width, 
+                      minWidth: col.width, 
+                      maxWidth: col.width
+                    }}
+                    draggable={!isResizing}
+                    onDragStart={(e) => handleDragStart(e, col.key)}
+                    onDragOver={(e) => handleDragOver(e, col.key)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, col.key)}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div className="flex items-center gap-2 pr-4 overflow-hidden">
+                      {col.sortable ? (
                         <button
-                          onClick={() => handleSort(column.key)}
-                          className="flex items-center gap-1 hover:text-gray-900"
+                          onClick={() => handleSort(col.key)}
+                          className="flex items-center gap-1 hover:text-gray-900 truncate"
                         >
-                          {column.label}
-                          {sortColumn === column.key && (
-                            sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                          <span className="truncate font-medium">{col.label}</span>
+                          {sortColumn === col.key && (
+                            sortDirection === 'asc' ? <ArrowUp className="h-3 w-3 flex-shrink-0" /> : <ArrowDown className="h-3 w-3 flex-shrink-0" />
                           )}
                         </button>
                       ) : (
-                        column.label
+                        <span className="truncate font-medium">{col.label}</span>
                       )}
-                      {column.filterable && <ColumnFilter column={column} />}
+                      {col.filterable && (
+                        <FilterPopover
+                          columnKey={col.key}
+                          columnLabel={col.label}
+                          values={getUniqueValues(col.key)}
+                          activeFilters={filters.get(col.key) || new Set()}
+                          onFilterChange={(values) => handleFilterChange(col.key, values)}
+                          onSort={(direction) => {
+                            setSortColumn(col.key);
+                            setSortDirection(direction);
+                          }}
+                        />
+                      )}
                     </div>
                     
                     {/* Resize handle */}
-                    <div
-                      className="absolute top-0 bottom-0 w-4 cursor-col-resize hover:bg-blue-400/30 active:bg-blue-500/50 transition-colors"
-                      style={{ 
-                        right: '-8px',
-                        zIndex: 30 
-                      }}
-                      draggable={false}
+                    <div 
+                      className="absolute top-0 right-0 bottom-0 w-5 cursor-col-resize hover:bg-blue-500/20 active:bg-blue-600/40 z-50"
+                      style={{ marginRight: '-10px' }}
                       onMouseDown={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        const thElement = e.currentTarget.parentElement as HTMLElement;
                         setIsResizing({
-                          column: column.key,
+                          column: col.key,
                           startX: e.clientX,
-                          startWidth: column.width
+                          startWidth: col.width,
+                          element: thElement
                         });
                       }}
-                      onClick={(e) => e.stopPropagation()}
-                      title="Drag to resize column"
+                      title="Drag to resize"
                     >
-                      <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-[2px] bg-gray-300 hover:bg-blue-500 transition-colors" />
+                      <div className="absolute right-2 top-0 bottom-0 w-1 bg-gray-300 hover:bg-blue-500 transition-colors" />
                     </div>
-                  </div>
-                </TableHead>
-              ))}
-              <TableHead className="w-[100px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedPayments.map((payment) => (
-              <TableRow key={payment.id}>
-                {visibleColumns.map((column) => (
-                  <TableCell key={column.key} style={{ width: column.width }}>
-                    {column.key === 'isActive' ? (
-                      <Badge variant={payment.isActive ? 'default' : 'secondary'}>
-                        {payment.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    ) : column.key === 'incomeTax' ? (
-                      <span className="text-muted-foreground">
-                        {payment.incomeTax ? 'Yes' : 'No'}
-                      </span>
-                    ) : (
-                      String(payment[column.key] || '')
-                    )}
-                  </TableCell>
+                  </th>
                 ))}
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleOpenEditDialog(payment)}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                <th 
+                  className="sticky top-0 bg-white px-4 py-3 text-left text-sm font-semibold border-b-2 border-gray-200"
+                  style={{ width: 100, minWidth: 100, maxWidth: 100 }}
+                >
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAndSortedPayments.length === 0 ? (
+                <tr>
+                  <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4 text-gray-500">
+                    No records found
+                  </td>
+                </tr>
+              ) : (
+                paginatedPayments.map((payment, idx) => (
+                  <tr key={`${payment.id}-${idx}`} className="border-b border-gray-200 hover:bg-gray-50">
+                    {visibleColumns.map(col => (
+                      <td 
+                        key={col.key}
+                        className="overflow-hidden px-4 py-2 text-sm"
+                        style={{ 
+                          width: col.width, 
+                          minWidth: col.width, 
+                          maxWidth: col.width
+                        }}
+                      >
+                        <div className="truncate">
+                          {col.key === 'isActive' ? (
+                            <Badge variant={payment.isActive ? 'default' : 'secondary'}>
+                              {payment.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                          ) : col.key === 'incomeTax' ? (
+                            <span className="text-muted-foreground">
+                              {payment.incomeTax ? 'Yes' : 'No'}
+                            </span>
+                          ) : (
+                            String(payment[col.key] || '')
+                          )}
+                        </div>
+                      </td>
+                    ))}
+                    <td className="px-4 py-2 text-sm" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleOpenEditDialog(payment)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Edit Payment Dialog */}
