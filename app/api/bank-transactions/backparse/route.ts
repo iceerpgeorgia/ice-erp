@@ -1,44 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { backparseExistingData } from '@/lib/bank-import/import_bank_xml_data';
 
-const execAsync = promisify(exec);
-
+/**
+ * Backparse API - Reprocess existing raw data without XML upload
+ * Applies current parsing rules, counteragent mappings, and payment data
+ * to existing raw bank statement records
+ */
 export async function POST(request: NextRequest) {
+  let allLogs = "";
+
+  // Capture console.log output
+  const originalLog = console.log;
+  console.log = (...args: any[]) => {
+    const message = args.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+    ).join(' ');
+    allLogs += message + '\n';
+    originalLog(...args);
+  };
+
   try {
     const body = await request.json();
     const { clear, accountUuid, batchId } = body;
 
-    // Build command
-    let command = 'python import_bank_xml_data.py backparse';
-    
-    if (clear) command += ' --clear';
-    if (accountUuid) command += ` --account-uuid ${accountUuid}`;
-    if (batchId) command += ` --batch-id ${batchId}`;
+    console.log('🔄 BACKPARSE REQUEST');
+    console.log('━'.repeat(80));
+    if (accountUuid) console.log(`Account UUID: ${accountUuid}`);
+    if (batchId) console.log(`Batch ID: ${batchId}`);
+    if (clear) console.log(`Clear Consolidated: ${clear}`);
+    console.log('━'.repeat(80) + '\n');
 
-    console.log('🚀 Running backparse command:', command);
+    // Run TypeScript backparse
+    await backparseExistingData(accountUuid, batchId, clear);
 
-    // Execute with timeout of 10 minutes
-    const { stdout, stderr } = await execAsync(command, {
-      timeout: 600000,
-      maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-    });
+    console.log = originalLog;
 
     return NextResponse.json({
       success: true,
-      stdout,
-      stderr,
       message: 'Backparse completed successfully',
+      logs: allLogs,
     });
   } catch (error: any) {
+    console.log = originalLog;
     console.error('❌ Backparse error:', error);
-    
+
     return NextResponse.json(
       {
         success: false,
         error: error.message,
-        stdout: error.stdout,
-        stderr: error.stderr,
+        logs: allLogs,
       },
       { status: 500 }
     );

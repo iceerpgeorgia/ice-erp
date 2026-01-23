@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { processBOGGEL } from "@/lib/bank-import/bog-gel-processor";
+import { processBOGGEL } from "@/lib/bank-import/import_bank_xml_data";
 import { getSupabaseClient } from "@/lib/bank-import/db-utils";
 
 /**
