@@ -212,7 +212,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     entityType: '',
     entityTypeUuid: '', // Track UUID for conditional logic
     sex: '',
-    pensionScheme: null as boolean | null,
+    pensionScheme: '', // Must be string for Radix Select (will convert to boolean on submit)
     country: '',
     countryUuid: '', // Track UUID for auto-fill
     addressLine1: '',
@@ -511,7 +511,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     
     // 7. Pension Scheme - conditional mandatory for employees
     if (entityTypeUuid === EMPLOYEE_ID) {
-      if (formData.pensionScheme === null) {
+      if (!formData.pensionScheme) {
         errors.pensionScheme = 'Pension Scheme is required for employees';
       }
     }
@@ -680,7 +680,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
             identification_number: formData.identificationNumber || null,
             birth_or_incorporation_date: formData.birthOrIncorporationDate || null,
             sex: formData.sex || null,
-            pension_scheme: formData.pensionScheme,
+            pension_scheme: formData.pensionScheme === 'true' ? true : formData.pensionScheme === 'false' ? false : null,
             // Don't send country/entity_type - let trigger populate from UUIDs
             address_line_1: formData.addressLine1 || null,
             address_line_2: formData.addressLine2 || null,
@@ -776,7 +776,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
             identification_number: formData.identificationNumber || null,
             birth_or_incorporation_date: formData.birthOrIncorporationDate || null,
             sex: formData.sex || null,
-            pension_scheme: formData.pensionScheme,
+            pension_scheme: formData.pensionScheme === 'true' ? true : formData.pensionScheme === 'false' ? false : null,
             // Don't send country/entity_type - let trigger populate from UUIDs
             address_line_1: formData.addressLine1 || null,
             address_line_2: formData.addressLine2 || null,
@@ -880,7 +880,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
       entityType: counteragent.entityType || '',
       entityTypeUuid: counteragent.entityTypeUuid || '',
       sex: counteragent.sex || '',
-      pensionScheme: counteragent.pensionScheme ?? null,
+      pensionScheme: counteragent.pensionScheme === true ? 'true' : counteragent.pensionScheme === false ? 'false' : '',
       country: counteragent.country || '',
       countryUuid: counteragent.countryUuid || '',
       addressLine1: counteragent.addressLine1 || '',
@@ -1331,9 +1331,9 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   </Label>
                   <div className="col-span-3">
                     <Select 
-                      value={formData.pensionScheme === null || formData.pensionScheme === undefined ? '' : formData.pensionScheme.toString()} 
+                      value={formData.pensionScheme || ''} 
                       onValueChange={(value) => {
-                        setFormData({...formData, pensionScheme: value === 'true' ? true : value === 'false' ? false : null});
+                        setFormData({...formData, pensionScheme: value});
                         if (formErrors.pensionScheme) setFormErrors({...formErrors, pensionScheme: ''});
                       }}
                       disabled={formData.entityTypeUuid !== 'bf4d83f9-5064-4958-af6e-e4c21b2e4880'}
@@ -1668,9 +1668,9 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   </Label>
                   <div className="col-span-3">
                     <Select 
-                      value={formData.pensionScheme === null || formData.pensionScheme === undefined ? '' : formData.pensionScheme.toString()} 
+                      value={formData.pensionScheme || ''} 
                       onValueChange={(value) => {
-                        setFormData({...formData, pensionScheme: value === 'true' ? true : value === 'false' ? false : null});
+                        setFormData({...formData, pensionScheme: value});
                         if (formErrors.pensionScheme) setFormErrors({...formErrors, pensionScheme: ''});
                       }}
                       disabled={formData.entityTypeUuid !== 'bf4d83f9-5064-4958-af6e-e4c21b2e4880'}
