@@ -168,9 +168,9 @@ const mapCounteragentData = (row: any): Counteragent => ({
 
 export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   const [entityTypes, setEntityTypes] = useState<Counteragent[]>(data ?? []);
-  // Dropdown data
-  const [entityTypesList, setEntityTypesList] = useState<Array<{id: number, nameKa: string, entityTypeUuid: string}>>([]);
-  const [countriesList, setCountriesList] = useState<Array<{id: number, country: string, countryUuid: string}>>([]);
+  // Dropdown data - API returns snake_case field names
+  const [entityTypesList, setEntityTypesList] = useState<Array<{id: number, name_ka: string, entity_type_uuid: string}>>([]);
+  const [countriesList, setCountriesList] = useState<Array<{id: number, country: string, country_uuid: string}>>([]);
   
   // Horizontal scroll synchronization between the table and a sticky bottom scroller
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1246,14 +1246,14 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 editData={null}
                 entityTypes={(() => {
                   const mapped = entityTypesList.map(et => ({ 
-                    entityTypeUuid: et.entityTypeUuid, 
-                    entityType: et.nameKa 
+                    entityTypeUuid: et.entity_type_uuid || et.entityTypeUuid, 
+                    entityType: et.name_ka || et.nameKa 
                   }));
                   console.log('[Add Dialog] EntityTypes:', mapped);
                   return mapped;
                 })()}
                 countries={countriesList.map(c => ({ 
-                  countryUuid: c.countryUuid, 
+                  countryUuid: c.country_uuid || c.countryUuid, 
                   country: c.country 
                 }))}
               />
@@ -1312,11 +1312,11 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 }}
                 editData={editingEntityType}
                 entityTypes={entityTypesList.map(et => ({ 
-                  entityTypeUuid: et.entityTypeUuid, 
-                  entityType: et.nameKa 
+                  entityTypeUuid: et.entity_type_uuid || et.entityTypeUuid, 
+                  entityType: et.name_ka || et.nameKa 
                 }))}
                 countries={countriesList.map(c => ({ 
-                  countryUuid: c.countryUuid, 
+                  countryUuid: c.country_uuid || c.countryUuid, 
                   country: c.country 
                 }))}
               />
