@@ -6,6 +6,27 @@
 import { createClient } from '@supabase/supabase-js';
 import type { CounteragentData, ParsingRule, PaymentData, NBGRates } from './types';
 
+const DEFAULT_PAGE_SIZE = 1000;
+
+async function fetchAllRows<T>(
+  queryFactory: (from: number, to: number) => Promise<{ data: T[] | null; error: any }>
+): Promise<T[]> {
+  const results: T[] = [];
+  let from = 0;
+
+  while (true) {
+    const to = from + DEFAULT_PAGE_SIZE - 1;
+    const { data, error } = await queryFactory(from, to);
+    if (error) throw error;
+    const batch = (data || []) as T[];
+    results.push(...batch);
+    if (batch.length < DEFAULT_PAGE_SIZE) break;
+    from += DEFAULT_PAGE_SIZE;
+  }
+
+  return results;
+}
+
 export function getSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -26,12 +47,13 @@ export async function loadCounteragents(supabase: ReturnType<typeof getSupabaseC
   const start = Date.now();
   console.log('  ⏳ Loading counteragents from Supabase...');
 
-  const { data, error } = await supabase
-    .from('counteragents')
-    .select('counteragent_uuid, identification_number, counteragent')
-    .not('identification_number', 'is', null);
-
-  if (error) throw error;
+  const data = await fetchAllRows<any>(async (from, to) =>
+    await supabase
+      .from('counteragents')
+      .select('counteragent_uuid, identification_number, counteragent')
+      .not('identification_number', 'is', null)
+      .range(from, to)
+  );
 
   const map = new Map<string, CounteragentData>();
   for (const row of data || []) {
@@ -53,11 +75,12 @@ export async function loadParsingRules(supabase: ReturnType<typeof getSupabaseCl
   const start = Date.now();
   console.log('  ⏳ Loading parsing rules from Supabase...');
 
-  const { data, error } = await supabase
-    .from('parsing_scheme_rules')
-    .select('id, counteragent_uuid, financial_code_uuid, nominal_currency_uuid, payment_id, column_name, condition');
-
-  if (error) throw error;
+  const data = await fetchAllRows<any>(async (from, to) =>
+    await supabase
+      .from('parsing_scheme_rules')
+      .select('id, counteragent_uuid, financial_code_uuid, nominal_currency_uuid, payment_id, column_name, condition')
+      .range(from, to)
+  );
 
   const rules: ParsingRule[] = (data || []).map(row => {
     let columnName = row.column_name;
@@ -90,26 +113,29 @@ export async function loadPayments(supabase: ReturnType<typeof getSupabaseClient
   console.log('  ⏳ Loading payments and salary_accruals from Supabase...');
 
   // Load from both payments and salary_accruals tables
-  const [paymentsResult, salaryResult] = await Promise.all([
-    supabase
-      .from('payments')
-      .select('payment_id, counteragent_uuid, project_uuid, financial_code_uuid, currency_uuid')
-      .not('payment_id', 'is', null),
-    supabase
-      .from('salary_accruals')
-      .select('payment_id, counteragent_uuid, financial_code_uuid, nominal_currency_uuid')
-      .not('payment_id', 'is', null),
+  const [paymentsData, salaryData] = await Promise.all([
+    fetchAllRows<any>(async (from, to) =>
+      await supabase
+        .from('payments')
+        .select('payment_id, counteragent_uuid, project_uuid, financial_code_uuid, currency_uuid')
+        .not('payment_id', 'is', null)
+        .range(from, to)
+    ),
+    fetchAllRows<any>(async (from, to) =>
+      await supabase
+        .from('salary_accruals')
+        .select('payment_id, counteragent_uuid, financial_code_uuid, nominal_currency_uuid')
+        .not('payment_id', 'is', null)
+        .range(from, to)
+    ),
   ]);
-
-  if (paymentsResult.error) throw paymentsResult.error;
-  if (salaryResult.error) throw salaryResult.error;
 
   const map = new Map<string, PaymentData>();
   let paymentsCount = 0;
   let salaryCount = 0;
 
   // Add payments
-  for (const row of paymentsResult.data || []) {
+  for (const row of paymentsData || []) {
     const paymentId = row.payment_id?.trim().toLowerCase();
     if (paymentId) {
       map.set(paymentId, {
@@ -124,7 +150,7 @@ export async function loadPayments(supabase: ReturnType<typeof getSupabaseClient
   }
 
   // Add salary accruals
-  for (const row of salaryResult.data || []) {
+  for (const row of salaryData || []) {
     const paymentId = row.payment_id?.trim().toLowerCase();
     if (paymentId) {
       map.set(paymentId, {
@@ -147,11 +173,12 @@ export async function loadNBGRates(supabase: ReturnType<typeof getSupabaseClient
   const start = Date.now();
   console.log('  ⏳ Loading NBG exchange rates from Supabase...');
 
-  const { data, error } = await supabase
-    .from('nbg_exchange_rates')
-    .select('date, usd_rate, eur_rate, cny_rate, gbp_rate, rub_rate, try_rate, aed_rate, kzt_rate');
-
-  if (error) throw error;
+  const data = await fetchAllRows<any>(async (from, to) =>
+    await supabase
+      .from('nbg_exchange_rates')
+      .select('date, usd_rate, eur_rate, cny_rate, gbp_rate, rub_rate, try_rate, aed_rate, kzt_rate')
+      .range(from, to)
+  );
 
   const map = new Map<string, NBGRates>();
   for (const row of data || []) {
@@ -174,9 +201,9 @@ export async function loadNBGRates(supabase: ReturnType<typeof getSupabaseClient
 
 export async function loadCurrencyCache(supabase: ReturnType<typeof getSupabaseClient>): Promise<Map<string, string>> {
   console.log('  🔄 Loading currency cache...');
-  const { data, error } = await supabase.from('currencies').select('uuid, code');
-
-  if (error) throw error;
+  const data = await fetchAllRows<any>(async (from, to) =>
+    await supabase.from('currencies').select('uuid, code').range(from, to)
+  );
 
   const map = new Map<string, string>();
   for (const row of data || []) {

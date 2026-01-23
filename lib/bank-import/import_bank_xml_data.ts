@@ -632,7 +632,7 @@ export async function processBOGGEL(
       'uuid, dockey, entriesid, docrecdate, docvaluedate, entrycramt, entrydbamt, docsenderinn, docbenefinn, docsenderacctno, docbenefacctno, doccoracct, docnomination, docinformation, docprodgroup, ccyrate'
     )
     .eq('import_batch_id', importBatchId)
-    .order('DocValueDate', { ascending: false });
+    .order('docvaluedate', { ascending: false });
 
   if (fetchError) throw fetchError;
 
