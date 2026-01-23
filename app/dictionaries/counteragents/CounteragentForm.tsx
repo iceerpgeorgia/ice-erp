@@ -34,15 +34,33 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
     };
   };
   
-  const [v, setV] = React.useState<any>(() => ({
-    entity_type_uuid: "",
-    sex: "",
-    pension_scheme: "",
-    country: "",
-    is_emploee: "",
-    was_emploee: "",
-    ...normalizeInitial(initial)
-  }));
+  const [v, setV] = React.useState<any>(() => {
+    const normalized = normalizeInitial(initial);
+    return {
+      name: "",
+      identification_number: "",
+      birth_or_incorporation_date: "",
+      entity_type_uuid: "",
+      entity_type: "",
+      sex: "",
+      pension_scheme: "",
+      country: "",
+      address_line_1: "",
+      address_line_2: "",
+      zip_code: "",
+      iban: "",
+      swift: "",
+      director: "",
+      director_id: "",
+      email: "",
+      phone: "",
+      oris_id: "",
+      counteragent: "",
+      is_emploee: "",
+      was_emploee: "",
+      ...normalized
+    };
+  });
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
 
