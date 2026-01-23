@@ -466,6 +466,18 @@ export function PaymentsTable() {
     }
   };
 
+  // Custom filter function for exact regex matching in dropdowns
+  const regexFilter = (value: string, search: string) => {
+    if (!search) return 1;
+    try {
+      const regex = new RegExp(search, 'i');
+      return regex.test(value) ? 1 : 0;
+    } catch {
+      // If regex is invalid, fall back to exact substring match
+      return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+    }
+  };
+
   const handleAddPayment = async () => {
     // Validate mandatory fields only - with specific error messages
     const missingFields: string[] = [];
@@ -504,9 +516,37 @@ export function PaymentsTable() {
         throw new Error(error.error || 'Failed to create payment');
       }
 
+      const result = await response.json();
+      const newPayment = result.data;
+
+      // Create properly typed Payment object with enriched data
+      const enrichedPayment: Payment = {
+        id: Number(newPayment.id),
+        projectUuid: newPayment.project_uuid || '',
+        counteragentUuid: newPayment.counteragent_uuid,
+        financialCodeUuid: newPayment.financial_code_uuid,
+        jobUuid: newPayment.job_uuid || '',
+        incomeTax: newPayment.income_tax,
+        currencyUuid: newPayment.currency_uuid,
+        paymentId: newPayment.payment_id || '',
+        recordUuid: newPayment.record_uuid || '',
+        isActive: newPayment.is_active !== false,
+        createdAt: newPayment.created_at || new Date().toISOString(),
+        updatedAt: newPayment.updated_at || new Date().toISOString(),
+        // Add related labels from current selections
+        projectIndex: projects.find(p => p.projectUuid === newPayment.project_uuid)?.projectIndex || null,
+        counteragentName: counteragents.find(c => c.counteragentUuid === newPayment.counteragent_uuid)?.name || null,
+        financialCodeValidation: financialCodes.find(fc => fc.uuid === newPayment.financial_code_uuid)?.validation || null,
+        jobName: jobs.find(j => j.jobUuid === newPayment.job_uuid)?.jobName || null,
+        jobIdentifier: newPayment.job_uuid || null,
+        currencyCode: currencies.find(c => c.uuid === newPayment.currency_uuid)?.code || null,
+      };
+
+      // Insert new payment at the top of the list
+      setPayments(prev => [enrichedPayment, ...prev]);
+
       setIsDialogOpen(false);
       resetForm();
-      fetchPayments();
     } catch (error: any) {
       console.error('Error adding payment:', error);
       alert(error.message || 'Failed to add payment');
@@ -823,6 +863,7 @@ export function PaymentsTable() {
                   }))}
                   placeholder="Select counteragent..."
                   searchPlaceholder="Search counteragents..."
+                  filter={regexFilter}
                 />
               </div>
 
@@ -841,6 +882,7 @@ export function PaymentsTable() {
                     }))}
                     placeholder="Select financial code..."
                     searchPlaceholder="Search financial codes..."
+                    filter={regexFilter}
                   />
                 ) : (
                   <Input value="" placeholder="Select counteragent first" disabled className="bg-muted" />
@@ -864,6 +906,7 @@ export function PaymentsTable() {
                     placeholder={currencies.length === 0 ? "Loading currencies..." : "Select currency..."}
                     searchPlaceholder="Search currencies..."
                     disabled={currencies.length === 0}
+                    filter={regexFilter}
                   />
                 ) : (
                   <Input value="" placeholder="⚠️ Select financial code first" disabled className="bg-muted" />
@@ -903,6 +946,7 @@ export function PaymentsTable() {
                     }))}
                     placeholder="Select project..."
                     searchPlaceholder="Search projects..."
+                    filter={regexFilter}
                   />
                 ) : (
                   <Input value="" placeholder="Select currency first" disabled className="bg-muted" />
@@ -924,6 +968,7 @@ export function PaymentsTable() {
                     }))}
                     placeholder="Select job..."
                     searchPlaceholder="Search jobs..."
+                    filter={regexFilter}
                   />
                 ) : (
                   <Input value="" placeholder="Select project first" disabled className="bg-muted" />
