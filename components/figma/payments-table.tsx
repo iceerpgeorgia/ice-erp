@@ -878,7 +878,7 @@ export function PaymentsTable() {
                     onValueChange={setSelectedFinancialCodeUuid}
                     options={financialCodes.map(fc => ({
                       value: fc.uuid,
-                      label: `${fc.validation} (${fc.code})`
+                      label: fc.validation
                     }))}
                     placeholder="Select financial code..."
                     searchPlaceholder="Search financial codes..."
@@ -901,7 +901,7 @@ export function PaymentsTable() {
                     onValueChange={setSelectedCurrencyUuid}
                     options={currencies.map(c => ({
                       value: c.uuid,
-                      label: `${c.code} - ${c.name}`
+                      label: c.code
                     }))}
                     placeholder={currencies.length === 0 ? "Loading currencies..." : "Select currency..."}
                     searchPlaceholder="Search currencies..."
