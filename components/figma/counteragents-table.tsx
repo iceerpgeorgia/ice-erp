@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from './ui/select';
 import { Combobox } from '@/components/ui/combobox';
+import { CounteragentFormDialog } from './CounteragentFormDialog';
 import { 
   Table, 
   TableBody, 
@@ -39,6 +40,9 @@ import {
   TableHeader, 
   TableRow 
 } from './ui/table';
+
+// FEATURE FLAG: Set to true to use new form, false to use old form
+const USE_NEW_FORM = true;
 
 
 
@@ -1209,6 +1213,113 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
         </div>
         <div className="flex items-center gap-2">
           <ColumnSettings />
+          
+          {/* NEW FORM IMPLEMENTATION - Toggle with USE_NEW_FORM flag */}
+          {USE_NEW_FORM ? (
+            <>
+              {/* New Form Dialog */}
+              <Button onClick={() => { resetForm(); setIsAddDialogOpen(true); }}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Counteragent
+              </Button>
+              
+              <CounteragentFormDialog
+                isOpen={isAddDialogOpen}
+                onClose={() => setIsAddDialogOpen(false)}
+                onSave={async (payload) => {
+                  const response = await fetch('/api/counteragents', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                  });
+                  
+                  if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to create counteragent');
+                  }
+                  
+                  const refreshResponse = await fetch('/api/counteragents');
+                  const refreshedData = await refreshResponse.json();
+                  const mappedData = refreshedData.map(mapCounteragentData);
+                  setEntityTypes(mappedData);
+                }}
+                editData={null}
+                entityTypes={entityTypesList.map(et => ({ 
+                  entityTypeUuid: et.entityTypeUuid, 
+                  entityType: et.nameKa 
+                }))}
+                countries={countriesList.map(c => ({ 
+                  countryUuid: c.countryUuid, 
+                  country: c.country 
+                }))}
+              />
+              
+              <CounteragentFormDialog
+                isOpen={isEditDialogOpen}
+                onClose={() => { setIsEditDialogOpen(false); setEditingEntityType(null); }}
+                onSave={async (payload) => {
+                  const response = await fetch(`/api/counteragents?id=${editingEntityType?.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                  });
+                  
+                  if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to update counteragent');
+                  }
+                  
+                  const updated = await response.json();
+                  const transformedUpdate: Counteragent = {
+                    id: updated.id,
+                    createdAt: updated.created_at,
+                    updatedAt: updated.updated_at,
+                    ts: updated.ts,
+                    counteragentUuid: updated.counteragent_uuid,
+                    name: updated.name,
+                    identificationNumber: updated.identification_number,
+                    birthOrIncorporationDate: updated.birth_or_incorporation_date,
+                    entityType: updated.entity_type,
+                    sex: updated.sex,
+                    pensionScheme: updated.pension_scheme,
+                    country: updated.country,
+                    addressLine1: updated.address_line_1,
+                    addressLine2: updated.address_line_2,
+                    zipCode: updated.zip_code,
+                    iban: updated.iban,
+                    swift: updated.swift,
+                    director: updated.director,
+                    directorId: updated.director_id,
+                    email: updated.email,
+                    phone: updated.phone,
+                    orisId: updated.oris_id,
+                    counteragent: updated.counteragent,
+                    countryUuid: updated.country_uuid,
+                    entityTypeUuid: updated.entity_type_uuid,
+                    internalNumber: updated.internal_number,
+                    isActive: updated.is_active,
+                    isEmploye: updated.is_emploee || false,
+                    wasEmploye: updated.was_emploee || false,
+                  };
+                  
+                  setEntityTypes(entityTypes.map(counteragent =>
+                    counteragent.id === editingEntityType?.id ? transformedUpdate : counteragent
+                  ));
+                }}
+                editData={editingEntityType}
+                entityTypes={entityTypesList.map(et => ({ 
+                  entityTypeUuid: et.entityTypeUuid, 
+                  entityType: et.nameKa 
+                }))}
+                countries={countriesList.map(c => ({ 
+                  countryUuid: c.countryUuid, 
+                  country: c.country 
+                }))}
+              />
+            </>
+          ) : (
+            <>
+          {/* OLD FORM IMPLEMENTATION - Will be used when USE_NEW_FORM = false */}
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={resetForm}>
@@ -1883,6 +1994,9 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
               </div>
             </DialogContent>
           </Dialog>
+          </>
+          )}
+          {/* END OF OLD/NEW FORM TOGGLE */}
 
           {/* Audit History Dialog */}
           <Dialog open={isAuditDialogOpen} onOpenChange={setIsAuditDialogOpen}>
