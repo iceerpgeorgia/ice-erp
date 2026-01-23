@@ -95,36 +95,51 @@ export async function POST(req: NextRequest) {
         }
 
         const currencyCode = accountFull.substring(accountFull.length - 3);
-        const accountNumber = accountFull;
+        const accountNumber = accountFull.trim().toUpperCase();
 
         console.log(`📊 Identified Account: ${accountNumber}`);
         console.log(`💱 Currency: ${currencyCode}\n`);
 
-        // Find account UUID in database
+        // Find account UUID in database (account_number column)
         const supabase = getSupabaseClient();
-        const { data: accountData, error: accountError } = await supabase
+        const { data: accountDataExact } = await supabase
           .from('bank_accounts')
-          .select('uuid, parsing_scheme_uuid')
-          .eq('account', accountNumber)
+          .select('uuid, parsing_scheme_uuid, raw_table_name, account_number, currency_uuid')
+          .eq('account_number', accountNumber)
           .single();
 
-        if (accountError || !accountData) {
-          throw new Error(`Account not found in database: ${accountNumber}`);
+        let accountData = accountDataExact;
+
+        if (!accountData) {
+          const accountNumberNoCcy = accountNumber.slice(0, -3);
+          const { data: accountDataFallback } = await supabase
+            .from('bank_accounts')
+            .select('uuid, parsing_scheme_uuid, raw_table_name, account_number, currency_uuid')
+            .eq('account_number', accountNumberNoCcy)
+            .single();
+
+          accountData = accountDataFallback || null;
+        }
+
+        if (!accountData) {
+          throw new Error(
+            `Account not found in database: ${accountNumber} (tried without currency: ${accountNumber.slice(0, -3)})`
+          );
         }
 
         const accountUuid = accountData.uuid;
         console.log(`✅ Account UUID: ${accountUuid}\n`);
 
-        // Determine raw table name (format: bog_gel_raw_XXXXXXXXXX)
-        const accountDigits = accountNumber.replace(/\D/g, '').slice(-10);
-        const rawTableName = `bog_gel_raw_${accountDigits}`;
+        // Determine raw table name (prefer stored mapping)
+        const accountDigits = accountData.account_number.replace(/\D/g, '').slice(-10);
+        const rawTableName = accountData.raw_table_name || `bog_gel_raw_${accountDigits}`;
         console.log(`📋 Raw Table: ${rawTableName}\n`);
 
         // Process the XML using TypeScript implementation
         await processBOGGEL(
           xmlContent,
           accountUuid,
-          accountNumber,
+          accountData.account_number,
           currencyCode,
           rawTableName,
           importBatchId
