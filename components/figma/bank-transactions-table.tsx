@@ -587,7 +587,31 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
       formData.append('file', file);
     });
 
+    let logWindow: Window | null = null;
     try {
+      // Open log window immediately to avoid popup blockers
+      logWindow = window.open('', 'Processing Logs', 'width=800,height=600');
+      if (logWindow) {
+        logWindow.document.write(`
+          <html>
+            <head>
+              <title>Processing Logs</title>
+              <style>
+                body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+                pre { white-space: pre-wrap; word-wrap: break-word; }
+                h2 { color: #4ec9b0; }
+                .info { color: #9cdcfe; }
+              </style>
+            </head>
+            <body>
+              <h2 class="info">Processing...</h2>
+              <pre>Waiting for server response...</pre>
+            </body>
+          </html>
+        `);
+        logWindow.document.close();
+      }
+
       const response = await fetch('/api/bank-transactions/upload', {
         method: 'POST',
         body: formData,
@@ -597,7 +621,9 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
 
       if (response.ok) {
         // Show logs in a textarea for better readability
-        const logWindow = window.open('', 'Processing Logs', 'width=800,height=600');
+        if (!logWindow) {
+          logWindow = window.open('', 'Processing Logs', 'width=800,height=600');
+        }
         if (logWindow) {
           logWindow.document.write(`
             <html>

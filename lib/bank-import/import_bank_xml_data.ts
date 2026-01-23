@@ -494,6 +494,7 @@ export async function processBOGGEL(
   console.log(`📦 Found ${details.length} transactions in XML\n`);
 
   const rawRecordsToInsert: any[] = [];
+  const recordUuids: string[] = [];
   let skippedRawDuplicates = 0;
   let skippedMissingKeys = 0;
 
@@ -524,6 +525,7 @@ export async function processBOGGEL(
     // Generate UUID
     const recordUuidStr = `${DocKey}_${EntriesId}`;
     const recordUuid = uuidv5(recordUuidStr, DNS_NAMESPACE);
+    recordUuids.push(recordUuid);
 
     rawRecordsToInsert.push({
       uuid: recordUuid,
@@ -600,7 +602,6 @@ export async function processBOGGEL(
     console.log(`✅ Successfully inserted ${rawRecordsToInsert.length} raw records!\n`);
   } else {
     console.log('⚠️ No new records to insert\n');
-    return;
   }
 
   // =============================
@@ -626,17 +627,23 @@ export async function processBOGGEL(
   console.log('🔄 STEP 3: THREE-PHASE PROCESSING WITH HIERARCHY');
   console.log('='.repeat(80) + '\n');
 
-  const { data: rawRecords, error: fetchError } = await supabase
-    .from(rawTableName)
-    .select(
-      'uuid, dockey, entriesid, docrecdate, docvaluedate, entrycramt, entrydbamt, docsenderinn, docbenefinn, docsenderacctno, docbenefacctno, doccoracct, docnomination, docinformation, docprodgroup, ccyrate'
-    )
-    .eq('import_batch_id', importBatchId)
-    .order('docvaluedate', { ascending: false });
+  const rawRecords: any[] = [];
+  const batchSize = 1000;
+  for (let i = 0; i < recordUuids.length; i += batchSize) {
+    const batch = recordUuids.slice(i, i + batchSize);
+    const { data: batchData, error: fetchError } = await supabase
+      .from(rawTableName)
+      .select(
+        'uuid, dockey, entriesid, docrecdate, docvaluedate, entrycramt, entrydbamt, docsenderinn, docbenefinn, docsenderacctno, docbenefacctno, doccoracct, docnomination, docinformation, docprodgroup, ccyrate'
+      )
+      .in('uuid', batch)
+      .order('docvaluedate', { ascending: false });
 
-  if (fetchError) throw fetchError;
+    if (fetchError) throw fetchError;
+    rawRecords.push(...(batchData || []));
+  }
 
-  const totalRecords = rawRecords?.length || 0;
+  const totalRecords = rawRecords.length || 0;
   console.log(`📦 Processing ${totalRecords} records...\n`);
 
   const stats: ProcessingStats = {
