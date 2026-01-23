@@ -273,7 +273,7 @@ export function CounteragentFormDialog({
             <Label htmlFor="entityType" className="text-right">Entity Type *</Label>
             <div className="col-span-3">
               <Combobox
-                options={entityTypes.map(et => ({ value: et.entityTypeUuid, label: et.entityType }))}
+                options={entityTypes.map(et => ({ value: et.entityTypeUuid, label: et.entityType, keywords: et.entityType }))}
                 value={formData.entityTypeUuid}
                 onValueChange={(value) => updateField('entityTypeUuid', value)}
                 placeholder="Select entity type"
@@ -361,7 +361,7 @@ export function CounteragentFormDialog({
             <Label htmlFor="country" className="text-right">Country *</Label>
             <div className="col-span-3">
               <Combobox
-                options={countries.map(c => ({ value: c.countryUuid, label: c.country }))}
+                options={countries.map(c => ({ value: c.countryUuid, label: c.country, keywords: c.country }))}
                 value={formData.countryUuid}
                 onValueChange={(value) => updateField('countryUuid', value)}
                 placeholder="Select country"
