@@ -212,7 +212,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     entityType: '',
     entityTypeUuid: '', // Track UUID for conditional logic
     sex: '',
-    pensionScheme: null as boolean | null,
+    pensionScheme: '',
     country: '',
     countryUuid: '', // Track UUID for auto-fill
     addressLine1: '',
@@ -680,7 +680,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
             identification_number: formData.identificationNumber || null,
             birth_or_incorporation_date: formData.birthOrIncorporationDate || null,
             sex: formData.sex || null,
-            pension_scheme: formData.pensionScheme,
+            pension_scheme: formData.pensionScheme === 'true' ? true : formData.pensionScheme === 'false' ? false : null,
             // Don't send country/entity_type - let trigger populate from UUIDs
             address_line_1: formData.addressLine1 || null,
             address_line_2: formData.addressLine2 || null,
@@ -776,7 +776,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
             identification_number: formData.identificationNumber || null,
             birth_or_incorporation_date: formData.birthOrIncorporationDate || null,
             sex: formData.sex || null,
-            pension_scheme: formData.pensionScheme,
+            pension_scheme: formData.pensionScheme === 'true' ? true : formData.pensionScheme === 'false' ? false : null,
             // Don't send country/entity_type - let trigger populate from UUIDs
             address_line_1: formData.addressLine1 || null,
             address_line_2: formData.addressLine2 || null,
@@ -880,7 +880,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
       entityType: counteragent.entityType || '',
       entityTypeUuid: counteragent.entityTypeUuid || '',
       sex: counteragent.sex || '',
-      pensionScheme: counteragent.pensionScheme ?? null,
+      pensionScheme: counteragent.pensionScheme === true ? 'true' : counteragent.pensionScheme === false ? 'false' : '',
       country: counteragent.country || '',
       countryUuid: counteragent.countryUuid || '',
       addressLine1: counteragent.addressLine1 || '',
@@ -1305,12 +1305,11 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   </Label>
                   <div className="col-span-3">
                     <Select 
-                      value={formData.sex} 
+                      value={formData.sex || ''} 
                       onValueChange={(value) => {
                         setFormData({...formData, sex: value});
                         if (formErrors.sex) setFormErrors({...formErrors, sex: ''});
                       }}
-                      disabled={!['bf4d83f9-5064-4958-af6e-e4c21b2e4880', '5747f8e6-a8a6-4a23-91cc-c427c3a22597', 'ba538574-e93f-4ce8-a780-667b61fc970a'].includes(formData.entityTypeUuid)}
                     >
                       <SelectTrigger className={formErrors.sex ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Select sex" />
@@ -1331,12 +1330,11 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   </Label>
                   <div className="col-span-3">
                     <Select 
-                      value={formData.pensionScheme === null || formData.pensionScheme === undefined ? '' : formData.pensionScheme.toString()} 
+                      value={formData.pensionScheme || ''} 
                       onValueChange={(value) => {
-                        setFormData({...formData, pensionScheme: value === 'true' ? true : value === 'false' ? false : null});
+                        setFormData({...formData, pensionScheme: value});
                         if (formErrors.pensionScheme) setFormErrors({...formErrors, pensionScheme: ''});
                       }}
-                      disabled={formData.entityTypeUuid !== 'bf4d83f9-5064-4958-af6e-e4c21b2e4880'}
                     >
                       <SelectTrigger className={formErrors.pensionScheme ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Select pension scheme" />
@@ -1642,12 +1640,11 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   </Label>
                   <div className="col-span-3">
                     <Select 
-                      value={formData.sex} 
+                      value={formData.sex || ''} 
                       onValueChange={(value) => {
                         setFormData({...formData, sex: value});
                         if (formErrors.sex) setFormErrors({...formErrors, sex: ''});
                       }}
-                      disabled={!['bf4d83f9-5064-4958-af6e-e4c21b2e4880', '5747f8e6-a8a6-4a23-91cc-c427c3a22597', 'ba538574-e93f-4ce8-a780-667b61fc970a'].includes(formData.entityTypeUuid)}
                     >
                       <SelectTrigger className={formErrors.sex ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Select sex" />
@@ -1668,12 +1665,11 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   </Label>
                   <div className="col-span-3">
                     <Select 
-                      value={formData.pensionScheme === null || formData.pensionScheme === undefined ? '' : formData.pensionScheme.toString()} 
+                      value={formData.pensionScheme || ''} 
                       onValueChange={(value) => {
-                        setFormData({...formData, pensionScheme: value === 'true' ? true : value === 'false' ? false : null});
+                        setFormData({...formData, pensionScheme: value});
                         if (formErrors.pensionScheme) setFormErrors({...formErrors, pensionScheme: ''});
                       }}
-                      disabled={formData.entityTypeUuid !== 'bf4d83f9-5064-4958-af6e-e4c21b2e4880'}
                     >
                       <SelectTrigger className={formErrors.pensionScheme ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Select pension scheme" />
