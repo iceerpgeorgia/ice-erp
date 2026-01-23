@@ -560,7 +560,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   // Handler for entity type dropdown change
   const handleEntityTypeChange = (entityTypeUuid: string) => {
     // Combobox now passes entityTypeUuid directly as the value
-    const selectedEntityType = entityTypesList.find(et => et.entityTypeUuid === entityTypeUuid);
+    const selectedEntityType = entityTypesList.find(et => et.entity_type_uuid === entityTypeUuid);
     
     // UUID constants for conditional logic
     const EXEMPT_IDS = ['f5c3c745-eaa4-4e27-a73b-badc9ebb49c0', '7766e9c2-0094-4090-adf4-ef017062457f', '5747f8e6-a8a6-4a23-91cc-c427c3a22597'];
@@ -574,10 +574,10 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     
     setFormData({
       ...formData,
-      entityType: selectedEntityType?.nameKa || '',
+      entityType: selectedEntityType?.name_ka || '',
       entityTypeUuid: entityTypeUuid,
       sex: shouldClearSex ? '' : formData.sex,
-      pensionScheme: shouldClearPension ? null : formData.pensionScheme,
+      pensionScheme: shouldClearPension ? (null as any) : formData.pensionScheme,
     });
     
     // Clear related errors
@@ -589,7 +589,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   // Handler for country dropdown change
   const handleCountryChange = (countryUuid: string) => {
     // Combobox now passes countryUuid directly as the value
-    const selectedCountry = countriesList.find(c => c.countryUuid === countryUuid);
+    const selectedCountry = countriesList.find(c => c.country_uuid === countryUuid);
     
     setFormData({
       ...formData,
