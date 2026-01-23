@@ -168,13 +168,13 @@ const mapCounteragentData = (row: any): Counteragent => ({
 
 // Normalization helpers to handle snake_case API responses
 const normalizeEntityType = (et: any) => ({
-  entityTypeUuid: et.entity_type_uuid || et.entityTypeUuid,
-  entityType: et.name_ka || et.nameKa || et.entityType,
+  entityTypeUuid: et.entity_type_uuid || et.entity_type_uuid,
+  entityType: et.name_ka || et.name_ka || et.entityType,
   id: et.id
 });
 
 const normalizeCountry = (c: any) => ({
-  countryUuid: c.country_uuid || c.countryUuid,
+  countryUuid: c.country_uuid || c.country_uuid,
   country: c.country,
   id: c.id
 });
@@ -709,8 +709,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
             email: formData.email || null,
             phone: formData.phone || null,
             oris_id: formData.orisId || null,
-            country_uuid: formData.countryUuid ? formData.countryUuid : null,
-            entity_type_uuid: formData.entityTypeUuid ? formData.entityTypeUuid : null,
+            country_uuid: formData.countryUuid || undefined,
+            entity_type_uuid: formData.entityTypeUuid || undefined,
             is_active: formData.isActive,
             is_emploee: formData.isEmploye || false,
             was_emploee: formData.wasEmploye || false
@@ -805,8 +805,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
             email: formData.email || null,
             phone: formData.phone || null,
             oris_id: formData.orisId || null,
-            country_uuid: formData.countryUuid ? formData.countryUuid : null,
-            entity_type_uuid: formData.entityTypeUuid ? formData.entityTypeUuid : null,
+            country_uuid: formData.countryUuid || undefined,
+            entity_type_uuid: formData.entityTypeUuid || undefined,
             is_active: formData.isActive,
             is_emploee: formData.isEmploye || false,
             was_emploee: formData.wasEmploye || false
@@ -858,7 +858,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
       entityType: '',
       entityTypeUuid: '',
       sex: '',
-      pensionScheme: null,
+      pensionScheme: '',
       country: '',
       countryUuid: '',
       addressLine1: '',
@@ -1363,7 +1363,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                       </SelectTrigger>
                       <SelectContent>
                         {entityTypesList.map(et => (
-                          <SelectItem key={et.id} value={et.entityTypeUuid}>{et.nameKa}</SelectItem>
+                          <SelectItem key={et.id} value={et.entity_type_uuid}>{et.name_ka}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -1465,7 +1465,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   <Label htmlFor="add-country" className="text-right">Country *</Label>
                   <div className="col-span-3">
                     <Combobox
-                      options={countriesList.map(c => ({ value: c.countryUuid, label: c.country, keywords: c.country }))}
+                      options={countriesList.map(c => ({ value: c.country_uuid, label: c.country, keywords: c.country }))}
                       value={formData.countryUuid}
                       onValueChange={handleCountryChange}
                       placeholder="Select country"
@@ -1698,7 +1698,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                       </SelectTrigger>
                       <SelectContent>
                         {entityTypesList.map(et => (
-                          <SelectItem key={et.id} value={et.entityTypeUuid}>{et.nameKa}</SelectItem>
+                          <SelectItem key={et.id} value={et.entity_type_uuid}>{et.name_ka}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -1800,7 +1800,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   <Label htmlFor="edit-country" className="text-right">Country *</Label>
                   <div className="col-span-3">
                     <Combobox
-                      options={countriesList.map(c => ({ value: c.countryUuid, label: c.country, keywords: c.country }))}
+                      options={countriesList.map(c => ({ value: c.country_uuid, label: c.country, keywords: c.country }))}
                       value={formData.countryUuid}
                       onValueChange={handleCountryChange}
                       placeholder="Select country"
@@ -2048,7 +2048,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                                     <span className="text-red-600 line-through">
                                       {(() => {
                                         if (field === 'country_uuid') {
-                                          const label = countriesList.find(c => c.countryUuid === change.from)?.country;
+                                          const label = countriesList.find(c => c.country_uuid === change.from)?.country;
                                           return label || (change.from === null || change.from === undefined ? 'N/A' : String(change.from));
                                         } else {
                                           // country_uuid_label
@@ -2061,7 +2061,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                                     <span className="text-green-600">
                                       {(() => {
                                         if (field === 'country_uuid') {
-                                          const label = countriesList.find(c => c.countryUuid === change.to)?.country;
+                                          const label = countriesList.find(c => c.country_uuid === change.to)?.country;
                                           return label || (change.to === null || change.to === undefined ? 'N/A' : String(change.to));
                                         } else {
                                           // country_uuid_label
