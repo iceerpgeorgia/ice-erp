@@ -27,20 +27,20 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       entity_type_uuid: data.entity_type_uuid || "",
       sex: data.sex || "",
       country: data.country || "",
-      // Boolean fields remain as booleans or null (not converted to strings)
-      pension_scheme: data.pension_scheme ?? null,
-      is_emploee: data.is_emploee ?? null,
-      was_emploee: data.was_emploee ?? null,
+      // Boolean fields converted to strings for consistent select handling
+      pension_scheme: data.pension_scheme === true ? "true" : data.pension_scheme === false ? "false" : "",
+      is_emploee: data.is_emploee === true ? "true" : data.is_emploee === false ? "false" : "",
+      was_emploee: data.was_emploee === true ? "true" : data.was_emploee === false ? "false" : "",
     };
   };
   
   const [v, setV] = React.useState<any>(() => ({
     entity_type_uuid: "",
     sex: "",
-    pension_scheme: null,
+    pension_scheme: "",
     country: "",
-    is_emploee: null,
-    was_emploee: null,
+    is_emploee: "",
+    was_emploee: "",
     ...normalizeInitial(initial)
   }));
   const [saving, setSaving] = React.useState(false);
@@ -49,10 +49,10 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
   const etUuid = v.entity_type_uuid || "";
   
   // Compute conditional field values directly (no useEffect side effects)
-  const sexValue = SEX_REQ.has(etUuid) ? (v.sex || "") : "";
-  const pensionValue = etUuid === PENS_REQ ? (v.pension_scheme === null ? "" : String(v.pension_scheme)) : "";
-  const isEmployeeValue = v.is_emploee === null ? "" : String(v.is_emploee);
-  const wasEmployeeValue = v.was_emploee === null ? "" : String(v.was_emploee);
+  const sexValue = SEX_REQ.has(etUuid) ? v.sex : "";
+  const pensionValue = etUuid === PENS_REQ ? v.pension_scheme : "";
+  const isEmployeeValue = v.is_emploee;
+  const wasEmployeeValue = v.was_emploee;
   
   const mandatory = {
     name: true,
@@ -119,10 +119,21 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
         v.sex = "";
       }
       if (etUuid === PENS_REQ) {
-        if (v.pension_scheme !== true && v.pension_scheme !== false) throw new Error("Pension Scheme must be True or False");
+        if (v.pension_scheme !== "true" && v.pension_scheme !== "false") throw new Error("Pension Scheme must be True or False");
+        // Convert string to boolean for API
+        v.pension_scheme = v.pension_scheme === "true";
       } else {
         v.pension_scheme = null;
       }
+
+      // Convert boolean string fields to actual booleans for API
+      if (v.is_emploee === "true") v.is_emploee = true;
+      else if (v.is_emploee === "false") v.is_emploee = false;
+      else v.is_emploee = null;
+
+      if (v.was_emploee === "true") v.was_emploee = true;
+      else if (v.was_emploee === "false") v.was_emploee = false;
+      else v.was_emploee = null;
 
       const payload = { ...v };
       const method = mode === "create" ? "POST" : "PUT";
@@ -173,7 +184,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       </select>,
       mandatory.sex),
     field("Pension Scheme","pension_scheme",
-      <select className="w-full border rounded px-3 py-2" disabled={etUuid!==PENS_REQ} value={pensionValue} onChange={(e)=>setV((s:any)=>({ ...s, pension_scheme: e.target.value===''? null : e.target.value==='true' }))}
+      <select className="w-full border rounded px-3 py-2" disabled={etUuid!==PENS_REQ} value={pensionValue} onChange={(e)=>setV((s:any)=>({ ...s, pension_scheme: e.target.value }))}
         onMouseDown={(e) => e.stopPropagation()}>
         <option value="">--</option>
         <option value="true">True</option>
@@ -202,7 +213,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
     field("ORIS ID","oris_id", inputText("oris_id")),
     field("Is Employee","is_emploee",
       <select className="w-full border rounded px-3 py-2" value={isEmployeeValue}
-        onChange={(e)=>setV((s:any)=>({ ...s, is_emploee: e.target.value===''? null : e.target.value==='true' }))}
+        onChange={(e)=>setV((s:any)=>({ ...s, is_emploee: e.target.value }))}
         onMouseDown={(e) => e.stopPropagation()}>
         <option value="">--</option>
         <option value="true">True</option>
@@ -211,7 +222,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
     ),
     field("Was Employee","was_emploee",
       <select className="w-full border rounded px-3 py-2" value={wasEmployeeValue}
-        onChange={(e)=>setV((s:any)=>({ ...s, was_emploee: e.target.value===''? null : e.target.value==='true' }))}
+        onChange={(e)=>setV((s:any)=>({ ...s, was_emploee: e.target.value }))}
         onMouseDown={(e) => e.stopPropagation()}>
         <option value="">--</option>
         <option value="true">True</option>
