@@ -237,6 +237,7 @@ export function CounteragentFormDialog({
   };
 
   const updateField = (field: keyof FormData, value: any) => {
+    console.log('[CounteragentForm] Updating field:', field, 'with value:', value);
     setFormData(prev => ({ ...prev, [field]: value }));
     if (formErrors[field]) {
       setFormErrors(prev => ({ ...prev, [field]: '' }));
@@ -273,9 +274,15 @@ export function CounteragentFormDialog({
             <Label htmlFor="entityType" className="text-right">Entity Type *</Label>
             <div className="col-span-3">
               <Combobox
-                options={entityTypes.map(et => ({ value: et.entityTypeUuid, label: et.entityType, keywords: et.entityType }))}
+                options={entityTypes.map(et => {
+                  console.log('[EntityType Option]', et);
+                  return { value: et.entityTypeUuid, label: et.entityType, keywords: et.entityType };
+                })}
                 value={formData.entityTypeUuid}
-                onValueChange={(value) => updateField('entityTypeUuid', value)}
+                onValueChange={(value) => {
+                  console.log('[EntityType Selected]', value);
+                  updateField('entityTypeUuid', value);
+                }}
                 placeholder="Select entity type"
                 searchPlaceholder="Search entity types..."
                 emptyText="No entity type found."

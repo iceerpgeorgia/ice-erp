@@ -1244,10 +1244,14 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   setEntityTypes(mappedData);
                 }}
                 editData={null}
-                entityTypes={entityTypesList.map(et => ({ 
-                  entityTypeUuid: et.entityTypeUuid, 
-                  entityType: et.nameKa 
-                }))}
+                entityTypes={(() => {
+                  const mapped = entityTypesList.map(et => ({ 
+                    entityTypeUuid: et.entityTypeUuid, 
+                    entityType: et.nameKa 
+                  }));
+                  console.log('[Add Dialog] EntityTypes:', mapped);
+                  return mapped;
+                })()}
                 countries={countriesList.map(c => ({ 
                   countryUuid: c.countryUuid, 
                   country: c.country 
