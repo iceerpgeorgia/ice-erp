@@ -100,22 +100,35 @@ export async function POST(req: NextRequest) {
         console.log(`📊 Identified Account: ${accountNumber}`);
         console.log(`💱 Currency: ${currencyCode}\n`);
 
-        // Find account UUID in database (account_number column)
+        // Find account UUID in database (account_number + currency)
         const supabase = getSupabaseClient();
+        const { data: currencyData } = await supabase
+          .from('currencies')
+          .select('uuid')
+          .eq('code', currencyCode)
+          .single();
+
+        if (!currencyData) {
+          throw new Error(`Currency not found in database: ${currencyCode}`);
+        }
+
+        const accountNumberNoCcy = accountNumber.slice(0, -3);
+
         const { data: accountDataExact } = await supabase
           .from('bank_accounts')
           .select('uuid, parsing_scheme_uuid, raw_table_name, account_number, currency_uuid')
           .eq('account_number', accountNumber)
+          .eq('currency_uuid', currencyData.uuid)
           .single();
 
         let accountData = accountDataExact;
 
         if (!accountData) {
-          const accountNumberNoCcy = accountNumber.slice(0, -3);
           const { data: accountDataFallback } = await supabase
             .from('bank_accounts')
             .select('uuid, parsing_scheme_uuid, raw_table_name, account_number, currency_uuid')
             .eq('account_number', accountNumberNoCcy)
+            .eq('currency_uuid', currencyData.uuid)
             .single();
 
           accountData = accountDataFallback || null;
@@ -123,7 +136,7 @@ export async function POST(req: NextRequest) {
 
         if (!accountData) {
           throw new Error(
-            `Account not found in database: ${accountNumber} (tried without currency: ${accountNumber.slice(0, -3)})`
+            `Account not found in database: ${accountNumber} (tried without currency: ${accountNumberNoCcy})`
           );
         }
 
