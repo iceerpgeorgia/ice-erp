@@ -40,7 +40,7 @@ interface ComboboxProps {
 
 export function Combobox({
   options,
-  value,
+  value = "",  // Default to empty string to prevent controlled/uncontrolled transitions
   onValueChange,
   placeholder = "Select option...",
   searchPlaceholder = "Search...",
