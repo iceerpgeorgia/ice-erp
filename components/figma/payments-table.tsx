@@ -843,7 +843,7 @@ export function PaymentsTable() {
                   Add Payment
                 </Button>
               </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-4xl">
             <DialogHeader>
               <DialogTitle>Add New Payment</DialogTitle>
               <DialogDescription>
