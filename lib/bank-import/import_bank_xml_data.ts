@@ -719,7 +719,7 @@ export async function processBOGGEL(
       uuid: consolidatedUuid,
       bank_account_uuid: bankAccountUuid,
       raw_record_uuid: rawRecord.uuid,
-      transaction_date: transactionDate.toISOString().split('T')[0],
+      transaction_date: transactionDate,
       description: rawRecord.DocNomination || '',
       counteragent_uuid: result.counteragent_uuid,
       counteragent_account_number: result.counteragent_account_number,
@@ -731,7 +731,7 @@ export async function processBOGGEL(
       nominal_currency_uuid: nominalCurrencyUuid,
       nominal_amount: nominalAmount,
       processing_case: caseDescription,
-      created_at: new Date().toISOString(),
+      applied_rule_id: result.applied_rule_id,
     });
 
     rawUpdates.push({
@@ -1057,7 +1057,7 @@ export async function backparseExistingData(
         uuid: consolidatedUuid,
         bank_account_uuid: account.uuid,
         raw_record_uuid: rawRecord.uuid,
-        transaction_date: transactionDate.toISOString().split('T')[0],
+        transaction_date: transactionDate,
         description: rawRecord.DocNomination || '',
         counteragent_uuid: result.counteragent_uuid,
         counteragent_account_number: result.counteragent_account_number,
@@ -1069,7 +1069,7 @@ export async function backparseExistingData(
         nominal_currency_uuid: nominalCurrencyUuid,
         nominal_amount: nominalAmount,
         processing_case: caseDescription,
-        created_at: new Date().toISOString(),
+        applied_rule_id: result.applied_rule_id,
       });
 
       rawUpdates.push({
