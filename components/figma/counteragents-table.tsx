@@ -166,6 +166,19 @@ const mapCounteragentData = (row: any): Counteragent => ({
   wasEmploye: row.was_emploee ?? row.wasEmploye ?? null,
 });
 
+// Normalization helpers to handle snake_case API responses
+const normalizeEntityType = (et: any) => ({
+  entityTypeUuid: et.entity_type_uuid || et.entityTypeUuid,
+  entityType: et.name_ka || et.nameKa || et.entityType,
+  id: et.id
+});
+
+const normalizeCountry = (c: any) => ({
+  countryUuid: c.country_uuid || c.countryUuid,
+  country: c.country,
+  id: c.id
+});
+
 export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   const [entityTypes, setEntityTypes] = useState<Counteragent[]>(data ?? []);
   // Dropdown data - API returns snake_case field names
@@ -1244,18 +1257,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   setEntityTypes(mappedData);
                 }}
                 editData={null}
-                entityTypes={(() => {
-                  const mapped = entityTypesList.map(et => ({ 
-                    entityTypeUuid: et.entity_type_uuid || et.entityTypeUuid, 
-                    entityType: et.name_ka || et.nameKa 
-                  }));
-                  console.log('[Add Dialog] EntityTypes:', mapped);
-                  return mapped;
-                })()}
-                countries={countriesList.map(c => ({ 
-                  countryUuid: c.country_uuid || c.countryUuid, 
-                  country: c.country 
-                }))}
+                entityTypes={entityTypesList.map(normalizeEntityType)}
+                countries={countriesList.map(normalizeCountry)}
               />
               
               <CounteragentFormDialog
@@ -1311,14 +1314,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   ));
                 }}
                 editData={editingEntityType}
-                entityTypes={entityTypesList.map(et => ({ 
-                  entityTypeUuid: et.entity_type_uuid || et.entityTypeUuid, 
-                  entityType: et.name_ka || et.nameKa 
-                }))}
-                countries={countriesList.map(c => ({ 
-                  countryUuid: c.country_uuid || c.countryUuid, 
-                  country: c.country 
-                }))}
+                entityTypes={entityTypesList.map(normalizeEntityType)}
+                countries={countriesList.map(normalizeCountry)}
               />
             </>
           ) : (
