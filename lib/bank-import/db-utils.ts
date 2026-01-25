@@ -114,9 +114,23 @@ function getSalaryBaseKey(paymentId: string): string | null {
   return trimmed.slice(0, 20).toLowerCase();
 }
 
+function parseSalaryPeriod(paymentId: string): { month: number; year: number } | null {
+  const match = paymentId.match(/_PRL(\d{2})(\d{4})$/i);
+  if (!match) return null;
+  const month = Number(match[1]);
+  const year = Number(match[2]);
+  if (month < 1 || month > 12) return null;
+  if (year < 2000 || year > 2100) return null;
+  return { month, year };
+}
+
 export async function loadPayments(
   supabase: ReturnType<typeof getSupabaseClient>
-): Promise<{ paymentsMap: Map<string, PaymentData>; salaryBaseMap: Map<string, PaymentData> }> {
+): Promise<{
+  paymentsMap: Map<string, PaymentData>;
+  salaryBaseMap: Map<string, PaymentData>;
+  salaryLatestMap: Map<string, { month: number; year: number; data: PaymentData }>;
+}> {
   const start = Date.now();
   console.log('  ⏳ Loading payments and salary_accruals from Supabase...');
 
@@ -140,9 +154,11 @@ export async function loadPayments(
 
   const map = new Map<string, PaymentData>();
   const salaryBaseMap = new Map<string, PaymentData>();
+  const salaryLatestMap = new Map<string, { month: number; year: number; data: PaymentData }>();
   let paymentsCount = 0;
   let salaryCount = 0;
   let salaryBaseCount = 0;
+  let salaryLatestCount = 0;
 
   // Add payments
   for (const row of paymentsData || []) {
@@ -176,13 +192,24 @@ export async function loadPayments(
         salaryBaseMap.set(baseKey, salaryDataEntry);
         salaryBaseCount++;
       }
+
+      const period = parseSalaryPeriod(paymentId);
+      if (baseKey && period) {
+        const existing = salaryLatestMap.get(baseKey);
+        if (!existing || period.year > existing.year || (period.year === existing.year && period.month > existing.month)) {
+          salaryLatestMap.set(baseKey, { ...period, data: salaryDataEntry });
+        }
+      }
       salaryCount++;
     }
   }
 
+  salaryLatestCount = salaryLatestMap.size;
   console.log(`  ✅ Loaded ${map.size} payment IDs from Supabase via UNION query (${((Date.now() - start) / 1000).toFixed(2)}s)`);
-  console.log(`     └─ payments: ${paymentsCount}, salary_accruals: ${salaryCount}, salary_base_keys: ${salaryBaseCount}`);
-  return { paymentsMap: map, salaryBaseMap };
+  console.log(
+    `     └─ payments: ${paymentsCount}, salary_accruals: ${salaryCount}, salary_base_keys: ${salaryBaseCount}, salary_latest: ${salaryLatestCount}`
+  );
+  return { paymentsMap: map, salaryBaseMap, salaryLatestMap };
 }
 
 export async function loadNBGRates(supabase: ReturnType<typeof getSupabaseClient>): Promise<Map<string, NBGRates>> {

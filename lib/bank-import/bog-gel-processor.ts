@@ -169,12 +169,25 @@ function getSalaryBaseKey(paymentId: string): string | null {
   return trimmed.slice(0, 20).toLowerCase();
 }
 
+function nextMonth(period: { month: number; year: number }): { month: number; year: number } {
+  if (period.month === 12) {
+    return { month: 1, year: period.year + 1 };
+  }
+  return { month: period.month + 1, year: period.year };
+}
+
+function formatSalaryPeriod(basePaymentId: string, period: { month: number; year: number }): string {
+  const mm = String(period.month).padStart(2, '0');
+  return `${basePaymentId}_PRL${mm}${period.year}`;
+}
+
 function processSingleRecord(
   row: Record<string, any>,
   counteragentsMap: Map<string, CounteragentData>,
   parsingRules: ParsingRule[],
   paymentsMap: Map<string, PaymentData>,
   salaryBaseMap: Map<string, PaymentData>,
+  salaryLatestMap: Map<string, { month: number; year: number; data: PaymentData }>,
   idx: number,
   stats: ProcessingStats,
   missingCounteragents: Map<string, { inn: string; count: number; name: string }>
@@ -357,11 +370,26 @@ function processSingleRecord(
   if (extractedPaymentId) {
     const paymentIdLower = extractedPaymentId.toLowerCase();
     let paymentData = paymentsMap.get(paymentIdLower) || null;
+    let resolvedPaymentId = extractedPaymentId;
 
     if (!paymentData && isValidSalaryPeriodSuffix(paymentIdLower)) {
       const baseKey = getSalaryBaseKey(paymentIdLower);
       if (baseKey && salaryBaseMap.has(baseKey)) {
         paymentData = salaryBaseMap.get(baseKey) || null;
+      }
+    }
+
+    if (!paymentData) {
+      const baseKey = getSalaryBaseKey(paymentIdLower);
+      if (baseKey && salaryBaseMap.has(baseKey)) {
+        paymentData = salaryBaseMap.get(baseKey) || null;
+
+        if (!isValidSalaryPeriodSuffix(paymentIdLower) && salaryLatestMap.has(baseKey)) {
+          const latest = salaryLatestMap.get(baseKey)!;
+          const next = nextMonth({ month: latest.month, year: latest.year });
+          const baseOriginal = extractedPaymentId.trim().slice(0, 20);
+          resolvedPaymentId = formatSalaryPeriod(baseOriginal, next);
+        }
       }
     }
 
@@ -400,7 +428,7 @@ function processSingleRecord(
       }
 
       if (!result.case5_payment_id_conflict) {
-        result.payment_id = extractedPaymentId;
+        result.payment_id = resolvedPaymentId;
         result.case4_payment_id_matched = true;
       }
 
@@ -643,7 +671,7 @@ export async function processBOGGEL(
       loadCurrencyCache(supabase),
     ]);
 
-  const { paymentsMap, salaryBaseMap } = paymentsBundle;
+  const { paymentsMap, salaryBaseMap, salaryLatestMap } = paymentsBundle;
 
   // =============================
   // STEP 3: Three-Phase Processing
@@ -714,6 +742,7 @@ export async function processBOGGEL(
       parsingRules,
       paymentsMap,
       salaryBaseMap,
+      salaryLatestMap,
       idx + 1,
       stats,
       missingCounteragents
