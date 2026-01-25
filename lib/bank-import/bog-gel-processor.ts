@@ -181,7 +181,16 @@ function formatSalaryPeriod(basePaymentId: string, period: { month: number; year
   return `${basePaymentId}_PRL${mm}${period.year}`;
 }
 
-function evaluateParsingRuleCondition(condition: string, row: Record<string, any>): boolean {
+function evaluateParsingRuleCondition(condition: string | null, conditionScript: string | null, row: Record<string, any>): boolean {
+  if (conditionScript && conditionScript.trim()) {
+    try {
+      // eslint-disable-next-line no-new-func
+      return Boolean(Function('row', `"use strict"; return (${conditionScript});`)(row));
+    } catch {
+      return false;
+    }
+  }
+
   if (!condition) return false;
 
   const normalized = condition.trim();
@@ -299,6 +308,7 @@ function processSingleRecord(
   for (const rule of parsingRules) {
     const columnName = rule.column_name;
     const condition = rule.condition;
+    const conditionScript = (rule as any).condition_script || null;
     if (!condition) continue;
 
     if (columnName) {
@@ -321,7 +331,7 @@ function processSingleRecord(
         docnomination: DocNomination,
         docinformation: DocInformation,
       };
-      if (evaluateParsingRuleCondition(condition, rowMap)) {
+      if (evaluateParsingRuleCondition(condition, conditionScript, rowMap)) {
         matchedRule = rule;
         break;
       }

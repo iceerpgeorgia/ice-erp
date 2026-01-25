@@ -78,7 +78,7 @@ export async function loadParsingRules(supabase: ReturnType<typeof getSupabaseCl
   const data = await fetchAllRows<any>(async (from, to) =>
     await supabase
       .from('parsing_scheme_rules')
-      .select('id, counteragent_uuid, financial_code_uuid, nominal_currency_uuid, payment_id, column_name, condition')
+      .select('id, counteragent_uuid, financial_code_uuid, nominal_currency_uuid, payment_id, column_name, condition, condition_script')
       .range(from, to)
   );
 
@@ -101,6 +101,7 @@ export async function loadParsingRules(supabase: ReturnType<typeof getSupabaseCl
       payment_id: row.payment_id,
       column_name: columnName,
       condition: condition,
+      condition_script: row.condition_script || null,
     };
   });
 
