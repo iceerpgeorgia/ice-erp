@@ -305,10 +305,29 @@ export function SalaryAccrualsTable() {
         if (/^\d{4}-\d{2}$/.test(value)) {
           return new Date(`${value}-01T00:00:00`);
         }
+        if (/^\d{2}\/\d{4}$/.test(value)) {
+          const [mm, yyyy] = value.split('/');
+          return new Date(`${yyyy}-${mm}-01T00:00:00`);
+        }
+        if (/^\d{2}\.\d{4}$/.test(value)) {
+          const [mm, yyyy] = value.split('.');
+          return new Date(`${yyyy}-${mm}-01T00:00:00`);
+        }
         const dotMatch = value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
         if (dotMatch) {
           const [_, dd, mm, yyyy] = dotMatch;
           return new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+        }
+        const monthNameMatch = value.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/i);
+        if (monthNameMatch) {
+          const monthMap = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 } as const;
+          const mm = monthMap[monthNameMatch[1].toLowerCase() as keyof typeof monthMap];
+          const yyyy = monthNameMatch[2];
+          return new Date(`${yyyy}-${String(mm).padStart(2, '0')}-01T00:00:00`);
+        }
+        const parsed = new Date(value);
+        if (!Number.isNaN(parsed.getTime())) {
+          return parsed;
         }
         return null;
       };
