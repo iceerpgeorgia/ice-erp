@@ -104,6 +104,7 @@ export function SalaryAccrualsTable() {
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [projectedMonths, setProjectedMonths] = useState(0);
 
   // Form states
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -123,6 +124,7 @@ export function SalaryAccrualsTable() {
   // Load saved column configuration after hydration
   useEffect(() => {
     const saved = localStorage.getItem('salaryAccrualsColumns');
+    const savedProjectedMonths = localStorage.getItem('salaryAccrualsProjectedMonths');
     if (saved) {
       try {
         const savedColumns = JSON.parse(saved) as ColumnConfig[];
@@ -150,6 +152,13 @@ export function SalaryAccrualsTable() {
         setColumns(defaultColumns);
       }
     }
+
+    if (savedProjectedMonths) {
+      const parsed = parseInt(savedProjectedMonths, 10);
+      if (!Number.isNaN(parsed) && parsed >= 0) {
+        setProjectedMonths(parsed);
+      }
+    }
     
     setIsInitialized(true);
   }, []);
@@ -157,12 +166,17 @@ export function SalaryAccrualsTable() {
   // Fetch data after initialization
   useEffect(() => {
     if (isInitialized) {
-      fetchData();
       fetchEmployees();
       fetchFinancialCodes();
       fetchCurrencies();
     }
   }, [isInitialized]);
+
+  useEffect(() => {
+    if (isInitialized) {
+      fetchData();
+    }
+  }, [isInitialized, projectedMonths]);
 
   // Save column configuration to localStorage
   useEffect(() => {
@@ -170,6 +184,12 @@ export function SalaryAccrualsTable() {
       localStorage.setItem('salaryAccrualsColumns', JSON.stringify(columns));
     }
   }, [columns, isInitialized]);
+
+  useEffect(() => {
+    if (isInitialized && typeof window !== 'undefined') {
+      localStorage.setItem('salaryAccrualsProjectedMonths', String(projectedMonths));
+    }
+  }, [projectedMonths, isInitialized]);
 
   // Column resize handlers
   useEffect(() => {
@@ -252,13 +272,6 @@ export function SalaryAccrualsTable() {
     setDragOverColumn(null);
   };
 
-  useEffect(() => {
-    fetchData();
-    fetchEmployees();
-    fetchFinancialCodes();
-    fetchCurrencies();
-  }, []);
-
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -284,8 +297,73 @@ export function SalaryAccrualsTable() {
         }
       });
       
+      const parseSalaryMonth = (value: string): Date | null => {
+        if (!value) return null;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+          return new Date(`${value}T00:00:00`);
+        }
+        const dotMatch = value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+        if (dotMatch) {
+          const [_, dd, mm, yyyy] = dotMatch;
+          return new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+        }
+        return null;
+      };
+
+      const formatSalaryMonth = (date: Date) => {
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        return `${yyyy}-${mm}-01`;
+      };
+
+      const updatePaymentIdForMonth = (paymentId: string, date: Date) => {
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        if (/_PRL\d{2}\d{4}$/i.test(paymentId)) {
+          return paymentId.replace(/_PRL\d{2}\d{4}$/i, `_PRL${mm}${yyyy}`);
+        }
+        if (paymentId.length >= 20) {
+          return `${paymentId}_PRL${mm}${yyyy}`;
+        }
+        return paymentId;
+      };
+
+      let projectedData: SalaryAccrual[] = salaryData;
+      if (projectedMonths > 0 && salaryData.length > 0) {
+        const parsedDates = salaryData
+          .map((item: SalaryAccrual) => ({ item, date: parseSalaryMonth(item.salary_month) }))
+          .filter(entry => entry.date) as { item: SalaryAccrual; date: Date }[];
+
+        if (parsedDates.length > 0) {
+          const latestDate = parsedDates.reduce((max, cur) => (cur.date > max ? cur.date : max), parsedDates[0].date);
+          const latestMonthKey = `${latestDate.getFullYear()}-${latestDate.getMonth()}`;
+          const latestRecords = parsedDates
+            .filter(entry => `${entry.date.getFullYear()}-${entry.date.getMonth()}` === latestMonthKey)
+            .map(entry => entry.item);
+
+          const futureRecords: SalaryAccrual[] = [];
+          for (let i = 1; i <= projectedMonths; i++) {
+            const futureDate = new Date(latestDate.getFullYear(), latestDate.getMonth() + i, 1);
+            const futureMonth = formatSalaryMonth(futureDate);
+            latestRecords.forEach((record, idx) => {
+              const basePaymentId = record.payment_id || '';
+              const projectedPaymentId = basePaymentId ? updatePaymentIdForMonth(basePaymentId, futureDate) : basePaymentId;
+              futureRecords.push({
+                ...record,
+                id: `projected-${record.id}-${i}-${idx}`,
+                uuid: `projected-${record.uuid}-${i}-${idx}`,
+                salary_month: futureMonth,
+                payment_id: projectedPaymentId,
+              });
+            });
+          }
+
+          projectedData = [...salaryData, ...futureRecords];
+        }
+      }
+
       // Calculate paid and month_balance for each salary accrual
-      const enrichedData = salaryData.map((accrual: SalaryAccrual) => {
+      const enrichedData = projectedData.map((accrual: SalaryAccrual) => {
         const netSum = parseFloat(accrual.net_sum || '0');
         const paymentIdLower = accrual.payment_id ? accrual.payment_id.toLowerCase() : ''; // Normalize to lowercase
         const paid = paidMap.get(paymentIdLower) || 0;
@@ -630,6 +708,23 @@ export function SalaryAccrualsTable() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1">
+              <Label htmlFor="projectedMonths" className="text-xs text-gray-600">
+                Projected Months
+              </Label>
+              <Input
+                id="projectedMonths"
+                type="number"
+                min={0}
+                step={1}
+                value={projectedMonths}
+                onChange={(e) => {
+                  const nextValue = Math.max(0, parseInt(e.target.value || '0', 10));
+                  setProjectedMonths(Number.isNaN(nextValue) ? 0 : nextValue);
+                }}
+                className="h-7 w-20 text-sm"
+              />
+            </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button onClick={() => handleOpenDialog()}>
