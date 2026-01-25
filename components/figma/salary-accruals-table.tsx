@@ -267,9 +267,9 @@ export function SalaryAccrualsTable() {
           nominal_currency_uuid: record.nominal_currency_uuid,
           salary_month: formatSalaryMonth(nextDate),
           net_sum: record.net_sum,
-          surplus_insurance: record.surplus_insurance || null,
-          deducted_insurance: record.deducted_insurance || null,
-          deducted_fitness: record.deducted_fitness || null,
+          surplus_insurance: null,
+          deducted_insurance: null,
+          deducted_fitness: null,
           deducted_fine: null,
           payment_id: record.payment_id
             ? updatePaymentIdForMonth(record.payment_id, nextDate)
@@ -437,6 +437,9 @@ export function SalaryAccrualsTable() {
                 uuid: `projected-${record.uuid}-${i}-${idx}`,
                 salary_month: futureMonth,
                 payment_id: projectedPaymentId,
+                surplus_insurance: null,
+                deducted_insurance: null,
+                deducted_fitness: null,
                 deducted_fine: null,
               });
             });
