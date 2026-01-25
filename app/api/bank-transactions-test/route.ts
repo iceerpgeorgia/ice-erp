@@ -148,6 +148,7 @@ export async function GET(req: NextRequest) {
         idsArray
       );
     } else {
+      const limitSql = typeof limit === 'number' ? ` LIMIT ${limit} OFFSET ${offset || 0}` : '';
       transactions = await prisma.$queryRawUnsafe<any[]>(
         `SELECT 
            cba.*,
@@ -166,8 +167,7 @@ export async function GET(req: NextRequest) {
          LEFT JOIN financial_codes fc ON cba.financial_code_uuid = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
          LEFT JOIN currencies curr_nom ON cba.nominal_currency_uuid = curr_nom.uuid
-         ORDER BY cba.transaction_date DESC, cba.id DESC
-         LIMIT ${limit || 1000} OFFSET ${offset || 0}`
+         ORDER BY cba.transaction_date DESC, cba.id DESC${limitSql}`
       );
     }
 

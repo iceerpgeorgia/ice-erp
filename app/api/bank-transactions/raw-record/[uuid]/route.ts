@@ -22,6 +22,37 @@ export async function GET(
     console.log('Raw record UUID:', consolidated?.rawRecordUuid);
 
     if (!consolidated?.rawRecordUuid) {
+      const localUrl = process.env.DATABASE_URL;
+      if (!localUrl) {
+        return NextResponse.json(
+          { error: 'Database connection not configured' },
+          { status: 500 }
+        );
+      }
+
+      pool = new Pool({
+        connectionString: localUrl,
+        max: 1
+      });
+
+      const deconsolidated = await pool.query(
+        'SELECT * FROM "GE78BG0000000893486000_BOG_GEL" WHERE uuid = $1 LIMIT 1',
+        [uuid]
+      );
+
+      await pool.end();
+
+      if (deconsolidated.rows.length > 0) {
+        const record = deconsolidated.rows[0];
+        const serializable: Record<string, any> = {};
+
+        for (const [key, value] of Object.entries(record)) {
+          serializable[key] = typeof value === 'bigint' ? value.toString() : value;
+        }
+
+        return NextResponse.json(serializable);
+      }
+
       return NextResponse.json(
         { error: 'Raw record UUID not found for this transaction' },
         { status: 404 }
