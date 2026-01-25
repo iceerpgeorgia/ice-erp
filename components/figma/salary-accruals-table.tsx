@@ -302,6 +302,9 @@ export function SalaryAccrualsTable() {
         if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
           return new Date(`${value}T00:00:00`);
         }
+        if (/^\d{4}-\d{2}$/.test(value)) {
+          return new Date(`${value}-01T00:00:00`);
+        }
         const dotMatch = value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
         if (dotMatch) {
           const [_, dd, mm, yyyy] = dotMatch;
