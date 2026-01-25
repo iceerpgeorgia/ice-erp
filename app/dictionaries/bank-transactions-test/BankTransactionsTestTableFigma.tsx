@@ -241,13 +241,39 @@ export default function BankTransactionsTestTableFigma() {
 
         console.log('[BankTransactionsTestTableFigma] Data received:', data.length, 'records');
 
-        // Map date strings to Date objects for the table component
         const mapped = data.map((row: any) => ({
-          ...row,
-          createdAt: toValidDate(row.createdAt),
-          updatedAt: toValidDate(row.updatedAt),
-          transaction_date: row.transaction_date || null,
-          correction_date: row.correction_date || null,
+          id: row.id || row.ID,
+          uuid: row.uuid || "",
+          accountUuid: row.bank_account_uuid || "",
+          accountCurrencyUuid: row.account_currency_uuid || "",
+          accountCurrencyAmount: row.account_currency_amount || "0",
+          paymentUuid: null,
+          counteragentUuid: row.counteragent_uuid || null,
+          projectUuid: row.project_uuid || null,
+          financialCodeUuid: row.financial_code_uuid || null,
+          nominalCurrencyUuid: row.nominal_currency_uuid || null,
+          nominalAmount: row.nominal_amount || null,
+          date: row.transaction_date || "",
+          correctionDate: row.correction_date || null,
+          exchangeRate: row.exchange_rate || null,
+          id1: null,
+          id2: null,
+          recordUuid: row.raw_record_uuid || "",
+          counteragentAccountNumber: row.counteragent_account_number ? String(row.counteragent_account_number) : null,
+          description: row.description || null,
+          processingCase: row.processing_case || null,
+          appliedRuleId: row.applied_rule_id || null,
+          createdAt: toISO(toValidDate(row.created_at || row.createdAt)),
+          updatedAt: toISO(toValidDate(row.updated_at || row.updatedAt)),
+          isBalanceRecord: row.is_balance_record || false,
+
+          accountNumber: row.account_number || null,
+          bankName: row.bank_name || null,
+          counteragentName: row.counteragent_name || null,
+          projectIndex: row.project_index || null,
+          financialCode: row.financial_code || null,
+          paymentId: row.payment_id || null,
+          nominalCurrencyCode: row.nominal_currency_code || null,
         }));
 
         console.log('[BankTransactionsTestTableFigma] Mapped data:', mapped.length, 'records');

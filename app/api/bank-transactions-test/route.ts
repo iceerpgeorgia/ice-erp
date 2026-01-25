@@ -89,9 +89,15 @@ export async function GET(req: NextRequest) {
 
     console.log('[API] Query params:', { fromDate, toDate, idsParam, limitParam, offsetParam });
 
-    const toComparableDate = (ddmmyyyy: string | null): string | null => {
-      if (!ddmmyyyy || ddmmyyyy.length !== 10) return null;
-      const parts = ddmmyyyy.split('.');
+    const toComparableDate = (dateStr: string | null): string | null => {
+      if (!dateStr || dateStr.length !== 10) return null;
+      if (dateStr.includes('-')) {
+        const parts = dateStr.split('-');
+        if (parts.length !== 3) return null;
+        const [year, month, day] = parts;
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      }
+      const parts = dateStr.split('.');
       if (parts.length !== 3) return null;
       const [day, month, year] = parts;
       return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
