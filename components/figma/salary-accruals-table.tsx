@@ -739,8 +739,20 @@ export function SalaryAccrualsTable() {
     return cache;
   }, [data, columns]);
 
+  const formatMonthLabel = (value: any) => {
+    const date = parseSalaryMonth(String(value));
+    if (date) {
+      return date.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+    }
+    return String(value);
+  };
+
   const getUniqueValues = useCallback((columnKey: ColumnKey): any[] => {
-    return uniqueValuesCache.get(columnKey) || [];
+    const values = uniqueValuesCache.get(columnKey) || [];
+    if (columnKey === 'salary_month') {
+      return values.map(value => ({ value, label: formatMonthLabel(value) }));
+    }
+    return values;
   }, [uniqueValuesCache]);
 
   const formatValue = (value: any, format?: 'currency' | 'date' | 'text') => {
@@ -1272,25 +1284,28 @@ function FilterPopover({
   // Filter unique values based on search term
   const filteredValues = useMemo(() => {
     if (!filterSearchTerm) return values;
-    return values.filter(value => 
-      String(value).toLowerCase().includes(filterSearchTerm.toLowerCase())
-    );
+    return values.filter(value => {
+      const label = typeof value === 'object' && value !== null && 'label' in value ? value.label : value;
+      return String(label).toLowerCase().includes(filterSearchTerm.toLowerCase());
+    });
   }, [values, filterSearchTerm]);
 
   // Sort values - numbers first, then text
   const sortedFilteredValues = useMemo(() => {
     return [...filteredValues].sort((a, b) => {
-      const aIsNum = !isNaN(Number(a));
-      const bIsNum = !isNaN(Number(b));
-      
+      const aLabel = typeof a === 'object' && a !== null && 'label' in a ? a.label : a;
+      const bLabel = typeof b === 'object' && b !== null && 'label' in b ? b.label : b;
+      const aIsNum = !isNaN(Number(aLabel));
+      const bIsNum = !isNaN(Number(bLabel));
+
       if (aIsNum && bIsNum) {
-        return Number(a) - Number(b);
+        return Number(aLabel) - Number(bLabel);
       } else if (aIsNum && !bIsNum) {
         return -1;
       } else if (!aIsNum && bIsNum) {
         return 1;
       } else {
-        return String(a).localeCompare(String(b));
+        return String(aLabel).localeCompare(String(bLabel));
       }
     });
   }, [filteredValues]);
@@ -1323,15 +1338,21 @@ function FilterPopover({
 
   // Select all visible values
   const handleSelectAll = () => {
-    setTempSelected(new Set(filteredValues));
+    const nextValues = new Set(
+      filteredValues.map(value =>
+        typeof value === 'object' && value !== null && 'value' in value ? value.value : value
+      )
+    );
+    setTempSelected(nextValues);
   };
 
   const handleToggle = (value: any) => {
+    const actualValue = typeof value === 'object' && value !== null && 'value' in value ? value.value : value;
     const newSelected = new Set(tempSelected);
-    if (newSelected.has(value)) {
-      newSelected.delete(value);
+    if (newSelected.has(actualValue)) {
+      newSelected.delete(actualValue);
     } else {
-      newSelected.add(value);
+      newSelected.add(actualValue);
     }
     setTempSelected(newSelected);
   };
@@ -1423,18 +1444,22 @@ function FilterPopover({
                   No values found
                 </div>
               ) : (
-                sortedFilteredValues.map(value => (
-                  <div key={String(value)} className="flex items-center space-x-2 py-1">
-                    <Checkbox
-                      id={`${columnKey}-${value}`}
-                      checked={tempSelected.has(value)}
-                      onCheckedChange={() => handleToggle(value)}
-                    />
-                    <label htmlFor={`${columnKey}-${value}`} className="text-sm flex-1 cursor-pointer">
-                      {String(value)}
-                    </label>
-                  </div>
-                ))
+                sortedFilteredValues.map(value => {
+                  const displayLabel = typeof value === 'object' && value !== null && 'label' in value ? value.label : value;
+                  const actualValue = typeof value === 'object' && value !== null && 'value' in value ? value.value : value;
+                  return (
+                    <div key={String(actualValue)} className="flex items-center space-x-2 py-1">
+                      <Checkbox
+                        id={`${columnKey}-${String(actualValue)}`}
+                        checked={tempSelected.has(actualValue)}
+                        onCheckedChange={() => handleToggle(value)}
+                      />
+                      <label htmlFor={`${columnKey}-${String(actualValue)}`} className="text-sm flex-1 cursor-pointer">
+                        {String(displayLabel)}
+                      </label>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
