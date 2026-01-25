@@ -87,10 +87,17 @@ export async function loadParsingRules(supabase: ReturnType<typeof getSupabaseCl
     let condition = row.condition;
 
     // Handle combined condition format: docprodgroup="COM"
-    if (!columnName && condition && condition.includes('=')) {
-      const parts = condition.split('=');
-      columnName = parts[0].trim();
-      condition = parts[1].replace(/['"]/g, '').trim();
+    if (condition && condition.includes('=')) {
+      const [left, right] = condition.split('=');
+      const leftKey = left?.trim();
+      const rightValue = right?.replace(/['"]/g, '').trim();
+
+      if (!columnName && leftKey) {
+        columnName = leftKey;
+        condition = rightValue;
+      } else if (columnName && leftKey && leftKey.toLowerCase() === String(columnName).toLowerCase()) {
+        condition = rightValue;
+      }
     }
 
     return {

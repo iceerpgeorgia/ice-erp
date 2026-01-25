@@ -309,7 +309,9 @@ function processSingleRecord(
     const columnName = rule.column_name;
     const condition = rule.condition;
     const conditionScript = (rule as any).condition_script || null;
-    if (!condition) continue;
+    const hasCondition = Boolean(condition && String(condition).trim());
+    const hasConditionScript = Boolean(conditionScript && String(conditionScript).trim());
+    if (!hasCondition && !hasConditionScript) continue;
 
     if (columnName) {
       const fieldMap: Record<string, any> = {
@@ -319,10 +321,23 @@ function processSingleRecord(
         dockey: DocKey,
       };
 
-      const fieldValue = fieldMap[columnName.toLowerCase()];
-      if (fieldValue && String(fieldValue).trim() === String(condition).trim()) {
-        matchedRule = rule;
-        break;
+      if (hasCondition) {
+        const fieldValue = fieldMap[columnName.toLowerCase()];
+        if (fieldValue && String(fieldValue).trim() === String(condition).trim()) {
+          matchedRule = rule;
+          break;
+        }
+      } else if (hasConditionScript) {
+        const rowMap = {
+          dockey: DocKey,
+          docprodgroup: DocProdGroup,
+          docnomination: DocNomination,
+          docinformation: DocInformation,
+        };
+        if (evaluateParsingRuleCondition(null, conditionScript, rowMap)) {
+          matchedRule = rule;
+          break;
+        }
       }
     } else {
       const rowMap = {
