@@ -330,22 +330,22 @@ export function SalaryAccrualsTable() {
 
       let projectedData: SalaryAccrual[] = salaryData;
       if (projectedMonths > 0 && salaryData.length > 0) {
-        const parsedDates = salaryData
+        const parsedDates: { item: SalaryAccrual; date: Date }[] = salaryData
           .map((item: SalaryAccrual) => ({ item, date: parseSalaryMonth(item.salary_month) }))
-          .filter(entry => entry.date) as { item: SalaryAccrual; date: Date }[];
+          .filter((entry: { item: SalaryAccrual; date: Date | null }): entry is { item: SalaryAccrual; date: Date } => Boolean(entry.date));
 
         if (parsedDates.length > 0) {
-          const latestDate = parsedDates.reduce((max, cur) => (cur.date > max ? cur.date : max), parsedDates[0].date);
+          const latestDate = parsedDates.reduce((max: Date, cur: { item: SalaryAccrual; date: Date }) => (cur.date > max ? cur.date : max), parsedDates[0].date);
           const latestMonthKey = `${latestDate.getFullYear()}-${latestDate.getMonth()}`;
           const latestRecords = parsedDates
-            .filter(entry => `${entry.date.getFullYear()}-${entry.date.getMonth()}` === latestMonthKey)
-            .map(entry => entry.item);
+            .filter((entry: { item: SalaryAccrual; date: Date }) => `${entry.date.getFullYear()}-${entry.date.getMonth()}` === latestMonthKey)
+            .map((entry: { item: SalaryAccrual; date: Date }) => entry.item);
 
           const futureRecords: SalaryAccrual[] = [];
           for (let i = 1; i <= projectedMonths; i++) {
             const futureDate = new Date(latestDate.getFullYear(), latestDate.getMonth() + i, 1);
             const futureMonth = formatSalaryMonth(futureDate);
-            latestRecords.forEach((record, idx) => {
+            latestRecords.forEach((record: SalaryAccrual, idx: number) => {
               const basePaymentId = record.payment_id || '';
               const projectedPaymentId = basePaymentId ? updatePaymentIdForMonth(basePaymentId, futureDate) : basePaymentId;
               futureRecords.push({
