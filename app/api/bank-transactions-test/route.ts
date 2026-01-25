@@ -108,10 +108,10 @@ export async function GET(req: NextRequest) {
     }
 
     const defaultLimit = 1000;
-    const maxLimit = 10000;
+    const isUnfiltered = !fromDate && !toDate && !idsParam;
     let limit = idsParam
       ? undefined
-      : (limitParam ? (limitParam === '0' ? undefined : Math.min(parseInt(limitParam), maxLimit)) : defaultLimit);
+      : (limitParam ? (limitParam === '0' ? undefined : parseInt(limitParam)) : (isUnfiltered ? undefined : defaultLimit));
     const offset = offsetParam ? parseInt(offsetParam) : 0;
 
     if (limit && limit > 5000) {

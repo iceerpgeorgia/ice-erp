@@ -106,15 +106,15 @@ export default function BankTransactionsTestTableFigma() {
   // Record limit setting
   const [recordLimitInput, setRecordLimitInput] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('bankTransactionsTest_recordLimit') || "5000";
+      return localStorage.getItem('bankTransactionsTest_recordLimit') || "";
     }
-    return "5000";
+    return "";
   });
   const [appliedRecordLimit, setAppliedRecordLimit] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('bankTransactionsTest_appliedRecordLimit') || "5000";
+      return localStorage.getItem('bankTransactionsTest_appliedRecordLimit') || "";
     }
-    return "5000";
+    return "";
   });
 
   // Save applied filters to localStorage whenever they change
@@ -180,8 +180,8 @@ export default function BankTransactionsTestTableFigma() {
     setToDateDisplay("");
     setAppliedFromDate("");
     setAppliedToDate("");
-    setRecordLimitInput("5000");
-    setAppliedRecordLimit("5000");
+    setRecordLimitInput("");
+    setAppliedRecordLimit("");
   };
 
   useEffect(() => {
@@ -360,7 +360,7 @@ export default function BankTransactionsTestTableFigma() {
                 handleApplyFilters();
               }
             }}
-            placeholder="5000 or 'all'"
+            placeholder="Records (optional)"
             className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32"
           />
         </div>

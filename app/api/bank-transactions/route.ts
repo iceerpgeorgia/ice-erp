@@ -110,10 +110,10 @@ export async function GET(req: NextRequest) {
     
     // Limit to recent 1000 records by default unless specific IDs requested
     const defaultLimit = 1000;
-    const maxLimit = 10000; // Safety limit to prevent massive queries
-    let limit = idsParam 
-      ? undefined 
-      : (limitParam ? (limitParam === '0' ? undefined : Math.min(parseInt(limitParam), maxLimit)) : defaultLimit);
+    const isUnfiltered = !fromDate && !toDate && !idsParam;
+    let limit = idsParam
+      ? undefined
+      : (limitParam ? (limitParam === '0' ? undefined : parseInt(limitParam)) : (isUnfiltered ? undefined : defaultLimit));
     const offset = offsetParam ? parseInt(offsetParam) : 0;
     
     // Warn if requesting too many records
