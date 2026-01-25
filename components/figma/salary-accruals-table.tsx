@@ -105,6 +105,10 @@ export function SalaryAccrualsTable() {
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [projectedMonths, setProjectedMonths] = useState(0);
+  const [latestBaseMonthLabel, setLatestBaseMonthLabel] = useState<string | null>(null);
+  const [latestBaseMonthDate, setLatestBaseMonthDate] = useState<Date | null>(null);
+  const [latestBaseRecords, setLatestBaseRecords] = useState<SalaryAccrual[]>([]);
+  const [isCopyingLatest, setIsCopyingLatest] = useState(false);
 
   // Form states
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -190,6 +194,109 @@ export function SalaryAccrualsTable() {
       localStorage.setItem('salaryAccrualsProjectedMonths', String(projectedMonths));
     }
   }, [projectedMonths, isInitialized]);
+
+  const parseSalaryMonth = (value: string): Date | null => {
+    if (!value) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return new Date(`${value}T00:00:00`);
+    }
+    if (/^\d{4}-\d{2}$/.test(value)) {
+      return new Date(`${value}-01T00:00:00`);
+    }
+    if (/^\d{2}\/\d{4}$/.test(value)) {
+      const [mm, yyyy] = value.split('/');
+      return new Date(`${yyyy}-${mm}-01T00:00:00`);
+    }
+    if (/^\d{2}\.\d{4}$/.test(value)) {
+      const [mm, yyyy] = value.split('.');
+      return new Date(`${yyyy}-${mm}-01T00:00:00`);
+    }
+    const dotMatch = value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+    if (dotMatch) {
+      const [_, dd, mm, yyyy] = dotMatch;
+      return new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+    }
+    const monthNameMatch = value.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/i);
+    if (monthNameMatch) {
+      const monthMap = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 } as const;
+      const mm = monthMap[monthNameMatch[1].toLowerCase() as keyof typeof monthMap];
+      const yyyy = monthNameMatch[2];
+      return new Date(`${yyyy}-${String(mm).padStart(2, '0')}-01T00:00:00`);
+    }
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+    return null;
+  };
+
+  const formatSalaryMonth = (date: Date) => {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    return `${yyyy}-${mm}-01`;
+  };
+
+  const updatePaymentIdForMonth = (paymentId: string, date: Date) => {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    if (/_PRL\d{2}\d{4}$/i.test(paymentId)) {
+      return paymentId.replace(/_PRL\d{2}\d{4}$/i, `_PRL${mm}${yyyy}`);
+    }
+    if (paymentId.length >= 20) {
+      return `${paymentId}_PRL${mm}${yyyy}`;
+    }
+    return paymentId;
+  };
+
+  const handleCopyLatestMonth = async () => {
+    if (!latestBaseMonthDate || latestBaseRecords.length === 0) return;
+
+    const nextDate = new Date(latestBaseMonthDate.getFullYear(), latestBaseMonthDate.getMonth() + 1, 1);
+    const nextLabel = nextDate.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+    const currentLabel = latestBaseMonthDate.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+
+    const confirmed = window.confirm(`Do you want to copy ${currentLabel} to ${nextLabel}?`);
+    if (!confirmed) return;
+
+    setIsCopyingLatest(true);
+    try {
+      for (const record of latestBaseRecords) {
+        const payload = {
+          counteragent_uuid: record.counteragent_uuid,
+          financial_code_uuid: record.financial_code_uuid,
+          nominal_currency_uuid: record.nominal_currency_uuid,
+          salary_month: formatSalaryMonth(nextDate),
+          net_sum: record.net_sum,
+          surplus_insurance: record.surplus_insurance || null,
+          deducted_insurance: record.deducted_insurance || null,
+          deducted_fitness: record.deducted_fitness || null,
+          deducted_fine: null,
+          payment_id: record.payment_id
+            ? updatePaymentIdForMonth(record.payment_id, nextDate)
+            : record.payment_id,
+          created_by: 'user',
+          updated_by: 'user',
+        };
+
+        const response = await fetch('/api/salary-accruals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to copy salary accruals');
+        }
+      }
+
+      await fetchData();
+    } catch (error: any) {
+      alert(error.message || 'Failed to copy salary accruals');
+    } finally {
+      setIsCopyingLatest(false);
+    }
+  };
 
   // Column resize handlers
   useEffect(() => {
@@ -297,58 +404,6 @@ export function SalaryAccrualsTable() {
         }
       });
       
-      const parseSalaryMonth = (value: string): Date | null => {
-        if (!value) return null;
-        if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-          return new Date(`${value}T00:00:00`);
-        }
-        if (/^\d{4}-\d{2}$/.test(value)) {
-          return new Date(`${value}-01T00:00:00`);
-        }
-        if (/^\d{2}\/\d{4}$/.test(value)) {
-          const [mm, yyyy] = value.split('/');
-          return new Date(`${yyyy}-${mm}-01T00:00:00`);
-        }
-        if (/^\d{2}\.\d{4}$/.test(value)) {
-          const [mm, yyyy] = value.split('.');
-          return new Date(`${yyyy}-${mm}-01T00:00:00`);
-        }
-        const dotMatch = value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-        if (dotMatch) {
-          const [_, dd, mm, yyyy] = dotMatch;
-          return new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
-        }
-        const monthNameMatch = value.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/i);
-        if (monthNameMatch) {
-          const monthMap = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 } as const;
-          const mm = monthMap[monthNameMatch[1].toLowerCase() as keyof typeof monthMap];
-          const yyyy = monthNameMatch[2];
-          return new Date(`${yyyy}-${String(mm).padStart(2, '0')}-01T00:00:00`);
-        }
-        const parsed = new Date(value);
-        if (!Number.isNaN(parsed.getTime())) {
-          return parsed;
-        }
-        return null;
-      };
-
-      const formatSalaryMonth = (date: Date) => {
-        const yyyy = date.getFullYear();
-        const mm = String(date.getMonth() + 1).padStart(2, '0');
-        return `${yyyy}-${mm}-01`;
-      };
-
-      const updatePaymentIdForMonth = (paymentId: string, date: Date) => {
-        const yyyy = date.getFullYear();
-        const mm = String(date.getMonth() + 1).padStart(2, '0');
-        if (/_PRL\d{2}\d{4}$/i.test(paymentId)) {
-          return paymentId.replace(/_PRL\d{2}\d{4}$/i, `_PRL${mm}${yyyy}`);
-        }
-        if (paymentId.length >= 20) {
-          return `${paymentId}_PRL${mm}${yyyy}`;
-        }
-        return paymentId;
-      };
 
       let projectedData: SalaryAccrual[] = salaryData;
       if (projectedMonths > 0 && salaryData.length > 0) {
@@ -363,6 +418,12 @@ export function SalaryAccrualsTable() {
             .filter((entry: { item: SalaryAccrual; date: Date }) => `${entry.date.getFullYear()}-${entry.date.getMonth()}` === latestMonthKey)
             .map((entry: { item: SalaryAccrual; date: Date }) => entry.item);
 
+          setLatestBaseMonthDate(latestDate);
+          setLatestBaseRecords(latestRecords);
+          setLatestBaseMonthLabel(
+            latestDate.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
+          );
+
           const futureRecords: SalaryAccrual[] = [];
           for (let i = 1; i <= projectedMonths; i++) {
             const futureDate = new Date(latestDate.getFullYear(), latestDate.getMonth() + i, 1);
@@ -376,11 +437,30 @@ export function SalaryAccrualsTable() {
                 uuid: `projected-${record.uuid}-${i}-${idx}`,
                 salary_month: futureMonth,
                 payment_id: projectedPaymentId,
+                deducted_fine: null,
               });
             });
           }
 
           projectedData = [...salaryData, ...futureRecords];
+        }
+      }
+
+      if (salaryData.length > 0 && latestBaseMonthDate === null) {
+        const parsedDates = salaryData
+          .map((item: SalaryAccrual) => ({ item, date: parseSalaryMonth(item.salary_month) }))
+          .filter((entry: { item: SalaryAccrual; date: Date | null }): entry is { item: SalaryAccrual; date: Date } => Boolean(entry.date));
+        if (parsedDates.length > 0) {
+          const latestDate = parsedDates.reduce((max: Date, cur: { item: SalaryAccrual; date: Date }) => (cur.date > max ? cur.date : max), parsedDates[0].date);
+          const latestMonthKey = `${latestDate.getFullYear()}-${latestDate.getMonth()}`;
+          const latestRecords = parsedDates
+            .filter((entry: { item: SalaryAccrual; date: Date }) => `${entry.date.getFullYear()}-${entry.date.getMonth()}` === latestMonthKey)
+            .map((entry: { item: SalaryAccrual; date: Date }) => entry.item);
+          setLatestBaseMonthDate(latestDate);
+          setLatestBaseRecords(latestRecords);
+          setLatestBaseMonthLabel(
+            latestDate.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
+          );
         }
       }
 
@@ -723,6 +803,21 @@ export function SalaryAccrualsTable() {
             <Badge variant="secondary">
               {filteredAndSortedData.length} records
             </Badge>
+            {latestBaseMonthLabel && (
+              <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1 text-sm">
+                <span className="text-gray-600">Latest:</span>
+                <span className="font-medium text-gray-900">{latestBaseMonthLabel}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2"
+                  onClick={handleCopyLatestMonth}
+                  disabled={isCopyingLatest}
+                >
+                  +
+                </Button>
+              </div>
+            )}
             {totalPages > 1 && (
               <span className="text-sm text-gray-500">
                 Page {currentPage} of {totalPages}
