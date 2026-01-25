@@ -185,6 +185,51 @@ function formatSalaryPeriod(basePaymentId: string, period: { month: number; year
   return `${basePaymentId}_PRL${mm}${period.year}`;
 }
 
+function evaluateParsingRuleCondition(condition: string, row: Record<string, any>): boolean {
+  if (!condition) return false;
+
+  const normalized = condition.trim();
+  const simpleMatch = normalized.match(/^(\w+)="([^"]+)"$/i);
+  if (simpleMatch) {
+    const [, columnName, expectedValue] = simpleMatch;
+    const actualValue = row[columnName.toLowerCase()];
+    return String(actualValue ?? '').trim() === expectedValue;
+  }
+
+  const searchMatch = normalized.match(/isnumber\(search\("([^"]+)",\s*(\w+)\s*,\s*1\)\)/i);
+  if (searchMatch) {
+    const [, needle, columnName] = searchMatch;
+    const haystack = String(row[columnName.toLowerCase()] ?? '');
+    return haystack.includes(needle);
+  }
+
+  const reserved = new Set(['isnumber', 'search', 'and', 'or', 'not', 'true', 'false']);
+  let jsCondition = normalized;
+
+  jsCondition = jsCondition.replace(/isnumber\(search\("([^"]+)",\s*(\w+)\s*,\s*1\)\)/gi, (_match, needle, columnName) => {
+    const haystack = String(row[columnName.toLowerCase()] ?? '');
+    return JSON.stringify(haystack.includes(needle));
+  });
+
+  jsCondition = jsCondition.replace(/\b(\w+)\b/g, (match) => {
+    const key = match.toLowerCase();
+    if (reserved.has(key)) return match;
+    if (Object.prototype.hasOwnProperty.call(row, key)) {
+      return JSON.stringify(row[key] ?? '');
+    }
+    return match;
+  });
+
+  jsCondition = jsCondition.replace(/([^<>=!])=([^=])/g, '$1===$2');
+
+  try {
+    // eslint-disable-next-line no-new-func
+    return Boolean(Function(`"use strict"; return (${jsCondition});`)());
+  } catch {
+    return false;
+  }
+}
+
 function processSingleRecord(
   row: any,
   counteragentsMap: Map<string, CounteragentData>,
@@ -259,20 +304,32 @@ function processSingleRecord(
   for (const rule of parsingRules) {
     const columnName = rule.column_name;
     const condition = rule.condition;
-    if (!columnName || !condition) continue;
+    if (!condition) continue;
 
-    const fieldMap: Record<string, any> = {
-      docprodgroup: DocProdGroup,
-      docnomination: DocNomination,
-      docinformation: DocInformation,
-      dockey: DocKey,
-    };
+    if (columnName) {
+      const fieldMap: Record<string, any> = {
+        docprodgroup: DocProdGroup,
+        docnomination: DocNomination,
+        docinformation: DocInformation,
+        dockey: DocKey,
+      };
 
-    const fieldValue = fieldMap[columnName.toLowerCase()];
-
-    if (fieldValue && String(fieldValue).trim() === String(condition).trim()) {
-      matchedRule = rule;
-      break;
+      const fieldValue = fieldMap[columnName.toLowerCase()];
+      if (fieldValue && String(fieldValue).trim() === String(condition).trim()) {
+        matchedRule = rule;
+        break;
+      }
+    } else {
+      const rowMap = {
+        dockey: DocKey,
+        docprodgroup: DocProdGroup,
+        docnomination: DocNomination,
+        docinformation: DocInformation,
+      };
+      if (evaluateParsingRuleCondition(condition, rowMap)) {
+        matchedRule = rule;
+        break;
+      }
     }
   }
 
