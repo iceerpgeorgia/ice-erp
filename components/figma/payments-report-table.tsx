@@ -94,6 +94,50 @@ export function PaymentsReportTable() {
   const [customDate, setCustomDate] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // BroadcastChannel for cross-tab updates
+  const [broadcastChannel] = useState(() => {
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      return new BroadcastChannel('payments-ledger-updates');
+    }
+    return null;
+  });
+
+  // Conditions filter state
+  const allConditions = [
+    'ALL',
+    'Accrual>0',
+    'Accrual<0',
+    'Accrual=0',
+    'Order>0',
+    'Order<0',
+    'Order=0',
+    'Paid>0',
+    'Paid<0',
+    'Paid=0',
+    'Due>0',
+    'Due<0',
+    'Due=0',
+    'Balance>0',
+    'Balance<0',
+    'Balance=0',
+    'Current Due>0',
+    'Current Due<0',
+    'Current Due=0'
+  ] as const;
+  const [selectedConditions, setSelectedConditions] = useState<Set<string>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('paymentsReportConditions');
+      if (saved) {
+        try {
+          return new Set(JSON.parse(saved));
+        } catch {
+          return new Set(allConditions);
+        }
+      }
+    }
+    return new Set(allConditions);
+  });
+
   // Add Entry form states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [preSelectedPaymentId, setPreSelectedPaymentId] = useState<string | null>(null);
@@ -212,6 +256,13 @@ export function PaymentsReportTable() {
       }));
     }
   }, [dateFilterMode, customDate, isInitialized]);
+
+  // Save conditions filter to localStorage
+  useEffect(() => {
+    if (isInitialized && typeof window !== 'undefined') {
+      localStorage.setItem('paymentsReportConditions', JSON.stringify(Array.from(selectedConditions)));
+    }
+  }, [selectedConditions, isInitialized]);
 
   // Column resize handlers - optimized to avoid re-renders during drag
   useEffect(() => {
@@ -412,7 +463,7 @@ export function PaymentsReportTable() {
     }
   };
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -445,7 +496,27 @@ export function PaymentsReportTable() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateFilterMode, customDate]);
+
+  // Listen for ledger updates from other tabs
+  useEffect(() => {
+    if (broadcastChannel) {
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data.type === 'ledger-updated') {
+          console.log('[Payments Report] Ledger updated in another tab, refreshing data...');
+          // Refresh the report to show updated values
+          fetchData();
+        }
+      };
+
+      broadcastChannel.addEventListener('message', handleMessage);
+
+      return () => {
+        broadcastChannel.removeEventListener('message', handleMessage);
+        broadcastChannel.close();
+      };
+    }
+  }, [broadcastChannel, fetchData]);
 
   const handleToggleColumn = (columnKey: string) => {
     setColumns(prev => 
@@ -499,6 +570,76 @@ export function PaymentsReportTable() {
       });
     }
 
+    // Apply conditions filter (if not ALL selected)
+    if (!selectedConditions.has('ALL')) {
+      result = result.filter(row => {
+        // Check each selected condition
+        for (const condition of selectedConditions) {
+          let matches = false;
+          
+          switch (condition) {
+            case 'Accrual>0':
+              matches = row.accrual > 0;
+              break;
+            case 'Accrual<0':
+              matches = row.accrual < 0;
+              break;
+            case 'Accrual=0':
+              matches = row.accrual === 0;
+              break;
+            case 'Order>0':
+              matches = row.order > 0;
+              break;
+            case 'Order<0':
+              matches = row.order < 0;
+              break;
+            case 'Order=0':
+              matches = row.order === 0;
+              break;
+            case 'Paid>0':
+              matches = row.payment > 0;
+              break;
+            case 'Paid<0':
+              matches = row.payment < 0;
+              break;
+            case 'Paid=0':
+              matches = row.payment === 0;
+              break;
+            case 'Due>0':
+              matches = row.due > 0;
+              break;
+            case 'Due<0':
+              matches = row.due < 0;
+              break;
+            case 'Due=0':
+              matches = row.due === 0;
+              break;
+            case 'Balance>0':
+              matches = row.balance > 0;
+              break;
+            case 'Balance<0':
+              matches = row.balance < 0;
+              break;
+            case 'Balance=0':
+              matches = row.balance === 0;
+              break;
+            case 'Current Due>0':
+              matches = row.due > 0; // Same as Due>0
+              break;
+            case 'Current Due<0':
+              matches = row.due < 0; // Same as Due<0
+              break;
+            case 'Current Due=0':
+              matches = row.due === 0; // Same as Due=0
+              break;
+          }
+          
+          if (matches) return true; // If any condition matches, include the row (OR logic)
+        }
+        return false; // No conditions matched
+      });
+    }
+
     // Apply sort
     result.sort((a, b) => {
       const aVal = a[sortColumn];
@@ -524,7 +665,7 @@ export function PaymentsReportTable() {
     });
 
     return result;
-  }, [data, searchTerm, sortColumn, sortDirection, filters]);
+  }, [data, searchTerm, sortColumn, sortDirection, filters, selectedConditions]);
 
   // Paginate data to limit DOM nodes
   const paginatedData = useMemo(() => {
@@ -928,6 +1069,64 @@ export function PaymentsReportTable() {
                 </div>
               </>
             )}
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Filter className="w-4 h-4" />
+                  Conditions
+                  {!selectedConditions.has('ALL') && (
+                    <Badge variant="secondary" className="ml-1 h-4 px-1 text-xs">
+                      {selectedConditions.size}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 max-h-[500px] overflow-y-auto">
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm">Filter by Conditions</h4>
+                  
+                  <div className="space-y-2">
+                    {allConditions.map(condition => (
+                      <div key={condition} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`condition-${condition}`}
+                          checked={selectedConditions.has(condition)}
+                          onCheckedChange={(checked) => {
+                            setSelectedConditions(prev => {
+                              const next = new Set(prev);
+                              if (checked) {
+                                next.add(condition);
+                                // If ALL is selected, select all conditions
+                                if (condition === 'ALL') {
+                                  allConditions.forEach(c => next.add(c));
+                                }
+                              } else {
+                                next.delete(condition);
+                                // If any condition is unselected, unselect ALL
+                                if (condition !== 'ALL') {
+                                  next.delete('ALL');
+                                } else {
+                                  // If ALL is unselected, unselect everything
+                                  next.clear();
+                                }
+                              }
+                              return next;
+                            });
+                          }}
+                        />
+                        <label 
+                          htmlFor={`condition-${condition}`} 
+                          className="text-sm cursor-pointer flex-1"
+                        >
+                          {condition}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             <Popover>
               <PopoverTrigger asChild>

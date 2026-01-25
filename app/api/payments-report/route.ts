@@ -17,10 +17,9 @@ export async function GET(request: NextRequest) {
     const maxDate = searchParams.get('maxDate');
 
     // Build the WHERE clause for date filtering
-    // Since we're using subqueries, we can't use HAVING anymore
-    // Filter on the computed latest_date in the outer query
+    // Include payments with NULL dates (no activity) when filtering
     const dateFilter = maxDate 
-      ? `AND COALESCE(GREATEST(ledger_agg.latest_ledger_date, bank_agg.latest_bank_date), ledger_agg.latest_ledger_date, bank_agg.latest_bank_date) <= '${maxDate}'::date` 
+      ? `AND (COALESCE(GREATEST(ledger_agg.latest_ledger_date, bank_agg.latest_bank_date), ledger_agg.latest_ledger_date, bank_agg.latest_bank_date) <= '${maxDate}'::date OR COALESCE(GREATEST(ledger_agg.latest_ledger_date, bank_agg.latest_bank_date), ledger_agg.latest_ledger_date, bank_agg.latest_bank_date) IS NULL)` 
       : '';
 
     // Query to get payments with aggregated ledger data and actual payments from bank accounts
