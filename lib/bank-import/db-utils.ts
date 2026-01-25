@@ -108,7 +108,15 @@ export async function loadParsingRules(supabase: ReturnType<typeof getSupabaseCl
   return rules;
 }
 
-export async function loadPayments(supabase: ReturnType<typeof getSupabaseClient>): Promise<Map<string, PaymentData>> {
+function getSalaryBaseKey(paymentId: string): string | null {
+  const trimmed = paymentId.trim();
+  if (trimmed.length < 20) return null;
+  return trimmed.slice(0, 20).toLowerCase();
+}
+
+export async function loadPayments(
+  supabase: ReturnType<typeof getSupabaseClient>
+): Promise<{ paymentsMap: Map<string, PaymentData>; salaryBaseMap: Map<string, PaymentData> }> {
   const start = Date.now();
   console.log('  ⏳ Loading payments and salary_accruals from Supabase...');
 
@@ -131,8 +139,10 @@ export async function loadPayments(supabase: ReturnType<typeof getSupabaseClient
   ]);
 
   const map = new Map<string, PaymentData>();
+  const salaryBaseMap = new Map<string, PaymentData>();
   let paymentsCount = 0;
   let salaryCount = 0;
+  let salaryBaseCount = 0;
 
   // Add payments
   for (const row of paymentsData || []) {
@@ -153,20 +163,26 @@ export async function loadPayments(supabase: ReturnType<typeof getSupabaseClient
   for (const row of salaryData || []) {
     const paymentId = row.payment_id?.trim().toLowerCase();
     if (paymentId) {
-      map.set(paymentId, {
+      const salaryDataEntry: PaymentData = {
         counteragent_uuid: row.counteragent_uuid,
         project_uuid: null,
         financial_code_uuid: row.financial_code_uuid,
         currency_uuid: row.nominal_currency_uuid,
         source: 'salary',
-      });
+      };
+      map.set(paymentId, salaryDataEntry);
+      const baseKey = getSalaryBaseKey(paymentId);
+      if (baseKey && !salaryBaseMap.has(baseKey)) {
+        salaryBaseMap.set(baseKey, salaryDataEntry);
+        salaryBaseCount++;
+      }
       salaryCount++;
     }
   }
 
   console.log(`  ✅ Loaded ${map.size} payment IDs from Supabase via UNION query (${((Date.now() - start) / 1000).toFixed(2)}s)`);
-  console.log(`     └─ payments: ${paymentsCount}, salary_accruals: ${salaryCount}`);
-  return map;
+  console.log(`     └─ payments: ${paymentsCount}, salary_accruals: ${salaryCount}, salary_base_keys: ${salaryBaseCount}`);
+  return { paymentsMap: map, salaryBaseMap };
 }
 
 export async function loadNBGRates(supabase: ReturnType<typeof getSupabaseClient>): Promise<Map<string, NBGRates>> {

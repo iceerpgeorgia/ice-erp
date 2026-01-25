@@ -159,11 +159,26 @@ function computeCaseDescription(
  * Process single record with three-phase hierarchy
  * Common logic shared between import and backparse
  */
+function isValidSalaryPeriodSuffix(paymentId: string): boolean {
+  const match = paymentId.match(/_PRL(\d{2})(\d{4})$/i);
+  if (!match) return false;
+  const month = Number(match[1]);
+  const year = Number(match[2]);
+  return month >= 1 && month <= 12 && year >= 2000 && year <= 2100;
+}
+
+function getSalaryBaseKey(paymentId: string): string | null {
+  const trimmed = paymentId.trim();
+  if (trimmed.length < 20) return null;
+  return trimmed.slice(0, 20).toLowerCase();
+}
+
 function processSingleRecord(
   row: any,
   counteragentsMap: Map<string, CounteragentData>,
   parsingRules: ParsingRule[],
   paymentsMap: Map<string, PaymentData>,
+  salaryBaseMap: Map<string, PaymentData>,
   idx: number,
   stats: ProcessingStats,
   missingCounteragents: Map<string, { inn: string; count: number; name: string }>
@@ -347,7 +362,14 @@ function processSingleRecord(
   const extractedPaymentId = extractPaymentID(DocInformation);
   if (extractedPaymentId) {
     const paymentIdLower = extractedPaymentId.toLowerCase();
-    const paymentData = paymentsMap.get(paymentIdLower);
+    let paymentData = paymentsMap.get(paymentIdLower) || null;
+
+    if (!paymentData && isValidSalaryPeriodSuffix(paymentIdLower)) {
+      const baseKey = getSalaryBaseKey(paymentIdLower);
+      if (baseKey && salaryBaseMap.has(baseKey)) {
+        paymentData = salaryBaseMap.get(baseKey) || null;
+      }
+    }
 
     if (paymentData) {
       // Check for conflicts with Phase 1/2
@@ -611,7 +633,7 @@ export async function processBOGGEL(
   console.log('🔄 STEP 2: LOADING DICTIONARIES');
   console.log('='.repeat(80) + '\n');
 
-  const [counteragentsMap, parsingRules, paymentsMap, nbgRatesMap, currencyCache] =
+  const [counteragentsMap, parsingRules, paymentsBundle, nbgRatesMap, currencyCache] =
     await Promise.all([
       loadCounteragents(supabase),
       loadParsingRules(supabase),
@@ -619,6 +641,8 @@ export async function processBOGGEL(
       loadNBGRates(supabase),
       loadCurrencyCache(supabase),
     ]);
+
+  const { paymentsMap, salaryBaseMap } = paymentsBundle;
 
   // =============================
   // STEP 3: Three-Phase Processing
@@ -694,6 +718,7 @@ export async function processBOGGEL(
       counteragentsMap,
       parsingRules,
       paymentsMap,
+      salaryBaseMap,
       idx + 1,
       stats,
       missingCounteragents
@@ -949,7 +974,7 @@ export async function backparseExistingData(
     // =============================
     console.log('🔄 STEP 2: LOADING DICTIONARIES\n');
 
-    const [counteragentsMap, parsingRules, paymentsMap, nbgRatesMap, currencyCache] =
+    const [counteragentsMap, parsingRules, paymentsBundle, nbgRatesMap, currencyCache] =
       await Promise.all([
         loadCounteragents(supabase),
         loadParsingRules(supabase),
@@ -957,6 +982,8 @@ export async function backparseExistingData(
         loadNBGRates(supabase),
         loadCurrencyCache(supabase),
       ]);
+
+    const { paymentsMap, salaryBaseMap } = paymentsBundle;
 
     // =============================
     // STEP 3: Three-Phase Processing
@@ -1032,6 +1059,7 @@ export async function backparseExistingData(
         counteragentsMap,
         parsingRules,
         paymentsMap,
+        salaryBaseMap,
         idx + 1,
         stats,
         missingCounteragents

@@ -2,10 +2,10 @@
  * BOG GEL XML Import Processor - TypeScript Implementation
  * Direct equivalent of import_bank_xml_data.py for Vercel
  * 
- * Implements three-phase processing hierarchy:
- * Phase 1: Counteragent identification by INN
- * Phase 2: Parsing rules application
- * Phase 3: Payment ID matching
+ * Implements three-phase processing hierarchy (by PRIORITY):
+ * Phase 1: Parsing Rules (HIGHEST PRIORITY - IMMUTABLE if matched)
+ * Phase 2: Counteragent identification by INN (Second priority)
+ * Phase 3: Payment ID matching (LOWEST PRIORITY - Neglected if conflicts)
  */
 
 import { parseStringPromise } from 'xml2js';
@@ -127,12 +127,12 @@ function computeCaseDescription(
 ): string {
   const cases: string[] = [];
 
-  // Phase 1: Counteragent (mutually exclusive)
+  // Phase 2: Counteragent by INN (mutually exclusive)
   if (case1) cases.push('Case1 - counteragent identified by INN');
   else if (case2) cases.push('Case2 - no INN in raw data');
   else if (case3) cases.push('Case3 - INN exists but no counteragent match');
 
-  // Phase 2: Parsing Rules
+  // Phase 1: Parsing Rules (HIGHEST PRIORITY)
   if (case6) {
     const ruleText = appliedRuleId
       ? `Case6 - parsing rule applied (ID: ${appliedRuleId})`
@@ -155,11 +155,26 @@ function computeCaseDescription(
  * Process a single record through three-phase hierarchy
  * Matches Python process_single_record() function exactly
  */
+function isValidSalaryPeriodSuffix(paymentId: string): boolean {
+  const match = paymentId.match(/_PRL(\d{2})(\d{4})$/i);
+  if (!match) return false;
+  const month = Number(match[1]);
+  const year = Number(match[2]);
+  return month >= 1 && month <= 12 && year >= 2000 && year <= 2100;
+}
+
+function getSalaryBaseKey(paymentId: string): string | null {
+  const trimmed = paymentId.trim();
+  if (trimmed.length < 20) return null;
+  return trimmed.slice(0, 20).toLowerCase();
+}
+
 function processSingleRecord(
   row: Record<string, any>,
   counteragentsMap: Map<string, CounteragentData>,
   parsingRules: ParsingRule[],
   paymentsMap: Map<string, PaymentData>,
+  salaryBaseMap: Map<string, PaymentData>,
   idx: number,
   stats: ProcessingStats,
   missingCounteragents: Map<string, { inn: string; count: number; name: string }>
@@ -341,7 +356,14 @@ function processSingleRecord(
   const extractedPaymentId = extractPaymentID(DocInformation);
   if (extractedPaymentId) {
     const paymentIdLower = extractedPaymentId.toLowerCase();
-    const paymentData = paymentsMap.get(paymentIdLower);
+    let paymentData = paymentsMap.get(paymentIdLower) || null;
+
+    if (!paymentData && isValidSalaryPeriodSuffix(paymentIdLower)) {
+      const baseKey = getSalaryBaseKey(paymentIdLower);
+      if (baseKey && salaryBaseMap.has(baseKey)) {
+        paymentData = salaryBaseMap.get(baseKey) || null;
+      }
+    }
 
     if (paymentData) {
       // Check for conflicts with Phase 1/2
@@ -612,7 +634,7 @@ export async function processBOGGEL(
   console.log('🔄 STEP 2: LOADING DICTIONARIES');
   console.log('='.repeat(80) + '\n');
 
-  const [counteragentsMap, parsingRules, paymentsMap, nbgRatesMap, currencyCache] =
+  const [counteragentsMap, parsingRules, paymentsBundle, nbgRatesMap, currencyCache] =
     await Promise.all([
       loadCounteragents(supabase),
       loadParsingRules(supabase),
@@ -620,6 +642,8 @@ export async function processBOGGEL(
       loadNBGRates(supabase),
       loadCurrencyCache(supabase),
     ]);
+
+  const { paymentsMap, salaryBaseMap } = paymentsBundle;
 
   // =============================
   // STEP 3: Three-Phase Processing
@@ -689,6 +713,7 @@ export async function processBOGGEL(
       counteragentsMap,
       parsingRules,
       paymentsMap,
+      salaryBaseMap,
       idx + 1,
       stats,
       missingCounteragents
@@ -779,36 +804,43 @@ export async function processBOGGEL(
   console.log(`📊 STEP 5: UPDATING ${rawUpdates.length} RAW TABLE FLAGS`);
   console.log('='.repeat(80) + '\n');
 
-  // Update in batches
-  const batchSize = 500;
-  for (let i = 0; i < rawUpdates.length; i += batchSize) {
-    const batch = rawUpdates.slice(i, i + batchSize);
+  // Batch update using upsert (much faster than individual updates)
+  console.log(`  🚀 Starting optimized batch update...`);
+  
+  if (rawUpdates.length > 0) {
+    // Prepare records for upsert
+    const updateRecords = rawUpdates.map(update => ({
+      uuid: update.uuid,
+      counteragent_processed: update.counteragent_processed,
+      counteragent_found: update.counteragent_found,
+      counteragent_missing: update.counteragent_missing,
+      payment_id_matched: update.payment_id_matched,
+      payment_id_conflict: update.payment_id_conflict,
+      parsing_rule_applied: update.parsing_rule_applied,
+      parsing_rule_conflict: update.parsing_rule_conflict,
+      parsing_rule_processed: true,
+      payment_id_processed: true,
+      counteragent_inn: update.counteragent_inn,
+      applied_rule_id: update.applied_rule_id,
+      processing_case: update.processing_case,
+      is_processed: true,
+      updated_at: new Date().toISOString(),
+    }));
 
-    for (const update of batch) {
+    // Use upsert for bulk update (Supabase optimizes this)
+    const batchSize = 1000;
+    for (let i = 0; i < updateRecords.length; i += batchSize) {
+      const batch = updateRecords.slice(i, i + batchSize);
       const { error: updateError } = await supabase
         .from(rawTableName)
-        .update({
-          counteragent_processed: update.counteragent_processed,
-          counteragent_found: update.counteragent_found,
-          counteragent_missing: update.counteragent_missing,
-          payment_id_matched: update.payment_id_matched,
-          payment_id_conflict: update.payment_id_conflict,
-          parsing_rule_applied: update.parsing_rule_applied,
-          parsing_rule_conflict: update.parsing_rule_conflict,
-          parsing_rule_processed: true,
-          payment_id_processed: true,
-          counteragent_inn: update.counteragent_inn,
-          applied_rule_id: update.applied_rule_id,
-          processing_case: update.processing_case,
-          is_processed: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('uuid', update.uuid);
+        .upsert(batch, {
+          onConflict: 'uuid',
+          ignoreDuplicates: false,
+        });
 
       if (updateError) throw updateError;
+      console.log(`  ✅ Updated ${Math.min(i + batchSize, updateRecords.length)}/${updateRecords.length} records...`);
     }
-
-    console.log(`  ✅ Updated ${Math.min(i + batchSize, rawUpdates.length)}/${rawUpdates.length} records...`);
   }
 
   // =============================
