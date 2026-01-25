@@ -166,16 +166,6 @@ export default function BankTransactionsTableFigma() {
         alert("Please enter a valid number or 'all' for record limit");
         return;
       }
-      // Warn if limit is too high (API caps at 10,000)
-      if (limitNum > 10000) {
-        if (!confirm(`⚠️ You requested ${limitNum} records.\n\nFor performance reasons, the API is capped at 10,000 records maximum.\n\nContinue with 10,000 records?`)) {
-          return;
-        }
-        // Auto-adjust to 10,000
-        setRecordLimitInput("10000");
-        setAppliedRecordLimit("10000");
-        return;
-      }
     }
 
     // Apply the filters
@@ -375,7 +365,6 @@ export default function BankTransactionsTableFigma() {
             placeholder="5000 or 'all'"
             className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32"
           />
-          <span className="text-xs text-gray-500 whitespace-nowrap">(max 10K)</span>
         </div>
         <button
           onClick={handleApplyFilters}

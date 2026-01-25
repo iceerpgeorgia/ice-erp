@@ -166,16 +166,6 @@ export default function BankTransactionsTestTableFigma() {
         alert("Please enter a valid number or 'all' for record limit");
         return;
       }
-      // Warn if limit is too high (API caps at 10,000)
-      if (limitNum > 10000) {
-        if (!confirm(`⚠️ You requested ${limitNum} records.\n\nFor performance reasons, the API is capped at 10,000 records maximum.\n\nContinue with 10,000 records?`)) {
-          return;
-        }
-        // Auto-adjust to 10,000
-        setRecordLimitInput("10000");
-        setAppliedRecordLimit("10000");
-        return;
-      }
     }
 
     // Apply the filters
@@ -219,15 +209,12 @@ export default function BankTransactionsTestTableFigma() {
         const res = await fetch(url);
         console.log('[BankTransactionsTestTableFigma] Response status:', res.status);
 
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(`Failed to fetch: ${res.status} ${errorText}`);
-        }
+        if (!res.ok) throw new Error("Failed to fetch");
+        const response = await res.json();
 
-        const json = await res.json();
-        const data = json.data || [];
-        const summaries = json.currency_summaries || [];
-        const pagination = json.pagination || null;
+        const data = response.data || response;
+        const pagination = response.pagination;
+        const summaries = response.currency_summaries || [];
 
         if (pagination) {
           console.log('[BankTransactionsTestTableFigma] Pagination info:', pagination);
@@ -235,8 +222,10 @@ export default function BankTransactionsTestTableFigma() {
 
         if (summaries.length > 0) {
           console.log('[BankTransactionsTestTableFigma] Currency summaries:', summaries);
+          setCurrencySummaries(summaries);
         } else {
           console.log('[BankTransactionsTestTableFigma] No currency summaries received');
+          setCurrencySummaries([]);
         }
 
         console.log('[BankTransactionsTestTableFigma] Data received:', data.length, 'records');
@@ -278,21 +267,23 @@ export default function BankTransactionsTestTableFigma() {
 
         console.log('[BankTransactionsTestTableFigma] Mapped data:', mapped.length, 'records');
         setTransactions(mapped);
-        setCurrencySummaries(summaries);
-        setError(null);
-      } catch (err: any) {
+      } catch (err) {
         console.error("[BankTransactionsTestTableFigma] Load error:", err);
-        setError(err.message || "Failed to load transactions");
+        setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
         setLoading(false);
         setIsInitialLoad(false);
       }
     }
 
-    loadTransactions();
+    // Only load if not currently loading to prevent race conditions
+    if (!loading || isInitialLoad) {
+      setLoading(true);
+      loadTransactions();
+    }
   }, [appliedFromDate, appliedToDate, appliedRecordLimit]);
 
-  if (loading && isInitialLoad) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
         <p className="text-muted-foreground">Loading bank transactions...</p>
@@ -302,15 +293,11 @@ export default function BankTransactionsTestTableFigma() {
 
   if (error) {
     return (
-      <div className="p-6 text-center">
-        <p className="text-red-600 font-medium mb-2">Failed to load transactions</p>
-        <p className="text-muted-foreground text-sm">{error}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Retry
-        </button>
+      <div className="flex items-center justify-center p-12">
+        <div className="text-center">
+          <p className="text-red-600 font-semibold mb-2">Error loading transactions</p>
+          <p className="text-sm text-gray-600">{error}</p>
+        </div>
       </div>
     );
   }
@@ -319,64 +306,82 @@ export default function BankTransactionsTestTableFigma() {
   console.log('[BankTransactionsTestTableFigma] Currency summaries to pass:', currencySummaries);
 
   return (
-    <div className="w-full">
-      <div className="flex flex-col gap-4 p-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-semibold">Bank Transactions Test</h1>
-          <p className="text-muted-foreground">Deconsolidated transactions from GE78BG0000000893486000_BOG_GEL.</p>
+    <div className="space-y-4">
+      <div className="flex gap-4 items-center p-4 bg-gray-50 rounded-lg">
+        <div className="flex items-center gap-2">
+          <label htmlFor="fromDate" className="text-sm font-medium text-gray-700">
+            From:
+          </label>
+          <input
+            id="fromDate"
+            type="text"
+            value={fromDateDisplay}
+            onChange={(e) => setFromDateDisplay(formatDateInput(e.target.value))}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleApplyFilters();
+              }
+            }}
+            placeholder="dd.mm.yyyy"
+            maxLength={10}
+            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32"
+          />
         </div>
-
-        <div className="flex flex-wrap gap-3 items-end">
-          <div className="flex flex-col">
-            <label className="text-sm font-medium mb-1">From Date</label>
-            <input
-              type="text"
-              value={fromDateDisplay}
-              onChange={(e) => setFromDateDisplay(formatDateInput(e.target.value))}
-              placeholder="dd.mm.yyyy"
-              className="border rounded px-3 py-2 w-[140px]"
-            />
-          </div>
-
-          <div className="flex flex-col">
-            <label className="text-sm font-medium mb-1">To Date</label>
-            <input
-              type="text"
-              value={toDateDisplay}
-              onChange={(e) => setToDateDisplay(formatDateInput(e.target.value))}
-              placeholder="dd.mm.yyyy"
-              className="border rounded px-3 py-2 w-[140px]"
-            />
-          </div>
-
-          <div className="flex flex-col">
-            <label className="text-sm font-medium mb-1">Record Limit</label>
-            <input
-              type="text"
-              value={recordLimitInput}
-              onChange={(e) => setRecordLimitInput(e.target.value)}
-              placeholder="5000 or all"
-              className="border rounded px-3 py-2 w-[140px]"
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={handleApplyFilters}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Apply Filters
-            </button>
-            <button
-              onClick={handleClearFilters}
-              className="px-4 py-2 bg-gray-200 text-gray-900 rounded hover:bg-gray-300"
-            >
-              Clear
-            </button>
-          </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="toDate" className="text-sm font-medium text-gray-700">
+            To:
+          </label>
+          <input
+            id="toDate"
+            type="text"
+            value={toDateDisplay}
+            onChange={(e) => setToDateDisplay(formatDateInput(e.target.value))}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleApplyFilters();
+              }
+            }}
+            placeholder="dd.mm.yyyy"
+            maxLength={10}
+            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="recordLimit" className="text-sm font-medium text-gray-700">
+            Records:
+          </label>
+          <input
+            id="recordLimit"
+            type="text"
+            value={recordLimitInput}
+            onChange={(e) => setRecordLimitInput(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleApplyFilters();
+              }
+            }}
+            placeholder="5000 or 'all'"
+            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32"
+          />
+        </div>
+        <button
+          onClick={handleApplyFilters}
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          Apply Filter
+        </button>
+        {(appliedFromDate || appliedToDate) && (
+          <button
+            onClick={handleClearFilters}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            Clear Filters
+          </button>
+        )}
+        <div className="ml-auto text-sm text-gray-600">
+          Showing {transactions.length.toLocaleString()} transactions
         </div>
       </div>
-
       <BankTransactionsTableDynamic data={transactions} currencySummaries={currencySummaries} />
     </div>
   );
