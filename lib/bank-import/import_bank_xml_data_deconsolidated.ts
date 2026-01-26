@@ -364,13 +364,9 @@ function processSingleRecord(
     stats.case6_parsing_rule_match++;
   }
 
-  if (counteragentInn) {
+  if (!result.counteragent_uuid && counteragentInn) {
     const counteragentData = counteragentsMap.get(counteragentInn);
     if (counteragentData) {
-      if (result.counteragent_uuid && counteragentData.uuid !== result.counteragent_uuid) {
-        result.case7_parsing_rule_conflict = true;
-        stats.case7_parsing_rule_counteragent_mismatch++;
-      }
       result.counteragent_uuid = counteragentData.uuid;
       result.case1_counteragent_processed = true;
       result.case1_counteragent_found = true;
@@ -388,6 +384,12 @@ function processSingleRecord(
       }
       const entry = missingCounteragents.get(counteragentInn)!;
       entry.count++;
+    }
+  } else if (result.counteragent_uuid && counteragentInn) {
+    const counteragentData = counteragentsMap.get(counteragentInn);
+    if (counteragentData && counteragentData.uuid !== result.counteragent_uuid) {
+      result.case7_parsing_rule_conflict = true;
+      stats.case7_parsing_rule_counteragent_mismatch++;
     }
   }
 
