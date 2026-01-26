@@ -334,6 +334,7 @@ function processSingleRecord(
     }
 
     result.applied_rule_id = matchedRule.id;
+    result.case6_parsing_rule_applied = true;
 
     let ruleCounteragent = matchedRule.counteragent_uuid;
     if (!ruleCounteragent && rulePaymentData) {
@@ -342,7 +343,6 @@ function processSingleRecord(
 
     if (ruleCounteragent) {
       result.counteragent_uuid = ruleCounteragent;
-      result.case6_parsing_rule_applied = true;
     }
 
     if (matchedRule.financial_code_uuid) {
@@ -364,9 +364,13 @@ function processSingleRecord(
     stats.case6_parsing_rule_match++;
   }
 
-  if (!result.counteragent_uuid && counteragentInn) {
+  if (counteragentInn) {
     const counteragentData = counteragentsMap.get(counteragentInn);
     if (counteragentData) {
+      if (result.counteragent_uuid && counteragentData.uuid !== result.counteragent_uuid) {
+        result.case7_parsing_rule_conflict = true;
+        stats.case7_parsing_rule_counteragent_mismatch++;
+      }
       result.counteragent_uuid = counteragentData.uuid;
       result.case1_counteragent_processed = true;
       result.case1_counteragent_found = true;
@@ -384,12 +388,6 @@ function processSingleRecord(
       }
       const entry = missingCounteragents.get(counteragentInn)!;
       entry.count++;
-    }
-  } else if (result.counteragent_uuid && counteragentInn) {
-    const counteragentData = counteragentsMap.get(counteragentInn);
-    if (counteragentData && counteragentData.uuid !== result.counteragent_uuid) {
-      result.case7_parsing_rule_conflict = true;
-      stats.case7_parsing_rule_counteragent_mismatch++;
     }
   }
 

@@ -306,7 +306,7 @@ function processSingleRecord(
   result.counteragent_account_number = counteragentAccountNumber;
 
   // =============================
-  // PHASE 1: Parsing Rules (HIGHEST PRIORITY - IMMUTABLE)
+  // PHASE 1: Parsing Rules (SECOND PRIORITY)
   // =============================
 
   let matchedRule: ParsingRule | null = null;
@@ -368,7 +368,7 @@ function processSingleRecord(
 
     result.applied_rule_id = matchedRule.id;
 
-    // Phase 1 sets counteragent (HIGHEST PRIORITY - IMMUTABLE)
+    // Parsing rules can suggest a counteragent, but INN-based counteragent overrides it later
     let ruleCounteragent = matchedRule.counteragent_uuid;
     if (!ruleCounteragent && rulePaymentData) {
       ruleCounteragent = rulePaymentData.counteragent_uuid;
@@ -376,7 +376,6 @@ function processSingleRecord(
 
     if (ruleCounteragent) {
       result.counteragent_uuid = ruleCounteragent;
-      result.case6_parsing_rule_applied = true;
     }
 
     // Apply rule parameters (IMMUTABLE - highest priority)
@@ -397,6 +396,7 @@ function processSingleRecord(
     }
 
     stats.case6_parsing_rule_match++;
+    result.case6_parsing_rule_applied = true;
 
     if (idx <= 3) {
       console.log(
@@ -406,13 +406,23 @@ function processSingleRecord(
   }
 
   // =============================
-  // PHASE 2: Counteragent by INN (Second Priority)
+  // PHASE 2: Counteragent by INN (HIGHEST PRIORITY)
   // =============================
 
-  // Phase 2 can ONLY set counteragent if Phase 1 didn't set it
-  if (!result.counteragent_uuid && counteragentInn) {
+  if (counteragentInn) {
     const counteragentData = counteragentsMap.get(counteragentInn);
     if (counteragentData) {
+      if (result.counteragent_uuid && counteragentData.uuid !== result.counteragent_uuid) {
+        result.case7_parsing_rule_conflict = true;
+        stats.case7_parsing_rule_counteragent_mismatch++;
+
+        if (idx <= 3) {
+          console.log(
+            `  ⚠️  Record ${idx}: Parsing rule vs INN conflict (kept INN counteragent)`
+          );
+        }
+      }
+
       result.counteragent_uuid = counteragentData.uuid;
       result.case1_counteragent_processed = true;
       result.case1_counteragent_found = true;
@@ -434,19 +444,6 @@ function processSingleRecord(
       }
       const entry = missingCounteragents.get(counteragentInn)!;
       entry.count++;
-    }
-  } else if (result.counteragent_uuid && counteragentInn) {
-    // Phase 1 already set counteragent, check for conflict
-    const counteragentData = counteragentsMap.get(counteragentInn);
-    if (counteragentData && counteragentData.uuid !== result.counteragent_uuid) {
-      result.case7_parsing_rule_conflict = true;
-      stats.case7_parsing_rule_counteragent_mismatch++;
-
-      if (idx <= 3) {
-        console.log(
-          `  ⚠️  Record ${idx}: Parsing rule vs INN conflict (kept parsing rule counteragent)`
-        );
-      }
     }
   }
 
