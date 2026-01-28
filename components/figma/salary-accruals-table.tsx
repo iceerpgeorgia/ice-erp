@@ -27,6 +27,7 @@ type SalaryAccrual = {
   uuid: string;
   counteragent_uuid: string;
   counteragent_name: string;
+  pension_scheme?: boolean | null;
   financial_code_uuid: string;
   financial_code: string;
   nominal_currency_uuid: string;
@@ -73,6 +74,7 @@ type Currency = {
 
 const defaultColumns: ColumnConfig[] = [
   { key: 'counteragent_name', label: 'Employee', visible: true, sortable: true, filterable: true, width: 200 },
+  { key: 'pension_scheme', label: 'Pension Scheme', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'payment_id', label: 'Payment ID', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'financial_code', label: 'Financial Code', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'salary_month', label: 'Month', visible: true, sortable: true, filterable: true, format: 'date', width: 120 },
@@ -386,11 +388,20 @@ export function SalaryAccrualsTable() {
       const response = await fetch('/api/salary-accruals');
       if (!response.ok) throw new Error('Failed to fetch data');
       const salaryData = await response.json();
+      if (!Array.isArray(salaryData)) {
+        console.warn('[Salary Accruals] Expected array, received:', salaryData);
+        setData([]);
+        return;
+      }
       
       // Fetch bank transactions to calculate paid amounts
       const txResponse = await fetch('/api/bank-transactions?limit=10000');
       const txResult = await txResponse.json();
-      const transactions = txResult.data || txResult;
+      const transactions = Array.isArray(txResult.data)
+        ? txResult.data
+        : Array.isArray(txResult)
+          ? txResult
+          : [];
       
       // Create a map of payment_id to total paid amount (absolute value)
       // Use lowercase keys for case-insensitive matching
@@ -1228,9 +1239,15 @@ export function SalaryAccrualsTable() {
                           maxWidth: col.width
                         }}
                       >
-                        <div className="truncate">
-                          {formatValue(accrual[col.key], col.format)}
-                        </div>
+                        {col.key === 'pension_scheme' ? (
+                          <div className="flex items-center justify-center">
+                            <Checkbox checked={Boolean(accrual.pension_scheme)} disabled />
+                          </div>
+                        ) : (
+                          <div className="truncate">
+                            {formatValue(accrual[col.key], col.format)}
+                          </div>
+                        )}
                       </td>
                     ))}
                     <td className="px-4 py-2 text-sm" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>
