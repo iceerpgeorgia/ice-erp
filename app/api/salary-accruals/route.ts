@@ -82,6 +82,8 @@ export async function GET(request: NextRequest) {
         sa.created_at,
         sa.updated_at,
         c.counteragent as counteragent_name,
+        c.sex,
+        c.pension_scheme,
         fc.validation as financial_code,
         cur.code as currency_code
       FROM salary_accruals sa

@@ -27,6 +27,7 @@ type SalaryAccrual = {
   uuid: string;
   counteragent_uuid: string;
   counteragent_name: string;
+  sex?: string | null;
   pension_scheme?: boolean | null;
   financial_code_uuid: string;
   financial_code: string;
@@ -74,6 +75,7 @@ type Currency = {
 
 const defaultColumns: ColumnConfig[] = [
   { key: 'counteragent_name', label: 'Employee', visible: true, sortable: true, filterable: true, width: 200 },
+  { key: 'sex', label: 'Sex', visible: true, sortable: true, filterable: true, width: 90 },
   { key: 'pension_scheme', label: 'Pension Scheme', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'payment_id', label: 'Payment ID', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'financial_code', label: 'Financial Code', visible: true, sortable: true, filterable: true, width: 200 },
@@ -381,6 +383,8 @@ export function SalaryAccrualsTable() {
     setDragOverColumn(null);
   };
 
+  const normalizePaymentId = (value: any) => String(value ?? '').trim().toLowerCase().replace(/\s+/g, '');
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -409,7 +413,7 @@ export function SalaryAccrualsTable() {
       transactions.forEach((tx: any) => {
         const paymentId = tx.payment_id || tx.paymentId;
         if (paymentId) {
-          const paymentIdLower = String(paymentId).toLowerCase(); // Normalize to lowercase
+          const paymentIdLower = normalizePaymentId(paymentId);
           const rawAmount =
             tx.account_currency_amount ??
             tx.accountCurrencyAmount ??
@@ -487,7 +491,7 @@ export function SalaryAccrualsTable() {
       // Calculate paid and month_balance for each salary accrual
       const enrichedData = projectedData.map((accrual: SalaryAccrual) => {
         const netSum = parseFloat(accrual.net_sum || '0');
-        const paymentIdLower = accrual.payment_id ? accrual.payment_id.toLowerCase() : ''; // Normalize to lowercase
+        const paymentIdLower = accrual.payment_id ? normalizePaymentId(accrual.payment_id) : '';
         const paid = paidMap.get(paymentIdLower) || 0;
         const monthBalance = netSum - paid;
         
