@@ -113,6 +113,45 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    if (body?.action === 'copy-latest') {
+      const { base_month, target_month, created_by } = body;
+      if (!base_month || !target_month) {
+        return NextResponse.json({ error: 'Missing base_month or target_month' }, { status: 400 });
+      }
+
+      const baseStart = new Date(base_month);
+      const targetDate = new Date(target_month);
+      if (Number.isNaN(baseStart.getTime()) || Number.isNaN(targetDate.getTime())) {
+        return NextResponse.json({ error: 'Invalid base_month or target_month' }, { status: 400 });
+      }
+
+      const baseEnd = new Date(baseStart.getFullYear(), baseStart.getMonth() + 1, 1);
+      const baseRecords = await prisma.salary_accruals.findMany({
+        where: { salary_month: { gte: baseStart, lt: baseEnd } },
+      });
+
+      if (baseRecords.length === 0) {
+        return NextResponse.json({ inserted: 0, base_count: 0 });
+      }
+
+      const payload = baseRecords.map((record) => ({
+        counteragent_uuid: record.counteragent_uuid,
+        financial_code_uuid: record.financial_code_uuid,
+        nominal_currency_uuid: record.nominal_currency_uuid,
+        payment_id: generatePaymentId(record.counteragent_uuid, record.financial_code_uuid, targetDate),
+        salary_month: targetDate,
+        net_sum: record.net_sum,
+        surplus_insurance: null,
+        deducted_insurance: null,
+        deducted_fitness: null,
+        deducted_fine: null,
+        created_by: created_by || 'user',
+        updated_by: created_by || 'user',
+      }));
+
+      const result = await prisma.salary_accruals.createMany({ data: payload });
+      return NextResponse.json({ inserted: result.count, base_count: baseRecords.length });
+    }
     const {
       counteragent_uuid,
       financial_code_uuid,

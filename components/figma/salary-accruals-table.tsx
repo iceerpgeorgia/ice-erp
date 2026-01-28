@@ -21,6 +21,12 @@ import { Combobox } from '../ui/combobox';
 import { Badge } from './ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 
 type SalaryAccrual = {
   id: string;
@@ -113,6 +119,12 @@ export function SalaryAccrualsTable() {
   const [latestBaseMonthDate, setLatestBaseMonthDate] = useState<Date | null>(null);
   const [latestBaseRecords, setLatestBaseRecords] = useState<SalaryAccrual[]>([]);
   const [isCopyingLatest, setIsCopyingLatest] = useState(false);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [uploadMonth, setUploadMonth] = useState('');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadSummary, setUploadSummary] = useState<any | null>(null);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
 
   // Form states
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -264,34 +276,20 @@ export function SalaryAccrualsTable() {
 
     setIsCopyingLatest(true);
     try {
-      for (const record of latestBaseRecords) {
-        const payload = {
-          counteragent_uuid: record.counteragent_uuid,
-          financial_code_uuid: record.financial_code_uuid,
-          nominal_currency_uuid: record.nominal_currency_uuid,
-          salary_month: formatSalaryMonth(nextDate),
-          net_sum: record.net_sum,
-          surplus_insurance: null,
-          deducted_insurance: null,
-          deducted_fitness: null,
-          deducted_fine: null,
-          payment_id: record.payment_id
-            ? updatePaymentIdForMonth(record.payment_id, nextDate)
-            : record.payment_id,
+      const response = await fetch('/api/salary-accruals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'copy-latest',
+          base_month: formatSalaryMonth(latestBaseMonthDate),
+          target_month: formatSalaryMonth(nextDate),
           created_by: 'user',
-          updated_by: 'user',
-        };
+        }),
+      });
 
-        const response = await fetch('/api/salary-accruals', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to copy salary accruals');
-        }
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to copy salary accruals');
       }
 
       await fetchData();
@@ -299,6 +297,40 @@ export function SalaryAccrualsTable() {
       alert(error.message || 'Failed to copy salary accruals');
     } finally {
       setIsCopyingLatest(false);
+    }
+  };
+
+  const handleUploadTbcInsurance = async () => {
+    if (!uploadMonth || !uploadFile) {
+      alert('Please select a month and choose an XLSX file.');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('month', uploadMonth);
+      formData.append('file', uploadFile);
+
+      const response = await fetch('/api/salary-accruals/upload-tbc-insurance', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to upload insurance data');
+      }
+
+      setUploadSummary(result);
+      setIsSummaryOpen(true);
+      setIsUploadDialogOpen(false);
+      setUploadFile(null);
+      await fetchData();
+    } catch (error: any) {
+      alert(error.message || 'Failed to upload insurance data');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -881,6 +913,18 @@ export function SalaryAccrualsTable() {
                 className="h-7 w-20 text-sm"
               />
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  Upload XLSX
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsUploadDialogOpen(true)}>
+                  TBC Insurance
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button onClick={() => handleOpenDialog()}>
@@ -1111,12 +1155,104 @@ export function SalaryAccrualsTable() {
           <div>
             <span className="text-gray-600">Total Net Sum:</span>
             <span className="ml-2 font-semibold text-blue-900">
+            <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Upload TBC Insurance</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="tbcMonth">Month</Label>
+                    <Input
+                      id="tbcMonth"
+                      type="month"
+                      value={uploadMonth}
+                      onChange={(e) => setUploadMonth(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="tbcFile">XLSX File</Label>
+                    <Input
+                      id="tbcFile"
+                      type="file"
+                      accept=".xlsx"
+                      onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleUploadTbcInsurance} disabled={isUploading}>
+                      {isUploading ? 'Uploading...' : 'Upload'}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
               {formatValue(totals.net_sum, 'currency')}
             </span>
           </div>
           <div>
             <span className="text-gray-600">Total Paid:</span>
             <span className="ml-2 font-semibold text-green-900">
+            <Dialog open={isSummaryOpen} onOpenChange={setIsSummaryOpen}>
+              <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Insurance Upload Summary</DialogTitle>
+                </DialogHeader>
+                {uploadSummary ? (
+                  <div className="space-y-4 text-sm">
+                    <div className="grid gap-1">
+                      <div><span className="text-gray-600">Month:</span> {uploadSummary.month}</div>
+                      <div><span className="text-gray-600">Rows in file:</span> {uploadSummary.total_rows}</div>
+                      <div><span className="text-gray-600">Matched employees:</span> {uploadSummary.matched_employees}</div>
+                      <div><span className="text-gray-600">Updated records:</span> {uploadSummary.updated_records}</div>
+                      <div><span className="text-gray-600">Missing employees:</span> {uploadSummary.missing_employees?.length || 0}</div>
+                      <div><span className="text-gray-600">Negative deductions:</span> {uploadSummary.negative_results?.length || 0}</div>
+                    </div>
+                    <div>
+                      <div className="font-medium mb-2">Updated Employees</div>
+                      <div className="space-y-2">
+                        {(uploadSummary.updated_details || []).map((item: any, idx: number) => (
+                          <div key={`${item.counteragent_uuid}-${idx}`} className="rounded-md border border-gray-200 p-3">
+                            <div className="font-medium">{item.counteragent_name || 'Unknown'}</div>
+                            <div className="text-gray-600">ID: {item.personal_id}</div>
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                              <div>Surplus Insurance: {item.surplus_insurance}</div>
+                              <div>Deductable Insurance: {item.deducted_insurance}</div>
+                              <div>Total Insurance: {item.total_insurance}</div>
+                              <div>Schedule Amount: {item.graph_amount}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {uploadSummary.negative_results?.length > 0 && (
+                      <div>
+                        <div className="font-medium mb-2 text-red-600">Negative Deductions</div>
+                        <div className="space-y-2">
+                          {uploadSummary.negative_results.map((item: any, idx: number) => (
+                            <div key={`neg-${item.counteragent_uuid}-${idx}`} className="rounded-md border border-red-200 bg-red-50 p-3">
+                              <div className="font-medium">{item.counteragent_name || 'Unknown'}</div>
+                              <div className="text-gray-600">ID: {item.personal_id}</div>
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                <div>Surplus Insurance: {item.surplus_insurance}</div>
+                                <div>Deductable Insurance: {item.deducted_insurance}</div>
+                                <div>Total Insurance: {item.total_insurance}</div>
+                                <div>Schedule Amount: {item.graph_amount}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-600">No summary data available.</div>
+                )}
+              </DialogContent>
+            </Dialog>
               {formatValue(totals.paid, 'currency')}
             </span>
           </div>
