@@ -300,7 +300,7 @@ export function SalaryAccrualsTable() {
     }
   };
 
-  const handleUploadTbcInsurance = async () => {
+  const handleUploadTbcInsurance = async (action: 'preview' | 'apply') => {
     if (!uploadMonth || !uploadFile) {
       alert('Please select a month and choose an XLSX file.');
       return;
@@ -310,6 +310,7 @@ export function SalaryAccrualsTable() {
     try {
       const formData = new FormData();
       formData.append('month', uploadMonth);
+      formData.append('action', action);
       formData.append('file', uploadFile);
 
       const response = await fetch('/api/salary-accruals/upload-tbc-insurance', {
@@ -324,14 +325,20 @@ export function SalaryAccrualsTable() {
 
       setUploadSummary(result);
       setIsSummaryOpen(true);
-      setIsUploadDialogOpen(false);
-      setUploadFile(null);
-      await fetchData();
+      if (action === 'apply') {
+        setIsUploadDialogOpen(false);
+        setUploadFile(null);
+        await fetchData();
+      }
     } catch (error: any) {
       alert(error.message || 'Failed to upload insurance data');
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleApplyTbcInsurance = async () => {
+    await handleUploadTbcInsurance('apply');
   };
 
   // Column resize handlers
@@ -1183,8 +1190,8 @@ export function SalaryAccrualsTable() {
                     <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={handleUploadTbcInsurance} disabled={isUploading}>
-                      {isUploading ? 'Uploading...' : 'Upload'}
+                    <Button onClick={() => handleUploadTbcInsurance('preview')} disabled={isUploading}>
+                      {isUploading ? 'Uploading...' : 'Preview'}
                     </Button>
                   </div>
                 </div>
@@ -1197,9 +1204,9 @@ export function SalaryAccrualsTable() {
             <span className="text-gray-600">Total Paid:</span>
             <span className="ml-2 font-semibold text-green-900">
             <Dialog open={isSummaryOpen} onOpenChange={setIsSummaryOpen}>
-              <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+              <DialogContent className="max-w-5xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Insurance Upload Summary</DialogTitle>
+                  <DialogTitle>Insurance Upload Confirmation</DialogTitle>
                 </DialogHeader>
                 {uploadSummary ? (
                   <div className="space-y-4 text-sm">
@@ -1212,41 +1219,75 @@ export function SalaryAccrualsTable() {
                       <div><span className="text-gray-600">Negative deductions:</span> {uploadSummary.negative_results?.length || 0}</div>
                     </div>
                     <div>
-                      <div className="font-medium mb-2">Updated Employees</div>
-                      <div className="space-y-2">
-                        {(uploadSummary.updated_details || []).map((item: any, idx: number) => (
-                          <div key={`${item.counteragent_uuid}-${idx}`} className="rounded-md border border-gray-200 p-3">
-                            <div className="font-medium">{item.counteragent_name || 'Unknown'}</div>
-                            <div className="text-gray-600">ID: {item.personal_id}</div>
-                            <div className="mt-2 grid grid-cols-2 gap-2">
-                              <div>Surplus Insurance: {item.surplus_insurance}</div>
-                              <div>Deductable Insurance: {item.deducted_insurance}</div>
-                              <div>Total Insurance: {item.total_insurance}</div>
-                              <div>Schedule Amount: {item.graph_amount}</div>
+                      <div className="font-medium mb-2">Employees</div>
+                      <div className="rounded-md border border-gray-200">
+                        <div className="grid grid-cols-6 gap-2 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600">
+                          <div>Employee</div>
+                          <div>ID</div>
+                          <div>Surplus</div>
+                          <div>Deductable</div>
+                          <div>Total</div>
+                          <div>Schedule</div>
+                        </div>
+                        <div className="max-h-[300px] overflow-y-auto">
+                          {(uploadSummary.updated_details || []).map((item: any, idx: number) => (
+                            <div key={`${item.counteragent_uuid}-${idx}`} className="grid grid-cols-6 gap-2 border-t border-gray-100 px-3 py-2 text-xs">
+                              <div className="font-medium">{item.counteragent_name || 'Unknown'}</div>
+                              <div>{item.personal_id}</div>
+                              <div>{item.surplus_insurance}</div>
+                              <div className={item.deducted_insurance < 0 ? 'text-red-600 font-semibold' : ''}>
+                                {item.deducted_insurance}
+                              </div>
+                              <div>{item.total_insurance}</div>
+                              <div>{item.graph_amount}</div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     </div>
                     {uploadSummary.negative_results?.length > 0 && (
                       <div>
                         <div className="font-medium mb-2 text-red-600">Negative Deductions</div>
-                        <div className="space-y-2">
-                          {uploadSummary.negative_results.map((item: any, idx: number) => (
-                            <div key={`neg-${item.counteragent_uuid}-${idx}`} className="rounded-md border border-red-200 bg-red-50 p-3">
-                              <div className="font-medium">{item.counteragent_name || 'Unknown'}</div>
-                              <div className="text-gray-600">ID: {item.personal_id}</div>
-                              <div className="mt-2 grid grid-cols-2 gap-2">
-                                <div>Surplus Insurance: {item.surplus_insurance}</div>
-                                <div>Deductable Insurance: {item.deducted_insurance}</div>
-                                <div>Total Insurance: {item.total_insurance}</div>
-                                <div>Schedule Amount: {item.graph_amount}</div>
+                        <div className="rounded-md border border-red-200">
+                          <div className="grid grid-cols-6 gap-2 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+                            <div>Employee</div>
+                            <div>ID</div>
+                            <div>Surplus</div>
+                            <div>Deductable</div>
+                            <div>Total</div>
+                            <div>Schedule</div>
+                          </div>
+                          <div className="max-h-[200px] overflow-y-auto">
+                            {uploadSummary.negative_results.map((item: any, idx: number) => (
+                              <div key={`neg-${item.counteragent_uuid}-${idx}`} className="grid grid-cols-6 gap-2 border-t border-red-100 px-3 py-2 text-xs">
+                                <div className="font-medium">{item.counteragent_name || 'Unknown'}</div>
+                                <div>{item.personal_id}</div>
+                                <div>{item.surplus_insurance}</div>
+                                <div className="text-red-600 font-semibold">{item.deducted_insurance}</div>
+                                <div>{item.total_insurance}</div>
+                                <div>{item.graph_amount}</div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
                       </div>
                     )}
+                    {uploadSummary.missing_employees?.length > 0 && (
+                      <div>
+                        <div className="font-medium mb-2">Missing IDs</div>
+                        <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs">
+                          {uploadSummary.missing_employees.join(', ')}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setIsSummaryOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleApplyTbcInsurance} disabled={isUploading}>
+                        {isUploading ? 'Applying...' : 'Confirm Apply'}
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="text-sm text-gray-600">No summary data available.</div>

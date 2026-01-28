@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file');
     const month = formData.get('month');
+    const action = formData.get('action');
 
     if (!(file instanceof File)) {
       return NextResponse.json({ error: 'Missing XLSX file' }, { status: 400 });
@@ -172,11 +173,13 @@ export async function POST(request: NextRequest) {
         total_insurance: totalInsurance,
       });
 
-      await prisma.salary_accruals.update({
-        where: { id: record.id },
-        data: { deducted_insurance: deductedInsurance },
-      });
-      updatedRecords += 1;
+      if (action !== 'preview') {
+        await prisma.salary_accruals.update({
+          where: { id: record.id },
+          data: { deducted_insurance: deductedInsurance },
+        });
+        updatedRecords += 1;
+      }
     }
 
     return NextResponse.json({
