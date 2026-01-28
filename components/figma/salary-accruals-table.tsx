@@ -399,7 +399,7 @@ export function SalaryAccrualsTable() {
       }
       
       // Fetch bank transactions to calculate paid amounts
-      const txResponse = await fetch('/api/bank-transactions?limit=10000');
+      const txResponse = await fetch('/api/bank-transactions?limit=0');
       const txResult = await txResponse.json();
       const transactions = Array.isArray(txResult.data)
         ? txResult.data
@@ -838,6 +838,9 @@ export function SalaryAccrualsTable() {
             <h1 className="text-lg font-semibold">Salary Accruals</h1>
             <Badge variant="secondary">
               {filteredAndSortedData.length} records
+            </Badge>
+            <Badge variant="outline">
+              Total: {data.length}
             </Badge>
             {latestBaseMonthLabel && (
               <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1 text-sm">
