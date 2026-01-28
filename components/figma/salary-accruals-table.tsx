@@ -409,8 +409,14 @@ export function SalaryAccrualsTable() {
       transactions.forEach((tx: any) => {
         const paymentId = tx.payment_id || tx.paymentId;
         if (paymentId) {
-          const paymentIdLower = paymentId.toLowerCase(); // Normalize to lowercase
-          const amount = Math.abs(parseFloat(tx.account_currency_amount || tx.accountCurrencyAmount || '0'));
+          const paymentIdLower = String(paymentId).toLowerCase(); // Normalize to lowercase
+          const rawAmount =
+            tx.account_currency_amount ??
+            tx.accountCurrencyAmount ??
+            tx.nominal_amount ??
+            tx.nominalAmount ??
+            '0';
+          const amount = Math.abs(parseFloat(rawAmount || '0'));
           paidMap.set(paymentIdLower, (paidMap.get(paymentIdLower) || 0) + amount);
         }
       });
