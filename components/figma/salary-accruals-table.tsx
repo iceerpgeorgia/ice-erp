@@ -330,7 +330,7 @@ export function SalaryAccrualsTable() {
       if (action === 'apply') {
         const updates = Array.isArray(result.updated_details) ? result.updated_details : [];
         if (updates.length > 0) {
-          const updateMap = new Map(
+          const updateMap = new Map<string, any>(
             updates.map((item: any) => [item.counteragent_uuid, item])
           );
           const targetMonth = uploadMonth;
@@ -342,7 +342,7 @@ export function SalaryAccrualsTable() {
                 rowDate.getFullYear() === Number(targetMonth.split('-')[0]) &&
                 rowDate.getMonth() + 1 === Number(targetMonth.split('-')[1]);
               if (!matchesMonth) return row;
-              const update = updateMap.get(row.counteragent_uuid);
+              const update = updateMap.get(row.counteragent_uuid) as any;
               if (!update) return row;
               const updatedRow = {
                 ...row,
