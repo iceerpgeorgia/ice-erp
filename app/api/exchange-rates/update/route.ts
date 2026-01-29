@@ -68,7 +68,10 @@ export async function POST(req: NextRequest) {
       // Update existing
       result = await prisma.nbg_exchange_rates.update({
         where: { date: today },
-        data: rates,
+        data: {
+          ...rates,
+          updated_at: new Date(),
+        },
       });
 
       await logAudit({
@@ -82,6 +85,7 @@ export async function POST(req: NextRequest) {
         data: {
           uuid: randomUUID(),
           date: today,
+          updated_at: new Date(),
           ...rates,
         },
       });
@@ -229,6 +233,7 @@ async function backfillMissingDates(currentDate: Date) {
           data: {
             uuid: randomUUID(),
             date: missingDate,
+            updated_at: new Date(),
             ...ratesToUse,
           },
         });
