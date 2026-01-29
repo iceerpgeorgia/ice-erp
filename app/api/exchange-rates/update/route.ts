@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
       // Create new
       result = await prisma.nbg_exchange_rates.create({
         data: {
+          uuid: randomUUID(),
           date: today,
           ...rates,
         },
@@ -225,6 +227,7 @@ async function backfillMissingDates(currentDate: Date) {
         // Insert the missing date
         await prisma.nbg_exchange_rates.create({
           data: {
+            uuid: randomUUID(),
             date: missingDate,
             ...ratesToUse,
           },
