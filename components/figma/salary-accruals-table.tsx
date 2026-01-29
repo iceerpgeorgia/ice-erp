@@ -291,8 +291,10 @@ export function SalaryAccrualsTable() {
         const error = await response.json();
         throw new Error(error.error || 'Failed to copy salary accruals');
       }
-
-      await fetchData();
+      const result = await response.json();
+      if (Array.isArray(result.records)) {
+        setData((prev) => [...result.records, ...prev]);
+      }
     } catch (error: any) {
       alert(error.message || 'Failed to copy salary accruals');
     } finally {
@@ -326,9 +328,36 @@ export function SalaryAccrualsTable() {
       setUploadSummary(result);
       setIsSummaryOpen(true);
       if (action === 'apply') {
+        const updates = Array.isArray(result.updated_details) ? result.updated_details : [];
+        if (updates.length > 0) {
+          const updateMap = new Map(
+            updates.map((item: any) => [item.counteragent_uuid, item])
+          );
+          const targetMonth = uploadMonth;
+          setData((prev) =>
+            prev.map((row) => {
+              const rowDate = parseSalaryMonth(row.salary_month);
+              const matchesMonth =
+                rowDate &&
+                rowDate.getFullYear() === Number(targetMonth.split('-')[0]) &&
+                rowDate.getMonth() + 1 === Number(targetMonth.split('-')[1]);
+              if (!matchesMonth) return row;
+              const update = updateMap.get(row.counteragent_uuid);
+              if (!update) return row;
+              const updatedRow = {
+                ...row,
+                surplus_insurance: String(update.surplus_insurance ?? row.surplus_insurance ?? '0'),
+                deducted_insurance: String(update.deducted_insurance ?? row.deducted_insurance ?? '0'),
+              } as SalaryAccrual;
+              return {
+                ...updatedRow,
+                month_balance: computeBalance(updatedRow),
+              };
+            })
+          );
+        }
         setIsUploadDialogOpen(false);
         setUploadFile(null);
-        await fetchData();
       }
     } catch (error: any) {
       alert(error.message || 'Failed to upload insurance data');
@@ -423,6 +452,16 @@ export function SalaryAccrualsTable() {
   };
 
   const normalizePaymentId = (value: any) => String(value ?? '').trim().toLowerCase().replace(/\s+/g, '');
+
+  const computeBalance = (row: SalaryAccrual) => {
+    const netSum = parseFloat(row.net_sum || '0');
+    const surplus = parseFloat(row.surplus_insurance || '0') || 0;
+    const deductedInsurance = parseFloat(row.deducted_insurance || '0') || 0;
+    const deductedFitness = parseFloat(row.deducted_fitness || '0') || 0;
+    const deductedFine = parseFloat(row.deducted_fine || '0') || 0;
+    const pensionMultiplier = row.pension_scheme ? 0.98 : 1;
+    return netSum * pensionMultiplier - deductedInsurance - deductedFitness - deductedFine;
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -529,11 +568,10 @@ export function SalaryAccrualsTable() {
 
       // Calculate paid and month_balance for each salary accrual
       const enrichedData = projectedData.map((accrual: SalaryAccrual) => {
-        const netSum = parseFloat(accrual.net_sum || '0');
         const paymentIdLower = accrual.payment_id ? normalizePaymentId(accrual.payment_id) : '';
         const paid = paidMap.get(paymentIdLower) || 0;
-        const monthBalance = netSum - paid;
-        
+        const monthBalance = computeBalance(accrual);
+
         return {
           ...accrual,
           paid,
@@ -659,14 +697,52 @@ export function SalaryAccrualsTable() {
         body: JSON.stringify(body),
       });
 
+      const result = await response.json();
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to save');
+        throw new Error(result.error || 'Failed to save');
       }
+
+      const existing = data.find((row) => row.id === editingId);
+      const employeeLabel = employees.find((emp) => emp.value === selectedEmployee)?.label;
+      const financialLabel = financialCodes.find((code) => code.value === selectedFinancialCode)?.label;
+      const currencyLabel = currencies.find((cur) => cur.value === selectedCurrency)?.label;
+
+      const updatedRow: SalaryAccrual = {
+        ...(existing || ({} as SalaryAccrual)),
+        ...result,
+        id: result.id?.toString?.() || editingId || result.id,
+        counteragent_uuid: selectedEmployee,
+        financial_code_uuid: selectedFinancialCode,
+        nominal_currency_uuid: selectedCurrency,
+        counteragent_name: employeeLabel || existing?.counteragent_name || 'Unknown',
+        financial_code: financialLabel || existing?.financial_code || 'Unknown',
+        currency_code: currencyLabel || existing?.currency_code || 'Unknown',
+        sex: existing?.sex ?? null,
+        pension_scheme: existing?.pension_scheme ?? null,
+        salary_month: result.salary_month || salaryMonth,
+        net_sum: result.net_sum?.toString?.() || netSum,
+        surplus_insurance: result.surplus_insurance ?? surplusInsurance || null,
+        deducted_insurance: result.deducted_insurance ?? deductedInsurance || null,
+        deducted_fitness: result.deducted_fitness ?? deductedFitness || null,
+        deducted_fine: result.deducted_fine ?? deductedFine || null,
+        payment_id: result.payment_id || existing?.payment_id || '',
+        created_at: result.created_at || existing?.created_at || new Date().toISOString(),
+        updated_at: result.updated_at || new Date().toISOString(),
+        paid: existing?.paid || 0,
+        month_balance: 0,
+      };
+
+      updatedRow.month_balance = computeBalance(updatedRow);
+
+      setData((prev) => {
+        if (editingId) {
+          return prev.map((row) => (row.id === editingId ? updatedRow : row));
+        }
+        return [updatedRow, ...prev];
+      });
 
       setIsDialogOpen(false);
       resetForm();
-      fetchData();
     } catch (error: any) {
       console.error('Error saving salary accrual:', error);
       alert(error.message || 'Failed to save salary accrual');
@@ -686,7 +762,7 @@ export function SalaryAccrualsTable() {
         throw new Error(error.error || 'Failed to delete');
       }
 
-      fetchData();
+      setData((prev) => prev.filter((row) => row.id !== id));
     } catch (error: any) {
       console.error('Error deleting salary accrual:', error);
       alert(error.message || 'Failed to delete salary accrual');
@@ -847,6 +923,9 @@ export function SalaryAccrualsTable() {
       month_balance: acc.month_balance + (row.month_balance || 0),
       surplus_insurance: acc.surplus_insurance + (parseFloat(row.surplus_insurance || '0') || 0),
       deducted_insurance: acc.deducted_insurance + (parseFloat(row.deducted_insurance || '0') || 0),
+      total_insurance: acc.total_insurance +
+        (parseFloat(row.surplus_insurance || '0') || 0) +
+        (parseFloat(row.deducted_insurance || '0') || 0),
       deducted_fitness: acc.deducted_fitness + (parseFloat(row.deducted_fitness || '0') || 0),
       deducted_fine: acc.deducted_fine + (parseFloat(row.deducted_fine || '0') || 0),
     }), { 
@@ -854,7 +933,8 @@ export function SalaryAccrualsTable() {
       paid: 0,
       month_balance: 0,
       surplus_insurance: 0, 
-      deducted_insurance: 0, 
+      deducted_insurance: 0,
+      total_insurance: 0,
       deducted_fitness: 0, 
       deducted_fine: 0 
     });
@@ -1304,15 +1384,21 @@ export function SalaryAccrualsTable() {
             </span>
           </div>
           <div>
-            <span className="text-gray-600">Total Surplus Ins.:</span>
+            <span className="text-gray-600">Surplus Ins.:</span>
             <span className="ml-2 font-semibold text-blue-900">
               {formatValue(totals.surplus_insurance, 'currency')}
             </span>
           </div>
           <div>
-            <span className="text-gray-600">Total Ded. Ins.:</span>
+            <span className="text-gray-600">Ded Ins.:</span>
             <span className="ml-2 font-semibold text-blue-900">
               {formatValue(totals.deducted_insurance, 'currency')}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Total Ins.:</span>
+            <span className="ml-2 font-semibold text-blue-900">
+              {formatValue(totals.total_insurance, 'currency')}
             </span>
           </div>
           <div>
