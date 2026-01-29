@@ -21,6 +21,7 @@ import { Combobox } from '../ui/combobox';
 import { Badge } from './ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
+import * as XLSX from 'xlsx';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +34,7 @@ type SalaryAccrual = {
   uuid: string;
   counteragent_uuid: string;
   counteragent_name: string;
+  identification_number?: string | null;
   sex?: string | null;
   pension_scheme?: boolean | null;
   financial_code_uuid: string;
@@ -125,6 +127,7 @@ export function SalaryAccrualsTable() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSummary, setUploadSummary] = useState<any | null>(null);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Form states
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -368,6 +371,72 @@ export function SalaryAccrualsTable() {
 
   const handleApplyTbcInsurance = async () => {
     await handleUploadTbcInsurance('apply');
+  };
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectAll = (ids: string[]) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      const allSelected = ids.length > 0 && ids.every((id) => next.has(id));
+      if (allSelected) {
+        ids.forEach((id) => next.delete(id));
+      } else {
+        ids.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const handleDownloadBankXlsx = () => {
+    const selectedRecords = data.filter((row) => selectedIds.has(row.id));
+    if (selectedRecords.length === 0) {
+      alert('No records selected');
+      return;
+    }
+
+    const headers = [
+      'გამგზავნის ანგარიშის ნომერი',
+      'დოკუმენტის ნომერი',
+      'მიმღები ბანკის კოდი(არასავალდებულო)',
+      'მიმღების ანგარიშის ნომერი',
+      'მიმღების დასახელება',
+      'მიმღების საიდენტიფიკაციო კოდი',
+      'დანიშნულება',
+      'თანხა',
+      'ხელფასი',
+      'გადარიცხვის მეთოდი',
+      'დამატებითი ინფორმაცია',
+    ];
+
+    const rows = selectedRecords.map((record) => [
+      'GE78BG0000000893486000',
+      '',
+      '',
+      '',
+      record.counteragent_name || '',
+      record.identification_number || '',
+      'ხელფასი',
+      computeBalance(record),
+      '',
+      '',
+      record.payment_id || '',
+    ]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+    XLSX.writeFile(workbook, 'Bank XLSX.xlsx');
   };
 
   // Column resize handlers
@@ -715,6 +784,7 @@ export function SalaryAccrualsTable() {
         financial_code_uuid: selectedFinancialCode,
         nominal_currency_uuid: selectedCurrency,
         counteragent_name: employeeLabel || existing?.counteragent_name || 'Unknown',
+        identification_number: existing?.identification_number || result.identification_number || null,
         financial_code: financialLabel || existing?.financial_code || 'Unknown',
         currency_code: currencyLabel || existing?.currency_code || 'Unknown',
         sex: existing?.sex ?? null,
@@ -914,6 +984,8 @@ export function SalaryAccrualsTable() {
 
   const visibleColumns = columns.filter(col => col.visible);
   const activeFilterCount = filters.size;
+  const filteredIds = filteredAndSortedData.map((row) => row.id);
+  const allFilteredSelected = filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id));
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -1000,6 +1072,11 @@ export function SalaryAccrualsTable() {
                 className="h-7 w-20 text-sm"
               />
             </div>
+            {selectedIds.size > 0 && (
+              <Button variant="outline" onClick={handleDownloadBankXlsx}>
+                Bank XLSX
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
@@ -1487,18 +1564,29 @@ export function SalaryAccrualsTable() {
                 >
                   Actions
                 </th>
+                <th
+                  className="sticky top-0 bg-white px-2 py-3 text-center text-sm font-semibold border-b-2 border-gray-200"
+                  style={{ width: 60, minWidth: 60, maxWidth: 60 }}
+                >
+                  <div className="flex items-center justify-center">
+                    <Checkbox
+                      checked={allFilteredSelected}
+                      onCheckedChange={() => handleToggleSelectAll(filteredIds)}
+                    />
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4">
+                  <td colSpan={visibleColumns.length + 2} className="text-center py-8 px-4">
                     Loading...
                   </td>
                 </tr>
               ) : filteredAndSortedData.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4 text-gray-500">
+                  <td colSpan={visibleColumns.length + 2} className="text-center py-8 px-4 text-gray-500">
                     No records found
                   </td>
                 </tr>
@@ -1542,6 +1630,14 @@ export function SalaryAccrualsTable() {
                         >
                           <Trash2 className="h-4 w-4 text-red-600" />
                         </Button>
+                      </div>
+                    </td>
+                    <td className="px-2 py-2 text-sm" style={{ width: 60, minWidth: 60, maxWidth: 60 }}>
+                      <div className="flex items-center justify-center">
+                        <Checkbox
+                          checked={selectedIds.has(accrual.id)}
+                          onCheckedChange={() => handleToggleSelect(accrual.id)}
+                        />
                       </div>
                     </td>
                   </tr>
