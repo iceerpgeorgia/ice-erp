@@ -12,7 +12,9 @@ export async function GET(req: NextRequest) {
     
     const where: any = {};
     if (table) where.table = table;
-  if (recordId) where.record_id = recordId;
+    if (recordId) {
+      where.record_id = recordId.trim();
+    }
     
     const logs = await prisma.auditLog.findMany({
       where,
