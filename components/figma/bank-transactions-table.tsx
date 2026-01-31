@@ -1079,6 +1079,63 @@ export function BankTransactionsTable({
     setPaymentSearch('');
   };
 
+  const recomputeNominalAmountLabel = () => {
+    if (!editingTransaction) return;
+    if (!formData.payment_uuid) return;
+    const selectedPayment = paymentOptions.find(p => p.paymentId === formData.payment_uuid);
+    if (!selectedPayment) return;
+
+    let calculatedAmount = formatAmount(editingTransaction.accountCurrencyAmount);
+
+    if (exchangeRates && currencyOptions.length > 0) {
+      try {
+        const accountAmount = Number(editingTransaction.accountCurrencyAmount);
+        const accountCurrency = currencyOptions.find(c => c.uuid === editingTransaction.accountCurrencyUuid);
+        const accountCode = accountCurrency?.code || 'GEL';
+        const nominalCode = selectedPayment.currencyCode;
+
+        if (accountCode === nominalCode) {
+          calculatedAmount = formatAmount(accountAmount);
+        } else if (accountCode === 'GEL' && nominalCode !== 'GEL') {
+          const rateField = nominalCode.toLowerCase();
+          if (exchangeRates[rateField]) {
+            const converted = accountAmount / Number(exchangeRates[rateField]);
+            calculatedAmount = formatAmount(converted);
+          }
+        } else if (accountCode !== 'GEL' && nominalCode === 'GEL') {
+          const rateField = accountCode.toLowerCase();
+          if (exchangeRates[rateField]) {
+            const converted = accountAmount * Number(exchangeRates[rateField]);
+            calculatedAmount = formatAmount(converted);
+          }
+        } else {
+          const accountRateField = accountCode.toLowerCase();
+          const nominalRateField = nominalCode.toLowerCase();
+          if (exchangeRates[accountRateField] && exchangeRates[nominalRateField]) {
+            const gelAmount = accountAmount * Number(exchangeRates[accountRateField]);
+            const converted = gelAmount / Number(exchangeRates[nominalRateField]);
+            calculatedAmount = formatAmount(converted);
+          }
+        }
+      } catch (error) {
+        console.error('[recomputeNominalAmountLabel] Calculation error:', error);
+      }
+    }
+
+    setPaymentDisplayValues({
+      projectLabel: selectedPayment.projectIndex || 'N/A',
+      jobLabel: selectedPayment.jobName || 'N/A',
+      financialCodeLabel: selectedPayment.financialCodeValidation || '',
+      currencyLabel: selectedPayment.currencyCode || '',
+      nominalAmountLabel: calculatedAmount,
+    });
+  };
+
+  useEffect(() => {
+    if (!formData.payment_uuid) return;
+    recomputeNominalAmountLabel();
+  }, [formData.payment_uuid, exchangeRates, currencyOptions, editingTransaction, paymentOptions]);
+
   // Handle project change - load jobs for new project
   const handleProjectChange = async (projectUuid: string) => {
     const isClearing = projectUuid === '__none__' || !projectUuid;
