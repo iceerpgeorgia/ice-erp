@@ -15,6 +15,7 @@ import {
   normalizeINN,
   extractPaymentID,
 } from './db-utils';
+import { evaluateCondition } from '../formula-compiler';
 import type {
   CounteragentData,
   ParsingRule,
@@ -31,19 +32,20 @@ function parseBOGDate(dateStr: string | undefined): Date | null {
   if (!dateStr) return null;
   try {
     const cleaned = dateStr.trim();
-    if (cleaned.length === 10 && cleaned.includes('.')) {
-      const [day, month, year] = cleaned.split('.');
+    const normalized = cleaned.length >= 10 ? cleaned.slice(0, 10) : cleaned;
+    if (normalized.length === 10 && normalized.includes('.')) {
+      const [day, month, year] = normalized.split('.');
       if (!day || !month || !year) return null;
       const date = new Date(`${year}-${month}-${day}`);
       return Number.isNaN(date.getTime()) ? null : date;
     }
-    if (cleaned.length === 10) {
-      const date = new Date(cleaned);
+    if (normalized.length === 10) {
+      const date = new Date(normalized);
       return Number.isNaN(date.getTime()) ? null : date;
-    } else if (cleaned.length === 8) {
-      const year = cleaned.substring(0, 4);
-      const month = cleaned.substring(4, 6);
-      const day = cleaned.substring(6, 8);
+    } else if (normalized.length === 8) {
+      const year = normalized.substring(0, 4);
+      const month = normalized.substring(4, 6);
+      const day = normalized.substring(6, 8);
       const date = new Date(`${year}-${month}-${day}`);
       return Number.isNaN(date.getTime()) ? null : date;
     }
@@ -53,7 +55,7 @@ function parseBOGDate(dateStr: string | undefined): Date | null {
   }
 }
 
-function calculateNominalAmount(
+export function calculateNominalAmount(
   accountCurrencyAmount: number,
   accountCurrencyCode: string,
   nominalCurrencyUuid: string | null,
@@ -99,7 +101,7 @@ function calculateNominalAmount(
   return accountCurrencyAmount;
 }
 
-function computeCaseDescription(
+export function computeCaseDescription(
   case1: boolean,
   case2: boolean,
   case3: boolean,
@@ -130,7 +132,7 @@ function computeCaseDescription(
 
   if (case8) cases.push('Case8 - rule dominance (overrides payment)');
 
-  return cases.length > 0 ? cases.join('\n') : 'No case matched';
+  return cases.length > 0 ? cases.join(' ') : 'No case matched';
 }
 
 function isValidSalaryPeriodSuffix(paymentId: string): boolean {
@@ -161,12 +163,7 @@ function formatSalaryPeriod(basePaymentId: string, period: { month: number; year
 
 function evaluateParsingRuleCondition(condition: string | null, conditionScript: string | null, row: Record<string, any>): boolean {
   if (conditionScript && conditionScript.trim()) {
-    try {
-      // eslint-disable-next-line no-new-func
-      return Boolean(Function('row', `"use strict"; return (${conditionScript});`)(row));
-    } catch {
-      return false;
-    }
+    return evaluateCondition(conditionScript, row);
   }
 
   if (!condition) return false;
@@ -179,41 +176,10 @@ function evaluateParsingRuleCondition(condition: string | null, conditionScript:
     return String(actualValue ?? '').trim() === expectedValue;
   }
 
-  const searchMatch = normalized.match(/isnumber\(search\("([^"]+)",\s*(\w+)\s*,\s*1\)\)/i);
-  if (searchMatch) {
-    const [, needle, columnName] = searchMatch;
-    const haystack = String(row[columnName.toLowerCase()] ?? '');
-    return haystack.includes(needle);
-  }
-
-  const reserved = new Set(['isnumber', 'search', 'and', 'or', 'not', 'true', 'false']);
-  let jsCondition = normalized;
-
-  jsCondition = jsCondition.replace(/isnumber\(search\("([^"]+)",\s*(\w+)\s*,\s*1\)\)/gi, (_match, needle, columnName) => {
-    const haystack = String(row[columnName.toLowerCase()] ?? '');
-    return JSON.stringify(haystack.includes(needle));
-  });
-
-  jsCondition = jsCondition.replace(/\b(\w+)\b/g, (match) => {
-    const key = match.toLowerCase();
-    if (reserved.has(key)) return match;
-    if (Object.prototype.hasOwnProperty.call(row, key)) {
-      return JSON.stringify(row[key] ?? '');
-    }
-    return match;
-  });
-
-  jsCondition = jsCondition.replace(/([^<>=!])=([^=])/g, '$1===$2');
-
-  try {
-    // eslint-disable-next-line no-new-func
-    return Boolean(Function(`"use strict"; return (${jsCondition});`)());
-  } catch {
-    return false;
-  }
+  return false;
 }
 
-function processSingleRecord(
+export function processSingleRecord(
   row: any,
   counteragentsMap: Map<string, CounteragentData>,
   parsingRules: ParsingRule[],
@@ -335,30 +301,40 @@ function processSingleRecord(
 
     result.applied_rule_id = matchedRule.id;
     result.case6_parsing_rule_applied = true;
+    if (rulePaymentId) {
+      result.payment_id = rulePaymentId;
+    }
+
+    if (rulePaymentData) {
+      if (rulePaymentData.counteragent_uuid) {
+        result.counteragent_uuid = rulePaymentData.counteragent_uuid;
+      }
+      if (rulePaymentData.financial_code_uuid) {
+        result.financial_code_uuid = rulePaymentData.financial_code_uuid;
+      }
+      if (rulePaymentData.project_uuid) {
+        result.project_uuid = rulePaymentData.project_uuid;
+      }
+      if (rulePaymentData.currency_uuid) {
+        result.nominal_currency_uuid = rulePaymentData.currency_uuid;
+      }
+    }
 
     let ruleCounteragent = matchedRule.counteragent_uuid;
     if (!ruleCounteragent && rulePaymentData) {
       ruleCounteragent = rulePaymentData.counteragent_uuid;
     }
 
-    if (ruleCounteragent) {
+    if (ruleCounteragent && !result.counteragent_uuid) {
       result.counteragent_uuid = ruleCounteragent;
     }
 
-    if (matchedRule.financial_code_uuid) {
+    if (matchedRule.financial_code_uuid && !result.financial_code_uuid) {
       result.financial_code_uuid = matchedRule.financial_code_uuid;
-    } else if (rulePaymentData?.financial_code_uuid) {
-      result.financial_code_uuid = rulePaymentData.financial_code_uuid;
     }
 
-    if (matchedRule.nominal_currency_uuid) {
+    if (matchedRule.nominal_currency_uuid && !result.nominal_currency_uuid) {
       result.nominal_currency_uuid = matchedRule.nominal_currency_uuid;
-    } else if (rulePaymentData?.currency_uuid) {
-      result.nominal_currency_uuid = rulePaymentData.currency_uuid;
-    }
-
-    if (rulePaymentData?.project_uuid) {
-      result.project_uuid = rulePaymentData.project_uuid;
     }
 
     stats.case6_parsing_rule_match++;
@@ -372,6 +348,7 @@ function processSingleRecord(
       result.case1_counteragent_found = true;
       stats.case1_counteragent_processed++;
     } else {
+      result.case1_counteragent_processed = true;
       result.case3_counteragent_missing = true;
       stats.case3_counteragent_inn_nonblank_no_match++;
 
@@ -659,7 +636,10 @@ export async function processBOGGELDeconsolidated(
     const debit = entryDbAmt ? parseFloat(entryDbAmt) : 0;
     const accountCurrencyAmount = credit - debit;
 
-    const transactionDate = parseBOGDate(getText('DocValueDate'));
+    const docValueDate = getText('DocValueDate');
+    const docActualDate = getText('DocActualDate');
+    const docRecDate = getText('DocRecDate');
+    const transactionDate = parseBOGDate(docValueDate || docActualDate || docRecDate);
     if (!transactionDate) {
       skippedInvalidDates++;
       continue;
@@ -868,3 +848,5 @@ export async function processBOGGELDeconsolidated(
   console.log('✅ Deconsolidated import completed successfully!');
   console.log('='.repeat(80) + '\n');
 }
+
+export { calculateNominalAmount, computeCaseDescription, processSingleRecord };
