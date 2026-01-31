@@ -697,6 +697,7 @@ export default function PaymentStatementPage() {
     setIsBankEditDialogOpen(true);
     setBankEditLoading(true);
     setBankEditId(bankId);
+    setBankEditData([]);
     try {
       const response = await fetch(`/api/bank-transactions?ids=${bankId}`);
       if (!response.ok) {
@@ -1660,34 +1661,22 @@ export default function PaymentStatementPage() {
         </div>
       )}
 
-      {/* Inline Bank Transaction Edit Dialog */}
       {isBankEditDialogOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
-          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">Edit Bank Transaction</h2>
-              <button
-                onClick={() => setIsBankEditDialogOpen(false)}
-                className="p-1 hover:bg-gray-100 rounded"
-                disabled={bankEditLoading}
-              >
-                <X className="h-5 w-5" />
-              </button>
+        <div className="relative z-[70]">
+          {bankEditLoading ? (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white rounded-lg shadow-xl px-6 py-4">
+                <span className="text-gray-600">Loading...</span>
+              </div>
             </div>
-            <div className="p-4">
-              {bankEditLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <span className="text-gray-600">Loading...</span>
-                </div>
-              ) : (
-                <BankTransactionsTable
-                  data={bankEditData}
-                  renderMode="dialog-only"
-                  autoEditId={bankEditId ?? undefined}
-                />
-              )}
-            </div>
-          </div>
+          ) : (
+            <BankTransactionsTable
+              data={bankEditData}
+              renderMode="dialog-only"
+              autoEditId={bankEditId ?? undefined}
+              onDialogClose={() => setIsBankEditDialogOpen(false)}
+            />
+          )}
         </div>
       )}
     </div>

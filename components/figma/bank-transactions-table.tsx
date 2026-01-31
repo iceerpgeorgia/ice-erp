@@ -178,12 +178,14 @@ export function BankTransactionsTable({
   uploadEndpoint = '/api/bank-transactions/upload',
   autoEditId: autoEditIdProp,
   renderMode = 'full',
+  onDialogClose,
 }: {
   data?: BankTransaction[];
   currencySummaries?: any[];
   uploadEndpoint?: string;
   autoEditId?: number;
   renderMode?: 'full' | 'dialog-only';
+  onDialogClose?: () => void;
 }) {
   const [transactions, setTransactions] = useState<BankTransaction[]>(data ?? []);
   const showFullTable = renderMode !== 'dialog-only';
@@ -209,6 +211,7 @@ export function BankTransactionsTable({
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [wasDialogOpen, setWasDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<BankTransaction | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [paymentOptions, setPaymentOptions] = useState<any[]>([]);
@@ -919,6 +922,17 @@ export function BankTransactionsTable({
       setAutoEditId(null);
     }
   }, [autoEditId, transactions]);
+
+  useEffect(() => {
+    if (renderMode !== 'dialog-only') return;
+    if (isEditDialogOpen) {
+      if (!wasDialogOpen) setWasDialogOpen(true);
+      return;
+    }
+    if (wasDialogOpen && onDialogClose) {
+      onDialogClose();
+    }
+  }, [renderMode, isEditDialogOpen, wasDialogOpen, onDialogClose]);
 
   const cancelEdit = () => {
     setEditingTransaction(null);
