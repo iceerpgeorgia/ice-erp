@@ -848,5 +848,3 @@ export async function processBOGGELDeconsolidated(
   console.log('✅ Deconsolidated import completed successfully!');
   console.log('='.repeat(80) + '\n');
 }
-
-export { calculateNominalAmount, computeCaseDescription, processSingleRecord };
