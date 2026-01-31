@@ -265,6 +265,7 @@ export function BankTransactionsTable({
     currencyLabel: string;
     nominalAmountLabel: string;
   }>({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '', nominalAmountLabel: '' });
+  const [calculatedExchangeRate, setCalculatedExchangeRate] = useState<string>('');
 
   useEffect(() => {
     if (autoEditIdProp !== undefined && autoEditIdProp !== null) {
@@ -1086,6 +1087,7 @@ export function BankTransactionsTable({
     if (!selectedPayment) return;
 
     let calculatedAmount = formatAmount(editingTransaction.accountCurrencyAmount);
+    let rateLabel = '';
 
     if (exchangeRates && currencyOptions.length > 0) {
       try {
@@ -1096,25 +1098,34 @@ export function BankTransactionsTable({
 
         if (accountCode === nominalCode) {
           calculatedAmount = formatAmount(accountAmount);
+          rateLabel = '1.0000000000';
         } else if (accountCode === 'GEL' && nominalCode !== 'GEL') {
           const rateField = nominalCode.toLowerCase();
           if (exchangeRates[rateField]) {
-            const converted = accountAmount / Number(exchangeRates[rateField]);
+            const rate = Number(exchangeRates[rateField]);
+            const converted = accountAmount / rate;
             calculatedAmount = formatAmount(converted);
+            rateLabel = rate.toFixed(10);
           }
         } else if (accountCode !== 'GEL' && nominalCode === 'GEL') {
           const rateField = accountCode.toLowerCase();
           if (exchangeRates[rateField]) {
-            const converted = accountAmount * Number(exchangeRates[rateField]);
+            const rate = Number(exchangeRates[rateField]);
+            const converted = accountAmount * rate;
             calculatedAmount = formatAmount(converted);
+            rateLabel = rate.toFixed(10);
           }
         } else {
           const accountRateField = accountCode.toLowerCase();
           const nominalRateField = nominalCode.toLowerCase();
           if (exchangeRates[accountRateField] && exchangeRates[nominalRateField]) {
-            const gelAmount = accountAmount * Number(exchangeRates[accountRateField]);
-            const converted = gelAmount / Number(exchangeRates[nominalRateField]);
+            const accountRate = Number(exchangeRates[accountRateField]);
+            const nominalRate = Number(exchangeRates[nominalRateField]);
+            const gelAmount = accountAmount * accountRate;
+            const converted = gelAmount / nominalRate;
             calculatedAmount = formatAmount(converted);
+            const crossRate = accountRate / nominalRate;
+            rateLabel = crossRate.toFixed(10);
           }
         }
       } catch (error) {
@@ -1129,6 +1140,7 @@ export function BankTransactionsTable({
       currencyLabel: selectedPayment.currencyCode || '',
       nominalAmountLabel: calculatedAmount,
     });
+    setCalculatedExchangeRate(rateLabel);
   };
 
   useEffect(() => {
@@ -2165,6 +2177,25 @@ export function BankTransactionsTable({
                       </div>
                     </div>
                   </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-600">Exchange Rate</Label>
+                      <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                        <span className="font-bold" style={{ color: '#000' }}>
+                          {calculatedExchangeRate || editingTransaction?.exchangeRate || 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-600">Nominal Amount</Label>
+                      <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                        <span className="font-bold" style={{ color: '#000' }}>
+                          {paymentDisplayValues.nominalAmountLabel || editingTransaction?.nominalAmount || '0.00'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                   
                   <div className="space-y-1">
                     <Label className="text-xs text-gray-600">Project</Label>
@@ -2188,11 +2219,9 @@ export function BankTransactionsTable({
                   </div>
                   
                   <div className="space-y-1">
-                    <Label className="text-xs text-gray-600">Nominal Amount</Label>
+                    <Label className="text-xs text-gray-600">Nominal Currency</Label>
                     <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
-                      <span className="font-bold" style={{ color: '#000' }}>
-                        {paymentDisplayValues.nominalAmountLabel || editingTransaction?.nominalAmount || '0.00'}
-                      </span>
+                      <span className="font-bold" style={{ color: '#000' }}>{paymentDisplayValues.currencyLabel || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
