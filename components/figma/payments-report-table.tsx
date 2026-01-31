@@ -24,15 +24,20 @@ import { Checkbox } from './ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Label } from './ui/label';
 import { Combobox } from '../ui/combobox';
+import * as XLSX from 'xlsx';
 
 
 type PaymentReport = {
   paymentId: string;
   counteragent: string;
+  counteragentId?: string | null;
+  counteragentIban?: string | null;
   project: string;
+  projectName?: string | null;
   job: string;
   floors: number;
   financialCode: string;
+  financialCodeDescription?: string | null;
   incomeTax: boolean;
   currency: string;
   accrual: number;
@@ -77,6 +82,7 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 export function PaymentsReportTable() {
+  const filtersStorageKey = 'paymentsReportFiltersV2';
   const [data, setData] = useState<PaymentReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -93,6 +99,13 @@ export function PaymentsReportTable() {
   const [dateFilterMode, setDateFilterMode] = useState<'none' | 'today' | 'custom'>('none');
   const [customDate, setCustomDate] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedPaymentIds, setSelectedPaymentIds] = useState<Set<string>>(new Set());
+  const [isBaseInfoOpen, setIsBaseInfoOpen] = useState(false);
+  const [baseInfoLoading, setBaseInfoLoading] = useState(false);
+  const [baseInfoError, setBaseInfoError] = useState<string | null>(null);
+  const [baseInfo, setBaseInfo] = useState<any | null>(null);
+  const [isBankExporting, setIsBankExporting] = useState(false);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   // BroadcastChannel for cross-tab updates
   const [broadcastChannel] = useState(() => {
@@ -129,7 +142,11 @@ export function PaymentsReportTable() {
       const saved = localStorage.getItem('paymentsReportConditions');
       if (saved) {
         try {
-          return new Set(JSON.parse(saved));
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length === 0) {
+            return new Set(allConditions);
+          }
+          return new Set(parsed);
         } catch {
           return new Set(allConditions);
         }
@@ -140,6 +157,8 @@ export function PaymentsReportTable() {
 
   // Add Entry form states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [addLedgerStep, setAddLedgerStep] = useState<'payment' | 'ledger'>('payment');
+  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
   const [preSelectedPaymentId, setPreSelectedPaymentId] = useState<string | null>(null);
   const [selectedPaymentDetails, setSelectedPaymentDetails] = useState<{
     paymentId: string;
@@ -150,6 +169,17 @@ export function PaymentsReportTable() {
     incomeTax: boolean;
     currency: string;
   } | null>(null);
+  const [projects, setProjects] = useState<Array<{ projectUuid?: string; project_uuid?: string; projectIndex?: string; project_index?: string; projectName?: string; project_name?: string }>>([]);
+  const [counteragents, setCounteragents] = useState<Array<{ counteragent_uuid?: string; counteragentUuid?: string; counteragent?: string; name?: string; identification_number?: string; identificationNumber?: string }>>([]);
+  const [financialCodes, setFinancialCodes] = useState<Array<{ uuid: string; validation: string; code: string }>>([]);
+  const [currencies, setCurrencies] = useState<Array<{ uuid: string; code: string; name: string }>>([]);
+  const [jobs, setJobs] = useState<Array<{ jobUuid: string; jobName: string; jobDisplay?: string }>>([]);
+  const [selectedCounteragentUuid, setSelectedCounteragentUuid] = useState('');
+  const [selectedProjectUuid, setSelectedProjectUuid] = useState('');
+  const [selectedFinancialCodeUuid, setSelectedFinancialCodeUuid] = useState('');
+  const [selectedJobUuid, setSelectedJobUuid] = useState('');
+  const [selectedCurrencyUuid, setSelectedCurrencyUuid] = useState('');
+  const [selectedIncomeTax, setSelectedIncomeTax] = useState(false);
   const [payments, setPayments] = useState<Array<{ 
     paymentId: string; 
     counteragentName?: string;
@@ -211,15 +241,62 @@ export function PaymentsReportTable() {
     if (savedDateFilter) {
       try {
         const { mode, date } = JSON.parse(savedDateFilter);
-        if (mode) setDateFilterMode(mode);
-        if (date) setCustomDate(date);
+        const isValidDateString = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date);
+        const today = new Date().toISOString().split('T')[0];
+        const isDateInRange = isValidDateString && date <= today;
+
+        if (mode === 'today') {
+          setDateFilterMode('today');
+        } else if (mode === 'custom' && isDateInRange) {
+          setDateFilterMode('custom');
+          setCustomDate(date);
+        } else {
+          setDateFilterMode('none');
+          setCustomDate('');
+        }
       } catch (e) {
         console.error('Failed to parse saved date filter:', e);
+        setDateFilterMode('none');
+        setCustomDate('');
+      }
+    }
+
+    const savedFilters = localStorage.getItem(filtersStorageKey);
+    if (savedFilters) {
+      try {
+        const parsed = JSON.parse(savedFilters);
+        if (typeof parsed.searchTerm === 'string') setSearchTerm(parsed.searchTerm);
+        if (parsed.sortColumn) setSortColumn(parsed.sortColumn as ColumnKey);
+        if (parsed.sortDirection === 'asc' || parsed.sortDirection === 'desc') {
+          setSortDirection(parsed.sortDirection);
+        }
+        if (typeof parsed.pageSize === 'number') setPageSize(parsed.pageSize);
+        if (Array.isArray(parsed.filters)) {
+          const restored = new Map<string, Set<any>>(
+            parsed.filters.map(([key, values]: [string, any[]]) => [key, new Set(values)])
+          );
+          setFilters(restored);
+        }
+      } catch (e) {
+        console.error('Failed to parse saved filters:', e);
       }
     }
     
     setIsInitialized(true);
+    setFiltersInitialized(true);
   }, []);
+
+  useEffect(() => {
+    if (!filtersInitialized) return;
+    const serialized = {
+      searchTerm,
+      sortColumn,
+      sortDirection,
+      pageSize,
+      filters: Array.from(filters.entries()).map(([key, set]) => [key, Array.from(set)]),
+    };
+    localStorage.setItem(filtersStorageKey, JSON.stringify(serialized));
+  }, [filtersInitialized, searchTerm, sortColumn, sortDirection, pageSize, filters]);
 
   // Fetch data after initialization and when date filter changes
   useEffect(() => {
@@ -228,6 +305,73 @@ export function PaymentsReportTable() {
       fetchPayments(); // Also fetch payments for Add Entry dialog
     }
   }, [isInitialized, dateFilterMode, customDate]);
+
+  // Fetch dictionaries for add payment step
+  useEffect(() => {
+    const fetchDictionaries = async () => {
+      try {
+        const [projectsRes, counteragentsRes, financialCodesRes, currenciesRes] = await Promise.all([
+          fetch('/api/projects'),
+          fetch('/api/counteragents'),
+          fetch('/api/financial-codes'),
+          fetch('/api/currencies')
+        ]);
+
+        if (projectsRes.ok) {
+          const projectsData = await projectsRes.json();
+          const list = Array.isArray(projectsData)
+            ? projectsData
+            : Array.isArray(projectsData?.data)
+              ? projectsData.data
+              : [];
+          setProjects(list);
+        }
+        if (counteragentsRes.ok) {
+          const counteragentsData = await counteragentsRes.json();
+          setCounteragents(Array.isArray(counteragentsData) ? counteragentsData : []);
+        }
+        if (financialCodesRes.ok) {
+          const financialCodesData = await financialCodesRes.json();
+          setFinancialCodes(Array.isArray(financialCodesData) ? financialCodesData : []);
+        }
+        if (currenciesRes.ok) {
+          const currenciesData = await currenciesRes.json();
+          const list = Array.isArray(currenciesData)
+            ? currenciesData
+            : Array.isArray(currenciesData?.data)
+              ? currenciesData.data
+              : [];
+          setCurrencies(list);
+        }
+      } catch (error) {
+        console.error('Error fetching dictionaries:', error);
+      }
+    };
+
+    fetchDictionaries();
+  }, []);
+
+  useEffect(() => {
+    const fetchProjectJobs = async () => {
+      setSelectedJobUuid('');
+      if (!selectedProjectUuid) {
+        setJobs([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/jobs?projectUuid=${selectedProjectUuid}`);
+        if (!response.ok) throw new Error('Failed to fetch project jobs');
+        const data = await response.json();
+        setJobs(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error fetching project jobs:', error);
+        setJobs([]);
+      }
+    };
+
+    fetchProjectJobs();
+  }, [selectedProjectUuid]);
 
   // Manual refresh handler
   const handleManualRefresh = async () => {
@@ -352,6 +496,11 @@ export function PaymentsReportTable() {
       const response = await fetch('/api/payments?limit=5000&sort=desc');
       if (!response.ok) throw new Error('Failed to fetch payments');
       const data = await response.json();
+      if (!Array.isArray(data)) {
+        console.warn('[Payments Report] Expected payments array, received:', data);
+        setPayments([]);
+        return;
+      }
       setPayments(data.map((p: any) => ({
         paymentId: p.paymentId,
         counteragentName: p.counteragentName,
@@ -436,6 +585,79 @@ export function PaymentsReportTable() {
     setOrder('');
     setComment('');
     setIsSubmitting(false);
+    setAddLedgerStep('payment');
+    setSelectedCounteragentUuid('');
+    setSelectedProjectUuid('');
+    setSelectedFinancialCodeUuid('');
+    setSelectedJobUuid('');
+    setSelectedCurrencyUuid('');
+    setSelectedIncomeTax(false);
+    setIsCreatingPayment(false);
+  };
+
+  const handleCreatePayment = async () => {
+    if (!selectedCounteragentUuid || !selectedFinancialCodeUuid || !selectedCurrencyUuid) {
+      alert('Please fill Counteragent, Financial Code, and Currency');
+      return;
+    }
+
+    setIsCreatingPayment(true);
+    try {
+      const response = await fetch('/api/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          counteragentUuid: selectedCounteragentUuid,
+          projectUuid: selectedProjectUuid || null,
+          financialCodeUuid: selectedFinancialCodeUuid,
+          jobUuid: selectedJobUuid || null,
+          incomeTax: selectedIncomeTax,
+          currencyUuid: selectedCurrencyUuid
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create payment');
+      }
+
+      const result = await response.json();
+      const newPaymentId = result?.data?.payment_id || result?.data?.paymentId;
+
+      if (!newPaymentId) {
+        throw new Error('Payment ID not returned from server');
+      }
+
+      const counteragent = counteragents.find(ca => (ca.counteragent_uuid || ca.counteragentUuid) === selectedCounteragentUuid);
+      const project = projects.find(p => p.projectUuid === selectedProjectUuid);
+      const job = jobs.find(j => j.jobUuid === selectedJobUuid);
+      const financialCode = financialCodes.find(fc => fc.uuid === selectedFinancialCodeUuid);
+      const currency = currencies.find(c => c.uuid === selectedCurrencyUuid);
+
+      setPreSelectedPaymentId(newPaymentId);
+      setSelectedPaymentId(newPaymentId);
+      setSelectedPaymentDetails({
+        paymentId: newPaymentId,
+        counteragent: counteragent?.name || 'N/A',
+        project: project?.projectIndex || project?.projectName || 'N/A',
+        job: job?.jobDisplay || job?.jobName || 'N/A',
+        financialCode: financialCode?.validation || financialCode?.code || 'N/A',
+        incomeTax: selectedIncomeTax,
+        currency: currency?.code || 'N/A'
+      });
+
+      await fetchPayments();
+      setAddLedgerStep('ledger');
+    } catch (error: any) {
+      console.error('Error creating payment:', error);
+      alert(error.message || 'Failed to create payment');
+    } finally {
+      setIsCreatingPayment(false);
+    }
+  };
+
+  const handleSkipToLedger = () => {
+    setAddLedgerStep('ledger');
   };
 
   const openDialogForPayment = (paymentId: string) => {
@@ -453,6 +675,7 @@ export function PaymentsReportTable() {
         currency: payment.currencyCode || 'N/A'
       });
     }
+    setAddLedgerStep('ledger');
     setIsDialogOpen(true);
   };
 
@@ -460,6 +683,8 @@ export function PaymentsReportTable() {
     setIsDialogOpen(open);
     if (!open) {
       resetForm();
+    } else {
+      setAddLedgerStep('payment');
     }
   };
 
@@ -474,8 +699,14 @@ export function PaymentsReportTable() {
         params.set('maxDate', today);
         console.log('[Payments Report] Filtering by today:', today);
       } else if (dateFilterMode === 'custom' && customDate) {
-        params.set('maxDate', customDate);
-        console.log('[Payments Report] Filtering by custom date:', customDate);
+        const isValidDateString = /^\d{4}-\d{2}-\d{2}$/.test(customDate);
+        const today = new Date().toISOString().split('T')[0];
+        if (isValidDateString && customDate <= today) {
+          params.set('maxDate', customDate);
+          console.log('[Payments Report] Filtering by custom date:', customDate);
+        } else {
+          console.warn('[Payments Report] Ignoring invalid custom date filter:', customDate);
+        }
       } else {
         console.log('[Payments Report] No date filter applied');
       }
@@ -485,8 +716,13 @@ export function PaymentsReportTable() {
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch report data');
       const result = await response.json();
-      console.log('[Payments Report] Received', result.length, 'records');
-      setData(result);
+      if (!Array.isArray(result)) {
+        console.warn('[Payments Report] Expected array response, received:', result);
+        setData([]);
+      } else {
+        console.log('[Payments Report] Received', result.length, 'records');
+        setData(result);
+      }
       
       // Always set default sort to latestDate descending after data loads
       setSortColumn('latestDate');
@@ -545,100 +781,109 @@ export function PaymentsReportTable() {
     setFilters(newFilters);
   };
 
-  const filteredAndSortedData = useMemo(() => {
+  const applySearchFilter = useCallback((rows: PaymentReport[]) => {
+    if (!searchTerm) return rows;
+    return rows.filter(row =>
+      Object.values(row).some(val =>
+        String(val).toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    );
+  }, [searchTerm]);
+
+  const applyColumnFilters = useCallback((rows: PaymentReport[], excludeColumn?: ColumnKey) => {
+    if (filters.size === 0) return rows;
+    return rows.filter(row => {
+      for (const [columnKey, allowedValues] of filters.entries()) {
+        if (excludeColumn && columnKey === excludeColumn) continue;
+        const rowValue = row[columnKey as ColumnKey];
+        if (!allowedValues.has(rowValue)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [filters]);
+
+  const applyConditionsFilter = useCallback((rows: PaymentReport[]) => {
+    if (selectedConditions.size === 0 || selectedConditions.has('ALL')) return rows;
+
+    return rows.filter(row => {
+      for (const condition of selectedConditions) {
+        let matches = false;
+
+        switch (condition) {
+          case 'Accrual>0':
+            matches = row.accrual > 0;
+            break;
+          case 'Accrual<0':
+            matches = row.accrual < 0;
+            break;
+          case 'Accrual=0':
+            matches = row.accrual === 0;
+            break;
+          case 'Order>0':
+            matches = row.order > 0;
+            break;
+          case 'Order<0':
+            matches = row.order < 0;
+            break;
+          case 'Order=0':
+            matches = row.order === 0;
+            break;
+          case 'Paid>0':
+            matches = row.payment > 0;
+            break;
+          case 'Paid<0':
+            matches = row.payment < 0;
+            break;
+          case 'Paid=0':
+            matches = row.payment === 0;
+            break;
+          case 'Due>0':
+            matches = row.due > 0;
+            break;
+          case 'Due<0':
+            matches = row.due < 0;
+            break;
+          case 'Due=0':
+            matches = row.due === 0;
+            break;
+          case 'Balance>0':
+            matches = row.balance > 0;
+            break;
+          case 'Balance<0':
+            matches = row.balance < 0;
+            break;
+          case 'Balance=0':
+            matches = row.balance === 0;
+            break;
+          case 'Current Due>0':
+            matches = row.due > 0;
+            break;
+          case 'Current Due<0':
+            matches = row.due < 0;
+            break;
+          case 'Current Due=0':
+            matches = row.due === 0;
+            break;
+        }
+
+        if (matches) return true;
+      }
+      return false;
+    });
+  }, [selectedConditions]);
+
+  const getFacetBaseData = useCallback((excludeColumn?: ColumnKey) => {
     let result = [...data];
+    result = applySearchFilter(result);
+    result = applyColumnFilters(result, excludeColumn);
+    result = applyConditionsFilter(result);
+    return result;
+  }, [data, applySearchFilter, applyColumnFilters, applyConditionsFilter]);
 
-    // Apply search
-    if (searchTerm) {
-      result = result.filter(row =>
-        Object.values(row).some(val =>
-          String(val).toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      );
-    }
-
-    // Apply filters
-    if (filters.size > 0) {
-      result = result.filter(row => {
-        for (const [columnKey, allowedValues] of filters.entries()) {
-          const rowValue = row[columnKey as ColumnKey];
-          if (!allowedValues.has(rowValue)) {
-            return false;
-          }
-        }
-        return true;
-      });
-    }
-
-    // Apply conditions filter (if not ALL selected)
-    if (!selectedConditions.has('ALL')) {
-      result = result.filter(row => {
-        // Check each selected condition
-        for (const condition of selectedConditions) {
-          let matches = false;
-          
-          switch (condition) {
-            case 'Accrual>0':
-              matches = row.accrual > 0;
-              break;
-            case 'Accrual<0':
-              matches = row.accrual < 0;
-              break;
-            case 'Accrual=0':
-              matches = row.accrual === 0;
-              break;
-            case 'Order>0':
-              matches = row.order > 0;
-              break;
-            case 'Order<0':
-              matches = row.order < 0;
-              break;
-            case 'Order=0':
-              matches = row.order === 0;
-              break;
-            case 'Paid>0':
-              matches = row.payment > 0;
-              break;
-            case 'Paid<0':
-              matches = row.payment < 0;
-              break;
-            case 'Paid=0':
-              matches = row.payment === 0;
-              break;
-            case 'Due>0':
-              matches = row.due > 0;
-              break;
-            case 'Due<0':
-              matches = row.due < 0;
-              break;
-            case 'Due=0':
-              matches = row.due === 0;
-              break;
-            case 'Balance>0':
-              matches = row.balance > 0;
-              break;
-            case 'Balance<0':
-              matches = row.balance < 0;
-              break;
-            case 'Balance=0':
-              matches = row.balance === 0;
-              break;
-            case 'Current Due>0':
-              matches = row.due > 0; // Same as Due>0
-              break;
-            case 'Current Due<0':
-              matches = row.due < 0; // Same as Due<0
-              break;
-            case 'Current Due=0':
-              matches = row.due === 0; // Same as Due=0
-              break;
-          }
-          
-          if (matches) return true; // If any condition matches, include the row (OR logic)
-        }
-        return false; // No conditions matched
-      });
-    }
+  const filteredAndSortedData = useMemo(() => {
+    let result = getFacetBaseData();
 
     // Apply sort
     result.sort((a, b) => {
@@ -665,7 +910,7 @@ export function PaymentsReportTable() {
     });
 
     return result;
-  }, [data, searchTerm, sortColumn, sortDirection, filters, selectedConditions]);
+  }, [getFacetBaseData, sortColumn, sortDirection]);
 
   // Paginate data to limit DOM nodes
   const paginatedData = useMemo(() => {
@@ -685,14 +930,15 @@ export function PaymentsReportTable() {
   const uniqueValuesCache = useMemo(() => {
     const cache = new Map<ColumnKey, any[]>();
     const filterableColumns = columns.filter(col => col.filterable);
-    
+
     filterableColumns.forEach(col => {
-      const values = new Set(data.map(row => row[col.key]));
+      const baseData = getFacetBaseData(col.key);
+      const values = new Set(baseData.map(row => row[col.key]));
       cache.set(col.key, Array.from(values).sort());
     });
-    
+
     return cache;
-  }, [data, columns]);
+  }, [columns, getFacetBaseData]);
 
   const getUniqueValues = useCallback((columnKey: ColumnKey): any[] => {
     return uniqueValuesCache.get(columnKey) || [];
@@ -734,8 +980,212 @@ export function PaymentsReportTable() {
     return String(value);
   };
 
+  const sanitizeRecipientName = (name: string) => {
+    return name
+      .replace(/\s*\(\s*ს\.კ\.[^)]*\)\s*/g, ' ')
+      .replace(/\s*-\s*ფიზ\.\s*პირი\s*/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  };
+
+  const buildPaymentDescription = (template: string | null | undefined, row: PaymentReport) => {
+    const variables = {
+      project: row.projectName || row.project || '',
+      job_no: row.job || '',
+      job_name: row.job || '',
+      job: row.job || ''
+    } as const;
+
+    if (!template) return '';
+    const raw = template.trim();
+    if (!raw) return '';
+
+    const parts = raw.split('+').map((part) => part.trim()).filter(Boolean);
+    const renderPart = (part: string) => {
+      let value = part;
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      return value
+        .replace(/@project/gi, variables.project)
+        .replace(/@job_no/gi, variables.job_no)
+        .replace(/@job_name/gi, variables.job_name)
+        .replace(/@jobno/gi, variables.job_no)
+        .replace(/@job/gi, variables.job);
+    };
+
+    if (parts.length === 0) return '';
+    if (parts.length === 1) return renderPart(parts[0]);
+    return parts.map(renderPart).join('');
+  };
+
+  const handleToggleSelect = (paymentId: string) => {
+    setSelectedPaymentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(paymentId)) {
+        next.delete(paymentId);
+      } else {
+        next.add(paymentId);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectAll = (paymentIds: string[]) => {
+    setSelectedPaymentIds((prev) => {
+      const next = new Set(prev);
+      const allSelected = paymentIds.length > 0 && paymentIds.every((id) => next.has(id));
+      if (allSelected) {
+        paymentIds.forEach((id) => next.delete(id));
+      } else {
+        paymentIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const fetchExchangeRate = async (currency: string, date: string) => {
+    if (currency.toUpperCase() === 'GEL') return 1;
+
+    const rateResponse = await fetch(`/api/exchange-rates?date=${date}&currency=${currency}`);
+    if (rateResponse.ok) {
+      const rateData = await rateResponse.json();
+      if (rateData?.rate) return Number(rateData.rate);
+    }
+
+    const updateResponse = await fetch('/api/exchange-rates/update', { method: 'POST' });
+    if (!updateResponse.ok) {
+      throw new Error('Failed to update exchange rates');
+    }
+
+    const retryResponse = await fetch(`/api/exchange-rates?date=${date}&currency=${currency}`);
+    if (!retryResponse.ok) {
+      throw new Error('Failed to fetch exchange rate after update');
+    }
+    const retryData = await retryResponse.json();
+    if (!retryData?.rate) {
+      throw new Error('Exchange rate not available');
+    }
+    return Number(retryData.rate);
+  };
+
+  const getTbilisiToday = () => {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Tbilisi',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return formatter.format(new Date());
+  };
+
+  const calculateExportAmount = async (row: PaymentReport) => {
+    const due = Number(row.due || 0);
+    const currency = (row.currency || 'GEL').toUpperCase();
+    if (currency === 'GEL') return Math.round(due * 100) / 100;
+
+    const rateDate = getTbilisiToday();
+    const rate = await fetchExchangeRate(currency, rateDate);
+    const converted = due / (1 / rate);
+    return Math.round(converted * 100) / 100;
+  };
+
+  const handleDownloadBankXlsx = async () => {
+    const selectedRecords = filteredAndSortedData.filter((row) => selectedPaymentIds.has(row.paymentId));
+    if (selectedRecords.length === 0) {
+      alert('No records selected');
+      return;
+    }
+
+    setIsBankExporting(true);
+
+    const headers = [
+      'გამგზავნის ანგარიშის ნომერი',
+      'დოკუმენტის ნომერი',
+      'მიმღები ბანკის კოდი(არასავალდებულო)',
+      'მიმღების ანგარიშის ნომერი',
+      'მიმღების დასახელება',
+      'მიმღების საიდენტიფიკაციო კოდი',
+      'დანიშნულება',
+      'თანხა',
+      'ხელფასი',
+      'გადარიცხვის მეთოდი',
+      'დამატებითი ინფორმაცია',
+    ];
+
+    try {
+      const rows = await Promise.all(
+        selectedRecords.map(async (record) => {
+          const description = buildPaymentDescription(record.financialCodeDescription, record);
+          const amount = await calculateExportAmount(record);
+          return [
+            'GE78BG0000000893486000',
+            '',
+            '',
+            record.counteragentIban || '',
+            sanitizeRecipientName(record.counteragent || ''),
+            record.counteragentId || '',
+            description || 'გადახდა',
+            amount,
+            '',
+            '',
+            record.paymentId || '',
+          ];
+        })
+      );
+
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+      XLSX.writeFile(workbook, 'Payments Bank XLSX.xlsx');
+    } catch (error: any) {
+      console.error('Failed to generate bank XLSX:', error);
+      alert(error.message || 'Failed to generate bank XLSX');
+    } finally {
+      setIsBankExporting(false);
+    }
+  };
+
+  const handleOpenBaseInfo = async (paymentId: string) => {
+    setIsBaseInfoOpen(true);
+    setBaseInfoLoading(true);
+    setBaseInfoError(null);
+    setBaseInfo(null);
+    try {
+      const response = await fetch(`/api/payment-statement?paymentId=${encodeURIComponent(paymentId)}`);
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to load payment info');
+      }
+      const result = await response.json();
+      setBaseInfo(result?.payment || null);
+    } catch (error: any) {
+      setBaseInfoError(error.message || 'Failed to load payment info');
+    } finally {
+      setBaseInfoLoading(false);
+    }
+  };
+
+  const handleExportXlsx = () => {
+    const rows = filteredAndSortedData.map((row) => {
+      const out: Record<string, any> = {};
+      visibleColumns.forEach((col) => {
+        out[col.label] = row[col.key];
+      });
+      return out;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Payments Report');
+    XLSX.writeFile(workbook, `payments_report_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   const visibleColumns = columns.filter(col => col.visible);
   const activeFilterCount = filters.size;
+  const filteredPaymentIds = filteredAndSortedData.map((row) => row.paymentId);
+  const allFilteredSelected =
+    filteredPaymentIds.length > 0 && filteredPaymentIds.every((id) => selectedPaymentIds.has(id));
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -771,6 +1221,14 @@ export function PaymentsReportTable() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleExportXlsx}>
+              Export XLSX
+            </Button>
+            {selectedPaymentIds.size > 0 && (
+              <Button variant="outline" onClick={handleDownloadBankXlsx} disabled={isBankExporting}>
+                {isBankExporting ? 'Preparing...' : 'Bank XLSX'}
+              </Button>
+            )}
             {/* Add Entry Button */}
             <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
               <DialogTrigger asChild>
@@ -781,135 +1239,261 @@ export function PaymentsReportTable() {
               </DialogTrigger>
               <DialogContent className="w-[80%] max-w-6xl">
                 <DialogHeader>
-                  <DialogTitle>Add Ledger Entry</DialogTitle>
+                  <DialogTitle>
+                    {addLedgerStep === 'payment' ? 'Add Payment' : 'Add Ledger Entry'}
+                  </DialogTitle>
                   <DialogDescription>
-                    Add a new entry to the payments ledger
+                    {addLedgerStep === 'payment'
+                      ? 'Create a payment first, or skip to add a ledger entry to an existing payment.'
+                      : 'Add a new entry to the payments ledger.'}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
-                  {preSelectedPaymentId && selectedPaymentDetails ? (
-                    // Show payment details as read-only form fields
-                    <div className="space-y-4">
-                      <div className="bg-gray-50 rounded-lg p-4 space-y-3 border border-gray-200">
-                        <h3 className="text-sm font-semibold text-gray-700 mb-3">Payment Details</h3>
-                        
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="space-y-1">
-                            <Label className="text-xs text-gray-600">Payment ID</Label>
-                            <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
-                              <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.paymentId}</span>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-1">
-                            <Label className="text-xs text-gray-600">Currency</Label>
-                            <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
-                              <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.currency}</span>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-1">
-                            <Label className="text-xs text-gray-600">Income Tax</Label>
-                            <div className="flex items-center h-9 px-3 border-2 border-gray-300 rounded-md bg-gray-100">
-                              <Checkbox checked={selectedPaymentDetails.incomeTax} disabled />
-                              <span className="ml-2 text-sm font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.incomeTax ? 'Yes' : 'No'}</span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-1">
-                          <Label className="text-xs text-gray-600">Counteragent</Label>
-                          <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
-                            <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.counteragent}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-1">
-                          <Label className="text-xs text-gray-600">Project</Label>
-                          <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
-                            <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.project}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-1">
-                          <Label className="text-xs text-gray-600">Job</Label>
-                          <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
-                            <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.job}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-1">
-                          <Label className="text-xs text-gray-600">Financial Code</Label>
-                          <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
-                            <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.financialCode}</span>
-                          </div>
-                        </div>
+                  {addLedgerStep === 'payment' ? (
+                    <>
+                      <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                        Create a payment first, or skip to add a ledger entry to an existing payment.
                       </div>
-                    </div>
+
+                      <div className="space-y-2">
+                        <Label>Counteragent <span className="text-red-500">*</span></Label>
+                        <Combobox
+                          value={selectedCounteragentUuid}
+                          onValueChange={setSelectedCounteragentUuid}
+                          options={counteragents
+                            .map(ca => {
+                              const value = ca.counteragent_uuid || ca.counteragentUuid || '';
+                              const labelBase = ca.counteragent || '';
+                              if (!value || !labelBase) return null;
+                              return {
+                                value,
+                                label: labelBase
+                              };
+                            })
+                            .filter((opt): opt is { value: string; label: string } => Boolean(opt))}
+                          placeholder="Select counteragent..."
+                          searchPlaceholder="Search counteragents..."
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className={!selectedCounteragentUuid ? 'text-muted-foreground' : ''}>
+                          Financial Code <span className="text-red-500">*</span>
+                        </Label>
+                        <Combobox
+                          value={selectedFinancialCodeUuid}
+                          onValueChange={setSelectedFinancialCodeUuid}
+                          options={financialCodes.map(fc => ({
+                            value: fc.uuid,
+                            label: fc.validation
+                          }))}
+                          placeholder="Select financial code..."
+                          searchPlaceholder="Search financial codes..."
+                          disabled={!selectedCounteragentUuid}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className={!selectedFinancialCodeUuid ? 'text-muted-foreground' : ''}>
+                          Currency <span className="text-red-500">*</span>
+                        </Label>
+                        <Combobox
+                          value={selectedCurrencyUuid}
+                          onValueChange={setSelectedCurrencyUuid}
+                          options={currencies.map(c => ({
+                            value: c.uuid,
+                            label: c.code
+                          }))}
+                          placeholder="Select currency..."
+                          searchPlaceholder="Search currencies..."
+                          disabled={!selectedFinancialCodeUuid}
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={selectedIncomeTax}
+                          onCheckedChange={(checked) => setSelectedIncomeTax(checked as boolean)}
+                        />
+                        <Label>Income Tax</Label>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className={!selectedCurrencyUuid ? 'text-muted-foreground' : ''}>Project (Optional)</Label>
+                        <Combobox
+                          value={selectedProjectUuid}
+                          onValueChange={setSelectedProjectUuid}
+                          options={projects
+                            .map(p => {
+                              const value = p.projectUuid || p.project_uuid || '';
+                              const label = p.projectIndex || p.project_index || p.projectName || p.project_name || '';
+                              if (!value || !label) return null;
+                              return { value, label };
+                            })
+                            .filter((opt): opt is { value: string; label: string } => Boolean(opt))}
+                          placeholder="Select project..."
+                          searchPlaceholder="Search projects..."
+                          disabled={!selectedCurrencyUuid}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className={!selectedProjectUuid ? 'text-muted-foreground' : ''}>Job (Optional)</Label>
+                        <Combobox
+                          value={selectedJobUuid}
+                          onValueChange={setSelectedJobUuid}
+                          options={jobs.map(job => ({
+                            value: job.jobUuid,
+                            label: job.jobDisplay || job.jobName
+                          }))}
+                          placeholder="Select job..."
+                          searchPlaceholder="Search jobs..."
+                          disabled={!selectedProjectUuid}
+                        />
+                      </div>
+
+                      <div className="flex gap-3 pt-2">
+                        <Button
+                          onClick={handleCreatePayment}
+                          className="flex-1"
+                          disabled={isCreatingPayment || !selectedCounteragentUuid || !selectedFinancialCodeUuid || !selectedCurrencyUuid}
+                        >
+                          {isCreatingPayment ? 'Creating...' : 'Create Payment & Continue'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={handleSkipToLedger}
+                        >
+                          Skip - Use Existing Payment
+                        </Button>
+                      </div>
+                    </>
                   ) : (
-                    // Show payment selection dropdown
-                    <div className="space-y-2">
-                      <Label>Payment</Label>
-                      <Combobox
-                        value={selectedPaymentId}
-                        onValueChange={(value) => {
-                          setSelectedPaymentId(value);
-                          const payment = payments.find(p => p.paymentId === value);
-                          if (payment) {
-                            setSelectedPaymentDetails({
-                              paymentId: payment.paymentId,
-                              counteragent: payment.counteragentName || 'N/A',
-                              project: payment.projectIndex || 'N/A',
-                              job: payment.jobName || 'N/A',
-                              financialCode: payment.financialCode || 'N/A',
-                              incomeTax: payment.incomeTax || false,
-                              currency: payment.currencyCode || 'N/A'
-                            });
-                          }
-                        }}
-                        filter={(value, search) => {
-                          // Custom regex-based filter
-                          if (!search) return 1;
-                          try {
-                            const regex = new RegExp(search, 'i');
-                            return regex.test(value) ? 1 : 0;
-                          } catch {
-                            // If invalid regex, fall back to case-insensitive includes
-                            return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
-                          }
-                        }}
-                        options={payments.map(p => {
-                          // Build label: PaymentID | Counteragent | ProjectName | [JobName |] FinancialCode | Currency
-                          const parts = [p.paymentId];
-                          if (p.counteragentName) parts.push(p.counteragentName);
-                          if (p.projectName) parts.push(p.projectName);
-                          if (p.jobName) parts.push(p.jobName);
-                          if (p.financialCode) parts.push(p.financialCode);
-                          if (p.currencyCode) parts.push(p.currencyCode);
-                          
-                          const fullLabel = parts.join(' | ');
-                          
-                          const searchKeywords = [
-                            p.paymentId,
-                            p.counteragentName || '',
-                            p.projectName || '',
-                            p.jobName || '',
-                            p.financialCode || '',
-                            p.currencyCode || ''
-                          ].filter(Boolean).join(' ');
-                          
-                          return {
-                            value: p.paymentId,
-                            label: fullLabel,
-                            displayLabel: fullLabel,
-                            keywords: searchKeywords
-                          };
-                        })}
-                        placeholder="Select payment..."
-                        searchPlaceholder="Search by payment ID, project, job..."
-                      />
-                    </div>
-                  )}
+                    <>
+                      {preSelectedPaymentId && selectedPaymentDetails ? (
+                        // Show payment details as read-only form fields
+                        <div className="space-y-4">
+                          <div className="bg-gray-50 rounded-lg p-4 space-y-3 border border-gray-200">
+                            <h3 className="text-sm font-semibold text-gray-700 mb-3">Payment Details</h3>
+                            
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs text-gray-600">Payment ID</Label>
+                                <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                                  <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.paymentId}</span>
+                                </div>
+                              </div>
+                              
+                              <div className="space-y-1">
+                                <Label className="text-xs text-gray-600">Currency</Label>
+                                <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                                  <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.currency}</span>
+                                </div>
+                              </div>
+                              
+                              <div className="space-y-1">
+                                <Label className="text-xs text-gray-600">Income Tax</Label>
+                                <div className="flex items-center h-9 px-3 border-2 border-gray-300 rounded-md bg-gray-100">
+                                  <Checkbox checked={selectedPaymentDetails.incomeTax} disabled />
+                                  <span className="ml-2 text-sm font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.incomeTax ? 'Yes' : 'No'}</span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-1">
+                              <Label className="text-xs text-gray-600">Counteragent</Label>
+                              <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                                <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.counteragent}</span>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-1">
+                              <Label className="text-xs text-gray-600">Project</Label>
+                              <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                                <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.project}</span>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-1">
+                              <Label className="text-xs text-gray-600">Job</Label>
+                              <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                                <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.job}</span>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-1">
+                              <Label className="text-xs text-gray-600">Financial Code</Label>
+                              <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                                <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.financialCode}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        // Show payment selection dropdown
+                        <div className="space-y-2">
+                          <Label>Payment</Label>
+                          <Combobox
+                            value={selectedPaymentId}
+                            onValueChange={(value) => {
+                              setSelectedPaymentId(value);
+                              const payment = payments.find(p => p.paymentId === value);
+                              if (payment) {
+                                setSelectedPaymentDetails({
+                                  paymentId: payment.paymentId,
+                                  counteragent: payment.counteragentName || 'N/A',
+                                  project: payment.projectIndex || 'N/A',
+                                  job: payment.jobName || 'N/A',
+                                  financialCode: payment.financialCode || 'N/A',
+                                  incomeTax: payment.incomeTax || false,
+                                  currency: payment.currencyCode || 'N/A'
+                                });
+                              }
+                            }}
+                            filter={(value, search) => {
+                              // Custom regex-based filter
+                              if (!search) return 1;
+                              try {
+                                const regex = new RegExp(search, 'i');
+                                return regex.test(value) ? 1 : 0;
+                              } catch {
+                                // If invalid regex, fall back to case-insensitive includes
+                                return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+                              }
+                            }}
+                            options={payments.map(p => {
+                              // Build label: PaymentID | Counteragent | ProjectName | [JobName |] FinancialCode | Currency
+                              const parts = [p.paymentId];
+                              if (p.counteragentName) parts.push(p.counteragentName);
+                              if (p.projectName) parts.push(p.projectName);
+                              if (p.jobName) parts.push(p.jobName);
+                              if (p.financialCode) parts.push(p.financialCode);
+                              if (p.currencyCode) parts.push(p.currencyCode);
+                              
+                              const fullLabel = parts.join(' | ');
+                              
+                              const searchKeywords = [
+                                p.paymentId,
+                                p.counteragentName || '',
+                                p.projectName || '',
+                                p.jobName || '',
+                                p.financialCode || '',
+                                p.currencyCode || ''
+                              ].filter(Boolean).join(' ');
+                              
+                              return {
+                                value: p.paymentId,
+                                label: fullLabel,
+                                displayLabel: fullLabel,
+                                keywords: searchKeywords
+                              };
+                            })}
+                            placeholder="Select payment..."
+                            searchPlaceholder="Search by payment ID, project, job..."
+                          />
+                        </div>
+                      )}
 
                   <div className="space-y-2">
                     <Label>Effective Date</Label>
@@ -1000,6 +1584,8 @@ export function PaymentsReportTable() {
                   >
                     {isSubmitting ? 'Creating...' : 'Create Entry'}
                   </Button>
+                </>
+                  )}
                 </div>
               </DialogContent>
             </Dialog>
@@ -1301,6 +1887,17 @@ export function PaymentsReportTable() {
           <table style={{ tableLayout: 'fixed', width: '100%' }} className="border-collapse">
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b-2 border-gray-200">
+                <th
+                  className="sticky top-0 left-0 z-20 bg-white px-2 py-3 text-center text-sm font-semibold border-b-2 border-gray-200"
+                  style={{ width: 60, minWidth: 60, maxWidth: 60 }}
+                >
+                  <div className="flex items-center justify-center">
+                    <Checkbox
+                      checked={allFilteredSelected}
+                      onCheckedChange={() => handleToggleSelectAll(filteredPaymentIds)}
+                    />
+                  </div>
+                </th>
                 {visibleColumns.map(col => {
                   // Column background colors
                   let bgColor = '';
@@ -1379,19 +1976,30 @@ export function PaymentsReportTable() {
             <tbody>
             {loading ? (
               <tr>
-                <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4">
+                <td colSpan={visibleColumns.length + 2} className="text-center py-8 px-4">
                   Loading...
                 </td>
               </tr>
             ) : filteredAndSortedData.length === 0 ? (
               <tr>
-                <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4 text-gray-500">
+                <td colSpan={visibleColumns.length + 2} className="text-center py-8 px-4 text-gray-500">
                   No records found
                 </td>
               </tr>
             ) : (
               paginatedData.map((row, idx) => (
-                <tr key={`${row.paymentId}-${idx}`} className="border-b border-gray-200 hover:bg-gray-50">
+                <tr key={`${row.paymentId}-${idx}`} className="group border-b border-gray-200 hover:bg-gray-50">
+                  <td
+                    className="sticky left-0 z-10 bg-white px-2 py-2 text-sm group-hover:bg-gray-50"
+                    style={{ width: 60, minWidth: 60, maxWidth: 60 }}
+                  >
+                    <div className="flex items-center justify-center">
+                      <Checkbox
+                        checked={selectedPaymentIds.has(row.paymentId)}
+                        onCheckedChange={() => handleToggleSelect(row.paymentId)}
+                      />
+                    </div>
+                  </td>
                   {visibleColumns.map(col => {
                     // Column background colors
                     let bgColor = '';
@@ -1425,6 +2033,13 @@ export function PaymentsReportTable() {
                   <td className="px-4 py-2 text-sm" style={{ width: 80, minWidth: 80, maxWidth: 80 }}>
                     <div className="flex items-center justify-center gap-1">
                       <button
+                        onClick={() => handleOpenBaseInfo(row.paymentId)}
+                        className="inline-block text-gray-600 hover:text-gray-800 hover:bg-gray-50 p-1 rounded transition-colors"
+                        title="View payment info"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => openDialogForPayment(row.paymentId)}
                         className="inline-block text-green-600 hover:text-green-800 hover:bg-green-50 p-1 rounded transition-colors"
                         title="Add ledger entry for this payment"
@@ -1449,6 +2064,72 @@ export function PaymentsReportTable() {
         </table>
       </div>
     </div>
+    <Dialog open={isBaseInfoOpen} onOpenChange={setIsBaseInfoOpen}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Payment Base Info</DialogTitle>
+          <DialogDescription>Base record details for the selected payment.</DialogDescription>
+        </DialogHeader>
+        {baseInfoLoading ? (
+          <div className="py-6">Loading...</div>
+        ) : baseInfoError ? (
+          <div className="py-6 text-red-600">{baseInfoError}</div>
+        ) : baseInfo ? (
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-gray-500 block">Payment ID</span>
+              <span className="font-medium">{baseInfo.paymentId || '-'}</span>
+            </div>
+            <div>
+              <span className="text-gray-500 block">Record UUID</span>
+              <span className="font-medium">{baseInfo.recordUuid || '-'}</span>
+            </div>
+            <div>
+              <span className="text-gray-500 block">Project</span>
+              <span className="font-medium">{baseInfo.project || '-'}</span>
+            </div>
+            <div>
+              <span className="text-gray-500 block">Counteragent</span>
+              <span className="font-medium">{baseInfo.counteragent || '-'}</span>
+            </div>
+            <div>
+              <span className="text-gray-500 block">Counteragent ID</span>
+              <span className="font-medium">{baseInfo.counteragentId || '-'}</span>
+            </div>
+            <div>
+              <span className="text-gray-500 block">Financial Code</span>
+              <span className="font-medium">{baseInfo.financialCode || '-'}</span>
+            </div>
+            <div>
+              <span className="text-gray-500 block">Job</span>
+              <span className="font-medium">{baseInfo.job || '-'}</span>
+            </div>
+            <div>
+              <span className="text-gray-500 block">Floors</span>
+              <span className="font-medium">{baseInfo.floors ?? '-'}</span>
+            </div>
+            <div>
+              <span className="text-gray-500 block">Currency</span>
+              <span className="font-medium">{baseInfo.currency || '-'}</span>
+            </div>
+            <div>
+              <span className="text-gray-500 block">Income Tax</span>
+              <span className="font-medium">{baseInfo.incomeTax ? 'Yes' : 'No'}</span>
+            </div>
+            <div>
+              <span className="text-gray-500 block">Created At</span>
+              <span className="font-medium">{baseInfo.createdAt || '-'}</span>
+            </div>
+            <div>
+              <span className="text-gray-500 block">Updated At</span>
+              <span className="font-medium">{baseInfo.updatedAt || '-'}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="py-6 text-gray-500">No data available</div>
+        )}
+      </DialogContent>
+    </Dialog>
     </div>
   );
 }
