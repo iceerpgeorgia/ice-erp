@@ -5,6 +5,68 @@ import { prisma } from '@/lib/prisma';
 
 export const revalidate = 0;
 
+const safeStringify = (value: unknown) =>
+  JSON.stringify(value, (_key, val) => (typeof val === 'bigint' ? val.toString() : val));
+
+const logAudit = async (params: {
+  recordId: bigint;
+  action: string;
+  userEmail?: string | null;
+  userId?: string | null;
+  changes?: unknown;
+}) => {
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO "AuditLog" ("table", record_id, action, user_email, user_id, changes)
+     VALUES ($1, $2::bigint, $3, $4, $5, $6::jsonb)`,
+    'payments_ledger',
+    params.recordId,
+    params.action,
+    params.userEmail || null,
+    params.userId || null,
+    safeStringify(params.changes ?? {})
+  );
+};
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const id = parseInt(params.id, 10);
+    if (Number.isNaN(id)) {
+      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
+    }
+
+    const records = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT * FROM payments_ledger WHERE id = $1 LIMIT 1`,
+      id
+    );
+
+    if (!records || records.length === 0) {
+      return NextResponse.json({ error: 'Record not found' }, { status: 404 });
+    }
+
+    const record = records[0];
+    const serializable: Record<string, any> = {};
+    for (const [key, value] of Object.entries(record)) {
+      serializable[key] = typeof value === 'bigint' ? value.toString() : value;
+    }
+
+    return NextResponse.json(serializable);
+  } catch (error: any) {
+    console.error('Error fetching ledger entry:', error);
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -45,6 +107,11 @@ export async function PATCH(
       return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
     }
 
+    const beforeUpdate = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT * FROM payments_ledger WHERE id = $1`,
+      id
+    );
+
     // Update the ledger entry with date, amounts, and comment
     await prisma.$queryRawUnsafe(
       `UPDATE payments_ledger 
@@ -62,6 +129,18 @@ export async function PATCH(
       comment || null,
       id
     );
+
+    const afterUpdate = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT * FROM payments_ledger WHERE id = $1`,
+      id
+    );
+
+    await logAudit({
+      recordId: BigInt(id),
+      action: 'update',
+      userEmail: session.user.email,
+      changes: { before: beforeUpdate?.[0] ?? null, after: afterUpdate?.[0] ?? null }
+    });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

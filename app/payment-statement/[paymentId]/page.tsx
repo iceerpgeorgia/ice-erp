@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Edit2, Plus, X, Eye } from 'lucide-react';
+import { Edit2, Plus, X, Eye, Info } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { BankTransactionsTable } from '@/components/figma/bank-transactions-table';
 
 const formatDate = (date: string | Date): string => {
   const d = new Date(date);
@@ -19,6 +20,7 @@ type TransactionRow = {
   id: string;
   ledgerId?: number; // Add ledger ID for editing
   bankUuid?: string;
+  bankId?: number;
   type: 'ledger' | 'bank';
   date: string;
   accrual: number;
@@ -111,6 +113,17 @@ export default function PaymentStatementPage() {
   const [viewingBankRecord, setViewingBankRecord] = useState<any>(null);
   const [loadingBankRecord, setLoadingBankRecord] = useState(false);
   const [isBankLockUpdating, setIsBankLockUpdating] = useState(false);
+  const [isLedgerRecordDialogOpen, setIsLedgerRecordDialogOpen] = useState(false);
+  const [viewingLedgerRecord, setViewingLedgerRecord] = useState<any>(null);
+  const [loadingLedgerRecord, setLoadingLedgerRecord] = useState(false);
+  const [isAuditDialogOpen, setIsAuditDialogOpen] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
+  const [auditTitle, setAuditTitle] = useState('');
+  const [isBankEditDialogOpen, setIsBankEditDialogOpen] = useState(false);
+  const [bankEditData, setBankEditData] = useState<any[]>([]);
+  const [bankEditId, setBankEditId] = useState<number | null>(null);
+  const [bankEditLoading, setBankEditLoading] = useState(false);
 
   // Add Ledger dialog state (locked to current payment)
   const [isAddLedgerDialogOpen, setIsAddLedgerDialogOpen] = useState(false);
@@ -315,6 +328,7 @@ export default function PaymentStatementPage() {
     ...statementData.bankTransactions.map((tx: any) => ({
       id: `bank-${tx.id}`,
       bankUuid: tx.uuid,
+      bankId: tx.id,
       type: 'bank' as const,
       date: formatDate(tx.date),
       dateSort: new Date(tx.date).getTime(),
@@ -628,6 +642,67 @@ export default function PaymentStatementPage() {
     setShowConfirmation(false);
   };
 
+  const viewLedgerRecord = async (ledgerId: number) => {
+    setLoadingLedgerRecord(true);
+    setViewingLedgerRecord(null);
+    setIsLedgerRecordDialogOpen(true);
+    try {
+      const response = await fetch(`/api/payments-ledger/${ledgerId}`);
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Failed to fetch ledger record');
+      }
+      const result = await response.json();
+      setViewingLedgerRecord(result);
+    } catch (error: any) {
+      alert(error?.message || 'Failed to fetch ledger record');
+      setIsLedgerRecordDialogOpen(false);
+    } finally {
+      setLoadingLedgerRecord(false);
+    }
+  };
+
+  const viewAuditLog = async (table: string, recordId: number, title: string) => {
+    setIsAuditDialogOpen(true);
+    setLoadingAudit(true);
+    setAuditTitle(title);
+    try {
+      const response = await fetch(`/api/audit?table=${encodeURIComponent(table)}&recordId=${recordId}`);
+      if (response.ok) {
+        const logs = await response.json();
+        setAuditLogs(Array.isArray(logs) ? logs : []);
+      } else {
+        setAuditLogs([]);
+      }
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      setAuditLogs([]);
+    } finally {
+      setLoadingAudit(false);
+    }
+  };
+
+  const openBankEditDialog = async (bankId: number) => {
+    setIsBankEditDialogOpen(true);
+    setBankEditLoading(true);
+    setBankEditId(bankId);
+    try {
+      const response = await fetch(`/api/bank-transactions?ids=${bankId}`);
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Failed to fetch bank transaction');
+      }
+      const result = await response.json();
+      const records = Array.isArray(result) ? result : Array.isArray(result?.data) ? result.data : [];
+      setBankEditData(records);
+    } catch (error: any) {
+      alert(error?.message || 'Failed to fetch bank transaction');
+      setIsBankEditDialogOpen(false);
+    } finally {
+      setBankEditLoading(false);
+    }
+  };
+
   const viewBankRecord = async (uuid: string) => {
     setLoadingBankRecord(true);
     setViewingBankRecord(null);
@@ -809,7 +884,13 @@ export default function PaymentStatementPage() {
                             </div>
                           </th>
                         ))}
-                        <th className="px-4 py-3 font-semibold text-left" style={{ width: '80px' }}>
+                        <th className="px-4 py-3 font-semibold text-left" style={{ width: '70px' }}>
+                          View
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-left" style={{ width: '70px' }}>
+                          Logs
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-left" style={{ width: '90px' }}>
                           Actions
                         </th>
                       </tr>
@@ -851,14 +932,14 @@ export default function PaymentStatementPage() {
                               </td>
                             );
                           })}
-                          <td className="px-4 py-3" style={{ width: '80px' }}>
+                          <td className="px-4 py-3" style={{ width: '70px' }}>
                             {row.type === 'ledger' && row.ledgerId && (
                               <button
-                                onClick={() => handleEditEntry(row)}
+                                onClick={() => viewLedgerRecord(row.ledgerId as number)}
                                 className="p-1 hover:bg-gray-200 rounded"
-                                title="Edit entry"
+                                title="View ledger record"
                               >
-                                <Edit2 className="h-4 w-4 text-blue-600" />
+                                <Eye className="h-4 w-4 text-gray-700" />
                               </button>
                             )}
                             {row.type === 'bank' && row.bankUuid && (
@@ -868,6 +949,46 @@ export default function PaymentStatementPage() {
                                 title="View bank transaction"
                               >
                                 <Eye className="h-4 w-4 text-gray-700" />
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-4 py-3" style={{ width: '70px' }}>
+                            {row.type === 'ledger' && row.ledgerId && (
+                              <button
+                                onClick={() => viewAuditLog('payments_ledger', row.ledgerId as number, 'Ledger Audit Log')}
+                                className="p-1 hover:bg-gray-200 rounded"
+                                title="View ledger audit log"
+                              >
+                                <Info className="h-4 w-4 text-gray-700" />
+                              </button>
+                            )}
+                            {row.type === 'bank' && row.bankId && (
+                              <button
+                                onClick={() => viewAuditLog('consolidated_bank_accounts', row.bankId as number, 'Bank Transaction Audit Log')}
+                                className="p-1 hover:bg-gray-200 rounded"
+                                title="View bank audit log"
+                              >
+                                <Info className="h-4 w-4 text-gray-700" />
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-4 py-3" style={{ width: '90px' }}>
+                            {row.type === 'ledger' && row.ledgerId && (
+                              <button
+                                onClick={() => handleEditEntry(row)}
+                                className="p-1 hover:bg-gray-200 rounded"
+                                title="Edit entry"
+                              >
+                                <Edit2 className="h-4 w-4 text-blue-600" />
+                              </button>
+                            )}
+                            {row.type === 'bank' && row.bankId && (
+                              <button
+                                onClick={() => openBankEditDialog(row.bankId as number)}
+                                className="p-1 hover:bg-gray-200 rounded"
+                                title="Edit bank transaction"
+                              >
+                                <Edit2 className="h-4 w-4 text-blue-600" />
                               </button>
                             )}
                           </td>
@@ -914,7 +1035,9 @@ export default function PaymentStatementPage() {
                             </td>
                           );
                         })}
-                        <td className="px-4 py-3" style={{ width: '80px' }}></td>
+                        <td className="px-4 py-3" style={{ width: '70px' }}></td>
+                        <td className="px-4 py-3" style={{ width: '70px' }}></td>
+                        <td className="px-4 py-3" style={{ width: '90px' }}></td>
                       </tr>
                     </tbody>
                   </table>
@@ -1399,6 +1522,123 @@ export default function PaymentStatementPage() {
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-500">No data available</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ledger Record Dialog */}
+      {isLedgerRecordDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">Ledger Record</h2>
+              <button
+                onClick={() => setIsLedgerRecordDialogOpen(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+                disabled={loadingLedgerRecord}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {loadingLedgerRecord ? (
+                <div className="flex items-center justify-center py-8">
+                  <span className="text-gray-600">Loading...</span>
+                </div>
+              ) : viewingLedgerRecord ? (
+                <div className="grid grid-cols-1 gap-2 max-h-[60vh] overflow-y-auto border rounded p-4">
+                  {Object.entries(viewingLedgerRecord).map(([key, value]) => (
+                    <div key={key} className="grid grid-cols-2 gap-4 py-2 border-b">
+                      <div className="font-medium text-sm text-gray-700">
+                        {key}
+                      </div>
+                      <div className="text-sm break-all">
+                        {value !== null && value !== undefined ? String(value) : '-'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">No data available</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Audit Log Dialog */}
+      {isAuditDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">{auditTitle || 'Audit Log'}</h2>
+              <button
+                onClick={() => setIsAuditDialogOpen(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+                disabled={loadingAudit}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {loadingAudit ? (
+                <div className="flex items-center justify-center py-8">
+                  <span className="text-gray-600">Loading...</span>
+                </div>
+              ) : auditLogs.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">No audit logs found</div>
+              ) : (
+                <div className="space-y-3">
+                  {auditLogs.map((log) => (
+                    <div key={log.id} className="border rounded-lg p-4 bg-gray-50">
+                      <div className="flex flex-wrap gap-4 text-sm text-gray-700">
+                        <div><span className="font-semibold">Action:</span> {log.action}</div>
+                        <div><span className="font-semibold">User:</span> {log.userEmail || '-'}</div>
+                        <div><span className="font-semibold">At:</span> {new Date(log.createdAt).toLocaleString()}</div>
+                      </div>
+                      {log.changes && (
+                        <pre className="mt-3 text-xs bg-white border rounded p-3 overflow-x-auto">
+{JSON.stringify(log.changes, null, 2)}
+                        </pre>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inline Bank Transaction Edit Dialog */}
+      {isBankEditDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">Edit Bank Transaction</h2>
+              <button
+                onClick={() => setIsBankEditDialogOpen(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+                disabled={bankEditLoading}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-4">
+              {bankEditLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <span className="text-gray-600">Loading...</span>
+                </div>
+              ) : (
+                <BankTransactionsTable
+                  data={bankEditData}
+                  renderMode="dialog-only"
+                  autoEditId={bankEditId ?? undefined}
+                />
               )}
             </div>
           </div>
