@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Edit2, X } from 'lucide-react';
+import { Edit2, Plus, X, Eye } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -18,6 +18,7 @@ const formatDate = (date: string | Date): string => {
 type TransactionRow = {
   id: string;
   ledgerId?: number; // Add ledger ID for editing
+  bankUuid?: string;
   type: 'ledger' | 'bank';
   date: string;
   accrual: number;
@@ -96,6 +97,7 @@ export default function PaymentStatementPage() {
   }>>([]);
   const [paymentSearch, setPaymentSearch] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState<{
     counteragent: string;
@@ -105,6 +107,18 @@ export default function PaymentStatementPage() {
     currency: string;
     incomeTax: boolean;
   } | null>(null);
+  const [isBankRecordDialogOpen, setIsBankRecordDialogOpen] = useState(false);
+  const [viewingBankRecord, setViewingBankRecord] = useState<any>(null);
+  const [loadingBankRecord, setLoadingBankRecord] = useState(false);
+  const [isBankLockUpdating, setIsBankLockUpdating] = useState(false);
+
+  // Add Ledger dialog state (locked to current payment)
+  const [isAddLedgerDialogOpen, setIsAddLedgerDialogOpen] = useState(false);
+  const [addEffectiveDate, setAddEffectiveDate] = useState('');
+  const [addAccrual, setAddAccrual] = useState('');
+  const [addOrder, setAddOrder] = useState('');
+  const [addComment, setAddComment] = useState('');
+  const [isAddingLedger, setIsAddingLedger] = useState(false);
 
   // BroadcastChannel for cross-tab updates
   const [broadcastChannel] = useState(() => {
@@ -300,6 +314,7 @@ export default function PaymentStatementPage() {
     })),
     ...statementData.bankTransactions.map((tx: any) => ({
       id: `bank-${tx.id}`,
+      bankUuid: tx.uuid,
       type: 'bank' as const,
       date: formatDate(tx.date),
       dateSort: new Date(tx.date).getTime(),
@@ -344,6 +359,95 @@ export default function PaymentStatementPage() {
     // Now reverse to show newest first in the table
     mergedTransactions.reverse();
   }
+
+  const resetAddLedgerForm = () => {
+    setAddEffectiveDate('');
+    setAddAccrual('');
+    setAddOrder('');
+    setAddComment('');
+    setIsAddingLedger(false);
+  };
+
+  const handleOpenAddLedger = () => {
+    resetAddLedgerForm();
+    setIsAddLedgerDialogOpen(true);
+  };
+
+  const handleCloseAddLedger = () => {
+    setIsAddLedgerDialogOpen(false);
+    resetAddLedgerForm();
+  };
+
+  const handleSaveAddLedger = async () => {
+    if (!statementData?.payment?.paymentId) {
+      alert('Payment ID is missing');
+      return;
+    }
+
+    const accrualValue = addAccrual ? parseFloat(addAccrual) : null;
+    const orderValue = addOrder ? parseFloat(addOrder) : null;
+
+    if ((!accrualValue || accrualValue === 0) && (!orderValue || orderValue === 0)) {
+      alert('Either Accrual or Order must be provided and cannot be zero');
+      return;
+    }
+
+    setIsAddingLedger(true);
+    try {
+      const response = await fetch('/api/payments-ledger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentId: statementData.payment.paymentId,
+          effectiveDate: addEffectiveDate || undefined,
+          accrual: accrualValue,
+          order: orderValue,
+          comment: addComment || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create ledger entry');
+      }
+
+      const result = await response.json();
+      const created = Array.isArray(result) ? result[0] : result;
+
+      if (created && statementData) {
+        const newEntry = {
+          id: Number(created.id),
+          effectiveDate: created.effective_date || created.effectiveDate,
+          accrual: created.accrual ? Number(created.accrual) : 0,
+          order: created.order ? Number(created.order) : 0,
+          comment: created.comment,
+          userEmail: created.user_email || created.userEmail,
+          createdAt: created.created_at || created.createdAt,
+        };
+
+        setStatementData({
+          ...statementData,
+          ledgerEntries: [...(statementData.ledgerEntries || []), newEntry],
+        });
+
+        if (broadcastChannel) {
+          broadcastChannel.postMessage({
+            type: 'ledger-updated',
+            paymentId: statementData.payment.paymentId,
+            ledgerId: newEntry.id,
+            timestamp: Date.now(),
+          });
+        }
+      }
+
+      handleCloseAddLedger();
+    } catch (error: any) {
+      console.error('Error adding ledger entry:', error);
+      alert(error.message || 'Failed to add ledger entry');
+    } finally {
+      setIsAddingLedger(false);
+    }
+  };
 
   const handleEditEntry = (row: TransactionRow) => {
     if (row.type === 'ledger' && row.ledgerId) {
@@ -468,6 +572,49 @@ export default function PaymentStatementPage() {
     }
   };
 
+  const handleDeleteEntry = async () => {
+    if (!editingEntry) return;
+    if (!confirm('Delete this ledger entry? This will hide it from reports and statements.')) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/payments-ledger?id=${editingEntry.id}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete entry');
+      }
+
+      if (statementData && statementData.ledgerEntries) {
+        const updatedLedgerEntries = statementData.ledgerEntries.filter((entry: any) => entry.id !== editingEntry.id);
+        setStatementData({
+          ...statementData,
+          ledgerEntries: updatedLedgerEntries
+        });
+
+        if (broadcastChannel) {
+          broadcastChannel.postMessage({
+            type: 'ledger-deleted',
+            paymentId: statementData.payment.paymentId,
+            ledgerId: editingEntry.id,
+            timestamp: Date.now(),
+          });
+        }
+      }
+
+      setIsEditDialogOpen(false);
+      setEditingEntry(null);
+    } catch (error: any) {
+      console.error('Error deleting ledger entry:', error);
+      alert(error.message || 'Failed to delete ledger entry');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleCancelEdit = () => {
     setIsEditDialogOpen(false);
     setEditingEntry(null);
@@ -479,6 +626,50 @@ export default function PaymentStatementPage() {
     setPaymentSearch('');
     setPaymentDetails(null);
     setShowConfirmation(false);
+  };
+
+  const viewBankRecord = async (uuid: string) => {
+    setLoadingBankRecord(true);
+    setViewingBankRecord(null);
+    setIsBankRecordDialogOpen(true);
+    try {
+      const response = await fetch(`/api/bank-transactions/raw-record/${uuid}`);
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Failed to fetch bank record');
+      }
+      const result = await response.json();
+      setViewingBankRecord(result);
+    } catch (error: any) {
+      alert(error?.message || 'Failed to fetch bank record');
+      setIsBankRecordDialogOpen(false);
+    } finally {
+      setLoadingBankRecord(false);
+    }
+  };
+
+  const updateBankRecordParsingLock = async (checked: boolean) => {
+    if (!viewingBankRecord?.id) return;
+    setIsBankLockUpdating(true);
+    try {
+      const response = await fetch(`/api/bank-transactions/parsing-lock/${viewingBankRecord.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parsing_lock: checked }),
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Failed to update parsing lock');
+      }
+      setViewingBankRecord((prev: any) => ({
+        ...prev,
+        parsing_lock: checked,
+      }));
+    } catch (error: any) {
+      alert(error?.message || 'Failed to update parsing lock');
+    } finally {
+      setIsBankLockUpdating(false);
+    }
   };
 
   const filteredPayments = allPayments.filter(p => {
@@ -571,12 +762,21 @@ export default function PaymentStatementPage() {
 
           {/* Merged Payment Transactions */}
           <div>
-            <h3 className="font-semibold mb-3 text-lg">
-              Payment Transactions 
-              <span className="ml-2 text-sm font-normal text-gray-600">
-                ({mergedTransactions.length} {mergedTransactions.length === 1 ? 'entry' : 'entries'})
-              </span>
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-lg">
+                Payment Transactions 
+                <span className="ml-2 text-sm font-normal text-gray-600">
+                  ({mergedTransactions.length} {mergedTransactions.length === 1 ? 'entry' : 'entries'})
+                </span>
+              </h3>
+              <button
+                onClick={handleOpenAddLedger}
+                className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                Add Ledger Entry
+              </button>
+            </div>
             {mergedTransactions.length > 0 ? (
               <div className="border rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
@@ -661,6 +861,15 @@ export default function PaymentStatementPage() {
                                 <Edit2 className="h-4 w-4 text-blue-600" />
                               </button>
                             )}
+                            {row.type === 'bank' && row.bankUuid && (
+                              <button
+                                onClick={() => viewBankRecord(row.bankUuid as string)}
+                                className="p-1 hover:bg-gray-200 rounded"
+                                title="View bank transaction"
+                              >
+                                <Eye className="h-4 w-4 text-gray-700" />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -727,6 +936,108 @@ export default function PaymentStatementPage() {
           </div>
         </div>
       </div>
+
+      {/* Add Ledger Dialog */}
+      {isAddLedgerDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">Add Ledger Entry</h2>
+              <button
+                onClick={handleCloseAddLedger}
+                className="p-1 hover:bg-gray-100 rounded"
+                disabled={isAddingLedger}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Payment ID (Locked)
+                </label>
+                <input
+                  value={statementData?.payment?.paymentId || ''}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Effective Date
+                </label>
+                <input
+                  type="date"
+                  value={addEffectiveDate}
+                  onChange={(e) => setAddEffectiveDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Accrual Amount
+                  </label>
+                  <input
+                    type="number"
+                    value={addAccrual}
+                    onChange={(e) => setAddAccrual(e.target.value)}
+                    placeholder="0.00"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Order Amount
+                  </label>
+                  <input
+                    type="number"
+                    value={addOrder}
+                    onChange={(e) => setAddOrder(e.target.value)}
+                    placeholder="0.00"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Comment
+                </label>
+                <textarea
+                  value={addComment}
+                  onChange={(e) => setAddComment(e.target.value)}
+                  placeholder="Enter comment..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  onClick={handleCloseAddLedger}
+                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+                  disabled={isAddingLedger}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveAddLedger}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  disabled={isAddingLedger}
+                >
+                  {isAddingLedger ? 'Saving...' : 'Add Entry'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Dialog */}
       {isEditDialogOpen && (
@@ -934,15 +1245,22 @@ export default function PaymentStatementPage() {
 
             <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex justify-end gap-3">
               <button
+                onClick={handleDeleteEntry}
+                disabled={isSaving || isDeleting}
+                className="px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+              <button
                 onClick={handleCancelEdit}
-                disabled={isSaving}
+                disabled={isSaving || isDeleting}
                 className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
               <button
                 onClick={() => setShowConfirmation(true)}
-                disabled={isSaving || !newPaymentId}
+                disabled={isSaving || isDeleting || !newPaymentId}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSaving ? 'Saving...' : 'Save Changes'}
@@ -1029,6 +1347,59 @@ export default function PaymentStatementPage() {
               >
                 Confirm & Save
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bank Transaction Record Dialog */}
+      {isBankRecordDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">Bank Transaction Record</h2>
+              <button
+                onClick={() => setIsBankRecordDialogOpen(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+                disabled={loadingBankRecord}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {loadingBankRecord ? (
+                <div className="flex items-center justify-center py-8">
+                  <span className="text-gray-600">Loading...</span>
+                </div>
+              ) : viewingBankRecord ? (
+                <div className="space-y-4">
+                  {'id' in viewingBankRecord && (
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={Boolean(viewingBankRecord.parsing_lock)}
+                        onCheckedChange={(checked) => updateBankRecordParsingLock(Boolean(checked))}
+                        disabled={isBankLockUpdating}
+                      />
+                      <Label className="text-sm">Parsing lock (skip during backparse)</Label>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 gap-2 max-h-[60vh] overflow-y-auto border rounded p-4">
+                    {Object.entries(viewingBankRecord).map(([key, value]) => (
+                      <div key={key} className="grid grid-cols-2 gap-4 py-2 border-b">
+                        <div className="font-medium text-sm text-gray-700">
+                          {key}
+                        </div>
+                        <div className="text-sm break-all">
+                          {value !== null && value !== undefined ? String(value) : '-'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">No data available</div>
+              )}
             </div>
           </div>
         </div>

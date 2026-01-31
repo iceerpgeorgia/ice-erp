@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 
 export const revalidate = 0;
 
+const DECONSOLIDATED_TABLE = "GE78BG0000000893486000_BOG_GEL";
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -79,6 +81,7 @@ export async function GET(request: NextRequest) {
     const bankQuery = `
       SELECT 
         cba.id,
+        cba.uuid,
         cba.account_currency_amount,
         cba.nominal_amount,
         cba.transaction_date,
@@ -89,7 +92,7 @@ export async function GET(request: NextRequest) {
         cba.account_currency_uuid,
         ba.account_number as bank_account_number,
         curr.code as account_currency_code
-      FROM consolidated_bank_accounts cba
+      FROM "${DECONSOLIDATED_TABLE}" cba
       LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
       LEFT JOIN currencies curr ON cba.account_currency_uuid = curr.uuid
       WHERE cba.payment_id = $1
@@ -125,6 +128,7 @@ export async function GET(request: NextRequest) {
       })),
       bankTransactions: (bankResult as any[]).map(tx => ({
         id: Number(tx.id),
+        uuid: tx.uuid,
         accountCurrencyAmount: tx.account_currency_amount ? parseFloat(tx.account_currency_amount) : 0,
         nominalAmount: tx.nominal_amount ? parseFloat(tx.nominal_amount) : 0,
         date: tx.transaction_date,

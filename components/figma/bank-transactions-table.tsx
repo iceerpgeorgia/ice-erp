@@ -10,8 +10,11 @@ import {
   EyeOff,
   Upload,
   Edit2,
-  Loader2
+  Loader2,
+  Download,
+  RefreshCw
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -50,6 +53,7 @@ export type BankTransaction = {
   date: string;
   correctionDate: string | null;
   exchangeRate: string | null;
+  usdGelRate?: number | null;
   id1: string | null;
   id2: string | null;
   recordUuid: string;
@@ -57,6 +61,7 @@ export type BankTransaction = {
   description: string | null;
   processingCase: string | null;
   appliedRuleId: number | null;
+  parsingLock?: boolean;
   createdAt: string;
   updatedAt: string;
   isBalanceRecord?: boolean; // Flag for balance records (no view/edit actions)
@@ -69,6 +74,16 @@ export type BankTransaction = {
   financialCode: string | null;
   paymentId: string | null;
   nominalCurrencyCode: string | null;
+};
+
+type BackparsePreviewItem = {
+  id: number;
+  uuid: string;
+  transaction_date: string | null;
+  description: string | null;
+  changed_fields: string[];
+  current: Record<string, any>;
+  next: Record<string, any>;
 };
 
 type ColumnKey = keyof BankTransaction;
@@ -99,6 +114,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'paymentId', label: 'Payment ID', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'description', label: 'Description', width: 300, visible: true, sortable: true, filterable: true },
   { key: 'nominalAmount', label: 'Nominal Amt', width: 120, visible: false, sortable: true, filterable: true },
+  { key: 'usdGelRate', label: 'USD/GEL', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'correctionDate', label: 'Correction Date', width: 120, visible: false, sortable: true, filterable: true },
   { key: 'exchangeRate', label: 'Exchange Rate', width: 120, visible: false, sortable: true, filterable: true },
   { key: 'id1', label: 'DocKey', width: 120, visible: false, sortable: true, filterable: true },
@@ -156,7 +172,15 @@ const getResponsiveClass = (responsive?: string) => {
   }
 };
 
-export function BankTransactionsTable({ data, currencySummaries }: { data?: BankTransaction[], currencySummaries?: any[] }) {
+export function BankTransactionsTable({
+  data,
+  currencySummaries,
+  uploadEndpoint = '/api/bank-transactions/upload',
+}: {
+  data?: BankTransaction[];
+  currencySummaries?: any[];
+  uploadEndpoint?: string;
+}) {
   const [transactions, setTransactions] = useState<BankTransaction[]>(data ?? []);
   
   console.log('[BankTransactionsTable] currencySummaries:', currencySummaries);
@@ -202,10 +226,27 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
     financial_code_uuid: string;
     nominal_currency_uuid: string;
     nominal_amount: string;
-  }>({ payment_uuid: '', project_uuid: '', job_uuid: '', financial_code_uuid: '', nominal_currency_uuid: '', nominal_amount: '' });
+    parsing_lock: boolean;
+  }>({
+    payment_uuid: '',
+    project_uuid: '',
+    job_uuid: '',
+    financial_code_uuid: '',
+    nominal_currency_uuid: '',
+    nominal_amount: '',
+    parsing_lock: false,
+  });
   const [isRawRecordDialogOpen, setIsRawRecordDialogOpen] = useState(false);
   const [viewingRawRecord, setViewingRawRecord] = useState<any>(null);
   const [loadingRawRecord, setLoadingRawRecord] = useState(false);
+  const [isRawLockUpdating, setIsRawLockUpdating] = useState(false);
+  const [isBackparseDialogOpen, setIsBackparseDialogOpen] = useState(false);
+  const [isBackparseLoading, setIsBackparseLoading] = useState(false);
+  const [isBackparseRunning, setIsBackparseRunning] = useState(false);
+  const [backparsePreview, setBackparsePreview] = useState<BackparsePreviewItem[]>([]);
+  const [backparseError, setBackparseError] = useState<string | null>(null);
+  const [backparseLimit, setBackparseLimit] = useState(200);
+  const [selectedBackparseIds, setSelectedBackparseIds] = useState<Set<number>>(new Set());
   
   // Store display labels from selected payment
   const [paymentDisplayValues, setPaymentDisplayValues] = useState<{
@@ -221,7 +262,7 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
     if (typeof window !== 'undefined') {
       const savedColumns = localStorage.getItem('bank-transactions-table-columns');
       const savedVersion = localStorage.getItem('bank-transactions-table-version');
-      const currentVersion = '4'; // Increment this when defaultColumns structure changes
+      const currentVersion = '5'; // Increment this when defaultColumns structure changes
       
       if (savedColumns && savedVersion === currentVersion) {
         try {
@@ -245,6 +286,7 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
   const pageSizeOptions = [50, 100, 200, 500, 1000];
+  const [isExporting, setIsExporting] = useState(false);
 
   // Respond to external data updates
   useEffect(() => {
@@ -258,8 +300,18 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
         const response = await fetch('/api/payments');
         if (!response.ok) throw new Error('Failed to fetch payments');
         const paymentsData = await response.json();
-        setAllPayments(paymentsData);
-        console.log('[BankTransactionsTable] Loaded all payments:', paymentsData.length);
+        const normalizedPayments = Array.isArray(paymentsData)
+          ? paymentsData.map((payment: any) => ({
+              ...payment,
+              counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
+              projectUuid: payment.projectUuid || payment.project_uuid || null,
+              financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
+              currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
+              paymentId: payment.paymentId || payment.payment_id || null,
+            }))
+          : [];
+        setAllPayments(normalizedPayments);
+        console.log('[BankTransactionsTable] Loaded all payments:', normalizedPayments.length);
       } catch (error) {
         console.error('[BankTransactionsTable] Error fetching all payments:', error);
       }
@@ -612,7 +664,7 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
         logWindow.document.close();
       }
 
-      const response = await fetch('/api/bank-transactions/upload', {
+      const response = await fetch(uploadEndpoint, {
         method: 'POST',
         body: formData,
       });
@@ -695,6 +747,7 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
       financial_code_uuid: transaction.financialCodeUuid || '',
       nominal_currency_uuid: transaction.nominalCurrencyUuid || '',
       nominal_amount: transaction.nominalAmount || '',
+      parsing_lock: Boolean(transaction.parsingLock),
     };
     console.log('[startEdit] Initial formData:', initialFormData);
     setFormData(initialFormData);
@@ -839,7 +892,15 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
   const cancelEdit = () => {
     setEditingTransaction(null);
     setIsEditDialogOpen(false);
-    setFormData({ payment_uuid: '', project_uuid: '', job_uuid: '', financial_code_uuid: '', nominal_currency_uuid: '', nominal_amount: '' });
+    setFormData({
+      payment_uuid: '',
+      project_uuid: '',
+      job_uuid: '',
+      financial_code_uuid: '',
+      nominal_currency_uuid: '',
+      nominal_amount: '',
+      parsing_lock: false,
+    });
     setPaymentDisplayValues({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '', nominalAmountLabel: '' });
     setJobOptions([]);
   };
@@ -1068,10 +1129,32 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
       if (formData.nominal_currency_uuid !== (editingTransaction.nominalCurrencyUuid || '')) {
         updateData.nominal_currency_uuid = formData.nominal_currency_uuid || null;
       }
+      if (formData.parsing_lock !== Boolean(editingTransaction.parsingLock)) {
+        updateData.parsing_lock = formData.parsing_lock;
+      }
       // Note: nominal_amount is calculated on backend based on currency change
 
-      // If nothing changed, just close
-      if (Object.keys(updateData).length === 0) {
+      const { parsing_lock, ...mainUpdate } = updateData;
+
+      if (Object.keys(mainUpdate).length === 0 && parsing_lock === undefined) {
+        cancelEdit();
+        return;
+      }
+
+      if (parsing_lock !== undefined) {
+        const lockResponse = await fetch(`/api/bank-transactions/parsing-lock/${editingTransaction.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parsing_lock }),
+        });
+
+        if (!lockResponse.ok) {
+          const lockError = await lockResponse.json().catch(() => ({}));
+          throw new Error(lockError?.error || 'Failed to update parsing lock');
+        }
+      }
+
+      if (Object.keys(mainUpdate).length === 0) {
         cancelEdit();
         return;
       }
@@ -1079,7 +1162,7 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
       const response = await fetch(`/api/bank-transactions/${editingTransaction.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData),
+        body: JSON.stringify(mainUpdate),
       });
 
       const result = await response.json();
@@ -1129,6 +1212,7 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
             description: row.description || null,
             processingCase: row.processing_case || null,
             appliedRuleId: row.applied_rule_id || null,
+            parsingLock: row.parsing_lock ?? false,
             createdAt: row.created_at || "",
             updatedAt: row.updated_at || "",
             isBalanceRecord: row.is_balance_record || false,
@@ -1373,6 +1457,171 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
   const visibleColumns = columns.filter(col => col.visible);
   const totalWidth = visibleColumns.reduce((sum, col) => sum + col.width, 0);
 
+  const formatExportValue = (key: ColumnKey, value: BankTransaction[ColumnKey]) => {
+    if (value === null || value === undefined) return '';
+    if (key === 'accountCurrencyAmount' || key === 'nominalAmount') {
+      const num = Number(value);
+      return Number.isNaN(num) ? String(value) : num;
+    }
+    if (key === 'usdGelRate') {
+      const num = Number(value);
+      return Number.isNaN(num) ? String(value) : Number(num.toFixed(6));
+    }
+    if (key === 'exchangeRate') {
+      const num = Number(value);
+      return Number.isNaN(num) ? String(value) : Number(num.toFixed(10));
+    }
+    if (key === 'date' || key === 'correctionDate' || key === 'createdAt' || key === 'updatedAt') {
+      return formatDate(String(value));
+    }
+    return String(value);
+  };
+
+  const handleExportXlsx = () => {
+    if (filteredData.length === 0) {
+      alert('No data to export');
+      return;
+    }
+    try {
+      setIsExporting(true);
+      const exportColumns = visibleColumns;
+      const header = exportColumns.map(col => col.label);
+      const rows = filteredData.map(row =>
+        exportColumns.map(col => formatExportValue(col.key, row[col.key]))
+      );
+      const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Bank Transactions');
+      const dateStamp = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(workbook, `bank-transactions-${dateStamp}.xlsx`, { bookType: 'xlsx' });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const loadBackparsePreview = async () => {
+    setIsBackparseLoading(true);
+    setBackparseError(null);
+    try {
+      const response = await fetch('/api/bank-transactions/backparse-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: backparseLimit, offset: 0 }),
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Failed to load preview');
+      }
+      const result = await response.json();
+      const changes = Array.isArray(result?.changes) ? result.changes : [];
+      setBackparsePreview(changes);
+      setSelectedBackparseIds(new Set(changes.map((item: BackparsePreviewItem) => item.id)));
+    } catch (error: any) {
+      setBackparseError(error?.message || 'Failed to load preview');
+    } finally {
+      setIsBackparseLoading(false);
+    }
+  };
+
+  const toggleBackparseSelection = (id: number) => {
+    setSelectedBackparseIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectAllBackparse = () => {
+    setSelectedBackparseIds(new Set(backparsePreview.map((item) => item.id)));
+  };
+
+  const clearBackparseSelection = () => {
+    setSelectedBackparseIds(new Set());
+  };
+
+  const updateParsingLockForSelection = async (lock: boolean) => {
+    const ids = Array.from(selectedBackparseIds);
+    if (ids.length === 0) {
+      alert('Select at least one record.');
+      return;
+    }
+    setIsBackparseRunning(true);
+    try {
+      const response = await fetch('/api/bank-transactions/parsing-lock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, parsing_lock: lock }),
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Failed to update parsing lock');
+      }
+      await loadBackparsePreview();
+    } catch (error: any) {
+      alert(error?.message || 'Failed to update parsing lock');
+    } finally {
+      setIsBackparseRunning(false);
+    }
+  };
+
+  const runBackparseForSelection = async () => {
+    const ids = Array.from(selectedBackparseIds);
+    if (ids.length === 0) {
+      alert('Select at least one record.');
+      return;
+    }
+    if (!confirm(`Backparse ${ids.length} selected record(s)?`)) {
+      return;
+    }
+    setIsBackparseRunning(true);
+    try {
+      const response = await fetch('/api/bank-transactions/backparse-selected', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Backparse failed');
+      }
+      const result = await response.json();
+      alert(`Backparse complete. Updated ${result?.updated ?? 0} record(s).`);
+      window.location.reload();
+    } catch (error: any) {
+      alert(error?.message || 'Backparse failed');
+    } finally {
+      setIsBackparseRunning(false);
+    }
+  };
+
+  const updateRawRecordParsingLock = async (checked: boolean) => {
+    if (!viewingRawRecord?.id) return;
+    setIsRawLockUpdating(true);
+    try {
+      const response = await fetch(`/api/bank-transactions/parsing-lock/${viewingRawRecord.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parsing_lock: checked }),
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Failed to update parsing lock');
+      }
+      setViewingRawRecord((prev: any) => ({
+        ...prev,
+        parsing_lock: checked,
+      }));
+    } catch (error: any) {
+      alert(error?.message || 'Failed to update parsing lock');
+    } finally {
+      setIsRawLockUpdating(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen">
       {/* Header Controls */}
@@ -1416,6 +1665,28 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
           >
             <Upload className="h-4 w-4 mr-2" />
             {isUploading ? 'Processing...' : 'Upload XML'}
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportXlsx}
+            disabled={isExporting}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {isExporting ? 'Exporting...' : 'Export XLSX'}
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setIsBackparseDialogOpen(true);
+              loadBackparsePreview();
+            }}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Backparse Preview
           </Button>
           
           {/* Column Settings */}
@@ -1565,6 +1836,10 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
                             <span className={Number(row[col.key]) >= 0 ? 'text-green-600' : 'text-red-600'}>
                               {formatAmount(row[col.key])}
                             </span>
+                              ) : col.key === 'usdGelRate' ? (
+                                row[col.key] !== null && row[col.key] !== undefined
+                                  ? Number(row[col.key]).toFixed(6)
+                                  : '-'
                           ) : col.key === 'exchangeRate' ? (
                             row[col.key] ? Number(row[col.key]).toFixed(10) : '-'
                           ) : col.key === 'date' || col.key === 'correctionDate' || col.key === 'createdAt' || col.key === 'updatedAt' ? (
@@ -1743,6 +2018,15 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
                         : `⚠️ No payments found for counteragent: ${editingTransaction.counteragentName || 'Unknown'}. Create a payment for this counteragent first.`
                       : `Showing all ${paymentOptions.length} payments (no counteragent parsed)`}
                   </p>
+                  <div className="flex items-center gap-2 pt-2">
+                    <Checkbox
+                      checked={formData.parsing_lock}
+                      onCheckedChange={(checked) =>
+                        setFormData((prev) => ({ ...prev, parsing_lock: Boolean(checked) }))
+                      }
+                    />
+                    <Label className="text-sm">Parsing lock (skip during backparse)</Label>
+                  </div>
                 </div>
 
               {/* Payment Details Section - Read-only when payment is selected */}
@@ -2067,6 +2351,121 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
         </DialogContent>
       </Dialog>
 
+      {/* Backparse Preview Dialog */}
+      <Dialog open={isBackparseDialogOpen} onOpenChange={setIsBackparseDialogOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Backparse Preview</DialogTitle>
+            <DialogDescription>
+              Review changes before reprocessing. Locked records are excluded.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm">Preview limit</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={backparseLimit}
+                    onChange={(e) => setBackparseLimit(Number(e.target.value) || 1)}
+                    className="w-28"
+                  />
+                  <Button variant="outline" size="sm" onClick={loadBackparsePreview} disabled={isBackparseLoading}>
+                    {isBackparseLoading ? 'Loading...' : 'Refresh'}
+                  </Button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={selectAllBackparse}>
+                    Select all
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={clearBackparseSelection}>
+                    Select none
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateParsingLockForSelection(true)}
+                    disabled={isBackparseRunning}
+                  >
+                    Lock selected
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateParsingLockForSelection(false)}
+                    disabled={isBackparseRunning}
+                  >
+                    Unlock selected
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={runBackparseForSelection}
+                    disabled={isBackparseRunning}
+                  >
+                    {isBackparseRunning ? 'Processing...' : 'Backparse selected'}
+                  </Button>
+                </div>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Selected: {selectedBackparseIds.size} / {backparsePreview.length}
+              </div>
+            </div>
+
+            {backparseError && (
+              <div className="text-sm text-red-600">{backparseError}</div>
+            )}
+
+            {isBackparseLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : backparsePreview.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No changes detected.</div>
+            ) : (
+              <div className="border rounded-md overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr className="text-left">
+                      <th className="p-2 w-10"></th>
+                      <th className="p-2">ID</th>
+                      <th className="p-2">Date</th>
+                      <th className="p-2">Description</th>
+                      <th className="p-2">Changed fields</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {backparsePreview.map((item) => (
+                      <tr key={item.id} className="border-t">
+                        <td className="p-2">
+                          <Checkbox
+                            checked={selectedBackparseIds.has(item.id)}
+                            onCheckedChange={() => toggleBackparseSelection(item.id)}
+                          />
+                        </td>
+                        <td className="p-2">{item.id}</td>
+                        <td className="p-2">{formatDate(item.transaction_date)}</td>
+                        <td className="p-2 max-w-[320px] truncate" title={item.description || ''}>
+                          {item.description || '-'}
+                        </td>
+                        <td className="p-2">
+                          <div className="flex flex-wrap gap-1">
+                            {item.changed_fields.map((field) => (
+                              <Badge key={field} variant="secondary">{field}</Badge>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Raw Record Viewer Dialog */}
       <Dialog open={isRawRecordDialogOpen} onOpenChange={setIsRawRecordDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -2082,6 +2481,16 @@ export function BankTransactionsTable({ data, currencySummaries }: { data?: Bank
             </div>
           ) : viewingRawRecord ? (
             <div className="space-y-4">
+              {'id' in viewingRawRecord && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={Boolean(viewingRawRecord.parsing_lock)}
+                    onCheckedChange={(checked) => updateRawRecordParsingLock(Boolean(checked))}
+                    disabled={isRawLockUpdating}
+                  />
+                  <Label className="text-sm">Parsing lock (skip during backparse)</Label>
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-2 max-h-[60vh] overflow-y-auto border rounded p-4">
                 {Object.entries(viewingRawRecord).map(([key, value]) => (
                   <div key={key} className="grid grid-cols-2 gap-4 py-2 border-b">
