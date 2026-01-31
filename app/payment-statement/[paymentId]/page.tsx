@@ -16,6 +16,17 @@ const formatDate = (date: string | Date): string => {
   return `${day}.${month}.${year}`;
 };
 
+const toValidDate = (val: any): Date | null => {
+  if (!val) return null;
+  if (val instanceof Date) return val;
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+const toISO = (d: Date | null): string => {
+  return d ? d.toISOString() : '';
+};
+
 type TransactionRow = {
   id: string;
   ledgerId?: number; // Add ledger ID for editing
@@ -694,7 +705,42 @@ export default function PaymentStatementPage() {
       }
       const result = await response.json();
       const records = Array.isArray(result) ? result : Array.isArray(result?.data) ? result.data : [];
-      setBankEditData(records);
+      const mapped = records.map((row: any) => ({
+        id: row.id,
+        uuid: row.uuid,
+        accountUuid: row.bank_account_uuid || row.accountUuid || '',
+        accountCurrencyUuid: row.account_currency_uuid || row.accountCurrencyUuid || '',
+        accountCurrencyAmount: row.account_currency_amount || row.accountCurrencyAmount || null,
+        paymentUuid: row.payment_uuid || row.paymentUuid || null,
+        counteragentUuid: row.counteragent_uuid || row.counteragentUuid || null,
+        projectUuid: row.project_uuid || row.projectUuid || null,
+        financialCodeUuid: row.financial_code_uuid || row.financialCodeUuid || null,
+        nominalCurrencyUuid: row.nominal_currency_uuid || row.nominalCurrencyUuid || null,
+        nominalAmount: row.nominal_amount || row.nominalAmount || null,
+        date: row.transaction_date || row.date || '',
+        correctionDate: row.correction_date || row.correctionDate || null,
+        exchangeRate: row.exchange_rate || row.exchangeRate || null,
+        usdGelRate: row.usd_gel_rate ?? row.usdGelRate ?? null,
+        id1: row.id1 || null,
+        id2: row.id2 || null,
+        recordUuid: row.raw_record_uuid || row.recordUuid || '',
+        counteragentAccountNumber: row.counteragent_account_number ? String(row.counteragent_account_number) : null,
+        description: row.description || null,
+        processingCase: row.processing_case || row.processingCase || null,
+        appliedRuleId: row.applied_rule_id || row.appliedRuleId || null,
+        parsingLock: row.parsing_lock ?? row.parsingLock ?? false,
+        createdAt: toISO(toValidDate(row.created_at || row.createdAt)),
+        updatedAt: toISO(toValidDate(row.updated_at || row.updatedAt)),
+        isBalanceRecord: row.is_balance_record || row.isBalanceRecord || false,
+        accountNumber: row.account_number || row.accountNumber || null,
+        bankName: row.bank_name || row.bankName || null,
+        counteragentName: row.counteragent_name || row.counteragentName || null,
+        projectIndex: row.project_index || row.projectIndex || null,
+        financialCode: row.financial_code || row.financialCode || null,
+        paymentId: row.payment_id || row.paymentId || null,
+        nominalCurrencyCode: row.nominal_currency_code || row.nominalCurrencyCode || null,
+      }));
+      setBankEditData(mapped);
     } catch (error: any) {
       alert(error?.message || 'Failed to fetch bank transaction');
       setIsBankEditDialogOpen(false);
