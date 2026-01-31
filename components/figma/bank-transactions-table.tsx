@@ -924,6 +924,13 @@ export function BankTransactionsTable({
   }, [autoEditId, transactions]);
 
   useEffect(() => {
+    if (!editingTransaction || !isEditDialogOpen) return;
+    if (allPayments.length === 0) return;
+    if (paymentOptions.length > 0) return;
+    startEdit(editingTransaction);
+  }, [allPayments.length, editingTransaction, isEditDialogOpen, paymentOptions.length]);
+
+  useEffect(() => {
     if (renderMode !== 'dialog-only') return;
     if (isEditDialogOpen) {
       if (!wasDialogOpen) setWasDialogOpen(true);
