@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, 
   Filter, 
@@ -109,307 +109,303 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'counteragentName', label: 'Counteragent', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'counteragentAccountNumber', label: 'CA Account', width: 180, visible: true, sortable: true, filterable: true },
   { key: 'projectIndex', label: 'Project', width: 120, visible: true, sortable: true, filterable: true },
-  return (
-    <div className={showFullTable ? 'flex flex-col h-screen' : 'flex flex-col'}>
-      {showFullTable && (
-        <>
-          {/* Header Controls */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between p-4 border-b bg-white">
-            <div className="flex-1 min-w-0 w-full sm:w-auto">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search transactions (regex supported)..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-9 w-full"
-                />
-                {isSearching && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
-                )}
-              </div>
-              {debouncedSearchTerm && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Searching in: Counteragent, CA Account, Project, Payment ID, Fin. Code, Description
-                </p>
-              )}
-            </div>
-            
-            <div className="flex items-center gap-2">
-              {/* Upload XML Button */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xml"
-                multiple
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                {isUploading ? 'Processing...' : 'Upload XML'}
-              </Button>
+  { key: 'financialCode', label: 'Fin. Code', width: 100, visible: true, sortable: true, filterable: true },
+  { key: 'nominalCurrencyCode', label: 'Nom ISO', width: 80, visible: true, sortable: true, filterable: true },
+  { key: 'paymentId', label: 'Payment ID', width: 140, visible: true, sortable: true, filterable: true },
+  { key: 'description', label: 'Description', width: 300, visible: true, sortable: true, filterable: true },
+  { key: 'nominalAmount', label: 'Nominal Amt', width: 120, visible: false, sortable: true, filterable: true },
+  { key: 'usdGelRate', label: 'USD/GEL', width: 120, visible: true, sortable: true, filterable: true },
+  { key: 'correctionDate', label: 'Correction Date', width: 120, visible: false, sortable: true, filterable: true },
+  { key: 'exchangeRate', label: 'Exchange Rate', width: 120, visible: false, sortable: true, filterable: true },
+  { key: 'id1', label: 'DocKey', width: 120, visible: false, sortable: true, filterable: true },
+  { key: 'id2', label: 'EntriesId', width: 120, visible: false, sortable: true, filterable: true },
+  { key: 'recordUuid', label: 'Record UUID', width: 200, visible: false, sortable: true, filterable: true },
+  { key: 'uuid', label: 'UUID', width: 200, visible: false, sortable: true, filterable: true },
+  { key: 'accountUuid', label: 'Account UUID', width: 200, visible: false, sortable: true, filterable: true },
+  { key: 'accountCurrencyUuid', label: 'Currency UUID', width: 200, visible: false, sortable: true, filterable: true },
+  { key: 'paymentUuid', label: 'Payment UUID', width: 200, visible: false, sortable: true, filterable: true },
+  { key: 'counteragentUuid', label: 'CA UUID', width: 200, visible: false, sortable: true, filterable: true },
+  { key: 'projectUuid', label: 'Project UUID', width: 200, visible: false, sortable: true, filterable: true },
+  { key: 'financialCodeUuid', label: 'Fin. Code UUID', width: 200, visible: false, sortable: true, filterable: true },
+  { key: 'nominalCurrencyUuid', label: 'Nominal Cur. UUID', width: 200, visible: false, sortable: true, filterable: true },
+  { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true },
+  { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true }
+];
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportXlsx}
-                disabled={isExporting}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                {isExporting ? 'Exporting...' : 'Export XLSX'}
-              </Button>
+// Helper function to format date as dd.mm.yyyy
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    // Handle YYYY-MM-DD format directly
+    if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateString)) {
+      const [year, month, day] = dateString.split('T')[0].split('-');
+      return `${day}.${month}.${year}`;
+    }
+    // Fallback to Date parsing for other formats
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+  } catch {
+    return dateString;
+  }
+};
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setIsBackparseDialogOpen(true);
-                  loadBackparsePreview();
-                }}
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Backparse Preview
-              </Button>
-              
-              {/* Column Settings */}
-              <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Columns
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 max-h-96 overflow-y-auto">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold text-sm">Column Visibility</h4>
-                      <Button variant="ghost" size="sm" onClick={resetColumns}>
-                        Reset
-                      </Button>
-                    </div>
-                    <div className="space-y-2">
-                      {columns.map(col => (
-                        <div key={col.key} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`col-${col.key}`}
-                            checked={col.visible}
-                            onCheckedChange={() => toggleColumnVisibility(col.key)}
-                          />
-                          <label
-                            htmlFor={`col-${col.key}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                          >
-                            {col.label}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
+// Helper function to format amount with thousands separator and 2 decimals
+const formatAmount = (amount: string | number | null | undefined): string => {
+  if (amount == null) return '-';
+  const num = Number(amount);
+  if (isNaN(num)) return '-';
+  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 
-          {/* Stats Bar */}
-          <div className="flex gap-6 px-4 py-3 text-sm bg-gray-50 border-b">
-            <div>
-              <span className="text-gray-600">Total:</span>
-              <span className="ml-2 font-semibold">{filteredData.length}</span>
-            </div>
-            <div>
-              <span className="text-gray-600">Filtered:</span>
-              <span className="ml-2 font-semibold">{filteredData.length} of {transactions.length}</span>
-            </div>
-            <div>
-              <span className="text-gray-600">Selected:</span>
-              <span className="ml-2 font-semibold">{selectedRows.length}</span>
-            </div>
-          </div>
+// Helper function to get responsive classes
+const getResponsiveClass = (responsive?: string) => {
+  switch (responsive) {
+    case 'sm': return 'hidden sm:table-cell';
+    case 'md': return 'hidden md:table-cell';
+    case 'lg': return 'hidden lg:table-cell';
+    case 'xl': return 'hidden xl:table-cell';
+    default: return '';
+  }
+};
 
-          {/* Table */}
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-x-auto overflow-y-auto" ref={scrollRef}>
-              <table className="min-w-full border-separate border-spacing-0">
-                <thead className="sticky top-0 z-10 bg-white">
-                  <tr>
-                    {visibleColumns.map(col => (
-                      <th
-                        key={col.key}
-                        className={`px-4 py-2 text-left text-xs font-medium uppercase tracking-wider border-b border-gray-200 ${getResponsiveClass(col.responsive)}`}
-                        style={{ width: col.width }}
-                      >
-                        <div className="flex items-center">
-                          <span>{col.label}</span>
-                          {col.sortable && (
-                            <button
-                              onClick={() => handleSort(col.key)}
-                              className="ml-1 p-1 hover:bg-gray-100 rounded"
-                            >
-                              {sortField === col.key ? (
-                                sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                              ) : (
-                                <ArrowUpDown className="h-3 w-3 text-gray-400" />
-                              )}
-                            </button>
-                          )}
-                          {col.filterable && (
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <button className="ml-1 p-1 hover:bg-gray-100 rounded">
-                                  <Filter className={`h-3 w-3 ${columnFilters[col.key]?.length ? 'text-blue-600' : 'text-gray-400'}`} />
-                                </button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-80 max-h-96 overflow-y-auto">
-                                <ColumnFilter column={col} />
-                              </PopoverContent>
-                            </Popover>
-                          )}
-                        </div>
-                      </th>
-                    ))}
-                    <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider border-b border-gray-200" style={{ width: 140 }}>
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedData.length === 0 ? (
-                    <tr>
-                      <td colSpan={visibleColumns.length + 1} className="px-4 py-8 text-center text-gray-500">
-                        No transactions found
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedData.map((row, index) => (
-                      <tr key={row.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        {visibleColumns.map(col => (
-                          <td
-                            key={col.key}
-                            className={`px-4 py-2 text-sm text-gray-900 border-b border-gray-200 ${getResponsiveClass(col.responsive)}`}
-                            style={{ width: col.width }}
-                          >
-                            <div className="truncate overflow-hidden" title={String(row[col.key] ?? '')}>
-                              {col.key === 'accountCurrencyAmount' || col.key === 'nominalAmount' ? (
-                                <span className={Number(row[col.key]) >= 0 ? 'text-green-600' : 'text-red-600'}>
-                                  {formatAmount(row[col.key])}
-                                </span>
-                                  ) : col.key === 'usdGelRate' ? (
-                                    row[col.key] !== null && row[col.key] !== undefined
-                                      ? Number(row[col.key]).toFixed(6)
-                                      : '-'
-                              ) : col.key === 'exchangeRate' ? (
-                                row[col.key] ? Number(row[col.key]).toFixed(10) : '-'
-                              ) : col.key === 'date' || col.key === 'correctionDate' || col.key === 'createdAt' || col.key === 'updatedAt' ? (
-                                formatDate(row[col.key])
-                              ) : col.key === 'counteragentAccountNumber' ? (
-                                row[col.key] ? String(row[col.key]) : '-'
-                              ) : (
-                                row[col.key] ?? '-'
-                              )}
-                            </div>
-                          </td>
-                        ))}
-                        <td className="px-4 py-2 text-sm" style={{ width: 140 }}>
-                          <div className="flex items-center space-x-1">
-                            {!row.isBalanceRecord && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => viewRawRecord(row.uuid)}
-                                  className="h-7 w-7 p-0"
-                                  title="View raw record"
-                                >
-                                  <Eye className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => startEdit(row)}
-                                  className="h-7 w-7 p-0"
-                                  title="Edit transaction"
-                                >
-                                  <Edit2 className="h-3 w-3" />
-                                </Button>
-                              </>
-                            )}
-                            {row.isBalanceRecord && (
-                              <span className="text-xs text-muted-foreground italic">
-                                Balance record
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+export function BankTransactionsTable({
+  data,
+  currencySummaries,
+  uploadEndpoint = '/api/bank-transactions/upload',
+  autoEditId: autoEditIdProp,
+  renderMode = 'full',
+}: {
+  data?: BankTransaction[];
+  currencySummaries?: any[];
+  uploadEndpoint?: string;
+  autoEditId?: number;
+  renderMode?: 'full' | 'dialog-only';
+}) {
+  const [transactions, setTransactions] = useState<BankTransaction[]>(data ?? []);
+  const showFullTable = renderMode !== 'dialog-only';
+  
+  console.log('[BankTransactionsTable] currencySummaries:', currencySummaries);
+  console.log('[BankTransactionsTable] currencySummaries[0]:', currencySummaries?.[0]);
+  console.log('[BankTransactionsTable] opening_balance:', currencySummaries?.[0]?.opening_balance);
+  
+  // Horizontal scroll synchronization
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomScrollRef = useRef<HTMLDivElement>(null);
+  const [needsBottomScroller, setNeedsBottomScroller] = useState(false);
+  const [scrollContentWidth, setScrollContentWidth] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  
+  // Table sorting - default to date descending
+  const [sortField, setSortField] = useState<ColumnKey>('date');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<BankTransaction | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [paymentOptions, setPaymentOptions] = useState<any[]>([]);
+  const [allPayments, setAllPayments] = useState<any[]>([]); // All payments for search
+  const [projectOptions, setProjectOptions] = useState<any[]>([]);
+  const [jobOptions, setJobOptions] = useState<any[]>([]);
+  const [financialCodeOptions, setFinancialCodeOptions] = useState<any[]>([]);
+  const [currencyOptions, setCurrencyOptions] = useState<any[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
+  const [paymentSearch, setPaymentSearch] = useState('');
+  const [projectSearch, setProjectSearch] = useState('');
+  const [jobSearch, setJobSearch] = useState('');
+  const [financialCodeSearch, setFinancialCodeSearch] = useState('');
+  const [currencySearch, setCurrencySearch] = useState('');
+  const [exchangeRates, setExchangeRates] = useState<any>(null); // Store exchange rates for transaction date
+  const [formData, setFormData] = useState<{
+    payment_uuid: string;
+    project_uuid: string;
+    job_uuid: string;
+    financial_code_uuid: string;
+    nominal_currency_uuid: string;
+    nominal_amount: string;
+    parsing_lock: boolean;
+  }>({
+    payment_uuid: '',
+    project_uuid: '',
+    job_uuid: '',
+    financial_code_uuid: '',
+    nominal_currency_uuid: '',
+    nominal_amount: '',
+    parsing_lock: false,
+  });
+  const [isRawRecordDialogOpen, setIsRawRecordDialogOpen] = useState(false);
+  const [viewingRawRecord, setViewingRawRecord] = useState<any>(null);
+  const [loadingRawRecord, setLoadingRawRecord] = useState(false);
+  const [isRawLockUpdating, setIsRawLockUpdating] = useState(false);
+  const [autoEditId, setAutoEditId] = useState<number | null>(autoEditIdProp ?? null);
+  const [isBackparseDialogOpen, setIsBackparseDialogOpen] = useState(false);
+  const [isBackparseLoading, setIsBackparseLoading] = useState(false);
+  const [isBackparseRunning, setIsBackparseRunning] = useState(false);
+  const [backparsePreview, setBackparsePreview] = useState<BackparsePreviewItem[]>([]);
+  const [backparseError, setBackparseError] = useState<string | null>(null);
+  const [backparseLimit, setBackparseLimit] = useState(200);
+  const [selectedBackparseIds, setSelectedBackparseIds] = useState<Set<number>>(new Set());
+  
+  // Store display labels from selected payment
+  const [paymentDisplayValues, setPaymentDisplayValues] = useState<{
+    projectLabel: string;
+    jobLabel: string;
+    financialCodeLabel: string;
+    currencyLabel: string;
+    nominalAmountLabel: string;
+  }>({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '', nominalAmountLabel: '' });
 
-          {/* Pagination */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Rows per page:</span>
-              <select
-                className="border rounded px-2 py-1 text-sm"
-                value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
-              >
-                {pageSizeOptions.map(size => (
-                  <option key={size} value={size}>{size}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-              >
-                First
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
-                Previous
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {currentPage} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-              >
-                Next
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-              >
-                Last
-              </Button>
-            </div>
-          </div>
-        </>
-      )}
+  useEffect(() => {
+    if (autoEditIdProp !== undefined && autoEditIdProp !== null) {
+      setAutoEditId(autoEditIdProp);
+      return;
+    }
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const editIdParam = params.get('editId');
+    if (editIdParam) {
+      const parsed = Number(editIdParam);
+      if (!Number.isNaN(parsed)) {
+        setAutoEditId(parsed);
+      }
+    }
+  }, [autoEditIdProp]);
+  
+  // Initialize columns from localStorage or use defaults
+  const [columns, setColumns] = useState<ColumnConfig[]>(() => {
+    if (typeof window !== 'undefined') {
+      const savedColumns = localStorage.getItem('bank-transactions-table-columns');
+      const savedVersion = localStorage.getItem('bank-transactions-table-version');
+      const currentVersion = '5'; // Increment this when defaultColumns structure changes
+      
+      if (savedColumns && savedVersion === currentVersion) {
+        try {
+          return JSON.parse(savedColumns);
+        } catch (error) {
+          console.warn('Failed to parse saved column settings:', error);
+        }
+      } else {
+        // Clear old version data
+        localStorage.setItem('bank-transactions-table-version', currentVersion);
+      }
+    }
+    return defaultColumns;
+  });
+  
+  const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number } | null>(null);
+  const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+  const pageSizeOptions = [50, 100, 200, 500, 1000];
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Respond to external data updates
+  useEffect(() => {
+    if (data) setTransactions(data);
+  }, [data]);
+
+  // Fetch all payments on mount
+  useEffect(() => {
+    const fetchAllPayments = async () => {
+      try {
+        const response = await fetch('/api/payments');
+        if (!response.ok) throw new Error('Failed to fetch payments');
+        const paymentsData = await response.json();
+        const normalizedPayments = Array.isArray(paymentsData)
+          ? paymentsData.map((payment: any) => ({
+              ...payment,
+              counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
+              projectUuid: payment.projectUuid || payment.project_uuid || null,
+              financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
+              currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
+              paymentId: payment.paymentId || payment.payment_id || null,
+            }))
+          : [];
+        setAllPayments(normalizedPayments);
+        console.log('[BankTransactionsTable] Loaded all payments:', normalizedPayments.length);
+      } catch (error) {
+        console.error('[BankTransactionsTable] Error fetching all payments:', error);
+      }
+    };
+    fetchAllPayments();
+  }, []);
+
+  // Debounce search term to improve performance
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 150); // 150ms debounce - faster response
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [searchTerm]);
+
+  // Set isSearching flag
+  useEffect(() => {
+    if (searchTerm !== debouncedSearchTerm) {
+      setIsSearching(true);
+    } else {
+      setIsSearching(false);
+    }
+  }, [searchTerm, debouncedSearchTerm]);
+
+  // Measure scroll content width
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      const sw = el.scrollWidth;
+      const cw = el.clientWidth;
+      const needs = sw > cw + 1;
+      setScrollContentWidth(sw);
+      setNeedsBottomScroller(needs);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener('resize', measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [transactions, columns]);
+
+  // Sync scroll positions
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const top = scrollRef.current;
+      const bottom = bottomScrollRef.current;
+      
+      if (!top || !bottom) return;
+
+      let isSyncing = false;
+      const syncFromTop = () => {
+        if (isSyncing) return;
+        isSyncing = true;
+        bottom.scrollLeft = top.scrollLeft;
+        isSyncing = false;
+      };
+      const syncFromBottom = () => {
+        if (isSyncing) return;
+        isSyncing = true;
+        top.scrollLeft = bottom.scrollLeft;
+        isSyncing = false;
+      };
+      
       top.addEventListener('scroll', syncFromTop, { passive: true });
       bottom.addEventListener('scroll', syncFromBottom, { passive: true });
       bottom.scrollLeft = top.scrollLeft;
@@ -915,6 +911,15 @@ const defaultColumns: ColumnConfig[] = [
     }
   };
 
+  useEffect(() => {
+    if (!autoEditId || transactions.length === 0) return;
+    const match = transactions.find((tx) => Number(tx.id) === autoEditId);
+    if (match) {
+      startEdit(match);
+      setAutoEditId(null);
+    }
+  }, [autoEditId, transactions]);
+
   const cancelEdit = () => {
     setEditingTransaction(null);
     setIsEditDialogOpen(false);
@@ -962,7 +967,7 @@ const defaultColumns: ColumnConfig[] = [
             const accountCode = accountCurrency?.code || 'GEL';
             const nominalCode = selectedPayment.currencyCode;
             
-            console.log('[handlePaymentChange] Converting:', accountCode, '→', nominalCode, 'Amount:', accountAmount);
+            console.log('[handlePaymentChange] Converting:', accountCode, 'ΓåÆ', nominalCode, 'Amount:', accountAmount);
             console.log('[handlePaymentChange] Exchange rates object:', exchangeRates);
             
             if (accountCode === nominalCode) {
@@ -970,29 +975,29 @@ const defaultColumns: ColumnConfig[] = [
               calculatedAmount = formatAmount(accountAmount);
               console.log('[handlePaymentChange] Same currency, no conversion needed');
             } else if (accountCode === 'GEL' && nominalCode !== 'GEL') {
-              // GEL → Foreign: divide by rate
+              // GEL ΓåÆ Foreign: divide by rate
               const rateField = nominalCode.toLowerCase();
               console.log('[handlePaymentChange] Looking for rate field:', rateField, 'Value:', exchangeRates[rateField]);
               if (exchangeRates[rateField]) {
                 const converted = accountAmount / Number(exchangeRates[rateField]);
                 calculatedAmount = formatAmount(converted);
-                console.log('[handlePaymentChange] GEL →', nominalCode, ':', accountAmount, '/', exchangeRates[rateField], '=', converted);
+                console.log('[handlePaymentChange] GEL ΓåÆ', nominalCode, ':', accountAmount, '/', exchangeRates[rateField], '=', converted);
               } else {
                 console.warn('[handlePaymentChange] Rate field not found:', rateField);
               }
             } else if (accountCode !== 'GEL' && nominalCode === 'GEL') {
-              // Foreign → GEL: multiply by rate
+              // Foreign ΓåÆ GEL: multiply by rate
               const rateField = accountCode.toLowerCase();
               console.log('[handlePaymentChange] Looking for rate field:', rateField, 'Value:', exchangeRates[rateField]);
               if (exchangeRates[rateField]) {
                 const converted = accountAmount * Number(exchangeRates[rateField]);
                 calculatedAmount = formatAmount(converted);
-                console.log('[handlePaymentChange]', accountCode, '→ GEL:', accountAmount, '*', exchangeRates[rateField], '=', converted);
+                console.log('[handlePaymentChange]', accountCode, 'ΓåÆ GEL:', accountAmount, '*', exchangeRates[rateField], '=', converted);
               } else {
                 console.warn('[handlePaymentChange] Rate field not found:', rateField);
               }
             } else {
-              // Foreign → Foreign: convert through GEL
+              // Foreign ΓåÆ Foreign: convert through GEL
               const accountRateField = accountCode.toLowerCase();
               const nominalRateField = nominalCode.toLowerCase();
               console.log('[handlePaymentChange] Looking for rate fields:', accountRateField, nominalRateField);
@@ -1000,7 +1005,7 @@ const defaultColumns: ColumnConfig[] = [
                 const gelAmount = accountAmount * Number(exchangeRates[accountRateField]);
                 const converted = gelAmount / Number(exchangeRates[nominalRateField]);
                 calculatedAmount = formatAmount(converted);
-                console.log('[handlePaymentChange]', accountCode, '→', nominalCode, ':', accountAmount, '*', exchangeRates[accountRateField], '/', exchangeRates[nominalRateField], '=', converted);
+                console.log('[handlePaymentChange]', accountCode, 'ΓåÆ', nominalCode, ':', accountAmount, '*', exchangeRates[accountRateField], '/', exchangeRates[nominalRateField], '=', converted);
               } else {
                 console.warn('[handlePaymentChange] Rate fields not found:', accountRateField, nominalRateField);
               }
@@ -1109,15 +1114,6 @@ const defaultColumns: ColumnConfig[] = [
       }
     }
   };
-
-  useEffect(() => {
-    if (!autoEditId || transactions.length === 0) return;
-    const match = transactions.find((tx) => Number(tx.id) === autoEditId);
-    if (match) {
-      startEdit(match);
-      setAutoEditId(null);
-    }
-  }, [autoEditId, transactions]);
 
   // Handle job change
   const handleJobChange = (jobUuid: string) => {
@@ -1424,7 +1420,7 @@ const defaultColumns: ColumnConfig[] = [
                   >
                     Select all {filteredUniqueValues.length}
                   </button>
-                  <span className="text-xs text-muted-foreground">·</span>
+                  <span className="text-xs text-muted-foreground">┬╖</span>
                   <button
                     onClick={handleClearAll}
                     className="text-xs text-blue-600 hover:underline"
@@ -1658,9 +1654,11 @@ const defaultColumns: ColumnConfig[] = [
   };
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Header Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between p-4 border-b bg-white">
+    <div className={showFullTable ? 'flex flex-col h-screen' : 'flex flex-col'}>
+      {showFullTable && (
+        <>
+          {/* Header Controls */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between p-4 border-b bg-white">
         <div className="flex-1 min-w-0 w-full sm:w-auto">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1980,6 +1978,9 @@ const defaultColumns: ColumnConfig[] = [
         </div>
       </div>
 
+        </>
+      )}
+
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-[1120px]">
@@ -2050,7 +2051,7 @@ const defaultColumns: ColumnConfig[] = [
                     {editingTransaction?.counteragentUuid 
                       ? paymentOptions.length > 0
                         ? `Showing ${paymentOptions.length} payment${paymentOptions.length === 1 ? '' : 's'} for counteragent: ${editingTransaction.counteragentName || 'Unknown'}`
-                        : `⚠️ No payments found for counteragent: ${editingTransaction.counteragentName || 'Unknown'}. Create a payment for this counteragent first.`
+                        : `ΓÜá∩╕Å No payments found for counteragent: ${editingTransaction.counteragentName || 'Unknown'}. Create a payment for this counteragent first.`
                       : `Showing all ${paymentOptions.length} payments (no counteragent parsed)`}
                   </p>
                   <div className="flex items-center gap-2 pt-2">
