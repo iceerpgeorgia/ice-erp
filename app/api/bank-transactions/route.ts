@@ -5,6 +5,8 @@ import { Prisma } from "@prisma/client";
 
 export const revalidate = 0;
 
+const DECONSOLIDATED_TABLE = "GE78BG0000000893486000_BOG_GEL";
+
 // Map raw SQL results (snake_case) to API response (snake_case)
 function toApi(row: any) {
   return {
@@ -25,6 +27,7 @@ function toApi(row: any) {
     nominal_currency_uuid: row.nominal_currency_uuid,
     nominal_amount: row.nominal_amount ? Number(row.nominal_amount) : null,
     payment_id: row.payment_id ?? null,
+    parsing_lock: row.parsing_lock ?? false,
     processing_case: row.processing_case,
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null,
@@ -138,7 +141,7 @@ export async function GET(req: NextRequest) {
            fc.validation as financial_code,
            curr_acc.code as account_currency_code,
            curr_nom.code as nominal_currency_code
-         FROM consolidated_bank_accounts cba
+         FROM "${DECONSOLIDATED_TABLE}" cba
          LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
          LEFT JOIN banks b ON ba.bank_uuid = b.uuid
          LEFT JOIN counteragents ca ON cba.counteragent_uuid = ca.counteragent_uuid
@@ -162,7 +165,7 @@ export async function GET(req: NextRequest) {
            fc.validation as financial_code,
            curr_acc.code as account_currency_code,
            curr_nom.code as nominal_currency_code
-         FROM consolidated_bank_accounts cba
+         FROM "${DECONSOLIDATED_TABLE}" cba
          LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
          LEFT JOIN banks b ON ba.bank_uuid = b.uuid
          LEFT JOIN counteragents ca ON cba.counteragent_uuid = ca.counteragent_uuid
@@ -177,9 +180,13 @@ export async function GET(req: NextRequest) {
     
     console.log('[API] Step 2: Getting total count...');
     // Get total count for pagination (only when not fetching specific IDs and limit is set)
-    const totalCount = idsParam || !limit ? undefined : (await prisma.$queryRaw<Array<{count: bigint}>>`
-      SELECT COUNT(*)::bigint as count FROM consolidated_bank_accounts WHERE 1=1
-    `)[0].count;
+    const totalCount = idsParam
+      ? BigInt(transactions.length)
+      : !limit
+        ? undefined
+        : (await prisma.$queryRaw<Array<{count: bigint}>>`
+            SELECT COUNT(*)::bigint as count FROM "${DECONSOLIDATED_TABLE}" WHERE 1=1
+          `)[0].count;
     console.log('[API] Step 2 complete: Total count =', totalCount);
 
     console.log('[API] Step 3: Filtering transactions by date...');
@@ -277,6 +284,20 @@ export async function GET(req: NextRequest) {
     // Combine regular transactions and balance records
     const combinedResult = [...result, ...balanceResults];
 
+    if (idsParam) {
+      console.log('[API] Step 7: Building response (ids only)...');
+      return NextResponse.json({
+        data: result,
+        currency_summaries: [],
+        pagination: {
+          total: Number(totalCount),
+          limit: result.length,
+          offset: 0,
+          hasMore: false,
+        },
+      });
+    }
+
     // Calculate opening balances per currency
     // Opening balance = transactions NOT in the current result set + bank account balances
     const currencySummaries: Record<string, any> = {};
@@ -294,12 +315,12 @@ export async function GET(req: NextRequest) {
       const idsString = fetchedIdsArray.join(',');
       unfetchedTransactions = await prisma.$queryRawUnsafe<Array<{account_currency_uuid: string, account_currency_amount: any}>>(
         `SELECT account_currency_uuid, account_currency_amount 
-         FROM consolidated_bank_accounts 
+         FROM "${DECONSOLIDATED_TABLE}" 
          WHERE id NOT IN (${idsString})`
       );
     } else {
       unfetchedTransactions = await prisma.$queryRaw<Array<{account_currency_uuid: string, account_currency_amount: any}>>`
-        SELECT account_currency_uuid, account_currency_amount FROM consolidated_bank_accounts
+        SELECT account_currency_uuid, account_currency_amount FROM "${DECONSOLIDATED_TABLE}"
       `;
     }
 
