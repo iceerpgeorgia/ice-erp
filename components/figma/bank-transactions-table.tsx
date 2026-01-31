@@ -1086,6 +1086,8 @@ export function BankTransactionsTable({
     const selectedPayment = paymentOptions.find(p => p.paymentId === formData.payment_uuid);
     if (!selectedPayment) return;
 
+    const accountAmountRaw = Number(editingTransaction.accountCurrencyAmount);
+    const nominalAmountRaw = Number(editingTransaction.nominalAmount);
     let calculatedAmount = formatAmount(editingTransaction.accountCurrencyAmount);
     let rateLabel = '';
 
@@ -1130,6 +1132,13 @@ export function BankTransactionsTable({
         }
       } catch (error) {
         console.error('[recomputeNominalAmountLabel] Calculation error:', error);
+      }
+    }
+
+    if (!rateLabel && Number.isFinite(accountAmountRaw) && Number.isFinite(nominalAmountRaw) && nominalAmountRaw !== 0) {
+      const derivedRate = Math.abs(accountAmountRaw) / Math.abs(nominalAmountRaw);
+      if (Number.isFinite(derivedRate)) {
+        rateLabel = derivedRate.toFixed(10);
       }
     }
 
@@ -2183,7 +2192,11 @@ export function BankTransactionsTable({
                       <Label className="text-xs text-gray-600">Exchange Rate</Label>
                       <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
                         <span className="font-bold" style={{ color: '#000' }}>
-                          {calculatedExchangeRate || editingTransaction?.exchangeRate || 'N/A'}
+                          {calculatedExchangeRate
+                            ? calculatedExchangeRate
+                            : editingTransaction?.exchangeRate
+                              ? Number(editingTransaction.exchangeRate).toFixed(10)
+                              : 'N/A'}
                         </span>
                       </div>
                     </div>
@@ -2446,17 +2459,6 @@ export function BankTransactionsTable({
                     <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
                       <span className="font-bold" style={{ color: '#000' }}>
                         {editingTransaction?.accountNumber || 'N/A'}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <Label className="text-xs text-gray-600">Exchange Rate</Label>
-                    <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
-                      <span className="font-bold" style={{ color: '#000' }}>
-                        {editingTransaction?.exchangeRate 
-                          ? Number(editingTransaction.exchangeRate).toFixed(10)
-                          : 'N/A'}
                       </span>
                     </div>
                   </div>
