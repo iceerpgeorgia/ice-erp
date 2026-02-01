@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     await prisma.$transaction(
-      normalized.map((entry) =>
+      normalized.map((entry: { paymentId: string; effectiveDate: string; accrual: number; order: number; comment: string | null }) =>
         prisma.$executeRawUnsafe(
           `INSERT INTO payments_ledger (
              payment_id,
