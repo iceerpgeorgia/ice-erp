@@ -1137,7 +1137,7 @@ export default function PaymentStatementPage() {
                     <thead className="bg-gray-100">
                       <tr>
                         <th
-                          className="px-2 py-3 font-semibold text-center bg-emerald-50 text-emerald-700"
+                          className="px-2 py-3 font-semibold text-center bg-red-50 text-red-700"
                           style={{ width: '48px' }}
                         >
                           <div className="flex flex-col items-center gap-1">
@@ -1145,12 +1145,12 @@ export default function PaymentStatementPage() {
                             <Checkbox
                               checked={allBankAccrualSelected}
                               onCheckedChange={handleToggleAllBankAccrualRows}
-                              className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600 text-emerald-700"
+                              className="data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600 text-red-700"
                             />
                           </div>
                         </th>
                         <th
-                          className="px-2 py-3 font-semibold text-center bg-amber-50 text-amber-700"
+                          className="px-2 py-3 font-semibold text-center bg-yellow-50 text-yellow-700"
                           style={{ width: '48px' }}
                         >
                           <div className="flex flex-col items-center gap-1">
@@ -1158,7 +1158,7 @@ export default function PaymentStatementPage() {
                             <Checkbox
                               checked={allBankOrderSelected}
                               onCheckedChange={handleToggleAllBankOrderRows}
-                              className="data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600 text-amber-700"
+                              className="data-[state=checked]:bg-yellow-600 data-[state=checked]:border-yellow-600 text-yellow-700"
                             />
                           </div>
                         </th>
@@ -1210,7 +1210,7 @@ export default function PaymentStatementPage() {
                               checked={row.type === 'bank' && selectedBankAccrualRowIds.has(row.id)}
                               disabled={row.type !== 'bank'}
                               onCheckedChange={() => row.type === 'bank' && handleToggleBankAccrualRow(row.id)}
-                              className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600 text-emerald-700"
+                              className="data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600 text-red-700"
                             />
                           </td>
                           <td className="px-2 py-3 text-center" style={{ width: '48px' }}>
@@ -1218,7 +1218,7 @@ export default function PaymentStatementPage() {
                               checked={row.type === 'bank' && selectedBankOrderRowIds.has(row.id)}
                               disabled={row.type !== 'bank'}
                               onCheckedChange={() => row.type === 'bank' && handleToggleBankOrderRow(row.id)}
-                              className="data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600 text-amber-700"
+                              className="data-[state=checked]:bg-yellow-600 data-[state=checked]:border-yellow-600 text-yellow-700"
                             />
                           </td>
                           {columns.filter(col => col.visible).map((column) => {

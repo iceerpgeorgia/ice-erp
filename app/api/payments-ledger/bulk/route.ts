@@ -77,22 +77,26 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const runningTotals = new Map(totalsMap);
+    const orderAdditions = new Map<string, number>();
     for (const entry of normalized) {
-      const existing = runningTotals.get(entry.paymentId) || { accrual: 0, order: 0 };
-      const nextAccrual = existing.accrual + Number(entry.accrual || 0);
-      const nextOrder = existing.order + Number(entry.order || 0);
+      orderAdditions.set(
+        entry.paymentId,
+        (orderAdditions.get(entry.paymentId) || 0) + Number(entry.order || 0)
+      );
+    }
 
-      if (nextOrder > nextAccrual) {
+    for (const [paymentId, addedOrder] of orderAdditions.entries()) {
+      const existing = totalsMap.get(paymentId) || { accrual: 0, order: 0 };
+      const nextOrder = existing.order + addedOrder;
+
+      if (nextOrder > existing.accrual) {
         return NextResponse.json(
           {
-            error: `Total order cannot exceed total accrual for payment ${entry.paymentId}`,
+            error: `Total order cannot exceed existing total accrual for payment ${paymentId}`,
           },
           { status: 400 }
         );
       }
-
-      runningTotals.set(entry.paymentId, { accrual: nextAccrual, order: nextOrder });
     }
 
     await prisma.$transaction(
