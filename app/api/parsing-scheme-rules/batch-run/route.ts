@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+const DECONSOLIDATED_TABLE = "GE78BG0000000893486000_BOG_GEL";
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -102,7 +104,8 @@ export async function POST(request: NextRequest) {
             DocProdGroup,
             DocCorAcct,
             DocSenderInn,
-            DocBenefInn
+            DocBenefInn,
+            DocComment as doccomment
           FROM bog_gel_raw_893486000
           LIMIT 50000
         `);
@@ -154,10 +157,10 @@ export async function POST(request: NextRequest) {
           WHERE id = $1
         `, Number(ruleData.id));
 
-        // Update consolidated table
+        // Update deconsolidated table
         if (ruleWithParams.length > 0 && ruleWithParams[0].counteragent_uuid) {
           await prisma.$queryRawUnsafe(`
-            UPDATE consolidated_bank_accounts
+            UPDATE "${DECONSOLIDATED_TABLE}"
             SET 
               counteragent_uuid = $1::uuid,
               financial_code_uuid = COALESCE($2::uuid, financial_code_uuid),

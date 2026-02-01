@@ -41,6 +41,7 @@ type SalaryAccrual = {
   financial_code: string;
   nominal_currency_uuid: string;
   currency_code: string;
+  counteragent_iban?: string | null;
   payment_id: string;
   salary_month: string;
   net_sum: string;
@@ -51,7 +52,7 @@ type SalaryAccrual = {
   created_at: string;
   updated_at: string;
   paid?: number; // Calculated from bank transactions
-  month_balance?: number; // net_sum - paid
+  month_balance?: number; // computed month balance
 };
 
 type ColumnKey = keyof SalaryAccrual;
@@ -398,6 +399,14 @@ export function SalaryAccrualsTable() {
     });
   };
 
+  const sanitizeRecipientName = (name: string) => {
+    return name
+      .replace(/\s*\(\s*ს\.კ\.[^)]*\)\s*/g, ' ')
+      .replace(/\s*-\s*ფიზ\.\s*პირი\s*/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  };
+
   const handleDownloadBankXlsx = () => {
     const selectedRecords = data.filter((row) => selectedIds.has(row.id));
     if (selectedRecords.length === 0) {
@@ -421,10 +430,10 @@ export function SalaryAccrualsTable() {
 
     const rows = selectedRecords.map((record) => [
       'GE78BG0000000893486000',
+      record.counteragent_iban || '',
       '',
       '',
-      '',
-      record.counteragent_name || '',
+      sanitizeRecipientName(record.counteragent_name || ''),
       record.identification_number || '',
       'ხელფასი',
       computeBalance(record),
@@ -524,12 +533,12 @@ export function SalaryAccrualsTable() {
 
   const computeBalance = (row: SalaryAccrual) => {
     const netSum = parseFloat(row.net_sum || '0');
-    const surplus = parseFloat(row.surplus_insurance || '0') || 0;
     const deductedInsurance = parseFloat(row.deducted_insurance || '0') || 0;
     const deductedFitness = parseFloat(row.deducted_fitness || '0') || 0;
     const deductedFine = parseFloat(row.deducted_fine || '0') || 0;
+    const paid = typeof row.paid === 'number' ? row.paid : parseFloat((row.paid as any) || '0') || 0;
     const pensionMultiplier = row.pension_scheme ? 0.98 : 1;
-    return netSum * pensionMultiplier - deductedInsurance - deductedFitness - deductedFine;
+    return netSum * pensionMultiplier - paid - deductedInsurance - deductedFitness - deductedFine;
   };
 
   const fetchData = async () => {
@@ -882,7 +891,9 @@ export function SalaryAccrualsTable() {
     if (filters.size > 0) {
       result = result.filter(row => {
         for (const [columnKey, allowedValues] of filters.entries()) {
-          const rowValue = row[columnKey as ColumnKey];
+          const rowValue = columnKey === 'month_balance'
+            ? computeBalance(row)
+            : row[columnKey as ColumnKey];
           if (!allowedValues.has(rowValue)) {
             return false;
           }
@@ -893,8 +904,8 @@ export function SalaryAccrualsTable() {
 
     // Apply sort
     result.sort((a, b) => {
-      const aVal = a[sortColumn];
-      const bVal = b[sortColumn];
+      const aVal = sortColumn === 'month_balance' ? computeBalance(a) : a[sortColumn];
+      const bVal = sortColumn === 'month_balance' ? computeBalance(b) : b[sortColumn];
       
       if (aVal === bVal) return 0;
       
@@ -938,7 +949,9 @@ export function SalaryAccrualsTable() {
     const filterableColumns = columns.filter(col => col.filterable);
     
     filterableColumns.forEach(col => {
-      const values = new Set(data.map(row => row[col.key]));
+      const values = new Set(
+        data.map(row => col.key === 'month_balance' ? computeBalance(row) : row[col.key])
+      );
       cache.set(col.key, Array.from(values).sort());
     });
     
@@ -992,7 +1005,7 @@ export function SalaryAccrualsTable() {
     return filteredAndSortedData.reduce((acc, row) => ({
       net_sum: acc.net_sum + (parseFloat(row.net_sum) || 0),
       paid: acc.paid + (row.paid || 0),
-      month_balance: acc.month_balance + (row.month_balance || 0),
+      month_balance: acc.month_balance + computeBalance(row),
       surplus_insurance: acc.surplus_insurance + (parseFloat(row.surplus_insurance || '0') || 0),
       deducted_insurance: acc.deducted_insurance + (parseFloat(row.deducted_insurance || '0') || 0),
       total_insurance: acc.total_insurance +
@@ -1499,6 +1512,17 @@ export function SalaryAccrualsTable() {
           <table style={{ tableLayout: 'fixed', width: '100%' }} className="border-collapse">
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b-2 border-gray-200">
+                <th
+                  className="sticky top-0 bg-white px-2 py-3 text-center text-sm font-semibold border-b-2 border-gray-200"
+                  style={{ width: 60, minWidth: 60, maxWidth: 60 }}
+                >
+                  <div className="flex items-center justify-center">
+                    <Checkbox
+                      checked={allFilteredSelected}
+                      onCheckedChange={() => handleToggleSelectAll(filteredIds)}
+                    />
+                  </div>
+                </th>
                 {visibleColumns.map(col => (
                   <th 
                     key={col.key} 
@@ -1564,17 +1588,6 @@ export function SalaryAccrualsTable() {
                 >
                   Actions
                 </th>
-                <th
-                  className="sticky top-0 bg-white px-2 py-3 text-center text-sm font-semibold border-b-2 border-gray-200"
-                  style={{ width: 60, minWidth: 60, maxWidth: 60 }}
-                >
-                  <div className="flex items-center justify-center">
-                    <Checkbox
-                      checked={allFilteredSelected}
-                      onCheckedChange={() => handleToggleSelectAll(filteredIds)}
-                    />
-                  </div>
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -1593,6 +1606,14 @@ export function SalaryAccrualsTable() {
               ) : (
                 paginatedData.map((accrual, idx) => (
                   <tr key={`${accrual.id}-${idx}`} className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-2 py-2 text-sm" style={{ width: 60, minWidth: 60, maxWidth: 60 }}>
+                      <div className="flex items-center justify-center">
+                        <Checkbox
+                          checked={selectedIds.has(accrual.id)}
+                          onCheckedChange={() => handleToggleSelect(accrual.id)}
+                        />
+                      </div>
+                    </td>
                     {visibleColumns.map(col => (
                       <td 
                         key={col.key}
@@ -1606,6 +1627,10 @@ export function SalaryAccrualsTable() {
                         {col.key === 'pension_scheme' ? (
                           <div className="flex items-center justify-center">
                             <Checkbox checked={Boolean(accrual.pension_scheme)} disabled />
+                          </div>
+                        ) : col.key === 'month_balance' ? (
+                          <div className="truncate">
+                            {formatValue(computeBalance(accrual), col.format)}
                           </div>
                         ) : (
                           <div className="truncate">
@@ -1630,14 +1655,6 @@ export function SalaryAccrualsTable() {
                         >
                           <Trash2 className="h-4 w-4 text-red-600" />
                         </Button>
-                      </div>
-                    </td>
-                    <td className="px-2 py-2 text-sm" style={{ width: 60, minWidth: 60, maxWidth: 60 }}>
-                      <div className="flex items-center justify-center">
-                        <Checkbox
-                          checked={selectedIds.has(accrual.id)}
-                          onCheckedChange={() => handleToggleSelect(accrual.id)}
-                        />
                       </div>
                     </td>
                   </tr>

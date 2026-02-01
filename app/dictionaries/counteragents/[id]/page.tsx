@@ -9,7 +9,7 @@ export default async function EditCounteragent({ params }: { params: { id: strin
   const id = Number(params.id);
   const row = await prisma.counteragents.findFirst({ where: { id: BigInt(id) }});
   const countries = await prisma.countries.findMany({ orderBy: { country: "asc" }, select: { country: true }});
-  const entityTypes = await prisma.entity_types.findMany({ orderBy: { name_ka: "asc" }, select: { name_ka: true, entity_type_uuid: true }});
+  const entityTypes = await prisma.entity_types.findMany({ orderBy: { name_ka: "asc" }, select: { name_ka: true, entity_type_uuid: true, is_natural_person: true, is_id_exempt: true }});
   return (
     <div className="mx-auto max-w-[1100px] px-6 py-8">
       <div className="flex items-center mb-6 gap-3">

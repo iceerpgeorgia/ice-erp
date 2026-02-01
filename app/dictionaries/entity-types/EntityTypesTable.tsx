@@ -10,7 +10,6 @@ type Row = {
   updatedAt: string | null;
   ts: string | null;
   entity_type_uuid: string;
-  code: string;
   name_en: string;
   name_ka: string;
   is_active: boolean;
@@ -23,24 +22,21 @@ export default function EntityTypesTable({ data, design }: { data: Row[]; design
   const [page, setPage] = useState(1);
 
   // header filters
-  const [fCode, setFCode] = useState("");
   const [fNameEn, setFNameEn] = useState("");
   const [fNameKa, setFNameKa] = useState("");
   const [fActive, setFActive] = useState<"" | "yes" | "no">("");
 
   const filtered = useMemo(() => {
-    const code = fCode.trim().toLowerCase();
     const en = fNameEn.trim().toLowerCase();
     const ka = fNameKa.trim().toLowerCase();
     return data.filter((r) => {
-      if (code && !r.code.toLowerCase().includes(code)) return false;
       if (en && !r.name_en.toLowerCase().includes(en)) return false;
       if (ka && !r.name_ka.toLowerCase().includes(ka)) return false;
       if (fActive === "yes" && !r.is_active) return false;
       if (fActive === "no" && r.is_active) return false;
       return true;
     });
-  }, [data, fCode, fNameEn, fNameKa, fActive]);
+  }, [data, fNameEn, fNameKa, fActive]);
 
   // paging
   const total = filtered.length;
@@ -53,7 +49,6 @@ export default function EntityTypesTable({ data, design }: { data: Row[]; design
   const exportXlsxAllFiltered = () => {
     const exportRows = filtered.map((r) => ({
       ID: r.id,
-      Code: r.code,
       "Name (EN)": r.name_en,
       "Name (KA)": r.name_ka,
       Active: r.is_active ? "Yes" : "No",
@@ -74,7 +69,7 @@ export default function EntityTypesTable({ data, design }: { data: Row[]; design
     if (!design) return null;
     const order: string[] = Array.isArray(design.ui?.visibleColumns) && design.ui.visibleColumns.length
       ? design.ui.visibleColumns
-      : ["code","name_en","name_ka","is_active","updatedBy"];
+      : ["name_en","name_ka","is_active","updatedBy"];
     const colMap: Record<string, any> = {};
     if (Array.isArray(design.columns)) {
       for (const c of design.columns) {
@@ -205,7 +200,6 @@ export default function EntityTypesTable({ data, design }: { data: Row[]; design
             ) : (
               <>
                 <th className="border px-2 py-1 text-left w-20">ID</th>
-                <th className="border px-2 py-1 text-left w-40">Code</th>
                 <th className="border px-2 py-1 text-left">Name (EN)</th>
                 <th className="border px-2 py-1 text-left">Name (KA)</th>
                 <th className="border px-2 py-1 text-left w-24">Active</th>
@@ -216,14 +210,6 @@ export default function EntityTypesTable({ data, design }: { data: Row[]; design
           </tr>
           <tr>
             <th className="border px-2 py-1 text-left text-xs text-gray-500">—</th>
-            <th className="border px-2 py-1">
-              <input
-                className="w-full border rounded px-2 py-1 text-sm"
-                placeholder="Filter code…"
-                value={fCode}
-                onChange={(e) => { setFCode(e.target.value); setPage(1); }}
-              />
-            </th>
             <th className="border px-2 py-1">
               <input
                 className="w-full border rounded px-2 py-1 text-sm"
@@ -266,7 +252,6 @@ export default function EntityTypesTable({ data, design }: { data: Row[]; design
               ) : (
                 <>
                   <td className="border px-2 py-1">{r.id}</td>
-                  <td className="border px-2 py-1">{r.code}</td>
                   <td className="border px-2 py-1">{r.name_en}</td>
                   <td className="border px-2 py-1">{r.name_ka}</td>
                   <td className="border px-2 py-1">{r.is_active ? "Yes" : "No"}</td>

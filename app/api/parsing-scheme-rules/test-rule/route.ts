@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+const DECONSOLIDATED_TABLE = "GE78BG0000000893486000_BOG_GEL";
+
 // Test a parsing rule against all transactions
 export async function POST(request: NextRequest) {
   try {
@@ -64,7 +66,8 @@ export async function POST(request: NextRequest) {
         DocProdGroup,
         DocCorAcct,
         DocSenderInn,
-        DocBenefInn
+        DocBenefInn,
+        DocComment as doccomment
       FROM bog_gel_raw_893486000
       LIMIT 50000
     `);
@@ -127,7 +130,7 @@ export async function POST(request: NextRequest) {
       WHERE uuid = ANY($2::uuid[])
     `, Number(ruleData.id), uuids);
 
-    // Now update consolidated_bank_accounts with the rule's parameters
+    // Now update deconsolidated table with the rule's parameters
     // Get the rule's counteragent, project, financial code, and currency
     const ruleWithParams = await prisma.$queryRawUnsafe<Array<{
       counteragent_uuid: string | null;
@@ -142,7 +145,7 @@ export async function POST(request: NextRequest) {
     if (ruleWithParams.length > 0 && ruleWithParams[0].counteragent_uuid) {
       // Update consolidated records with the rule's parameters
       await prisma.$queryRawUnsafe(`
-        UPDATE consolidated_bank_accounts
+        UPDATE "${DECONSOLIDATED_TABLE}"
         SET 
           counteragent_uuid = $1::uuid,
           financial_code_uuid = COALESCE($2::uuid, financial_code_uuid),
@@ -164,7 +167,7 @@ export async function POST(request: NextRequest) {
       matchCount,
       ruleId: Number(ruleData.id),
       formula: ruleData.condition,
-      message: `Applied rule to ${matchCount} record(s) and updated consolidated table`,
+      message: `Applied rule to ${matchCount} record(s) and updated deconsolidated table`,
       applied: true
     });
 

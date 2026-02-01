@@ -178,6 +178,9 @@ export function FinancialCodesTable() {
             {code.validation || ""}
           </td>
           <td className="px-4 py-3 text-sm text-slate-600">
+            <p className="mt-1 text-xs text-slate-500">
+              Use @project and @job_no placeholders (e.g., "ხელფასი " + @project + @job_no)
+            </p>
             {code.description || ""}
           </td>
           <td className="px-4 py-3 text-center">

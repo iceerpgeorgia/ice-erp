@@ -11,7 +11,74 @@ In edit dialogue I want to have combobox with payment_id search functionality li
 
 # Salaries Accrual Future Salaries Emulation
 
-In salaries accruals page I want to have selection of projected months count. That should be selection of integer. So purpose of this selector is to replicate the latest months records exactly as they are, but with change of the period only. So let's say I have set this selector to 36, and the latest salaries accruals period is Dec 2025 and it has 80 records with this period, I want the page to replicate all this 80 records, for next 36 months with change of time period of course. So I can see if we have some payments in bank transactions which are linked to this future salaries accruals. The parameter selector should be saved by browser and next time user reopens the page he should see it
+In salaries accruals page I want to have selection of projected months count. That should be selection of integer. So purpose of this selector is to replicate the latest months records exactly as they are, but with change of the period only. So let's say I have set this selector to 36, and the latest salaries accruals period is Dec 2025 and it has 80 records with this period, I want the page to replicate all this 80 records, for next 36 months with change of time period of course. So I can see if we have some payments in bank transactions which are linked to this future salaries accruals. The parameter selector should be saved by browser and next time user reopens the page the page should be recalculated according to this parameter. So basic steps of rendering salary accruals page is following : 1. Fetch salary accruals base,2. Append future records using Projected Months parameter, summarize data from payments information in paid and monthly balance columns. One detail is that while projecting the salaries everything must copied from the latest month records appearing in salaries_accruals table but deductible fines. Also I want to have box at the top, which will show latest month and year of records in the salaries_accruals table. Let's say it is Dec 2025 in the base, I should have ability to create the exact same records in salaries accruals (only net sum should be copied ) for next month in this case Jan 2026, so lets say we have a box with latest records "Dec 2025" with little +, if I press + it should come with prompt " Do you want to copy Dec 2025 to Jan 2026?" if I confirm the exact records with next date should appear in salaries_accruals table,  so we have it in the base already and projected salaries should start from that date until Jan 2027. In month filter dropdown I want the values to appear as they do in the table "Jan 2026" and not the object dates as they appear in database.
+
+Next thing I want to do is to check my data against some xlsx files which are provided by insurance company and personal accounting software.
 
 
-In salaries accrual page while building the script should rep
+# Import Bank XML Data Deconsolidated
+
+Let's do folloowing first - I want you to test new logic of import_bank_xml_data.ts but instead of parsing data to our current structure of raw table bog_gel_raw_893486000 and then to consolidated_bank_accounts, insert raw records to standalone tables which have raw data columns + consolidated data columns which is our table GE78BG0000000893486000_BOG_GEL in this case for which we should have already done schema. So for this purpose I don't want you to change import_bank_xml_data.ts, but I want you to create adjusted script for our new aim named import_bank_xml_data_deconsolidated.ts, which will basically follow the same logic but store data in table identified with account number. In base we will have standardly named tables like GE78BG0000000893486000_BOG_GEL which will be in format accountnumber_bank_currency, so that from bank accounts table you can identify which parsing scheme to apply.
+
+there huge errors in our import_bank_xml_data_deconsolidated.ts. I suppose you take some random transaction present in both tables consolidated_bank_table and our new deconsolidated table, compare their parsing results and see the differance. consolidated_bank_table logic is consistent, deconsolidated should be the same. Look at the logic how parsing rules are applied, for example there are some records with applied parsing rules, but no parsing rule related fields are replicated in it, it also differs from consolidated case. Also about hierarchy, use exact same logic as we have in import_bank_xml_data.py!
+
+
+
+again I've noticed that there are invalid dates in logs. You must have mishandled the dates again. There are no invalid dates for raw records for xml, because if the record has both keys needed it has to be pasted as raw records. Check the conversation again we have already corrected that.
+
+
+
+Phase 1 — Parsing Rules (highest priority, immutable)
+
+
+&Match rules by column_name + condition (simple equality); condition_script ignored.&
+
+!Matching by column_name + condition is ok, however we have condition_script which should ease calculation I guess, but if it's not relevant we can skip that. If the parsing rule condition is true for the row parsed information must replicate parsing rule related information, if the payment id is assigned to the parsing rule, parsed information in raw table should have relative payment_id,couteragent_uuid,financial_code_uuid,project_uuid(optional for payments),job_uuid(optional for payments). If no payment_id is assigned to parsing rule only the parameters set in parsing rule must be replicated in the parsing information columns (payment_id, couteragent_uuid, financial_code_uuid, project_uuid). If payment rule is identified we must set applied_rule_id = rule.id and case6_parsing_rule_applied = true!
+
+
+&If rule has counteragent_uuid (or payment lookup resolves it), sets counteragent_uuid and case6_parsing_rule_applied = true.
+Applies rule parameters if present: financial_code_uuid, nominal_currency_uuid, and project_uuid (from rule’s payment lookup).&
+Sets applied_rule_id = rule.id.
+Does NOT set payment_id (current behavior).&
+
+
+Phase 2 — Counteragent by INN (second priority)
+
+Extract INN based on direction (incoming → DocSenderInn, outgoing → DocBenefInn), normalize.
+If rule didn’t set counteragent_uuid:
+Match INN → set counteragent_uuid, case1_counteragent_processed = true, case1_counteragent_found = true.
+INN exists but no match → case1_counteragent_processed = true, case3_counteragent_missing = true.
+If rule already set counteragent and INN differs → case7_parsing_rule_conflict = true.
+
+Phase 3 — Payment ID (lowest priority)
+
+Extract payment_id from DocInformation.
+If found in payments/salary maps:
+If counteragent already set and differs → case5_payment_id_conflict = true and do not apply payment data.
+Else apply payment data (project/financial/nominal) and set payment_id, case4_payment_id_matched = true.
+Flags and outputs
+
+case6_parsing_rule_applied: true only when rule sets counteragent.
+case1_counteragent_processed: true when INN present (match or missing).
+case3_counteragent_missing: true when INN present but not found.
+case4_payment_id_matched: true when payment match applied (no conflict).
+case5_payment_id_conflict: true when payment suggests different counteragent.
+case7_parsing_rule_conflict: true when rule vs INN counteragent conflict.
+processing_case is the concatenation of cases with spaces (newline normalized to spaces to match Python behavior).
+If you want rules to also force payment_id and payment‑related fields in Phase 1, say the word and I’ll implement that change.
+
+
+
+
+
+
+# Payments report table
+
+I want to change + add ledger button functionality. When I press this button the first form which should be seen must be add payment form which we have in payments table. This will give user ability to add payments without going to payments table. The add payment dialog should have option to skip, which the user use if he wants to add payments ledger entries to existing payment id which is done now with current functionality. If user decides to add payment and presses save, in add payment ledger dialog the created payment id with it's parameters should be locked in as it is in + icon in actions of payments report table.
+ 
+
+
+In parsing_scheme_rules table we have condition_script column which contains js snippet with converted drom condition column, which should ease parsing is the procedure currently use condition_script column?
+
+
+first it is TBC insurance xlsx template which should be checked 

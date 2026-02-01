@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       loadCurrencyCache(supabase),
     ]);
 
-    const { paymentsMap, salaryBaseMap, salaryLatestMap } = paymentsBundle;
+    const { paymentsMap, salaryBaseMap, salaryLatestMap, duplicatePaymentMap } = paymentsBundle;
 
     const { data: rows, error: fetchError } = await supabase
       .from(DECONSOLIDATED_TABLE)
@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
         paymentsMap,
         salaryBaseMap,
         salaryLatestMap,
+        duplicatePaymentMap,
         idx + 1,
         stats,
         new Map()
@@ -112,6 +113,7 @@ export async function POST(req: NextRequest) {
       );
 
       return {
+        uuid: row.uuid,
         id: row.id,
         counteragent_processed: result.case1_counteragent_processed,
         parsing_rule_processed: result.case6_parsing_rule_applied,
@@ -132,12 +134,23 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    const { error: updateError } = await supabase
-      .from(DECONSOLIDATED_TABLE)
-      .upsert(updateRows, { onConflict: 'id' });
+    const updateChunkSize = 20;
+    for (let i = 0; i < updateRows.length; i += updateChunkSize) {
+      const chunk = updateRows.slice(i, i + updateChunkSize);
+      const results = await Promise.all(
+        chunk.map((updateRow) =>
+          supabase
+            .from(DECONSOLIDATED_TABLE)
+            .update(updateRow)
+            .eq('id', updateRow.id)
+        )
+      );
 
-    if (updateError) {
-      throw updateError;
+      for (const result of results) {
+        if (result.error) {
+          throw result.error;
+        }
+      }
     }
 
     return NextResponse.json({ success: true, updated: updateRows.length });

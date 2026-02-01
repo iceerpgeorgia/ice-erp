@@ -186,6 +186,7 @@ export function processSingleRecord(
   paymentsMap: Map<string, PaymentData>,
   salaryBaseMap: Map<string, PaymentData>,
   salaryLatestMap: Map<string, { month: number; year: number; data: PaymentData }>,
+  duplicatePaymentMap: Map<string, string>,
   idx: number,
   stats: ProcessingStats,
   missingCounteragents: Map<string, { inn: string; count: number; name: string }>
@@ -296,13 +297,17 @@ export function processSingleRecord(
     let rulePaymentData: PaymentData | null = null;
 
     if (rulePaymentId) {
-      rulePaymentData = paymentsMap.get(rulePaymentId.toLowerCase()) || null;
+      const normalizedRuleId = rulePaymentId.toLowerCase();
+      const mappedRuleId = duplicatePaymentMap.get(normalizedRuleId) || rulePaymentId;
+      rulePaymentData = paymentsMap.get(mappedRuleId.toLowerCase()) || null;
     }
 
     result.applied_rule_id = matchedRule.id;
     result.case6_parsing_rule_applied = true;
     if (rulePaymentId) {
-      result.payment_id = rulePaymentId;
+      const normalizedRuleId = rulePaymentId.toLowerCase();
+      const mappedRuleId = duplicatePaymentMap.get(normalizedRuleId) || rulePaymentId;
+      result.payment_id = mappedRuleId;
     }
 
     if (rulePaymentData) {
@@ -373,18 +378,20 @@ export function processSingleRecord(
   const extractedPaymentId = extractPaymentID(DocInformation);
   if (extractedPaymentId) {
     const paymentIdLower = extractedPaymentId.toLowerCase();
-    let paymentData = paymentsMap.get(paymentIdLower) || null;
-    let resolvedPaymentId = extractedPaymentId;
+    const mappedPaymentId = duplicatePaymentMap.get(paymentIdLower) || extractedPaymentId;
+    const mappedPaymentLower = mappedPaymentId.toLowerCase();
+    let paymentData = paymentsMap.get(mappedPaymentLower) || null;
+    let resolvedPaymentId = mappedPaymentId;
 
     if (!paymentData) {
-      const baseKey = getSalaryBaseKey(paymentIdLower);
+      const baseKey = getSalaryBaseKey(mappedPaymentLower);
       if (baseKey && salaryBaseMap.has(baseKey)) {
         paymentData = salaryBaseMap.get(baseKey) || null;
 
-        if (!isValidSalaryPeriodSuffix(paymentIdLower) && salaryLatestMap.has(baseKey)) {
+        if (!isValidSalaryPeriodSuffix(mappedPaymentLower) && salaryLatestMap.has(baseKey)) {
           const latest = salaryLatestMap.get(baseKey)!;
           const next = nextMonth({ month: latest.month, year: latest.year });
-          const baseOriginal = extractedPaymentId.trim().slice(0, 20);
+          const baseOriginal = mappedPaymentId.trim().slice(0, 20);
           resolvedPaymentId = formatSalaryPeriod(baseOriginal, next);
         }
       }
@@ -424,7 +431,7 @@ export function processSingleRecord(
       stats.case4_payment_id_match++;
 
       if (idx <= 3) {
-        console.log(`  💳 Record ${idx}: Payment ID matched: ${extractedPaymentId}`);
+        console.log(`  💳 Record ${idx}: Payment ID matched: ${resolvedPaymentId}`);
       }
     }
   }
@@ -542,7 +549,7 @@ export async function processBOGGELDeconsolidated(
       loadCurrencyCache(supabase),
     ]);
 
-  const { paymentsMap, salaryBaseMap, salaryLatestMap } = paymentsBundle;
+  const { paymentsMap, salaryBaseMap, salaryLatestMap, duplicatePaymentMap } = paymentsBundle;
 
   const stats: ProcessingStats = {
     case1_counteragent_processed: 0,
@@ -666,6 +673,7 @@ export async function processBOGGELDeconsolidated(
       paymentsMap,
       salaryBaseMap,
       salaryLatestMap,
+      duplicatePaymentMap,
       idx + 1,
       stats,
       missingCounteragents

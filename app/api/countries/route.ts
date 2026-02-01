@@ -68,14 +68,14 @@ export async function GET() {
     createdAt: formatDate(row.created_at),
     updatedAt: formatDate(row.updated_at),
     ts: formatDate(row.ts),
-    country_uuid: row.country_uuid,
+    countryUuid: row.country_uuid,
     nameEn: row.name_en,
     nameKa: row.name_ka,
     iso2: row.iso2,
     iso3: row.iso3,
     unCode: row.un_code,
     country: row.country,
-    is_active: row.is_active,
+    isActive: row.is_active,
   }));
   return NextResponse.json(camelRows);
 }

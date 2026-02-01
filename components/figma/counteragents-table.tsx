@@ -170,11 +170,13 @@ const mapCounteragentData = (row: any): Counteragent => ({
 const normalizeEntityType = (et: any) => ({
   entityTypeUuid: et.entity_type_uuid || et.entity_type_uuid,
   entityType: et.name_ka || et.name_ka || et.entityType,
-  id: et.id
+  id: et.id,
+  isNaturalPerson: et.is_natural_person ?? et.isNaturalPerson ?? false,
+  isIdExempt: et.is_id_exempt ?? et.isIdExempt ?? false,
 });
 
 const normalizeCountry = (c: any) => ({
-  countryUuid: c.country_uuid || c.country_uuid,
+  countryUuid: c.country_uuid || c.countryUuid,
   country: c.country,
   id: c.id
 });
@@ -182,7 +184,7 @@ const normalizeCountry = (c: any) => ({
 export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   const [entityTypes, setEntityTypes] = useState<Counteragent[]>(data ?? []);
   // Dropdown data - API returns snake_case field names
-  const [entityTypesList, setEntityTypesList] = useState<Array<{id: number, name_ka: string, entity_type_uuid: string}>>([]);
+  const [entityTypesList, setEntityTypesList] = useState<Array<{id: number, name_ka: string, entity_type_uuid: string, is_natural_person?: boolean, is_id_exempt?: boolean}>>([]);
   const [countriesList, setCountriesList] = useState<Array<{id: number, country: string, country_uuid: string}>>([]);
   
   // Horizontal scroll synchronization between the table and a sticky bottom scroller
@@ -246,6 +248,20 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     isEmploye: false,
     wasEmploye: false,
   });
+
+  const selectedEntityType = entityTypesList.find(et => et.entity_type_uuid === formData.entityTypeUuid);
+  const isNaturalPerson = !!selectedEntityType?.is_natural_person;
+  const isIdExempt = !!selectedEntityType?.is_id_exempt;
+
+  useEffect(() => {
+    if (!isNaturalPerson && (formData.sex || formData.pensionScheme)) {
+      setFormData(prev => ({
+        ...prev,
+        sex: '',
+        pensionScheme: '',
+      }));
+    }
+  }, [isNaturalPerson, formData.sex, formData.pensionScheme]);
   
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
@@ -452,15 +468,10 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   // Form validation with conditional logic based on entity_type_uuid
   const validateForm = async () => {
     const errors: Record<string, string> = {};
-    
-    // UUID constants for conditional logic
-    const EXEMPT_IDS = ['f5c3c745-eaa4-4e27-a73b-badc9ebb49c0', '7766e9c2-0094-4090-adf4-ef017062457f', '5747f8e6-a8a6-4a23-91cc-c427c3a22597'];
-    const INDIVIDUAL_IDS = ['bf4d83f9-5064-4958-af6e-e4c21b2e4880', '470412f4-e2c0-4f9d-91f1-1c0630a02364', 'ba538574-e93f-4ce8-a780-667b61fc970a'];
-    const NATURAL_PERSON_IDS = ['bf4d83f9-5064-4958-af6e-e4c21b2e4880', '5747f8e6-a8a6-4a23-91cc-c427c3a22597', 'ba538574-e93f-4ce8-a780-667b61fc970a'];
-    const EMPLOYEE_ID = 'bf4d83f9-5064-4958-af6e-e4c21b2e4880';
-    
     const entityTypeUuid = formData.entityTypeUuid;
-    const isExempt = EXEMPT_IDS.includes(entityTypeUuid);
+    const selectedEntityType = entityTypesList.find(et => et.entity_type_uuid === entityTypeUuid);
+    const isNaturalPerson = !!selectedEntityType?.is_natural_person;
+    const isExempt = !!selectedEntityType?.is_id_exempt;
     
     // 1. Name - always mandatory
     if (!formData.name.trim()) {
@@ -482,8 +493,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
       errors.identificationNumber = 'ID Number is required';
     } else if (formData.identificationNumber?.trim()) {
       // Validation based on entity type
-      if (INDIVIDUAL_IDS.includes(entityTypeUuid)) {
-        // 11 digits for individuals
+      if (isNaturalPerson) {
+        // 11 digits for natural persons
         if (!/^\d{11}$/.test(formData.identificationNumber)) {
           errors.identificationNumber = 'ID Number must be exactly 11 digits';
         }
@@ -517,19 +528,15 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     // 5. Birth or Incorporation Date - OPTIONAL (no longer mandatory)
     // Removed mandatory validation per user request
     
-    // 6. Sex - conditional mandatory for natural persons
-    if (NATURAL_PERSON_IDS.includes(entityTypeUuid)) {
+    // 6. Sex and Pension Scheme - conditional mandatory for natural persons
+    if (isNaturalPerson) {
       if (!formData.sex) {
         errors.sex = 'Sex is required for natural persons';
       } else if (!['Male', 'Female'].includes(formData.sex)) {
         errors.sex = 'Sex must be Male or Female';
       }
-    }
-    
-    // 7. Pension Scheme - conditional mandatory for employees
-    if (entityTypeUuid === EMPLOYEE_ID) {
-      if (formData.pensionScheme === null) {
-        errors.pensionScheme = 'Pension Scheme is required for employees';
+      if (!formData.pensionScheme) {
+        errors.pensionScheme = 'Pension Scheme is required for natural persons';
       }
     }
     
@@ -561,23 +568,16 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   const handleEntityTypeChange = (entityTypeUuid: string) => {
     // Combobox now passes entityTypeUuid directly as the value
     const selectedEntityType = entityTypesList.find(et => et.entity_type_uuid === entityTypeUuid);
-    
-    // UUID constants for conditional logic
-    const EXEMPT_IDS = ['f5c3c745-eaa4-4e27-a73b-badc9ebb49c0', '7766e9c2-0094-4090-adf4-ef017062457f', '5747f8e6-a8a6-4a23-91cc-c427c3a22597'];
-    const NATURAL_PERSON_IDS = ['bf4d83f9-5064-4958-af6e-e4c21b2e4880', '5747f8e6-a8a6-4a23-91cc-c427c3a22597', 'ba538574-e93f-4ce8-a780-667b61fc970a'];
-    const EMPLOYEE_ID = 'bf4d83f9-5064-4958-af6e-e4c21b2e4880';
-    
-    // Clear sex if not natural person
-    const shouldClearSex = !NATURAL_PERSON_IDS.includes(entityTypeUuid);
-    // Clear pension_scheme if not employee
-    const shouldClearPension = entityTypeUuid !== EMPLOYEE_ID;
+    const isNaturalPerson = !!selectedEntityType?.is_natural_person;
+    const shouldClearSex = !isNaturalPerson;
+    const shouldClearPension = !isNaturalPerson;
     
     setFormData({
       ...formData,
       entityType: selectedEntityType?.name_ka || '',
       entityTypeUuid: entityTypeUuid,
       sex: shouldClearSex ? '' : formData.sex,
-      pensionScheme: shouldClearPension ? (null as any) : formData.pensionScheme,
+      pensionScheme: shouldClearPension ? '' : formData.pensionScheme,
     });
     
     // Clear related errors
@@ -589,7 +589,9 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   // Handler for country dropdown change
   const handleCountryChange = (countryUuid: string) => {
     // Combobox now passes countryUuid directly as the value
-    const selectedCountry = countriesList.find(c => c.country_uuid === countryUuid);
+    const selectedCountry = countriesList.find(
+      c => (c as any).country_uuid === countryUuid || (c as any).countryUuid === countryUuid
+    );
     
     setFormData({
       ...formData,
@@ -1374,7 +1376,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 {/* ID Number - conditional mandatory */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="add-idNumber" className="text-right">
-                    ID Number {!['f5c3c745-eaa4-4e27-a73b-badc9ebb49c0', '7766e9c2-0094-4090-adf4-ef017062457f'].includes(formData.entityTypeUuid) ? '*' : ''}
+                    ID Number {!isIdExempt ? '*' : ''}
                   </Label>
                   <div className="col-span-3">
                     <Input
@@ -1413,7 +1415,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 {/* Sex - conditional mandatory for natural persons */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="add-sex" className="text-right">
-                    Sex {['bf4d83f9-5064-4958-af6e-e4c21b2e4880', '5747f8e6-a8a6-4a23-91cc-c427c3a22597', 'ba538574-e93f-4ce8-a780-667b61fc970a'].includes(formData.entityTypeUuid) ? '*' : ''}
+                    Sex {isNaturalPerson ? '*' : ''}
                   </Label>
                   <div className="col-span-3">
                     <Select 
@@ -1422,6 +1424,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                         setFormData({...formData, sex: value});
                         if (formErrors.sex) setFormErrors({...formErrors, sex: ''});
                       }}
+                      disabled={!isNaturalPerson}
                     >
                       <SelectTrigger className={formErrors.sex ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Select sex" />
@@ -1438,7 +1441,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 {/* Pension Scheme - conditional mandatory for employees */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="add-pension" className="text-right">
-                    Pension Scheme {formData.entityTypeUuid === 'bf4d83f9-5064-4958-af6e-e4c21b2e4880' ? '*' : ''}
+                    Pension Scheme {isNaturalPerson ? '*' : ''}
                   </Label>
                   <div className="col-span-3">
                     <Select 
@@ -1447,6 +1450,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                         setFormData({...formData, pensionScheme: value});
                         if (formErrors.pensionScheme) setFormErrors({...formErrors, pensionScheme: ''});
                       }}
+                      disabled={!isNaturalPerson}
                     >
                       <SelectTrigger className={formErrors.pensionScheme ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Select pension scheme" />
@@ -1465,7 +1469,11 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   <Label htmlFor="add-country" className="text-right">Country *</Label>
                   <div className="col-span-3">
                     <Combobox
-                      options={countriesList.map(c => ({ value: c.country_uuid, label: c.country, keywords: c.country }))}
+                      options={countriesList.map(c => ({
+                        value: (c as any).country_uuid || (c as any).countryUuid,
+                        label: c.country,
+                        keywords: c.country
+                      }))}
                       value={formData.countryUuid}
                       onValueChange={handleCountryChange}
                       placeholder="Select country"
@@ -1709,7 +1717,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 {/* ID Number - conditional mandatory */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="edit-idNumber" className="text-right">
-                    ID Number {!['f5c3c745-eaa4-4e27-a73b-badc9ebb49c0', '7766e9c2-0094-4090-adf4-ef017062457f'].includes(formData.entityTypeUuid) ? '*' : ''}
+                    ID Number {!isIdExempt ? '*' : ''}
                   </Label>
                   <div className="col-span-3">
                     <Input
@@ -1748,7 +1756,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 {/* Sex - conditional mandatory for natural persons */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="edit-sex" className="text-right">
-                    Sex {['bf4d83f9-5064-4958-af6e-e4c21b2e4880', '5747f8e6-a8a6-4a23-91cc-c427c3a22597', 'ba538574-e93f-4ce8-a780-667b61fc970a'].includes(formData.entityTypeUuid) ? '*' : ''}
+                    Sex {isNaturalPerson ? '*' : ''}
                   </Label>
                   <div className="col-span-3">
                     <Select 
@@ -1757,6 +1765,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                         setFormData({...formData, sex: value});
                         if (formErrors.sex) setFormErrors({...formErrors, sex: ''});
                       }}
+                      disabled={!isNaturalPerson}
                     >
                       <SelectTrigger className={formErrors.sex ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Select sex" />
@@ -1773,7 +1782,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 {/* Pension Scheme - conditional mandatory for employees */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="edit-pension" className="text-right">
-                    Pension Scheme {formData.entityTypeUuid === 'bf4d83f9-5064-4958-af6e-e4c21b2e4880' ? '*' : ''}
+                    Pension Scheme {isNaturalPerson ? '*' : ''}
                   </Label>
                   <div className="col-span-3">
                     <Select 
@@ -1782,6 +1791,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                         setFormData({...formData, pensionScheme: value});
                         if (formErrors.pensionScheme) setFormErrors({...formErrors, pensionScheme: ''});
                       }}
+                      disabled={!isNaturalPerson}
                     >
                       <SelectTrigger className={formErrors.pensionScheme ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Select pension scheme" />
@@ -1800,7 +1810,11 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   <Label htmlFor="edit-country" className="text-right">Country *</Label>
                   <div className="col-span-3">
                     <Combobox
-                      options={countriesList.map(c => ({ value: c.country_uuid, label: c.country, keywords: c.country }))}
+                      options={countriesList.map(c => ({
+                        value: (c as any).country_uuid || (c as any).countryUuid,
+                        label: c.country,
+                        keywords: c.country
+                      }))}
                       value={formData.countryUuid}
                       onValueChange={handleCountryChange}
                       placeholder="Select country"

@@ -148,6 +148,32 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
     
     matched_rule = None
     for rule in parsing_rules:
+        # Prefer condition_script for consistent UI logic
+        condition_script = rule.get('condition_script')
+        if condition_script:
+            row_ctx = {
+                'DocProdGroup': DocProdGroup,
+                'DocNomination': DocNomination,
+                'DocInformation': DocInformation,
+                'DocKey': DocKey,
+                'DocSenderInn': DocSenderInn,
+                'DocBenefInn': DocBenefInn,
+                'DocSenderAcctNo': DocSenderAcctNo,
+                'DocBenefAcctNo': DocBenefAcctNo,
+                'DocSenderName': DocSenderName,
+                'DocBenefName': DocBenefName,
+                'DocCorAcct': DocCorAcct,
+                'EntryDbAmt': debit,
+                'EntryCrAmt': credit
+            }
+
+            if evaluate_condition_script(condition_script, row_ctx):
+                matched_rule = rule
+                if idx <= 3:
+                    print(f"    🎯 [PHASE 1 - RULE MATCH] condition_script (HIGHEST PRIORITY)")
+                break
+
+        # Fallback to legacy column_name/condition equality
         column_name = rule.get('column_name', '')
         condition = rule.get('condition', '')
         if not column_name or not condition:
@@ -530,6 +556,48 @@ def extract_payment_id(doc_information):
     
     return None
 
+def evaluate_condition_script(script, row):
+    """Evaluate a JS condition_script (compiled by compileFormulaToJS) against a Python dict row."""
+    try:
+        if not script:
+            return False
+
+        # Extract the expression inside: (function(row) { return <expr>; })
+        match = re.search(r'return\s+(.*);\s*\}\s*\)?\s*$', script, re.DOTALL)
+        expr = match.group(1) if match else script
+
+        # Convert JS operators to Python
+        expr = expr.replace('===', '==').replace('!==', '!=')
+        expr = expr.replace('&&', ' and ').replace('||', ' or ')
+        expr = re.sub(r'(?<![=!])!(?!=)', ' not ', expr)
+        expr = expr.replace('null', 'None').replace('undefined', 'None')
+
+        # Convert ternary: (cond ? a : b) -> (a if cond else b)
+        ternary_pattern = re.compile(r'\(([^()]+?)\?([^:]+?):([^()]+?)\)')
+        while True:
+            new_expr, count = ternary_pattern.subn(r'(\2 if \1 else \3)', expr)
+            expr = new_expr
+            if count == 0:
+                break
+
+        # String() -> str()
+        expr = re.sub(r'String\((.*?)\)', r'str(\1)', expr)
+
+        # row.col -> row.get("col")
+        expr = re.sub(r'row\.([A-Za-z_][A-Za-z0-9_]*)', r'row.get("\1")', expr)
+
+        # JS string helpers
+        expr = re.sub(r'\.toLowerCase\(\)', '.lower()', expr)
+        expr = re.sub(r'\.toUpperCase\(\)', '.upper()', expr)
+        expr = re.sub(r'(\S+)\.includes\(([^)]+)\)', r'(\2 in \1)', expr)
+        expr = re.sub(r'(\S+)\.indexOf\(([^)]+)\)', r'(\1.find(\2))', expr)
+
+        # Safe eval in restricted scope
+        return bool(eval(expr, {"__builtins__": {}}, {"row": row}))
+    except Exception as exc:
+        print(f"⚠️ Error evaluating condition_script: {exc}")
+        return False
+
 def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_table_name, 
                    remote_conn, _unused_conn):
     """
@@ -745,7 +813,9 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
             financial_code_uuid,
             nominal_currency_uuid,
             column_name,
-            condition
+            condition,
+            condition_script,
+            payment_id
         FROM parsing_scheme_rules
     """)
     rows = remote_cursor.fetchall()
@@ -759,7 +829,9 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
             'financial_code_uuid': row[2],
             'nominal_currency_uuid': row[3],
             'column_name': row[4],
-            'condition': row[5]
+            'condition': row[5],
+            'condition_script': row[6],
+            'payment_id': row[7]
         })
     print(f"  ✅ Loaded {len(parsing_rules)} parsing rules from Supabase ({time.time()-dict_start:.2f}s)")
     sys.stdout.flush()

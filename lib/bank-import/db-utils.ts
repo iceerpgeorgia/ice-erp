@@ -138,12 +138,13 @@ export async function loadPayments(
   paymentsMap: Map<string, PaymentData>;
   salaryBaseMap: Map<string, PaymentData>;
   salaryLatestMap: Map<string, { month: number; year: number; data: PaymentData }>;
+  duplicatePaymentMap: Map<string, string>;
 }> {
   const start = Date.now();
   console.log('  ⏳ Loading payments and salary_accruals from Supabase...');
 
   // Load from both payments and salary_accruals tables
-  const [paymentsData, salaryData] = await Promise.all([
+  const [paymentsData, salaryData, duplicatesData] = await Promise.all([
     fetchAllRows<any>(async (from, to) =>
       await supabase
         .from('payments')
@@ -158,15 +159,23 @@ export async function loadPayments(
         .not('payment_id', 'is', null)
         .range(from, to)
     ),
+    fetchAllRows<any>(async (from, to) =>
+      await supabase
+        .from('payment_id_duplicates')
+        .select('master_payment_id, duplicate_payment_id')
+        .range(from, to)
+    ),
   ]);
 
   const map = new Map<string, PaymentData>();
   const salaryBaseMap = new Map<string, PaymentData>();
   const salaryLatestMap = new Map<string, { month: number; year: number; data: PaymentData }>();
+  const duplicatePaymentMap = new Map<string, string>();
   let paymentsCount = 0;
   let salaryCount = 0;
   let salaryBaseCount = 0;
   let salaryLatestCount = 0;
+  let duplicateCount = 0;
 
   // Add payments
   for (const row of paymentsData || []) {
@@ -212,12 +221,22 @@ export async function loadPayments(
     }
   }
 
+  // Add duplicate mapping (duplicate -> master)
+  for (const row of duplicatesData || []) {
+    const duplicateId = row.duplicate_payment_id?.trim();
+    const masterId = row.master_payment_id?.trim();
+    if (duplicateId && masterId) {
+      duplicatePaymentMap.set(duplicateId.toLowerCase(), masterId);
+      duplicateCount++;
+    }
+  }
+
   salaryLatestCount = salaryLatestMap.size;
   console.log(`  ✅ Loaded ${map.size} payment IDs from Supabase via UNION query (${((Date.now() - start) / 1000).toFixed(2)}s)`);
   console.log(
-    `     └─ payments: ${paymentsCount}, salary_accruals: ${salaryCount}, salary_base_keys: ${salaryBaseCount}, salary_latest: ${salaryLatestCount}`
+    `     └─ payments: ${paymentsCount}, salary_accruals: ${salaryCount}, salary_base_keys: ${salaryBaseCount}, salary_latest: ${salaryLatestCount}, duplicate_map: ${duplicateCount}`
   );
-  return { paymentsMap: map, salaryBaseMap, salaryLatestMap };
+  return { paymentsMap: map, salaryBaseMap, salaryLatestMap, duplicatePaymentMap };
 }
 
 export async function loadNBGRates(supabase: ReturnType<typeof getSupabaseClient>): Promise<Map<string, NBGRates>> {

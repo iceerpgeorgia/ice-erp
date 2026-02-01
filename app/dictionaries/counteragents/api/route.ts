@@ -33,6 +33,63 @@ import { logAudit } from "@/lib/audit";
 export const revalidate = 0;
 const prisma = new PrismaClient();
 
+const normalizeInn = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  if (/^\d{10}$/.test(trimmed)) return `0${trimmed}`;
+  return trimmed || null;
+};
+
+const resolveDeconsolidatedTableName = (accountNumber: string, scheme: string) => {
+  const safeScheme = scheme.replace(/[^A-Za-z0-9_]/g, "_");
+  return `${accountNumber}_${safeScheme}`;
+};
+
+async function updateDeconsolidatedCounteragent(inn: string | null, counteragentUuid: string) {
+  if (!inn) return 0;
+
+  const accounts = await prisma.$queryRaw<
+    Array<{ account_number: string | null; scheme: string | null }>
+  >`SELECT ba.account_number, ps.scheme
+     FROM bank_accounts ba
+     LEFT JOIN parsing_schemes ps ON ps.uuid = ba.parsing_scheme_uuid`;
+
+  let updatedTotal = 0;
+
+  for (const account of accounts) {
+    if (!account.account_number || !account.scheme) continue;
+    const tableName = resolveDeconsolidatedTableName(account.account_number, account.scheme);
+
+    const exists = await prisma.$queryRaw<Array<{ exists: number }>>`
+      SELECT 1 as exists
+      FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = ${tableName}
+      LIMIT 1
+    `;
+    if (!exists.length) continue;
+
+    const query = `
+      UPDATE "${tableName}" AS t
+      SET counteragent_uuid = $1::uuid,
+          counteragent_processed = TRUE,
+          updated_at = NOW()
+      WHERE (
+        CASE
+          WHEN LENGTH(BTRIM(t.counteragent_inn)) = 10
+               AND BTRIM(t.counteragent_inn) ~ '^[0-9]+$'
+            THEN '0' || BTRIM(t.counteragent_inn)
+          ELSE BTRIM(t.counteragent_inn)
+        END
+      ) = $2
+    `;
+
+    const result = await prisma.$executeRawUnsafe(query, counteragentUuid, inn);
+    updatedTotal += Number(result);
+  }
+
+  return updatedTotal;
+}
+
 const pick = {
   id: true, createdAt: true, updatedAt: true, ts: true,
   name: true, identification_number: true, birth_or_incorporation_date: true,
@@ -145,6 +202,10 @@ export async function POST(req: NextRequest) {
       },
       select: pick,
     });
+    const normalizedInn = normalizeInn(created.identification_number);
+    if (normalizedInn && created.counteragent_uuid) {
+      await updateDeconsolidatedCounteragent(normalizedInn, created.counteragent_uuid);
+    }
     await logAudit({ table: "counteragents", recordId: BigInt(created.id as any), action: "create" });
     return NextResponse.json(toApi(created), { status: 201 });
   } catch (e: any) {

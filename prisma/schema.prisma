@@ -318,9 +318,10 @@ model entity_types {
   updated_at       DateTime
   ts               DateTime @default(now()) @db.Timestamptz(6)
   entity_type_uuid String   @unique @db.Uuid
-  code             String   @unique
   name_en          String
   name_ka          String
+  is_natural_person Boolean @default(false)
+  is_id_exempt      Boolean @default(false)
   is_active        Boolean  @default(true)
 }
 
@@ -451,6 +452,7 @@ model payments_ledger {
   created_at     DateTime @default(now())
   updated_at     DateTime @default(now())
   comment        String?
+  is_deleted     Boolean  @default(false)
   payments       payments @relation(fields: [payment_id], references: [payment_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_ledger_payment")
 
   @@index([effective_date])

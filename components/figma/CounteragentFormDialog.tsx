@@ -8,11 +8,6 @@ import { Label } from '@/components/figma/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/figma/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 
-// Entity Type UUIDs
-const EMPLOYEE_UUID = 'bf4d83f9-5064-4958-af6e-e4c21b2e4880';
-const FREELANCER_UUID = '5747f8e6-a8a6-4a23-91cc-c427c3a22597';
-const SHAREHOLDER_UUID = 'ba538574-e93f-4ce8-a780-667b61fc970a';
-const NATURAL_PERSON_UUIDS = [EMPLOYEE_UUID, FREELANCER_UUID, SHAREHOLDER_UUID];
 
 interface FormData {
   name: string;
@@ -44,6 +39,8 @@ interface FormErrors {
 interface EntityType {
   entityTypeUuid: string;
   entityType: string;
+  isNaturalPerson?: boolean;
+  isIdExempt?: boolean;
 }
 
 interface Country {
@@ -157,9 +154,19 @@ export function CounteragentFormDialog({
     setFormErrors({});
   }, [editData, isOpen]);
 
-  // Validation logic
-  const isNaturalPerson = NATURAL_PERSON_UUIDS.includes(formData.entityTypeUuid);
-  const isEmployee = formData.entityTypeUuid === EMPLOYEE_UUID;
+  const selectedEntityType = entityTypes.find(et => et.entityTypeUuid === formData.entityTypeUuid);
+  const isNaturalPerson = !!selectedEntityType?.isNaturalPerson;
+  const isIdExempt = !!selectedEntityType?.isIdExempt;
+
+  useEffect(() => {
+    if (!isNaturalPerson && (formData.sex || formData.pensionScheme)) {
+      setFormData(prev => ({
+        ...prev,
+        sex: '',
+        pensionScheme: '',
+      }));
+    }
+  }, [isNaturalPerson, formData.sex, formData.pensionScheme]);
 
   const validateForm = () => {
     const errors: FormErrors = {};
@@ -174,14 +181,19 @@ export function CounteragentFormDialog({
       errors.entityTypeUuid = 'Entity Type is required';
     }
 
-    // 3. Sex - mandatory for natural persons
-    if (isNaturalPerson && !formData.sex) {
-      errors.sex = 'Sex is required for natural persons';
+    // 3. ID - required unless entity type is exempt
+    if (!isIdExempt && !formData.identificationNumber?.trim()) {
+      errors.identificationNumber = 'ID Number is required';
     }
 
-    // 4. Pension Scheme - mandatory for employees
-    if (isEmployee && !formData.pensionScheme) {
-      errors.pensionScheme = 'Pension Scheme is required for employees';
+    // 4. Sex and Pension Scheme - mandatory for natural persons
+    if (isNaturalPerson) {
+      if (!formData.sex) {
+        errors.sex = 'Sex is required for natural persons';
+      }
+      if (!formData.pensionScheme) {
+        errors.pensionScheme = 'Pension Scheme is required for natural persons';
+      }
     }
 
     // 5. Country - always mandatory
@@ -207,8 +219,10 @@ export function CounteragentFormDialog({
         name: formData.name,
         identification_number: formData.identificationNumber || null,
         birth_or_incorporation_date: formData.birthOrIncorporationDate || null,
-        sex: formData.sex || null,
-        pension_scheme: formData.pensionScheme === 'true' ? true : formData.pensionScheme === 'false' ? false : null,
+        sex: isNaturalPerson ? (formData.sex || null) : null,
+        pension_scheme: isNaturalPerson
+          ? (formData.pensionScheme === 'true' ? true : formData.pensionScheme === 'false' ? false : null)
+          : null,
         address_line_1: formData.addressLine1 || null,
         address_line_2: formData.addressLine2 || null,
         zip_code: formData.zipCode || null,
@@ -321,6 +335,7 @@ export function CounteragentFormDialog({
               <Select 
                 value={formData.sex} 
                 onValueChange={(value) => updateField('sex', value)}
+                disabled={!isNaturalPerson}
               >
                 <SelectTrigger className={formErrors.sex ? 'border-red-500' : ''}>
                   <SelectValue placeholder="Select sex" />
@@ -337,12 +352,13 @@ export function CounteragentFormDialog({
           {/* Pension Scheme - Required for Employees */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="pension" className="text-right">
-              Pension Scheme {isEmployee ? '*' : ''}
+              Pension Scheme {isNaturalPerson ? '*' : ''}
             </Label>
             <div className="col-span-3">
               <Select 
                 value={formData.pensionScheme} 
                 onValueChange={(value) => updateField('pensionScheme', value)}
+                disabled={!isNaturalPerson}
               >
                 <SelectTrigger className={formErrors.pensionScheme ? 'border-red-500' : ''}>
                   <SelectValue placeholder="Select pension scheme" />

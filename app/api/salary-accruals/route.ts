@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
         ...accrual,
         id: accrual.id.toString(),
         counteragent_name: counteragent[0]?.counteragent || 'Unknown',
+        counteragent_iban: counteragent[0]?.iban || null,
         financial_code: financial_code[0]?.validation || 'Unknown',
         currency_code: currency[0]?.code || 'Unknown',
         net_sum: accrual.net_sum.toString(),
@@ -85,6 +86,7 @@ export async function GET(request: NextRequest) {
         c.identification_number,
         c.sex,
         c.pension_scheme,
+        c.iban as counteragent_iban,
         fc.validation as financial_code,
         cur.code as currency_code
       FROM salary_accruals sa

@@ -9,9 +9,10 @@ interface EntityTypeRow {
   updated_at: string;
   ts: string;
   entity_type_uuid: string;
-  code: string;
   name_en: string;
   name_ka: string;
+  is_natural_person?: boolean;
+  is_id_exempt?: boolean;
   is_active: boolean;
 }
 
@@ -21,9 +22,10 @@ interface EntityTypeRowCamel {
   updatedAt: string;
   ts: string;
   entityTypeUuid: string;
-  code: string;
   nameEn: string;
   nameKa: string;
+  isNaturalPerson?: boolean;
+  isIdExempt?: boolean;
   isActive: boolean;
 }
 
@@ -60,15 +62,23 @@ export default function EntityTypesTableFigma() {
           // Handle both snake_case (from DB) and camelCase (from API)
           const isSnakeCase = 'entity_type_uuid' in row;
           
+          const nameEn = isSnakeCase
+            ? String((row as EntityTypeRow).name_en ?? (row as any).nameEn ?? '')
+            : String((row as EntityTypeRowCamel).nameEn ?? (row as any).name_en ?? '');
+          const nameKa = isSnakeCase
+            ? String((row as EntityTypeRow).name_ka ?? (row as any).nameKa ?? '')
+            : String((row as EntityTypeRowCamel).nameKa ?? (row as any).name_ka ?? '');
+
           return {
             id: Number(row.id),
             createdAt: isSnakeCase ? toYMD((row as EntityTypeRow).created_at) : toYMD((row as EntityTypeRowCamel).createdAt),
             updatedAt: isSnakeCase ? toYMD((row as EntityTypeRow).updated_at) : toYMD((row as EntityTypeRowCamel).updatedAt),
             ts: isSnakeCase ? toISO((row as EntityTypeRow).ts) : toISO((row as EntityTypeRowCamel).ts),
             entityTypeUuid: isSnakeCase ? String((row as EntityTypeRow).entity_type_uuid) : String((row as EntityTypeRowCamel).entityTypeUuid),
-            code: String(isSnakeCase ? (row as EntityTypeRow).code : (row as EntityTypeRowCamel).code),
-            nameEn: String(isSnakeCase ? (row as EntityTypeRow).name_en : (row as EntityTypeRowCamel).nameEn),
-            nameKa: String(isSnakeCase ? (row as EntityTypeRow).name_ka : (row as EntityTypeRowCamel).nameKa),
+            nameEn,
+            nameKa,
+            isNaturalPerson: Boolean((row as any).is_natural_person ?? (row as any).isNaturalPerson ?? false),
+            isIdExempt: Boolean((row as any).is_id_exempt ?? (row as any).isIdExempt ?? false),
             isActive: Boolean(isSnakeCase ? (row as EntityTypeRow).is_active : (row as EntityTypeRowCamel).isActive),
           };
         });

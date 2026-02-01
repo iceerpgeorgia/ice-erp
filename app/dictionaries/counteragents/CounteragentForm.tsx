@@ -2,7 +2,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
-type ET = { name_ka: string; entity_type_uuid: string };
+type ET = { name_ka: string; entity_type_uuid: string; is_natural_person?: boolean; is_id_exempt?: boolean };
 type Props = {
   mode: "create" | "edit";
   initial?: any | null;
@@ -11,10 +11,6 @@ type Props = {
 };
 
 const PERSON_11 = new Set(["bf4d83f9-5064-4958-af6e-e4c21b2e4880","470412f4-e2c0-4f9d-91f1-1c0630a02364","ba538574-e93f-4ce8-a780-667b61fc970a"]);
-const EXEMPT    = new Set(["f5c3c745-eaa4-4e27-a73b-badc9ebb49c0","7766e9c2-0094-4090-adf4-ef017062457f","5747f8e6-a8a6-4a23-91cc-c427c3a22597"]); // ID not required
-const SEX_REQ   = new Set(["bf4d83f9-5064-4958-af6e-e4c21b2e4880","5747f8e6-a8a6-4a23-91cc-c427c3a22597","ba538574-e93f-4ce8-a780-667b61fc970a"]);
-const NO_ID_VALIDATION = new Set(["5747f8e6-a8a6-4a23-91cc-c427c3a22597"]); // Entity types that don't require 9-digit ID format
-const PENS_REQ  = "bf4d83f9-5064-4958-af6e-e4c21b2e4880";
 
 export default function CounteragentForm({ mode, initial, countries, entityTypes }: Props) {
   const r = useRouter();
@@ -65,15 +61,18 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
   const [err, setErr] = React.useState<string | null>(null);
 
   const etUuid = v.entity_type_uuid || "";
+  const selectedEntityType = entityTypes.find(e => e.entity_type_uuid === etUuid);
+  const isNaturalPerson = !!selectedEntityType?.is_natural_person;
+  const isIdExempt = !!selectedEntityType?.is_id_exempt;
   
   const mandatory = {
     name: true,
-    identification_number: !EXEMPT.has(etUuid),
+    identification_number: !isIdExempt,
     // Make birth_or_incorporation_date optional for all entity types
     birth_or_incorporation_date: false,
     entity_type: true,
-    sex: SEX_REQ.has(etUuid),
-    pension_scheme: etUuid === PENS_REQ,
+    sex: isNaturalPerson,
+    pension_scheme: isNaturalPerson,
     country: true,
   };
 
@@ -82,6 +81,12 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
     const found = entityTypes.find(e => e.entity_type_uuid === etUuid);
     setV((s:any)=>({ ...s, entity_type: found?.name_ka ?? s.entity_type }));
   }, [etUuid]); // eslint-disable-line
+
+  React.useEffect(() => {
+    if (!isNaturalPerson && (v.sex || v.pension_scheme)) {
+      setV((s:any)=>({ ...s, sex: "", pension_scheme: "" }));
+    }
+  }, [isNaturalPerson, v.sex, v.pension_scheme]);
 
   function field(label:string, name:string, input:React.ReactNode, req=false) {
     return (
@@ -109,7 +114,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
     try {
       // Debug: log entity type UUID and validation state
       console.log("🔍 Entity Type UUID:", etUuid);
-      console.log("🔍 In EXEMPT set:", EXEMPT.has(etUuid));
+      console.log("🔍 isIdExempt:", isIdExempt);
       console.log("🔍 mandatory.identification_number:", mandatory.identification_number);
       console.log("🔍 ID value:", v.identification_number);
 
@@ -119,18 +124,18 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       if (mandatory.country && !v.country) throw new Error("Country is required");
       // birth_or_incorporation_date is optional; no validation enforced
 
-      if (!EXEMPT.has(etUuid) && !NO_ID_VALIDATION.has(etUuid) && v.identification_number) {
+      if (!isIdExempt && v.identification_number) {
         const re = PERSON_11.has(etUuid) ? /^[0-9]{11}$/ : /^[0-9]{9}$/;
         if (!re.test(v.identification_number)) throw new Error("ID format is invalid");
       }
       if (mandatory.identification_number && !v.identification_number) throw new Error("ID is required");
 
-      if (SEX_REQ.has(etUuid)) {
+      if (isNaturalPerson) {
         if (v.sex !== "Male" && v.sex !== "Female") throw new Error("Sex must be Male or Female");
       } else {
         v.sex = "";
       }
-      if (etUuid === PENS_REQ) {
+      if (isNaturalPerson) {
         if (v.pension_scheme !== "true" && v.pension_scheme !== "false") throw new Error("Pension Scheme must be True or False");
         // Convert string to boolean for API
         v.pension_scheme = v.pension_scheme === "true";
@@ -182,12 +187,14 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       <select className="w-full border rounded px-3 py-2" value={etUuid || ""}
         onChange={(e)=>{
           const val = e.target.value;
+          const nextEntityType = entityTypes.find(et => et.entity_type_uuid === val);
+          const nextIsNaturalPerson = !!nextEntityType?.is_natural_person;
           setV((s:any)=>({ 
             ...s, 
             entity_type_uuid: val,
             // Clear dependent fields when entity type changes
-            sex: SEX_REQ.has(val) ? s.sex : "",
-            pension_scheme: val === PENS_REQ ? s.pension_scheme : ""
+            sex: nextIsNaturalPerson ? s.sex : "",
+            pension_scheme: nextIsNaturalPerson ? s.pension_scheme : ""
           }));
         }}
         onMouseDown={(e) => e.stopPropagation()}>
@@ -196,7 +203,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       </select>,
       mandatory.entity_type),
     field("Sex","sex",
-      <select className="w-full border rounded px-3 py-2" disabled={!SEX_REQ.has(etUuid)} value={v.sex || ""}
+      <select className="w-full border rounded px-3 py-2" disabled={!isNaturalPerson} value={v.sex || ""}
         onChange={(e)=>setV((s:any)=>({ ...s, sex:e.target.value }))}
         onMouseDown={(e) => e.stopPropagation()}>
         <option value="">--</option>
@@ -205,7 +212,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       </select>,
       mandatory.sex),
     field("Pension Scheme","pension_scheme",
-      <select className="w-full border rounded px-3 py-2" disabled={etUuid!==PENS_REQ} value={v.pension_scheme || ""} onChange={(e)=>setV((s:any)=>({ ...s, pension_scheme: e.target.value }))}
+      <select className="w-full border rounded px-3 py-2" disabled={!isNaturalPerson} value={v.pension_scheme || ""} onChange={(e)=>setV((s:any)=>({ ...s, pension_scheme: e.target.value }))}
         onMouseDown={(e) => e.stopPropagation()}>
         <option value="">--</option>
         <option value="true">True</option>

@@ -17,17 +17,6 @@ function cleanStr(v) {
     .trim();
 }
 
-function toCode(nameEn, fallback = "ET") {
-  const base = cleanStr(nameEn) || fallback;
-  let code = base
-    .normalize("NFKD")
-    .replace(/[^\w\s-]/g, "")   // drop punctuation/diacritics leftovers
-    .replace(/\s+/g, "_")       // spaces -> underscore
-    .toUpperCase();
-  code = code.replace(/^_+|_+$|_{2,}/g, "_");
-  return code || fallback;
-}
-
 function truthy(v) {
   if (v == null) return true; // default true
   const s = String(v).trim().toLowerCase();
@@ -62,16 +51,13 @@ async function main() {
     const entity_type_uuid = cleanStr(
       r.entity_type_uuid ?? r.entity_uuid ?? r["EntityUUID"] ?? r["entityUuid"]
     );
-    const code = cleanStr(r.code ?? r.Code ?? "");
     const is_active = truthy(r.is_active ?? r.active ?? r.Active ?? "");
-    return { name_en, name_ka, entity_type_uuid, code, is_active };
+    return { name_en, name_ka, entity_type_uuid, is_active };
   });
 
   console.log(`➡ Found ${rows.length} rows on sheet "${wsName}"`);
 
   let created = 0, updated = 0, skipped = 0, errors = 0;
-  const seenCodes = new Set();
-
   await prisma.$transaction(async (tx) => {
     for (const [i, row] of rows.entries()) {
       try {
@@ -85,42 +71,39 @@ async function main() {
           continue;
         }
 
-        // code (generate if missing)
-        let code = row.code || toCode(name_en || name_ka, "ET");
-        // Avoid duplicate codes within the same import batch
-        let codeCandidate = code;
-        let bump = 2;
-        while (seenCodes.has(codeCandidate)) {
-          codeCandidate = `${code}_${bump++}`;
-        }
-        code = codeCandidate;
-        seenCodes.add(code);
-
         const dataToWrite = {
-          code,
           name_en,
           name_ka,
           is_active: !!row.is_active,
         };
 
-        // Prefer stable upsert by unique UUID if present; else by unique code
+        // Prefer stable upsert by unique UUID if present; else by name fields
         if (uuid) {
           await tx.entityType.upsert({
             where: { entity_type_uuid: uuid },
-            update: pick(dataToWrite, ["code", "name_en", "name_ka", "is_active"]),
+            update: pick(dataToWrite, ["name_en", "name_ka", "is_active"]),
             create: { ...dataToWrite, entity_type_uuid: uuid },
           });
         } else {
-          await tx.entityType.upsert({
-            where: { code },
-            update: pick(dataToWrite, ["name_en", "name_ka", "is_active"]),
-            create: dataToWrite, // Prisma will generate uuid default
+          const existing = await tx.entityType.findFirst({
+            where: { name_en, name_ka },
+            select: { id: true },
           });
+          if (existing) {
+            await tx.entityType.update({
+              where: { id: existing.id },
+              data: pick(dataToWrite, ["name_en", "name_ka", "is_active"]),
+            });
+          } else {
+            await tx.entityType.create({
+              data: dataToWrite,
+            });
+          }
         }
 
         // If it existed already we can't easily tell from upsert alone; do a light check:
         const exists = await tx.entityType.findFirst({
-          where: uuid ? { entity_type_uuid: uuid } : { code },
+          where: uuid ? { entity_type_uuid: uuid } : { name_en, name_ka },
           select: { id: true, createdAt: true, updatedAt: true },
         });
         // Heuristic: if createdAt === updatedAt it was likely created just now
@@ -134,7 +117,6 @@ async function main() {
         console.warn("⚠ Row failed:", {
           i,
           entity_type_uuid: row.entity_type_uuid,
-          code: row.code,
           err: String(err),
         });
       }

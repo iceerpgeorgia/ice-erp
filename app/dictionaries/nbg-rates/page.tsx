@@ -22,7 +22,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Pencil, Trash2, Settings, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Trash2, Settings, Eye, EyeOff, RefreshCw, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 
 interface NBGRate {
   id: number;
@@ -256,6 +257,35 @@ export default function NBGRatesPage() {
     return `${day}.${month}.${year}`;
   };
 
+  const formatDateForExport = (dateString: string) => {
+    const date = new Date(dateString);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
+  };
+
+  const handleExportXlsx = () => {
+    const exportColumns = visibleColumns;
+    const exportData = filteredRates.map((rate) => {
+      const row: Record<string, string | number> = {};
+      exportColumns.forEach((col) => {
+        if (col.key === "date") {
+          row[col.label] = formatDateForExport(rate.date);
+        } else {
+          const value = rate[col.key];
+          row[col.label] = typeof value === "number" ? value : value ?? "";
+        }
+      });
+      return row;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "NBG Rates");
+    XLSX.writeFile(workbook, `nbg_exchange_rates_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   return (
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-6">
@@ -269,6 +299,10 @@ export default function NBGRatesPage() {
           <Button onClick={handleUpdateFromNBG} variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
             Update from NBG
+          </Button>
+          <Button onClick={handleExportXlsx} variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export XLSX
           </Button>
           <Button onClick={handleAddNew}>
             <Plus className="h-4 w-4 mr-2" />

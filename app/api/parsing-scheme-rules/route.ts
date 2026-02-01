@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { validateFormulaSync } from '@/lib/formula-validator';
 import { compileFormulaToJS } from '@/lib/formula-compiler';
 
+const DECONSOLIDATED_TABLE = "GE78BG0000000893486000_BOG_GEL";
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -36,49 +38,52 @@ export async function GET(request: NextRequest) {
     if (schemeUuid) {
       rules = await prisma.$queryRaw<RuleRow[]>`
         SELECT r.*, s.scheme,
-          ca.name as counteragent_name,
+          ca.counteragent as counteragent_name,
           fc.code as financial_code,
           cur.code as currency_code,
-          COALESCE(cba_counts.applied_count, 0) as applied_count
+          0::bigint as applied_count
         FROM parsing_scheme_rules r
         JOIN parsing_schemes s ON r.scheme_uuid = s.uuid
         LEFT JOIN counteragents ca ON r.counteragent_uuid = ca.counteragent_uuid
         LEFT JOIN financial_codes fc ON r.financial_code_uuid = fc.uuid
         LEFT JOIN currencies cur ON r.nominal_currency_uuid = cur.uuid
-        LEFT JOIN (
-          SELECT applied_rule_id, COUNT(*) as applied_count
-          FROM consolidated_bank_accounts
-          WHERE applied_rule_id IS NOT NULL
-          GROUP BY applied_rule_id
-        ) cba_counts ON cba_counts.applied_rule_id = r.id
         WHERE r.scheme_uuid = ${schemeUuid}::uuid
         ORDER BY r.id DESC
       `;
     } else {
       rules = await prisma.$queryRaw<RuleRow[]>`
         SELECT r.*, s.scheme,
-          ca.name as counteragent_name,
+          ca.counteragent as counteragent_name,
           fc.code as financial_code,
           cur.code as currency_code,
-          COALESCE(cba_counts.applied_count, 0) as applied_count
+          0::bigint as applied_count
         FROM parsing_scheme_rules r
         JOIN parsing_schemes s ON r.scheme_uuid = s.uuid
         LEFT JOIN counteragents ca ON r.counteragent_uuid = ca.counteragent_uuid
         LEFT JOIN financial_codes fc ON r.financial_code_uuid = fc.uuid
         LEFT JOIN currencies cur ON r.nominal_currency_uuid = cur.uuid
-        LEFT JOIN (
-          SELECT applied_rule_id, COUNT(*) as applied_count
-          FROM consolidated_bank_accounts
-          WHERE applied_rule_id IS NOT NULL
-          GROUP BY applied_rule_id
-        ) cba_counts ON cba_counts.applied_rule_id = r.id
         ORDER BY s.scheme, r.id DESC
       `;
     }
 
+    let appliedCounts = new Map<number, number>();
+    try {
+      const counts = await prisma.$queryRawUnsafe<Array<{ applied_rule_id: number; applied_count: number }>>(`
+        SELECT applied_rule_id, COUNT(*)::bigint as applied_count
+        FROM "${DECONSOLIDATED_TABLE}"
+        WHERE applied_rule_id IS NOT NULL
+        GROUP BY applied_rule_id
+      `);
+      counts.forEach(row => {
+        appliedCounts.set(Number(row.applied_rule_id), Number(row.applied_count));
+      });
+    } catch (error) {
+      console.error('Error fetching applied counts from deconsolidated table:', error);
+    }
+
     const formattedRules = rules.map(rule => ({
       id: Number(rule.id),
-      appliedCount: Number(rule.applied_count),
+      appliedCount: appliedCounts.get(Number(rule.id)) ?? 0,
       schemeUuid: rule.scheme_uuid,
       scheme: rule.scheme,
       condition: rule.condition,
@@ -147,6 +152,13 @@ export async function POST(request: NextRequest) {
     const cleanFinancialCodeUuid = financialCodeUuid || null;
     const cleanNominalCurrencyUuid = nominalCurrencyUuid || null;
     const cleanPaymentId = paymentId || null;
+
+    await prisma.$executeRaw`
+      SELECT setval(
+        pg_get_serial_sequence('parsing_scheme_rules', 'id'),
+        COALESCE((SELECT MAX(id) FROM parsing_scheme_rules), 0)
+      )
+    `;
 
     const result = await prisma.$queryRaw<Array<{
       id: bigint;

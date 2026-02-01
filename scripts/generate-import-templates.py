@@ -29,7 +29,6 @@ def create_countries_template():
 def create_entity_types_template():
     """Create Entity Types dictionary template"""
     df = pd.DataFrame({
-        'code': ['LLC', 'JSC', 'COOP'],
         'name_ka': ['შეზღუდული პასუხისმგებლობის საზოგადოება', 'სააქციო საზოგადოება', 'კოოპერატივი'],
         'name_en': ['Limited Liability Company', 'Joint Stock Company', 'Cooperative'],
         'name_ru': ['Общество с ограниченной ответственностью', 'Акционерное общество', 'Кооператив'],
@@ -51,7 +50,7 @@ def create_counteragents_template():
         'name_en': ['Counteragent 1', 'Counteragent 2', 'Counteragent 3'],
         'legal_name': ['Legal Name 1 LLC', 'Legal Name 2 JSC', 'Legal Name 3 COOP'],
         'tax_id': ['123456789', '987654321', '555666777'],
-        'entity_type_code': ['LLC', 'JSC', 'COOP'],
+        'entity_type_uuid': ['<uuid1>', '<uuid2>', '<uuid3>'],
         'country_code': ['GE', 'US', 'UK'],
         'address': ['123 Main St, Tbilisi', '456 Oak Ave, New York', '789 King Rd, London'],
         'email': ['contact1@example.com', 'contact2@example.com', 'contact3@example.com'],
@@ -129,7 +128,6 @@ python scripts/import-countries.py
 
 ### 2. Entity Types (`entity_types_import_template.xlsx`)
 **Required columns:**
-- `code`: Unique entity type code
 - `name_ka`: Entity type name in Georgian
 - `name_en`: Entity type name in English
 - `name_ru`: Entity type name in Russian
@@ -149,7 +147,7 @@ python scripts/import-entity-types.py
 - `name_en`: Name in English
 - `legal_name`: Legal entity name
 - `tax_id`: Tax identification number
-- `entity_type_code`: Reference to entity type (must exist)
+- `entity_type_uuid`: Reference to entity type (must exist)
 - `country_code`: Reference to country (must exist)
 - `is_customer`: Boolean (TRUE/FALSE)
 - `is_supplier`: Boolean (TRUE/FALSE)
@@ -191,7 +189,7 @@ python scripts/import-from-xlsx.py
 3. **Dates**: Use Excel date format
 4. **Empty Values**: Leave cells empty for NULL values
 5. **Code Uniqueness**: All `code` columns must contain unique values
-6. **References**: Foreign key references (entity_type_code, country_code) must exist in respective tables
+6. **References**: Foreign key references (entity_type_uuid, country_code) must exist in respective tables
 
 ## Import Process
 
@@ -205,7 +203,6 @@ python scripts/import-from-xlsx.py
 ## Validation Rules
 
 - **Countries**: Code must be 2 characters, unique
-- **Entity Types**: Code must be unique
 - **Counteragents**: Code must be unique, must reference valid entity_type and country
 - **Financial Codes**: Hierarchical codes must follow pattern (numbers separated by dots)
 

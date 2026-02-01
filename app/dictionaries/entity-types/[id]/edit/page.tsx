@@ -20,10 +20,6 @@ export default async function EditEntityTypePage({ params }: { params: { id: str
 
       <form action={updateEntityType.bind(null, params.id)} className="grid gap-3">
         <label className="grid gap-1">
-          <span className="text-sm">Code</span>
-          <input name="code" defaultValue={item.code ?? ""} className="border rounded px-3 py-2" />
-        </label>
-        <label className="grid gap-1">
           <span className="text-sm">Name (EN)</span>
           <input name="name_en" defaultValue={item.name_en} required className="border rounded px-3 py-2" />
         </label>

@@ -4,37 +4,55 @@ import { logAudit } from "@/lib/audit";
 
 function validatePayload(body: any) {
   const errors: Record<string, string> = {};
-  const code = typeof body?.code === "string" ? body.code.trim().toUpperCase() : "";
   const name_en = typeof body?.name_en === "string" ? body.name_en.trim() : "";
   const name_ka = typeof body?.name_ka === "string" ? body.name_ka.trim() : "";
   const is_active = typeof body?.is_active === "boolean" ? body.is_active : true;
+  const is_natural_person = typeof body?.is_natural_person === "boolean" ? body.is_natural_person : false;
+  const is_id_exempt = typeof body?.is_id_exempt === "boolean" ? body.is_id_exempt : false;
 
-  if (!code) errors.code = "Code is required";
-  else if (!/^[A-Z0-9_]+$/.test(code)) errors.code = "Code must be uppercase alphanumeric with underscores";
   if (!name_en) errors.name_en = "English name is required";
   if (!name_ka) errors.name_ka = "Georgian name is required";
 
   return {
     errors,
-    payload: { code, name_en, name_ka, is_active },
+    payload: { name_en, name_ka, is_active, is_natural_person, is_id_exempt },
   } as const;
 }
 
 export async function GET() {
-  const rows = await prisma.entity_types.findMany({
-    orderBy: { code: "asc" },
-    select: {
-      id: true,
-      created_at: true,
-      updated_at: true,
-      ts: true,
-      entity_type_uuid: true,
-      code: true,
-      name_en: true,
-      name_ka: true,
-      is_active: true,
-    },
-  });
+  let rows: any[] = [];
+  try {
+    rows = await prisma.entity_types.findMany({
+      orderBy: { name_en: "asc" },
+      select: {
+        id: true,
+        created_at: true,
+        updated_at: true,
+        ts: true,
+        entity_type_uuid: true,
+        name_en: true,
+        name_ka: true,
+        is_natural_person: true,
+        is_id_exempt: true,
+        is_active: true,
+      },
+    });
+  } catch (error: any) {
+    console.error("[entity-types] GET fallback", error?.message || error);
+    rows = await prisma.entity_types.findMany({
+      orderBy: { name_en: "asc" },
+      select: {
+        id: true,
+        created_at: true,
+        updated_at: true,
+        ts: true,
+        entity_type_uuid: true,
+        name_en: true,
+        name_ka: true,
+        is_active: true,
+      },
+    });
+  }
   
   console.log(`[API] Entity types fetched: ${rows.length}`);
   
@@ -51,9 +69,12 @@ export async function GET() {
     updatedAt: formatDate(row.updated_at),
     ts: formatDate(row.ts),
     entity_type_uuid: row.entity_type_uuid,
-    code: row.code,
+    name_en: row.name_en,
+    name_ka: row.name_ka,
     nameEn: row.name_en,
     nameKa: row.name_ka,
+    is_natural_person: row.is_natural_person ?? false,
+    is_id_exempt: row.is_id_exempt ?? false,
     is_active: row.is_active,
   }));
   
@@ -70,16 +91,31 @@ export async function POST(req: NextRequest) {
 
     // Generate UUID for entity_type_uuid
     const { randomUUID } = await import('crypto');
-    const newEntityType = await prisma.entity_types.create({
-      data: {
-        entity_type_uuid: randomUUID(),
-        code: payload.code,
-        name_en: payload.name_en,
-        name_ka: payload.name_ka,
-        is_active: payload.is_active,
-        updated_at: new Date(),
-      },
-    });
+    let newEntityType;
+    try {
+      newEntityType = await prisma.entity_types.create({
+        data: {
+          entity_type_uuid: randomUUID(),
+          name_en: payload.name_en,
+          name_ka: payload.name_ka,
+          is_natural_person: payload.is_natural_person,
+          is_id_exempt: payload.is_id_exempt,
+          is_active: payload.is_active,
+          updated_at: new Date(),
+        },
+      });
+    } catch (error: any) {
+      console.error("[entity-types] POST fallback", error?.message || error);
+      newEntityType = await prisma.entity_types.create({
+        data: {
+          entity_type_uuid: randomUUID(),
+          name_en: payload.name_en,
+          name_ka: payload.name_ka,
+          is_active: payload.is_active,
+          updated_at: new Date(),
+        },
+      });
+    }
 
     const recordId = typeof newEntityType.id === "bigint" ? newEntityType.id : BigInt(newEntityType.id);
     await logAudit({ table: "entity_types", recordId, action: "create" });
@@ -124,38 +160,73 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Get existing record for change tracking
-    const existing = await prisma.entity_types.findUnique({
-      where: { id: BigInt(Number(idParam)) },
-      select: { code: true, name_en: true, name_ka: true, is_active: true },
-    });
+    let existing: any = null;
+    try {
+      existing = await prisma.entity_types.findUnique({
+        where: { id: BigInt(Number(idParam)) },
+        select: { name_en: true, name_ka: true, is_natural_person: true, is_id_exempt: true, is_active: true },
+      });
+    } catch (error: any) {
+      console.error("[entity-types] PATCH existing fallback", error?.message || error);
+      existing = await prisma.entity_types.findUnique({
+        where: { id: BigInt(Number(idParam)) },
+        select: { name_en: true, name_ka: true, is_active: true },
+      });
+    }
 
-    const updated = await prisma.entity_types.update({
-      where: { id: BigInt(Number(idParam)) },
-      data: {
-        code: payload.code,
-        name_en: payload.name_en,
-        name_ka: payload.name_ka,
-        is_active: payload.is_active,
-      },
-      select: {
-        id: true,
-        created_at: true,
-        updated_at: true,
-        ts: true,
-        entity_type_uuid: true,
-        code: true,
-        name_en: true,
-        name_ka: true,
-        is_active: true,
-      },
-    });
+    let updated;
+    try {
+      updated = await prisma.entity_types.update({
+        where: { id: BigInt(Number(idParam)) },
+        data: {
+          name_en: payload.name_en,
+          name_ka: payload.name_ka,
+          is_natural_person: payload.is_natural_person,
+          is_id_exempt: payload.is_id_exempt,
+          is_active: payload.is_active,
+        },
+        select: {
+          id: true,
+          created_at: true,
+          updated_at: true,
+          ts: true,
+          entity_type_uuid: true,
+          name_en: true,
+          name_ka: true,
+          is_natural_person: true,
+          is_id_exempt: true,
+          is_active: true,
+        },
+      });
+    } catch (error: any) {
+      console.error("[entity-types] PATCH fallback", error?.message || error);
+      updated = await prisma.entity_types.update({
+        where: { id: BigInt(Number(idParam)) },
+        data: {
+          name_en: payload.name_en,
+          name_ka: payload.name_ka,
+          is_active: payload.is_active,
+        },
+        select: {
+          id: true,
+          created_at: true,
+          updated_at: true,
+          ts: true,
+          entity_type_uuid: true,
+          name_en: true,
+          name_ka: true,
+          is_active: true,
+        },
+      });
+    }
 
     // Track what changed
     const changes: Record<string, { from: any; to: any }> = {};
     if (existing) {
-      if (existing.code !== payload.code) changes.code = { from: existing.code, to: payload.code };
       if (existing.name_en !== payload.name_en) changes.name_en = { from: existing.name_en, to: payload.name_en };
       if (existing.name_ka !== payload.name_ka) changes.name_ka = { from: existing.name_ka, to: payload.name_ka };
+      if (existing.is_natural_person !== payload.is_natural_person) changes.is_natural_person = { from: existing.is_natural_person, to: payload.is_natural_person };
+      if (existing.is_id_exempt !== payload.is_id_exempt) changes.is_id_exempt = { from: existing.is_id_exempt, to: payload.is_id_exempt };
       if (existing.is_active !== payload.is_active) changes.is_active = { from: existing.is_active, to: payload.is_active };
     }
 
@@ -173,16 +244,20 @@ export async function PATCH(req: NextRequest) {
       return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
     }
 
+    const updatedAny = updated as any;
     return NextResponse.json({
-      id: typeof updated.id === 'bigint' ? Number(updated.id) : updated.id,
-      createdAt: formatDate(updated.created_at),
-      updatedAt: formatDate(updated.updated_at),
-      ts: formatDate(updated.ts),
-      entity_type_uuid: updated.entity_type_uuid,
-      code: updated.code,
-      nameEn: updated.name_en,
-      nameKa: updated.name_ka,
-      is_active: updated.is_active,
+      id: typeof updatedAny.id === 'bigint' ? Number(updatedAny.id) : updatedAny.id,
+      createdAt: formatDate(updatedAny.created_at),
+      updatedAt: formatDate(updatedAny.updated_at),
+      ts: formatDate(updatedAny.ts),
+      entity_type_uuid: updatedAny.entity_type_uuid,
+      name_en: updatedAny.name_en,
+      name_ka: updatedAny.name_ka,
+      nameEn: updatedAny.name_en,
+      nameKa: updatedAny.name_ka,
+      is_natural_person: updatedAny.is_natural_person ?? false,
+      is_id_exempt: updatedAny.is_id_exempt ?? false,
+      is_active: updatedAny.is_active,
     });
   } catch (e: any) {
     console.error("[entity-types] PATCH error", e);

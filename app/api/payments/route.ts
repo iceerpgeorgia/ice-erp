@@ -88,6 +88,50 @@ export async function POST(request: Request) {
       );
     }
 
+    // Prevent duplicates by payment_id when provided
+    if (paymentId) {
+      const existingByPaymentId = await prisma.$queryRawUnsafe<Array<{ payment_id: string }>>(
+        `SELECT payment_id FROM payments WHERE payment_id = $1 LIMIT 1`,
+        paymentId
+      );
+      if (existingByPaymentId.length > 0) {
+        return NextResponse.json(
+          { error: 'Payment with this payment_id already exists', paymentId },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Prevent duplicates by composite fields (handles nulls)
+    const existingByComposite = await prisma.$queryRawUnsafe<Array<{ payment_id: string }>>(
+      `SELECT payment_id
+       FROM payments
+       WHERE counteragent_uuid = $1
+         AND financial_code_uuid = $2
+         AND currency_uuid = $3
+         AND income_tax = $4
+         AND project_uuid IS NOT DISTINCT FROM $5
+         AND job_uuid IS NOT DISTINCT FROM $6
+         AND is_active = true
+       LIMIT 1`,
+      counteragentUuid,
+      financialCodeUuid,
+      currencyUuid,
+      incomeTax,
+      projectUuid || null,
+      jobUuid || null
+    );
+
+    if (existingByComposite.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'Payment with the same counteragent, financial code, currency, income tax, project, and job already exists',
+          paymentId: existingByComposite[0].payment_id,
+        },
+        { status: 409 }
+      );
+    }
+
     // Insert new payment (triggers will generate payment_id and record_uuid)
     const result = await prisma.$queryRaw`
       INSERT INTO payments (

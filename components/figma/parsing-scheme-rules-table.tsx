@@ -52,9 +52,12 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'scheme', label: 'Scheme', visible: true, sortable: true, filterable: true, width: 150 },
   { key: 'condition', label: 'Formula', visible: true, sortable: true, filterable: true, width: 400 },
   { key: 'paymentId', label: 'Payment ID', visible: true, sortable: true, filterable: true, width: 200 },
-  { key: 'counteragentUuid', label: 'Counteragent', visible: true, sortable: true, filterable: true, width: 200 },
-  { key: 'financialCodeUuid', label: 'Financial Code', visible: true, sortable: true, filterable: true, width: 150 },
-  { key: 'nominalCurrencyUuid', label: 'Currency', visible: true, sortable: true, filterable: true, width: 120 },
+  { key: 'counteragentName', label: 'Counteragent', visible: true, sortable: true, filterable: true, width: 220 },
+  { key: 'financialCode', label: 'Financial Code', visible: true, sortable: true, filterable: true, width: 160 },
+  { key: 'currencyCode', label: 'Currency', visible: true, sortable: true, filterable: true, width: 120 },
+  { key: 'counteragentUuid', label: 'Counteragent UUID', visible: false, sortable: true, filterable: true, width: 200 },
+  { key: 'financialCodeUuid', label: 'Financial Code UUID', visible: false, sortable: true, filterable: true, width: 150 },
+  { key: 'nominalCurrencyUuid', label: 'Currency UUID', visible: false, sortable: true, filterable: true, width: 120 },
   { key: 'appliedCount', label: 'Applied to', visible: true, sortable: true, filterable: false, width: 100 },
 ];
 

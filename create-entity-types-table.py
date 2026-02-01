@@ -20,7 +20,7 @@ content = content.replace('countryUuid: string;', 'entityTypeUuid: string;')
 content = re.sub(r'\s+iso2: string;', '', content)
 content = re.sub(r'\s+iso3: string;', '', content)
 content = re.sub(r'\s+unCode: number;', '', content)
-content = content.replace('country: string;', 'code: string;')
+content = content.replace('country: string;', 'nameEn: string;')
 
 # Replace defaultColumns array
 old_columns_pattern = r'const defaultColumns: ColumnConfig\[\] = \[[\s\S]*?\];'
@@ -30,7 +30,6 @@ new_columns = '''const defaultColumns: ColumnConfig[] = [
   { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'ts', label: 'Timestamp', width: 140, visible: false, sortable: true, filterable: true, responsive: 'lg' },
   { key: 'entityTypeUuid', label: 'UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
-  { key: 'code', label: 'Code', width: 150, visible: true, sortable: true, filterable: true },
   { key: 'nameEn', label: 'Name EN', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'nameKa', label: 'Name GE', width: 200, visible: true, sortable: true, filterable: true, responsive: 'md' },
   { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true }

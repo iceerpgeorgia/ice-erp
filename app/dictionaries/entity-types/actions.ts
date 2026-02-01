@@ -12,14 +12,13 @@ function s(v: FormDataEntryValue | null, len?: number) {
 }
 
 export async function updateEntityType(id: string, formData: FormData) {
-  const code = s(formData.get("code"));
   const name_en = s(formData.get("name_en"));
   const name_ka = s(formData.get("name_ka"));
   const is_active = formData.get("is_active") ? true : false;
 
   await prisma.entity_types.update({
     where: { id: BigInt(Number(id)) },
-    data: { code, name_en, name_ka, is_active },
+    data: { name_en, name_ka, is_active },
   });
   await logAudit({ table: "entity_types", recordId: BigInt(Number(id)), action: "update" });
 
@@ -28,7 +27,6 @@ export async function updateEntityType(id: string, formData: FormData) {
 }
 
 export async function createEntityType(formData: FormData) {
-  const code = s(formData.get("code"));
   const name_en = s(formData.get("name_en"));
   const name_ka = s(formData.get("name_ka"));
   const is_active = formData.get("is_active") ? true : false;
@@ -36,7 +34,6 @@ export async function createEntityType(formData: FormData) {
   const created = await prisma.entity_types.create({
     data: { 
       entity_type_uuid: randomUUID(),
-      code, 
       name_en, 
       name_ka, 
       is_active,

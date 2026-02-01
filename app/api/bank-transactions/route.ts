@@ -17,6 +17,7 @@ function toApi(row: any) {
     transaction_date: row.transaction_date,
     correction_date: row.correction_date || null, // NEW COLUMN
     exchange_rate: row.exchange_rate ? Number(row.exchange_rate) : null, // NEW COLUMN
+    nominal_exchange_rate: row.nominal_exchange_rate ? Number(row.nominal_exchange_rate) : null,
     description: row.description,
     counteragent_uuid: row.counteragent_uuid,
     counteragent_account_number: row.counteragent_account_number ? String(row.counteragent_account_number) : null,
@@ -63,6 +64,7 @@ function balanceToApi(row: any, currencyCode: string) {
     account_currency_amount: row.balance?.toString() ?? null,
     nominal_currency_uuid: row.currencyUuid,
     nominal_amount: row.balance?.toString() ?? null,
+    nominal_exchange_rate: null,
     processing_case: null,
     createdAt: null,
     updatedAt: null,

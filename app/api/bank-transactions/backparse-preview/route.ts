@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       loadCurrencyCache(supabase),
     ]);
 
-    const { paymentsMap, salaryBaseMap, salaryLatestMap } = paymentsBundle;
+      const { paymentsMap, salaryBaseMap, salaryLatestMap, duplicatePaymentMap } = paymentsBundle;
 
     const rows = await prisma.$queryRawUnsafe<any[]>(
       `SELECT
@@ -95,6 +95,7 @@ export async function POST(req: NextRequest) {
         parsingRules,
         paymentsMap,
         salaryBaseMap,
+            duplicatePaymentMap,
         salaryLatestMap,
         0,
         {

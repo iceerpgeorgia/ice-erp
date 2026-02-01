@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
 
     // If specific date and currency requested
     if (dateParam && currencyParam) {
-      const date = new Date(dateParam);
+      const date = new Date(`${dateParam}T00:00:00Z`);
       const currency = currencyParam.toUpperCase();
       
       const rate = await prisma.nbg_exchange_rates.findUnique({
@@ -49,13 +49,62 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      const rateValue = (rate as any)[`${currency.toLowerCase()}Rate`];
+      if (currency === 'GEL') {
+        return NextResponse.json({
+          date: rate.date.toISOString().split('T')[0],
+          currency,
+          rate: 1,
+        });
+      }
+
+      const rateColumnMap: Record<string, string> = {
+        USD: 'usd_rate',
+        EUR: 'eur_rate',
+        CNY: 'cny_rate',
+        GBP: 'gbp_rate',
+        RUB: 'rub_rate',
+        TRY: 'try_rate',
+        AED: 'aed_rate',
+        KZT: 'kzt_rate',
+      };
+
+      const column = rateColumnMap[currency];
+      const rateValue = column ? (rate as any)[column] : null;
 
       return NextResponse.json({
         date: rate.date.toISOString().split('T')[0],
         currency,
         rate: rateValue ? Number(rateValue) : null,
       });
+    }
+
+    if (dateParam) {
+      const date = new Date(`${dateParam}T00:00:00Z`);
+      const rate = await prisma.nbg_exchange_rates.findUnique({
+        where: { date },
+      });
+
+      if (!rate) {
+        return NextResponse.json(
+          { error: "No rate found for this date" },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json([
+        {
+          id: Number(rate.id),
+          date: rate.date.toISOString().split('T')[0],
+          usd: rate.usd_rate ? Number(rate.usd_rate) : null,
+          eur: rate.eur_rate ? Number(rate.eur_rate) : null,
+          cny: rate.cny_rate ? Number(rate.cny_rate) : null,
+          gbp: rate.gbp_rate ? Number(rate.gbp_rate) : null,
+          rub: rate.rub_rate ? Number(rate.rub_rate) : null,
+          try: rate.try_rate ? Number(rate.try_rate) : null,
+          aed: rate.aed_rate ? Number(rate.aed_rate) : null,
+          kzt: rate.kzt_rate ? Number(rate.kzt_rate) : null,
+        },
+      ]);
     }
 
     // If date range requested

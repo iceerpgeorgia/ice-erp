@@ -232,13 +232,15 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
         const financialCodesRes = await fetch('/api/financial-codes');
         if (financialCodesRes.ok) {
           const financialCodesData = await financialCodesRes.json();
-          const filteredCodes = financialCodesData.filter((fc: any) => 
-            fc.isIncome === true && fc.appliesToPL === true
-          );
+          const filteredCodes = financialCodesData.filter((fc: any) => {
+            const isIncome = fc.isIncome ?? fc.is_income;
+            const appliesToPL = fc.appliesToPL ?? fc.applies_to_pl;
+            return isIncome === true && appliesToPL === true;
+          });
           console.log('[ProjectsTable] Financial codes loaded:', filteredCodes.length, 'of', financialCodesData.length);
           setFinancialCodesList(filteredCodes.map((fc: any) => ({
             id: fc.id,
-            validation: fc.validation,
+            validation: fc.validation || fc.code || fc.name,
             uuid: fc.uuid || fc.financial_code_uuid
           })));
         } else {

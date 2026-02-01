@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 
 export const revalidate = 0;
 
+const DECONSOLIDATED_TABLE = "GE78BG0000000893486000_BOG_GEL";
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -38,8 +40,10 @@ export async function GET(request: NextRequest) {
         ca.counteragent as counteragent_formatted,
         ca.name as counteragent_name,
         ca.identification_number as counteragent_id,
+        ca.iban as counteragent_iban,
         fc.validation as financial_code_validation,
         fc.code as financial_code,
+        fc.description as financial_code_description,
         j.job_name,
         j.floors,
         curr.code as currency_code,
@@ -67,7 +71,7 @@ export async function GET(request: NextRequest) {
           payment_id,
           SUM(nominal_amount) as total_payment,
           MAX(transaction_date::date) as latest_bank_date
-        FROM consolidated_bank_accounts
+        FROM "${DECONSOLIDATED_TABLE}"
         GROUP BY payment_id
       ) bank_agg ON p.payment_id = bank_agg.payment_id
       WHERE p.is_active = true
@@ -80,10 +84,14 @@ export async function GET(request: NextRequest) {
     const formattedData = (reportData as any[]).map(row => ({
       paymentId: row.payment_id,
       counteragent: row.counteragent_formatted || row.counteragent_name,
+      counteragentId: row.counteragent_id,
+      counteragentIban: row.counteragent_iban,
       project: row.project_index,
+      projectName: row.project_name,
       job: row.job_name,
       floors: row.floors ? Number(row.floors) : 0,
       financialCode: row.financial_code_validation || row.financial_code,
+      financialCodeDescription: row.financial_code_description,
       incomeTax: row.income_tax || false,
       currency: row.currency_code,
       accrual: row.total_accrual ? parseFloat(row.total_accrual) : 0,

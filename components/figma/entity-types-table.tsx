@@ -42,7 +42,8 @@ export type EntityType = {
   entityTypeUuid: string;
   nameEn: string;
   nameKa: string;
-  code: string;
+  isNaturalPerson?: boolean;
+  isIdExempt?: boolean;
   isActive: boolean;
 };
 
@@ -64,9 +65,10 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'ts', label: 'Timestamp', width: 140, visible: false, sortable: true, filterable: true, responsive: 'lg' },
   { key: 'entityTypeUuid', label: 'UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
-  { key: 'code', label: 'Code', width: 150, visible: true, sortable: true, filterable: true },
   { key: 'nameEn', label: 'Name EN', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'nameKa', label: 'Name GE', width: 200, visible: true, sortable: true, filterable: true, responsive: 'md' },
+  { key: 'isNaturalPerson', label: 'Natural Person', width: 140, visible: false, sortable: true, filterable: true },
+  { key: 'isIdExempt', label: 'ID Exempt', width: 120, visible: false, sortable: true, filterable: true },
   { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true }
 ];
 
@@ -106,7 +108,9 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
       const savedColumns = localStorage.getItem('entityTypes-table-columns');
       if (savedColumns) {
         try {
-          return JSON.parse(savedColumns);
+          const parsed: ColumnConfig[] = JSON.parse(savedColumns);
+          const byKey = new Map(parsed.map((col) => [col.key, col] as const));
+          return defaultColumns.map((col) => byKey.get(col.key) ?? col);
         } catch (error) {
           console.warn('Failed to parse saved column settings:', error);
         }
@@ -121,9 +125,10 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
   
   // Form state with validation
   const [formData, setFormData] = useState({
-    code: '',
     nameEn: '',
     nameKa: '',
+    isNaturalPerson: false,
+    isIdExempt: false,
     isActive: true
   });
   
@@ -312,20 +317,8 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
   const validateForm = () => {
     const errors: Record<string, string> = {};
     
-    if (!formData.code.trim()) errors.code = 'Code is required';
-    else if (!/^[A-Z0-9_]+$/.test(formData.code)) errors.code = 'Code must be uppercase alphanumeric with underscores only';
     if (!formData.nameEn.trim()) errors.nameEn = 'English name is required';
     if (!formData.nameKa.trim()) errors.nameKa = 'Georgian name is required';
-    
-    // Check for duplicates
-    const existingEntityType = entityTypes.find(c => 
-      c.id !== editingEntityType?.id && 
-      c.code.toLowerCase() === formData.code.toLowerCase()
-    );
-    
-    if (existingEntityType) {
-      errors.code = 'Code already exists';
-    }
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -341,7 +334,6 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
       filtered = filtered.filter(entityType =>
         entityType.nameEn.toLowerCase().includes(search) ||
         entityType.nameKa.toLowerCase().includes(search) ||
-        entityType.code.toLowerCase().includes(search) ||
         (entityType.isActive ? 'active' : 'inactive').includes(search) ||
         entityType.ts.toLowerCase().includes(search)
       );
@@ -367,9 +359,20 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
     return [...filteredEntityTypes].sort((a, b) => {
       const aVal = a[sortField];
       const bVal = b[sortField];
+
+      const aNorm = aVal === null || aVal === undefined
+        ? ''
+        : typeof aVal === 'boolean'
+          ? (aVal ? 1 : 0)
+          : aVal;
+      const bNorm = bVal === null || bVal === undefined
+        ? ''
+        : typeof bVal === 'boolean'
+          ? (bVal ? 1 : 0)
+          : bVal;
       
-      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      if (aNorm < bNorm) return sortDirection === 'asc' ? -1 : 1;
+      if (aNorm > bNorm) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
   }, [filteredEntityTypes, sortField, sortDirection]);
@@ -405,6 +408,19 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
       : <ArrowDown className="h-3 w-3" />;
   };
 
+  const mapEntityType = (row: any): EntityType => ({
+    id: Number(row.id),
+    createdAt: String(row.createdAt ?? row.created_at ?? ''),
+    updatedAt: String(row.updatedAt ?? row.updated_at ?? ''),
+    ts: String(row.ts ?? ''),
+    entityTypeUuid: String(row.entityTypeUuid ?? row.entity_type_uuid ?? ''),
+    nameEn: String(row.nameEn ?? row.name_en ?? ''),
+    nameKa: String(row.nameKa ?? row.name_ka ?? ''),
+    isNaturalPerson: Boolean(row.isNaturalPerson ?? row.is_natural_person ?? false),
+    isIdExempt: Boolean(row.isIdExempt ?? row.is_id_exempt ?? false),
+    isActive: Boolean(row.isActive ?? row.is_active ?? true),
+  });
+
   const handleSave = async () => {
     if (!validateForm()) return;
     
@@ -415,9 +431,10 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            code: formData.code,
             name_en: formData.nameEn,
             name_ka: formData.nameKa,
+            is_natural_person: formData.isNaturalPerson,
+            is_id_exempt: formData.isIdExempt,
             is_active: formData.isActive
           })
         });
@@ -432,8 +449,9 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
         const updated = await response.json();
         
         // Update local state with API response
+        const mapped = mapEntityType(updated);
         setEntityTypes(entityTypes.map(entityType =>
-          entityType.id === editingEntityType.id ? updated : entityType
+          entityType.id === editingEntityType.id ? mapped : entityType
         ));
         
         setIsEditDialogOpen(false);
@@ -450,9 +468,10 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            code: formData.code,
             name_en: formData.nameEn,
             name_ka: formData.nameKa,
+            is_natural_person: formData.isNaturalPerson,
+            is_id_exempt: formData.isIdExempt,
             is_active: formData.isActive
           })
         });
@@ -469,7 +488,8 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
         // Fetch fresh data from API to get all fields properly formatted
         const refreshResponse = await fetch('/api/entity-types');
         const refreshedData = await refreshResponse.json();
-        setEntityTypes(refreshedData);
+        const mappedRows = Array.isArray(refreshedData) ? refreshedData.map(mapEntityType) : [];
+        setEntityTypes(mappedRows);
         
         setIsAddDialogOpen(false);
       } catch (error) {
@@ -484,9 +504,10 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
 
   const resetForm = () => {
     setFormData({
-      code: '',
       nameEn: '',
       nameKa: '',
+      isNaturalPerson: false,
+      isIdExempt: false,
       isActive: true
     });
     setFormErrors({});
@@ -495,9 +516,10 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
   const startEdit = (entityType: EntityType) => {
     setEditingEntityType(entityType);
     setFormData({
-      code: entityType.code,
       nameEn: entityType.nameEn,
       nameKa: entityType.nameKa,
+      isNaturalPerson: Boolean(entityType.isNaturalPerson),
+      isIdExempt: Boolean(entityType.isIdExempt),
       isActive: entityType.isActive
     });
     setFormErrors({});
@@ -866,26 +888,6 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
                   </div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="add-code" className="text-right">
-                    Code
-                  </Label>
-                  <div className="col-span-3">
-                    <Input
-                      id="add-code"
-                      value={formData.code}
-                      onChange={(e) => {
-                        setFormData({...formData, code: e.target.value.toUpperCase()});
-                        if (formErrors.code) setFormErrors({...formErrors, code: ''});
-                      }}
-                      className={formErrors.code ? 'border-red-500' : ''}
-                      placeholder="INDIVIDUAL"
-                    />
-                    {formErrors.code && (
-                      <p className="text-xs text-red-500 mt-1">{formErrors.code}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="add-isActive" className="text-right">
                     Status
                   </Label>
@@ -898,6 +900,40 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
                       />
                       <span className="text-sm text-muted-foreground">
                         {formData.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="add-isNaturalPerson" className="text-right">
+                    Natural Person
+                  </Label>
+                  <div className="col-span-3">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="add-isNaturalPerson"
+                        checked={formData.isNaturalPerson}
+                        onCheckedChange={(checked) => setFormData({ ...formData, isNaturalPerson: checked })}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {formData.isNaturalPerson ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="add-isIdExempt" className="text-right">
+                    ID Exempt
+                  </Label>
+                  <div className="col-span-3">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="add-isIdExempt"
+                        checked={formData.isIdExempt}
+                        onCheckedChange={(checked) => setFormData({ ...formData, isIdExempt: checked })}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {formData.isIdExempt ? 'Yes' : 'No'}
                       </span>
                     </div>
                   </div>
@@ -961,26 +997,6 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
                   </div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit-code" className="text-right">
-                    Code
-                  </Label>
-                  <div className="col-span-3">
-                    <Input
-                      id="edit-code"
-                      value={formData.code}
-                      onChange={(e) => {
-                        setFormData({...formData, code: e.target.value.toUpperCase()});
-                        if (formErrors.code) setFormErrors({...formErrors, code: ''});
-                      }}
-                      className={formErrors.code ? 'border-red-500' : ''}
-                      placeholder="INDIVIDUAL"
-                    />
-                    {formErrors.code && (
-                      <p className="text-xs text-red-500 mt-1">{formErrors.code}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="edit-isActive" className="text-right">
                     Status
                   </Label>
@@ -993,6 +1009,40 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
                       />
                       <span className="text-sm text-muted-foreground">
                         {formData.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-isNaturalPerson" className="text-right">
+                    Natural Person
+                  </Label>
+                  <div className="col-span-3">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="edit-isNaturalPerson"
+                        checked={formData.isNaturalPerson}
+                        onCheckedChange={(checked) => setFormData({ ...formData, isNaturalPerson: checked })}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {formData.isNaturalPerson ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-isIdExempt" className="text-right">
+                    ID Exempt
+                  </Label>
+                  <div className="col-span-3">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="edit-isIdExempt"
+                        checked={formData.isIdExempt}
+                        onCheckedChange={(checked) => setFormData({ ...formData, isIdExempt: checked })}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {formData.isIdExempt ? 'Yes' : 'No'}
                       </span>
                     </div>
                   </div>
@@ -1247,8 +1297,14 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
                           <span className="text-sm">{entityType.nameEn}</span>
                         ) : column.key === 'nameKa' ? (
                           <span className="text-sm">{entityType.nameKa}</span>
-                        ) : column.key === 'code' ? (
-                          <span className="text-sm">{entityType.code}</span>
+                        ) : column.key === 'isNaturalPerson' ? (
+                          <Badge variant={entityType.isNaturalPerson ? "success" : "secondary"} className="text-xs">
+                            {entityType.isNaturalPerson ? 'Yes' : 'No'}
+                          </Badge>
+                        ) : column.key === 'isIdExempt' ? (
+                          <Badge variant={entityType.isIdExempt ? "success" : "secondary"} className="text-xs">
+                            {entityType.isIdExempt ? 'Yes' : 'No'}
+                          </Badge>
                         ) : (
                           <span className="text-sm">-</span>
                         )}

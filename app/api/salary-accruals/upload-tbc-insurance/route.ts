@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     }
 
     const allEmployees = await prisma.counteragents.findMany({
-      where: { identification_number: { not: null }, is_emploee: true },
+      where: { identification_number: { not: null } },
       select: { counteragent_uuid: true, identification_number: true, counteragent: true },
     });
 

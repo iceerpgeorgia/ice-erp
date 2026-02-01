@@ -21,6 +21,7 @@ import {
   normalizeINN,
   extractPaymentID,
 } from './db-utils';
+import { evaluateCondition } from '../formula-compiler';
 import type {
   BOGDetailRecord,
   CounteragentData,
@@ -148,7 +149,7 @@ function computeCaseDescription(
 
   if (case8) cases.push('Case8 - rule dominance (overrides payment)');
 
-  return cases.length > 0 ? cases.join('\n') : 'No case matched';
+  return cases.length > 0 ? cases.join(' ') : 'No case matched';
 }
 
 /**
@@ -183,12 +184,7 @@ function formatSalaryPeriod(basePaymentId: string, period: { month: number; year
 
 function evaluateParsingRuleCondition(condition: string | null, conditionScript: string | null, row: Record<string, any>): boolean {
   if (conditionScript && conditionScript.trim()) {
-    try {
-      // eslint-disable-next-line no-new-func
-      return Boolean(Function('row', `"use strict"; return (${conditionScript});`)(row));
-    } catch {
-      return false;
-    }
+    return evaluateCondition(conditionScript, row);
   }
 
   if (!condition) return false;
@@ -201,38 +197,7 @@ function evaluateParsingRuleCondition(condition: string | null, conditionScript:
     return String(actualValue ?? '').trim() === expectedValue;
   }
 
-  const searchMatch = normalized.match(/isnumber\(search\("([^"]+)",\s*(\w+)\s*,\s*1\)\)/i);
-  if (searchMatch) {
-    const [, needle, columnName] = searchMatch;
-    const haystack = String(row[columnName.toLowerCase()] ?? '');
-    return haystack.includes(needle);
-  }
-
-  const reserved = new Set(['isnumber', 'search', 'and', 'or', 'not', 'true', 'false']);
-  let jsCondition = normalized;
-
-  jsCondition = jsCondition.replace(/isnumber\(search\("([^"]+)",\s*(\w+)\s*,\s*1\)\)/gi, (_match, needle, columnName) => {
-    const haystack = String(row[columnName.toLowerCase()] ?? '');
-    return JSON.stringify(haystack.includes(needle));
-  });
-
-  jsCondition = jsCondition.replace(/\b(\w+)\b/g, (match) => {
-    const key = match.toLowerCase();
-    if (reserved.has(key)) return match;
-    if (Object.prototype.hasOwnProperty.call(row, key)) {
-      return JSON.stringify(row[key] ?? '');
-    }
-    return match;
-  });
-
-  jsCondition = jsCondition.replace(/([^<>=!])=([^=])/g, '$1===$2');
-
-  try {
-    // eslint-disable-next-line no-new-func
-    return Boolean(Function(`"use strict"; return (${jsCondition});`)());
-  } catch {
-    return false;
-  }
+  return false;
 }
 
 function processSingleRecord(
@@ -362,6 +327,25 @@ function processSingleRecord(
     }
 
     result.applied_rule_id = matchedRule.id;
+    result.case6_parsing_rule_applied = true;
+    if (rulePaymentId) {
+      result.payment_id = rulePaymentId;
+    }
+
+    if (rulePaymentData) {
+      if (rulePaymentData.counteragent_uuid) {
+        result.counteragent_uuid = rulePaymentData.counteragent_uuid;
+      }
+      if (rulePaymentData.financial_code_uuid) {
+        result.financial_code_uuid = rulePaymentData.financial_code_uuid;
+      }
+      if (rulePaymentData.project_uuid) {
+        result.project_uuid = rulePaymentData.project_uuid;
+      }
+      if (rulePaymentData.currency_uuid) {
+        result.nominal_currency_uuid = rulePaymentData.currency_uuid;
+      }
+    }
 
     // Parsing rules set counteragent (HIGHEST PRIORITY - IMMUTABLE)
     let ruleCounteragent = matchedRule.counteragent_uuid;
@@ -369,30 +353,20 @@ function processSingleRecord(
       ruleCounteragent = rulePaymentData.counteragent_uuid;
     }
 
-    if (ruleCounteragent) {
+    if (ruleCounteragent && !result.counteragent_uuid) {
       result.counteragent_uuid = ruleCounteragent;
-      result.case6_parsing_rule_applied = true;
     }
 
     // Apply rule parameters
-    if (matchedRule.financial_code_uuid) {
+    if (matchedRule.financial_code_uuid && !result.financial_code_uuid) {
       result.financial_code_uuid = matchedRule.financial_code_uuid;
-    } else if (rulePaymentData?.financial_code_uuid) {
-      result.financial_code_uuid = rulePaymentData.financial_code_uuid;
     }
 
-    if (matchedRule.nominal_currency_uuid) {
+    if (matchedRule.nominal_currency_uuid && !result.nominal_currency_uuid) {
       result.nominal_currency_uuid = matchedRule.nominal_currency_uuid;
-    } else if (rulePaymentData?.currency_uuid) {
-      result.nominal_currency_uuid = rulePaymentData.currency_uuid;
-    }
-
-    if (rulePaymentData?.project_uuid) {
-      result.project_uuid = rulePaymentData.project_uuid;
     }
 
     stats.case6_parsing_rule_match++;
-    result.case6_parsing_rule_applied = true;
 
     if (idx <= 3) {
       console.log(
@@ -417,6 +391,7 @@ function processSingleRecord(
         console.log(`  🔍 Record ${idx}: Counteragent found by INN ${counteragentInn}`);
       }
     } else {
+      result.case1_counteragent_processed = true;
       result.case3_counteragent_missing = true;
       stats.case3_counteragent_inn_nonblank_no_match++;
 

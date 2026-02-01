@@ -3,21 +3,8 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 
-type Opt = { id: string; label: string };
+type Opt = { id: string; label: string; isNaturalPerson?: boolean; isIdExempt?: boolean };
 type ClientProps = { entityOptions: Opt[]; countryOptions: Opt[] };
-
-const UUIDS = {
-  ID_NOT_REQUIRED: new Set([
-    "f5c3c745-eaa4-4e27-a73b-badc9ebb49c0",
-    "7766e9c2-0094-4090-adf4-ef017062457f",
-  ]),
-  SEX_REQUIRED: new Set([
-    "bf4d83f9-5064-4958-af6e-e4c21b2e4880",
-    "5747f8e6-a8a6-4a23-91cc-c427c3a22597",
-    "ba538574-e93f-4ce8-a780-667b61fc970a",
-  ]),
-  PENSION_REQUIRED: new Set(["bf4d83f9-5064-4958-af6e-e4c21b2e4880"]),
-};
 
 type Field = {
   name: string;
@@ -38,16 +25,28 @@ export default function ClientForm({ entityOptions, countryOptions }: ClientProp
   const [entityType, setEntityType] = React.useState<OptState>({ id: null, label: null });
   const [country, setCountry] = React.useState<OptState>({ id: null, label: null });
 
-  const isIdRequired = !(entityType.id && UUIDS.ID_NOT_REQUIRED.has(entityType.id));
+  const selectedEntityType = entityOptions.find((o) => o.id === entityType.id) || null;
+  const isNaturalPerson = !!selectedEntityType?.isNaturalPerson;
+  const isIdRequired = !selectedEntityType?.isIdExempt;
   // Birth/registration date should not be mandatory
   const isBirthRequired = false;
-  const isSexRequired = !!(entityType.id && UUIDS.SEX_REQUIRED.has(entityType.id));
-  const isPensionRequired = !!(entityType.id && UUIDS.PENSION_REQUIRED.has(entityType.id));
+  const isSexRequired = isNaturalPerson;
+  const isPensionRequired = isNaturalPerson;
+
+  const [sexValue, setSexValue] = React.useState('');
+  const [pensionValue, setPensionValue] = React.useState('');
+
+  React.useEffect(() => {
+    if (!isNaturalPerson && (sexValue || pensionValue)) {
+      setSexValue('');
+      setPensionValue('');
+    }
+  }, [isNaturalPerson, sexValue, pensionValue]);
 
   // Left column: mandatory
   const MANDATORY: Field[] = [
     { name: "name", label: "Name", required: true },
-    { name: "identification_number", label: "ID", required: isIdRequired, disabled: !isIdRequired },
+    { name: "identification_number", label: "ID", required: isIdRequired, disabled: false },
     {
       name: "birth_or_incorporation_date",
       label: "Birth or Incorporation Date",
@@ -85,7 +84,7 @@ export default function ClientForm({ entityOptions, countryOptions }: ClientProp
       required: isSexRequired,
       disabled: !isSexRequired,
       render: (p) => (
-        <select {...p} disabled={!isSexRequired} defaultValue="">
+        <select {...p} disabled={!isSexRequired} value={sexValue} onChange={(e) => setSexValue(e.target.value)}>
           <option value="">Select</option>
           <option value="Male">Male</option>
           <option value="Female">Female</option>
@@ -98,7 +97,7 @@ export default function ClientForm({ entityOptions, countryOptions }: ClientProp
       required: isPensionRequired,
       disabled: !isPensionRequired,
       render: (p) => (
-        <select {...p} disabled={!isPensionRequired} defaultValue="">
+        <select {...p} disabled={!isPensionRequired} value={pensionValue} onChange={(e) => setPensionValue(e.target.value)}>
           <option value="">Select</option>
           <option value="True">True</option>
           <option value="False">False</option>

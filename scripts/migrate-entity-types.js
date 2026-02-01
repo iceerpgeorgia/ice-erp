@@ -52,18 +52,12 @@ async function main() {
           continue;
         }
 
-        // Generate a code if missing (use first 3 letters of name_ka)
-        const code = entityType.entity_type_code || 
-                     entityType.name_ka.substring(0, 3).toUpperCase() ||
-                     `ET${entityType.id}`;
-
         // Create in Supabase
         await supabasePrisma.entityType.create({
           data: {
             name_en: entityType.name_en,
             name_ka: entityType.name_ka,
             entity_type_uuid: entityType.entity_type_uuid,
-            code: code,
             is_active: entityType.is_active,
           },
         });
@@ -76,7 +70,7 @@ async function main() {
         }
       } catch (error) {
         failed++;
-        console.error(`\n   ⚠️  Failed to migrate entity type ${entityType.entity_type_code}:`, error.message);
+        console.error(`\n   ⚠️  Failed to migrate entity type ${entityType.entity_type_uuid}:`, error.message);
       }
     }
 

@@ -139,18 +139,21 @@ export function compileFormulaToJS(formula: string): string {
     /LOWER\s*\(\s*(\w+)\s*\)/gi,
     (_, col) => `(String(row.${col} || '').toLowerCase())`
   );
-  
-  // OR(...) -> (... || ...)
-  code = code.replace(/\bOR\s*\(/gi, '(');
-  code = code.replace(/\)\s*,\s*/g, ') || '); // Handle OR commas
-  
-  // AND(...) -> (... && ...)
-  code = code.replace(/\bAND\s*\(/gi, '(');
+
+  // AND/OR(...) -> (... && ...) / (... || ...)
+  code = applyLogicalFunctions(code);
   
   // NOT(...) -> !(...)
   code = code.replace(/\bNOT\s*\(/gi, '!(');
   
-  // Replace column references with row.column
+  // Replace column references with row.column (avoid string literals)
+  const stringLiterals: string[] = [];
+  code = code.replace(/"([^"\\]|\\.)*"|'([^'\\]|\\.)*'/g, (match) => {
+    const token = `@@${stringLiterals.length}@@`;
+    stringLiterals.push(match);
+    return token;
+  });
+
   // Match column names not already prefixed with row.
   code = code.replace(
     /(?<!row\.)(\b[a-z_][a-z0-9_]*\b)(?!\s*\()/gi,
@@ -161,6 +164,9 @@ export function compileFormulaToJS(formula: string): string {
       return `row.${col}`;
     }
   );
+
+  // Restore string literals
+  code = code.replace(/@@(\d+)@@/g, (_, idx) => stringLiterals[Number(idx)] ?? _);
   
   // Handle comparison operators - ensure they work with potential null values
   // Replace standalone column comparisons
@@ -184,11 +190,156 @@ export function compileFormulaToJS(formula: string): string {
   
   // Replace <> with !==
   code = code.replace(/\s*<>\s*/g, ' !== ');
+
+  code = code.replace(
+    /row\.(\w+)\s*(===|==)\s*""/g,
+    (_, col) => `(row.${col} == null || row.${col} === "")`
+  );
+
+  code = code.replace(
+    /row\.(\w+)\s*(===|==)\s*''/g,
+    (_, col) => `(row.${col} == null || row.${col} === '')`
+  );
+
+  code = code.replace(
+    /row\.(\w+)\s*(!==|!=)\s*""/g,
+    (_, col) => `(row.${col} != null && row.${col} !== "")`
+  );
+
+  code = code.replace(
+    /row\.(\w+)\s*(!==|!=)\s*''/g,
+    (_, col) => `(row.${col} != null && row.${col} !== '')`
+  );
   
   // Wrap in function for evaluation
   const functionCode = `(function(row) { return ${code}; })`;
   
   return functionCode;
+}
+
+function applyLogicalFunctions(input: string): string {
+  const withAnd = transformLogicalFunction(input, 'AND', '&&');
+  return transformLogicalFunction(withAnd, 'OR', '||');
+}
+
+function transformLogicalFunction(input: string, name: string, joiner: string): string {
+  let i = 0;
+  let out = '';
+  const upperName = name.toUpperCase();
+
+  while (i < input.length) {
+    const ch = input[i];
+    const isWord = (c: string) => /[A-Za-z0-9_]/.test(c);
+
+    if (
+      i + name.length <= input.length &&
+      input.substr(i, name.length).toUpperCase() === upperName &&
+      (i === 0 || !isWord(input[i - 1]))
+    ) {
+      let j = i + name.length;
+      while (j < input.length && /\s/.test(input[j])) j++;
+      if (j < input.length && input[j] === '(') {
+        let depth = 1;
+        let k = j + 1;
+        let inString: '"' | '\'' | null = null;
+        let escape = false;
+        while (k < input.length && depth > 0) {
+          const c = input[k];
+          if (inString) {
+            if (escape) {
+              escape = false;
+            } else if (c === '\\') {
+              escape = true;
+            } else if (c === inString) {
+              inString = null;
+            }
+          } else {
+            if (c === '"' || c === "'") {
+              inString = c as '"' | '\'';
+            } else if (c === '(') {
+              depth++;
+            } else if (c === ')') {
+              depth--;
+            }
+          }
+          k++;
+        }
+
+        if (depth === 0) {
+          const inner = input.slice(j + 1, k - 1);
+          const transformedInner = applyLogicalFunctions(inner);
+          const args = splitTopLevelArgs(transformedInner)
+            .map((arg) => arg.trim())
+            .filter((arg) => arg.length > 0)
+            .filter((arg) => !/^=\s*(""|'')$/.test(arg));
+
+          let replacement = 'true';
+          if (args.length === 1) replacement = args[0];
+          else if (args.length > 1) replacement = `(${args.join(` ${joiner} `)})`;
+
+          out += replacement;
+          i = k;
+          continue;
+        }
+      }
+    }
+
+    out += ch;
+    i++;
+  }
+
+  return out;
+}
+
+function splitTopLevelArgs(input: string): string[] {
+  const args: string[] = [];
+  let depth = 0;
+  let inString: '"' | '\'' | null = null;
+  let escape = false;
+  let current = '';
+
+  for (let i = 0; i < input.length; i++) {
+    const c = input[i];
+    if (inString) {
+      current += c;
+      if (escape) {
+        escape = false;
+      } else if (c === '\\') {
+        escape = true;
+      } else if (c === inString) {
+        inString = null;
+      }
+      continue;
+    }
+
+    if (c === '"' || c === "'") {
+      inString = c as '"' | '\'';
+      current += c;
+      continue;
+    }
+
+    if (c === '(') {
+      depth++;
+      current += c;
+      continue;
+    }
+    if (c === ')') {
+      depth = Math.max(0, depth - 1);
+      current += c;
+      continue;
+    }
+
+    if (c === ',' && depth === 0) {
+      args.push(current);
+      current = '';
+      continue;
+    }
+
+    current += c;
+  }
+
+  if (current.length > 0 || input.trim().length === 0) args.push(current);
+  return args;
 }
 
 // Test/evaluate the compiled script
