@@ -53,6 +53,7 @@ export type BankTransaction = {
   date: string;
   correctionDate: string | null;
   exchangeRate: string | null;
+  nominalExchangeRate?: string | null;
   usdGelRate?: number | null;
   id1: string | null;
   id2: string | null;
@@ -105,6 +106,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'bankName', label: 'Bank', width: 150, visible: true, sortable: true, filterable: true },
   { key: 'accountCurrencyAmount', label: 'Amount', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'processingCase', label: 'Case', width: 220, visible: true, sortable: true, filterable: true },
+  { key: 'parsingLock', label: 'Lock', width: 80, visible: true, sortable: true, filterable: true },
   { key: 'appliedRuleId', label: 'Applied Rule ID', width: 120, visible: false, sortable: true, filterable: true },
   { key: 'counteragentName', label: 'Counteragent', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'counteragentAccountNumber', label: 'CA Account', width: 180, visible: true, sortable: true, filterable: true },
@@ -116,7 +118,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'nominalAmount', label: 'Nominal Amt', width: 120, visible: false, sortable: true, filterable: true },
   { key: 'usdGelRate', label: 'USD/GEL', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'correctionDate', label: 'Correction Date', width: 120, visible: false, sortable: true, filterable: true },
-  { key: 'exchangeRate', label: 'Exchange Rate', width: 120, visible: false, sortable: true, filterable: true },
+  { key: 'exchangeRate', label: 'FX', width: 120, visible: false, sortable: true, filterable: true },
   { key: 'id1', label: 'DocKey', width: 120, visible: false, sortable: true, filterable: true },
   { key: 'id2', label: 'EntriesId', width: 120, visible: false, sortable: true, filterable: true },
   { key: 'recordUuid', label: 'Record UUID', width: 200, visible: false, sortable: true, filterable: true },
@@ -159,6 +161,19 @@ const formatAmount = (amount: string | number | null | undefined): string => {
   const num = Number(amount);
   if (isNaN(num)) return '-';
   return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const toInputDate = (value?: string | null): string => {
+  if (!value) return '';
+  const trimmed = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10);
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(trimmed)) {
+    const [day, month, year] = trimmed.split('.');
+    return `${year}-${month}-${day}`;
+  }
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
+  return '';
 };
 
 // Helper function to get responsive classes
@@ -227,6 +242,7 @@ export function BankTransactionsTable({
   const [financialCodeSearch, setFinancialCodeSearch] = useState('');
   const [currencySearch, setCurrencySearch] = useState('');
   const [exchangeRates, setExchangeRates] = useState<any>(null); // Store exchange rates for transaction date
+  const [exchangeRateDate, setExchangeRateDate] = useState<string>('');
   const [formData, setFormData] = useState<{
     payment_uuid: string;
     project_uuid: string;
@@ -234,6 +250,7 @@ export function BankTransactionsTable({
     financial_code_uuid: string;
     nominal_currency_uuid: string;
     nominal_amount: string;
+    correction_date: string;
     parsing_lock: boolean;
   }>({
     payment_uuid: '',
@@ -242,6 +259,7 @@ export function BankTransactionsTable({
     financial_code_uuid: '',
     nominal_currency_uuid: '',
     nominal_amount: '',
+    correction_date: '',
     parsing_lock: false,
   });
   const [isRawRecordDialogOpen, setIsRawRecordDialogOpen] = useState(false);
@@ -288,7 +306,7 @@ export function BankTransactionsTable({
     if (typeof window !== 'undefined') {
       const savedColumns = localStorage.getItem('bank-transactions-table-columns');
       const savedVersion = localStorage.getItem('bank-transactions-table-version');
-      const currentVersion = '5'; // Increment this when defaultColumns structure changes
+      const currentVersion = '6'; // Increment this when defaultColumns structure changes
       
       if (savedColumns && savedVersion === currentVersion) {
         try {
@@ -773,6 +791,7 @@ export function BankTransactionsTable({
       financial_code_uuid: transaction.financialCodeUuid || '',
       nominal_currency_uuid: transaction.nominalCurrencyUuid || '',
       nominal_amount: transaction.nominalAmount || '',
+      correction_date: toInputDate(transaction.correctionDate),
       parsing_lock: Boolean(transaction.parsingLock),
     };
     console.log('[startEdit] Initial formData:', initialFormData);
@@ -789,12 +808,13 @@ export function BankTransactionsTable({
     
     try {
       // Fetch exchange rates for the transaction date upfront
-      const dateStr = transaction.date.split('T')[0];
-      const ratesResponse = await fetch(`/api/exchange-rates?date=${dateStr}`);
+      const effectiveDate = initialFormData.correction_date || toInputDate(transaction.date);
+      const ratesResponse = await fetch(`/api/exchange-rates?date=${effectiveDate}`);
       const ratesData = await ratesResponse.json();
       const rates = ratesData && ratesData.length > 0 ? ratesData[0] : null;
       setExchangeRates(rates);
-      console.log('[startEdit] Loaded exchange rates for', dateStr, ':', rates);
+      setExchangeRateDate(effectiveDate);
+      console.log('[startEdit] Loaded exchange rates for', effectiveDate, ':', rates);
       
       // Filter payments by counteragent if one exists
       let payments = allPayments;
@@ -952,6 +972,7 @@ export function BankTransactionsTable({
       financial_code_uuid: '',
       nominal_currency_uuid: '',
       nominal_amount: '',
+      correction_date: '',
       parsing_lock: false,
     });
     setPaymentDisplayValues({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '', nominalAmountLabel: '' });
@@ -992,48 +1013,21 @@ export function BankTransactionsTable({
             console.log('[handlePaymentChange] Converting:', accountCode, 'ΓåÆ', nominalCode, 'Amount:', accountAmount);
             console.log('[handlePaymentChange] Exchange rates object:', exchangeRates);
             
-            if (accountCode === nominalCode) {
-              // Same currency - no conversion
-              calculatedAmount = formatAmount(accountAmount);
-              console.log('[handlePaymentChange] Same currency, no conversion needed');
-            } else if (accountCode === 'GEL' && nominalCode !== 'GEL') {
-              // GEL ΓåÆ Foreign: divide by rate
-              const rateField = nominalCode.toLowerCase();
-              console.log('[handlePaymentChange] Looking for rate field:', rateField, 'Value:', exchangeRates[rateField]);
-              if (exchangeRates[rateField]) {
-                const converted = accountAmount / Number(exchangeRates[rateField]);
-                calculatedAmount = formatAmount(converted);
-                console.log('[handlePaymentChange] GEL ΓåÆ', nominalCode, ':', accountAmount, '/', exchangeRates[rateField], '=', converted);
-              } else {
-                console.warn('[handlePaymentChange] Rate field not found:', rateField);
-              }
-            } else if (accountCode !== 'GEL' && nominalCode === 'GEL') {
-              // Foreign ΓåÆ GEL: multiply by rate
-              const rateField = accountCode.toLowerCase();
-              console.log('[handlePaymentChange] Looking for rate field:', rateField, 'Value:', exchangeRates[rateField]);
-              if (exchangeRates[rateField]) {
-                const converted = accountAmount * Number(exchangeRates[rateField]);
-                calculatedAmount = formatAmount(converted);
-                console.log('[handlePaymentChange]', accountCode, 'ΓåÆ GEL:', accountAmount, '*', exchangeRates[rateField], '=', converted);
-              } else {
-                console.warn('[handlePaymentChange] Rate field not found:', rateField);
-              }
-            } else {
-              // Foreign ΓåÆ Foreign: convert through GEL
-              const accountRateField = accountCode.toLowerCase();
-              const nominalRateField = nominalCode.toLowerCase();
-              console.log('[handlePaymentChange] Looking for rate fields:', accountRateField, nominalRateField);
-              if (exchangeRates[accountRateField] && exchangeRates[nominalRateField]) {
-                const gelAmount = accountAmount * Number(exchangeRates[accountRateField]);
-                const converted = gelAmount / Number(exchangeRates[nominalRateField]);
-                calculatedAmount = formatAmount(converted);
-                console.log('[handlePaymentChange]', accountCode, 'ΓåÆ', nominalCode, ':', accountAmount, '*', exchangeRates[accountRateField], '/', exchangeRates[nominalRateField], '=', converted);
-              } else {
-                console.warn('[handlePaymentChange] Rate fields not found:', accountRateField, nominalRateField);
-              }
+            const calculatedRate = getExchangeRateValue(nominalCode);
+            if (calculatedRate && Number.isFinite(calculatedRate) && calculatedRate !== 0) {
+              const converted = accountAmount * (1 / calculatedRate);
+              calculatedAmount = formatAmount(Math.round(converted * 100) / 100);
             }
           } catch (error) {
             console.error('[handlePaymentChange] Calculation error:', error);
+          }
+        } else if (editingTransaction?.nominalExchangeRate) {
+          const storedRate = Number(editingTransaction.nominalExchangeRate);
+          if (Number.isFinite(storedRate) && storedRate !== 0) {
+            const accountAmount = Number(editingTransaction.accountCurrencyAmount);
+            const converted = accountAmount / storedRate;
+            calculatedAmount = formatAmount(Math.round(converted * 100) / 100);
+            console.log('[handlePaymentChange] Fallback to nominalExchangeRate:', storedRate, '=>', converted);
           }
         } else {
           console.warn('[handlePaymentChange] Missing exchangeRates or currencyOptions');
@@ -1082,57 +1076,38 @@ export function BankTransactionsTable({
 
   const recomputeNominalAmountLabel = () => {
     if (!editingTransaction) return;
-    if (!formData.payment_uuid) return;
-    const selectedPayment = paymentOptions.find(p => p.paymentId === formData.payment_uuid);
-    if (!selectedPayment) return;
+    const selectedPayment = formData.payment_uuid
+      ? paymentOptions.find(p => p.paymentId === formData.payment_uuid)
+      : null;
+    const nominalCode = selectedPayment?.currencyCode || editingTransaction.nominalCurrencyCode || '';
+    if (!nominalCode) return;
 
     const accountAmountRaw = Number(editingTransaction.accountCurrencyAmount);
     const nominalAmountRaw = Number(editingTransaction.nominalAmount);
+    const storedNominalRate = editingTransaction.nominalExchangeRate
+      ? Number(editingTransaction.nominalExchangeRate)
+      : null;
     let calculatedAmount = formatAmount(editingTransaction.accountCurrencyAmount);
     let rateLabel = '';
 
     if (exchangeRates && currencyOptions.length > 0) {
       try {
         const accountAmount = Number(editingTransaction.accountCurrencyAmount);
-        const accountCurrency = currencyOptions.find(c => c.uuid === editingTransaction.accountCurrencyUuid);
-        const accountCode = accountCurrency?.code || 'GEL';
-        const nominalCode = selectedPayment.currencyCode;
+        const exchangeRate = getExchangeRateValue(nominalCode);
 
-        if (accountCode === nominalCode) {
-          calculatedAmount = formatAmount(accountAmount);
-          rateLabel = '1.0000000000';
-        } else if (accountCode === 'GEL' && nominalCode !== 'GEL') {
-          const rateField = nominalCode.toLowerCase();
-          if (exchangeRates[rateField]) {
-            const rate = Number(exchangeRates[rateField]);
-            const converted = accountAmount / rate;
-            calculatedAmount = formatAmount(converted);
-            rateLabel = rate.toFixed(10);
-          }
-        } else if (accountCode !== 'GEL' && nominalCode === 'GEL') {
-          const rateField = accountCode.toLowerCase();
-          if (exchangeRates[rateField]) {
-            const rate = Number(exchangeRates[rateField]);
-            const converted = accountAmount * rate;
-            calculatedAmount = formatAmount(converted);
-            rateLabel = rate.toFixed(10);
-          }
-        } else {
-          const accountRateField = accountCode.toLowerCase();
-          const nominalRateField = nominalCode.toLowerCase();
-          if (exchangeRates[accountRateField] && exchangeRates[nominalRateField]) {
-            const accountRate = Number(exchangeRates[accountRateField]);
-            const nominalRate = Number(exchangeRates[nominalRateField]);
-            const gelAmount = accountAmount * accountRate;
-            const converted = gelAmount / nominalRate;
-            calculatedAmount = formatAmount(converted);
-            const crossRate = accountRate / nominalRate;
-            rateLabel = crossRate.toFixed(10);
-          }
+        if (exchangeRate && Number.isFinite(exchangeRate) && exchangeRate !== 0) {
+          const converted = accountAmount * (1 / exchangeRate);
+          calculatedAmount = formatAmount(Math.round(converted * 100) / 100);
+          rateLabel = exchangeRate.toFixed(10);
         }
       } catch (error) {
         console.error('[recomputeNominalAmountLabel] Calculation error:', error);
       }
+    }
+
+    if (!rateLabel && Number.isFinite(storedNominalRate) && storedNominalRate) {
+      calculatedAmount = formatAmount(Math.round((accountAmountRaw / storedNominalRate) * 100) / 100);
+      rateLabel = storedNominalRate.toFixed(10);
     }
 
     if (!rateLabel && Number.isFinite(accountAmountRaw) && Number.isFinite(nominalAmountRaw) && nominalAmountRaw !== 0) {
@@ -1142,20 +1117,85 @@ export function BankTransactionsTable({
       }
     }
 
-    setPaymentDisplayValues({
-      projectLabel: selectedPayment.projectIndex || 'N/A',
-      jobLabel: selectedPayment.jobName || 'N/A',
-      financialCodeLabel: selectedPayment.financialCodeValidation || '',
-      currencyLabel: selectedPayment.currencyCode || '',
+    setPaymentDisplayValues((prev) => ({
+      projectLabel: selectedPayment?.projectIndex || prev.projectLabel,
+      jobLabel: selectedPayment?.jobName || prev.jobLabel,
+      financialCodeLabel: selectedPayment?.financialCodeValidation || prev.financialCodeLabel,
+      currencyLabel: selectedPayment?.currencyCode || prev.currencyLabel || nominalCode,
       nominalAmountLabel: calculatedAmount,
-    });
+    }));
     setCalculatedExchangeRate(rateLabel);
   };
 
   useEffect(() => {
-    if (!formData.payment_uuid) return;
+    if (!editingTransaction) return;
     recomputeNominalAmountLabel();
-  }, [formData.payment_uuid, exchangeRates, currencyOptions, editingTransaction, paymentOptions]);
+  }, [formData.payment_uuid, formData.correction_date, exchangeRates, currencyOptions, editingTransaction, paymentOptions]);
+
+  useEffect(() => {
+    if (!editingTransaction) return;
+    const effectiveDate = formData.correction_date || toInputDate(editingTransaction.date);
+    if (!effectiveDate || effectiveDate === exchangeRateDate) return;
+    const fetchRates = async () => {
+      try {
+        const ratesResponse = await fetch(`/api/exchange-rates?date=${effectiveDate}`);
+        const ratesData = await ratesResponse.json();
+        const rates = ratesData && ratesData.length > 0 ? ratesData[0] : null;
+        setExchangeRates(rates);
+        setExchangeRateDate(effectiveDate);
+      } catch (error) {
+        console.error('[exchangeRates] Failed to load rates for', effectiveDate, error);
+      }
+    };
+    fetchRates();
+  }, [formData.correction_date, editingTransaction, exchangeRateDate]);
+
+  const getExchangeRateValue = (overrideNominalCode?: string) => {
+    if (!exchangeRates || !editingTransaction) return null;
+    const accountCode = currencyOptions.find((c) => c.uuid === editingTransaction.accountCurrencyUuid)?.code || 'GEL';
+    const nominalCode = overrideNominalCode || paymentDisplayValues.currencyLabel || editingTransaction.nominalCurrencyCode || '';
+    if (!nominalCode) return null;
+
+    if (accountCode === nominalCode) return 1;
+    if (accountCode === 'GEL' && nominalCode !== 'GEL') {
+      const rate = exchangeRates[nominalCode.toLowerCase()];
+      return rate ? Number(rate) : null;
+    }
+    if (accountCode !== 'GEL' && nominalCode === 'GEL') {
+      const rate = exchangeRates[accountCode.toLowerCase()];
+      return rate ? Number(rate) : null;
+    }
+    const accountRate = exchangeRates[accountCode.toLowerCase()];
+    const nominalRate = exchangeRates[nominalCode.toLowerCase()];
+    if (accountRate && nominalRate) {
+      return Number(accountRate) / Number(nominalRate);
+    }
+    return null;
+  };
+
+  const getExchangeRateLabel = () => {
+    const rate = getExchangeRateValue();
+    return rate && Number.isFinite(rate) ? rate.toFixed(10) : '';
+  };
+
+  const getLiveNominalAmountLabel = () => {
+    if (!editingTransaction) return '';
+    const nominalCode = paymentDisplayValues.currencyLabel || editingTransaction.nominalCurrencyCode || '';
+    if (!nominalCode) return paymentDisplayValues.nominalAmountLabel || editingTransaction.nominalAmount || '';
+
+    const exchangeRate = getExchangeRateValue(nominalCode);
+    if (!exchangeRate || !Number.isFinite(exchangeRate) || exchangeRate === 0) {
+      return paymentDisplayValues.nominalAmountLabel || editingTransaction.nominalAmount || '';
+    }
+
+    const accountAmount = Number(editingTransaction.accountCurrencyAmount);
+    if (!Number.isFinite(accountAmount)) {
+      return paymentDisplayValues.nominalAmountLabel || editingTransaction.nominalAmount || '';
+    }
+
+    const converted = accountAmount * (1 / exchangeRate);
+    return formatAmount(Math.round(converted * 100) / 100);
+  };
 
   // Handle project change - load jobs for new project
   const handleProjectChange = async (projectUuid: string) => {
@@ -1259,6 +1299,9 @@ export function BankTransactionsTable({
       if (formData.nominal_currency_uuid !== (editingTransaction.nominalCurrencyUuid || '')) {
         updateData.nominal_currency_uuid = formData.nominal_currency_uuid || null;
       }
+      if (formData.correction_date !== toInputDate(editingTransaction.correctionDate)) {
+        updateData.correction_date = formData.correction_date || null;
+      }
       if (formData.parsing_lock !== Boolean(editingTransaction.parsingLock)) {
         updateData.parsing_lock = formData.parsing_lock;
       }
@@ -1333,8 +1376,9 @@ export function BankTransactionsTable({
             nominalCurrencyUuid: row.nominal_currency_uuid || null,
             nominalAmount: row.nominal_amount || null,
             date: row.transaction_date || "",
-            correctionDate: null,
-            exchangeRate: null,
+            correctionDate: row.correction_date || null,
+            exchangeRate: row.exchange_rate || null,
+            nominalExchangeRate: row.nominal_exchange_rate || null,
             id1: null,
             id2: null,
             recordUuid: row.raw_record_uuid || "",
@@ -1600,6 +1644,9 @@ export function BankTransactionsTable({
     if (key === 'exchangeRate') {
       const num = Number(value);
       return Number.isNaN(num) ? String(value) : Number(num.toFixed(10));
+    }
+    if (key === 'parsingLock') {
+      return value ? 'Yes' : 'No';
     }
     if (key === 'date' || key === 'correctionDate' || key === 'createdAt' || key === 'updatedAt') {
       return formatDate(String(value));
@@ -1974,6 +2021,8 @@ export function BankTransactionsTable({
                                   : '-'
                           ) : col.key === 'exchangeRate' ? (
                             row[col.key] ? Number(row[col.key]).toFixed(10) : '-'
+                          ) : col.key === 'parsingLock' ? (
+                            <Checkbox checked={Boolean(row[col.key])} disabled className="cursor-default" />
                           ) : col.key === 'date' || col.key === 'correctionDate' || col.key === 'createdAt' || col.key === 'updatedAt' ? (
                             formatDate(row[col.key])
                           ) : col.key === 'counteragentAccountNumber' ? (
@@ -2168,6 +2217,7 @@ export function BankTransactionsTable({
               {formData.payment_uuid && (
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3 border border-gray-200">
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">Payment Details</h3>
+
                   
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
@@ -2192,11 +2242,15 @@ export function BankTransactionsTable({
                       <Label className="text-xs text-gray-600">Exchange Rate</Label>
                       <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
                         <span className="font-bold" style={{ color: '#000' }}>
-                          {calculatedExchangeRate
-                            ? calculatedExchangeRate
-                            : editingTransaction?.exchangeRate
-                              ? Number(editingTransaction.exchangeRate).toFixed(10)
-                              : 'N/A'}
+                          {getExchangeRateLabel()
+                            ? getExchangeRateLabel()
+                            : calculatedExchangeRate
+                              ? calculatedExchangeRate
+                              : editingTransaction?.nominalExchangeRate
+                                ? Number(editingTransaction.nominalExchangeRate).toFixed(10)
+                                : editingTransaction?.exchangeRate
+                                  ? Number(editingTransaction.exchangeRate).toFixed(10)
+                                  : 'N/A'}
                         </span>
                       </div>
                     </div>
@@ -2204,7 +2258,7 @@ export function BankTransactionsTable({
                       <Label className="text-xs text-gray-600">Nominal Amount</Label>
                       <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
                         <span className="font-bold" style={{ color: '#000' }}>
-                          {paymentDisplayValues.nominalAmountLabel || editingTransaction?.nominalAmount || '0.00'}
+                          {getLiveNominalAmountLabel() || '0.00'}
                         </span>
                       </div>
                     </div>
@@ -2406,7 +2460,7 @@ export function BankTransactionsTable({
                     <div className="space-y-2">
                       <Label>Nominal Amount</Label>
                       <Input
-                        value={editingTransaction?.nominalAmount || '0.00'}
+                        value={getLiveNominalAmountLabel() || '0.00'}
                         readOnly
                         className="bg-gray-100 border-gray-300"
                       />
@@ -2443,13 +2497,14 @@ export function BankTransactionsTable({
                   
                   <div className="space-y-1">
                     <Label className="text-xs text-gray-600">Correction Date</Label>
-                    <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
-                      <span className="font-bold" style={{ color: '#000' }}>
-                        {editingTransaction?.correctionDate 
-                          ? new Date(editingTransaction.correctionDate).toLocaleDateString('en-GB') 
-                          : 'N/A'}
-                      </span>
-                    </div>
+                    <Input
+                      type="date"
+                      value={formData.correction_date || toInputDate(editingTransaction?.correctionDate)}
+                      onChange={(event) =>
+                        setFormData((prev) => ({ ...prev, correction_date: event.target.value }))
+                      }
+                      className="bg-white border-gray-300"
+                    />
                   </div>
                 </div>
                 

@@ -244,7 +244,9 @@ export default function BankTransactionsTestTableFigma() {
           nominalAmount: row.nominal_amount || null,
           date: row.transaction_date || "",
           correctionDate: row.correction_date || null,
-          exchangeRate: row.exchange_rate || null,
+          exchangeRate: row.nominal_exchange_rate || null,
+          nominalExchangeRate: row.nominal_exchange_rate || null,
+          usdGelRate: row.usd_gel_rate ?? null,
           id1: null,
           id2: null,
           recordUuid: row.raw_record_uuid || "",
@@ -252,6 +254,7 @@ export default function BankTransactionsTestTableFigma() {
           description: row.description || null,
           processingCase: row.processing_case || null,
           appliedRuleId: row.applied_rule_id || null,
+          parsingLock: row.parsing_lock ?? false,
           createdAt: toISO(toValidDate(row.created_at || row.createdAt)),
           updatedAt: toISO(toValidDate(row.updated_at || row.updatedAt)),
           isBalanceRecord: row.is_balance_record || false,
@@ -382,7 +385,11 @@ export default function BankTransactionsTestTableFigma() {
           Showing {transactions.length.toLocaleString()} transactions
         </div>
       </div>
-      <BankTransactionsTableDynamic data={transactions} currencySummaries={currencySummaries} />
+      <BankTransactionsTableDynamic
+        data={transactions}
+        currencySummaries={currencySummaries}
+        uploadEndpoint="/api/bank-transactions-test/upload"
+      />
     </div>
   );
 }

@@ -108,6 +108,7 @@ export async function GET(request: NextRequest) {
         recordUuid: payment.record_uuid,
         project: payment.project_index || payment.project_name,
         counteragent: payment.counteragent_name,
+        counteragentUuid: payment.counteragent_uuid,
         counteragentId: payment.counteragent_id,
         financialCode: payment.financial_code_validation || payment.financial_code,
         job: payment.job_name,

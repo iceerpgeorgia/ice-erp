@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from 'pg';
 import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from "@/lib/prisma";
+import { logAudit } from "@/lib/audit";
 
 export const revalidate = 0;
 
-// Use Supabase connection for consolidated_bank_accounts table
-const getSupabasePool = () => new Pool({
-  connectionString: process.env.REMOTE_DATABASE_URL || process.env.DATABASE_URL,
-  ssl: process.env.REMOTE_DATABASE_URL ? { rejectUnauthorized: false } : undefined,
-});
+const DECONSOLIDATED_TABLE = "GE78BG0000000893486000_BOG_GEL";
 
 /**
  * Calculate exchange rate and nominal amount based on currencies and date
@@ -152,31 +148,32 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const pool = getSupabasePool();
-  
   try {
     const id = params.id;
+    const idParam = /^\d+$/.test(id) ? BigInt(id) : id;
     const body = await req.json();
 
     console.log(`[PATCH /bank-transactions/${id}] Update request received`);
     console.log('[PATCH] Request body:', JSON.stringify(body, null, 2));
 
-    // Get current transaction from Supabase
-    const currentResult = await pool.query(
-      `SELECT * FROM consolidated_bank_accounts WHERE id = $1`,
-      [id]
+    // Get current transaction from deconsolidated table
+    const currentResult = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT * FROM "${DECONSOLIDATED_TABLE}" WHERE id = $1`,
+      idParam
     );
+    const currentRows = Array.isArray(currentResult)
+      ? currentResult
+      : (currentResult as { rows?: any[] })?.rows ?? [];
 
-    if (currentResult.rows.length === 0) {
+    if (currentRows.length === 0) {
       console.log(`[PATCH /bank-transactions/${id}] Transaction not found`);
-      await pool.end();
       return NextResponse.json(
         { error: "Transaction not found" },
         { status: 404 }
       );
     }
     
-    const current = currentResult.rows[0];
+    const current = currentRows[0];
 
     console.log(`[PATCH /bank-transactions/${params.id}] Current state:`, {
       counteragentUuid: current.counteragent_uuid,
@@ -201,6 +198,7 @@ export async function PATCH(
       nominal_currency_uuid,
       nominal_amount,
       payment_uuid,
+      correction_date,
     } = body;
 
     const updateData: any = {};
@@ -245,7 +243,7 @@ export async function PATCH(
               payment.currency_uuid,
               current.account_currency_amount,
               current.transaction_date,
-              current.correction_date
+              correction_date ?? current.correction_date
             );
             
             if (result) {
@@ -278,6 +276,11 @@ export async function PATCH(
       updateData.financialCodeUuid = financial_code_uuid;
       changes.push(`financial_code: ${current.financial_code_uuid} → ${financial_code_uuid}`);
     }
+
+    if (correction_date !== undefined && correction_date !== current.correction_date) {
+      updateData.correctionDate = correction_date ? new Date(correction_date) : null;
+      changes.push(`correction_date: ${current.correction_date || 'null'} → ${correction_date || 'null'}`);
+    }
     
     // Handle manual nominal currency change (only if not already set by payment change)
     if (nominal_currency_uuid !== undefined && 
@@ -292,7 +295,7 @@ export async function PATCH(
         nominal_currency_uuid,
         current.account_currency_amount,
         current.transaction_date,
-        current.correction_date
+        correction_date ?? current.correction_date
       );
       
       if (result) {
@@ -300,6 +303,26 @@ export async function PATCH(
         updateData.nominalAmount = result.nominalAmount;
         changes.push(`exchange_rate: ${current.exchange_rate?.toString()} → ${result.exchangeRate.toString()}`);
         changes.push(`nominal_amount: ${current.nominal_amount?.toString()} → ${result.nominalAmount.toString()} (recalculated)`);
+      }
+    }
+
+    if (correction_date !== undefined) {
+      const targetNominalCurrency = updateData.nominalCurrencyUuid || current.nominal_currency_uuid;
+      if (targetNominalCurrency) {
+        const result = await calculateExchangeRateAndAmount(
+          current.account_currency_uuid,
+          targetNominalCurrency,
+          current.account_currency_amount,
+          current.transaction_date,
+          correction_date || null
+        );
+
+        if (result) {
+          updateData.exchangeRate = result.exchangeRate;
+          updateData.nominalAmount = result.nominalAmount;
+          changes.push(`exchange_rate: ${current.exchange_rate?.toString()} → ${result.exchangeRate.toString()} (correction date)`);
+          changes.push(`nominal_amount: ${current.nominal_amount?.toString()} → ${result.nominalAmount.toString()} (correction date)`);
+        }
       }
     }
     
@@ -326,21 +349,62 @@ export async function PATCH(
     console.log(`[PATCH /bank-transactions/${params.id}] Applying ${changes.length} changes:`, changes);
     console.log(`[PATCH] Update data to be applied:`, JSON.stringify(updateData, (k, v) => typeof v === 'bigint' ? v.toString() : v, 2));
 
-    // Update the record - convert id to BigInt for Prisma
-    const updated = await prisma.consolidatedBankAccount.update({
-      where: { id: BigInt(id) },
-      data: updateData,
+    const updateFields: string[] = [];
+    const updateValues: any[] = [];
+    let paramIndex = 1;
+    const uuidColumns = new Set([
+      'counteragent_uuid',
+      'project_uuid',
+      'financial_code_uuid',
+      'nominal_currency_uuid',
+    ]);
+
+    const pushUpdate = (column: string, value: any) => {
+      const cast = uuidColumns.has(column) ? '::uuid' : '';
+      updateFields.push(`${column} = $${paramIndex++}${cast}`);
+      updateValues.push(value);
+    };
+
+    if (updateData.counteragentUuid !== undefined) pushUpdate('counteragent_uuid', updateData.counteragentUuid);
+    if (updateData.paymentId !== undefined) pushUpdate('payment_id', updateData.paymentId);
+    if (updateData.projectUuid !== undefined) pushUpdate('project_uuid', updateData.projectUuid);
+    if (updateData.financialCodeUuid !== undefined) pushUpdate('financial_code_uuid', updateData.financialCodeUuid);
+    if (updateData.nominalCurrencyUuid !== undefined) pushUpdate('nominal_currency_uuid', updateData.nominalCurrencyUuid);
+    if (updateData.nominalAmount !== undefined) pushUpdate('nominal_amount', updateData.nominalAmount?.toString?.() ?? updateData.nominalAmount);
+    if (updateData.exchangeRate !== undefined) pushUpdate('exchange_rate', updateData.exchangeRate?.toString?.() ?? updateData.exchangeRate);
+    if (updateData.correctionDate !== undefined) pushUpdate('correction_date', updateData.correctionDate);
+
+    updateFields.push('updated_at = NOW()');
+    updateValues.push(idParam);
+
+    const updateQuery = `
+      UPDATE "${DECONSOLIDATED_TABLE}"
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramIndex}
+      RETURNING *
+    `;
+
+    const updatedRows = await prisma.$queryRawUnsafe<any[]>(updateQuery, ...updateValues);
+    const updated = updatedRows[0];
+
+    await logAudit({
+      table: DECONSOLIDATED_TABLE,
+      recordId: id,
+      action: "update",
+      changes: {
+        changes,
+      },
     });
 
     console.log(`[PATCH /bank-transactions/${params.id}] ✓ Update successful`);
     console.log('[PATCH] Updated state:', {
-      id: updated.id.toString(),
-      counteragentUuid: updated.counteragentUuid,
-      projectUuid: updated.projectUuid,
-      financialCodeUuid: updated.financialCodeUuid,
-      nominalCurrencyUuid: updated.nominalCurrencyUuid,
-      nominalAmount: updated.nominalAmount?.toString(),
-      paymentId: updated.paymentId,
+      id: updated.id?.toString?.() ?? updated.id,
+      counteragentUuid: updated.counteragent_uuid,
+      projectUuid: updated.project_uuid,
+      financialCodeUuid: updated.financial_code_uuid,
+      nominalCurrencyUuid: updated.nominal_currency_uuid,
+      nominalAmount: updated.nominal_amount?.toString?.() ?? updated.nominal_amount,
+      paymentId: updated.payment_id,
     });
 
     return NextResponse.json({
@@ -355,7 +419,5 @@ export async function PATCH(
       { error: error?.message || "Failed to update transaction" },
       { status: 500 }
     );
-  } finally {
-    await pool.end();
   }
 }

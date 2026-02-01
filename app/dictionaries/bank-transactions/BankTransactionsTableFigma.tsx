@@ -245,7 +245,9 @@ export default function BankTransactionsTableFigma() {
           nominalAmount: row.nominal_amount || null,
           date: row.transaction_date || "",
           correctionDate: row.correction_date || null,
-          exchangeRate: row.exchange_rate || null,
+          exchangeRate: row.nominal_exchange_rate || null,
+          nominalExchangeRate: row.nominal_exchange_rate || null,
+          usdGelRate: row.usd_gel_rate ?? null,
           id1: null, // Not in current schema
           id2: null, // Not in current schema
           recordUuid: row.raw_record_uuid || "",
@@ -253,6 +255,7 @@ export default function BankTransactionsTableFigma() {
           description: row.description || null,
           processingCase: row.processing_case || null,
           appliedRuleId: row.applied_rule_id || null,
+          parsingLock: Boolean(row.parsing_lock),
           createdAt: toISO(toValidDate(row.created_at || row.createdAt)),
           updatedAt: toISO(toValidDate(row.updated_at || row.updatedAt)),
           isBalanceRecord: row.is_balance_record || false, // Flag for balance records

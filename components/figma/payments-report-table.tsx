@@ -106,6 +106,15 @@ export function PaymentsReportTable() {
   const [baseInfo, setBaseInfo] = useState<any | null>(null);
   const [isBankExporting, setIsBankExporting] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
+  const counteragentsWithNegativeBalance = useMemo(() => {
+    const flagged = new Set<string>();
+    data.forEach((row) => {
+      if (row.counteragent && (row.due < 0 || row.balance < 0)) {
+        flagged.add(row.counteragent);
+      }
+    });
+    return flagged;
+  }, [data]);
 
   // BroadcastChannel for cross-tab updates
   const [broadcastChannel] = useState(() => {
@@ -944,7 +953,11 @@ export function PaymentsReportTable() {
     return uniqueValuesCache.get(columnKey) || [];
   }, [uniqueValuesCache]);
 
-  const formatValue = (value: any, format?: 'currency' | 'number' | 'boolean' | 'date' | 'percent') => {
+  const formatValue = (
+    value: any,
+    format?: 'currency' | 'number' | 'boolean' | 'date' | 'percent',
+    columnKey?: ColumnKey
+  ) => {
     if (value === null || value === undefined) return '-';
     
     if (format === 'boolean') {
@@ -971,7 +984,10 @@ export function PaymentsReportTable() {
     }
     
     if (format === 'currency' || format === 'number') {
-      return Math.abs(Number(value)).toLocaleString('en-US', {
+      const numericValue = Number(value);
+      const shouldKeepSign = columnKey === 'due' || columnKey === 'balance';
+      const displayValue = shouldKeepSign ? numericValue : Math.abs(numericValue);
+      return displayValue.toLocaleString('en-US', {
         minimumFractionDigits: format === 'currency' ? 2 : 0,
         maximumFractionDigits: 2,
       });
@@ -1839,43 +1855,43 @@ export function PaymentsReportTable() {
           <div>
             <span className="text-gray-600">Total Accrual:</span>
             <span className="ml-2 font-semibold text-blue-900">
-              {formatValue(totals.accrual, 'currency')}
+              {formatValue(totals.accrual, 'currency', 'accrual')}
             </span>
           </div>
           <div>
             <span className="text-gray-600">Total Order:</span>
             <span className="ml-2 font-semibold text-blue-900">
-              {formatValue(totals.order, 'currency')}
+              {formatValue(totals.order, 'currency', 'order')}
             </span>
           </div>
           <div>
             <span className="text-gray-600">Total Payment:</span>
             <span className="ml-2 font-semibold text-blue-900">
-              {formatValue(totals.payment, 'currency')}
+              {formatValue(totals.payment, 'currency', 'payment')}
             </span>
           </div>
           <div>
             <span className="text-gray-600">Paid %:</span>
             <span className="ml-2 font-semibold text-blue-900">
-              {formatValue(totals.paidPercent, 'percent')}
+              {formatValue(totals.paidPercent, 'percent', 'paidPercent')}
             </span>
           </div>
           <div>
             <span className="text-gray-600">Total Due:</span>
             <span className="ml-2 font-semibold text-blue-900">
-              {formatValue(totals.due, 'currency')}
+              {formatValue(totals.due, 'currency', 'due')}
             </span>
           </div>
           <div>
             <span className="text-gray-600">Total Balance:</span>
             <span className="ml-2 font-semibold text-blue-900">
-              {formatValue(totals.balance, 'currency')}
+              {formatValue(totals.balance, 'currency', 'balance')}
             </span>
           </div>
           <div>
             <span className="text-gray-600">Total Floors:</span>
             <span className="ml-2 font-semibold text-blue-900">
-              {formatValue(totals.floors, 'number')}
+              {formatValue(totals.floors, 'number', 'floors')}
             </span>
           </div>
         </div>
@@ -2006,6 +2022,9 @@ export function PaymentsReportTable() {
                     if (col.key === 'accrual') bgColor = '#ffebee'; // Light red
                     if (col.key === 'payment') bgColor = '#e8f5e9'; // Light green
                     if (col.key === 'order') bgColor = '#fff9e6'; // Light yellow
+                    const isFlaggedCounteragent =
+                      col.key === 'counteragent' &&
+                      counteragentsWithNegativeBalance.has(row.counteragent);
                     
                     return (
                       <td 
@@ -2020,11 +2039,15 @@ export function PaymentsReportTable() {
                       >
                       {col.format === 'boolean' ? (
                         <div className="flex items-center">
-                          {formatValue(row[col.key], col.format)}
+                          {formatValue(row[col.key], col.format, col.key)}
                         </div>
                       ) : (
-                        <div className="truncate">
-                          {formatValue(row[col.key], col.format)}
+                        <div
+                          className={`truncate ${
+                            isFlaggedCounteragent ? 'font-bold text-red-600' : ''
+                          }`}
+                        >
+                          {formatValue(row[col.key], col.format, col.key)}
                         </div>
                       )}
                     </td>

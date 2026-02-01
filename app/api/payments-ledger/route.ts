@@ -5,6 +5,28 @@ import { prisma } from '@/lib/prisma';
 
 export const revalidate = 0;
 
+const safeStringify = (value: unknown) =>
+  JSON.stringify(value, (_key, val) => (typeof val === 'bigint' ? val.toString() : val));
+
+const logAudit = async (params: {
+  recordId: bigint;
+  action: string;
+  userEmail?: string | null;
+  userId?: string | null;
+  changes?: unknown;
+}) => {
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO "AuditLog" ("table", record_id, action, user_email, user_id, changes)
+     VALUES ($1, $2::bigint, $3, $4, $5, $6::jsonb)`,
+    'payments_ledger',
+    params.recordId,
+    params.action,
+    params.userEmail || null,
+    params.userId || null,
+    safeStringify(params.changes ?? {})
+  );
+};
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -149,6 +171,28 @@ export async function POST(request: NextRequest) {
       finalEffectiveDate = now.toISOString().split('T')[0];
     }
 
+    const totals = await prisma.$queryRawUnsafe<Array<{ accrual_total: any; order_total: any }>>(
+      `SELECT
+         COALESCE(SUM(accrual), 0) AS accrual_total,
+         COALESCE(SUM("order"), 0) AS order_total
+       FROM payments_ledger
+       WHERE payment_id = $1
+         AND (is_deleted = false OR is_deleted IS NULL)`,
+      paymentId
+    );
+
+    const existingAccrual = Number(totals?.[0]?.accrual_total ?? 0);
+    const existingOrder = Number(totals?.[0]?.order_total ?? 0);
+    const newAccrual = Number(accrual || 0);
+    const newOrder = Number(order || 0);
+
+    if (existingOrder + newOrder > existingAccrual + newAccrual) {
+      return NextResponse.json(
+        { error: 'Total order cannot exceed total accrual for this payment' },
+        { status: 400 }
+      );
+    }
+
     const query = `
       INSERT INTO payments_ledger (
         payment_id,
@@ -177,6 +221,15 @@ export async function POST(request: NextRequest) {
       id: Number(entry.id),
     }));
 
+    if (formattedResult[0]) {
+      await logAudit({
+        recordId: BigInt(formattedResult[0].id),
+        action: 'create',
+        userEmail: session.user.email,
+        changes: { after: formattedResult[0] }
+      });
+    }
+
     return NextResponse.json(formattedResult);
   } catch (error: any) {
     console.error('Error creating payment ledger entry:', error);
@@ -201,7 +254,22 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
 
-    await prisma.$executeRawUnsafe(`DELETE FROM payments_ledger WHERE id = $1`, BigInt(id));
+    const existing = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT * FROM payments_ledger WHERE id = $1`,
+      BigInt(id)
+    );
+
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM payments_ledger WHERE id = $1`,
+      BigInt(id)
+    );
+
+    await logAudit({
+      recordId: BigInt(id),
+      action: 'delete',
+      userEmail: session.user.email,
+      changes: { before: existing?.[0] ?? null }
+    });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -26,6 +26,7 @@ function toApi(row: any) {
     nominal_currency_uuid: row.nominal_currency_uuid,
     nominal_amount: row.nominal_amount ? Number(row.nominal_amount) : null,
     payment_id: row.payment_id ?? null,
+    parsing_lock: row.parsing_lock ?? false,
     processing_case: row.processing_case,
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null,
@@ -90,17 +91,30 @@ export async function GET(req: NextRequest) {
     console.log('[API] Query params:', { fromDate, toDate, idsParam, limitParam, offsetParam });
 
     const toComparableDate = (dateStr: string | null): string | null => {
-      if (!dateStr || dateStr.length !== 10) return null;
+      if (!dateStr || dateStr.length < 10) return null;
       if (dateStr.includes('-')) {
         const parts = dateStr.split('-');
-        if (parts.length !== 3) return null;
+        if (parts.length < 3) return null;
         const [year, month, day] = parts;
+        if (!year || !month || !day) return null;
         return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
       }
       const parts = dateStr.split('.');
       if (parts.length !== 3) return null;
       const [day, month, year] = parts;
       return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    };
+
+    const normalizeRateDate = (value: any): string | null => {
+      if (!value) return null;
+      if (value instanceof Date) return value.toISOString().slice(0, 10);
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10);
+        const comparable = toComparableDate(trimmed);
+        return comparable;
+      }
+      return null;
     };
 
     if (idsParam) {
@@ -213,11 +227,48 @@ export async function GET(req: NextRequest) {
     });
     console.log('[API] Step 4 complete: Got', balanceRecords.length, 'balance records');
 
+    const rateDates = new Set<string>();
+    for (const tx of filteredTransactions) {
+      const rateDate = normalizeRateDate(tx.correction_date || tx.transaction_date);
+      if (rateDate) rateDates.add(rateDate);
+    }
+    for (const balance of balanceRecords) {
+      const rateDate = normalizeRateDate(balance.balanceDate);
+      if (rateDate) rateDates.add(rateDate);
+    }
+
+    const rateDateList = Array.from(rateDates);
+    const rateRows = rateDateList.length > 0
+      ? await prisma.nbg_exchange_rates.findMany({
+          where: {
+            date: {
+              in: rateDateList.map(dateStr => new Date(dateStr))
+            }
+          },
+          select: { date: true, usd_rate: true }
+        })
+      : [];
+
+    const rateMap = new Map<string, number | null>();
+    for (const rateRow of rateRows) {
+      const key = rateRow.date instanceof Date
+        ? rateRow.date.toISOString().slice(0, 10)
+        : new Date(rateRow.date as any).toISOString().slice(0, 10);
+      rateMap.set(key, rateRow.usd_rate ? Number(rateRow.usd_rate) : null);
+    }
+
+    const getUsdGelRate = (value: any): number | null => {
+      const dateKey = normalizeRateDate(value);
+      if (!dateKey) return null;
+      return rateMap.get(dateKey) ?? null;
+    };
+
     const result = filteredTransactions.map(row => {
       const base = toApi(row);
       const accountCurrencyCode = row.account_currency_code ?? null;
       const nominalCurrencyCode = row.nominal_currency_code ?? null;
       const accountNumber = row.account_number ?? null;
+      const usdGelRate = getUsdGelRate(row.correction_date || row.transaction_date);
 
       return {
         ...base,
@@ -226,11 +277,15 @@ export async function GET(req: NextRequest) {
         financial_code: row.financial_code ?? null,
         account_number: accountNumber && accountCurrencyCode ? `${accountNumber}${accountCurrencyCode}` : accountNumber,
         nominal_currency_code: nominalCurrencyCode,
+        usd_gel_rate: usdGelRate,
       };
     });
 
     const balanceResults = balanceRecords
-      .map(row => balanceToApi(row, row.currency?.code ?? ''))
+      .map(row => ({
+        ...balanceToApi(row, row.currency?.code ?? ''),
+        usd_gel_rate: getUsdGelRate(row.balanceDate)
+      }))
       .filter(balanceRecord => {
         if (!fromDate && !toDate) return true;
         const balanceDateComparable = toComparableDate(balanceRecord.transaction_date);

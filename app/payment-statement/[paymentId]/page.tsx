@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Edit2, Plus, X, Eye, Info } from 'lucide-react';
+import { Edit2, Plus, X, Eye, Info, User } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Combobox } from '@/components/ui/combobox';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -48,6 +49,20 @@ type TransactionRow = {
   createdAt: string;
 };
 
+type CounteragentStatementRow = {
+  id: string;
+  type: 'ledger' | 'bank';
+  paymentId: string | null;
+  date: string;
+  dateSort: number;
+  accrual: number;
+  order: number;
+  payment: number;
+  ppc: number;
+  comment: string;
+  account: string;
+};
+
 type ColumnConfig = {
   key: keyof TransactionRow;
   label: string;
@@ -73,6 +88,7 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 export default function PaymentStatementPage() {
+  const BANK_AUDIT_TABLE = "GE78BG0000000893486000_BOG_GEL";
   const params = useParams();
   const paymentId = params.paymentId as string;
   const [statementData, setStatementData] = useState<any>(null);
@@ -135,6 +151,11 @@ export default function PaymentStatementPage() {
   const [bankEditData, setBankEditData] = useState<any[]>([]);
   const [bankEditId, setBankEditId] = useState<number | null>(null);
   const [bankEditLoading, setBankEditLoading] = useState(false);
+  const [pageTitleSet, setPageTitleSet] = useState(false);
+  const [isCounteragentDialogOpen, setIsCounteragentDialogOpen] = useState(false);
+  const [counteragentStatement, setCounteragentStatement] = useState<any>(null);
+  const [counteragentLoading, setCounteragentLoading] = useState(false);
+  const [counteragentError, setCounteragentError] = useState<string | null>(null);
 
   // Add Ledger dialog state (locked to current payment)
   const [isAddLedgerDialogOpen, setIsAddLedgerDialogOpen] = useState(false);
@@ -143,6 +164,66 @@ export default function PaymentStatementPage() {
   const [addOrder, setAddOrder] = useState('');
   const [addComment, setAddComment] = useState('');
   const [isAddingLedger, setIsAddingLedger] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  useEffect(() => {
+    if (pageTitleSet || !statementData?.payment) return;
+    const counteragent = statementData.payment.counteragent || '';
+    const jobName = statementData.payment.job || '';
+    const title = jobName ? `${jobName} | ${counteragent}` : counteragent;
+    if (title) {
+      document.title = title;
+      setPageTitleSet(true);
+    }
+  }, [pageTitleSet, statementData]);
+
+  const handleExportStatementXlsx = () => {
+    if (!mergedTransactions.length) return;
+    setIsExporting(true);
+    try {
+      const visibleColumns = columns.filter((col) => col.visible);
+      const rows = mergedTransactions.map((row) => {
+        const record: Record<string, any> = {};
+        visibleColumns.forEach((col) => {
+          const rawValue = row[col.key];
+          record[col.label] = rawValue ?? '';
+        });
+        return record;
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Statement');
+      const fileName = `payment-statement-${paymentId}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const openCounteragentStatement = async () => {
+    const counteragentUuid = statementData?.payment?.counteragentUuid;
+    if (!counteragentUuid) return;
+    setIsCounteragentDialogOpen(true);
+    setCounteragentLoading(true);
+    setCounteragentError(null);
+    setCounteragentStatement(null);
+    try {
+      const response = await fetch(
+        `/api/counteragent-statement?counteragentUuid=${encodeURIComponent(counteragentUuid)}`
+      );
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to load counteragent statement');
+      }
+      const result = await response.json();
+      setCounteragentStatement(result);
+    } catch (error: any) {
+      setCounteragentError(error.message || 'Failed to load counteragent statement');
+    } finally {
+      setCounteragentLoading(false);
+    }
+  };
 
   // BroadcastChannel for cross-tab updates
   const [broadcastChannel] = useState(() => {
@@ -693,6 +774,24 @@ export default function PaymentStatementPage() {
     }
   };
 
+  const viewBankAuditLog = async (recordId: number) => {
+    setIsAuditDialogOpen(true);
+    setLoadingAudit(true);
+    setAuditTitle('Bank Transaction Audit Log');
+    try {
+      const response = await fetch(
+        `/api/audit?table=${encodeURIComponent(BANK_AUDIT_TABLE)}&recordId=${recordId}`
+      );
+      const logs = response.ok ? await response.json() : [];
+      setAuditLogs(Array.isArray(logs) ? logs : []);
+    } catch (error) {
+      console.error('Error fetching bank audit logs:', error);
+      setAuditLogs([]);
+    } finally {
+      setLoadingAudit(false);
+    }
+  };
+
   const openBankEditDialog = async (bankId: number) => {
     setIsBankEditDialogOpen(true);
     setBankEditLoading(true);
@@ -721,6 +820,7 @@ export default function PaymentStatementPage() {
         date: row.transaction_date || row.date || '',
         correctionDate: row.correction_date || row.correctionDate || null,
         exchangeRate: row.exchange_rate || row.exchangeRate || null,
+        nominalExchangeRate: row.nominal_exchange_rate || row.nominalExchangeRate || null,
         usdGelRate: row.usd_gel_rate ?? row.usdGelRate ?? null,
         id1: row.id1 || null,
         id2: row.id2 || null,
@@ -937,6 +1037,9 @@ export default function PaymentStatementPage() {
                         <th className="px-4 py-3 font-semibold text-left" style={{ width: '70px' }}>
                           Logs
                         </th>
+                        <th className="px-4 py-3 font-semibold text-left" style={{ width: '70px' }}>
+                          CA
+                        </th>
                         <th className="px-4 py-3 font-semibold text-left" style={{ width: '90px' }}>
                           Actions
                         </th>
@@ -1011,7 +1114,7 @@ export default function PaymentStatementPage() {
                             )}
                             {row.type === 'bank' && row.bankId && (
                               <button
-                                onClick={() => viewAuditLog('consolidated_bank_accounts', row.bankId as number, 'Bank Transaction Audit Log')}
+                                onClick={() => viewBankAuditLog(row.bankId as number)}
                                 className="p-1 hover:bg-gray-200 rounded"
                                 title="View bank audit log"
                               >
@@ -1019,7 +1122,25 @@ export default function PaymentStatementPage() {
                               </button>
                             )}
                           </td>
+                          <td className="px-4 py-3" style={{ width: '70px' }}>
+                            <button
+                              onClick={openCounteragentStatement}
+                              disabled={!statementData?.payment?.counteragentUuid}
+                              className="p-1 hover:bg-gray-200 rounded disabled:opacity-50"
+                              title="View counteragent statement"
+                            >
+                              <User className="h-4 w-4 text-blue-600" />
+                            </button>
+                          </td>
                           <td className="px-4 py-3" style={{ width: '90px' }}>
+                            <button
+                              onClick={openCounteragentStatement}
+                              disabled={!statementData?.payment?.counteragentUuid}
+                              className="p-1 hover:bg-gray-200 rounded disabled:opacity-50"
+                              title="View counteragent statement"
+                            >
+                              <User className="h-4 w-4 text-blue-600" />
+                            </button>
                             {row.type === 'ledger' && row.ledgerId && (
                               <button
                                 onClick={() => handleEditEntry(row)}
@@ -1095,8 +1216,15 @@ export default function PaymentStatementPage() {
             )}
           </div>
 
-          {/* Print Button */}
-          <div className="flex justify-end pt-4 border-t">
+          {/* Print & Export Buttons */}
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <button
+              onClick={handleExportStatementXlsx}
+              disabled={isExporting || !mergedTransactions.length}
+              className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isExporting ? 'Exporting...' : 'Export XLSX'}
+            </button>
             <button
               onClick={() => window.print()}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
@@ -1567,6 +1695,117 @@ export default function PaymentStatementPage() {
                     ))}
                   </div>
                 </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">No data available</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Counteragent Statement Dialog */}
+      {isCounteragentDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">
+                Counteragent Statement
+              </h2>
+              <button
+                onClick={() => setIsCounteragentDialogOpen(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+                disabled={counteragentLoading}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {counteragentLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <span className="text-gray-600">Loading...</span>
+                </div>
+              ) : counteragentError ? (
+                <div className="text-red-600">{counteragentError}</div>
+              ) : counteragentStatement ? (
+                (() => {
+                  const rows: CounteragentStatementRow[] = [
+                    ...(counteragentStatement.ledgerEntries || []).map((entry: any) => ({
+                      id: `ledger-${entry.id}`,
+                      type: 'ledger' as const,
+                      paymentId: entry.paymentId,
+                      date: formatDate(entry.effectiveDate),
+                      dateSort: new Date(entry.effectiveDate).getTime(),
+                      accrual: entry.accrual,
+                      order: entry.order,
+                      payment: 0,
+                      ppc: 0,
+                      comment: entry.comment || '-',
+                      account: '-',
+                    })),
+                    ...(counteragentStatement.bankTransactions || []).map((tx: any) => ({
+                      id: `bank-${tx.id}`,
+                      type: 'bank' as const,
+                      paymentId: tx.paymentId || null,
+                      date: formatDate(tx.date),
+                      dateSort: new Date(tx.date).getTime(),
+                      accrual: 0,
+                      order: 0,
+                      payment: Math.abs(tx.nominalAmount),
+                      ppc: Math.abs(tx.accountCurrencyAmount),
+                      comment: tx.description || '-',
+                      account: tx.accountLabel || '-',
+                    })),
+                  ].sort((a, b) => a.dateSort - b.dateSort);
+
+                  return (
+                    <div className="space-y-4">
+                      <div className="text-sm text-gray-600">
+                        {counteragentStatement.counteragent?.counteragent_name || statementData?.payment?.counteragent || '-'}
+                      </div>
+                      <div className="overflow-x-auto border rounded-lg">
+                        <table className="min-w-full">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-3 font-semibold text-left">Date</th>
+                              <th className="px-4 py-3 font-semibold text-left">Type</th>
+                              <th className="px-4 py-3 font-semibold text-left">Payment ID</th>
+                              <th className="px-4 py-3 font-semibold text-right">Accrual</th>
+                              <th className="px-4 py-3 font-semibold text-right">Order</th>
+                              <th className="px-4 py-3 font-semibold text-right">Payment</th>
+                              <th className="px-4 py-3 font-semibold text-right">PPC</th>
+                              <th className="px-4 py-3 font-semibold text-left">Account</th>
+                              <th className="px-4 py-3 font-semibold text-left">Comment</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.length === 0 ? (
+                              <tr>
+                                <td colSpan={9} className="text-center py-6 text-gray-500">
+                                  No data found
+                                </td>
+                              </tr>
+                            ) : (
+                              rows.map((row) => (
+                                <tr key={row.id} className="border-b">
+                                  <td className="px-4 py-2 text-sm">{row.date}</td>
+                                  <td className="px-4 py-2 text-sm">{row.type}</td>
+                                  <td className="px-4 py-2 text-sm">{row.paymentId || '-'}</td>
+                                  <td className="px-4 py-2 text-sm text-right">{row.accrual.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                  <td className="px-4 py-2 text-sm text-right">{row.order.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                  <td className="px-4 py-2 text-sm text-right">{row.payment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                  <td className="px-4 py-2 text-sm text-right">{row.ppc.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                  <td className="px-4 py-2 text-sm">{row.account}</td>
+                                  <td className="px-4 py-2 text-sm">{row.comment}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()
               ) : (
                 <div className="text-center py-8 text-gray-500">No data available</div>
               )}

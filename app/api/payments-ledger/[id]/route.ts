@@ -112,6 +112,30 @@ export async function PATCH(
       id
     );
 
+    const totals = await prisma.$queryRawUnsafe<Array<{ accrual_total: any; order_total: any }>>(
+      `SELECT
+         COALESCE(SUM(accrual), 0) AS accrual_total,
+         COALESCE(SUM("order"), 0) AS order_total
+       FROM payments_ledger
+       WHERE payment_id = $1
+         AND id <> $2
+         AND (is_deleted = false OR is_deleted IS NULL)`,
+      paymentId,
+      id
+    );
+
+    const existingAccrual = Number(totals?.[0]?.accrual_total ?? 0);
+    const existingOrder = Number(totals?.[0]?.order_total ?? 0);
+    const newAccrual = Number(accrual || 0);
+    const newOrder = Number(order || 0);
+
+    if (existingOrder + newOrder > existingAccrual + newAccrual) {
+      return NextResponse.json(
+        { error: 'Total order cannot exceed total accrual for this payment' },
+        { status: 400 }
+      );
+    }
+
     // Update the ledger entry with date, amounts, and comment
     await prisma.$queryRawUnsafe(
       `UPDATE payments_ledger 
