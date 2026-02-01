@@ -95,8 +95,8 @@ export async function POST(req: NextRequest) {
         parsingRules,
         paymentsMap,
         salaryBaseMap,
-            duplicatePaymentMap,
         salaryLatestMap,
+          duplicatePaymentMap,
         0,
         {
           case1_counteragent_processed: 0,
