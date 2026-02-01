@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const paymentIds = Array.from(new Set(normalized.map((entry) => entry.paymentId)));
+    const paymentIds = Array.from(new Set(normalized.map((entry: { paymentId: string }) => entry.paymentId)));
     const totals = await prisma.$queryRawUnsafe<
       Array<{ payment_id: string; accrual_total: any; order_total: any }>
     >(
