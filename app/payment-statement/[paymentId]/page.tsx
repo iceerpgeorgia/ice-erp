@@ -163,7 +163,8 @@ export default function PaymentStatementPage() {
   const [counteragentStatement, setCounteragentStatement] = useState<any>(null);
   const [counteragentLoading, setCounteragentLoading] = useState(false);
   const [counteragentError, setCounteragentError] = useState<string | null>(null);
-  const [selectedBankRowIds, setSelectedBankRowIds] = useState<Set<string>>(new Set());
+  const [selectedBankAccrualRowIds, setSelectedBankAccrualRowIds] = useState<Set<string>>(new Set());
+  const [selectedBankOrderRowIds, setSelectedBankOrderRowIds] = useState<Set<string>>(new Set());
   const [isBulkAdding, setIsBulkAdding] = useState(false);
 
   // Add Ledger dialog state (locked to current payment)
@@ -476,10 +477,15 @@ export default function PaymentStatementPage() {
   }
 
   const bankRows = mergedTransactions.filter((row) => row.type === 'bank');
-  const allBankSelected = bankRows.length > 0 && bankRows.every((row) => selectedBankRowIds.has(row.id));
+  const allBankAccrualSelected =
+    bankRows.length > 0 && bankRows.every((row) => selectedBankAccrualRowIds.has(row.id));
+  const allBankOrderSelected =
+    bankRows.length > 0 && bankRows.every((row) => selectedBankOrderRowIds.has(row.id));
+  const hasBulkSelection =
+    selectedBankAccrualRowIds.size > 0 || selectedBankOrderRowIds.size > 0;
 
-  const handleToggleBankRow = (rowId: string) => {
-    setSelectedBankRowIds((prev) => {
+  const handleToggleBankAccrualRow = (rowId: string) => {
+    setSelectedBankAccrualRowIds((prev) => {
       const next = new Set(prev);
       if (next.has(rowId)) {
         next.delete(rowId);
@@ -490,10 +496,34 @@ export default function PaymentStatementPage() {
     });
   };
 
-  const handleToggleAllBankRows = () => {
-    setSelectedBankRowIds((prev) => {
+  const handleToggleBankOrderRow = (rowId: string) => {
+    setSelectedBankOrderRowIds((prev) => {
       const next = new Set(prev);
-      if (allBankSelected) {
+      if (next.has(rowId)) {
+        next.delete(rowId);
+      } else {
+        next.add(rowId);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleAllBankAccrualRows = () => {
+    setSelectedBankAccrualRowIds((prev) => {
+      const next = new Set(prev);
+      if (allBankAccrualSelected) {
+        bankRows.forEach((row) => next.delete(row.id));
+      } else {
+        bankRows.forEach((row) => next.add(row.id));
+      }
+      return next;
+    });
+  };
+
+  const handleToggleAllBankOrderRows = () => {
+    setSelectedBankOrderRowIds((prev) => {
+      const next = new Set(prev);
+      if (allBankOrderSelected) {
         bankRows.forEach((row) => next.delete(row.id));
       } else {
         bankRows.forEach((row) => next.add(row.id));
@@ -504,18 +534,28 @@ export default function PaymentStatementPage() {
 
   const handleBulkAddAO = async () => {
     if (!statementData?.payment?.paymentId) return;
-    if (selectedBankRowIds.size === 0) return;
+    if (!hasBulkSelection) return;
 
-    const selectedRows = bankRows.filter((row) => selectedBankRowIds.has(row.id));
+    const selectedRows = bankRows.filter(
+      (row) => selectedBankAccrualRowIds.has(row.id) || selectedBankOrderRowIds.has(row.id)
+    );
     if (selectedRows.length === 0) return;
 
-    const entries = selectedRows.map((row) => ({
-      paymentId: statementData.payment.paymentId,
-      effectiveDate: displayDateToIso(row.date),
-      accrual: row.payment,
-      order: row.payment,
-      comment: 'Bulk A&O from payment statement',
-    }));
+    const entries = selectedRows
+      .map((row) => {
+        const addAccrual = selectedBankAccrualRowIds.has(row.id);
+        const addOrder = selectedBankOrderRowIds.has(row.id);
+        if (!addAccrual && !addOrder) return null;
+
+        return {
+          paymentId: statementData.payment.paymentId,
+          effectiveDate: displayDateToIso(row.date),
+          accrual: addAccrual ? row.payment : null,
+          order: addOrder ? row.payment : null,
+          comment: 'Bulk A/O from payment statement',
+        };
+      })
+      .filter(Boolean);
 
     setIsBulkAdding(true);
     try {
@@ -530,7 +570,8 @@ export default function PaymentStatementPage() {
         throw new Error(error.error || 'Failed to create bulk ledger entries');
       }
 
-      setSelectedBankRowIds(new Set());
+      setSelectedBankAccrualRowIds(new Set());
+      setSelectedBankOrderRowIds(new Set());
       if (broadcastChannel) {
         broadcastChannel.postMessage({
           type: 'ledger-updated',
@@ -1075,10 +1116,10 @@ export default function PaymentStatementPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleBulkAddAO}
-                  disabled={selectedBankRowIds.size === 0 || isBulkAdding}
+                  disabled={!hasBulkSelection || isBulkAdding}
                   className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isBulkAdding ? 'Adding...' : '+A&O'}
+                  {isBulkAdding ? 'Adding...' : '+A/O'}
                 </button>
                 <button
                   onClick={handleOpenAddLedger}
@@ -1096,13 +1137,30 @@ export default function PaymentStatementPage() {
                     <thead className="bg-gray-100">
                       <tr>
                         <th
-                          className="px-2 py-3 font-semibold text-center"
+                          className="px-2 py-3 font-semibold text-center bg-emerald-50 text-emerald-700"
                           style={{ width: '48px' }}
                         >
-                          <Checkbox
-                            checked={allBankSelected}
-                            onCheckedChange={handleToggleAllBankRows}
-                          />
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-xs font-semibold">A</span>
+                            <Checkbox
+                              checked={allBankAccrualSelected}
+                              onCheckedChange={handleToggleAllBankAccrualRows}
+                              className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600 text-emerald-700"
+                            />
+                          </div>
+                        </th>
+                        <th
+                          className="px-2 py-3 font-semibold text-center bg-amber-50 text-amber-700"
+                          style={{ width: '48px' }}
+                        >
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-xs font-semibold">O</span>
+                            <Checkbox
+                              checked={allBankOrderSelected}
+                              onCheckedChange={handleToggleAllBankOrderRows}
+                              className="data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600 text-amber-700"
+                            />
+                          </div>
                         </th>
                         {columns.filter(col => col.visible).map((column) => (
                           <th
@@ -1149,9 +1207,18 @@ export default function PaymentStatementPage() {
                         <tr key={row.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                           <td className="px-2 py-3 text-center" style={{ width: '48px' }}>
                             <Checkbox
-                              checked={row.type === 'bank' && selectedBankRowIds.has(row.id)}
+                              checked={row.type === 'bank' && selectedBankAccrualRowIds.has(row.id)}
                               disabled={row.type !== 'bank'}
-                              onCheckedChange={() => row.type === 'bank' && handleToggleBankRow(row.id)}
+                              onCheckedChange={() => row.type === 'bank' && handleToggleBankAccrualRow(row.id)}
+                              className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600 text-emerald-700"
+                            />
+                          </td>
+                          <td className="px-2 py-3 text-center" style={{ width: '48px' }}>
+                            <Checkbox
+                              checked={row.type === 'bank' && selectedBankOrderRowIds.has(row.id)}
+                              disabled={row.type !== 'bank'}
+                              onCheckedChange={() => row.type === 'bank' && handleToggleBankOrderRow(row.id)}
+                              className="data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600 text-amber-700"
                             />
                           </td>
                           {columns.filter(col => col.visible).map((column) => {
@@ -1271,6 +1338,7 @@ export default function PaymentStatementPage() {
                       
                       {/* Totals Row */}
                       <tr className="bg-blue-50 font-bold border-t-2 border-blue-300">
+                        <td className="px-2 py-3" style={{ width: '48px' }}></td>
                         <td className="px-2 py-3" style={{ width: '48px' }}></td>
                         {columns.filter(col => col.visible).map((column) => {
                           let totalValue: string | number = '';
