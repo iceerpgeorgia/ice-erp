@@ -28,6 +28,13 @@ const toISO = (d: Date | null): string => {
   return d ? d.toISOString() : '';
 };
 
+const displayDateToIso = (value: string): string => {
+  const match = value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!match) return value;
+  const [, day, month, year] = match;
+  return `${year}-${month}-${day}`;
+};
+
 type TransactionRow = {
   id: string;
   ledgerId?: number; // Add ledger ID for editing
@@ -156,6 +163,8 @@ export default function PaymentStatementPage() {
   const [counteragentStatement, setCounteragentStatement] = useState<any>(null);
   const [counteragentLoading, setCounteragentLoading] = useState(false);
   const [counteragentError, setCounteragentError] = useState<string | null>(null);
+  const [selectedBankRowIds, setSelectedBankRowIds] = useState<Set<string>>(new Set());
+  const [isBulkAdding, setIsBulkAdding] = useState(false);
 
   // Add Ledger dialog state (locked to current payment)
   const [isAddLedgerDialogOpen, setIsAddLedgerDialogOpen] = useState(false);
@@ -273,23 +282,23 @@ export default function PaymentStatementPage() {
     }
   }, [columns, isInitialized]);
 
-  useEffect(() => {
-    const fetchStatement = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/payment-statement?paymentId=${paymentId}`);
-        if (!response.ok) throw new Error('Failed to fetch statement');
-        const result = await response.json();
-        setStatementData(result);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load statement');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const refreshStatement = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/payment-statement?paymentId=${paymentId}`);
+      if (!response.ok) throw new Error('Failed to fetch statement');
+      const result = await response.json();
+      setStatementData(result);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load statement');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (paymentId) {
-      fetchStatement();
+      refreshStatement();
     }
   }, [paymentId]);
 
@@ -465,6 +474,78 @@ export default function PaymentStatementPage() {
     // Now reverse to show newest first in the table
     mergedTransactions.reverse();
   }
+
+  const bankRows = mergedTransactions.filter((row) => row.type === 'bank');
+  const allBankSelected = bankRows.length > 0 && bankRows.every((row) => selectedBankRowIds.has(row.id));
+
+  const handleToggleBankRow = (rowId: string) => {
+    setSelectedBankRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowId)) {
+        next.delete(rowId);
+      } else {
+        next.add(rowId);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleAllBankRows = () => {
+    setSelectedBankRowIds((prev) => {
+      const next = new Set(prev);
+      if (allBankSelected) {
+        bankRows.forEach((row) => next.delete(row.id));
+      } else {
+        bankRows.forEach((row) => next.add(row.id));
+      }
+      return next;
+    });
+  };
+
+  const handleBulkAddAO = async () => {
+    if (!statementData?.payment?.paymentId) return;
+    if (selectedBankRowIds.size === 0) return;
+
+    const selectedRows = bankRows.filter((row) => selectedBankRowIds.has(row.id));
+    if (selectedRows.length === 0) return;
+
+    const entries = selectedRows.map((row) => ({
+      paymentId: statementData.payment.paymentId,
+      effectiveDate: displayDateToIso(row.date),
+      accrual: row.payment,
+      order: row.payment,
+      comment: 'Bulk A&O from payment statement',
+    }));
+
+    setIsBulkAdding(true);
+    try {
+      const response = await fetch('/api/payments-ledger/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create bulk ledger entries');
+      }
+
+      setSelectedBankRowIds(new Set());
+      if (broadcastChannel) {
+        broadcastChannel.postMessage({
+          type: 'ledger-updated',
+          paymentId: statementData.payment.paymentId,
+          timestamp: Date.now(),
+        });
+      }
+      await refreshStatement();
+    } catch (error: any) {
+      console.error('Error creating bulk ledger entries:', error);
+      alert(error.message || 'Failed to create bulk ledger entries');
+    } finally {
+      setIsBulkAdding(false);
+    }
+  };
 
   const resetAddLedgerForm = () => {
     setAddEffectiveDate('');
@@ -991,13 +1072,22 @@ export default function PaymentStatementPage() {
                   ({mergedTransactions.length} {mergedTransactions.length === 1 ? 'entry' : 'entries'})
                 </span>
               </h3>
-              <button
-                onClick={handleOpenAddLedger}
-                className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="h-4 w-4" />
-                Add Ledger Entry
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleBulkAddAO}
+                  disabled={selectedBankRowIds.size === 0 || isBulkAdding}
+                  className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isBulkAdding ? 'Adding...' : '+A&O'}
+                </button>
+                <button
+                  onClick={handleOpenAddLedger}
+                  className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Ledger Entry
+                </button>
+              </div>
             </div>
             {mergedTransactions.length > 0 ? (
               <div className="border rounded-lg overflow-hidden">
@@ -1005,6 +1095,15 @@ export default function PaymentStatementPage() {
                   <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
                     <thead className="bg-gray-100">
                       <tr>
+                        <th
+                          className="px-2 py-3 font-semibold text-center"
+                          style={{ width: '48px' }}
+                        >
+                          <Checkbox
+                            checked={allBankSelected}
+                            onCheckedChange={handleToggleAllBankRows}
+                          />
+                        </th>
                         {columns.filter(col => col.visible).map((column) => (
                           <th
                             key={column.key}
@@ -1048,6 +1147,13 @@ export default function PaymentStatementPage() {
                     <tbody>
                       {mergedTransactions.map((row, index) => (
                         <tr key={row.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="px-2 py-3 text-center" style={{ width: '48px' }}>
+                            <Checkbox
+                              checked={row.type === 'bank' && selectedBankRowIds.has(row.id)}
+                              disabled={row.type !== 'bank'}
+                              onCheckedChange={() => row.type === 'bank' && handleToggleBankRow(row.id)}
+                            />
+                          </td>
                           {columns.filter(col => col.visible).map((column) => {
                             let displayValue = row[column.key];
                             
@@ -1165,6 +1271,7 @@ export default function PaymentStatementPage() {
                       
                       {/* Totals Row */}
                       <tr className="bg-blue-50 font-bold border-t-2 border-blue-300">
+                        <td className="px-2 py-3" style={{ width: '48px' }}></td>
                         {columns.filter(col => col.visible).map((column) => {
                           let totalValue: string | number = '';
                           
