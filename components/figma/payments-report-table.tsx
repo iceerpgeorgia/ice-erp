@@ -105,7 +105,6 @@ export function PaymentsReportTable() {
   const [baseInfoError, setBaseInfoError] = useState<string | null>(null);
   const [baseInfo, setBaseInfo] = useState<any | null>(null);
   const [isBankExporting, setIsBankExporting] = useState(false);
-  const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
   const counteragentsWithNegativeBalance = useMemo(() => {
     const flagged = new Set<string>();
@@ -1061,52 +1060,6 @@ export function PaymentsReportTable() {
     });
   };
 
-  const handleBulkAddAO = async () => {
-    if (selectedPaymentIds.size === 0) return;
-
-    const selectedRows = data.filter((row) => selectedPaymentIds.has(row.paymentId));
-    if (selectedRows.length === 0) return;
-
-    const missingDate = selectedRows.filter((row) => !row.latestDate);
-    if (missingDate.length > 0) {
-      alert('Some selected payments are missing a date. Please deselect them or set a date.');
-      return;
-    }
-
-    const entries = selectedRows.map((row) => ({
-      paymentId: row.paymentId,
-      effectiveDate: row.latestDate,
-      accrual: row.accrual,
-      order: row.order,
-      comment: 'Bulk A&O from payments report',
-    }));
-
-    setIsBulkSubmitting(true);
-    try {
-      const response = await fetch('/api/payments-ledger/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entries }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to create bulk ledger entries');
-      }
-
-      setSelectedPaymentIds(new Set());
-      if (broadcastChannel) {
-        broadcastChannel.postMessage({ type: 'ledger-updated' });
-      }
-      fetchData();
-    } catch (error: any) {
-      console.error('Error creating bulk ledger entries:', error);
-      alert(error.message || 'Failed to create bulk ledger entries');
-    } finally {
-      setIsBulkSubmitting(false);
-    }
-  };
-
   const fetchExchangeRate = async (currency: string, date: string) => {
     if (currency.toUpperCase() === 'GEL') return 1;
 
@@ -1290,11 +1243,6 @@ export function PaymentsReportTable() {
             {selectedPaymentIds.size > 0 && (
               <Button variant="outline" onClick={handleDownloadBankXlsx} disabled={isBankExporting}>
                 {isBankExporting ? 'Preparing...' : 'Bank XLSX'}
-              </Button>
-            )}
-            {selectedPaymentIds.size > 0 && (
-              <Button variant="default" onClick={handleBulkAddAO} disabled={isBulkSubmitting}>
-                {isBulkSubmitting ? 'Adding...' : '+A&O'}
               </Button>
             )}
             {/* Add Entry Button */}
