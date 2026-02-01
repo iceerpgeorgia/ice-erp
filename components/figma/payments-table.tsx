@@ -333,7 +333,7 @@ export function PaymentsTable() {
 
   const fetchFinancialCodes = async () => {
     try {
-      const response = await fetch('/api/financial-codes');
+      const response = await fetch('/api/financial-codes?leafOnly=true');
       if (!response.ok) throw new Error('Failed to fetch financial codes');
       const data = await response.json();
       // Map to include both validation and code

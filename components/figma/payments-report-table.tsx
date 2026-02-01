@@ -322,7 +322,7 @@ export function PaymentsReportTable() {
         const [projectsRes, counteragentsRes, financialCodesRes, currenciesRes] = await Promise.all([
           fetch('/api/projects'),
           fetch('/api/counteragents'),
-          fetch('/api/financial-codes'),
+          fetch('/api/financial-codes?leafOnly=true'),
           fetch('/api/currencies')
         ]);
 
