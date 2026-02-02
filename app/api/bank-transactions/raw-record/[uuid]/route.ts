@@ -17,6 +17,7 @@ export async function GET(
     const { uuid } = await context.params;
     const searchParams = request.nextUrl.searchParams;
     const sourceTable = searchParams.get('sourceTable');
+    const sourceId = searchParams.get('sourceId');
     console.log('Fetching raw record for UUID:', uuid);
 
     if (sourceTable && ALLOWED_TABLES.has(sourceTable)) {
@@ -33,10 +34,15 @@ export async function GET(
         max: 1,
       });
 
-      const result = await pool.query(
-        `SELECT * FROM "${sourceTable}" WHERE uuid = $1 LIMIT 1`,
-        [uuid]
-      );
+      const result = sourceId
+        ? await pool.query(
+            `SELECT * FROM "${sourceTable}" WHERE id = $1 LIMIT 1`,
+            [sourceId]
+          )
+        : await pool.query(
+            `SELECT * FROM "${sourceTable}" WHERE uuid = $1 LIMIT 1`,
+            [uuid]
+          );
 
       await pool.end();
 

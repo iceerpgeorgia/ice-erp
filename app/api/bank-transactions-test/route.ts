@@ -5,17 +5,101 @@ import { prisma } from "@/lib/prisma";
 export const revalidate = 0;
 
 const SOURCE_TABLES = [
-  { name: "GE78BG0000000893486000_BOG_GEL", offset: 0 },
-  { name: "GE65TB7856036050100002_TBC_GEL", offset: 1000000000000 },
+  {
+    name: "GE78BG0000000893486000_BOG_GEL",
+    offset: 0,
+    bankAccountUuid: null,
+    accountCurrencyUuid: null,
+    isTbc: false,
+  },
+  {
+    name: "GE65TB7856036050100002_TBC_GEL",
+    offset: 1000000000000,
+    bankAccountUuid: "1ef0f05d-00cc-4c6c-a858-4d8d50069496",
+    accountCurrencyUuid: "5a2d799d-22a1-4e0a-b029-8031a1df6d56",
+    isTbc: true,
+  },
 ];
 
-const UNION_SQL = SOURCE_TABLES.map(
-  (table) => `SELECT cba.*, (cba.id + ${table.offset})::bigint as synthetic_id, cba.id as source_id, '${table.name}' as source_table FROM "${table.name}" cba`
-).join(' UNION ALL ');
+const UNION_SQL = SOURCE_TABLES.map((table) => {
+  if (!table.isTbc) {
+    return `SELECT
+      cba.id,
+      cba.uuid,
+      cba.bank_account_uuid,
+      cba.raw_record_uuid,
+      cba.transaction_date,
+      cba.correction_date,
+      cba.exchange_rate,
+      cba.description,
+      cba.counteragent_uuid,
+      cba.project_uuid,
+      cba.financial_code_uuid,
+      cba.account_currency_uuid,
+      cba.account_currency_amount,
+      cba.nominal_currency_uuid,
+      cba.nominal_amount,
+      cba.payment_id,
+      cba.processing_case,
+      cba.created_at,
+      cba.updated_at,
+      cba.counteragent_account_number,
+      cba.parsing_lock,
+      cba.applied_rule_id,
+      (cba.id + ${table.offset})::bigint as synthetic_id,
+      cba.id as source_id,
+      '${table.name}' as source_table
+    FROM "${table.name}" cba`;
+  }
 
-const UNFETCHED_UNION_SQL = SOURCE_TABLES.map(
-  (table) => `SELECT (id + ${table.offset})::bigint as synthetic_id, account_currency_uuid, account_currency_amount FROM "${table.name}"`
-).join(' UNION ALL ');
+  return `SELECT
+      t.id,
+      t.uuid,
+      '${table.bankAccountUuid}'::uuid as bank_account_uuid,
+      t.uuid as raw_record_uuid,
+      REPLACE(t.date, '/', '.') as transaction_date,
+      NULL::date as correction_date,
+      NULL::numeric as exchange_rate,
+      CASE
+        WHEN t.additional_information IS NOT NULL AND t.additional_information <> ''
+          THEN COALESCE(t.description, '') || ' | ' || t.additional_information
+        ELSE t.description
+      END as description,
+      NULL::uuid as counteragent_uuid,
+      NULL::uuid as project_uuid,
+      NULL::uuid as financial_code_uuid,
+      '${table.accountCurrencyUuid}'::uuid as account_currency_uuid,
+      (COALESCE(NULLIF(t.paid_in, '')::numeric, 0) - COALESCE(NULLIF(t.paid_out, '')::numeric, 0)) as account_currency_amount,
+      '${table.accountCurrencyUuid}'::uuid as nominal_currency_uuid,
+      (COALESCE(NULLIF(t.paid_in, '')::numeric, 0) - COALESCE(NULLIF(t.paid_out, '')::numeric, 0)) as nominal_amount,
+      NULL::text as payment_id,
+      t.processing_case,
+      t.created_at,
+      t.updated_at,
+      t.partner_account_number as counteragent_account_number,
+      FALSE as parsing_lock,
+      t.applied_rule_id,
+      (t.id + ${table.offset})::bigint as synthetic_id,
+      t.id as source_id,
+      '${table.name}' as source_table
+    FROM "${table.name}" t`;
+}).join(' UNION ALL ');
+
+const UNFETCHED_UNION_SQL = SOURCE_TABLES.map((table) => {
+  if (!table.isTbc) {
+    return `SELECT
+      (id + ${table.offset})::bigint as synthetic_id,
+      account_currency_uuid,
+      account_currency_amount
+    FROM "${table.name}"`;
+  }
+
+  return `SELECT
+      (id + ${table.offset})::bigint as synthetic_id,
+      '${table.accountCurrencyUuid}'::uuid as account_currency_uuid,
+      (COALESCE(NULLIF(paid_in, '')::numeric, 0) - COALESCE(NULLIF(paid_out, '')::numeric, 0)) as account_currency_amount
+    FROM "${table.name}"`;
+}).join(' UNION ALL ');
 
 // Map raw SQL results (snake_case) to API response (snake_case)
 function toApi(row: any) {
