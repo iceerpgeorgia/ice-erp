@@ -920,6 +920,9 @@ export async function processBOGGEL(
       applied_rule_id: result.applied_rule_id,
     });
 
+
+
+
     rawUpdates.push({
       uuid: rawRecord.uuid,
       counteragent_processed: result.case1_counteragent_processed,
@@ -1072,6 +1075,7 @@ export async function processTBCGEL(
 
   const bankAccountUuid = accountData.uuid;
   const accountCurrencyUuid = accountData.currency_uuid;
+  const deconsolidatedTableName = `${accountNumber}_TBC_GEL`;
 
   console.log(`📊 Bank Account UUID: ${bankAccountUuid}`);
   console.log(`💱 Account Currency UUID: ${accountCurrencyUuid}\n`);
@@ -1234,6 +1238,8 @@ export async function processTBCGEL(
   >();
   const consolidatedRecords: ConsolidatedRecord[] = [];
   const rawUpdates: RawUpdate[] = [];
+  const deconsolidatedRecords: any[] = [];
+  const importDateStr = new Date().toISOString();
 
   for (let idx = 0; idx < totalRecords; idx++) {
     const rawRecord = rawRecords[idx];
@@ -1323,6 +1329,61 @@ export async function processTBCGEL(
       applied_rule_id: result.applied_rule_id,
     });
 
+    deconsolidatedRecords.push({
+      uuid: rawRecord.uuid,
+      import_date: importDateStr,
+      created_at: importDateStr,
+      updated_at: importDateStr,
+      docnomination: combinedDescription,
+      docinformation: rawRecord.additional_description || rawRecord.additional_information,
+      dockey: rawRecord.transaction_id,
+      docrecdate: rawRecord.document_date || rawRecord.date,
+      docprodgroup: rawRecord.operation_code,
+      docvaluedate: rawRecord.date,
+      docsenderinn: isIncoming ? rawRecord.partner_tax_code : null,
+      docbenefinn: isIncoming ? null : rawRecord.partner_tax_code,
+      docsenderacctno: isIncoming ? rawRecord.partner_account_number : null,
+      docbenefacctno: isIncoming ? null : rawRecord.partner_account_number,
+      doccoracct: rawRecord.partner_account_number,
+      entriesid: rawRecord.document_number,
+      entrydbamt: rawRecord.paid_out,
+      entrycramt: rawRecord.paid_in,
+      import_batch_id: importBatchId,
+      counteragent_processed: result.case1_counteragent_processed,
+      parsing_rule_processed: result.case6_parsing_rule_applied,
+      payment_id_processed: result.case4_payment_id_matched,
+      is_processed: Boolean(
+        result.case1_counteragent_processed &&
+          result.case6_parsing_rule_applied &&
+          result.case4_payment_id_matched
+      ),
+      counteragent_inn: result.counteragent_inn,
+      applied_rule_id: result.applied_rule_id,
+      processing_case: caseDescription,
+      counteragent_found: result.case1_counteragent_found,
+      counteragent_missing: result.case3_counteragent_missing,
+      payment_id_matched: result.case4_payment_id_matched,
+      payment_id_conflict: result.case5_payment_id_conflict,
+      parsing_rule_applied: result.case6_parsing_rule_applied,
+      parsing_rule_conflict: result.case7_parsing_rule_conflict,
+      bank_account_uuid: bankAccountUuid,
+      raw_record_uuid: rawRecord.uuid,
+      transaction_date: transactionDate.toISOString().split('T')[0],
+      description: combinedDescription,
+      counteragent_uuid: result.counteragent_uuid,
+      counteragent_account_number: result.counteragent_account_number,
+      project_uuid: result.project_uuid,
+      financial_code_uuid: result.financial_code_uuid,
+      payment_id: result.payment_id,
+      account_currency_uuid: accountCurrencyUuid,
+      account_currency_amount: accountCurrencyAmount,
+      nominal_currency_uuid: nominalCurrencyUuid,
+      nominal_amount: nominalAmount,
+      correction_date: null,
+      exchange_rate: null,
+      parsing_lock: false,
+    });
+
     rawUpdates.push({
       uuid: rawRecord.uuid,
       counteragent_processed: result.case1_counteragent_processed,
@@ -1355,6 +1416,23 @@ export async function processTBCGEL(
 
     if (consolidatedError) throw consolidatedError;
     console.log(`✅ Inserted ${consolidatedRecords.length} consolidated records\n`);
+  }
+
+  console.log('\n' + '='.repeat(80));
+  console.log(`📊 STEP 4B: INSERTING ${deconsolidatedRecords.length} DECONSOLIDATED RECORDS`);
+  console.log('='.repeat(80) + '\n');
+
+  if (deconsolidatedRecords.length > 0) {
+    const batchSize = 1000;
+    for (let i = 0; i < deconsolidatedRecords.length; i += batchSize) {
+      const batch = deconsolidatedRecords.slice(i, i + batchSize);
+      const { error: insertError } = await supabase
+        .from(deconsolidatedTableName)
+        .insert(batch);
+
+      if (insertError) throw insertError;
+      console.log(`  ✅ Inserted ${Math.min(i + batchSize, deconsolidatedRecords.length)}/${deconsolidatedRecords.length}`);
+    }
   }
 
   console.log('\n' + '='.repeat(80));
