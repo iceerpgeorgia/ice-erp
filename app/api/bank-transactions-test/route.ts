@@ -311,12 +311,12 @@ export async function GET(req: NextRequest) {
       const idsString = fetchedIdsArray.join(',');
       unfetchedTransactions = await prisma.$queryRawUnsafe<Array<{account_currency_uuid: string, account_currency_amount: any}>>(
         `SELECT account_currency_uuid, account_currency_amount 
-         FROM "${DECONSOLIDATED_TABLE}" 
+         FROM "${CONSOLIDATED_TABLE}" 
          WHERE id NOT IN (${idsString})`
       );
     } else {
       unfetchedTransactions = await prisma.$queryRawUnsafe<Array<{account_currency_uuid: string, account_currency_amount: any}>>(
-        `SELECT account_currency_uuid, account_currency_amount FROM "${DECONSOLIDATED_TABLE}"`
+        `SELECT account_currency_uuid, account_currency_amount FROM "${CONSOLIDATED_TABLE}"`
       );
     }
 
