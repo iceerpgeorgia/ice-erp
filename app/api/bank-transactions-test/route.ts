@@ -514,16 +514,27 @@ export async function GET(req: NextRequest) {
     console.log('[API] - combinedResult length:', combinedResult.length);
     console.log('[API] - totalCount:', totalCount);
 
-    return NextResponse.json({
-      data: combinedResult,
-      currency_summaries: Object.values(currencySummaries),
-      pagination: totalCount !== undefined ? {
-        total: Number(totalCount),
-        limit: limit ?? combinedResult.length,
-        offset: offset,
-        hasMore: Number(totalCount) > (offset + (limit ?? 0))
-      } : undefined
-    });
+    const sanitizeBigInt = (value: any): any => {
+      if (typeof value === 'bigint') return value.toString();
+      if (Array.isArray(value)) return value.map(sanitizeBigInt);
+      if (value && typeof value === 'object') {
+        return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, sanitizeBigInt(v)]));
+      }
+      return value;
+    };
+
+    return NextResponse.json(
+      sanitizeBigInt({
+        data: combinedResult,
+        currency_summaries: Object.values(currencySummaries),
+        pagination: totalCount !== undefined ? {
+          total: Number(totalCount),
+          limit: limit ?? combinedResult.length,
+          offset: offset,
+          hasMore: Number(totalCount) > (offset + (limit ?? 0))
+        } : undefined
+      })
+    );
   } catch (error: any) {
     console.error("[GET /api/bank-transactions-test] Error:", error);
     return NextResponse.json(
