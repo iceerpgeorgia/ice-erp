@@ -4,7 +4,7 @@ import { authOptions, prisma } from "@/lib/auth";
 export type AuditAction = "create" | "update" | "delete" | "deactivate" | "activate";
 
 export async function logAudit(params: {
-  table: "countries" | "entity_types" | "counteragents" | "financial_codes" | "nbg_exchange_rates" | "currencies" | "projects" | "project_states" | "consolidated_bank_accounts" | "GE78BG0000000893486000_BOG_GEL";
+  table: "countries" | "entity_types" | "counteragents" | "financial_codes" | "nbg_exchange_rates" | "currencies" | "projects" | "project_states" | "consolidated_bank_accounts" | "GE78BG0000000893486000_BOG_GEL" | "GE65TB7856036050100002_TBC_GEL";
   recordId: bigint | string | number;
   action: AuditAction;
   changes?: any;
