@@ -106,12 +106,12 @@ export async function POST(request: Request) {
     const existingByComposite = await prisma.$queryRawUnsafe<Array<{ payment_id: string }>>(
       `SELECT payment_id
        FROM payments
-       WHERE counteragent_uuid = $1
-         AND financial_code_uuid = $2
-         AND currency_uuid = $3
-         AND income_tax = $4
-         AND project_uuid IS NOT DISTINCT FROM $5
-         AND job_uuid IS NOT DISTINCT FROM $6
+       WHERE counteragent_uuid = $1::uuid
+         AND financial_code_uuid = $2::uuid
+         AND currency_uuid = $3::uuid
+         AND income_tax = $4::boolean
+         AND project_uuid IS NOT DISTINCT FROM $5::uuid
+         AND job_uuid IS NOT DISTINCT FROM $6::uuid
          AND is_active = true
        LIMIT 1`,
       counteragentUuid,
