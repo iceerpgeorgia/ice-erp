@@ -5,16 +5,17 @@ import { logAudit } from "@/lib/audit";
 
 export const revalidate = 0;
 
-const DEFAULT_TABLE = "GE78BG0000000893486000_BOG_GEL";
+const DEFAULT_TABLE = "GE78BG0000000893486000_BOG_GEL" as const;
 const ALLOWED_TABLES = new Set([
   "GE78BG0000000893486000_BOG_GEL",
   "GE65TB7856036050100002_TBC_GEL",
 ]);
+type AllowedTable = "GE78BG0000000893486000_BOG_GEL" | "GE65TB7856036050100002_TBC_GEL";
 
-function resolveTableName(searchParams: URLSearchParams): string {
+function resolveTableName(searchParams: URLSearchParams): AllowedTable {
   const sourceTable = searchParams.get('sourceTable');
   if (sourceTable && ALLOWED_TABLES.has(sourceTable)) {
-    return sourceTable;
+    return sourceTable as AllowedTable;
   }
   return DEFAULT_TABLE;
 }
