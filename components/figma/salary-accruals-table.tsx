@@ -651,7 +651,9 @@ export function SalaryAccrualsTable() {
       // Calculate paid and month_balance for each salary accrual
       const enrichedData = projectedData.map((accrual: SalaryAccrual) => {
         const paymentIdLower = accrual.payment_id ? normalizePaymentId(accrual.payment_id) : '';
-        const paid = paidMap.get(paymentIdLower) || 0;
+        const paid = typeof accrual.paid === 'number'
+          ? accrual.paid
+          : (paidMap.get(paymentIdLower) || 0);
         const monthBalance = computeBalance(accrual);
 
         return {

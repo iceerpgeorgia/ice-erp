@@ -96,7 +96,36 @@ export async function GET(request: NextRequest) {
       ORDER BY sa.salary_month DESC, sa.created_at DESC
     `;
 
+    const paidRows = await prisma.$queryRaw<any[]>`
+      SELECT
+        regexp_replace(lower(payment_id), '[^a-z0-9]', '', 'g') as payment_id_key,
+        SUM(ABS(account_currency_amount))::numeric as paid
+      FROM (
+        SELECT payment_id, account_currency_amount
+        FROM "GE78BG0000000893486000_BOG_GEL"
+        UNION ALL
+        SELECT payment_id, account_currency_amount
+        FROM "GE65TB7856036050100002_TBC_GEL"
+      ) tx
+      WHERE payment_id IS NOT NULL AND payment_id <> ''
+      GROUP BY regexp_replace(lower(payment_id), '[^a-z0-9]', '', 'g')
+    `;
+
+    const paidMap = new Map<string, number>();
+    for (const row of paidRows) {
+      const key = String(row.payment_id_key || '').trim();
+      if (!key) continue;
+      const amount = row.paid ? Number(row.paid) : 0;
+      paidMap.set(key, amount);
+    }
+
     const formattedAccruals = accruals.map((accrual) => ({
+      paid: paidMap.get(
+        String(accrual.payment_id || '')
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '')
+      ) || 0,
       ...accrual,
       id: accrual.id.toString(),
       net_sum: accrual.net_sum.toString(),
