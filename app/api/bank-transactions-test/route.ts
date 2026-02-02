@@ -4,12 +4,25 @@ import { prisma } from "@/lib/prisma";
 
 export const revalidate = 0;
 
-const CONSOLIDATED_TABLE = "consolidated_bank_accounts";
+const SOURCE_TABLES = [
+  { name: "GE78BG0000000893486000_BOG_GEL", offset: 0 },
+  { name: "GE65TB7856036050100002_TBC_GEL", offset: 1000000000000 },
+];
+
+const UNION_SQL = SOURCE_TABLES.map(
+  (table) => `SELECT cba.*, (cba.id + ${table.offset})::bigint as synthetic_id, cba.id as source_id, '${table.name}' as source_table FROM "${table.name}" cba`
+).join(' UNION ALL ');
+
+const UNFETCHED_UNION_SQL = SOURCE_TABLES.map(
+  (table) => `SELECT (id + ${table.offset})::bigint as synthetic_id, account_currency_uuid, account_currency_amount FROM "${table.name}"`
+).join(' UNION ALL ');
 
 // Map raw SQL results (snake_case) to API response (snake_case)
 function toApi(row: any) {
   return {
-    id: Number(row.id),
+    id: Number(row.synthetic_id ?? row.id),
+    source_table: row.source_table ?? null,
+    source_id: row.source_id ?? row.id ?? null,
     uuid: row.uuid,
     bank_account_uuid: row.bank_account_uuid,
     raw_record_uuid: row.raw_record_uuid,
@@ -149,7 +162,7 @@ export async function GET(req: NextRequest) {
            fc.validation as financial_code,
            curr_acc.code as account_currency_code,
            curr_nom.code as nominal_currency_code
-         FROM "${CONSOLIDATED_TABLE}" cba
+         FROM (${UNION_SQL}) cba
          LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
          LEFT JOIN banks b ON ba.bank_uuid = b.uuid
          LEFT JOIN counteragents ca ON cba.counteragent_uuid = ca.counteragent_uuid
@@ -157,7 +170,7 @@ export async function GET(req: NextRequest) {
          LEFT JOIN financial_codes fc ON cba.financial_code_uuid = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
          LEFT JOIN currencies curr_nom ON cba.nominal_currency_uuid = curr_nom.uuid
-         WHERE cba.id = ANY($1::bigint[])
+         WHERE cba.synthetic_id = ANY($1::bigint[])
          ORDER BY cba.transaction_date DESC, cba.id DESC`,
         idsArray
       );
@@ -173,7 +186,7 @@ export async function GET(req: NextRequest) {
            fc.validation as financial_code,
            curr_acc.code as account_currency_code,
            curr_nom.code as nominal_currency_code
-         FROM "${CONSOLIDATED_TABLE}" cba
+         FROM (${UNION_SQL}) cba
          LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
          LEFT JOIN banks b ON ba.bank_uuid = b.uuid
          LEFT JOIN counteragents ca ON cba.counteragent_uuid = ca.counteragent_uuid
@@ -189,7 +202,9 @@ export async function GET(req: NextRequest) {
 
     console.log('[API] Step 2: Getting total count...');
     const totalCount = idsParam || !limit ? undefined : (await prisma.$queryRawUnsafe<Array<{count: bigint}>>(
-      `SELECT COUNT(*)::bigint as count FROM "${CONSOLIDATED_TABLE}"`
+      `SELECT SUM(count)::bigint as count FROM (
+        ${SOURCE_TABLES.map(table => `SELECT COUNT(*)::bigint as count FROM "${table.name}"`).join(' UNION ALL ')}
+      ) counts`
     ))[0].count;
     console.log('[API] Step 2 complete: Total count =', totalCount);
 
@@ -318,12 +333,12 @@ export async function GET(req: NextRequest) {
       const idsString = fetchedIdsArray.join(',');
       unfetchedTransactions = await prisma.$queryRawUnsafe<Array<{account_currency_uuid: string, account_currency_amount: any}>>(
         `SELECT account_currency_uuid, account_currency_amount 
-         FROM "${CONSOLIDATED_TABLE}" 
-         WHERE id NOT IN (${idsString})`
+         FROM (${UNFETCHED_UNION_SQL}) cba
+         WHERE cba.synthetic_id NOT IN (${idsString})`
       );
     } else {
       unfetchedTransactions = await prisma.$queryRawUnsafe<Array<{account_currency_uuid: string, account_currency_amount: any}>>(
-        `SELECT account_currency_uuid, account_currency_amount FROM "${CONSOLIDATED_TABLE}"`
+        `SELECT account_currency_uuid, account_currency_amount FROM (${UNFETCHED_UNION_SQL}) cba`
       );
     }
 

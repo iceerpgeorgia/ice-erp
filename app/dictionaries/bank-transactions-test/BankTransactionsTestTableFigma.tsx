@@ -232,6 +232,8 @@ export default function BankTransactionsTestTableFigma() {
 
         const mapped = data.map((row: any) => ({
           id: row.id || row.ID,
+          sourceTable: row.source_table || null,
+          sourceId: row.source_id ?? null,
           uuid: row.uuid || "",
           accountUuid: row.bank_account_uuid || "",
           accountCurrencyUuid: row.account_currency_uuid || "",
@@ -389,6 +391,7 @@ export default function BankTransactionsTestTableFigma() {
         data={transactions}
         currencySummaries={currencySummaries}
         uploadEndpoint="/api/bank-transactions-test/upload"
+        enableEditing={false}
       />
     </div>
   );

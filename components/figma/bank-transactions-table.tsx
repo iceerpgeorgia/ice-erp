@@ -40,6 +40,8 @@ import {
 
 export type BankTransaction = {
   id: number;
+  sourceTable?: string | null;
+  sourceId?: number | null;
   uuid: string;
   accountUuid: string;
   accountCurrencyUuid: string;
@@ -193,6 +195,7 @@ export function BankTransactionsTable({
   uploadEndpoint = '/api/bank-transactions/upload',
   autoEditId: autoEditIdProp,
   renderMode = 'full',
+  enableEditing = true,
   onDialogClose,
 }: {
   data?: BankTransaction[];
@@ -200,6 +203,7 @@ export function BankTransactionsTable({
   uploadEndpoint?: string;
   autoEditId?: number;
   renderMode?: 'full' | 'dialog-only';
+  enableEditing?: boolean;
   onDialogClose?: () => void;
 }) {
   const [transactions, setTransactions] = useState<BankTransaction[]>(data ?? []);
@@ -2046,15 +2050,17 @@ export function BankTransactionsTable({
                             >
                               <Eye className="h-3 w-3" />
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => startEdit(row)}
-                              className="h-7 w-7 p-0"
-                              title="Edit transaction"
-                            >
-                              <Edit2 className="h-3 w-3" />
-                            </Button>
+                            {enableEditing && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => startEdit(row)}
+                                className="h-7 w-7 p-0"
+                                title="Edit transaction"
+                              >
+                                <Edit2 className="h-3 w-3" />
+                              </Button>
+                            )}
                           </>
                         )}
                         {row.isBalanceRecord && (
