@@ -1236,7 +1236,6 @@ export async function processTBCGEL(
     string,
     { inn: string; count: number; name: string }
   >();
-  const consolidatedRecords: ConsolidatedRecord[] = [];
   const rawUpdates: RawUpdate[] = [];
   const deconsolidatedRecords: any[] = [];
   const importDateStr = new Date().toISOString();
@@ -1308,26 +1307,6 @@ export async function processTBCGEL(
       false,
       result.applied_rule_id
     );
-
-    const consolidatedUuid = uuidv4();
-    consolidatedRecords.push({
-      uuid: consolidatedUuid,
-      bank_account_uuid: bankAccountUuid,
-      raw_record_uuid: rawRecord.uuid,
-      transaction_date: transactionDate,
-      description: combinedDescription || '',
-      counteragent_uuid: result.counteragent_uuid,
-      counteragent_account_number: result.counteragent_account_number,
-      project_uuid: result.project_uuid,
-      financial_code_uuid: result.financial_code_uuid,
-      payment_id: result.payment_id,
-      account_currency_uuid: accountCurrencyUuid,
-      account_currency_amount: accountCurrencyAmount,
-      nominal_currency_uuid: nominalCurrencyUuid,
-      nominal_amount: nominalAmount,
-      processing_case: caseDescription,
-      applied_rule_id: result.applied_rule_id,
-    });
 
     deconsolidatedRecords.push({
       uuid: rawRecord.uuid,
@@ -1404,22 +1383,7 @@ export async function processTBCGEL(
   }
 
   console.log('\n' + '='.repeat(80));
-  console.log(`📊 STEP 4: INSERTING ${consolidatedRecords.length} CONSOLIDATED RECORDS`);
-  console.log('='.repeat(80) + '\n');
-
-  if (consolidatedRecords.length > 0) {
-    const { error: consolidatedError } = await supabase
-      .from('consolidated_bank_accounts')
-      .upsert(consolidatedRecords, {
-        onConflict: 'uuid',
-      });
-
-    if (consolidatedError) throw consolidatedError;
-    console.log(`✅ Inserted ${consolidatedRecords.length} consolidated records\n`);
-  }
-
-  console.log('\n' + '='.repeat(80));
-  console.log(`📊 STEP 4B: INSERTING ${deconsolidatedRecords.length} DECONSOLIDATED RECORDS`);
+  console.log(`📊 STEP 4: INSERTING ${deconsolidatedRecords.length} DECONSOLIDATED RECORDS`);
   console.log('='.repeat(80) + '\n');
 
   if (deconsolidatedRecords.length > 0) {

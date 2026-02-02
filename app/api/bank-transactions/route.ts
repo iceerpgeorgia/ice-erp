@@ -5,12 +5,93 @@ import { Prisma } from "@prisma/client";
 
 export const revalidate = 0;
 
-const CONSOLIDATED_TABLE = "consolidated_bank_accounts";
+const SOURCE_TABLES = [
+  {
+    name: "GE78BG0000000893486000_BOG_GEL",
+    offset: 0,
+    isTbc: false,
+  },
+  {
+    name: "GE65TB7856036050100002_TBC_GEL",
+    offset: 1000000000000,
+    isTbc: true,
+  },
+];
+
+const UNION_SQL = SOURCE_TABLES.map((table) => {
+  if (!table.isTbc) {
+    return `SELECT
+      cba.id,
+      cba.uuid,
+      cba.bank_account_uuid,
+      cba.raw_record_uuid,
+      cba.transaction_date,
+      cba.correction_date,
+      cba.exchange_rate,
+      cba.description,
+      cba.counteragent_uuid,
+      cba.project_uuid,
+      cba.financial_code_uuid,
+      cba.account_currency_uuid,
+      cba.account_currency_amount,
+      cba.nominal_currency_uuid,
+      cba.nominal_amount,
+      cba.payment_id,
+      cba.processing_case,
+      cba.created_at,
+      cba.updated_at,
+      cba.counteragent_account_number,
+      cba.parsing_lock,
+      cba.applied_rule_id,
+      (cba.id + ${table.offset})::bigint as synthetic_id,
+      cba.id as source_id,
+      '${table.name}' as source_table
+    FROM "${table.name}" cba`;
+  }
+
+  return `SELECT
+      t.id,
+      t.uuid,
+      t.bank_account_uuid,
+      t.raw_record_uuid,
+      t.transaction_date,
+      t.correction_date,
+      t.exchange_rate,
+      t.description,
+      t.counteragent_uuid,
+      t.project_uuid,
+      t.financial_code_uuid,
+      t.account_currency_uuid,
+      t.account_currency_amount,
+      t.nominal_currency_uuid,
+      t.nominal_amount,
+      t.payment_id,
+      t.processing_case,
+      t.created_at,
+      t.updated_at,
+      t.counteragent_account_number,
+      t.parsing_lock,
+      t.applied_rule_id,
+      (t.id + ${table.offset})::bigint as synthetic_id,
+      t.id as source_id,
+      '${table.name}' as source_table
+    FROM "${table.name}" t`;
+}).join(' UNION ALL ');
+
+const UNFETCHED_UNION_SQL = SOURCE_TABLES.map((table) => {
+  return `SELECT
+      (id + ${table.offset})::bigint as synthetic_id,
+      account_currency_uuid,
+      account_currency_amount
+    FROM "${table.name}"`;
+}).join(' UNION ALL ');
 
 // Map raw SQL results (snake_case) to API response (snake_case)
 function toApi(row: any) {
   return {
-    id: Number(row.id),
+    id: Number(row.synthetic_id ?? row.id),
+    source_table: row.source_table ?? null,
+    source_id: row.source_id ?? row.id ?? null,
     uuid: row.uuid,
     bank_account_uuid: row.bank_account_uuid,
     raw_record_uuid: row.raw_record_uuid,
@@ -93,10 +174,17 @@ export async function GET(req: NextRequest) {
     
     console.log('[API] Query params:', { fromDate, toDate, idsParam, limitParam, offsetParam });
     
-    // Helper to convert dd.mm.yyyy to yyyy-mm-dd for comparison
-    const toComparableDate = (ddmmyyyy: string | null): string | null => {
-      if (!ddmmyyyy || ddmmyyyy.length !== 10) return null;
-      const parts = ddmmyyyy.split('.');
+    // Helper to convert dd.mm.yyyy or yyyy-mm-dd to yyyy-mm-dd for comparison
+    const toComparableDate = (dateStr: string | null): string | null => {
+      if (!dateStr || dateStr.length < 10) return null;
+      if (dateStr.includes('-')) {
+        const parts = dateStr.split('-');
+        if (parts.length < 3) return null;
+        const [year, month, day] = parts;
+        if (!year || !month || !day) return null;
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      }
+      const parts = dateStr.split('.');
       if (parts.length !== 3) return null;
       const [day, month, year] = parts;
       return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
@@ -108,7 +196,7 @@ export async function GET(req: NextRequest) {
     
     // If specific IDs requested, fetch only those
     if (idsParam) {
-      const ids = idsParam.split(',').map(id => BigInt(id.trim()));
+      const ids = idsParam.split(',').map(id => id.trim());
       whereClause.id = { in: ids };
       console.log('[API] Fetching specific IDs:', ids);
     }
@@ -143,7 +231,7 @@ export async function GET(req: NextRequest) {
            fc.validation as financial_code,
            curr_acc.code as account_currency_code,
            curr_nom.code as nominal_currency_code
-         FROM "${CONSOLIDATED_TABLE}" cba
+         FROM (${UNION_SQL}) cba
          LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
          LEFT JOIN banks b ON ba.bank_uuid = b.uuid
          LEFT JOIN counteragents ca ON cba.counteragent_uuid = ca.counteragent_uuid
@@ -151,7 +239,7 @@ export async function GET(req: NextRequest) {
          LEFT JOIN financial_codes fc ON cba.financial_code_uuid = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
          LEFT JOIN currencies curr_nom ON cba.nominal_currency_uuid = curr_nom.uuid
-         WHERE cba.id = ANY($1::bigint[])
+         WHERE cba.synthetic_id = ANY($1::bigint[])
          ORDER BY cba.transaction_date DESC, cba.id DESC`,
         idsArray
       );
@@ -167,7 +255,7 @@ export async function GET(req: NextRequest) {
            fc.validation as financial_code,
            curr_acc.code as account_currency_code,
            curr_nom.code as nominal_currency_code
-         FROM "${CONSOLIDATED_TABLE}" cba
+         FROM (${UNION_SQL}) cba
          LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
          LEFT JOIN banks b ON ba.bank_uuid = b.uuid
          LEFT JOIN counteragents ca ON cba.counteragent_uuid = ca.counteragent_uuid
@@ -175,20 +263,20 @@ export async function GET(req: NextRequest) {
          LEFT JOIN financial_codes fc ON cba.financial_code_uuid = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
          LEFT JOIN currencies curr_nom ON cba.nominal_currency_uuid = curr_nom.uuid
-         ORDER BY cba.transaction_date DESC, cba.id DESC${limitSql}`
+        ORDER BY cba.transaction_date DESC, cba.id DESC${limitSql}`
       );
     }
     console.log('[API] Step 1 complete: Got', transactions.length, 'transactions with all joins');
     
     console.log('[API] Step 2: Getting total count...');
     // Get total count for pagination (only when not fetching specific IDs and limit is set)
-    const totalCount = idsParam
-      ? BigInt(transactions.length)
-      : !limit
-        ? undefined
-        : (await prisma.$queryRaw<Array<{count: bigint}>>`
-            SELECT COUNT(*)::bigint as count FROM "${CONSOLIDATED_TABLE}" WHERE 1=1
-          `)[0].count;
+    const totalCount = idsParam || !limit
+      ? undefined
+      : (await prisma.$queryRawUnsafe<Array<{count: bigint}>>(
+          `SELECT SUM(count)::bigint as count FROM (
+            ${SOURCE_TABLES.map(table => `SELECT COUNT(*)::bigint as count FROM "${table.name}"`).join(' UNION ALL ')}
+          ) counts`
+        ))[0].count;
     console.log('[API] Step 2 complete: Total count =', totalCount);
 
     console.log('[API] Step 3: Filtering transactions by date...');
@@ -305,7 +393,12 @@ export async function GET(req: NextRequest) {
     const currencySummaries: Record<string, any> = {};
     
     // Get the IDs of transactions in the current result
-    const fetchedIds = new Set(filteredTransactions.map(t => BigInt(t.id)));
+    const fetchedIds = new Set(
+      filteredTransactions
+        .map(t => t.synthetic_id ?? t.id)
+        .filter(id => id !== null && id !== undefined)
+        .map(id => BigInt(id))
+    );
     
     // Query for all OTHER transactions (not in the fetched set)
     const fetchedIdsArray = Array.from(fetchedIds);
@@ -317,13 +410,13 @@ export async function GET(req: NextRequest) {
       const idsString = fetchedIdsArray.join(',');
       unfetchedTransactions = await prisma.$queryRawUnsafe<Array<{account_currency_uuid: string, account_currency_amount: any}>>(
         `SELECT account_currency_uuid, account_currency_amount 
-         FROM "${CONSOLIDATED_TABLE}" 
-         WHERE id NOT IN (${idsString})`
+         FROM (${UNFETCHED_UNION_SQL}) cba
+         WHERE cba.synthetic_id NOT IN (${idsString})`
       );
     } else {
-      unfetchedTransactions = await prisma.$queryRaw<Array<{account_currency_uuid: string, account_currency_amount: any}>>`
-        SELECT account_currency_uuid, account_currency_amount FROM "${CONSOLIDATED_TABLE}"
-      `;
+      unfetchedTransactions = await prisma.$queryRawUnsafe<Array<{account_currency_uuid: string, account_currency_amount: any}>>(
+        `SELECT account_currency_uuid, account_currency_amount FROM (${UNFETCHED_UNION_SQL}) cba`
+      );
     }
 
     console.log('[API] Fetched transaction IDs count:', fetchedIds.size);
