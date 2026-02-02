@@ -185,7 +185,7 @@ export async function PATCH(
       : (currentResult as { rows?: any[] })?.rows ?? [];
 
     if (currentRows.length === 0) {
-      console.log(`[PATCH /bank-transactions/${id}] Transaction not found`);
+      console.log(`[PATCH /bank-transactions/${params.id}] Transaction not found`);
       return NextResponse.json(
         { error: "Transaction not found" },
         { status: 404 }
