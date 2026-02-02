@@ -303,8 +303,15 @@ export async function GET(req: NextRequest) {
 
     const currencySummaries: Record<string, any> = {};
 
-    const fetchedIds = new Set(filteredTransactions.map(t => BigInt(t.id)));
-    const fetchedIdsArray = Array.from(fetchedIds);
+    const fetchedIdsArray = Array.from(
+      new Set(
+        filteredTransactions
+          .map(t => t.id)
+          .filter(id => id !== null && id !== undefined)
+          .map(id => String(id))
+          .filter(id => /^\d+$/.test(id))
+      )
+    );
     let unfetchedTransactions: Array<{account_currency_uuid: string, account_currency_amount: any}>;
 
     if (fetchedIdsArray.length > 0) {
@@ -320,7 +327,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    console.log('[API] Fetched transaction IDs count:', fetchedIds.size);
+    console.log('[API] Fetched transaction IDs count:', fetchedIdsArray.length);
     console.log('[API] Unfetched transactions count:', unfetchedTransactions.length);
 
     const openingByCurrency: Record<string, number> = {};
