@@ -63,6 +63,25 @@ function parseBOGDate(dateStr: string | undefined): Date | null {
   }
 }
 
+function parseTBCDate(dateStr: string | undefined): Date | null {
+  if (!dateStr) return null;
+  try {
+    const cleaned = dateStr.trim();
+    const match = cleaned.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return null;
+    const [, day, month, year] = match;
+    return new Date(`${year}-${month}-${day}`);
+  } catch {
+    return null;
+  }
+}
+
+function formatTBCDate(dateStr: string | undefined): string | null {
+  const parsed = parseTBCDate(dateStr);
+  if (!parsed) return null;
+  return parsed.toISOString().split('T')[0];
+}
+
 /**
  * Calculate nominal amount using NBG exchange rates
  * Matches Python implementation exactly
@@ -204,6 +223,13 @@ function evaluateParsingRuleCondition(condition: string | null, conditionScript:
   return false;
 }
 
+function extractTBCPaymentId(row: Record<string, any>): string | null {
+  const raw = row.additionaldescription ?? row.additionalinformation ?? '';
+  const trimmed = String(raw ?? '').trim();
+  if (!trimmed) return null;
+  return trimmed.replace(/\s+/g, '_').toLowerCase();
+}
+
 function processSingleRecord(
   row: any,
   counteragentsMap: Map<string, CounteragentData>,
@@ -214,7 +240,8 @@ function processSingleRecord(
   duplicatePaymentMap: Map<string, string>,
   idx: number,
   stats: ProcessingStats,
-  missingCounteragents: Map<string, { inn: string; count: number; name: string }>
+  missingCounteragents: Map<string, { inn: string; count: number; name: string }>,
+  paymentIdExtractor?: (row: Record<string, any>) => string | null
 ): ProcessingResult {
   const DocKey = row.dockey;
   const EntriesId = row.entriesid;
@@ -433,7 +460,9 @@ function processSingleRecord(
   // PHASE 3: Payment ID (LOWEST PRIORITY - Neglected if conflicts)
   // =============================
 
-  const extractedPaymentId = extractPaymentID(DocInformation);
+  const extractPaymentIdFromRow =
+    paymentIdExtractor || ((sourceRow: Record<string, any>) => extractPaymentID(sourceRow.docinformation));
+  const extractedPaymentId = extractPaymentIdFromRow(row);
   if (extractedPaymentId) {
     const paymentIdLower = extractedPaymentId.toLowerCase();
     const mappedPaymentId = duplicatePaymentMap.get(paymentIdLower) || extractedPaymentId;
@@ -546,6 +575,44 @@ async function identifyBOGGELAccount(xmlContent: string): Promise<AccountInfo | 
     };
   } catch (error: any) {
     console.log('⚠️ Could not parse as BOG GEL format:', error.message);
+    return null;
+  }
+}
+
+async function identifyTBCGELAccount(xmlContent: string): Promise<AccountInfo | null> {
+  try {
+    const parsed = await parseStringPromise(xmlContent, {
+      tagNameProcessors: [(name) => name.replace(/^[^:]+:/, '')],
+    });
+
+    let root = parsed.AccountStatement || parsed;
+
+    if (root && typeof root === 'object' && !root.Head && !root.Record && !root.Records) {
+      const keys = Object.keys(root);
+      if (keys.length === 1) {
+        root = root[keys[0]];
+      }
+    }
+
+    const head = root?.Head?.[0];
+    if (!head) {
+      throw new Error('Invalid TBC GEL XML format - missing Head');
+    }
+
+    const accountNumber = String(head.AccountNo?.[0] || '').trim();
+    const currencyCode = String(head.Currency?.[0] || '').trim();
+
+    if (!accountNumber || !currencyCode) {
+      throw new Error('Invalid account number or currency in XML');
+    }
+
+    return {
+      account_number: accountNumber,
+      currency_code: currencyCode,
+      xml_root: root,
+    };
+  } catch (error: any) {
+    console.log('⚠️ Could not parse as TBC GEL format:', error.message);
     return null;
   }
 }
@@ -939,6 +1006,397 @@ export async function processBOGGEL(
   // =============================
   // FINAL SUMMARY
   // =============================
+  console.log('\n' + '='.repeat(80));
+  console.log('📊 FINAL SUMMARY');
+  console.log('='.repeat(80) + '\n');
+
+  console.log('📋 Phase 1 - Parsing Rules:');
+  console.log(`  ✅ Rules applied: ${stats.case6_parsing_rule_match}`);
+  console.log(`  ⚠️  Conflicts (kept rule): ${stats.case7_parsing_rule_counteragent_mismatch}\n`);
+
+  console.log('📋 Phase 2 - Counteragent Identification:');
+  console.log(`  ✅ Case 1 (Counteragent matched): ${stats.case1_counteragent_processed}`);
+  console.log(`  ⚠️  Case 3 (INN no match): ${stats.case3_counteragent_inn_nonblank_no_match}`);
+  console.log(`  ℹ️  Case 2 (INN blank): ${stats.case2_counteragent_inn_blank}\n`);
+
+  console.log('📋 Phase 3 - Payment ID:');
+  console.log(`  ✅ Payment matched: ${stats.case4_payment_id_match}`);
+  console.log(`  ⚠️  Conflicts (kept Phase 1/2): ${stats.case5_payment_id_counteragent_mismatch}\n`);
+
+  console.log('📊 Overall:');
+  console.log(`  📦 Total records: ${totalRecords}\n`);
+
+  if (missingCounteragents.size > 0) {
+    console.log(`⚠️  CASE 3 REPORT - INNs needing counteragents (${missingCounteragents.size}):`);
+    console.log('━'.repeat(80));
+    const sorted = Array.from(missingCounteragents.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+    for (const data of sorted) {
+      console.log(`  INN: ${data.inn} | Count: ${data.count}`);
+    }
+    if (missingCounteragents.size > 10) {
+      console.log(`  ... and ${missingCounteragents.size - 10} more`);
+    }
+    console.log('━'.repeat(80));
+  }
+
+  console.log('\n' + '='.repeat(80));
+  console.log('✅ Import completed successfully!');
+  console.log('='.repeat(80) + '\n');
+}
+
+export async function processTBCGEL(
+  xmlContent: string,
+  accountUuid: string,
+  accountNumber: string,
+  currencyCode: string,
+  rawTableName: string,
+  importBatchId: string
+): Promise<void> {
+  console.log('\n' + '='.repeat(80));
+  console.log('🚀 TBC GEL PROCESSING - Three-Phase Hierarchy');
+  console.log('='.repeat(80) + '\n');
+
+  const supabase = getSupabaseClient();
+
+  const { data: accountData, error: accountError } = await supabase
+    .from('bank_accounts')
+    .select('uuid, currency_uuid')
+    .eq('uuid', accountUuid)
+    .single();
+
+  if (accountError || !accountData) {
+    throw new Error(`Account UUID not found: ${accountUuid}`);
+  }
+
+  const bankAccountUuid = accountData.uuid;
+  const accountCurrencyUuid = accountData.currency_uuid;
+
+  console.log(`📊 Bank Account UUID: ${bankAccountUuid}`);
+  console.log(`💱 Account Currency UUID: ${accountCurrencyUuid}\n`);
+
+  console.log('📄 STEP 1: Parsing XML and inserting raw data...');
+
+  const accountInfo = await identifyTBCGELAccount(xmlContent);
+  if (!accountInfo) {
+    throw new Error('Failed to parse XML');
+  }
+
+  const detailsContainer = accountInfo.xml_root.Records?.[0] || accountInfo.xml_root;
+  const records = detailsContainer.Record || [];
+  console.log(`📦 Found ${records.length} transactions in XML\n`);
+
+  const rawRecordsToInsert: any[] = [];
+  const recordUuids: string[] = [];
+  let skippedRawDuplicates = 0;
+  let skippedMissingKeys = 0;
+
+  for (const record of records) {
+    const getText = (tagName: string) => record[tagName]?.[0] || null;
+
+    const documentNumber = getText('DocumentNumber');
+    const transactionId = getText('TransactionId');
+
+    if (!documentNumber || !transactionId) {
+      skippedMissingKeys++;
+      continue;
+    }
+
+    const { data: existing } = await supabase
+      .from(rawTableName)
+      .select('uuid')
+      .eq('transaction_id', transactionId)
+      .eq('document_number', documentNumber)
+      .single();
+
+    if (existing) {
+      skippedRawDuplicates++;
+      continue;
+    }
+
+    const recordUuidStr = `${documentNumber}_${transactionId}`;
+    const recordUuid = uuidv5(recordUuidStr, DNS_NAMESPACE);
+    recordUuids.push(recordUuid);
+
+    const paidInValue = parseFloat(getText('PaidIn') || '0');
+    const paidOutValue = parseFloat(getText('PaidOut') || '0');
+    const isIncoming = paidInValue > 0 && paidOutValue === 0;
+
+    const partnerTaxCode = getText('PartnerTaxCode');
+    const partnerAccountNumber = getText('PartnerAccountNumber');
+    const description = getText('Description');
+    const additionalInformation = getText('AdditionalInformation');
+    const additionalDescription = getText('AdditionalDescription');
+    const combinedDescription = [description, additionalInformation].filter(Boolean).join(' | ');
+    const operationCode = getText('OperationCode');
+    const docDate = formatTBCDate(getText('DocumentDate')) || formatTBCDate(getText('Date'));
+    const valueDate = formatTBCDate(getText('Date')) || docDate;
+
+    rawRecordsToInsert.push({
+      uuid: recordUuid,
+      date: getText('Date'),
+      paid_in: paidInValue ? String(paidInValue) : '0',
+      paid_out: paidOutValue ? String(paidOutValue) : '0',
+      balance: getText('Balance'),
+      description: description,
+      additional_information: additionalInformation,
+      additional_description: additionalDescription,
+      transaction_type: getText('TransactionType'),
+      document_date: getText('DocumentDate'),
+      document_number: documentNumber,
+      partner_account_number: partnerAccountNumber,
+      partner_name: getText('PartnerName'),
+      partner_bank_code: getText('PartnerBankCode'),
+      partner_bank_name: getText('PartnerBankName'),
+      operation_code: operationCode,
+      partner_tax_code: partnerTaxCode,
+      taxpayer_code: getText('TaxpayerCode'),
+      taxpayer_name: getText('TaxpayerName'),
+      transaction_id: transactionId,
+      import_batch_id: importBatchId,
+      counteragent_processed: false,
+      parsing_rule_processed: false,
+      payment_id_processed: false,
+      is_processed: false,
+    });
+  }
+
+  console.log(`📊 Raw Data Import Results:`);
+  console.log(`  ✅ New records to insert: ${rawRecordsToInsert.length}`);
+  console.log(`  🔄 Skipped duplicates: ${skippedRawDuplicates}`);
+  console.log(`  ⚠️  Skipped missing keys: ${skippedMissingKeys}\n`);
+
+  if (rawRecordsToInsert.length > 0) {
+    console.log(`💾 Inserting ${rawRecordsToInsert.length} raw records...`);
+
+    const { error: insertError } = await supabase.from(rawTableName).insert(rawRecordsToInsert);
+
+    if (insertError) throw insertError;
+
+    console.log(`✅ Successfully inserted ${rawRecordsToInsert.length} raw records!\n`);
+  } else {
+    console.log('⚠️ No new records to insert\n');
+  }
+
+  console.log('\n' + '='.repeat(80));
+  console.log('🔄 STEP 2: LOADING DICTIONARIES');
+  console.log('='.repeat(80) + '\n');
+
+  const [counteragentsMap, parsingRules, paymentsBundle, nbgRatesMap, currencyCache] =
+    await Promise.all([
+      loadCounteragents(supabase),
+      loadParsingRules(supabase),
+      loadPayments(supabase),
+      loadNBGRates(supabase),
+      loadCurrencyCache(supabase),
+    ]);
+
+  const { paymentsMap, salaryBaseMap, salaryLatestMap, duplicatePaymentMap } = paymentsBundle;
+
+  console.log('\n' + '='.repeat(80));
+  console.log('🔄 STEP 3: THREE-PHASE PROCESSING WITH HIERARCHY');
+  console.log('='.repeat(80) + '\n');
+
+  const rawRecords: any[] = [];
+  const batchSize = 1000;
+  for (let i = 0; i < recordUuids.length; i += batchSize) {
+    const batch = recordUuids.slice(i, i + batchSize);
+    const { data: batchData, error: fetchError } = await supabase
+      .from(rawTableName)
+      .select(
+        'uuid, date, paid_in, paid_out, description, additional_information, additional_description, transaction_type, document_date, document_number, partner_account_number, partner_name, partner_bank_code, partner_bank_name, operation_code, partner_tax_code, taxpayer_code, taxpayer_name, transaction_id'
+      )
+      .in('uuid', batch)
+      .order('date', { ascending: false });
+
+    if (fetchError) throw fetchError;
+    rawRecords.push(...(batchData || []));
+  }
+
+  const totalRecords = rawRecords.length || 0;
+  console.log(`📦 Processing ${totalRecords} records...\n`);
+
+  const stats: ProcessingStats = {
+    case1_counteragent_processed: 0,
+    case2_counteragent_inn_blank: 0,
+    case3_counteragent_inn_nonblank_no_match: 0,
+    case4_payment_id_match: 0,
+    case5_payment_id_counteragent_mismatch: 0,
+    case6_parsing_rule_match: 0,
+    case7_parsing_rule_counteragent_mismatch: 0,
+    case8_parsing_rule_dominance: 0,
+  };
+
+  const missingCounteragents = new Map<
+    string,
+    { inn: string; count: number; name: string }
+  >();
+  const consolidatedRecords: ConsolidatedRecord[] = [];
+  const rawUpdates: RawUpdate[] = [];
+
+  for (let idx = 0; idx < totalRecords; idx++) {
+    const rawRecord = rawRecords[idx];
+
+    const credit = rawRecord.paid_in ? parseFloat(rawRecord.paid_in) : 0;
+    const debit = rawRecord.paid_out ? parseFloat(rawRecord.paid_out) : 0;
+    const accountCurrencyAmount = credit - debit;
+
+    const transactionDate = parseTBCDate(rawRecord.date);
+    if (!transactionDate) continue;
+
+    const combinedDescription = [rawRecord.description, rawRecord.additional_information]
+      .filter(Boolean)
+      .join(' | ');
+    const isIncoming = debit === 0 && credit > 0;
+
+    const row = {
+      uuid: rawRecord.uuid,
+      dockey: rawRecord.transaction_id,
+      entriesid: rawRecord.document_number,
+      docsenderinn: isIncoming ? rawRecord.partner_tax_code : null,
+      docbenefinn: isIncoming ? null : rawRecord.partner_tax_code,
+      doccorracct: rawRecord.partner_account_number,
+      docsenderacctno: isIncoming ? rawRecord.partner_account_number : null,
+      docbenefacctno: isIncoming ? null : rawRecord.partner_account_number,
+      docprodgroup: rawRecord.operation_code,
+      docnomination: combinedDescription,
+      docinformation: rawRecord.additional_description || rawRecord.additional_information,
+      additionaldescription: rawRecord.additional_description,
+      additionalinformation: rawRecord.additional_information,
+      debit: debit,
+    };
+
+    const result = processSingleRecord(
+      row,
+      counteragentsMap,
+      parsingRules,
+      paymentsMap,
+      salaryBaseMap,
+      salaryLatestMap,
+      duplicatePaymentMap,
+      idx + 1,
+      stats,
+      missingCounteragents,
+      extractTBCPaymentId
+    );
+
+    const nominalCurrencyUuid = result.nominal_currency_uuid || accountCurrencyUuid;
+    const nominalAmount = calculateNominalAmount(
+      accountCurrencyAmount,
+      currencyCode,
+      nominalCurrencyUuid,
+      transactionDate,
+      nbgRatesMap,
+      currencyCache
+    );
+
+    const caseDescription = computeCaseDescription(
+      result.case1_counteragent_processed,
+      false,
+      result.case3_counteragent_missing,
+      result.case4_payment_id_matched,
+      result.case5_payment_id_conflict,
+      result.case6_parsing_rule_applied,
+      result.case7_parsing_rule_conflict,
+      false,
+      result.applied_rule_id
+    );
+
+    const consolidatedUuid = uuidv4();
+    consolidatedRecords.push({
+      uuid: consolidatedUuid,
+      bank_account_uuid: bankAccountUuid,
+      raw_record_uuid: rawRecord.uuid,
+      transaction_date: transactionDate,
+      description: combinedDescription || '',
+      counteragent_uuid: result.counteragent_uuid,
+      counteragent_account_number: result.counteragent_account_number,
+      project_uuid: result.project_uuid,
+      financial_code_uuid: result.financial_code_uuid,
+      payment_id: result.payment_id,
+      account_currency_uuid: accountCurrencyUuid,
+      account_currency_amount: accountCurrencyAmount,
+      nominal_currency_uuid: nominalCurrencyUuid,
+      nominal_amount: nominalAmount,
+      processing_case: caseDescription,
+      applied_rule_id: result.applied_rule_id,
+    });
+
+    rawUpdates.push({
+      uuid: rawRecord.uuid,
+      counteragent_processed: result.case1_counteragent_processed,
+      counteragent_found: result.case1_counteragent_found,
+      counteragent_missing: result.case3_counteragent_missing,
+      payment_id_matched: result.case4_payment_id_matched,
+      payment_id_conflict: result.case5_payment_id_conflict,
+      parsing_rule_applied: result.case6_parsing_rule_applied,
+      parsing_rule_conflict: result.case7_parsing_rule_conflict,
+      counteragent_inn: result.counteragent_inn,
+      applied_rule_id: result.applied_rule_id,
+      processing_case: caseDescription,
+    });
+
+    if ((idx + 1) % 1000 === 0 || idx + 1 === totalRecords) {
+      console.log(`  ✅ Processed ${idx + 1}/${totalRecords} records...`);
+    }
+  }
+
+  console.log('\n' + '='.repeat(80));
+  console.log(`📊 STEP 4: INSERTING ${consolidatedRecords.length} CONSOLIDATED RECORDS`);
+  console.log('='.repeat(80) + '\n');
+
+  if (consolidatedRecords.length > 0) {
+    const { error: consolidatedError } = await supabase
+      .from('consolidated_bank_accounts')
+      .upsert(consolidatedRecords, {
+        onConflict: 'uuid',
+      });
+
+    if (consolidatedError) throw consolidatedError;
+    console.log(`✅ Inserted ${consolidatedRecords.length} consolidated records\n`);
+  }
+
+  console.log('\n' + '='.repeat(80));
+  console.log(`📊 STEP 5: UPDATING ${rawUpdates.length} RAW TABLE FLAGS`);
+  console.log('='.repeat(80) + '\n');
+
+  console.log(`  🚀 Starting optimized batch update...`);
+
+  if (rawUpdates.length > 0) {
+    const updateRecords = rawUpdates.map(update => ({
+      uuid: update.uuid,
+      counteragent_processed: update.counteragent_processed,
+      counteragent_found: update.counteragent_found,
+      counteragent_missing: update.counteragent_missing,
+      payment_id_matched: update.payment_id_matched,
+      payment_id_conflict: update.payment_id_conflict,
+      parsing_rule_applied: update.parsing_rule_applied,
+      parsing_rule_conflict: update.parsing_rule_conflict,
+      parsing_rule_processed: true,
+      payment_id_processed: true,
+      counteragent_inn: update.counteragent_inn,
+      applied_rule_id: update.applied_rule_id,
+      processing_case: update.processing_case,
+      is_processed: true,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const batchSize = 1000;
+    for (let i = 0; i < updateRecords.length; i += batchSize) {
+      const batch = updateRecords.slice(i, i + batchSize);
+      const { error: updateError } = await supabase
+        .from(rawTableName)
+        .upsert(batch, {
+          onConflict: 'uuid',
+          ignoreDuplicates: false,
+        });
+
+      if (updateError) throw updateError;
+      console.log(`  ✅ Updated ${Math.min(i + batchSize, updateRecords.length)}/${updateRecords.length} records...`);
+    }
+  }
+
   console.log('\n' + '='.repeat(80));
   console.log('📊 FINAL SUMMARY');
   console.log('='.repeat(80) + '\n');

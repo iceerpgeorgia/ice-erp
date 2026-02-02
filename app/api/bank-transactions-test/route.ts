@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export const revalidate = 0;
 
-const DECONSOLIDATED_TABLE = "GE78BG0000000893486000_BOG_GEL";
+const CONSOLIDATED_TABLE = "consolidated_bank_accounts";
 
 // Map raw SQL results (snake_case) to API response (snake_case)
 function toApi(row: any) {
@@ -149,7 +149,7 @@ export async function GET(req: NextRequest) {
            fc.validation as financial_code,
            curr_acc.code as account_currency_code,
            curr_nom.code as nominal_currency_code
-         FROM "${DECONSOLIDATED_TABLE}" cba
+         FROM "${CONSOLIDATED_TABLE}" cba
          LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
          LEFT JOIN banks b ON ba.bank_uuid = b.uuid
          LEFT JOIN counteragents ca ON cba.counteragent_uuid = ca.counteragent_uuid
@@ -173,7 +173,7 @@ export async function GET(req: NextRequest) {
            fc.validation as financial_code,
            curr_acc.code as account_currency_code,
            curr_nom.code as nominal_currency_code
-         FROM "${DECONSOLIDATED_TABLE}" cba
+         FROM "${CONSOLIDATED_TABLE}" cba
          LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
          LEFT JOIN banks b ON ba.bank_uuid = b.uuid
          LEFT JOIN counteragents ca ON cba.counteragent_uuid = ca.counteragent_uuid
@@ -189,7 +189,7 @@ export async function GET(req: NextRequest) {
 
     console.log('[API] Step 2: Getting total count...');
     const totalCount = idsParam || !limit ? undefined : (await prisma.$queryRawUnsafe<Array<{count: bigint}>>(
-      `SELECT COUNT(*)::bigint as count FROM "${DECONSOLIDATED_TABLE}"`
+      `SELECT COUNT(*)::bigint as count FROM "${CONSOLIDATED_TABLE}"`
     ))[0].count;
     console.log('[API] Step 2 complete: Total count =', totalCount);
 
