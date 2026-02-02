@@ -529,7 +529,11 @@ export function SalaryAccrualsTable() {
     setDragOverColumn(null);
   };
 
-  const normalizePaymentId = (value: any) => String(value ?? '').trim().toLowerCase().replace(/\s+/g, '');
+  const normalizePaymentId = (value: any) =>
+    String(value ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
 
   const computeBalance = (row: SalaryAccrual) => {
     const netSum = parseFloat(row.net_sum || '0');
