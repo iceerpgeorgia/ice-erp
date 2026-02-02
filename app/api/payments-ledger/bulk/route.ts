@@ -78,10 +78,15 @@ export async function POST(request: NextRequest) {
     }
 
     const orderAdditions = new Map<string, number>();
+    const accrualAdditions = new Map<string, number>();
     for (const entry of normalized) {
       orderAdditions.set(
         entry.paymentId,
         (orderAdditions.get(entry.paymentId) || 0) + Number(entry.order || 0)
+      );
+      accrualAdditions.set(
+        entry.paymentId,
+        (accrualAdditions.get(entry.paymentId) || 0) + Number(entry.accrual || 0)
       );
     }
 
@@ -90,11 +95,12 @@ export async function POST(request: NextRequest) {
       const toCents = (value: number) => Math.round(value * 100);
       const nextOrderCents = toCents(existing.order) + toCents(addedOrder);
       const existingAccrualCents = toCents(existing.accrual);
+      const addedAccrualCents = toCents(accrualAdditions.get(paymentId) || 0);
 
-      if (nextOrderCents > existingAccrualCents) {
+      if (nextOrderCents > existingAccrualCents + addedAccrualCents) {
         return NextResponse.json(
           {
-            error: `Total order cannot exceed existing total accrual for payment ${paymentId}`,
+            error: `Total order cannot exceed total accrual for payment ${paymentId}`,
           },
           { status: 400 }
         );

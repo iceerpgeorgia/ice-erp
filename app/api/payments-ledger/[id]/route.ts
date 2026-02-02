@@ -135,10 +135,11 @@ export async function PATCH(
     const existingAccrualCents = toCents(existingAccrualTotal);
     const existingOrderCents = toCents(existingOrder);
     const newOrderCents = toCents(newOrder);
+    const newAccrualCents = toCents(Number(accrual || 0));
 
-    if (existingOrderCents + newOrderCents > existingAccrualCents) {
+    if (existingOrderCents + newOrderCents > existingAccrualCents + newAccrualCents) {
       return NextResponse.json(
-        { error: 'Total order cannot exceed existing total accrual for this payment' },
+        { error: 'Total order cannot exceed total accrual for this payment' },
         { status: 400 }
       );
     }
