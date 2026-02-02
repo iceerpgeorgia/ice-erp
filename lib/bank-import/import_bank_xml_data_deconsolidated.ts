@@ -375,7 +375,7 @@ export function processSingleRecord(
     }
   }
 
-  const extractedPaymentId = extractPaymentID(DocInformation);
+  const extractedPaymentId = extractPaymentID(DocInformation || DocNomination);
   if (extractedPaymentId) {
     const paymentIdLower = extractedPaymentId.toLowerCase();
     const mappedPaymentId = duplicatePaymentMap.get(paymentIdLower) || extractedPaymentId;

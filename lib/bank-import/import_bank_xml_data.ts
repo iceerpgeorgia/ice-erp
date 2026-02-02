@@ -461,7 +461,9 @@ function processSingleRecord(
   // =============================
 
   const extractPaymentIdFromRow =
-    paymentIdExtractor || ((sourceRow: Record<string, any>) => extractPaymentID(sourceRow.docinformation));
+    paymentIdExtractor ||
+    ((sourceRow: Record<string, any>) =>
+      extractPaymentID(sourceRow.docinformation || sourceRow.docnomination));
   const extractedPaymentId = extractPaymentIdFromRow(row);
   if (extractedPaymentId) {
     const paymentIdLower = extractedPaymentId.toLowerCase();
