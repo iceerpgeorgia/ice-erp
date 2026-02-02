@@ -1091,7 +1091,7 @@ export async function processTBCGEL(
   const records = detailsContainer.Record || [];
   console.log(`📦 Found ${records.length} transactions in XML\n`);
 
-  const rawRecordsToInsert: any[] = [];
+  const parsedRecords: any[] = [];
   const recordUuids: string[] = [];
   let skippedRawDuplicates = 0;
   let skippedMissingKeys = 0;
@@ -1104,18 +1104,6 @@ export async function processTBCGEL(
 
     if (!documentNumber || !transactionId) {
       skippedMissingKeys++;
-      continue;
-    }
-
-    const { data: existing } = await supabase
-      .from(rawTableName)
-      .select('uuid')
-      .eq('transaction_id', transactionId)
-      .eq('document_number', documentNumber)
-      .single();
-
-    if (existing) {
-      skippedRawDuplicates++;
       continue;
     }
 
@@ -1137,7 +1125,7 @@ export async function processTBCGEL(
     const docDate = formatTBCDate(getText('DocumentDate')) || formatTBCDate(getText('Date'));
     const valueDate = formatTBCDate(getText('Date')) || docDate;
 
-    rawRecordsToInsert.push({
+    parsedRecords.push({
       uuid: recordUuid,
       date: getText('Date'),
       paid_in: paidInValue ? String(paidInValue) : '0',
@@ -1159,29 +1147,31 @@ export async function processTBCGEL(
       taxpayer_name: getText('TaxpayerName'),
       transaction_id: transactionId,
       import_batch_id: importBatchId,
-      counteragent_processed: false,
-      parsing_rule_processed: false,
-      payment_id_processed: false,
-      is_processed: false,
     });
   }
 
+  const existingUuids = new Set<string>();
+  if (recordUuids.length > 0) {
+    const batchSize = 1000;
+    for (let i = 0; i < recordUuids.length; i += batchSize) {
+      const batch = recordUuids.slice(i, i + batchSize);
+      const { data: existingBatch, error: existingError } = await supabase
+        .from(deconsolidatedTableName)
+        .select('uuid')
+        .in('uuid', batch);
+
+      if (existingError) throw existingError;
+      (existingBatch || []).forEach((row) => existingUuids.add(row.uuid));
+    }
+  }
+
+  const recordsToProcess = parsedRecords.filter(record => !existingUuids.has(record.uuid));
+  skippedRawDuplicates = parsedRecords.length - recordsToProcess.length;
+
   console.log(`📊 Raw Data Import Results:`);
-  console.log(`  ✅ New records to insert: ${rawRecordsToInsert.length}`);
+  console.log(`  ✅ New records to process: ${recordsToProcess.length}`);
   console.log(`  🔄 Skipped duplicates: ${skippedRawDuplicates}`);
   console.log(`  ⚠️  Skipped missing keys: ${skippedMissingKeys}\n`);
-
-  if (rawRecordsToInsert.length > 0) {
-    console.log(`💾 Inserting ${rawRecordsToInsert.length} raw records...`);
-
-    const { error: insertError } = await supabase.from(rawTableName).insert(rawRecordsToInsert);
-
-    if (insertError) throw insertError;
-
-    console.log(`✅ Successfully inserted ${rawRecordsToInsert.length} raw records!\n`);
-  } else {
-    console.log('⚠️ No new records to insert\n');
-  }
 
   console.log('\n' + '='.repeat(80));
   console.log('🔄 STEP 2: LOADING DICTIONARIES');
@@ -1202,23 +1192,7 @@ export async function processTBCGEL(
   console.log('🔄 STEP 3: THREE-PHASE PROCESSING WITH HIERARCHY');
   console.log('='.repeat(80) + '\n');
 
-  const rawRecords: any[] = [];
-  const batchSize = 1000;
-  for (let i = 0; i < recordUuids.length; i += batchSize) {
-    const batch = recordUuids.slice(i, i + batchSize);
-    const { data: batchData, error: fetchError } = await supabase
-      .from(rawTableName)
-      .select(
-        'uuid, date, paid_in, paid_out, description, additional_information, additional_description, transaction_type, document_date, document_number, partner_account_number, partner_name, partner_bank_code, partner_bank_name, operation_code, partner_tax_code, taxpayer_code, taxpayer_name, transaction_id'
-      )
-      .in('uuid', batch)
-      .order('date', { ascending: false });
-
-    if (fetchError) throw fetchError;
-    rawRecords.push(...(batchData || []));
-  }
-
-  const totalRecords = rawRecords.length || 0;
+  const totalRecords = recordsToProcess.length || 0;
   console.log(`📦 Processing ${totalRecords} records...\n`);
 
   const stats: ProcessingStats = {
@@ -1236,12 +1210,11 @@ export async function processTBCGEL(
     string,
     { inn: string; count: number; name: string }
   >();
-  const rawUpdates: RawUpdate[] = [];
   const deconsolidatedRecords: any[] = [];
   const importDateStr = new Date().toISOString();
 
   for (let idx = 0; idx < totalRecords; idx++) {
-    const rawRecord = rawRecords[idx];
+    const rawRecord = recordsToProcess[idx];
 
     const credit = rawRecord.paid_in ? parseFloat(rawRecord.paid_in) : 0;
     const debit = rawRecord.paid_out ? parseFloat(rawRecord.paid_out) : 0;
@@ -1363,20 +1336,6 @@ export async function processTBCGEL(
       parsing_lock: false,
     });
 
-    rawUpdates.push({
-      uuid: rawRecord.uuid,
-      counteragent_processed: result.case1_counteragent_processed,
-      counteragent_found: result.case1_counteragent_found,
-      counteragent_missing: result.case3_counteragent_missing,
-      payment_id_matched: result.case4_payment_id_matched,
-      payment_id_conflict: result.case5_payment_id_conflict,
-      parsing_rule_applied: result.case6_parsing_rule_applied,
-      parsing_rule_conflict: result.case7_parsing_rule_conflict,
-      counteragent_inn: result.counteragent_inn,
-      applied_rule_id: result.applied_rule_id,
-      processing_case: caseDescription,
-    });
-
     if ((idx + 1) % 1000 === 0 || idx + 1 === totalRecords) {
       console.log(`  ✅ Processed ${idx + 1}/${totalRecords} records...`);
     }
@@ -1396,46 +1355,6 @@ export async function processTBCGEL(
 
       if (insertError) throw insertError;
       console.log(`  ✅ Inserted ${Math.min(i + batchSize, deconsolidatedRecords.length)}/${deconsolidatedRecords.length}`);
-    }
-  }
-
-  console.log('\n' + '='.repeat(80));
-  console.log(`📊 STEP 5: UPDATING ${rawUpdates.length} RAW TABLE FLAGS`);
-  console.log('='.repeat(80) + '\n');
-
-  console.log(`  🚀 Starting optimized batch update...`);
-
-  if (rawUpdates.length > 0) {
-    const updateRecords = rawUpdates.map(update => ({
-      uuid: update.uuid,
-      counteragent_processed: update.counteragent_processed,
-      counteragent_found: update.counteragent_found,
-      counteragent_missing: update.counteragent_missing,
-      payment_id_matched: update.payment_id_matched,
-      payment_id_conflict: update.payment_id_conflict,
-      parsing_rule_applied: update.parsing_rule_applied,
-      parsing_rule_conflict: update.parsing_rule_conflict,
-      parsing_rule_processed: true,
-      payment_id_processed: true,
-      counteragent_inn: update.counteragent_inn,
-      applied_rule_id: update.applied_rule_id,
-      processing_case: update.processing_case,
-      is_processed: true,
-      updated_at: new Date().toISOString(),
-    }));
-
-    const batchSize = 1000;
-    for (let i = 0; i < updateRecords.length; i += batchSize) {
-      const batch = updateRecords.slice(i, i + batchSize);
-      const { error: updateError } = await supabase
-        .from(rawTableName)
-        .upsert(batch, {
-          onConflict: 'uuid',
-          ignoreDuplicates: false,
-        });
-
-      if (updateError) throw updateError;
-      console.log(`  ✅ Updated ${Math.min(i + batchSize, updateRecords.length)}/${updateRecords.length} records...`);
     }
   }
 
