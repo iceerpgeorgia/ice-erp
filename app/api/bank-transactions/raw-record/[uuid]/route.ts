@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Pool } from 'pg';
 
+const ALLOWED_TABLES = new Set([
+  'GE78BG0000000893486000_BOG_GEL',
+  'GE65TB7856036050100002_TBC_GEL',
+]);
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ uuid: string }> }
@@ -10,7 +15,47 @@ export async function GET(
   
   try {
     const { uuid } = await context.params;
+    const searchParams = request.nextUrl.searchParams;
+    const sourceTable = searchParams.get('sourceTable');
     console.log('Fetching raw record for UUID:', uuid);
+
+    if (sourceTable && ALLOWED_TABLES.has(sourceTable)) {
+      const localUrl = process.env.DATABASE_URL;
+      if (!localUrl) {
+        return NextResponse.json(
+          { error: 'Database connection not configured' },
+          { status: 500 }
+        );
+      }
+
+      pool = new Pool({
+        connectionString: localUrl,
+        max: 1,
+      });
+
+      const result = await pool.query(
+        `SELECT * FROM "${sourceTable}" WHERE uuid = $1 LIMIT 1`,
+        [uuid]
+      );
+
+      await pool.end();
+
+      if (result.rows.length > 0) {
+        const record = result.rows[0];
+        const serializable: Record<string, any> = {};
+
+        for (const [key, value] of Object.entries(record)) {
+          serializable[key] = typeof value === 'bigint' ? value.toString() : value;
+        }
+
+        return NextResponse.json(serializable);
+      }
+
+      return NextResponse.json(
+        { error: 'Raw record not found in source table' },
+        { status: 404 }
+      );
+    }
 
     // Get the consolidated record to find the raw_record_uuid
     const consolidated = await prisma.consolidatedBankAccount.findFirst({
@@ -35,23 +80,26 @@ export async function GET(
         max: 1
       });
 
-      const deconsolidated = await pool.query(
-        'SELECT * FROM "GE78BG0000000893486000_BOG_GEL" WHERE uuid = $1 LIMIT 1',
-        [uuid]
-      );
+      for (const tableName of ALLOWED_TABLES) {
+        const deconsolidated = await pool.query(
+          `SELECT * FROM "${tableName}" WHERE uuid = $1 LIMIT 1`,
+          [uuid]
+        );
+
+        if (deconsolidated.rows.length > 0) {
+          const record = deconsolidated.rows[0];
+          const serializable: Record<string, any> = {};
+
+          for (const [key, value] of Object.entries(record)) {
+            serializable[key] = typeof value === 'bigint' ? value.toString() : value;
+          }
+
+          await pool.end();
+          return NextResponse.json(serializable);
+        }
+      }
 
       await pool.end();
-
-      if (deconsolidated.rows.length > 0) {
-        const record = deconsolidated.rows[0];
-        const serializable: Record<string, any> = {};
-
-        for (const [key, value] of Object.entries(record)) {
-          serializable[key] = typeof value === 'bigint' ? value.toString() : value;
-        }
-
-        return NextResponse.json(serializable);
-      }
 
       return NextResponse.json(
         { error: 'Raw record UUID not found for this transaction' },

@@ -193,6 +193,7 @@ export function BankTransactionsTable({
   data,
   currencySummaries,
   uploadEndpoint = '/api/bank-transactions/upload',
+  apiBasePath = '/api/bank-transactions',
   autoEditId: autoEditIdProp,
   renderMode = 'full',
   enableEditing = true,
@@ -201,6 +202,7 @@ export function BankTransactionsTable({
   data?: BankTransaction[];
   currencySummaries?: any[];
   uploadEndpoint?: string;
+  apiBasePath?: string;
   autoEditId?: number;
   renderMode?: 'full' | 'dialog-only';
   enableEditing?: boolean;
@@ -762,13 +764,16 @@ export function BankTransactionsTable({
     }
   };
 
-  const viewRawRecord = async (recordUuid: string) => {
+  const viewRawRecord = async (recordUuid: string, transaction?: BankTransaction) => {
     setLoadingRawRecord(true);
     setIsRawRecordDialogOpen(true);
     setViewingRawRecord(null);
     
     try {
-      const response = await fetch(`/api/bank-transactions/raw-record/${recordUuid}`);
+      const sourceParams = transaction?.sourceTable && transaction?.sourceId !== undefined
+        ? `?sourceTable=${encodeURIComponent(transaction.sourceTable)}&sourceId=${encodeURIComponent(String(transaction.sourceId))}`
+        : '';
+      const response = await fetch(`${apiBasePath}/raw-record/${recordUuid}${sourceParams}`);
       if (!response.ok) {
         throw new Error('Failed to fetch raw record');
       }
@@ -1319,7 +1324,10 @@ export function BankTransactionsTable({
       }
 
       if (parsing_lock !== undefined) {
-        const lockResponse = await fetch(`/api/bank-transactions/parsing-lock/${editingTransaction.id}`, {
+        const lockParams = editingTransaction.sourceTable && editingTransaction.sourceId !== undefined
+          ? `?sourceTable=${encodeURIComponent(editingTransaction.sourceTable)}&sourceId=${encodeURIComponent(String(editingTransaction.sourceId))}`
+          : '';
+        const lockResponse = await fetch(`${apiBasePath}/parsing-lock/${editingTransaction.id}${lockParams}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ parsing_lock }),
@@ -1336,7 +1344,10 @@ export function BankTransactionsTable({
         return;
       }
 
-      const response = await fetch(`/api/bank-transactions/${editingTransaction.id}`, {
+      const updateParams = editingTransaction.sourceTable && editingTransaction.sourceId !== undefined
+        ? `?sourceTable=${encodeURIComponent(editingTransaction.sourceTable)}&sourceId=${encodeURIComponent(String(editingTransaction.sourceId))}`
+        : '';
+      const response = await fetch(`${apiBasePath}/${editingTransaction.id}${updateParams}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(mainUpdate),
@@ -1346,7 +1357,7 @@ export function BankTransactionsTable({
 
       if (response.ok) {
         // Fetch the updated transaction to get calculated values (like nominal_amount)
-        const updatedResponse = await fetch(`/api/bank-transactions?ids=${editingTransaction.id}`);
+        const updatedResponse = await fetch(`${apiBasePath}?ids=${editingTransaction.id}`);
         if (updatedResponse.ok) {
           const updatedData = await updatedResponse.json();
           
@@ -1684,7 +1695,7 @@ export function BankTransactionsTable({
     setIsBackparseLoading(true);
     setBackparseError(null);
     try {
-      const response = await fetch('/api/bank-transactions/backparse-preview', {
+      const response = await fetch(`${apiBasePath}/backparse-preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ limit: backparseLimit, offset: 0 }),
@@ -1732,7 +1743,7 @@ export function BankTransactionsTable({
     }
     setIsBackparseRunning(true);
     try {
-      const response = await fetch('/api/bank-transactions/parsing-lock', {
+      const response = await fetch(`${apiBasePath}/parsing-lock`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids, parsing_lock: lock }),
@@ -1760,7 +1771,7 @@ export function BankTransactionsTable({
     }
     setIsBackparseRunning(true);
     try {
-      const response = await fetch('/api/bank-transactions/backparse-selected', {
+      const response = await fetch(`${apiBasePath}/backparse-selected`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids }),
@@ -1783,7 +1794,7 @@ export function BankTransactionsTable({
     if (!viewingRawRecord?.id) return;
     setIsRawLockUpdating(true);
     try {
-      const response = await fetch(`/api/bank-transactions/parsing-lock/${viewingRawRecord.id}`, {
+      const response = await fetch(`${apiBasePath}/parsing-lock/${viewingRawRecord.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ parsing_lock: checked }),
@@ -2044,7 +2055,7 @@ export function BankTransactionsTable({
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => viewRawRecord(row.uuid)}
+                              onClick={() => viewRawRecord(row.uuid, row)}
                               className="h-7 w-7 p-0"
                               title="View raw record"
                             >

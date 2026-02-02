@@ -5,7 +5,24 @@ import { logAudit } from "@/lib/audit";
 
 export const revalidate = 0;
 
-const DECONSOLIDATED_TABLE = "GE78BG0000000893486000_BOG_GEL";
+const DEFAULT_TABLE = "GE78BG0000000893486000_BOG_GEL";
+const ALLOWED_TABLES = new Set([
+  "GE78BG0000000893486000_BOG_GEL",
+  "GE65TB7856036050100002_TBC_GEL",
+]);
+
+function resolveTableName(searchParams: URLSearchParams): string {
+  const sourceTable = searchParams.get('sourceTable');
+  if (sourceTable && ALLOWED_TABLES.has(sourceTable)) {
+    return sourceTable;
+  }
+  return DEFAULT_TABLE;
+}
+
+function resolveRecordId(paramId: string, searchParams: URLSearchParams): string {
+  const sourceId = searchParams.get('sourceId');
+  return sourceId && sourceId.trim() ? sourceId : paramId;
+}
 
 /**
  * Calculate exchange rate and nominal amount based on currencies and date
@@ -149,16 +166,18 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
-    const idParam = /^\d+$/.test(id) ? BigInt(id) : id;
+    const searchParams = req.nextUrl.searchParams;
+    const tableName = resolveTableName(searchParams);
+    const recordId = resolveRecordId(params.id, searchParams);
+    const idParam = /^\d+$/.test(recordId) ? BigInt(recordId) : recordId;
     const body = await req.json();
 
-    console.log(`[PATCH /bank-transactions/${id}] Update request received`);
+    console.log(`[PATCH /bank-transactions/${params.id}] Update request received`);
     console.log('[PATCH] Request body:', JSON.stringify(body, null, 2));
 
     // Get current transaction from deconsolidated table
     const currentResult = await prisma.$queryRawUnsafe<any[]>(
-      `SELECT * FROM "${DECONSOLIDATED_TABLE}" WHERE id = $1`,
+      `SELECT * FROM "${tableName}" WHERE id = $1`,
       idParam
     );
     const currentRows = Array.isArray(currentResult)
@@ -378,7 +397,7 @@ export async function PATCH(
     updateValues.push(idParam);
 
     const updateQuery = `
-      UPDATE "${DECONSOLIDATED_TABLE}"
+      UPDATE "${tableName}"
       SET ${updateFields.join(', ')}
       WHERE id = $${paramIndex}
       RETURNING *
@@ -388,8 +407,8 @@ export async function PATCH(
     const updated = updatedRows[0];
 
     await logAudit({
-      table: DECONSOLIDATED_TABLE,
-      recordId: id,
+      table: tableName,
+      recordId: recordId,
       action: "update",
       changes: {
         changes,
