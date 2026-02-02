@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { extractPaymentID } from "@/lib/bank-import/db-utils";
 
 export const revalidate = 0;
 
@@ -88,6 +89,8 @@ const UNFETCHED_UNION_SQL = SOURCE_TABLES.map((table) => {
 
 // Map raw SQL results (snake_case) to API response (snake_case)
 function toApi(row: any) {
+  const fallbackPaymentId =
+    row.payment_id || extractPaymentID(row.docinformation || row.docnomination);
   return {
     id: Number(row.synthetic_id ?? row.id),
     source_table: row.source_table ?? null,
@@ -108,7 +111,7 @@ function toApi(row: any) {
     account_currency_amount: row.account_currency_amount ? Number(row.account_currency_amount) : null,
     nominal_currency_uuid: row.nominal_currency_uuid,
     nominal_amount: row.nominal_amount ? Number(row.nominal_amount) : null,
-    payment_id: row.payment_id ?? null,
+    payment_id: fallbackPaymentId ?? null,
     parsing_lock: row.parsing_lock ?? false,
     processing_case: row.processing_case,
     createdAt: row.created_at || null,
