@@ -55,29 +55,25 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
   return `SELECT
       t.id,
       t.uuid,
-      '${table.bankAccountUuid}'::uuid as bank_account_uuid,
-      t.uuid as raw_record_uuid,
-      REPLACE(t.date, '/', '.') as transaction_date,
-      NULL::date as correction_date,
-      NULL::numeric as exchange_rate,
-      CASE
-        WHEN t.additional_information IS NOT NULL AND t.additional_information <> ''
-          THEN COALESCE(t.description, '') || ' | ' || t.additional_information
-        ELSE t.description
-      END as description,
-      NULL::uuid as counteragent_uuid,
-      NULL::uuid as project_uuid,
-      NULL::uuid as financial_code_uuid,
-      '${table.accountCurrencyUuid}'::uuid as account_currency_uuid,
-      (COALESCE(NULLIF(t.paid_in, '')::numeric, 0) - COALESCE(NULLIF(t.paid_out, '')::numeric, 0)) as account_currency_amount,
-      '${table.accountCurrencyUuid}'::uuid as nominal_currency_uuid,
-      (COALESCE(NULLIF(t.paid_in, '')::numeric, 0) - COALESCE(NULLIF(t.paid_out, '')::numeric, 0)) as nominal_amount,
-      NULL::text as payment_id,
+      t.bank_account_uuid,
+      t.raw_record_uuid,
+      t.transaction_date,
+      t.correction_date,
+      t.exchange_rate,
+      t.description,
+      t.counteragent_uuid,
+      t.project_uuid,
+      t.financial_code_uuid,
+      t.account_currency_uuid,
+      t.account_currency_amount,
+      t.nominal_currency_uuid,
+      t.nominal_amount,
+      t.payment_id,
       t.processing_case,
       t.created_at,
       t.updated_at,
-      t.partner_account_number as counteragent_account_number,
-      FALSE as parsing_lock,
+      t.counteragent_account_number,
+      t.parsing_lock,
       t.applied_rule_id,
       (t.id + ${table.offset})::bigint as synthetic_id,
       t.id as source_id,
@@ -96,8 +92,8 @@ const UNFETCHED_UNION_SQL = SOURCE_TABLES.map((table) => {
 
   return `SELECT
       (id + ${table.offset})::bigint as synthetic_id,
-      '${table.accountCurrencyUuid}'::uuid as account_currency_uuid,
-      (COALESCE(NULLIF(paid_in, '')::numeric, 0) - COALESCE(NULLIF(paid_out, '')::numeric, 0)) as account_currency_amount
+      account_currency_uuid,
+      account_currency_amount
     FROM "${table.name}"`;
 }).join(' UNION ALL ');
 
