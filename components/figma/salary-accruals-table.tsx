@@ -7,6 +7,7 @@ import {
   Trash2, 
   Save, 
   X,
+  FileText,
   Search,
   Filter,
   Settings,
@@ -1590,7 +1591,7 @@ export function SalaryAccrualsTable() {
                 ))}
                 <th 
                   className="sticky top-0 bg-white px-4 py-3 text-center text-sm font-semibold border-b-2 border-gray-200"
-                  style={{ width: 100, minWidth: 100, maxWidth: 100 }}
+                  style={{ width: 120, minWidth: 120, maxWidth: 120 }}
                 >
                   Actions
                 </th>
@@ -1645,7 +1646,7 @@ export function SalaryAccrualsTable() {
                         )}
                       </td>
                     ))}
-                    <td className="px-4 py-2 text-sm" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>
+                    <td className="px-4 py-2 text-sm" style={{ width: 120, minWidth: 120, maxWidth: 120 }}>
                       <div className="flex items-center justify-center gap-2">
                         <Button
                           variant="ghost"
@@ -1654,6 +1655,17 @@ export function SalaryAccrualsTable() {
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
+                        {accrual.payment_id ? (
+                          <a
+                            href={`/payment-statement/${encodeURIComponent(accrual.payment_id)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center rounded p-1 text-blue-600 hover:bg-blue-50 hover:text-blue-800"
+                            title="View statement (opens in new tab)"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </a>
+                        ) : null}
                         <Button
                           variant="ghost"
                           size="sm"
