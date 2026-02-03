@@ -139,7 +139,11 @@ export async function POST(req: NextRequest) {
       RETURNING id, job_uuid
     ` as any[];
 
-    return NextResponse.json(result[0]);
+    const created = result[0];
+    return NextResponse.json({
+      id: created?.id !== undefined && created?.id !== null ? Number(created.id) : null,
+      job_uuid: created?.job_uuid ?? null,
+    });
   } catch (error: any) {
     console.error('POST /api/jobs error:', error);
     return NextResponse.json(
