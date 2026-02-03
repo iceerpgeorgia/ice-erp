@@ -21,11 +21,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const maxDate = searchParams.get('maxDate');
 
-    // Build the WHERE clause for date filtering
-    // Include payments with NULL dates (no activity) when filtering
-    const dateFilter = maxDate 
-      ? `AND (COALESCE(GREATEST(ledger_agg.latest_ledger_date, bank_agg.latest_bank_date), ledger_agg.latest_ledger_date, bank_agg.latest_bank_date) <= '${maxDate}'::date OR COALESCE(GREATEST(ledger_agg.latest_ledger_date, bank_agg.latest_bank_date), ledger_agg.latest_ledger_date, bank_agg.latest_bank_date) IS NULL)` 
-      : '';
+    const ledgerDateFilter = maxDate ? `WHERE effective_date::date <= '${maxDate}'::date` : '';
+    const bankDateFilter = maxDate ? `WHERE transaction_date::date <= '${maxDate}'::date` : '';
 
     // Query to get payments with aggregated ledger data and actual payments from bank accounts
     // Use subqueries to prevent Cartesian product when payment has multiple ledger entries AND bank transactions
@@ -67,6 +64,7 @@ export async function GET(request: NextRequest) {
           SUM("order") as total_order,
           MAX(effective_date) as latest_ledger_date
         FROM payments_ledger
+        ${ledgerDateFilter}
         GROUP BY payment_id
       ) ledger_agg ON p.payment_id = ledger_agg.payment_id
       LEFT JOIN (
@@ -77,10 +75,10 @@ export async function GET(request: NextRequest) {
         FROM (
           ${SOURCE_TABLES.map((table) => `SELECT * FROM "${table}"`).join(' UNION ALL ')}
         ) combined
+        ${bankDateFilter}
         GROUP BY payment_id
       ) bank_agg ON p.payment_id = bank_agg.payment_id
       WHERE p.is_active = true
-      ${dateFilter}
       ORDER BY p.payment_id DESC
     `;
 

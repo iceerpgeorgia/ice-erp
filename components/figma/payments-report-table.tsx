@@ -260,12 +260,10 @@ export function PaymentsReportTable() {
       try {
         const { mode, date } = JSON.parse(savedDateFilter);
         const isValidDateString = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date);
-        const today = new Date().toISOString().split('T')[0];
-        const isDateInRange = isValidDateString && date <= today;
 
         if (mode === 'today') {
           setDateFilterMode('today');
-        } else if (mode === 'custom' && isDateInRange) {
+        } else if (mode === 'custom' && isValidDateString) {
           setDateFilterMode('custom');
           setCustomDate(date);
         } else {
@@ -794,8 +792,7 @@ export function PaymentsReportTable() {
         console.log('[Payments Report] Filtering by today:', today);
       } else if (dateFilterMode === 'custom' && customDate) {
         const isValidDateString = /^\d{4}-\d{2}-\d{2}$/.test(customDate);
-        const today = new Date().toISOString().split('T')[0];
-        if (isValidDateString && customDate <= today) {
+        if (isValidDateString) {
           params.set('maxDate', customDate);
           console.log('[Payments Report] Filtering by custom date:', customDate);
         } else {
@@ -1981,7 +1978,6 @@ export function PaymentsReportTable() {
                           value={customDate}
                           onChange={(e) => setCustomDate(e.target.value)}
                           className="w-full text-sm"
-                          max={new Date().toISOString().split('T')[0]}
                         />
                         <p className="text-xs text-muted-foreground mt-1">
                           Show records with latest date ≤ selected date
