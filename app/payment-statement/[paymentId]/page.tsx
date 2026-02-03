@@ -582,25 +582,27 @@ export default function PaymentStatementPage() {
   // Calculate cumulative values for each row (from oldest to newest)
   if (mergedTransactions.length > 0) {
     let cumulativeAccrual = 0;
-    let cumulativePayment = 0;
+    let cumulativePaymentAbs = 0;
+    let cumulativePaymentSigned = 0;
     let cumulativeOrder = 0;
 
     mergedTransactions.forEach(row => {
       cumulativeAccrual += row.accrual;
       const paymentForCalc = Math.abs(row.payment || 0);
-      cumulativePayment += paymentForCalc;
+      cumulativePaymentAbs += paymentForCalc;
+      cumulativePaymentSigned += row.payment || 0;
       cumulativeOrder += row.order;
 
       // Calculate Paid % = (cumulative payment / cumulative accrual) * 100
       row.paidPercent = cumulativeAccrual !== 0 
-        ? parseFloat(((cumulativePayment / cumulativeAccrual) * 100).toFixed(2))
+        ? parseFloat(((cumulativePaymentAbs / cumulativeAccrual) * 100).toFixed(2))
         : 0;
 
       // Calculate Due = cumulative order - cumulative payment
-      row.due = parseFloat((cumulativeOrder - cumulativePayment).toFixed(2));
+      row.due = parseFloat((cumulativeOrder - cumulativePaymentSigned).toFixed(2));
 
       // Calculate Balance = cumulative accrual - cumulative payment
-      row.balance = parseFloat((cumulativeAccrual - cumulativePayment).toFixed(2));
+      row.balance = parseFloat((cumulativeAccrual - cumulativePaymentSigned).toFixed(2));
     });
 
     // Now reverse to show newest first in the table
