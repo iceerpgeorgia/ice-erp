@@ -598,11 +598,11 @@ export default function PaymentStatementPage() {
         ? parseFloat(((cumulativePaymentAbs / cumulativeAccrual) * 100).toFixed(2))
         : 0;
 
-      // Calculate Due = cumulative order - cumulative payment
-      row.due = parseFloat((cumulativeOrder - cumulativePaymentSigned).toFixed(2));
+      // Calculate Due = cumulative order + cumulative payment (signed)
+      row.due = parseFloat((cumulativeOrder + cumulativePaymentSigned).toFixed(2));
 
-      // Calculate Balance = cumulative accrual - cumulative payment
-      row.balance = parseFloat((cumulativeAccrual - cumulativePaymentSigned).toFixed(2));
+      // Calculate Balance = cumulative accrual + cumulative payment (signed)
+      row.balance = parseFloat((cumulativeAccrual + cumulativePaymentSigned).toFixed(2));
     });
 
     // Now reverse to show newest first in the table
