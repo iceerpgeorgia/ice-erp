@@ -133,6 +133,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const existing = await prisma.$queryRaw`
+      SELECT id, job_uuid
+      FROM jobs
+      WHERE project_uuid = ${projectUuid}::uuid
+        AND lower(job_name) = lower(${jobName})
+        AND is_active = true
+      LIMIT 1
+    ` as any[];
+
+    if (existing.length > 0) {
+      const found = existing[0];
+      return NextResponse.json({
+        id: found?.id !== undefined && found?.id !== null ? Number(found.id) : null,
+        job_uuid: found?.job_uuid ?? null,
+        alreadyExists: true,
+      });
+    }
+
     const result = await prisma.$queryRaw`
       INSERT INTO jobs (project_uuid, job_name, floors, weight, is_ff, brand_uuid)
       VALUES (${projectUuid}::uuid, ${jobName}, ${floors}, ${weight}, ${isFf}, ${brandUuid}::uuid)
