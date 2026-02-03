@@ -37,6 +37,8 @@ async function calculateExchangeRateAndAmount(
   correctionDate: any = null
 ): Promise<{ exchangeRate: Decimal; nominalAmount: Decimal } | null> {
   try {
+    const getRateField = (code: string) => `${code.toLowerCase()}_rate`;
+
     // Get currency codes
     const [accountCurrency, nominalCurrency] = await Promise.all([
       prisma.$queryRaw<Array<{ code: string }>>`
@@ -82,7 +84,7 @@ async function calculateExchangeRateAndAmount(
         return null;
       }
 
-      const rateField = nominalCode.toLowerCase();
+      const rateField = getRateField(nominalCode);
       const rate = rates[0][rateField];
 
       if (!rate) {
@@ -109,7 +111,7 @@ async function calculateExchangeRateAndAmount(
         return null;
       }
 
-      const rateField = accountCode.toLowerCase();
+      const rateField = getRateField(accountCode);
       const rate = rates[0][rateField];
 
       if (!rate) {
@@ -136,8 +138,8 @@ async function calculateExchangeRateAndAmount(
         return null;
       }
 
-      const accountRateField = accountCode.toLowerCase();
-      const nominalRateField = nominalCode.toLowerCase();
+      const accountRateField = getRateField(accountCode);
+      const nominalRateField = getRateField(nominalCode);
       const accountRate = rates[0][accountRateField];
       const nominalRate = rates[0][nominalRateField];
 
@@ -378,9 +380,15 @@ export async function PATCH(
       'financial_code_uuid',
       'nominal_currency_uuid',
     ]);
+    const numericColumns = new Set(['nominal_amount', 'exchange_rate']);
 
     const pushUpdate = (column: string, value: any) => {
-      const cast = uuidColumns.has(column) ? '::uuid' : '';
+      let cast = '';
+      if (uuidColumns.has(column)) {
+        cast = '::uuid';
+      } else if (numericColumns.has(column)) {
+        cast = '::numeric';
+      }
       updateFields.push(`${column} = $${paramIndex++}${cast}`);
       updateValues.push(value);
     };

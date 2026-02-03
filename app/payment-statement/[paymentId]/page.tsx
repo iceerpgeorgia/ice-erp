@@ -167,13 +167,47 @@ export default function PaymentStatementPage() {
   const [selectedBankOrderRowIds, setSelectedBankOrderRowIds] = useState<Set<string>>(new Set());
   const [isBulkAdding, setIsBulkAdding] = useState(false);
 
-  // Add Ledger dialog state (locked to current payment)
+  // Add Ledger dialog state (two-step like payments report)
   const [isAddLedgerDialogOpen, setIsAddLedgerDialogOpen] = useState(false);
+  const [addLedgerStep, setAddLedgerStep] = useState<'payment' | 'ledger'>('payment');
+  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
+  const [preSelectedPaymentId, setPreSelectedPaymentId] = useState<string | null>(null);
+  const [selectedPaymentDetails, setSelectedPaymentDetails] = useState<{
+    paymentId: string;
+    counteragent: string;
+    project: string;
+    job: string;
+    financialCode: string;
+    incomeTax: boolean;
+    currency: string;
+  } | null>(null);
+  const [projects, setProjects] = useState<Array<{ projectUuid?: string; project_uuid?: string; projectIndex?: string; project_index?: string; projectName?: string; project_name?: string }>>([]);
+  const [counteragents, setCounteragents] = useState<Array<{ counteragent_uuid?: string; counteragentUuid?: string; counteragent?: string; name?: string; identification_number?: string; identificationNumber?: string }>>([]);
+  const [financialCodes, setFinancialCodes] = useState<Array<{ uuid: string; validation: string; code: string }>>([]);
+  const [currencies, setCurrencies] = useState<Array<{ uuid: string; code: string; name: string }>>([]);
+  const [jobs, setJobs] = useState<Array<{ jobUuid: string; jobName: string; jobDisplay?: string }>>([]);
+  const [selectedCounteragentUuid, setSelectedCounteragentUuid] = useState('');
+  const [selectedProjectUuid, setSelectedProjectUuid] = useState('');
+  const [selectedFinancialCodeUuid, setSelectedFinancialCodeUuid] = useState('');
+  const [selectedJobUuid, setSelectedJobUuid] = useState('');
+  const [selectedCurrencyUuid, setSelectedCurrencyUuid] = useState('');
+  const [selectedIncomeTax, setSelectedIncomeTax] = useState(false);
+  const [payments, setPayments] = useState<Array<{ 
+    paymentId: string; 
+    counteragentName?: string;
+    projectIndex?: string;
+    projectName?: string;
+    jobName?: string;
+    financialCode?: string;
+    incomeTax?: boolean;
+    currencyCode?: string;
+  }>>([]);
+  const [selectedPaymentId, setSelectedPaymentId] = useState('');
   const [addEffectiveDate, setAddEffectiveDate] = useState('');
   const [addAccrual, setAddAccrual] = useState('');
   const [addOrder, setAddOrder] = useState('');
   const [addComment, setAddComment] = useState('');
-  const [isAddingLedger, setIsAddingLedger] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
@@ -303,21 +337,117 @@ export default function PaymentStatementPage() {
     }
   }, [paymentId]);
 
+  useEffect(() => {
+    if (!isAddLedgerDialogOpen) return;
+    const fetchPaymentsForLedger = async () => {
+      try {
+        const response = await fetch('/api/payments?limit=5000&sort=desc');
+        if (!response.ok) throw new Error('Failed to fetch payments');
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setPayments(data.map((p: any) => ({
+            paymentId: p.paymentId,
+            counteragentName: p.counteragentName,
+            projectIndex: p.projectIndex,
+            projectName: p.projectName,
+            jobName: p.jobName,
+            financialCode: p.financialCode,
+            incomeTax: p.incomeTax,
+            currencyCode: p.currencyCode,
+          })));
+        }
+      } catch (error) {
+        console.error('Error fetching payments:', error);
+      }
+    };
+
+    const fetchDictionaries = async () => {
+      try {
+        const [projectsRes, counteragentsRes, financialCodesRes, currenciesRes] = await Promise.all([
+          fetch('/api/projects'),
+          fetch('/api/counteragents'),
+          fetch('/api/financial-codes?leafOnly=true'),
+          fetch('/api/currencies'),
+        ]);
+
+        if (projectsRes.ok) {
+          const projectsData = await projectsRes.json();
+          const list = Array.isArray(projectsData)
+            ? projectsData
+            : Array.isArray(projectsData?.data)
+              ? projectsData.data
+              : [];
+          setProjects(list);
+        }
+        if (counteragentsRes.ok) {
+          const counteragentsData = await counteragentsRes.json();
+          setCounteragents(Array.isArray(counteragentsData) ? counteragentsData : []);
+        }
+        if (financialCodesRes.ok) {
+          const financialCodesData = await financialCodesRes.json();
+          setFinancialCodes(Array.isArray(financialCodesData) ? financialCodesData : []);
+        }
+        if (currenciesRes.ok) {
+          const currenciesData = await currenciesRes.json();
+          const list = Array.isArray(currenciesData)
+            ? currenciesData
+            : Array.isArray(currenciesData?.data)
+              ? currenciesData.data
+              : [];
+          setCurrencies(list);
+        }
+      } catch (error) {
+        console.error('Error fetching dictionaries:', error);
+      }
+    };
+
+    fetchPaymentsForLedger();
+    fetchDictionaries();
+
+    if (statementData?.payment?.paymentId) {
+      setSelectedPaymentId(statementData.payment.paymentId);
+      setPreSelectedPaymentId(statementData.payment.paymentId);
+      setAddLedgerStep('ledger');
+    } else {
+      setAddLedgerStep('payment');
+    }
+  }, [isAddLedgerDialogOpen, statementData?.payment?.paymentId]);
+
+  useEffect(() => {
+    if (!selectedProjectUuid) {
+      setJobs([]);
+      setSelectedJobUuid('');
+      return;
+    }
+    const fetchJobs = async () => {
+      try {
+        const response = await fetch(`/api/jobs?projectUuid=${selectedProjectUuid}`);
+        if (!response.ok) throw new Error('Failed to fetch jobs');
+        const data = await response.json();
+        setJobs(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error fetching jobs:', error);
+        setJobs([]);
+      }
+    };
+    fetchJobs();
+  }, [selectedProjectUuid]);
+
   // Fetch all payments for the payment ID dropdown
   useEffect(() => {
     const fetchPayments = async () => {
       try {
-        const response = await fetch('/api/payments?limit=5000');
+        const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
         if (!response.ok) throw new Error('Failed to fetch payments');
         const data = await response.json();
         setAllPayments(data.map((p: any) => ({
-          paymentId: p.paymentId,
-          counteragent: p.counteragentName || 'N/A',
-          project: p.projectIndex || 'N/A',
-          job: p.jobName || 'N/A',
-          financialCode: p.financialCode || 'N/A',
-          currency: p.currencyCode || 'N/A',
-          incomeTax: p.incomeTax || false
+          paymentId: p.paymentId || p.payment_id,
+          counteragent: p.counteragentName || p.counteragent_name || 'N/A',
+          project: p.projectIndex || p.project_name || 'N/A',
+          job: p.jobName || p.job_name || 'N/A',
+          financialCode: p.financialCode || p.financialCodeValidation || p.financial_code || 'N/A',
+          currency: p.currencyCode || p.currency_code || 'N/A',
+          incomeTax: p.incomeTax ?? false
         })));
       } catch (error) {
         console.error('Error fetching payments:', error);
@@ -589,15 +719,31 @@ export default function PaymentStatementPage() {
   };
 
   const resetAddLedgerForm = () => {
+    setAddLedgerStep('payment');
+    setPreSelectedPaymentId(null);
+    setSelectedPaymentDetails(null);
+    setSelectedCounteragentUuid('');
+    setSelectedProjectUuid('');
+    setSelectedFinancialCodeUuid('');
+    setSelectedJobUuid('');
+    setSelectedCurrencyUuid('');
+    setSelectedIncomeTax(false);
+    setSelectedPaymentId('');
     setAddEffectiveDate('');
     setAddAccrual('');
     setAddOrder('');
     setAddComment('');
-    setIsAddingLedger(false);
+    setIsSubmitting(false);
+    setIsCreatingPayment(false);
   };
 
   const handleOpenAddLedger = () => {
     resetAddLedgerForm();
+    if (statementData?.payment?.paymentId) {
+      setPreSelectedPaymentId(statementData.payment.paymentId);
+      setSelectedPaymentId(statementData.payment.paymentId);
+      setAddLedgerStep('ledger');
+    }
     setIsAddLedgerDialogOpen(true);
   };
 
@@ -606,9 +752,84 @@ export default function PaymentStatementPage() {
     resetAddLedgerForm();
   };
 
+  const handleCreatePayment = async () => {
+    if (!selectedCounteragentUuid || !selectedFinancialCodeUuid || !selectedCurrencyUuid) {
+      alert('Please fill Counteragent, Financial Code, and Currency');
+      return;
+    }
+
+    setIsCreatingPayment(true);
+    try {
+      const response = await fetch('/api/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          counteragentUuid: selectedCounteragentUuid,
+          projectUuid: selectedProjectUuid || null,
+          financialCodeUuid: selectedFinancialCodeUuid,
+          jobUuid: selectedJobUuid || null,
+          incomeTax: selectedIncomeTax,
+          currencyUuid: selectedCurrencyUuid,
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create payment');
+      }
+
+      const result = await response.json();
+      const newPaymentId = result?.data?.payment_id || result?.data?.paymentId;
+
+      if (!newPaymentId) {
+        throw new Error('Payment ID not returned from server');
+      }
+
+      const counteragent = counteragents.find(ca => (ca.counteragent_uuid || ca.counteragentUuid) === selectedCounteragentUuid);
+      const project = projects.find(p => (p.projectUuid || p.project_uuid) === selectedProjectUuid);
+      const job = jobs.find(j => j.jobUuid === selectedJobUuid);
+      const financialCode = financialCodes.find(fc => fc.uuid === selectedFinancialCodeUuid);
+      const currency = currencies.find(c => c.uuid === selectedCurrencyUuid);
+
+      setPreSelectedPaymentId(newPaymentId);
+      setSelectedPaymentId(newPaymentId);
+      setSelectedPaymentDetails({
+        paymentId: newPaymentId,
+        counteragent: (counteragent as any)?.counteragent || (counteragent as any)?.name || 'N/A',
+        project: (project as any)?.projectIndex || (project as any)?.project_index || (project as any)?.projectName || (project as any)?.project_name || 'N/A',
+        job: (job as any)?.jobDisplay || (job as any)?.jobName || 'N/A',
+        financialCode: financialCode?.validation || financialCode?.code || 'N/A',
+        incomeTax: selectedIncomeTax,
+        currency: (currency as any)?.code || 'N/A'
+      });
+
+      setPayments(prev => [{
+        paymentId: newPaymentId,
+        counteragentName: (counteragent as any)?.counteragent || (counteragent as any)?.name,
+        projectIndex: (project as any)?.projectIndex || (project as any)?.project_index,
+        projectName: (project as any)?.projectName || (project as any)?.project_name,
+        jobName: (job as any)?.jobName,
+        financialCode: financialCode?.validation || financialCode?.code,
+        incomeTax: selectedIncomeTax,
+        currencyCode: (currency as any)?.code,
+      }, ...prev]);
+
+      setAddLedgerStep('ledger');
+    } catch (error: any) {
+      console.error('Error creating payment:', error);
+      alert(error.message || 'Failed to create payment');
+    } finally {
+      setIsCreatingPayment(false);
+    }
+  };
+
+  const handleSkipToLedger = () => {
+    setAddLedgerStep('ledger');
+  };
+
   const handleSaveAddLedger = async () => {
-    if (!statementData?.payment?.paymentId) {
-      alert('Payment ID is missing');
+    if (!selectedPaymentId) {
+      alert('Please select a payment');
       return;
     }
 
@@ -620,13 +841,13 @@ export default function PaymentStatementPage() {
       return;
     }
 
-    setIsAddingLedger(true);
+    setIsSubmitting(true);
     try {
       const response = await fetch('/api/payments-ledger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          paymentId: statementData.payment.paymentId,
+          paymentId: selectedPaymentId,
           effectiveDate: addEffectiveDate || undefined,
           accrual: accrualValue,
           order: orderValue,
@@ -639,41 +860,21 @@ export default function PaymentStatementPage() {
         throw new Error(error.error || 'Failed to create ledger entry');
       }
 
-      const result = await response.json();
-      const created = Array.isArray(result) ? result[0] : result;
-
-      if (created && statementData) {
-        const newEntry = {
-          id: Number(created.id),
-          effectiveDate: created.effective_date || created.effectiveDate,
-          accrual: created.accrual ? Number(created.accrual) : 0,
-          order: created.order ? Number(created.order) : 0,
-          comment: created.comment,
-          userEmail: created.user_email || created.userEmail,
-          createdAt: created.created_at || created.createdAt,
-        };
-
-        setStatementData({
-          ...statementData,
-          ledgerEntries: [...(statementData.ledgerEntries || []), newEntry],
+      if (broadcastChannel) {
+        broadcastChannel.postMessage({
+          type: 'ledger-updated',
+          paymentId: selectedPaymentId,
+          timestamp: Date.now(),
         });
-
-        if (broadcastChannel) {
-          broadcastChannel.postMessage({
-            type: 'ledger-updated',
-            paymentId: statementData.payment.paymentId,
-            ledgerId: newEntry.id,
-            timestamp: Date.now(),
-          });
-        }
       }
 
+      await refreshStatement();
       handleCloseAddLedger();
     } catch (error: any) {
       console.error('Error adding ledger entry:', error);
       alert(error.message || 'Failed to add ledger entry');
     } finally {
-      setIsAddingLedger(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -1026,6 +1227,22 @@ export default function PaymentStatementPage() {
     );
   });
 
+  useEffect(() => {
+    if (!selectedPaymentId) return;
+    const payment = payments.find(p => p.paymentId === selectedPaymentId);
+    if (payment) {
+      setSelectedPaymentDetails({
+        paymentId: payment.paymentId,
+        counteragent: payment.counteragentName || 'N/A',
+        project: payment.projectIndex || payment.projectName || 'N/A',
+        job: payment.jobName || 'N/A',
+        financialCode: payment.financialCode || 'N/A',
+        incomeTax: payment.incomeTax || false,
+        currency: payment.currencyCode || 'N/A'
+      });
+    }
+  }, [selectedPaymentId, payments]);
+
 
   if (loading) {
     return (
@@ -1117,9 +1334,14 @@ export default function PaymentStatementPage() {
                 <button
                   onClick={handleBulkAddAO}
                   disabled={!hasBulkSelection || isBulkAdding}
-                  className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`px-3 py-2 rounded border transition-colors ${
+                    !hasBulkSelection || isBulkAdding
+                      ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                      : 'border-emerald-500 text-emerald-700 hover:bg-emerald-50'
+                  }`}
+                  title={hasBulkSelection ? 'Add accruals/orders for selected bank rows' : 'Select bank rows (A/O) first'}
                 >
-                  {isBulkAdding ? 'Adding...' : '+A/O'}
+                  {isBulkAdding ? 'Adding...' : '+A&O'}
                 </button>
                 <button
                   onClick={handleOpenAddLedger}
@@ -1193,9 +1415,6 @@ export default function PaymentStatementPage() {
                         </th>
                         <th className="px-4 py-3 font-semibold text-left" style={{ width: '70px' }}>
                           Logs
-                        </th>
-                        <th className="px-4 py-3 font-semibold text-left" style={{ width: '70px' }}>
-                          CA
                         </th>
                         <th className="px-4 py-3 font-semibold text-left" style={{ width: '90px' }}>
                           Actions
@@ -1295,25 +1514,7 @@ export default function PaymentStatementPage() {
                               </button>
                             )}
                           </td>
-                          <td className="px-4 py-3" style={{ width: '70px' }}>
-                            <button
-                              onClick={openCounteragentStatement}
-                              disabled={!statementData?.payment?.counteragentUuid}
-                              className="p-1 hover:bg-gray-200 rounded disabled:opacity-50"
-                              title="View counteragent statement"
-                            >
-                              <User className="h-4 w-4 text-blue-600" />
-                            </button>
-                          </td>
                           <td className="px-4 py-3" style={{ width: '90px' }}>
-                            <button
-                              onClick={openCounteragentStatement}
-                              disabled={!statementData?.payment?.counteragentUuid}
-                              className="p-1 hover:bg-gray-200 rounded disabled:opacity-50"
-                              title="View counteragent statement"
-                            >
-                              <User className="h-4 w-4 text-blue-600" />
-                            </button>
                             {row.type === 'ledger' && row.ledgerId && (
                               <button
                                 onClick={() => handleEditEntry(row)}
@@ -1379,7 +1580,6 @@ export default function PaymentStatementPage() {
                           );
                         })}
                         <td className="px-4 py-3" style={{ width: '70px' }}></td>
-                        <td className="px-4 py-3" style={{ width: '70px' }}></td>
                         <td className="px-4 py-3" style={{ width: '90px' }}></td>
                       </tr>
                     </tbody>
@@ -1413,100 +1613,289 @@ export default function PaymentStatementPage() {
       {/* Add Ledger Dialog */}
       {isAddLedgerDialogOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">Add Ledger Entry</h2>
+              <h2 className="text-xl font-bold">
+                {addLedgerStep === 'payment' ? 'Add Payment' : 'Add Ledger Entry'}
+              </h2>
               <button
                 onClick={handleCloseAddLedger}
                 className="p-1 hover:bg-gray-100 rounded"
-                disabled={isAddingLedger}
+                disabled={isSubmitting || isCreatingPayment}
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <div className="p-6 space-y-4">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Payment ID (Locked)
-                </label>
-                <input
-                  value={statementData?.payment?.paymentId || ''}
-                  disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                />
-              </div>
+              {addLedgerStep === 'payment' ? (
+                <>
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                    Create a payment first, or skip to add a ledger entry to an existing payment.
+                  </div>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Effective Date
-                </label>
-                <input
-                  type="date"
-                  value={addEffectiveDate}
-                  onChange={(e) => setAddEffectiveDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
+                  <div className="space-y-2">
+                    <Label>Counteragent <span className="text-red-500">*</span></Label>
+                    <Combobox
+                      value={selectedCounteragentUuid}
+                      onValueChange={setSelectedCounteragentUuid}
+                      options={counteragents
+                        .map(ca => {
+                          const value = ca.counteragent_uuid || ca.counteragentUuid || '';
+                          const labelBase = ca.counteragent || ca.name || '';
+                          if (!value || !labelBase) return null;
+                          return {
+                            value,
+                            label: labelBase
+                          };
+                        })
+                        .filter((opt): opt is { value: string; label: string } => Boolean(opt))}
+                      placeholder="Select counteragent..."
+                      searchPlaceholder="Search counteragents..."
+                    />
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Accrual Amount
-                  </label>
-                  <input
-                    type="number"
-                    value={addAccrual}
-                    onChange={(e) => setAddAccrual(e.target.value)}
-                    placeholder="0.00"
-                    step="0.01"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Order Amount
-                  </label>
-                  <input
-                    type="number"
-                    value={addOrder}
-                    onChange={(e) => setAddOrder(e.target.value)}
-                    placeholder="0.00"
-                    step="0.01"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-              </div>
+                  <div className="space-y-2">
+                    <Label className={!selectedCounteragentUuid ? 'text-muted-foreground' : ''}>
+                      Financial Code <span className="text-red-500">*</span>
+                    </Label>
+                    <Combobox
+                      value={selectedFinancialCodeUuid}
+                      onValueChange={setSelectedFinancialCodeUuid}
+                      options={financialCodes.map(fc => ({
+                        value: fc.uuid,
+                        label: fc.validation
+                      }))}
+                      placeholder="Select financial code..."
+                      searchPlaceholder="Search financial codes..."
+                      disabled={!selectedCounteragentUuid}
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Comment
-                </label>
-                <textarea
-                  value={addComment}
-                  onChange={(e) => setAddComment(e.target.value)}
-                  placeholder="Enter comment..."
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+                  <div className="space-y-2">
+                    <Label className={!selectedFinancialCodeUuid ? 'text-muted-foreground' : ''}>
+                      Currency <span className="text-red-500">*</span>
+                    </Label>
+                    <Combobox
+                      value={selectedCurrencyUuid}
+                      onValueChange={setSelectedCurrencyUuid}
+                      options={currencies.map(c => ({
+                        value: c.uuid,
+                        label: c.code || c.name
+                      }))}
+                      placeholder="Select currency..."
+                      searchPlaceholder="Search currencies..."
+                      disabled={!selectedFinancialCodeUuid}
+                    />
+                  </div>
 
-              <div className="flex justify-end gap-3 pt-4">
-                <button
-                  onClick={handleCloseAddLedger}
-                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
-                  disabled={isAddingLedger}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveAddLedger}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                  disabled={isAddingLedger}
-                >
-                  {isAddingLedger ? 'Saving...' : 'Add Entry'}
-                </button>
-              </div>
+                  <div className="space-y-2">
+                    <Label>Project</Label>
+                    <Combobox
+                      value={selectedProjectUuid}
+                      onValueChange={setSelectedProjectUuid}
+                      options={projects.map(p => ({
+                        value: p.projectUuid || p.project_uuid || '',
+                        label: p.projectIndex || p.project_index || p.projectName || p.project_name || 'N/A'
+                      }))}
+                      placeholder="Select project..."
+                      searchPlaceholder="Search projects..."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Job</Label>
+                    <Combobox
+                      value={selectedJobUuid}
+                      onValueChange={setSelectedJobUuid}
+                      options={jobs.map(j => ({
+                        value: j.jobUuid,
+                        label: j.jobDisplay || j.jobName
+                      }))}
+                      placeholder="Select job..."
+                      searchPlaceholder="Search jobs..."
+                      disabled={!selectedProjectUuid}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Income Tax</Label>
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={selectedIncomeTax} onCheckedChange={(v) => setSelectedIncomeTax(Boolean(v))} />
+                      <span className="text-sm text-gray-700">Apply income tax</span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4">
+                    <button
+                      onClick={handleSkipToLedger}
+                      className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+                    >
+                      Skip to ledger
+                    </button>
+                    <button
+                      onClick={handleCreatePayment}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                      disabled={isCreatingPayment}
+                    >
+                      {isCreatingPayment ? 'Creating...' : 'Create payment'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label>Payment ID <span className="text-red-500">*</span></Label>
+                    <Combobox
+                      value={selectedPaymentId}
+                      onValueChange={(value) => {
+                        setSelectedPaymentId(value);
+                        const payment = payments.find(p => p.paymentId === value);
+                        if (payment) {
+                          setSelectedPaymentDetails({
+                            paymentId: payment.paymentId,
+                            counteragent: payment.counteragentName || 'N/A',
+                            project: payment.projectIndex || payment.projectName || 'N/A',
+                            job: payment.jobName || 'N/A',
+                            financialCode: payment.financialCode || 'N/A',
+                            incomeTax: payment.incomeTax || false,
+                            currency: payment.currencyCode || 'N/A'
+                          });
+                        }
+                      }}
+                      options={payments.map(p => ({
+                        value: p.paymentId,
+                        label: [p.paymentId, p.counteragentName, p.projectIndex, p.projectName, p.jobName, p.financialCode, p.currencyCode]
+                          .filter(Boolean)
+                          .join(' | '),
+                      }))}
+                      placeholder="Select payment..."
+                      searchPlaceholder="Search payment ID, project, job..."
+                    />
+                  </div>
+
+                  {selectedPaymentDetails && (
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-3 border border-gray-200">
+                      <h3 className="text-sm font-semibold text-gray-700">Payment Details</h3>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-gray-600">Payment ID</Label>
+                          <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                            <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.paymentId}</span>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-gray-600">Currency</Label>
+                          <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                            <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.currency}</span>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-gray-600">Income Tax</Label>
+                          <div className="flex items-center h-9 px-3 border-2 border-gray-300 rounded-md bg-gray-100">
+                            <Checkbox checked={selectedPaymentDetails.incomeTax} disabled />
+                            <span className="ml-2 text-sm font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.incomeTax ? 'Yes' : 'No'}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-gray-600">Counteragent</Label>
+                        <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                          <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.counteragent}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-gray-600">Project</Label>
+                        <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                          <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.project}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-gray-600">Job</Label>
+                        <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                          <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.job}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-gray-600">Financial Code</Label>
+                        <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
+                          <span className="font-bold" style={{ color: '#000' }}>{selectedPaymentDetails.financialCode}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Effective Date
+                    </label>
+                    <input
+                      type="date"
+                      value={addEffectiveDate}
+                      onChange={(e) => setAddEffectiveDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Accrual Amount
+                      </label>
+                      <input
+                        type="number"
+                        value={addAccrual}
+                        onChange={(e) => setAddAccrual(e.target.value)}
+                        placeholder="0.00"
+                        step="0.01"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Order Amount
+                      </label>
+                      <input
+                        type="number"
+                        value={addOrder}
+                        onChange={(e) => setAddOrder(e.target.value)}
+                        placeholder="0.00"
+                        step="0.01"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Comment
+                    </label>
+                    <textarea
+                      value={addComment}
+                      onChange={(e) => setAddComment(e.target.value)}
+                      placeholder="Enter comment..."
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4">
+                    <button
+                      onClick={() => setAddLedgerStep('payment')}
+                      className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={handleSaveAddLedger}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? 'Saving...' : 'Add Entry'}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

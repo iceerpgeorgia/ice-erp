@@ -9,7 +9,7 @@ export async function GET() {
     // Get all sessions from database
     const allSessions = await prisma.session.findMany({
       include: {
-        User: {
+        user: {
           select: {
             id: true,
             email: true,

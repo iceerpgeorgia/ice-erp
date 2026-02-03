@@ -5,7 +5,10 @@ import { prisma } from '@/lib/prisma';
 
 export const revalidate = 0;
 
-const DECONSOLIDATED_TABLE = "GE78BG0000000893486000_BOG_GEL";
+const SOURCE_TABLES = [
+  "GE78BG0000000893486000_BOG_GEL",
+  "GE65TB7856036050100002_TBC_GEL",
+];
 
 export async function GET(request: NextRequest) {
   try {
@@ -71,7 +74,9 @@ export async function GET(request: NextRequest) {
           payment_id,
           SUM(nominal_amount) as total_payment,
           MAX(transaction_date::date) as latest_bank_date
-        FROM "${DECONSOLIDATED_TABLE}"
+        FROM (
+          ${SOURCE_TABLES.map((table) => `SELECT * FROM "${table}"`).join(' UNION ALL ')}
+        ) combined
         GROUP BY payment_id
       ) bank_agg ON p.payment_id = bank_agg.payment_id
       WHERE p.is_active = true
@@ -83,6 +88,7 @@ export async function GET(request: NextRequest) {
 
     const formattedData = (reportData as any[]).map(row => ({
       paymentId: row.payment_id,
+      counteragentUuid: row.counteragent_uuid,
       counteragent: row.counteragent_formatted || row.counteragent_name,
       counteragentId: row.counteragent_id,
       counteragentIban: row.counteragent_iban,

@@ -3,9 +3,13 @@ import "./globals.css";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import Providers from "./providers";
+import PageTitle from "./page-title";
 
 export const metadata = {
-  title: "ICE ERP",
+  title: {
+    template: "%s",
+    default: "Home",
+  },
   description: "Google sign-in • Prisma • Postgres",
 };
 
@@ -19,6 +23,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         </header>
 
         <Providers>
+          <PageTitle />
           <main>{children}</main>
         </Providers>
       </body>

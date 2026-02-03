@@ -1,5 +1,5 @@
 {
-  "buildCommand": "rm -rf .next && rm -rf node_modules/.cache && rm -rf tsconfig.tsbuildinfo && pnpm prisma generate && pnpm build",
+  "buildCommand": "pnpm prisma generate && pnpm build",
   "installCommand": "pnpm install",
   "framework": "nextjs",
   "regions": ["iad1"],

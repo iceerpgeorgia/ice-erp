@@ -98,7 +98,9 @@ function toApi(row: any) {
   return {
     id: Number(row.synthetic_id ?? row.id),
     source_table: row.source_table ?? null,
-    source_id: row.source_id ?? row.id ?? null,
+    source_id: row.source_id !== undefined && row.source_id !== null
+      ? Number(row.source_id)
+      : (row.id !== undefined && row.id !== null ? Number(row.id) : null),
     uuid: row.uuid,
     bank_account_uuid: row.bank_account_uuid,
     raw_record_uuid: row.raw_record_uuid,
@@ -353,7 +355,9 @@ export async function GET(req: NextRequest) {
       
       return {
         ...base,
-        applied_rule_id: appliedRuleId,
+        applied_rule_id: appliedRuleId !== null && appliedRuleId !== undefined
+          ? Number(appliedRuleId)
+          : null,
         counteragent_name: row.counteragent_name ?? null, // From JOIN
         project_index: row.project_index ?? null, // From JOIN
         financial_code: row.financial_code ?? null, // From JOIN

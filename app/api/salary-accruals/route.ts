@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, PrismaClient } from '@prisma/client';
+import { reparseByPaymentId } from '@/lib/bank-import/reparse';
 
 const prisma = new PrismaClient();
 
@@ -99,12 +100,12 @@ export async function GET(request: NextRequest) {
     const paidRows = await prisma.$queryRaw<any[]>`
       SELECT
         regexp_replace(lower(payment_id), '[^a-z0-9]', '', 'g') as payment_id_key,
-        SUM(ABS(account_currency_amount))::numeric as paid
+        SUM(ABS(nominal_amount))::numeric as paid
       FROM (
-        SELECT payment_id, account_currency_amount
+        SELECT payment_id, nominal_amount
         FROM "GE78BG0000000893486000_BOG_GEL"
         UNION ALL
-        SELECT payment_id, account_currency_amount
+        SELECT payment_id, nominal_amount
         FROM "GE65TB7856036050100002_TBC_GEL"
       ) tx
       WHERE payment_id IS NOT NULL AND payment_id <> ''
@@ -302,6 +303,11 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
 
+    const existing = await prisma.salary_accruals.findUnique({
+      where: { id: BigInt(id) },
+      select: { payment_id: true },
+    });
+
     // Regenerate payment_id if key fields changed
     const salaryDate = new Date(salary_month);
     const payment_id = generatePaymentId(counteragent_uuid, financial_code_uuid, salaryDate);
@@ -323,6 +329,15 @@ export async function PUT(request: NextRequest) {
         updated_by: updated_by || 'system',
       },
     });
+
+    const oldPaymentId = existing?.payment_id || null;
+    const paymentIdsToReparse = new Set<string>();
+    if (oldPaymentId) paymentIdsToReparse.add(oldPaymentId);
+    if (payment_id) paymentIdsToReparse.add(payment_id);
+
+    for (const pid of paymentIdsToReparse) {
+      await reparseByPaymentId(pid);
+    }
 
     return NextResponse.json({
       ...accrual,

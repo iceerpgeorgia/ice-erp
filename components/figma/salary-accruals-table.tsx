@@ -12,7 +12,8 @@ import {
   Filter,
   Settings,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  User
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -101,6 +102,7 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 export function SalaryAccrualsTable() {
+  const filtersStorageKey = 'salaryAccrualsFiltersV1';
   const [data, setData] = useState<SalaryAccrual[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -118,6 +120,7 @@ export function SalaryAccrualsTable() {
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
   const [projectedMonths, setProjectedMonths] = useState(0);
   const [latestBaseMonthLabel, setLatestBaseMonthLabel] = useState<string | null>(null);
   const [latestBaseMonthDate, setLatestBaseMonthDate] = useState<Date | null>(null);
@@ -145,6 +148,8 @@ export function SalaryAccrualsTable() {
   const [deductedInsurance, setDeductedInsurance] = useState('');
   const [deductedFitness, setDeductedFitness] = useState('');
   const [deductedFine, setDeductedFine] = useState('');
+
+
 
   // Load saved column configuration after hydration
   useEffect(() => {
@@ -184,8 +189,30 @@ export function SalaryAccrualsTable() {
         setProjectedMonths(parsed);
       }
     }
+
+    const savedFilters = localStorage.getItem(filtersStorageKey);
+    if (savedFilters) {
+      try {
+        const parsed = JSON.parse(savedFilters);
+        if (typeof parsed.searchTerm === 'string') setSearchTerm(parsed.searchTerm);
+        if (parsed.sortColumn) setSortColumn(parsed.sortColumn as ColumnKey);
+        if (parsed.sortDirection === 'asc' || parsed.sortDirection === 'desc') {
+          setSortDirection(parsed.sortDirection);
+        }
+        if (typeof parsed.pageSize === 'number') setPageSize(parsed.pageSize);
+        if (Array.isArray(parsed.filters)) {
+          const restored = new Map<string, Set<any>>(
+            parsed.filters.map(([key, values]: [string, any[]]) => [key, new Set(values)])
+          );
+          setFilters(restored);
+        }
+      } catch (e) {
+        console.error('Failed to parse saved filters:', e);
+      }
+    }
     
     setIsInitialized(true);
+    setFiltersInitialized(true);
   }, []);
 
   // Fetch data after initialization
@@ -215,6 +242,18 @@ export function SalaryAccrualsTable() {
       localStorage.setItem('salaryAccrualsProjectedMonths', String(projectedMonths));
     }
   }, [projectedMonths, isInitialized]);
+
+  useEffect(() => {
+    if (!filtersInitialized || typeof window === 'undefined') return;
+    const serialized = {
+      searchTerm,
+      sortColumn,
+      sortDirection,
+      pageSize,
+      filters: Array.from(filters.entries()).map(([key, set]) => [key, Array.from(set)]),
+    };
+    localStorage.setItem(filtersStorageKey, JSON.stringify(serialized));
+  }, [filtersInitialized, searchTerm, sortColumn, sortDirection, pageSize, filters]);
 
   const parseSalaryMonth = (value: string): Date | null => {
     if (!value) return null;
@@ -408,7 +447,7 @@ export function SalaryAccrualsTable() {
       .trim();
   };
 
-  const handleDownloadBankXlsx = () => {
+  const handleDownloadBankXlsx = async () => {
     const selectedRecords = data.filter((row) => selectedIds.has(row.id));
     if (selectedRecords.length === 0) {
       alert('No records selected');
@@ -429,7 +468,42 @@ export function SalaryAccrualsTable() {
       'დამატებითი ინფორმაცია',
     ];
 
-    const rows = selectedRecords.map((record) => [
+    const getTbilisiToday = () => {
+      const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Tbilisi',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      return formatter.format(new Date());
+    };
+
+    const fetchExchangeRate = async (currency: string, date: string) => {
+      const response = await fetch(`/api/exchange-rates?date=${date}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch exchange rates');
+      }
+      const data = await response.json();
+      const rateRow = Array.isArray(data) ? data[0] : null;
+      const rate = rateRow?.rates?.[currency] || rateRow?.[currency];
+      if (!rate) {
+        throw new Error('Exchange rate not available');
+      }
+      return Number(rate);
+    };
+
+    const calculateExportAmount = async (record: SalaryAccrual) => {
+      const amount = Number(computeBalance(record) || 0);
+      const currency = (record.currency_code || 'GEL').toUpperCase();
+      if (currency === 'GEL') return Math.round(amount * 100) / 100;
+
+      const rateDate = getTbilisiToday();
+      const rate = await fetchExchangeRate(currency, rateDate);
+      const converted = amount / (1 / rate);
+      return Math.round(converted * 100) / 100;
+    };
+
+    const rows = await Promise.all(selectedRecords.map(async (record) => [
       'GE78BG0000000893486000',
       record.counteragent_iban || '',
       '',
@@ -437,11 +511,11 @@ export function SalaryAccrualsTable() {
       sanitizeRecipientName(record.counteragent_name || ''),
       record.identification_number || '',
       'ხელფასი',
-      computeBalance(record),
+      await calculateExportAmount(record),
       '',
       '',
       record.payment_id || '',
-    ]);
+    ]));
 
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const workbook = XLSX.utils.book_new();
@@ -576,10 +650,10 @@ export function SalaryAccrualsTable() {
         if (paymentId) {
           const paymentIdLower = normalizePaymentId(paymentId);
           const rawAmount =
-            tx.account_currency_amount ??
-            tx.accountCurrencyAmount ??
             tx.nominal_amount ??
             tx.nominalAmount ??
+            tx.account_currency_amount ??
+            tx.accountCurrencyAmount ??
             '0';
           const amount = Math.abs(parseFloat(rawAmount || '0'));
           paidMap.set(paymentIdLower, (paidMap.get(paymentIdLower) || 0) + amount);
@@ -1041,6 +1115,7 @@ export function SalaryAccrualsTable() {
   }
 
   return (
+    <>
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
       <div className="sticky top-0 z-20 flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 shadow-sm">
@@ -1533,7 +1608,7 @@ export function SalaryAccrualsTable() {
                 {visibleColumns.map(col => (
                   <th 
                     key={col.key} 
-                    className={`font-semibold relative cursor-move overflow-hidden text-left px-4 py-3 text-sm ${
+                    className={`font-semibold relative cursor-move overflow-hidden text-left px-4 py-3 text-sm sticky top-0 z-10 ${
                       draggedColumn === col.key ? 'opacity-50' : ''
                     } ${
                       dragOverColumn === col.key ? 'border-l-4 border-blue-500' : ''
@@ -1656,16 +1731,34 @@ export function SalaryAccrualsTable() {
                           <Pencil className="h-4 w-4" />
                         </Button>
                         {accrual.payment_id ? (
-                          <a
-                            href={`/payment-statement/${encodeURIComponent(accrual.payment_id)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              const url = `/payment-statement/${encodeURIComponent(accrual.payment_id)}`;
+                              window.open(url, '_blank', 'noopener,noreferrer');
+                            }}
                             className="inline-flex items-center justify-center rounded p-1 text-blue-600 hover:bg-blue-50 hover:text-blue-800"
                             title="View statement (opens in new tab)"
                           >
                             <FileText className="h-4 w-4" />
-                          </a>
+                          </button>
                         ) : null}
+                        <a
+                          href={accrual.counteragent_uuid ? `/counteragent-statement/${accrual.counteragent_uuid}` : '#'}
+                          target={accrual.counteragent_uuid ? '_blank' : undefined}
+                          rel={accrual.counteragent_uuid ? 'noopener noreferrer' : undefined}
+                          className="inline-flex items-center justify-center rounded p-1 text-blue-600 hover:bg-blue-50 hover:text-blue-800"
+                          aria-disabled={!accrual.counteragent_uuid}
+                          title="View counteragent statement (opens in new tab)"
+                          onClick={(event) => {
+                            if (!accrual.counteragent_uuid) {
+                              event.preventDefault();
+                            }
+                          }}
+                        >
+                          <User className="h-4 w-4" />
+                        </a>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1683,6 +1776,8 @@ export function SalaryAccrualsTable() {
         </div>
       </div>
     </div>
+
+    </>
   );
 }
 

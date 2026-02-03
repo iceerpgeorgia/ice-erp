@@ -14,7 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
-  Plus
+  Plus,
+  User
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -29,6 +30,7 @@ import * as XLSX from 'xlsx';
 
 type PaymentReport = {
   paymentId: string;
+  counteragentUuid?: string | null;
   counteragent: string;
   counteragentId?: string | null;
   counteragentIban?: string | null;
@@ -105,6 +107,12 @@ export function PaymentsReportTable() {
   const [baseInfoError, setBaseInfoError] = useState<string | null>(null);
   const [baseInfo, setBaseInfo] = useState<any | null>(null);
   const [isBankExporting, setIsBankExporting] = useState(false);
+  const [isAOOpen, setIsAOOpen] = useState(false);
+  const [aoEffectiveDate, setAoEffectiveDate] = useState('');
+  const [aoAccrual, setAoAccrual] = useState('');
+  const [aoOrder, setAoOrder] = useState('');
+  const [aoComment, setAoComment] = useState('');
+  const [isAOSubmitting, setIsAOSubmitting] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
   const counteragentsWithNegativeBalance = useMemo(() => {
     const flagged = new Set<string>();
@@ -115,6 +123,7 @@ export function PaymentsReportTable() {
     });
     return flagged;
   }, [data]);
+
 
   // BroadcastChannel for cross-tab updates
   const [broadcastChannel] = useState(() => {
@@ -502,7 +511,7 @@ export function PaymentsReportTable() {
 
   const fetchPayments = async () => {
     try {
-      const response = await fetch('/api/payments?limit=5000&sort=desc');
+      const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
       if (!response.ok) throw new Error('Failed to fetch payments');
       const data = await response.json();
       if (!Array.isArray(data)) {
@@ -511,14 +520,14 @@ export function PaymentsReportTable() {
         return;
       }
       setPayments(data.map((p: any) => ({
-        paymentId: p.paymentId,
-        counteragentName: p.counteragentName,
-        projectIndex: p.projectIndex,
-        projectName: p.projectName,
-        jobName: p.jobName,
-        financialCode: p.financialCode,
-        incomeTax: p.incomeTax,
-        currencyCode: p.currencyCode
+        paymentId: p.paymentId || p.payment_id,
+        counteragentName: p.counteragentName || p.counteragent_name || null,
+        projectIndex: p.projectIndex || p.project_index || null,
+        projectName: p.projectName || p.project_name || null,
+        jobName: p.jobName || p.job_name || null,
+        financialCode: p.financialCode || p.financialCodeValidation || p.financial_code || null,
+        incomeTax: p.incomeTax ?? null,
+        currencyCode: p.currencyCode || p.currency_code || null,
       })));
     } catch (error) {
       console.error('Error fetching payments:', error);
@@ -602,6 +611,82 @@ export function PaymentsReportTable() {
     setSelectedCurrencyUuid('');
     setSelectedIncomeTax(false);
     setIsCreatingPayment(false);
+  };
+
+  const resetAOForm = () => {
+    setAoEffectiveDate('');
+    setAoAccrual('');
+    setAoOrder('');
+    setAoComment('');
+    setIsAOSubmitting(false);
+  };
+
+  const handleAOOpenChange = (open: boolean) => {
+    setIsAOOpen(open);
+    if (!open) {
+      resetAOForm();
+    }
+  };
+
+  const handleAddAccrualOrderBulk = async () => {
+    if (isAOSubmitting) return;
+    if (selectedPaymentIds.size === 0) {
+      alert('Select at least one payment');
+      return;
+    }
+
+    const accrualValue = aoAccrual ? parseFloat(aoAccrual) : null;
+    const orderValue = aoOrder ? parseFloat(aoOrder) : null;
+
+    if ((!accrualValue || accrualValue === 0) && (!orderValue || orderValue === 0)) {
+      alert('Either Accrual or Order must be provided and cannot be zero');
+      return;
+    }
+
+    let isoDate: string | undefined = undefined;
+    if (aoEffectiveDate) {
+      const datePattern = /^(\d{2})\.(\d{2})\.(\d{4})$/;
+      const match = aoEffectiveDate.match(datePattern);
+      if (match) {
+        const [, day, month, year] = match;
+        isoDate = `${year}-${month}-${day}`;
+      } else {
+        alert('Please enter date in dd.mm.yyyy format (e.g., 07.01.2026)');
+        return;
+      }
+    }
+
+    setIsAOSubmitting(true);
+    try {
+      const entries = Array.from(selectedPaymentIds).map((paymentId) => ({
+        paymentId,
+        effectiveDate: isoDate,
+        accrual: accrualValue,
+        order: orderValue,
+        comment: aoComment || undefined,
+      }));
+
+      const response = await fetch('/api/payments-ledger/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create bulk ledger entries');
+      }
+
+      setIsAOOpen(false);
+      resetAOForm();
+      setSelectedPaymentIds(new Set());
+      fetchData();
+    } catch (error: any) {
+      console.error('Error adding bulk accrual/order:', error);
+      alert(error.message || 'Failed to add accruals/orders');
+    } finally {
+      setIsAOSubmitting(false);
+    }
   };
 
   const handleCreatePayment = async () => {
@@ -1245,6 +1330,106 @@ export function PaymentsReportTable() {
                 {isBankExporting ? 'Preparing...' : 'Bank XLSX'}
               </Button>
             )}
+            <Dialog open={isAOOpen} onOpenChange={handleAOOpenChange}>
+              <DialogTrigger asChild>
+                <Button variant="outline" disabled={selectedPaymentIds.size === 0} title="Add accruals/orders for selected payments">
+                  +A&O
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="w-[600px] max-w-[90vw]">
+                <DialogHeader>
+                  <DialogTitle>Add Accruals & Orders</DialogTitle>
+                  <DialogDescription>
+                    Apply the same accrual/order to {selectedPaymentIds.size} selected payment{selectedPaymentIds.size === 1 ? '' : 's'}.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Effective Date</Label>
+                    <div className="relative flex gap-2">
+                      <Input
+                        type="text"
+                        value={aoEffectiveDate}
+                        onChange={(e) => {
+                          let value = e.target.value.replace(/[^\d.]/g, '');
+                          if (value.length === 2 && !value.includes('.')) {
+                            value = value + '.';
+                          } else if (value.length === 5 && value.split('.').length === 2) {
+                            value = value + '.';
+                          }
+                          if (value.length <= 10) {
+                            setAoEffectiveDate(value);
+                          }
+                        }}
+                        placeholder="dd.mm.yyyy"
+                        maxLength={10}
+                        className="border-2 border-gray-400 flex-1"
+                      />
+                      <input
+                        type="date"
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            const [year, month, day] = e.target.value.split('-');
+                            setAoEffectiveDate(`${day}.${month}.${year}`);
+                          }
+                        }}
+                        className="border-2 border-gray-400 rounded-md px-3 cursor-pointer w-12 flex-shrink-0"
+                        title="Pick date from calendar"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500">Optional. Defaults to today if not set. Format: dd.mm.yyyy (e.g., 07.01.2026)</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Amount <span className="text-red-500">*</span></Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs text-gray-600 mb-1 block">Accrual</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={aoAccrual}
+                          onChange={(e) => setAoAccrual(e.target.value)}
+                          placeholder="0.00"
+                          className="border-[3px] border-gray-400 focus-visible:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-600 mb-1 block">Order</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={aoOrder}
+                          onChange={(e) => setAoOrder(e.target.value)}
+                          placeholder="0.00"
+                          className="border-[3px] border-gray-400 focus-visible:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">Enter at least one amount (Accrual or Order).</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Comment (Optional)</Label>
+                    <Input
+                      value={aoComment}
+                      onChange={(e) => setAoComment(e.target.value)}
+                      placeholder="Notes for ledger entries"
+                      className="border-2 border-gray-300"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <Button onClick={handleAddAccrualOrderBulk} disabled={isAOSubmitting} className="flex-1">
+                      {isAOSubmitting ? 'Saving...' : 'Create Entries'}
+                    </Button>
+                    <Button variant="outline" onClick={() => setIsAOOpen(false)} className="flex-1">
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
             {/* Add Entry Button */}
             <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
               <DialogTrigger asChild>
@@ -1924,7 +2109,7 @@ export function PaymentsReportTable() {
                   return (
                     <th 
                       key={col.key} 
-                      className={`font-semibold relative cursor-move overflow-hidden text-left px-4 py-3 text-sm ${
+                      className={`font-semibold relative cursor-move overflow-hidden text-left px-4 py-3 text-sm sticky top-0 z-10 ${
                         draggedColumn === col.key ? 'opacity-50' : ''
                       } ${
                         dragOverColumn === col.key ? 'border-l-4 border-blue-500' : ''
@@ -2078,6 +2263,21 @@ export function PaymentsReportTable() {
                       >
                         <FileText className="w-4 h-4" />
                       </a>
+                      <a
+                        href={row.counteragentUuid ? `/counteragent-statement/${row.counteragentUuid}` : '#'}
+                        target={row.counteragentUuid ? '_blank' : undefined}
+                        rel={row.counteragentUuid ? 'noopener noreferrer' : undefined}
+                        className="inline-block text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
+                        aria-disabled={!row.counteragentUuid}
+                        title="View counteragent statement (opens in new tab)"
+                        onClick={(event) => {
+                          if (!row.counteragentUuid) {
+                            event.preventDefault();
+                          }
+                        }}
+                      >
+                        <User className="w-4 h-4" />
+                      </a>
                     </div>
                   </td>
                 </tr>
@@ -2153,6 +2353,7 @@ export function PaymentsReportTable() {
         )}
       </DialogContent>
     </Dialog>
+
     </div>
   );
 }

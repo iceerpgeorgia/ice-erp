@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   // Test endpoint to check if environment variables are available after DATABASE_URL fix
   const envVars = {

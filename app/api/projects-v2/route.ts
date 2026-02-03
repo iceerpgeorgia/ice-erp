@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 // GET all projects - FIXED VERSION with project_uuid join
 export async function GET(req: NextRequest) {
   try {

@@ -5,7 +5,35 @@ import { prisma } from '@/lib/prisma';
 
 export const revalidate = 0;
 
-const DECONSOLIDATED_TABLE = 'GE78BG0000000893486000_BOG_GEL';
+const computeAccountAmountFromNominal = (
+  nominalAmount: number,
+  exchangeRate: number,
+  accountCode: string,
+  nominalCode: string
+): number => {
+  if (!exchangeRate || !Number.isFinite(exchangeRate) || exchangeRate === 0) {
+    return nominalAmount;
+  }
+
+  if (accountCode === nominalCode) {
+    return nominalAmount;
+  }
+
+  if (accountCode === 'GEL' && nominalCode !== 'GEL') {
+    return nominalAmount * exchangeRate;
+  }
+
+  if (nominalCode === 'GEL' && accountCode !== 'GEL') {
+    return nominalAmount / exchangeRate;
+  }
+
+  return nominalAmount * exchangeRate;
+};
+
+const SOURCE_TABLES = [
+  'GE78BG0000000893486000_BOG_GEL',
+  'GE65TB7856036050100002_TBC_GEL',
+];
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,21 +54,81 @@ export async function GET(request: NextRequest) {
     >(
       `SELECT counteragent_uuid, counteragent as counteragent_name, identification_number as counteragent_id
        FROM counteragents
-       WHERE counteragent_uuid = $1
+       WHERE counteragent_uuid = $1::uuid
        LIMIT 1`,
       counteragentUuid
     );
 
     const counteragent = counteragentRows[0] ?? null;
 
-    const paymentRows = await prisma.$queryRawUnsafe<Array<{ payment_id: string }>>(
-      `SELECT payment_id
-       FROM payments
-       WHERE counteragent_uuid = $1 AND is_active = true`,
+    const paymentRows = await prisma.$queryRawUnsafe<Array<{
+      payment_id: string;
+      project_index: string | null;
+      project_name: string | null;
+      financial_code_validation: string | null;
+      financial_code: string | null;
+      job_name: string | null;
+      income_tax: boolean | null;
+      currency_code: string | null;
+    }>>(
+      `SELECT
+         p.payment_id,
+         proj.project_index,
+         proj.project_name,
+         fc.validation as financial_code_validation,
+         fc.code as financial_code,
+         j.job_name,
+         p.income_tax,
+         curr.code as currency_code
+       FROM payments p
+       LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
+       LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
+       LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
+       LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
+       WHERE p.counteragent_uuid = $1::uuid AND p.is_active = true`,
       counteragentUuid
     );
 
-    const paymentIds = paymentRows.map((row) => row.payment_id);
+    const salaryRows = await prisma.$queryRawUnsafe<Array<{
+      payment_id: string;
+      financial_code: string | null;
+      currency_code: string | null;
+    }>>(
+      `SELECT
+         sa.payment_id,
+         fc.validation as financial_code,
+         curr.code as currency_code
+       FROM salary_accruals sa
+       LEFT JOIN financial_codes fc ON sa.financial_code_uuid = fc.uuid
+       LEFT JOIN currencies curr ON sa.nominal_currency_uuid = curr.uuid
+       WHERE sa.counteragent_uuid = $1::uuid`,
+      counteragentUuid
+    );
+
+    const paymentInfoMap = new Map<string, any>();
+    for (const row of paymentRows) {
+      if (!row.payment_id) continue;
+      paymentInfoMap.set(row.payment_id, {
+        project: row.project_index || row.project_name || null,
+        financialCode: row.financial_code_validation || row.financial_code || null,
+        job: row.job_name || null,
+        incomeTax: row.income_tax ?? null,
+        currency: row.currency_code || null,
+      });
+    }
+    for (const row of salaryRows) {
+      if (!row.payment_id) continue;
+      if (paymentInfoMap.has(row.payment_id)) continue;
+      paymentInfoMap.set(row.payment_id, {
+        project: null,
+        financialCode: row.financial_code || null,
+        job: null,
+        incomeTax: null,
+        currency: row.currency_code || null,
+      });
+    }
+
+    const paymentIds = Array.from(paymentInfoMap.keys());
 
     const ledgerEntries = paymentIds.length
       ? await prisma.$queryRawUnsafe<any[]>(
@@ -68,16 +156,21 @@ export async function GET(request: NextRequest) {
          cba.payment_id,
          cba.account_currency_amount,
          cba.nominal_amount,
+         cba.exchange_rate,
          cba.transaction_date,
          cba.counteragent_account_number,
          cba.description,
          cba.created_at,
          ba.account_number as bank_account_number,
-         curr.code as account_currency_code
-       FROM "${DECONSOLIDATED_TABLE}" cba
+         curr.code as account_currency_code,
+         nominal_curr.code as nominal_currency_code
+       FROM (
+         ${SOURCE_TABLES.map((table) => `SELECT * FROM "${table}"`).join(' UNION ALL ')}
+       ) cba
        LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
        LEFT JOIN currencies curr ON cba.account_currency_uuid = curr.uuid
-       WHERE cba.counteragent_uuid = $1
+       LEFT JOIN currencies nominal_curr ON cba.nominal_currency_uuid = nominal_curr.uuid
+       WHERE cba.counteragent_uuid = $1::uuid
        ORDER BY cba.transaction_date DESC`,
       counteragentUuid
     );
@@ -85,7 +178,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       counteragent,
       paymentIds,
-      ledgerEntries: ledgerEntries.map((entry) => ({
+      ledgerEntries: ledgerEntries.map((entry) => {
+        const info = entry.payment_id ? paymentInfoMap.get(entry.payment_id) : null;
+        return {
         id: Number(entry.id),
         paymentId: entry.payment_id,
         effectiveDate: entry.effective_date,
@@ -94,19 +189,56 @@ export async function GET(request: NextRequest) {
         comment: entry.comment,
         userEmail: entry.user_email,
         createdAt: entry.created_at,
-      })),
-      bankTransactions: bankTransactions.map((tx) => ({
+          project: info?.project || null,
+          financialCode: info?.financialCode || null,
+          job: info?.job || null,
+          incomeTax: info?.incomeTax ?? null,
+          currency: info?.currency || null,
+        };
+      }),
+      bankTransactions: bankTransactions.map((tx) => {
+        const info = tx.payment_id ? paymentInfoMap.get(tx.payment_id) : null;
+        const accountCurrencyAmount = tx.account_currency_amount ? parseFloat(tx.account_currency_amount) : 0;
+        const nominalAmount = tx.nominal_amount ? parseFloat(tx.nominal_amount) : 0;
+        const exchangeRate = tx.exchange_rate ? parseFloat(tx.exchange_rate) : 0;
+        const accountCurrencyCode = tx.account_currency_code || null;
+        const nominalCurrencyCode = tx.nominal_currency_code || null;
+
+        let displayAccountAmount = accountCurrencyAmount;
+        if (
+          accountCurrencyCode &&
+          nominalCurrencyCode &&
+          accountCurrencyCode !== nominalCurrencyCode &&
+          exchangeRate &&
+          nominalAmount !== 0 &&
+          accountCurrencyAmount === nominalAmount
+        ) {
+          displayAccountAmount = computeAccountAmountFromNominal(
+            nominalAmount,
+            exchangeRate,
+            accountCurrencyCode,
+            nominalCurrencyCode
+          );
+        }
+
+        return {
         id: Number(tx.id),
         uuid: tx.uuid,
         paymentId: tx.payment_id,
-        accountCurrencyAmount: tx.account_currency_amount ? parseFloat(tx.account_currency_amount) : 0,
-        nominalAmount: tx.nominal_amount ? parseFloat(tx.nominal_amount) : 0,
+        accountCurrencyAmount: displayAccountAmount,
+        nominalAmount,
         date: tx.transaction_date,
         counteragentAccountNumber: tx.counteragent_account_number,
         description: tx.description,
         createdAt: tx.created_at,
         accountLabel: `${tx.bank_account_number || ''} ${tx.account_currency_code || ''}`.trim() || '-',
-      })),
+          project: info?.project || null,
+          financialCode: info?.financialCode || null,
+          job: info?.job || null,
+          incomeTax: info?.incomeTax ?? null,
+          currency: info?.currency || null,
+        };
+      }),
     });
   } catch (error: any) {
     console.error('Error fetching counteragent statement:', error);

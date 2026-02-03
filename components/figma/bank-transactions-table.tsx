@@ -276,6 +276,7 @@ export function BankTransactionsTable({
   const [isBackparseDialogOpen, setIsBackparseDialogOpen] = useState(false);
   const [isBackparseLoading, setIsBackparseLoading] = useState(false);
   const [isBackparseRunning, setIsBackparseRunning] = useState(false);
+  const [isReparseRunning, setIsReparseRunning] = useState(false);
   const [backparsePreview, setBackparsePreview] = useState<BackparsePreviewItem[]>([]);
   const [backparseError, setBackparseError] = useState<string | null>(null);
   const [backparseLimit, setBackparseLimit] = useState(200);
@@ -347,7 +348,7 @@ export function BankTransactionsTable({
   useEffect(() => {
     const fetchAllPayments = async () => {
       try {
-        const response = await fetch('/api/payments');
+        const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
         if (!response.ok) throw new Error('Failed to fetch payments');
         const paymentsData = await response.json();
         const normalizedPayments = Array.isArray(paymentsData)
@@ -1437,6 +1438,114 @@ export function BankTransactionsTable({
       alert(`Failed to save: ${error.message}`);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const runReparseTransaction = async () => {
+    if (!editingTransaction) return;
+    if (!editingTransaction.sourceTable || editingTransaction.sourceId === undefined || editingTransaction.sourceId === null) {
+      alert('Source table information is missing for this transaction.');
+      return;
+    }
+
+    setIsReparseRunning(true);
+    try {
+      const response = await fetch('/api/bank-transactions/reparse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceTable: editingTransaction.sourceTable,
+          sourceId: editingTransaction.sourceId,
+        }),
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to reparse transaction');
+      }
+
+      const updatedResponse = await fetch(`${apiBasePath}?ids=${editingTransaction.id}`);
+      if (updatedResponse.ok) {
+        const updatedData = await updatedResponse.json();
+        if (Array.isArray(updatedData) && updatedData[0]) {
+          const row = updatedData[0];
+          const mapped = {
+            id: row.id,
+            uuid: row.uuid || "",
+            accountUuid: row.bank_account_uuid || "",
+            accountCurrencyUuid: row.account_currency_uuid || "",
+            accountCurrencyAmount: row.account_currency_amount || "0",
+            paymentUuid: null,
+            counteragentUuid: row.counteragent_uuid || null,
+            projectUuid: row.project_uuid || null,
+            financialCodeUuid: row.financial_code_uuid || null,
+            nominalCurrencyUuid: row.nominal_currency_uuid || null,
+            nominalAmount: row.nominal_amount || null,
+            date: row.transaction_date || "",
+            correctionDate: row.correction_date || null,
+            exchangeRate: row.exchange_rate || null,
+            nominalExchangeRate: row.nominal_exchange_rate || null,
+            id1: null,
+            id2: null,
+            recordUuid: row.raw_record_uuid || "",
+            counteragentAccountNumber: row.counteragent_account_number || null,
+            description: row.description || null,
+            processingCase: row.processing_case || null,
+            appliedRuleId: row.applied_rule_id || null,
+            parsingLock: row.parsing_lock ?? false,
+            createdAt: row.created_at || "",
+            updatedAt: row.updated_at || "",
+            isBalanceRecord: row.is_balance_record || false,
+            accountNumber: row.account_number || null,
+            bankName: row.bank_name || null,
+            counteragentName: row.counteragent_name || null,
+            projectIndex: row.project_index || null,
+            financialCode: row.financial_code || null,
+            paymentId: row.payment_id || null,
+            nominalCurrencyCode: row.nominal_currency_code || null,
+            sourceTable: row.source_table || editingTransaction.sourceTable,
+            sourceId: row.source_id ?? editingTransaction.sourceId,
+          };
+
+          setTransactions((prev) =>
+            prev.map((t) => (t.id === editingTransaction.id ? mapped : t))
+          );
+        }
+      }
+    } catch (error: any) {
+      alert(error?.message || 'Failed to reparse transaction');
+    } finally {
+      setIsReparseRunning(false);
+    }
+  };
+
+  const runReparsePayment = async () => {
+    const paymentId = formData.payment_uuid || editingTransaction?.paymentId;
+    if (!paymentId) {
+      alert('Payment ID is required to reparse by payment.');
+      return;
+    }
+
+    if (!confirm(`Reparse all transactions for payment ID: ${paymentId}?`)) return;
+
+    setIsReparseRunning(true);
+    try {
+      const response = await fetch('/api/bank-transactions/reparse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId }),
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to reparse payment transactions');
+      }
+
+      alert(`Reparse complete. Updated ${result?.updated ?? 0} record(s).`);
+    } catch (error: any) {
+      alert(error?.message || 'Failed to reparse payment transactions');
+    } finally {
+      setIsReparseRunning(false);
     }
   };
 
@@ -2556,6 +2665,20 @@ export function BankTransactionsTable({
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={runReparseTransaction}
+                  disabled={isSaving || isReparseRunning}
+                >
+                  {isReparseRunning ? 'Reparsing...' : 'Reparse Transaction'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={runReparsePayment}
+                  disabled={isSaving || isReparseRunning}
+                >
+                  {isReparseRunning ? 'Reparsing...' : 'Reparse Payment'}
+                </Button>
                 <Button variant="outline" onClick={cancelEdit} disabled={isSaving}>
                   Cancel
                 </Button>

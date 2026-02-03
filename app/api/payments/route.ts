@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { reparseByPaymentId } from '@/lib/bank-import/reparse';
 
 export async function GET(request: NextRequest) {
   try {
@@ -215,6 +216,16 @@ export async function PATCH(request: Request) {
       SET ${updates.join(', ')}
       WHERE id = ${BigInt(id)}
     `);
+
+    const updatedPayment = await prisma.$queryRawUnsafe<Array<{ payment_id: string }>>(
+      `SELECT payment_id FROM payments WHERE id = $1 LIMIT 1`,
+      BigInt(id)
+    );
+
+    const paymentIdToReparse = updatedPayment?.[0]?.payment_id;
+    if (paymentIdToReparse) {
+      await reparseByPaymentId(paymentIdToReparse);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
