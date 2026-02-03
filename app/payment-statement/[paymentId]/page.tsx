@@ -587,7 +587,8 @@ export default function PaymentStatementPage() {
 
     mergedTransactions.forEach(row => {
       cumulativeAccrual += row.accrual;
-      cumulativePayment += row.payment; // Already absolute value
+      const paymentForCalc = Math.abs(row.payment || 0);
+      cumulativePayment += paymentForCalc;
       cumulativeOrder += row.order;
 
       // Calculate Paid % = (cumulative payment / cumulative accrual) * 100
@@ -677,11 +678,12 @@ export default function PaymentStatementPage() {
         const addOrder = selectedBankOrderRowIds.has(row.id);
         if (!addAccrual && !addOrder) return null;
 
+        const amount = Math.abs(row.payment);
         return {
           paymentId: statementData.payment.paymentId,
           effectiveDate: displayDateToIso(row.date),
-          accrual: addAccrual ? row.payment : null,
-          order: addOrder ? row.payment : null,
+          accrual: addAccrual ? amount : null,
+          order: addOrder ? amount : null,
           comment: 'Bulk A/O from payment statement',
         };
       })
