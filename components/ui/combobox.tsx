@@ -84,15 +84,9 @@ export function Combobox({
               <CommandItem
                 key={option.value}
                 value={option.keywords || option.label}
-                onSelect={(searchValue) => {
-                  // Find the option that matches the search value (label)
-                  const selectedOption = safeOptions.find(
-                    (opt) => (opt.keywords || opt.label).toLowerCase() === searchValue.toLowerCase()
-                  )
-                  if (selectedOption) {
-                    const newValue = selectedOption.value === value ? "" : selectedOption.value
-                    onValueChange?.(newValue)
-                  }
+                onSelect={() => {
+                  const newValue = option.value === value ? "" : option.value
+                  onValueChange?.(newValue)
                   setOpen(false)
                 }}
               >
