@@ -902,7 +902,13 @@ function JobForm({
   onCancel: () => void;
 }) {
   return (
-    <div className="space-y-4">
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+    >
       {/* Project Selection */}
       <div>
         <Label htmlFor="project">Project *</Label>
@@ -998,11 +1004,11 @@ function JobForm({
         <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button onClick={onSubmit}>
+        <Button type="submit">
           <Check className="h-4 w-4 mr-2" />
           Save
         </Button>
       </div>
-    </div>
+    </form>
   );
 }
