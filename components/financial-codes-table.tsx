@@ -197,9 +197,6 @@ export function FinancialCodesTable() {
             {code.validation || ""}
           </td>
           <td className="px-4 py-3 text-sm text-slate-600">
-            <p className="mt-1 text-xs text-slate-500">
-              Use @project and @job_no placeholders (e.g., "ხელფასი " + @project + @job_no)
-            </p>
             {code.description || ""}
           </td>
           <td className="px-4 py-3 text-center">
@@ -247,6 +244,9 @@ export function FinancialCodesTable() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Financial Codes</h1>
           <p className="text-slate-600 mt-2">Hierarchical view of your structure of P&L and Cash Flow</p>
+          <p className="text-xs text-slate-500 mt-1">
+            Note: You can use @project and @job_no placeholders in descriptions (e.g., "ხელფასი " + @project + @job_no).
+          </p>
         </div>
         <button
           onClick={() => handleAdd()}

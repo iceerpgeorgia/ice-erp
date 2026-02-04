@@ -626,7 +626,7 @@ export default function PaymentStatementPage() {
 
       // Calculate Paid % = (cumulative payment / cumulative accrual) * 100
       row.paidPercent = cumulativeAccrual !== 0 
-        ? parseFloat(((cumulativePaymentAbs / cumulativeAccrual) * 100).toFixed(2))
+        ? parseFloat(((cumulativePaymentSigned / cumulativeAccrual) * 100).toFixed(2))
         : 0;
 
       // Calculate Due = cumulative order + cumulative payment (signed)
