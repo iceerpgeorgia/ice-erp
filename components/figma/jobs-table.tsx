@@ -49,8 +49,8 @@ export type Job = {
   jobUuid: string;
   projectUuid: string;
   jobName: string;
-  floors: number;
-  weight: number;
+  floors: number | null;
+  weight: number | null;
   isFf: boolean;
   brandUuid: string | null;
   projectIndex: string;
@@ -136,8 +136,8 @@ export function JobsTable() {
   const [formData, setFormData] = useState({
     projectUuid: '',
     jobName: '',
-    floors: 0,
-    weight: 0,
+    floors: '' as string | number,
+    weight: '' as string | number,
     isFf: false,
     brandUuid: ''
   });
@@ -230,10 +230,15 @@ export function JobsTable() {
 
   const handleAdd = async () => {
     try {
+      const payload = {
+        ...formData,
+        floors: formData.floors === '' ? null : Number(formData.floors),
+        weight: formData.weight === '' ? null : Number(formData.weight),
+      };
       const res = await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {
@@ -250,13 +255,16 @@ export function JobsTable() {
     if (!editingJob) return;
 
     try {
+      const payload = {
+        id: editingJob.id,
+        ...formData,
+        floors: formData.floors === '' ? null : Number(formData.floors),
+        weight: formData.weight === '' ? null : Number(formData.weight),
+      };
       const res = await fetch('/api/jobs', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: editingJob.id,
-          ...formData
-        })
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {
@@ -291,8 +299,8 @@ export function JobsTable() {
     setFormData({
       projectUuid: job.projectUuid,
       jobName: job.jobName,
-      floors: job.floors,
-      weight: job.weight,
+      floors: job.floors ?? '',
+      weight: job.weight ?? '',
       isFf: job.isFf,
       brandUuid: job.brandUuid || ''
     });
@@ -303,8 +311,8 @@ export function JobsTable() {
     setFormData({
       projectUuid: '',
       jobName: '',
-      floors: 0,
-      weight: 0,
+      floors: '',
+      weight: '',
       isFf: false,
       brandUuid: ''
     });
@@ -793,9 +801,9 @@ export function JobsTable() {
                           {job.isActive ? 'Active' : 'Inactive'}
                         </Badge>
                       ) : column.key === 'floors' ? (
-                        <span>{job.floors} Floors</span>
+                        <span>{job.floors == null ? '-' : `${job.floors} Floors`}</span>
                       ) : column.key === 'weight' ? (
-                        <span>{job.weight} kg</span>
+                        <span>{job.weight == null ? '-' : `${job.weight} kg`}</span>
                       ) : (
                         <span className="text-sm">{String(job[column.key] ?? '-')}</span>
                       )}
@@ -948,7 +956,12 @@ function JobForm({
           id="floors"
           type="number"
           value={formData.floors}
-          onChange={(e) => setFormData({ ...formData, floors: parseInt(e.target.value) || 0 })}
+          onChange={(e) =>
+            setFormData({
+              ...formData,
+              floors: e.target.value === '' ? '' : e.target.value,
+            })
+          }
           placeholder="Enter number of floors"
         />
       </div>
@@ -960,7 +973,12 @@ function JobForm({
           id="weight"
           type="number"
           value={formData.weight}
-          onChange={(e) => setFormData({ ...formData, weight: parseInt(e.target.value) || 0 })}
+          onChange={(e) =>
+            setFormData({
+              ...formData,
+              weight: e.target.value === '' ? '' : e.target.value,
+            })
+          }
           placeholder="Enter weight in kg"
         />
       </div>

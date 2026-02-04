@@ -210,6 +210,37 @@ export default function PaymentStatementPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
+  const financialCodeOptions = useMemo(() => {
+    if (!financialCodes.length) return [];
+    const byUuid = new Map(financialCodes.map((fc) => [fc.uuid, fc]));
+    const parentSet = new Set(
+      financialCodes.map((fc: any) => fc.parent_uuid).filter(Boolean)
+    );
+
+    const labelFor = (fc: any) => fc.validation || fc.code || fc.name || '';
+
+    const buildPath = (fc: any) => {
+      const parts: string[] = [];
+      let current = fc;
+      let guard = 0;
+      while (current && guard < 10) {
+        const label = labelFor(current);
+        if (label) parts.unshift(label);
+        if (!current.parent_uuid) break;
+        current = byUuid.get(current.parent_uuid);
+        guard += 1;
+      }
+      return parts.join(' / ');
+    };
+
+    return financialCodes
+      .filter((fc: any) => !parentSet.has(fc.uuid))
+      .map((fc: any) => ({
+        value: fc.uuid,
+        label: buildPath(fc),
+      }));
+  }, [financialCodes]);
+
   useEffect(() => {
     if (pageTitleSet || !statementData?.payment) return;
     const counteragent = statementData.payment.counteragent || '';
@@ -1666,10 +1697,7 @@ export default function PaymentStatementPage() {
                     <Combobox
                       value={selectedFinancialCodeUuid}
                       onValueChange={setSelectedFinancialCodeUuid}
-                      options={financialCodes.map(fc => ({
-                        value: fc.uuid,
-                        label: fc.validation
-                      }))}
+                      options={financialCodeOptions}
                       placeholder="Select financial code..."
                       searchPlaceholder="Search financial codes..."
                       disabled={!selectedCounteragentUuid}

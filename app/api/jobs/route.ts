@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
     const { projectUuid, jobName, floors, weight, isFf, brandUuid } = body;
 
     // Validation
-    if (!projectUuid || !jobName || floors === undefined || weight === undefined || isFf === undefined) {
+    if (!projectUuid || !jobName || isFf === undefined) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
 
     const result = await prisma.$queryRaw`
       INSERT INTO jobs (project_uuid, job_name, floors, weight, is_ff, brand_uuid)
-      VALUES (${projectUuid}::uuid, ${jobName}, ${floors}, ${weight}, ${isFf}, ${brandUuid}::uuid)
+      VALUES (${projectUuid}::uuid, ${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${brandUuid}::uuid)
       RETURNING id, job_uuid
     ` as any[];
 
@@ -189,8 +189,8 @@ export async function PUT(req: NextRequest) {
       SET 
         project_uuid = ${projectUuid}::uuid,
         job_name = ${jobName},
-        floors = ${floors},
-        weight = ${weight},
+        floors = ${floors ?? null},
+        weight = ${weight ?? null},
         is_ff = ${isFf},
         brand_uuid = ${brandUuid}::uuid,
         updated_at = CURRENT_TIMESTAMP
