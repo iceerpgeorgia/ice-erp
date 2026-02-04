@@ -244,6 +244,8 @@ export async function PATCH(
       console.log('[PATCH] Payment ID is changing, will recalculate nominal amount');
       updateData.paymentId = payment_uuid;
       changes.push(`payment_id: ${current.payment_id} → ${payment_uuid}`);
+      updateData.parsingLock = true;
+      changes.push('parsing_lock: false → true (payment override)');
       
       // When payment changes, update nominal currency and recalculate amount
       if (payment_uuid) {
@@ -400,6 +402,7 @@ export async function PATCH(
     if (updateData.nominalCurrencyUuid !== undefined) pushUpdate('nominal_currency_uuid', updateData.nominalCurrencyUuid);
     if (updateData.nominalAmount !== undefined) pushUpdate('nominal_amount', updateData.nominalAmount?.toString?.() ?? updateData.nominalAmount);
     if (updateData.exchangeRate !== undefined) pushUpdate('exchange_rate', updateData.exchangeRate?.toString?.() ?? updateData.exchangeRate);
+    if (updateData.parsingLock !== undefined) pushUpdate('parsing_lock', updateData.parsingLock);
     if (updateData.correctionDate !== undefined) pushUpdate('correction_date', updateData.correctionDate);
 
     updateFields.push('updated_at = NOW()');

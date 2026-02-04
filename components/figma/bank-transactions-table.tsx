@@ -292,6 +292,32 @@ export function BankTransactionsTable({
   }>({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '', nominalAmountLabel: '' });
   const [calculatedExchangeRate, setCalculatedExchangeRate] = useState<string>('');
 
+  const updatePaymentOptions = (transaction: BankTransaction, paymentsList: any[]) => {
+    // Filter payments by counteragent if one exists
+    let payments = paymentsList;
+
+    if (transaction.counteragentUuid) {
+      payments = paymentsList.filter((p: any) => p.counteragentUuid === transaction.counteragentUuid);
+    }
+
+    setPaymentOptions(payments);
+
+    // If transaction already has a payment, find it and populate display values
+    if (transaction.paymentId && payments && payments.length > 0) {
+      const selectedPayment = payments.find((p: any) => p.paymentId === transaction.paymentId);
+
+      if (selectedPayment) {
+        setPaymentDisplayValues({
+          projectLabel: selectedPayment.projectIndex || 'N/A',
+          jobLabel: selectedPayment.jobName || 'N/A',
+          financialCodeLabel: selectedPayment.financialCodeValidation || '',
+          currencyLabel: selectedPayment.currencyCode || '',
+          nominalAmountLabel: formatAmount(transaction.nominalAmount || transaction.accountCurrencyAmount),
+        });
+      }
+    }
+  };
+
   useEffect(() => {
     if (autoEditIdProp !== undefined && autoEditIdProp !== null) {
       setAutoEditId(autoEditIdProp);
@@ -826,53 +852,11 @@ export function BankTransactionsTable({
       setExchangeRateDate(effectiveDate);
       console.log('[startEdit] Loaded exchange rates for', effectiveDate, ':', rates);
       
-      // Filter payments by counteragent if one exists
-      let payments = allPayments;
-      
       console.log('[startEdit] Total allPayments available:', allPayments.length);
       console.log('[startEdit] Transaction counteragentUuid:', transaction.counteragentUuid);
       console.log('[startEdit] Sample payment counteragentUuids:', allPayments.slice(0, 3).map((p: any) => ({ paymentId: p.paymentId, counteragentUuid: p.counteragentUuid })));
-      
-      if (transaction.counteragentUuid) {
-        // If counteragent is parsed, only show payment IDs for that counteragent
-        console.log('[startEdit] Filtering payments for counteragent:', transaction.counteragentUuid);
-        payments = allPayments.filter((p: any) => p.counteragentUuid === transaction.counteragentUuid);
-        console.log('[startEdit] Filtered to', payments.length, 'payments for this counteragent');
-        
-        if (payments.length === 0) {
-          console.warn('[startEdit] No payments found for this counteragent!');
-        }
-      } else {
-        // If no counteragent, show all payments
-        console.log('[startEdit] No counteragent parsed, showing all', allPayments.length, 'payments');
-      }
-      
-      setPaymentOptions(payments);
-      
-      // If transaction already has a payment, find it and populate display values
-      if (transaction.paymentId && payments && payments.length > 0) {
-        // Try to find by paymentId (the display value)
-        const selectedPayment = payments.find((p: any) => p.paymentId === transaction.paymentId);
-        console.log('[startEdit] Looking for payment:', transaction.paymentId);
-        console.log('[startEdit] Found payment:', selectedPayment);
-        
-        if (selectedPayment) {
-          // Store selected payment for later calculation (after currencies load)
-          // Will be recalculated below when we have currency options
-          setPaymentDisplayValues({
-            projectLabel: selectedPayment.projectIndex || 'N/A',
-            jobLabel: selectedPayment.jobName || 'N/A',
-            financialCodeLabel: selectedPayment.financialCodeValidation || '',
-            currencyLabel: selectedPayment.currencyCode || '',
-            nominalAmountLabel: formatAmount(transaction.nominalAmount || transaction.accountCurrencyAmount),
-          });
-          console.log('[startEdit] Set display values for locked fields');
-          console.log('[startEdit] payment_uuid in formData:', transaction.paymentId);
-          console.log('[startEdit] selectedPayment data:', selectedPayment);
-        } else {
-          console.warn('[startEdit] Payment exists but not found in options');
-        }
-      }
+
+      updatePaymentOptions(transaction, allPayments);
       
       // Load all reference data
       const [projectsRes, codesRes, currenciesRes] = await Promise.all([
@@ -958,7 +942,7 @@ export function BankTransactionsTable({
     if (!editingTransaction || !isEditDialogOpen) return;
     if (allPayments.length === 0) return;
     if (paymentOptions.length > 0) return;
-    startEdit(editingTransaction);
+    updatePaymentOptions(editingTransaction, allPayments);
   }, [allPayments.length, editingTransaction, isEditDialogOpen, paymentOptions.length]);
 
   useEffect(() => {
