@@ -52,6 +52,16 @@ export function Combobox({
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
+  const defaultFilter = React.useCallback((itemValue: string, search: string) => {
+    if (!search) return 1
+    try {
+      const regex = new RegExp(search, "i")
+      return regex.test(itemValue) ? 1 : 0
+    } catch {
+      return 0
+    }
+  }, [])
+
   // Ensure options is always an array
   const safeOptions = React.useMemo(() => Array.isArray(options) ? options : [], [options])
 
@@ -76,14 +86,21 @@ export function Combobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className={cn("w-[var(--radix-popover-trigger-width)] p-0", className)} align="start">
-        <Command filter={filter}>
+        <Command filter={filter ?? defaultFilter}>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandEmpty>{emptyText}</CommandEmpty>
           <CommandGroup className="max-h-[300px] overflow-auto">
             {safeOptions.map((option) => (
               <CommandItem
                 key={option.value}
-                value={option.keywords || option.label}
+                value={[
+                  option.label,
+                  option.displayLabel,
+                  option.value,
+                  option.keywords,
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
                 onSelect={() => {
                   const newValue = option.value === value ? "" : option.value
                   onValueChange?.(newValue)
