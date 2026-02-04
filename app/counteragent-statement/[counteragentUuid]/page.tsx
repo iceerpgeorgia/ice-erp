@@ -166,6 +166,40 @@ export default function CounteragentStatementPage() {
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const getPaymentInfo = useCallback(
+    (paymentId: string | null) => {
+      if (!paymentId) {
+        return {
+          project: null,
+          financialCode: null,
+          job: null,
+          incomeTax: null,
+          currency: null,
+        };
+      }
+
+      const payment = payments.find((p) => p.paymentId === paymentId);
+      if (!payment) {
+        return {
+          project: null,
+          financialCode: null,
+          job: null,
+          incomeTax: null,
+          currency: null,
+        };
+      }
+
+      return {
+        project: payment.projectIndex || payment.projectName || null,
+        financialCode: payment.financialCode || null,
+        job: payment.jobName || null,
+        incomeTax: payment.incomeTax ?? null,
+        currency: payment.currencyCode || null,
+      };
+    },
+    [payments]
+  );
+
   useEffect(() => {
     const saved = localStorage.getItem('counteragentStatementColumns');
     if (saved) {
@@ -563,9 +597,44 @@ export default function CounteragentStatementPage() {
         throw new Error(error.error || 'Failed to create ledger entry');
       }
 
+      const created = await response.json();
+      const createdEntry = Array.isArray(created) ? created[0] : null;
+
+      if (createdEntry) {
+        const info = getPaymentInfo(createdEntry.payment_id || createdEntry.paymentId || selectedPaymentId);
+        setStatement((prev: any) => {
+          if (!prev) return prev;
+          const nextEntries = [
+            ...((prev.ledgerEntries as any[]) || []),
+            {
+              id: Number(createdEntry.id),
+              paymentId: createdEntry.payment_id || createdEntry.paymentId || selectedPaymentId,
+              effectiveDate: createdEntry.effective_date || createdEntry.effectiveDate || effectiveDate,
+              accrual: createdEntry.accrual ? Number(createdEntry.accrual) : accrualValue || 0,
+              order: createdEntry.order ? Number(createdEntry.order) : orderValue || 0,
+              comment: createdEntry.comment ?? comment ?? null,
+              userEmail: createdEntry.user_email || createdEntry.userEmail || null,
+              createdAt: createdEntry.created_at || createdEntry.createdAt || null,
+              project: info.project,
+              financialCode: info.financialCode,
+              job: info.job,
+              incomeTax: info.incomeTax,
+              currency: info.currency,
+            },
+          ];
+          const nextPaymentIds = prev.paymentIds?.includes(selectedPaymentId)
+            ? prev.paymentIds
+            : [...(prev.paymentIds || []), selectedPaymentId];
+          return {
+            ...prev,
+            paymentIds: nextPaymentIds,
+            ledgerEntries: nextEntries,
+          };
+        });
+      }
+
       setIsDialogOpen(false);
       resetForm();
-      fetchStatement();
     } catch (error: any) {
       console.error('Error adding ledger entry:', error);
       alert(error.message || 'Failed to add ledger entry');
@@ -702,9 +771,37 @@ export default function CounteragentStatementPage() {
         throw new Error(data.error || 'Failed to update ledger entry');
       }
 
+      const info = getPaymentInfo(editPaymentId || null);
+      setStatement((prev: any) => {
+        if (!prev) return prev;
+        const nextEntries = ((prev.ledgerEntries as any[]) || []).map((entry) => {
+          if (Number(entry.id) !== editingLedgerId) return entry;
+          return {
+            ...entry,
+            paymentId: editPaymentId,
+            effectiveDate: editEffectiveDate,
+            accrual: editAccrual ? Number(editAccrual) : 0,
+            order: editOrder ? Number(editOrder) : 0,
+            comment: editComment || null,
+            project: info.project,
+            financialCode: info.financialCode,
+            job: info.job,
+            incomeTax: info.incomeTax,
+            currency: info.currency,
+          };
+        });
+        const nextPaymentIds = prev.paymentIds?.includes(editPaymentId)
+          ? prev.paymentIds
+          : [...(prev.paymentIds || []), editPaymentId];
+        return {
+          ...prev,
+          paymentIds: nextPaymentIds,
+          ledgerEntries: nextEntries,
+        };
+      });
+
       setIsLedgerEditOpen(false);
       setEditingLedgerId(null);
-      await fetchStatement();
     } catch (err: any) {
       alert(err.message || 'Failed to update ledger entry');
     } finally {
