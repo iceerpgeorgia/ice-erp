@@ -191,7 +191,26 @@ export function JobsTable() {
       const res = await fetch('/api/jobs');
       if (res.ok) {
         const data = await res.json();
-        setJobs(data);
+        const normalized = Array.isArray(data)
+          ? data.map((job: any) => ({
+              id: Number(job.id),
+              jobUuid: job.jobUuid || job.job_uuid,
+              projectUuid: job.projectUuid || job.project_uuid,
+              jobName: job.jobName || job.job_name,
+              floors: job.floors ?? null,
+              weight: job.weight ?? null,
+              isFf: job.isFf ?? job.is_ff ?? false,
+              brandUuid: job.brandUuid || job.brand_uuid || null,
+              projectIndex: job.projectIndex || job.project_index,
+              projectName: job.projectName || job.project_name,
+              brandName: job.brandName || job.brand_name,
+              jobIndex: job.jobIndex || job.job_index,
+              isActive: job.isActive ?? job.is_active ?? true,
+              createdAt: job.createdAt || job.created_at,
+              updatedAt: job.updatedAt || job.updated_at,
+            }))
+          : [];
+        setJobs(normalized);
       }
     } catch (error) {
       console.error('Failed to fetch jobs:', error);
