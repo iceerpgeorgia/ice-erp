@@ -32,14 +32,33 @@ export function FinancialCodesTable() {
     try {
       const res = await fetch("/api/financial-codes");
       const data = await res.json();
-      
+
+      const normalized: FinancialCode[] = Array.isArray(data)
+        ? data.map((code: any) => ({
+            id: String(code.id),
+            uuid: code.uuid,
+            code: code.code,
+            name: code.name,
+            validation: code.validation ?? null,
+            appliesToPL: code.appliesToPL ?? code.applies_to_pl ?? false,
+            appliesToCF: code.appliesToCF ?? code.applies_to_cf ?? false,
+            isIncome: code.isIncome ?? code.is_income ?? false,
+            parentUuid: code.parentUuid ?? code.parent_uuid ?? null,
+            description: code.description ?? null,
+            depth: code.depth ?? 0,
+            sortOrder: code.sortOrder ?? code.sort_order ?? 0,
+            isActive: code.isActive ?? code.is_active ?? true,
+            children: [],
+          }))
+        : [];
+
       // Build hierarchical structure
-      const hierarchy = buildHierarchy(data);
+      const hierarchy = buildHierarchy(normalized);
       setCodes(hierarchy);
       
       // Expand all nodes by default - collect all IDs
       const allIds = new Set<string>();
-      data.forEach((code: FinancialCode) => {
+      normalized.forEach((code: FinancialCode) => {
         allIds.add(code.id);
       });
       setExpandedIds(allIds);
