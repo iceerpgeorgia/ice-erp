@@ -1343,7 +1343,7 @@ export function PaymentsTable() {
           <DialogHeader>
             <DialogTitle>Edit Payment</DialogTitle>
             <DialogDescription>
-              Modify income tax setting for this payment
+              Update payment fields and save changes
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
