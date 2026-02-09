@@ -30,6 +30,8 @@ interface Partition {
 }
 
 interface BatchEditorProps {
+  batchUuid?: string | null;
+  initialPartitions?: Partition[];
   rawRecordUuid: string;
   rawRecordId1: string;
   rawRecordId2: string;
@@ -41,6 +43,8 @@ interface BatchEditorProps {
 }
 
 export function BatchEditor({
+  batchUuid = null,
+  initialPartitions,
   rawRecordUuid,
   rawRecordId1,
   rawRecordId2,
@@ -70,6 +74,12 @@ export function BatchEditor({
   useEffect(() => {
     fetchPayments();
   }, []);
+
+  useEffect(() => {
+    if (initialPartitions && initialPartitions.length > 0) {
+      setPartitions(initialPartitions);
+    }
+  }, [initialPartitions]);
 
   const fetchPayments = async () => {
     try {
@@ -142,6 +152,11 @@ export function BatchEditor({
 
     setLoading(true);
     try {
+      if (batchUuid) {
+        await fetch(`/api/bank-transaction-batches?batchUuid=${batchUuid}`, {
+          method: 'DELETE',
+        });
+      }
       const response = await fetch('/api/bank-transaction-batches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

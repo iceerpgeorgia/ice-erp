@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import type { BankTransaction } from "@/components/figma/bank-transactions-table";
 
 // Dynamically import the heavy table component
@@ -248,8 +249,8 @@ export default function BankTransactionsTableFigma() {
           exchangeRate: row.nominal_exchange_rate || null,
           nominalExchangeRate: row.nominal_exchange_rate || null,
           usdGelRate: row.usd_gel_rate ?? null,
-          id1: null, // Not in current schema
-          id2: null, // Not in current schema
+          id1: row.dockey || null,
+          id2: row.entriesid || null,
           recordUuid: row.raw_record_uuid || "",
           counteragentAccountNumber: row.counteragent_account_number ? String(row.counteragent_account_number) : null,
           description: row.description || null,
@@ -259,6 +260,8 @@ export default function BankTransactionsTableFigma() {
           createdAt: toISO(toValidDate(row.created_at || row.createdAt)),
           updatedAt: toISO(toValidDate(row.updated_at || row.updatedAt)),
           isBalanceRecord: row.is_balance_record || false, // Flag for balance records
+          isBatch: row.is_batch ?? false,
+          batchPartitionId: row.batch_partition_id ?? null,
           
           // Display fields (from joins)
           accountNumber: row.account_number || null,
@@ -383,6 +386,13 @@ export default function BankTransactionsTableFigma() {
             Clear Filters
           </button>
         )}
+        <Link
+          href="/bank-transactions/missing-counteragents"
+          target="_blank"
+          className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-md hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 ml-2"
+        >
+          Missing Counteragents
+        </Link>
         <div className="ml-auto text-sm text-gray-600">
           Showing {transactions.length.toLocaleString()} transactions
         </div>

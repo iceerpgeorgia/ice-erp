@@ -22,7 +22,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Pencil, Trash2, Settings, Eye, EyeOff } from "lucide-react";
+import { Download, Plus, Pencil, Trash2, Settings, Eye, EyeOff } from "lucide-react";
+import { exportRowsToXlsx } from "@/lib/export-xlsx";
 
 interface Currency {
   id: number;
@@ -57,6 +58,7 @@ export default function CurrenciesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     fetchCurrencies();
@@ -129,6 +131,21 @@ export default function CurrenciesPage() {
     }
   };
 
+  const handleExportXlsx = () => {
+    setIsExporting(true);
+    try {
+      const fileName = `currencies_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      exportRowsToXlsx({
+        rows: currencies,
+        columns,
+        fileName,
+        sheetName: "Currencies",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to deactivate this currency?")) return;
 
@@ -157,6 +174,15 @@ export default function CurrenciesPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportXlsx}
+            disabled={isExporting || currencies.length === 0}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {isExporting ? "Exporting..." : "Export XLSX"}
+          </Button>
           <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">

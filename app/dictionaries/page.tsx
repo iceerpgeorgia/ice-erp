@@ -94,6 +94,16 @@ export default function DictionariesIndex() {
             </Link>
           </li>
           <li>
+            <Link className="text-blue-600 hover:underline" href="/dictionaries/waybills">
+              Waybills In
+            </Link>
+          </li>
+          <li>
+            <Link className="text-blue-600 hover:underline" href="/dictionaries/payment-redistribution">
+              Payment Redistribution
+            </Link>
+          </li>
+          <li>
             <Link className="text-blue-600 hover:underline" href="/dictionaries/salary-accruals">
               Salary Accruals
             </Link>

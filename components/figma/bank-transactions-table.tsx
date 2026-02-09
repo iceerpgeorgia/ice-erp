@@ -1,7 +1,6 @@
 ﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, 
-  Filter, 
   ArrowUpDown, 
   ArrowUp, 
   ArrowDown,
@@ -15,6 +14,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -77,6 +77,7 @@ export type BankTransaction = {
   financialCode: string | null;
   paymentId: string | null;
   nominalCurrencyCode: string | null;
+  accountCurrencyCode?: string | null;
 };
 
 type BackparsePreviewItem = {
@@ -198,6 +199,7 @@ export function BankTransactionsTable({
   renderMode = 'full',
   enableEditing = true,
   onDialogClose,
+  onTransactionUpdated,
 }: {
   data?: BankTransaction[];
   currencySummaries?: any[];
@@ -207,6 +209,7 @@ export function BankTransactionsTable({
   renderMode?: 'full' | 'dialog-only';
   enableEditing?: boolean;
   onDialogClose?: () => void;
+  onTransactionUpdated?: (transaction: BankTransaction) => void;
 }) {
   const [transactions, setTransactions] = useState<BankTransaction[]>(data ?? []);
   const showFullTable = renderMode !== 'dialog-only';
@@ -1368,6 +1371,7 @@ export function BankTransactionsTable({
             uuid: row.uuid || "",
             accountUuid: row.bank_account_uuid || "",
             accountCurrencyUuid: row.account_currency_uuid || "",
+            accountCurrencyCode: row.account_currency_code || row.accountCurrencyCode || null,
             accountCurrencyAmount: row.account_currency_amount || "0",
             paymentUuid: null,
             counteragentUuid: row.counteragent_uuid || null,
@@ -1407,6 +1411,7 @@ export function BankTransactionsTable({
                 : t
             )
           );
+          onTransactionUpdated?.(mapped);
           
           // Close dialog and reset state
           cancelEdit();
@@ -1458,6 +1463,7 @@ export function BankTransactionsTable({
             uuid: row.uuid || "",
             accountUuid: row.bank_account_uuid || "",
             accountCurrencyUuid: row.account_currency_uuid || "",
+            accountCurrencyCode: row.account_currency_code || row.accountCurrencyCode || null,
             accountCurrencyAmount: row.account_currency_amount || "0",
             paymentUuid: null,
             counteragentUuid: row.counteragent_uuid || null,
@@ -1494,6 +1500,7 @@ export function BankTransactionsTable({
           setTransactions((prev) =>
             prev.map((t) => (t.id === editingTransaction.id ? mapped : t))
           );
+          onTransactionUpdated?.(mapped);
         }
       }
     } catch (error: any) {
@@ -1541,199 +1548,6 @@ export function BankTransactionsTable({
       if (val != null) values.add(String(val));
     });
     return Array.from(values).sort();
-  };
-
-  // Filter popover component (matching counteragents table exactly)
-  const FilterPopover = ({ column }: { column: ColumnConfig }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [filterSearchTerm, setFilterSearchTerm] = useState('');
-    const [tempSelectedValues, setTempSelectedValues] = useState<string[]>([]);
-    const [localSortDirection, setLocalSortDirection] = useState<'asc' | 'desc'>('asc');
-
-    const uniqueValues = useMemo(() => getColumnUniqueValues(column.key), [column.key]);
-    const selectedValues = columnFilters[column.key] || [];
-
-    const handleOpenChange = (open: boolean) => {
-      if (open) {
-        setTempSelectedValues([...selectedValues]);
-        setFilterSearchTerm('');
-      }
-      setIsOpen(open);
-    };
-
-    const handleApply = () => {
-      setColumnFilters(prev => ({
-        ...prev,
-        [column.key]: tempSelectedValues
-      }));
-      setIsOpen(false);
-    };
-
-    const handleCancel = () => {
-      setTempSelectedValues([...selectedValues]);
-      setIsOpen(false);
-    };
-
-    const handleSelectAll = () => {
-      setTempSelectedValues([...filteredUniqueValues]);
-    };
-
-    const handleClearAll = () => {
-      setTempSelectedValues([]);
-    };
-
-    const filteredUniqueValues = useMemo(() => {
-      if (!filterSearchTerm) return uniqueValues;
-      const term = filterSearchTerm.toLowerCase();
-      return uniqueValues.filter(val => 
-        String(val).toLowerCase().includes(term)
-      );
-    }, [uniqueValues, filterSearchTerm]);
-
-    const sortedFilteredValues = useMemo(() => {
-      const sorted = [...filteredUniqueValues].sort((a, b) => {
-        const aIsNum = !isNaN(Number(a));
-        const bIsNum = !isNaN(Number(b));
-        
-        if (aIsNum && bIsNum) {
-          return Number(a) - Number(b);
-        } else if (aIsNum && !bIsNum) {
-          return -1;
-        } else if (!aIsNum && bIsNum) {
-          return 1;
-        } else {
-          return a.localeCompare(b);
-        }
-      });
-      
-      // Apply sort direction for filter dialog display
-      return localSortDirection === 'desc' ? sorted.reverse() : sorted;
-    }, [filteredUniqueValues, localSortDirection]);
-
-    return (
-      <Popover open={isOpen} onOpenChange={handleOpenChange}>
-        <PopoverTrigger asChild>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={`h-6 px-1 ${selectedValues.length > 0 ? 'text-blue-600' : ''}`}
-          >
-            <Filter className="h-3 w-3" />
-            {selectedValues.length > 0 && (
-              <span className="ml-1 text-xs">{selectedValues.length}</span>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-72" align="start">
-          <div className="space-y-3">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b pb-2">
-              <div className="font-medium text-sm">{column.label}</div>
-              <div className="text-xs text-muted-foreground">
-                Displaying {filteredUniqueValues.length}
-              </div>
-            </div>
-
-            {/* Sort Options */}
-            <div className="space-y-1">
-              <button 
-                className="w-full text-left text-sm py-1 px-2 hover:bg-muted rounded"
-                onClick={() => {
-                  setSortField(column.key);
-                  setSortDirection('asc');
-                  setLocalSortDirection('asc');
-                }}
-              >
-                Sort A to Z
-              </button>
-              <button 
-                className="w-full text-left text-sm py-1 px-2 hover:bg-muted rounded"
-                onClick={() => {
-                  setSortField(column.key);
-                  setSortDirection('desc');
-                  setLocalSortDirection('desc');
-                }}
-              >
-                Sort Z to A
-              </button>
-            </div>
-
-            {/* Filter by values section */}
-            <div className="border-t pt-3">
-              <div className="font-medium text-sm mb-2">Filter by values</div>
-              
-              {/* Select All / Clear controls */}
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleSelectAll}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    Select all {filteredUniqueValues.length}
-                  </button>
-                  <span className="text-xs text-muted-foreground">┬╖</span>
-                  <button
-                    onClick={handleClearAll}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-
-              {/* Search input */}
-              <div className="relative mb-3">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                <Input
-                  placeholder="Search values..."
-                  value={filterSearchTerm}
-                  onChange={(e) => setFilterSearchTerm(e.target.value)}
-                  className="pl-7 h-8 text-sm"
-                />
-              </div>
-
-              {/* Values list */}
-              <div className="space-y-1 max-h-48 overflow-auto border rounded p-2">
-                {sortedFilteredValues.length === 0 ? (
-                  <div className="text-xs text-muted-foreground py-2 text-center">
-                    No values found
-                  </div>
-                ) : (
-                  sortedFilteredValues.map(value => (
-                    <div key={value} className="flex items-center space-x-2 py-1">
-                      <Checkbox
-                        id={`${column.key}-${value}`}
-                        checked={tempSelectedValues.includes(value)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setTempSelectedValues([...tempSelectedValues, value]);
-                          } else {
-                            setTempSelectedValues(tempSelectedValues.filter(v => v !== value));
-                          }
-                        }}
-                      />
-                      <Label htmlFor={`${column.key}-${value}`} className="text-sm flex-1 cursor-pointer">
-                        {value}
-                      </Label>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex justify-end space-x-2 pt-2 border-t">
-              <Button variant="outline" size="sm" onClick={handleCancel}>
-                Cancel
-              </Button>
-              <Button size="sm" onClick={handleApply} className="bg-green-600 hover:bg-green-700">
-                OK
-              </Button>
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
-    );
   };
 
   const visibleColumns = columns.filter(col => col.visible);
@@ -2079,7 +1893,24 @@ export function BankTransactionsTable({
                   >
                     <div className="flex items-center gap-2 pr-4 overflow-hidden">
                       <span className="truncate font-medium">{col.label}</span>
-                      {col.filterable && <FilterPopover column={col} />}
+                      {col.filterable && (
+                        <ColumnFilterPopover
+                          columnKey={col.key}
+                          columnLabel={col.label}
+                          values={getColumnUniqueValues(col.key)}
+                          activeFilters={new Set(columnFilters[col.key] || [])}
+                          onFilterChange={(values) =>
+                            setColumnFilters((prev) => ({
+                              ...prev,
+                              [col.key]: Array.from(values)
+                            }))
+                          }
+                          onSort={(direction) => {
+                            setSortField(col.key);
+                            setSortDirection(direction);
+                          }}
+                        />
+                      )}
                     </div>
                     
                     {/* Resize handle */}

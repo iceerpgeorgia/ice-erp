@@ -9,7 +9,11 @@
   "crons": [
     {
       "path": "/api/cron/update-nbg-rates",
-      "schedule": "0 * * * *"
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/cron/cash-based-monthly-accruals",
+      "schedule": "0 10 * * 0"
     }
   ]
 }

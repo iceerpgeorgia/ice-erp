@@ -210,6 +210,7 @@ export function processSingleRecord(
     financial_code_uuid: null,
     nominal_currency_uuid: null,
     payment_id: null,
+    payment_accrual_source: null,
     applied_rule_id: null,
     case1_counteragent_processed: false,
     case1_counteragent_found: false,
@@ -323,6 +324,9 @@ export function processSingleRecord(
       if (rulePaymentData.currency_uuid) {
         result.nominal_currency_uuid = rulePaymentData.currency_uuid;
       }
+      if (rulePaymentData.accrual_source) {
+        result.payment_accrual_source = rulePaymentData.accrual_source;
+      }
     }
 
     let ruleCounteragent = matchedRule.counteragent_uuid;
@@ -426,6 +430,7 @@ export function processSingleRecord(
       if (!result.case5_payment_id_conflict) {
         result.payment_id = resolvedPaymentId;
         result.case4_payment_id_matched = true;
+        result.payment_accrual_source = paymentData.accrual_source ?? null;
       }
 
       stats.case4_payment_id_match++;

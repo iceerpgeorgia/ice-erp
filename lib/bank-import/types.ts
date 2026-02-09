@@ -76,6 +76,7 @@ export interface PaymentData {
   project_uuid: string | null;
   financial_code_uuid: string | null;
   currency_uuid: string | null;
+  accrual_source?: string | null;
   source: 'payments' | 'salary';
 }
 
@@ -98,6 +99,7 @@ export interface ProcessingResult {
   financial_code_uuid: string | null;
   nominal_currency_uuid: string | null;
   payment_id: string | null;
+  payment_accrual_source?: string | null;
   applied_rule_id: number | null;
   case1_counteragent_processed: boolean;
   case1_counteragent_found: boolean;

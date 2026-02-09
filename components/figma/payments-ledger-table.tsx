@@ -5,8 +5,8 @@ import {
   Search, 
   Plus, 
   Trash2,
-  Filter, 
   Settings,
+  Download,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -16,6 +16,8 @@ import { Label } from './ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { Combobox } from '../ui/combobox';
+import { exportRowsToXlsx } from '@/lib/export-xlsx';
+import { ColumnFilterPopover } from './shared/column-filter-popover';
 
 export type PaymentLedgerEntry = {
   id: number;
@@ -88,6 +90,7 @@ export function PaymentsLedgerTable() {
   }>>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
   const [sortColumn, setSortColumn] = useState<ColumnKey>('effectiveDate');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(defaultColumns);
@@ -368,6 +371,22 @@ export function PaymentsLedgerTable() {
 
   // Pagination
   const totalRecords = filteredAndSortedEntries.length;
+
+  const handleExportXlsx = () => {
+    if (filteredAndSortedEntries.length === 0) return;
+    setIsExporting(true);
+    try {
+      const fileName = `payments-ledger_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      exportRowsToXlsx({
+        rows: filteredAndSortedEntries,
+        columns: columnConfig,
+        fileName,
+        sheetName: 'Payments Ledger',
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
   const totalPages = Math.ceil(totalRecords / recordsPerPage);
   const startIndex = (currentPage - 1) * recordsPerPage;
   const endIndex = startIndex + recordsPerPage;
@@ -458,212 +477,28 @@ export function PaymentsLedgerTable() {
     setFilters(newFilters);
   };
 
-  // Column filter component with sophisticated filter UI - Memoized
-  const ColumnFilter = React.memo(function ColumnFilter({ column }: { column: ColumnConfig }) {
-    const uniqueValues = useMemo(() => getUniqueValues(column.key), [column.key]);
-    const selectedValues = filters.get(column.key) || new Set();
-    const [filterSearchTerm, setFilterSearchTerm] = useState('');
-    const [tempSelected, setTempSelected] = useState<Set<any>>(new Set(selectedValues));
-    const [isOpen, setIsOpen] = useState(false);
-
-    // Filter unique values based on search term
-    const filteredValues = useMemo(() => {
-      if (!filterSearchTerm) return uniqueValues;
-      return uniqueValues.filter(value => 
-        String(value).toLowerCase().includes(filterSearchTerm.toLowerCase())
-      );
-    }, [uniqueValues, filterSearchTerm]);
-
-    // Sort values - numbers first, then text
-    const sortedFilteredValues = useMemo(() => {
-      return [...filteredValues].sort((a, b) => {
-        const aIsNum = !isNaN(Number(a));
-        const bIsNum = !isNaN(Number(b));
-        
-        if (aIsNum && bIsNum) {
-          return Number(a) - Number(b);
-        } else if (aIsNum && !bIsNum) {
-          return -1;
-        } else if (!aIsNum && bIsNum) {
-          return 1;
-        } else {
-          return String(a).localeCompare(String(b));
-        }
-      });
-    }, [filteredValues]);
-
-    // Reset temp values when opening
-    const handleOpenChange = (open: boolean) => {
-      setIsOpen(open);
-      if (open) {
-        setTempSelected(new Set(selectedValues));
-        setFilterSearchTerm('');
-      }
-    };
-
-    // Apply filters
-    const handleApply = () => {
-      handleFilterChange(column.key, tempSelected);
-      setIsOpen(false);
-    };
-
-    // Cancel changes
-    const handleCancel = () => {
-      setTempSelected(new Set(selectedValues));
-      setIsOpen(false);
-    };
-
-    // Clear all selections
-    const handleClearAll = () => {
-      setTempSelected(new Set());
-    };
-
-    // Select all visible values
-    const handleSelectAll = () => {
-      setTempSelected(new Set(filteredValues));
-    };
-
-    const handleToggle = (value: any) => {
-      const newSelected = new Set(tempSelected);
-      if (newSelected.has(value)) {
-        newSelected.delete(value);
-      } else {
-        newSelected.add(value);
-      }
-      setTempSelected(newSelected);
-    };
-
-    return (
-      <Popover open={isOpen} onOpenChange={handleOpenChange}>
-        <PopoverTrigger asChild>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={`h-6 px-1 ${selectedValues.size > 0 ? 'text-blue-600' : ''}`}
-          >
-            <Filter className="h-3 w-3" />
-            {selectedValues.size > 0 && (
-              <span className="ml-1 text-xs">{selectedValues.size}</span>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-72" align="start">
-          <div className="space-y-3">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b pb-2">
-              <div className="font-medium text-sm">{column.label}</div>
-              <div className="text-xs text-muted-foreground">
-                Displaying {filteredValues.length}
-              </div>
-            </div>
-
-            {/* Sort Options */}
-            <div className="space-y-1">
-              <button 
-                className="w-full text-left text-sm py-1 px-2 hover:bg-muted rounded"
-                onClick={() => {
-                  setSortColumn(column.key);
-                  setSortDirection('asc');
-                  setIsOpen(false);
-                }}
-              >
-                Sort A to Z
-              </button>
-              <button 
-                className="w-full text-left text-sm py-1 px-2 hover:bg-muted rounded"
-                onClick={() => {
-                  setSortColumn(column.key);
-                  setSortDirection('desc');
-                  setIsOpen(false);
-                }}
-              >
-                Sort Z to A
-              </button>
-            </div>
-
-            {/* Filter by values section */}
-            <div className="border-t pt-3">
-              <div className="font-medium text-sm mb-2">Filter by values</div>
-              
-              {/* Select All / Clear controls */}
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleSelectAll}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    Select all {filteredValues.length}
-                  </button>
-                  <span className="text-xs text-muted-foreground">·</span>
-                  <button
-                    onClick={handleClearAll}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-
-              {/* Search input */}
-              <div className="relative mb-3">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                <Input
-                  placeholder="Search values..."
-                  value={filterSearchTerm}
-                  onChange={(e) => setFilterSearchTerm(e.target.value)}
-                  className="pl-7 h-8 text-sm"
-                />
-              </div>
-
-              {/* Values list */}
-              <div className="space-y-1 max-h-48 overflow-auto border rounded p-2">
-                {sortedFilteredValues.length === 0 ? (
-                  <div className="text-xs text-muted-foreground py-2 text-center">
-                    No values found
-                  </div>
-                ) : (
-                  sortedFilteredValues.map(value => (
-                    <div key={String(value)} className="flex items-center space-x-2 py-1">
-                      <Checkbox
-                        id={`${column.key}-${value}`}
-                        checked={tempSelected.has(value)}
-                        onCheckedChange={() => handleToggle(value)}
-                      />
-                      <label htmlFor={`${column.key}-${value}`} className="text-sm flex-1 cursor-pointer">
-                        {String(value)}
-                      </label>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex justify-end space-x-2 pt-2 border-t">
-              <Button variant="outline" size="sm" onClick={handleCancel}>
-                Cancel
-              </Button>
-              <Button size="sm" onClick={handleApply} className="bg-green-600 hover:bg-green-700">
-                OK
-              </Button>
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
-    );
-  });
 
   return (
     <div className="space-y-4 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Payments Ledger</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Entry
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportXlsx}
+            disabled={isExporting || filteredAndSortedEntries.length === 0}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {isExporting ? 'Exporting...' : 'Export XLSX'}
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Entry
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Add Ledger Entry</DialogTitle>
@@ -745,6 +580,7 @@ export function PaymentsLedgerTable() {
           </DialogContent>
         </Dialog>
       </div>
+      </div>
 
       <div className="flex items-center gap-4">
         <div className="relative flex-1">
@@ -824,7 +660,19 @@ export function PaymentsLedgerTable() {
                     >
                       <div className="flex items-center gap-2 pr-4 overflow-hidden">
                         <span className="truncate font-medium">{col.label}</span>
-                        {col.filterable && <ColumnFilter column={col} />}
+                        {col.filterable && (
+                          <ColumnFilterPopover
+                            columnKey={col.key}
+                            columnLabel={col.label}
+                            values={getUniqueValues(col.key)}
+                            activeFilters={filters.get(col.key) || new Set()}
+                            onFilterChange={(values) => handleFilterChange(col.key, values)}
+                            onSort={(direction) => {
+                              setSortColumn(col.key);
+                              setSortDirection(direction);
+                            }}
+                          />
+                        )}
                       </div>
                       
                       {/* Resize handle */}

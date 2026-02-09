@@ -22,7 +22,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Pencil, Trash2, Settings } from "lucide-react";
+import { Download, Plus, Pencil, Trash2, Settings } from "lucide-react";
+import { exportRowsToXlsx } from "@/lib/export-xlsx";
 
 interface Bank {
   id: number;
@@ -140,6 +141,16 @@ export default function BanksPage() {
     );
   };
 
+  const handleExportXlsx = () => {
+    const fileName = `banks_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    exportRowsToXlsx({
+      rows: banks,
+      columns,
+      fileName,
+      sheetName: "Banks",
+    });
+  };
+
   if (loading) {
     return <div className="p-8">Loading...</div>;
   }
@@ -149,6 +160,10 @@ export default function BanksPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Banks</h1>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportXlsx} disabled={!banks.length}>
+            <Download className="mr-2 h-4 w-4" />
+            Export XLSX
+          </Button>
           <Dialog open={isColumnDialogOpen} onOpenChange={setIsColumnDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="icon">

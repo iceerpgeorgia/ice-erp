@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { v4 as uuidv4 } from "uuid";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 
@@ -127,13 +128,10 @@ export async function GET(req: NextRequest) {
       // Update existing
       result = await prisma.nbg_exchange_rates.update({
         where: { date: rateDate },
-        data: rates,
-      });
-
-      await logAudit({
-        table: "nbg_exchange_rates",
-        recordId: result.id,
-        action: "update",
+        data: {
+          ...rates,
+          updated_at: new Date(),
+        },
       });
 
       action = "updated";
@@ -142,15 +140,11 @@ export async function GET(req: NextRequest) {
       // Create new
       result = await prisma.nbg_exchange_rates.create({
         data: {
+          uuid: uuidv4(),
           date: rateDate,
           ...rates,
+          updated_at: new Date(),
         },
-      });
-
-      await logAudit({
-        table: "nbg_exchange_rates",
-        recordId: result.id,
-        action: "create",
       });
 
       action = "created";
@@ -233,10 +227,15 @@ export async function GET(req: NextRequest) {
                   await prisma.nbg_exchange_rates.upsert({
                     where: { date: fillDate },
                     create: {
+                      uuid: uuidv4(),
                       date: fillDate,
                       ...fillRates,
+                      updated_at: new Date(),
                     },
-                    update: fillRates,
+                    update: {
+                      ...fillRates,
+                      updated_at: new Date(),
+                    },
                   });
                   
                   filledCount++;
@@ -278,32 +277,8 @@ export async function GET(req: NextRequest) {
 
     console.log('[CRON] NBG rates update completed successfully', summary);
 
-    // Trigger Google Sheets sync
-    let sheetsSyncResult = null;
-    try {
-      console.log('[CRON] Starting Google Sheets sync...');
-      
-      const sheetsResponse = await fetch(`${process.env.NEXTAUTH_URL}/api/cron/sync-to-sheets`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${process.env.CRON_SECRET}`
-        }
-      });
-
-      if (sheetsResponse.ok) {
-        sheetsSyncResult = await sheetsResponse.json();
-        console.log('[CRON] Google Sheets sync completed', sheetsSyncResult);
-      } else {
-        console.error('[CRON] Google Sheets sync failed', await sheetsResponse.text());
-      }
-    } catch (sheetError: any) {
-      console.error('[CRON] Google Sheets sync error', sheetError.message);
-      // Don't fail the whole cron job if sheets sync fails
-    }
-
     return NextResponse.json({
-      ...summary,
-      sheetsSync: sheetsSyncResult
+      ...summary
     });
   } catch (error: any) {
     console.error("[CRON] NBG rates update error", error);

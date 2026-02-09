@@ -60,6 +60,7 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 export default function NBGRatesPage() {
+  const columnsStorageKey = 'nbgRatesColumns';
   const [rates, setRates] = useState<NBGRate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -90,8 +91,32 @@ export default function NBGRatesPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(columnsStorageKey);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved) as ColumnConfig[];
+          const defaultMap = new Map(defaultColumns.map((col) => [col.key, col]));
+          const validSaved = parsed.filter((col) => defaultMap.has(col.key));
+          const updatedSaved = validSaved.map((col) => {
+            const base = defaultMap.get(col.key);
+            return base ? { ...base, visible: col.visible } : col;
+          });
+          const savedKeys = new Set(validSaved.map((col) => col.key));
+          const newColumns = defaultColumns.filter((col) => !savedKeys.has(col.key));
+          setColumns([...updatedSaved, ...newColumns]);
+        } catch {
+          setColumns(defaultColumns);
+        }
+      }
+    }
     fetchRates();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(columnsStorageKey, JSON.stringify(columns));
+  }, [columns]);
 
   const fetchRates = async () => {
     try {

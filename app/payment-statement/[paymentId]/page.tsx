@@ -40,6 +40,7 @@ type TransactionRow = {
   ledgerId?: number; // Add ledger ID for editing
   bankUuid?: string;
   bankId?: number;
+  bankSourceId?: number;
   type: 'ledger' | 'bank';
   date: string;
   accrual: number;
@@ -592,6 +593,7 @@ export default function PaymentStatementPage() {
       id: `bank-${tx.id}`,
       bankUuid: tx.uuid,
       bankId: tx.id,
+      bankSourceId: tx.sourceId ?? tx.id,
       type: 'bank' as const,
       date: formatDate(tx.date),
       dateSort: new Date(tx.date).getTime(),
@@ -1180,8 +1182,8 @@ export default function PaymentStatementPage() {
         exchangeRate: row.exchange_rate || row.exchangeRate || null,
         nominalExchangeRate: row.nominal_exchange_rate || row.nominalExchangeRate || null,
         usdGelRate: row.usd_gel_rate ?? row.usdGelRate ?? null,
-        id1: row.id1 || null,
-        id2: row.id2 || null,
+        id1: row.id1 || row.dockey || null,
+        id2: row.id2 || row.entriesid || null,
         recordUuid: row.raw_record_uuid || row.recordUuid || '',
         counteragentAccountNumber: row.counteragent_account_number ? String(row.counteragent_account_number) : null,
         description: row.description || null,
@@ -1309,8 +1311,27 @@ export default function PaymentStatementPage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="border-b pb-4">
-            <h1 className="text-2xl font-bold">Payment Statement</h1>
-            <p className="text-gray-600 mt-1">Payment ID: {statementData.payment.paymentId}</p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h1 className="text-2xl font-bold">Payment Statement</h1>
+                <p className="text-gray-600 mt-1">Payment ID: {statementData.payment.paymentId}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleExportStatementXlsx}
+                  disabled={isExporting || !mergedTransactions.length}
+                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isExporting ? 'Exporting...' : 'Export XLSX'}
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  Print Statement
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Payment Info */}
@@ -1391,10 +1412,10 @@ export default function PaymentStatementPage() {
               <div className="border rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
-                    <thead className="bg-gray-100">
+                    <thead className="bg-gray-100 sticky top-0 z-10">
                       <tr>
                         <th
-                          className="px-2 py-3 font-semibold text-center bg-red-50 text-red-700"
+                          className="px-2 py-3 font-semibold text-center bg-red-50 text-red-700 sticky top-0 z-10"
                           style={{ width: '48px' }}
                         >
                           <div className="flex flex-col items-center gap-1">
@@ -1407,7 +1428,7 @@ export default function PaymentStatementPage() {
                           </div>
                         </th>
                         <th
-                          className="px-2 py-3 font-semibold text-center bg-yellow-50 text-yellow-700"
+                          className="px-2 py-3 font-semibold text-center bg-yellow-50 text-yellow-700 sticky top-0 z-10"
                           style={{ width: '48px' }}
                         >
                           <div className="flex flex-col items-center gap-1">
@@ -1426,7 +1447,7 @@ export default function PaymentStatementPage() {
                             onDragStart={(e) => handleDragStart(e, column.key)}
                             onDragOver={(e) => handleDragOver(e, column.key)}
                             onDrop={(e) => handleDrop(e, column.key)}
-                            className={`px-4 py-3 font-semibold relative cursor-move select-none ${
+                            className={`px-4 py-3 font-semibold relative cursor-move select-none sticky top-0 z-10 bg-gray-100 ${
                               column.align === 'right' ? 'text-right' : 'text-left'
                             } ${dragOverColumn === column.key ? 'bg-blue-100' : ''}`}
                             style={{
@@ -1445,13 +1466,13 @@ export default function PaymentStatementPage() {
                             </div>
                           </th>
                         ))}
-                        <th className="px-4 py-3 font-semibold text-left" style={{ width: '70px' }}>
+                        <th className="px-4 py-3 font-semibold text-left sticky top-0 z-10 bg-gray-100" style={{ width: '70px' }}>
                           View
                         </th>
-                        <th className="px-4 py-3 font-semibold text-left" style={{ width: '70px' }}>
+                        <th className="px-4 py-3 font-semibold text-left sticky top-0 z-10 bg-gray-100" style={{ width: '70px' }}>
                           Logs
                         </th>
-                        <th className="px-4 py-3 font-semibold text-left" style={{ width: '90px' }}>
+                        <th className="px-4 py-3 font-semibold text-left sticky top-0 z-10 bg-gray-100" style={{ width: '90px' }}>
                           Actions
                         </th>
                       </tr>
@@ -1539,9 +1560,9 @@ export default function PaymentStatementPage() {
                                 <Info className="h-4 w-4 text-gray-700" />
                               </button>
                             )}
-                            {row.type === 'bank' && row.bankId && (
+                            {row.type === 'bank' && row.bankSourceId && (
                               <button
-                                onClick={() => viewBankAuditLog(row.bankId as number)}
+                                onClick={() => viewBankAuditLog(row.bankSourceId as number)}
                                 className="p-1 hover:bg-gray-200 rounded"
                                 title="View bank audit log"
                               >

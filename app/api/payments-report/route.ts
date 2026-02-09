@@ -73,7 +73,29 @@ export async function GET(request: NextRequest) {
           SUM(nominal_amount) as total_payment,
           MAX(transaction_date::date) as latest_bank_date
         FROM (
-          ${SOURCE_TABLES.map((table) => `SELECT * FROM "${table}"`).join(' UNION ALL ')}
+          SELECT
+            cba.payment_id,
+            cba.nominal_amount,
+            cba.transaction_date
+          FROM (
+            ${SOURCE_TABLES.map((table) => `SELECT * FROM "${table}"`).join(' UNION ALL ')}
+          ) cba
+          WHERE NOT EXISTS (
+            SELECT 1 FROM bank_transaction_batches btb
+            WHERE btb.raw_record_uuid::text = cba.raw_record_uuid::text
+          )
+
+          UNION ALL
+
+          SELECT
+            btb.payment_id,
+            (btb.nominal_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
+            cba.transaction_date
+          FROM (
+            ${SOURCE_TABLES.map((table) => `SELECT * FROM "${table}"`).join(' UNION ALL ')}
+          ) cba
+          JOIN bank_transaction_batches btb
+            ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
         ) combined
         ${bankDateFilter}
         GROUP BY payment_id

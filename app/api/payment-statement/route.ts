@@ -6,9 +6,11 @@ import { prisma } from '@/lib/prisma';
 export const revalidate = 0;
 
 const SOURCE_TABLES = [
-  "GE78BG0000000893486000_BOG_GEL",
-  "GE65TB7856036050100002_TBC_GEL",
+  { name: 'GE78BG0000000893486000_BOG_GEL', offset: 0 },
+  { name: 'GE65TB7856036050100002_TBC_GEL', offset: 1000000000000 },
 ];
+
+const BATCH_OFFSET = 2000000000000;
 
 export async function GET(request: NextRequest) {
   try {
@@ -146,25 +148,74 @@ export async function GET(request: NextRequest) {
     // Get bank transactions
     const bankQuery = `
       SELECT 
-        cba.id,
-        cba.uuid,
-        cba.account_currency_amount,
-        cba.nominal_amount,
-        cba.transaction_date,
-        cba.counteragent_account_number,
-        cba.description,
-        cba.created_at,
-        cba.bank_account_uuid,
-        cba.account_currency_uuid,
-        ba.account_number as bank_account_number,
-        curr.code as account_currency_code
+        result.id,
+        result.uuid,
+        result.account_currency_amount,
+        result.nominal_amount,
+        result.transaction_date,
+        result.counteragent_account_number,
+        result.description,
+        result.created_at,
+        result.bank_account_uuid,
+        result.account_currency_uuid,
+        result.bank_account_number,
+        result.account_currency_code
       FROM (
-        ${SOURCE_TABLES.map((table) => `SELECT * FROM "${table}"`).join(' UNION ALL ')}
-      ) cba
-      LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
-      LEFT JOIN currencies curr ON cba.account_currency_uuid = curr.uuid
-      WHERE lower(cba.payment_id) = lower($1) OR lower(cba.payment_id) = lower($2)
-      ORDER BY cba.transaction_date DESC
+        SELECT 
+          (cba.id + cba.source_offset)::bigint as synthetic_id,
+          cba.id as source_id,
+          cba.source_table,
+          cba.id,
+          cba.uuid,
+          cba.account_currency_amount,
+          cba.nominal_amount,
+          cba.transaction_date,
+          cba.counteragent_account_number,
+          cba.description,
+          cba.created_at,
+          cba.bank_account_uuid,
+          cba.account_currency_uuid,
+          ba.account_number as bank_account_number,
+          curr.code as account_currency_code
+        FROM (
+          ${SOURCE_TABLES.map((table) => `SELECT *, '${table.name}' as source_table, ${table.offset}::bigint as source_offset FROM "${table.name}"`).join(' UNION ALL ')}
+        ) cba
+        LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
+        LEFT JOIN currencies curr ON cba.account_currency_uuid = curr.uuid
+        WHERE NOT EXISTS (
+          SELECT 1 FROM bank_transaction_batches btb
+          WHERE btb.raw_record_uuid::text = cba.raw_record_uuid::text
+        )
+          AND (lower(cba.payment_id) = lower($1) OR lower(cba.payment_id) = lower($2))
+
+        UNION ALL
+
+        SELECT 
+          (btb.id + ${BATCH_OFFSET} + cba.source_offset)::bigint as synthetic_id,
+          cba.id as source_id,
+          cba.source_table,
+          cba.id,
+          cba.uuid,
+          (btb.partition_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as account_currency_amount,
+          (btb.nominal_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
+          cba.transaction_date,
+          cba.counteragent_account_number,
+          cba.description,
+          cba.created_at,
+          cba.bank_account_uuid,
+          cba.account_currency_uuid,
+          ba.account_number as bank_account_number,
+          curr.code as account_currency_code
+        FROM (
+          ${SOURCE_TABLES.map((table) => `SELECT *, '${table.name}' as source_table, ${table.offset}::bigint as source_offset FROM "${table.name}"`).join(' UNION ALL ')}
+        ) cba
+        JOIN bank_transaction_batches btb
+          ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
+        LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
+        LEFT JOIN currencies curr ON cba.account_currency_uuid = curr.uuid
+        WHERE lower(btb.payment_id) = lower($1) OR lower(btb.payment_id) = lower($2)
+      ) result
+      ORDER BY result.transaction_date DESC
     `;
 
     const bankResult = await prisma.$queryRawUnsafe(
@@ -221,7 +272,9 @@ export async function GET(request: NextRequest) {
         new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime()
       ),
       bankTransactions: (bankResult as any[]).map(tx => ({
-        id: Number(tx.id),
+        id: Number(tx.synthetic_id ?? tx.id),
+        sourceId: Number(tx.source_id ?? tx.id),
+        sourceTable: tx.source_table ?? null,
         uuid: tx.uuid,
         accountCurrencyAmount: tx.account_currency_amount ? parseFloat(tx.account_currency_amount) : 0,
         nominalAmount: tx.nominal_amount ? parseFloat(tx.nominal_amount) : 0,

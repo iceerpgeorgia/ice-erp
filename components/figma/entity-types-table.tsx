@@ -6,7 +6,6 @@ import {
   Edit2, 
   Check, 
   X, 
-  Filter, 
   ArrowUpDown, 
   ArrowUp, 
   ArrowDown,
@@ -21,7 +20,6 @@ import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { 
   Table, 
@@ -31,6 +29,7 @@ import {
   TableHeader, 
   TableRow 
 } from './ui/table';
+import { ColumnFilterPopover } from './shared/column-filter-popover';
 
 
 
@@ -563,198 +562,6 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
     return [...new Set(entityTypes.map(entityType => String(entityType[column])))].sort();
   };
 
-  // Column filter component with Google Sheets-style search
-  const ColumnFilter = ({ column }: { column: ColumnConfig }) => {
-    const uniqueValues = getUniqueValues(column.key);
-    const selectedValues = columnFilters[column.key] || [];
-    const [filterSearchTerm, setFilterSearchTerm] = useState('');
-    const [tempSelectedValues, setTempSelectedValues] = useState<string[]>(selectedValues);
-    const [isOpen, setIsOpen] = useState(false);
-
-    // Filter unique values based on search term
-    const filteredUniqueValues = useMemo(() => {
-      if (!filterSearchTerm) return uniqueValues;
-      return uniqueValues.filter(value => 
-        value.toLowerCase().includes(filterSearchTerm.toLowerCase())
-      );
-    }, [uniqueValues, filterSearchTerm]);
-
-    // Reset temp values when opening
-    const handleOpenChange = (open: boolean) => {
-      setIsOpen(open);
-      if (open) {
-        setTempSelectedValues(selectedValues);
-        setFilterSearchTerm('');
-      }
-    };
-
-    // Apply filters
-    const handleApply = () => {
-      setColumnFilters({
-        ...columnFilters,
-        [column.key]: tempSelectedValues
-      });
-      setIsOpen(false);
-    };
-
-    // Cancel changes
-    const handleCancel = () => {
-      setTempSelectedValues(selectedValues);
-      setIsOpen(false);
-    };
-
-    // Clear all selections
-    const handleClearAll = () => {
-      setTempSelectedValues([]);
-    };
-
-    // Select all visible values
-    const handleSelectAll = () => {
-      setTempSelectedValues(filteredUniqueValues);
-    };
-
-    // Sort values - numbers first, then text
-    const sortedFilteredValues = useMemo(() => {
-      return [...filteredUniqueValues].sort((a, b) => {
-        const aIsNum = !isNaN(Number(a));
-        const bIsNum = !isNaN(Number(b));
-        
-        if (aIsNum && bIsNum) {
-          return Number(a) - Number(b);
-        } else if (aIsNum && !bIsNum) {
-          return -1;
-        } else if (!aIsNum && bIsNum) {
-          return 1;
-        } else {
-          return a.localeCompare(b);
-        }
-      });
-    }, [filteredUniqueValues]);
-
-    return (
-      <Popover open={isOpen} onOpenChange={handleOpenChange}>
-        <PopoverTrigger asChild>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={`h-6 px-1 ${selectedValues.length > 0 ? 'text-blue-600' : ''}`}
-          >
-            <Filter className="h-3 w-3" />
-            {selectedValues.length > 0 && (
-              <span className="ml-1 text-xs">{selectedValues.length}</span>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-72" align="start">
-          <div className="space-y-3">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b pb-2">
-              <div className="font-medium text-sm">{column.label}</div>
-              <div className="text-xs text-muted-foreground">
-                Displaying {filteredUniqueValues.length}
-              </div>
-            </div>
-
-            {/* Sort Options */}
-            <div className="space-y-1">
-              <button 
-                className="w-full text-left text-sm py-1 px-2 hover:bg-muted rounded"
-                onClick={() => {
-                  const sorted = [...uniqueValues].sort();
-                  setTempSelectedValues(tempSelectedValues.filter(v => sorted.includes(v)));
-                }}
-              >
-                Sort A to Z
-              </button>
-              <button 
-                className="w-full text-left text-sm py-1 px-2 hover:bg-muted rounded"
-                onClick={() => {
-                  const sorted = [...uniqueValues].sort().reverse();
-                  setTempSelectedValues(tempSelectedValues.filter(v => sorted.includes(v)));
-                }}
-              >
-                Sort Z to A
-              </button>
-            </div>
-
-            {/* Filter by values section */}
-            <div className="border-t pt-3">
-              <div className="font-medium text-sm mb-2">Filter by values</div>
-              
-              {/* Select All / Clear controls */}
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleSelectAll}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    Select all {filteredUniqueValues.length}
-                  </button>
-                  <span className="text-xs text-muted-foreground">·</span>
-                  <button
-                    onClick={handleClearAll}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-
-              {/* Search input */}
-              <div className="relative mb-3">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                <Input
-                  placeholder="Search values..."
-                  value={filterSearchTerm}
-                  onChange={(e) => setFilterSearchTerm(e.target.value)}
-                  className="pl-7 h-8 text-sm"
-                />
-              </div>
-
-              {/* Values list */}
-              <div className="space-y-1 max-h-48 overflow-auto border rounded p-2">
-                {sortedFilteredValues.length === 0 ? (
-                  <div className="text-xs text-muted-foreground py-2 text-center">
-                    No values found
-                  </div>
-                ) : (
-                  sortedFilteredValues.map(value => (
-                    <div key={value} className="flex items-center space-x-2 py-1">
-                      <Checkbox
-                        id={`${column.key}-${value}`}
-                        checked={tempSelectedValues.includes(value)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setTempSelectedValues([...tempSelectedValues, value]);
-                          } else {
-                            setTempSelectedValues(tempSelectedValues.filter(v => v !== value));
-                          }
-                        }}
-                      />
-                      <Label htmlFor={`${column.key}-${value}`} className="text-sm flex-1 cursor-pointer">
-                        {value}
-                      </Label>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex justify-end space-x-2 pt-2 border-t">
-              <Button variant="outline" size="sm" onClick={handleCancel}>
-                Cancel
-              </Button>
-              <Button size="sm" onClick={handleApply} className="bg-green-600 hover:bg-green-700">
-                OK
-              </Button>
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
-    );
-  };
-
   // Column settings dialog
   const ColumnSettings = () => (
     <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
@@ -1232,7 +1039,24 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
                         ) : (
                           <span className="font-medium">{column.label}</span>
                         )}
-                        {column.filterable && <ColumnFilter column={column} />}
+                        {column.filterable && (
+                          <ColumnFilterPopover
+                            columnKey={column.key}
+                            columnLabel={column.label}
+                            values={getUniqueValues(column.key)}
+                            activeFilters={new Set(columnFilters[column.key] || [])}
+                            onFilterChange={(values) =>
+                              setColumnFilters({
+                                ...columnFilters,
+                                [column.key]: Array.from(values)
+                              })
+                            }
+                            onSort={(direction) => {
+                              setSortField(column.key);
+                              setSortDirection(direction);
+                            }}
+                          />
+                        )}
                       </div>
                       
                       {/* Resize handle - centered on column border */}

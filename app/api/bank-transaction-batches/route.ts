@@ -1,6 +1,19 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+const SOURCE_TABLES = [
+  'GE78BG0000000893486000_BOG_GEL',
+  'GE65TB7856036050100002_TBC_GEL',
+];
+
+const formatBatchId = (uuid: string) => {
+  const compact = uuid.replace(/-/g, '').toUpperCase();
+  const part1 = compact.slice(0, 6);
+  const part2 = compact.slice(6, 8);
+  const part3 = compact.slice(8, 14);
+  return `BTC_${part1}_${part2}_${part3}`;
+};
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -13,6 +26,7 @@ export async function GET(request: NextRequest) {
         SELECT 
           btb.id,
           btb.uuid,
+          btb.batch_id,
           btb.batch_uuid,
           btb.partition_amount,
           btb.partition_sequence,
@@ -39,29 +53,108 @@ export async function GET(request: NextRequest) {
         ORDER BY btb.partition_sequence
       `) as any[];
 
-      return NextResponse.json(partitions);
+      return NextResponse.json({
+        batchUuid,
+        batchId: formatBatchId(batchUuid),
+        partitions,
+      });
     }
     
     if (rawRecordUuid) {
       // Check if raw record already has batches
       const batches = await prisma.$queryRawUnsafe(`
-        SELECT batch_uuid, COUNT(*) as partition_count, SUM(partition_amount) as total_amount
+        SELECT
+          batch_uuid,
+          COUNT(*) as partition_count,
+          SUM(partition_amount) as total_amount,
+          ARRAY_AGG(payment_id ORDER BY partition_sequence) as payment_ids
         FROM bank_transaction_batches
         WHERE raw_record_uuid = '${rawRecordUuid}'
         GROUP BY batch_uuid
       `) as any[];
 
-      return NextResponse.json(batches);
+      const mapped = batches.map((batch) => ({
+        batchUuid: batch.batch_uuid,
+        batchId: formatBatchId(batch.batch_uuid),
+        partitionCount: Number(batch.partition_count || 0),
+        totalAmount: batch.total_amount ? Number(batch.total_amount) : 0,
+        paymentIds: batch.payment_ids || [],
+      }));
+
+      return NextResponse.json({
+        hasBatch: mapped.length > 0,
+        batchCount: mapped.length,
+        batches: mapped,
+      });
     }
     
     // Get all batches summary
     const batches = await prisma.$queryRawUnsafe(`
-      SELECT * FROM bank_transaction_batch_summary
-      ORDER BY created_at DESC
-      LIMIT 100
+      WITH raw_union AS (
+        ${SOURCE_TABLES.map((table) => `SELECT raw_record_uuid, docnomination, docvaluedate FROM "${table}"`).join(' UNION ALL ')}
+      ),
+      payment_breakdown AS (
+        SELECT
+          batch_uuid,
+          json_agg(
+            json_build_object(
+              'paymentId', payment_id,
+              'amount', total_amount,
+              'count', partition_count
+            )
+            ORDER BY payment_id
+          ) as payment_breakdown
+        FROM (
+          SELECT
+            batch_uuid,
+            payment_id,
+            SUM(partition_amount) as total_amount,
+            COUNT(*) as partition_count
+          FROM bank_transaction_batches
+          GROUP BY batch_uuid, payment_id
+        ) grouped
+        GROUP BY batch_uuid
+      )
+      SELECT
+        btb.batch_uuid,
+        MIN(btb.bank_account_uuid) as bank_account_uuid,
+        MIN(btb.raw_record_id_1) as raw_record_id_1,
+        MIN(btb.raw_record_id_2) as raw_record_id_2,
+        MIN(btb.raw_record_uuid) as raw_record_uuid,
+        COUNT(*) as partition_count,
+        SUM(btb.partition_amount) as total_partition_amount,
+        ARRAY_AGG(btb.payment_id ORDER BY btb.partition_sequence) as payment_ids,
+        MIN(btb.created_at) as created_at,
+        raw.docnomination,
+        raw.docvaluedate,
+        pb.payment_breakdown
+      FROM bank_transaction_batches btb
+      LEFT JOIN raw_union raw
+        ON raw.raw_record_uuid::text = btb.raw_record_uuid::text
+      LEFT JOIN payment_breakdown pb
+        ON pb.batch_uuid = btb.batch_uuid
+      GROUP BY btb.batch_uuid, raw.docnomination, raw.docvaluedate, pb.payment_breakdown
+      ORDER BY MIN(btb.created_at) DESC
+      LIMIT 200
     `) as any[];
 
-    return NextResponse.json(batches);
+    const mapped = batches.map((batch) => ({
+      batchUuid: batch.batch_uuid,
+      batchId: formatBatchId(batch.batch_uuid),
+      bankAccountUuid: batch.bank_account_uuid,
+      rawRecordId1: batch.raw_record_id_1,
+      rawRecordId2: batch.raw_record_id_2,
+      rawRecordUuid: batch.raw_record_uuid,
+      partitionCount: Number(batch.partition_count || 0),
+      totalAmount: batch.total_partition_amount ? Number(batch.total_partition_amount) : 0,
+      paymentIds: batch.payment_ids || [],
+      paymentBreakdown: batch.payment_breakdown || [],
+      createdAt: batch.created_at,
+      docnomination: batch.docnomination || null,
+      docvaluedate: batch.docvaluedate || null,
+    }));
+
+    return NextResponse.json(mapped);
   } catch (error) {
     console.error('Error fetching batches:', error);
     return NextResponse.json(
@@ -82,6 +175,14 @@ export async function POST(request: Request) {
       partitions 
     } = body;
 
+    const formatBatchId = (uuid: string) => {
+      const compact = uuid.replace(/-/g, '').toUpperCase();
+      const part1 = compact.slice(0, 6);
+      const part2 = compact.slice(6, 8);
+      const part3 = compact.slice(8, 14);
+      return `BTC_${part1}_${part2}_${part3}`;
+    };
+
     // Validation
     if (!bankAccountUuid || !rawRecordId1 || !rawRecordId2 || !partitions || partitions.length === 0) {
       return NextResponse.json(
@@ -93,15 +194,22 @@ export async function POST(request: Request) {
     // Generate batch UUID
     const batchUuid = await prisma.$queryRawUnsafe(`SELECT gen_random_uuid()::text as uuid`) as any[];
     const newBatchUuid = batchUuid[0].uuid;
+    const batchId = formatBatchId(newBatchUuid);
 
     // Insert partitions
     const insertPromises = partitions.map((partition: any, index: number) => {
+      const safePartitionAmount = Math.abs(Number(partition.partitionAmount));
+      const safeNominalAmount =
+        partition.nominalAmount !== null && partition.nominalAmount !== undefined
+          ? Math.abs(Number(partition.nominalAmount))
+          : null;
       return prisma.$queryRawUnsafe(`
         INSERT INTO bank_transaction_batches (
           bank_account_uuid,
           raw_record_id_1,
           raw_record_id_2,
           raw_record_uuid,
+          batch_id,
           batch_uuid,
           partition_amount,
           partition_sequence,
@@ -118,8 +226,9 @@ export async function POST(request: Request) {
           '${rawRecordId1}',
           '${rawRecordId2}',
           '${rawRecordUuid}',
+          '${batchId}',
           '${newBatchUuid}',
-          ${partition.partitionAmount},
+          ${safePartitionAmount},
           ${index + 1},
           ${partition.paymentUuid ? `'${partition.paymentUuid}'` : 'NULL'},
           ${partition.paymentId ? `'${partition.paymentId}'` : 'NULL'},
@@ -127,7 +236,7 @@ export async function POST(request: Request) {
           ${partition.projectUuid ? `'${partition.projectUuid}'::uuid` : 'NULL'},
           ${partition.financialCodeUuid ? `'${partition.financialCodeUuid}'::uuid` : 'NULL'},
           ${partition.nominalCurrencyUuid ? `'${partition.nominalCurrencyUuid}'::uuid` : 'NULL'},
-          ${partition.nominalAmount || 'NULL'},
+          ${safeNominalAmount ?? 'NULL'},
           ${partition.partitionNote ? `'${partition.partitionNote.replace(/'/g, "''")}'` : 'NULL'}
         )
       `);
@@ -135,9 +244,30 @@ export async function POST(request: Request) {
 
     await Promise.all(insertPromises);
 
+    // Enable parsing lock for the underlying bank transaction
+    await Promise.all(
+      SOURCE_TABLES.map((table) =>
+        prisma.$executeRawUnsafe(
+          `UPDATE "${table}" SET parsing_lock = true, updated_at = NOW() WHERE raw_record_uuid::text = $1::text`,
+          rawRecordUuid
+        )
+      )
+    );
+
+    await Promise.all(
+      SOURCE_TABLES.map((table) =>
+        prisma.$executeRawUnsafe(
+          `UPDATE "${table}" SET payment_id = $1, parsing_lock = true, updated_at = NOW() WHERE raw_record_uuid::text = $2::text`,
+          batchId,
+          rawRecordUuid
+        )
+      )
+    );
+
     return NextResponse.json({ 
       success: true, 
-      batchUuid: newBatchUuid 
+      batchUuid: newBatchUuid,
+      batchId,
     });
   } catch (error: any) {
     console.error('Error creating batch:', error);

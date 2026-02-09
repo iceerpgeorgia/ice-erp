@@ -250,7 +250,7 @@ model counteragents {
   updated_at                  DateTime
   ts                          DateTime       @default(now()) @db.Timestamptz(6)
   name                        String?
-  identification_number       String?
+  identification_number       String?        @unique
   birth_or_incorporation_date DateTime?
   sex                         String?
   address_line_1              String?
@@ -430,6 +430,7 @@ model payments {
   updated_at          DateTime
   income_tax          Boolean           @default(false)
   currency_uuid       String            @db.Uuid
+  accrual_source      String?           @db.VarChar(50)
   payments_ledger     payments_ledger[]
 
   @@unique([project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid], map: "payments_project_uuid_counteragent_uuid_financial_code_uu_key")
@@ -552,4 +553,54 @@ model salary_accruals {
   @@index([payment_id])
   @@index([nominal_currency_uuid])
   @@index([salary_month, counteragent_uuid])
+}
+
+model rs_waybills_in {
+  id                          BigInt   @id @default(autoincrement())
+  waybill_no                  String?
+  state                       String?
+  condition                   String?
+  category                    String?
+  type                        String?
+  counteragent                String?
+  counteragent_inn            String?
+  counteragent_name           String?
+  counteragent_uuid           String?  @db.Uuid
+  vat                         Boolean  @default(false)
+  sum                         Decimal? @db.Decimal(20, 2)
+  driver                      String?
+  driver_id                   String?
+  driver_uuid                 String?  @db.Uuid
+  vehicle                     String?
+  transportation_sum          Decimal? @db.Decimal(20, 2)
+  departure_address           String?
+  shipping_address            String?
+  activation_time             DateTime?
+  transportation_beginning_time DateTime?
+  submission_time             DateTime?
+  cancellation_time           DateTime?
+  note                        String?
+  vat_doc_id                  String?
+  stat                        String?
+  transportation_cost         Decimal? @db.Decimal(20, 2)
+  rs_id                       String?
+  project_uuid                String?  @db.Uuid
+  financial_code_uuid         String?  @db.Uuid
+  corresponding_account       String?
+  date                        String?
+  period                      String?
+  import_batch_id             String?
+  created_at                  DateTime @default(now())
+  updated_at                  DateTime @default(now())
+
+  @@index([waybill_no])
+  @@index([counteragent_inn])
+  @@index([activation_time])
+  @@index([counteragent_uuid])
+  @@index([driver_uuid])
+  @@index([project_uuid])
+  @@index([financial_code_uuid])
+  @@index([rs_id])
+  @@unique([rs_id, waybill_no])
+  @@map("rs_waybills_in")
 }

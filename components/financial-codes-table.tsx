@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Pencil, ChevronDown, ChevronRight } from "lucide-react";
+import { Download, Plus, Pencil, ChevronDown, ChevronRight } from "lucide-react";
+import { exportRowsToXlsx } from "@/lib/export-xlsx";
 
 type FinancialCode = {
   id: string; // API returns as string (serialized from BigInt)
@@ -24,6 +25,7 @@ export function FinancialCodesTable() {
   const [codes, setCodes] = useState<FinancialCode[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCode, setEditingCode] = useState<FinancialCode | null>(null);
   const [parentCode, setParentCode] = useState<FinancialCode | null>(null);
@@ -138,6 +140,50 @@ export function FinancialCodesTable() {
     return roots;
   };
 
+  const flattenCodes = (nodes: FinancialCode[]): FinancialCode[] => {
+    const result: FinancialCode[] = [];
+    const walk = (items: FinancialCode[]) => {
+      items.forEach((item) => {
+        result.push(item);
+        if (item.children && item.children.length > 0) {
+          walk(item.children);
+        }
+      });
+    };
+    walk(nodes);
+    return result;
+  };
+
+  const handleExportXlsx = () => {
+    if (codes.length === 0) return;
+    setIsExporting(true);
+    try {
+      const exportColumns = [
+        { key: 'code', label: 'Code' },
+        { key: 'name', label: 'Name' },
+        { key: 'validation', label: 'Validation' },
+        { key: 'description', label: 'Description' },
+        { key: 'appliesToPL', label: 'P&L' },
+        { key: 'appliesToCF', label: 'CF' },
+        { key: 'isIncome', label: 'Income' },
+        { key: 'isActive', label: 'Active' },
+        { key: 'parentUuid', label: 'Parent UUID' },
+        { key: 'depth', label: 'Depth' },
+        { key: 'sortOrder', label: 'Sort Order' },
+        { key: 'uuid', label: 'UUID' },
+      ];
+      const fileName = `financial-codes_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      exportRowsToXlsx({
+        rows: flattenCodes(codes),
+        columns: exportColumns,
+        fileName,
+        sheetName: 'Financial Codes',
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {
       const next = new Set(prev);
@@ -158,7 +204,11 @@ export function FinancialCodesTable() {
 
   const handleEdit = (code: FinancialCode) => {
     setEditingCode(code);
-    setParentCode(null);
+    const flat = flattenCodes(codes);
+    const parent = code.parentUuid
+      ? flat.find((item) => item.uuid === code.parentUuid) || null
+      : null;
+    setParentCode(parent);
     setIsDialogOpen(true);
   };
 
@@ -245,16 +295,26 @@ export function FinancialCodesTable() {
           <h1 className="text-3xl font-bold text-slate-900">Financial Codes</h1>
           <p className="text-slate-600 mt-2">Hierarchical view of your structure of P&L and Cash Flow</p>
           <p className="text-xs text-slate-500 mt-1">
-            Note: You can use @project and @job_no placeholders in descriptions (e.g., "ხელფასი " + @project + @job_no).
+            Note: You can use @project and @job_no placeholders in descriptions (e.g., ხელფასი + @project + @job_no).
           </p>
         </div>
-        <button
-          onClick={() => handleAdd()}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-        >
-          <Plus className="w-4 h-4" />
-          Add Root Code
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportXlsx}
+            disabled={isExporting || codes.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border rounded-lg text-slate-700 hover:bg-slate-50 transition"
+          >
+            <Download className="w-4 h-4" />
+            {isExporting ? 'Exporting...' : 'Export XLSX'}
+          </button>
+          <button
+            onClick={() => handleAdd()}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
+            <Plus className="w-4 h-4" />
+            Add Root Code
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg border shadow-sm overflow-auto">

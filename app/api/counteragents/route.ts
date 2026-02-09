@@ -5,6 +5,14 @@ import { logAudit } from "@/lib/audit";
 
 export const revalidate = 0;
 
+const normalizeIdentificationNumber = (value: string | null | undefined) => {
+  if (!value) return null;
+  const digits = String(value).replace(/\D/g, "");
+  if (!digits) return null;
+  if (digits.length === 10) return `0${digits}`;
+  return digits;
+};
+
 // Map Prisma (snake_case) to API JSON
 function toApi(row: any) {
   return {
@@ -102,6 +110,20 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
+    const normalizedIdentificationNumber = normalizeIdentificationNumber(body.identification_number);
+    if (normalizedIdentificationNumber) {
+      const existing = await prisma.counteragents.findFirst({
+        where: { identification_number: normalizedIdentificationNumber },
+        select: { id: true },
+      });
+      if (existing) {
+        return NextResponse.json(
+          { error: "This identification number already exists" },
+          { status: 409 }
+        );
+      }
+    }
+
     // Generate UUID for counteragent_uuid using crypto
     const counteragent_uuid = crypto.randomUUID();
 
@@ -109,7 +131,7 @@ export async function POST(req: NextRequest) {
       data: {
         counteragent_uuid,
         name: body.name?.trim(),
-        identification_number: body.identification_number ?? null,
+        identification_number: normalizedIdentificationNumber,
         birth_or_incorporation_date: body.birth_or_incorporation_date
           ? new Date(body.birth_or_incorporation_date)
           : null,
@@ -216,6 +238,26 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
+
+    if (Object.prototype.hasOwnProperty.call(body, 'identification_number')) {
+      const normalizedIdentificationNumber = normalizeIdentificationNumber(body.identification_number);
+      if (normalizedIdentificationNumber) {
+        const existing = await prisma.counteragents.findFirst({
+          where: {
+            identification_number: normalizedIdentificationNumber,
+            id: { not: BigInt(id) },
+          },
+          select: { id: true },
+        });
+        if (existing) {
+          return NextResponse.json(
+            { error: "This identification number already exists" },
+            { status: 409 }
+          );
+        }
+      }
+      body.identification_number = normalizedIdentificationNumber;
+    }
     
     // Fetch existing record for change tracking
     const existing = await prisma.counteragents.findUnique({

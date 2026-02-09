@@ -40,6 +40,8 @@ import type {
 } from './types';
 
 const DNS_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+const CASH_BASED_SOURCE = 'cash_based';
+const SYSTEM_LEDGER_USER = 'system@bank-import';
 
 /**
  * Parse BOG date format (YYYY-MM-DD) to Date object
@@ -264,6 +266,7 @@ function processSingleRecord(
     financial_code_uuid: null,
     nominal_currency_uuid: null,
     payment_id: null,
+    payment_accrual_source: null,
     applied_rule_id: null,
     case1_counteragent_processed: false,
     case1_counteragent_found: false,
@@ -381,6 +384,9 @@ function processSingleRecord(
       }
       if (rulePaymentData.currency_uuid) {
         result.nominal_currency_uuid = rulePaymentData.currency_uuid;
+      }
+      if (rulePaymentData.accrual_source) {
+        result.payment_accrual_source = rulePaymentData.accrual_source;
       }
     }
 
@@ -524,6 +530,7 @@ function processSingleRecord(
       if (!result.case5_payment_id_conflict) {
         result.payment_id = resolvedPaymentId;
         result.case4_payment_id_matched = true;
+        result.payment_accrual_source = paymentData.accrual_source ?? null;
       }
 
       stats.case4_payment_id_match++;
@@ -841,6 +848,7 @@ export async function processBOGGEL(
   >();
   const consolidatedRecords: ConsolidatedRecord[] = [];
   const rawUpdates: RawUpdate[] = [];
+  const ledgerInserts: any[] = [];
 
   for (let idx = 0; idx < totalRecords; idx++) {
     const rawRecord = rawRecords[idx];
@@ -939,6 +947,20 @@ export async function processBOGGEL(
       processing_case: caseDescription,
     });
 
+    if (result.payment_id && result.payment_accrual_source === CASH_BASED_SOURCE) {
+      const amount = Math.abs(Number(nominalAmount || 0));
+      ledgerInserts.push({
+        payment_id: result.payment_id,
+        effective_date: transactionDate.toISOString(),
+        accrual: amount,
+        order: amount,
+        record_uuid: rawRecord.uuid,
+        user_email: SYSTEM_LEDGER_USER,
+        comment: 'Auto accrual/order from bank import (Cash Based)',
+        updated_at: new Date().toISOString(),
+      });
+    }
+
     if ((idx + 1) % 1000 === 0 || idx + 1 === totalRecords) {
       console.log(`  ✅ Processed ${idx + 1}/${totalRecords} records...`);
     }
@@ -1005,6 +1027,20 @@ export async function processBOGGEL(
 
       if (updateError) throw updateError;
       console.log(`  ✅ Updated ${Math.min(i + batchSize, updateRecords.length)}/${updateRecords.length} records...`);
+    }
+  }
+
+  if (ledgerInserts.length > 0) {
+    console.log(`\n📊 STEP 6: INSERTING ${ledgerInserts.length} CASH-BASED LEDGER ENTRIES`);
+    const batchSize = 1000;
+    for (let i = 0; i < ledgerInserts.length; i += batchSize) {
+      const batch = ledgerInserts.slice(i, i + batchSize);
+      const { error: ledgerError } = await supabase
+        .from('payments_ledger')
+        .upsert(batch, { onConflict: 'record_uuid' });
+
+      if (ledgerError) throw ledgerError;
+      console.log(`  ✅ Inserted ${Math.min(i + batchSize, ledgerInserts.length)}/${ledgerInserts.length} ledger rows...`);
     }
   }
 
@@ -1213,6 +1249,7 @@ export async function processTBCGEL(
     { inn: string; count: number; name: string }
   >();
   const deconsolidatedRecords: any[] = [];
+  const ledgerInserts: any[] = [];
   const importDateStr = new Date().toISOString();
 
   for (let idx = 0; idx < totalRecords; idx++) {
@@ -1338,6 +1375,20 @@ export async function processTBCGEL(
       parsing_lock: false,
     });
 
+    if (result.payment_id && result.payment_accrual_source === CASH_BASED_SOURCE) {
+      const amount = Math.abs(Number(nominalAmount || 0));
+      ledgerInserts.push({
+        payment_id: result.payment_id,
+        effective_date: transactionDate.toISOString(),
+        accrual: amount,
+        order: amount,
+        record_uuid: rawRecord.uuid,
+        user_email: SYSTEM_LEDGER_USER,
+        comment: 'Auto accrual/order from bank import (Cash Based)',
+        updated_at: importDateStr,
+      });
+    }
+
     if ((idx + 1) % 1000 === 0 || idx + 1 === totalRecords) {
       console.log(`  ✅ Processed ${idx + 1}/${totalRecords} records...`);
     }
@@ -1357,6 +1408,20 @@ export async function processTBCGEL(
 
       if (insertError) throw insertError;
       console.log(`  ✅ Inserted ${Math.min(i + batchSize, deconsolidatedRecords.length)}/${deconsolidatedRecords.length}`);
+    }
+  }
+
+  if (ledgerInserts.length > 0) {
+    console.log(`\n📊 STEP 5: INSERTING ${ledgerInserts.length} CASH-BASED LEDGER ENTRIES`);
+    const batchSize = 1000;
+    for (let i = 0; i < ledgerInserts.length; i += batchSize) {
+      const batch = ledgerInserts.slice(i, i + batchSize);
+      const { error: ledgerError } = await supabase
+        .from('payments_ledger')
+        .upsert(batch, { onConflict: 'record_uuid' });
+
+      if (ledgerError) throw ledgerError;
+      console.log(`  ✅ Inserted ${Math.min(i + batchSize, ledgerInserts.length)}/${ledgerInserts.length} ledger rows...`);
     }
   }
 

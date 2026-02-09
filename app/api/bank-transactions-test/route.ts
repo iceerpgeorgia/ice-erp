@@ -21,84 +21,115 @@ const SOURCE_TABLES = [
   },
 ];
 
-const UNION_SQL = SOURCE_TABLES.map((table) => {
-  if (!table.isTbc) {
-    return `SELECT
-      cba.id,
-      cba.uuid,
-      cba.bank_account_uuid,
-      cba.raw_record_uuid,
-      cba.transaction_date,
-      cba.correction_date,
-      cba.exchange_rate,
-      cba.description,
-      cba.counteragent_uuid,
-      cba.project_uuid,
-      cba.financial_code_uuid,
-      cba.account_currency_uuid,
-      cba.account_currency_amount,
-      cba.nominal_currency_uuid,
-      cba.nominal_amount,
-      cba.payment_id,
-      cba.processing_case,
-      cba.created_at,
-      cba.updated_at,
-      cba.counteragent_account_number,
-      cba.parsing_lock,
-      cba.applied_rule_id,
-      (cba.id + ${table.offset})::bigint as synthetic_id,
-      cba.id as source_id,
-      '${table.name}' as source_table
-    FROM "${table.name}" cba`;
-  }
+const BATCH_OFFSET = 2000000000000;
 
-  return `SELECT
-      t.id,
-      t.uuid,
-      t.bank_account_uuid,
-      t.raw_record_uuid,
-      t.transaction_date,
-      t.correction_date,
-      t.exchange_rate,
-      t.description,
-      t.counteragent_uuid,
-      t.project_uuid,
-      t.financial_code_uuid,
-      t.account_currency_uuid,
-      t.account_currency_amount,
-      t.nominal_currency_uuid,
-      t.nominal_amount,
-      t.payment_id,
-      t.processing_case,
-      t.created_at,
-      t.updated_at,
-      t.counteragent_account_number,
-      t.parsing_lock,
-      t.applied_rule_id,
-      (t.id + ${table.offset})::bigint as synthetic_id,
-      t.id as source_id,
-      '${table.name}' as source_table
-    FROM "${table.name}" t`;
+const UNION_SQL = SOURCE_TABLES.map((table) => {
+  const baseAlias = table.isTbc ? 't' : 'cba';
+  const baseSelect = `SELECT
+      ${baseAlias}.id,
+      ${baseAlias}.uuid,
+      ${baseAlias}.bank_account_uuid,
+      ${baseAlias}.raw_record_uuid,
+      ${baseAlias}.transaction_date,
+      ${baseAlias}.correction_date,
+      ${baseAlias}.exchange_rate,
+      ${baseAlias}.description,
+      ${baseAlias}.counteragent_uuid,
+      ${baseAlias}.project_uuid,
+      ${baseAlias}.financial_code_uuid,
+      ${baseAlias}.account_currency_uuid,
+      ${baseAlias}.account_currency_amount,
+      ${baseAlias}.nominal_currency_uuid,
+      ${baseAlias}.nominal_amount,
+      ${baseAlias}.payment_id,
+      ${baseAlias}.processing_case,
+      ${baseAlias}.created_at,
+      ${baseAlias}.updated_at,
+      ${baseAlias}.counteragent_account_number,
+      ${baseAlias}.parsing_lock,
+      ${baseAlias}.applied_rule_id,
+      ( ${baseAlias}.id + ${table.offset} )::bigint as synthetic_id,
+      ${baseAlias}.id as source_id,
+      '${table.name}' as source_table,
+      NULL::bigint as batch_partition_id,
+      NULL::numeric as batch_partition_amount,
+      NULL::text as batch_payment_id,
+      NULL::uuid as batch_counteragent_uuid,
+      NULL::uuid as batch_project_uuid,
+      NULL::uuid as batch_financial_code_uuid,
+      NULL::uuid as batch_nominal_currency_uuid,
+      NULL::numeric as batch_nominal_amount
+    FROM "${table.name}" ${baseAlias}
+    WHERE NOT EXISTS (
+      SELECT 1 FROM bank_transaction_batches btb
+      WHERE btb.raw_record_uuid::text = ${baseAlias}.raw_record_uuid::text
+    )`;
+
+  const batchSelect = `SELECT
+      ${baseAlias}.id,
+      ${baseAlias}.uuid,
+      ${baseAlias}.bank_account_uuid,
+      ${baseAlias}.raw_record_uuid,
+      ${baseAlias}.transaction_date,
+      ${baseAlias}.correction_date,
+      ${baseAlias}.exchange_rate,
+      ${baseAlias}.description,
+      ${baseAlias}.counteragent_uuid,
+      ${baseAlias}.project_uuid,
+      ${baseAlias}.financial_code_uuid,
+      ${baseAlias}.account_currency_uuid,
+      ${baseAlias}.account_currency_amount,
+      ${baseAlias}.nominal_currency_uuid,
+      ${baseAlias}.nominal_amount,
+      ${baseAlias}.payment_id,
+      ${baseAlias}.processing_case,
+      ${baseAlias}.created_at,
+      ${baseAlias}.updated_at,
+      ${baseAlias}.counteragent_account_number,
+      ${baseAlias}.parsing_lock,
+      ${baseAlias}.applied_rule_id,
+      ( btb.id + ${BATCH_OFFSET} + ${table.offset} )::bigint as synthetic_id,
+      ${baseAlias}.id as source_id,
+      '${table.name}' as source_table,
+      btb.id as batch_partition_id,
+      (btb.partition_amount * CASE WHEN ${baseAlias}.account_currency_amount < 0 THEN -1 ELSE 1 END) as batch_partition_amount,
+      btb.payment_id as batch_payment_id,
+      btb.counteragent_uuid as batch_counteragent_uuid,
+      btb.project_uuid as batch_project_uuid,
+      btb.financial_code_uuid as batch_financial_code_uuid,
+      btb.nominal_currency_uuid as batch_nominal_currency_uuid,
+      (btb.nominal_amount * CASE WHEN ${baseAlias}.account_currency_amount < 0 THEN -1 ELSE 1 END) as batch_nominal_amount
+    FROM "${table.name}" ${baseAlias}
+    JOIN bank_transaction_batches btb
+      ON btb.raw_record_uuid::text = ${baseAlias}.raw_record_uuid::text`;
+
+  return `${baseSelect} UNION ALL ${batchSelect}`;
 }).join(' UNION ALL ');
 
 const UNFETCHED_UNION_SQL = SOURCE_TABLES.map((table) => {
-  if (!table.isTbc) {
-    return `SELECT
-      (id + ${table.offset})::bigint as synthetic_id,
-      account_currency_uuid,
-      account_currency_amount
-    FROM "${table.name}"`;
-  }
-
-  return `SELECT
-      (id + ${table.offset})::bigint as synthetic_id,
-      account_currency_uuid,
-      account_currency_amount
-    FROM "${table.name}"`;
+  const baseAlias = table.isTbc ? 't' : 'cba';
+  const baseSelect = `SELECT
+      ( ${baseAlias}.id + ${table.offset} )::bigint as synthetic_id,
+      ${baseAlias}.account_currency_uuid,
+      ${baseAlias}.account_currency_amount
+    FROM "${table.name}" ${baseAlias}
+    WHERE NOT EXISTS (
+      SELECT 1 FROM bank_transaction_batches btb
+      WHERE btb.raw_record_uuid::text = ${baseAlias}.raw_record_uuid::text
+    )`;
+  const batchSelect = `SELECT
+      ( btb.id + ${BATCH_OFFSET} + ${table.offset} )::bigint as synthetic_id,
+      ${baseAlias}.account_currency_uuid,
+      (btb.partition_amount * CASE WHEN ${baseAlias}.account_currency_amount < 0 THEN -1 ELSE 1 END) as account_currency_amount
+    FROM "${table.name}" ${baseAlias}
+    JOIN bank_transaction_batches btb
+      ON btb.raw_record_uuid::text = ${baseAlias}.raw_record_uuid::text`;
+  return `${baseSelect} UNION ALL ${batchSelect}`;
 }).join(' UNION ALL ');
 
 // Map raw SQL results (snake_case) to API response (snake_case)
 function toApi(row: any) {
+  const hasBatch = row.batch_partition_id !== null && row.batch_partition_id !== undefined;
   return {
     id: Number(row.synthetic_id ?? row.id),
     source_table: row.source_table ?? null,
@@ -110,16 +141,22 @@ function toApi(row: any) {
     correction_date: row.correction_date || null,
     exchange_rate: row.exchange_rate ? Number(row.exchange_rate) : null,
     description: row.description,
-    counteragent_uuid: row.counteragent_uuid,
+    counteragent_uuid: hasBatch ? row.batch_counteragent_uuid : row.counteragent_uuid,
     counteragent_account_number: row.counteragent_account_number ? String(row.counteragent_account_number) : null,
-    project_uuid: row.project_uuid,
-    financial_code_uuid: row.financial_code_uuid,
+    project_uuid: hasBatch ? row.batch_project_uuid : row.project_uuid,
+    financial_code_uuid: hasBatch ? row.batch_financial_code_uuid : row.financial_code_uuid,
     account_currency_uuid: row.account_currency_uuid,
-    account_currency_amount: row.account_currency_amount ? Number(row.account_currency_amount) : null,
-    nominal_currency_uuid: row.nominal_currency_uuid,
-    nominal_amount: row.nominal_amount ? Number(row.nominal_amount) : null,
-    payment_id: row.payment_id ?? null,
-    parsing_lock: row.parsing_lock ?? false,
+    account_currency_amount: hasBatch
+      ? (row.batch_partition_amount ? Number(row.batch_partition_amount) : null)
+      : (row.account_currency_amount ? Number(row.account_currency_amount) : null),
+    nominal_currency_uuid: hasBatch ? row.batch_nominal_currency_uuid : row.nominal_currency_uuid,
+    nominal_amount: hasBatch
+      ? (row.batch_nominal_amount ? Number(row.batch_nominal_amount) : null)
+      : (row.nominal_amount ? Number(row.nominal_amount) : null),
+    payment_id: hasBatch ? row.batch_payment_id ?? null : row.payment_id ?? null,
+    batch_partition_id: hasBatch ? Number(row.batch_partition_id) : null,
+    is_batch: hasBatch,
+    parsing_lock: hasBatch ? true : (row.parsing_lock ?? false),
     processing_case: row.processing_case,
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null,
@@ -160,6 +197,8 @@ function balanceToApi(row: any, currencyCode: string) {
     createdAt: null,
     updatedAt: null,
     applied_rule_id: null,
+    batch_partition_id: null,
+    is_batch: false,
     is_balance_record: true,
 
     // Join data
@@ -245,9 +284,9 @@ export async function GET(req: NextRequest) {
          FROM (${UNION_SQL}) cba
          LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
          LEFT JOIN banks b ON ba.bank_uuid = b.uuid
-         LEFT JOIN counteragents ca ON cba.counteragent_uuid = ca.counteragent_uuid
-         LEFT JOIN projects p ON cba.project_uuid = p.project_uuid
-         LEFT JOIN financial_codes fc ON cba.financial_code_uuid = fc.uuid
+         LEFT JOIN counteragents ca ON COALESCE(cba.batch_counteragent_uuid, cba.counteragent_uuid) = ca.counteragent_uuid
+         LEFT JOIN projects p ON COALESCE(cba.batch_project_uuid, cba.project_uuid) = p.project_uuid
+         LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid) = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
          LEFT JOIN currencies curr_nom ON cba.nominal_currency_uuid = curr_nom.uuid
          WHERE cba.synthetic_id = ANY($1::bigint[])
@@ -269,9 +308,9 @@ export async function GET(req: NextRequest) {
          FROM (${UNION_SQL}) cba
          LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
          LEFT JOIN banks b ON ba.bank_uuid = b.uuid
-         LEFT JOIN counteragents ca ON cba.counteragent_uuid = ca.counteragent_uuid
-         LEFT JOIN projects p ON cba.project_uuid = p.project_uuid
-         LEFT JOIN financial_codes fc ON cba.financial_code_uuid = fc.uuid
+         LEFT JOIN counteragents ca ON COALESCE(cba.batch_counteragent_uuid, cba.counteragent_uuid) = ca.counteragent_uuid
+         LEFT JOIN projects p ON COALESCE(cba.batch_project_uuid, cba.project_uuid) = p.project_uuid
+         LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid) = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
          LEFT JOIN currencies curr_nom ON cba.nominal_currency_uuid = curr_nom.uuid
          ORDER BY cba.transaction_date DESC, cba.id DESC${limitSql}`

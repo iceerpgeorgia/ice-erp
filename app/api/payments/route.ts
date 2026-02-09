@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
         p.job_uuid,
         p.income_tax,
         p.currency_uuid,
+        p.accrual_source,
         p.payment_id,
         p.record_uuid,
         p.is_active,
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest) {
       jobUuid: payment.job_uuid,
       incomeTax: payment.income_tax,
       currencyUuid: payment.currency_uuid,
+      accrualSource: payment.accrual_source,
       paymentId: payment.payment_id,
       recordUuid: payment.record_uuid,
       is_active: payment.is_active,
@@ -79,7 +81,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid, paymentId } = body;
+    const { projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid, paymentId, accrualSource } = body;
 
     // Validation - only counteragent, financial code, currency, and incomeTax are required
     if (!counteragentUuid || !financialCodeUuid || incomeTax === undefined || !currencyUuid) {
@@ -142,6 +144,7 @@ export async function POST(request: Request) {
         job_uuid,
         income_tax,
         currency_uuid,
+        accrual_source,
         payment_id,
         record_uuid,
         updated_at
@@ -152,6 +155,7 @@ export async function POST(request: Request) {
         ${jobUuid || null}::uuid,
         ${incomeTax}::boolean,
         ${currencyUuid}::uuid,
+        ${accrualSource || null},
         ${paymentId || ''},
         '',
         NOW()
@@ -181,7 +185,7 @@ export async function PATCH(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const body = await request.json();
-    const { incomeTax, paymentId } = body;
+    const { incomeTax, paymentId, accrualSource } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -190,7 +194,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    if (incomeTax === undefined && paymentId === undefined) {
+    if (incomeTax === undefined && paymentId === undefined && accrualSource === undefined) {
       return NextResponse.json(
         { error: 'At least one field to update is required' },
         { status: 400 }
@@ -207,6 +211,10 @@ export async function PATCH(request: Request) {
     
     if (paymentId !== undefined) {
       updates.push(`payment_id = '${paymentId}'`);
+    }
+
+    if (accrualSource !== undefined) {
+      updates.push(`accrual_source = ${accrualSource ? `'${accrualSource}'` : 'NULL'}`);
     }
     
     updates.push('updated_at = NOW()');

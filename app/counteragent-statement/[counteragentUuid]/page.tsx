@@ -18,6 +18,7 @@ import {
   DialogTrigger,
 } from '../../../components/ui/dialog';
 import { BankTransactionsTable } from '../../../components/figma/bank-transactions-table';
+import type { BankTransaction } from '../../../components/figma/bank-transactions-table';
 import { Combobox } from '../../../components/ui/combobox';
 import { Label } from '../../../components/ui/label';
 
@@ -51,6 +52,7 @@ type StatementRow = {
   dateSort: number;
   ledgerId?: number;
   bankId?: number;
+  bankSourceId?: number;
   bankUuid?: string;
   effectiveDateRaw?: string | null;
   project: string | null;
@@ -198,6 +200,82 @@ export default function CounteragentStatementPage() {
       };
     },
     [payments]
+  );
+
+  const handleBankTransactionUpdated = useCallback(
+    (transaction: BankTransaction) => {
+      setBankEditData((prev) =>
+        prev.map((row) =>
+          row.id === transaction.id
+            ? {
+                ...row,
+                paymentId: transaction.paymentId || null,
+                projectUuid: transaction.projectUuid || null,
+                financialCodeUuid: transaction.financialCodeUuid || null,
+                nominalCurrencyUuid: transaction.nominalCurrencyUuid || null,
+                accountCurrencyUuid: transaction.accountCurrencyUuid || row.accountCurrencyUuid,
+                accountCurrencyCode: transaction.accountCurrencyCode || row.accountCurrencyCode,
+                accountCurrencyAmount: transaction.accountCurrencyAmount ?? row.accountCurrencyAmount,
+                nominalAmount: transaction.nominalAmount ?? row.nominalAmount,
+                correctionDate: transaction.correctionDate || null,
+                parsingLock: transaction.parsingLock ?? row.parsingLock,
+                projectIndex: transaction.projectIndex || row.projectIndex,
+                financialCode: transaction.financialCode || row.financialCode,
+                nominalCurrencyCode: transaction.nominalCurrencyCode || row.nominalCurrencyCode,
+                accountNumber: transaction.accountNumber || row.accountNumber,
+                bankName: transaction.bankName || row.bankName,
+                description: transaction.description ?? row.description,
+                updatedAt: transaction.updatedAt || row.updatedAt,
+              }
+            : row
+        )
+      );
+
+      setStatement((prev: any) => {
+        if (!prev) return prev;
+        const info = getPaymentInfo(transaction.paymentId || null);
+        const nextBankTransactions = (prev.bankTransactions || []).map((tx: any) => {
+          if (Number(tx.id) !== transaction.id) return tx;
+          const accountLabel =
+            `${transaction.accountNumber || ''} ${transaction.accountCurrencyCode || ''}`.trim() ||
+            tx.accountLabel ||
+            '-';
+          return {
+            ...tx,
+            paymentId: transaction.paymentId || null,
+            accountCurrencyAmount:
+              transaction.accountCurrencyAmount != null
+                ? Number(transaction.accountCurrencyAmount)
+                : tx.accountCurrencyAmount,
+            nominalAmount:
+              transaction.nominalAmount != null
+                ? Number(transaction.nominalAmount)
+                : tx.nominalAmount,
+            date: transaction.date || tx.date,
+            description: transaction.description ?? tx.description,
+            counteragentAccountNumber:
+              transaction.counteragentAccountNumber ?? tx.counteragentAccountNumber,
+            accountLabel,
+            project: info.project,
+            financialCode: info.financialCode,
+            job: info.job,
+            incomeTax: info.incomeTax,
+            currency: info.currency,
+          };
+        });
+        const nextPaymentIds = transaction.paymentId
+          ? prev.paymentIds?.includes(transaction.paymentId)
+            ? prev.paymentIds
+            : [...(prev.paymentIds || []), transaction.paymentId]
+          : prev.paymentIds;
+        return {
+          ...prev,
+          bankTransactions: nextBankTransactions,
+          paymentIds: nextPaymentIds,
+        };
+      });
+    },
+    [getPaymentInfo]
   );
 
   useEffect(() => {
@@ -420,6 +498,7 @@ export default function CounteragentStatementPage() {
         date: formatDate(tx.date),
         dateSort: new Date(tx.date).getTime(),
         bankId: tx.id,
+        bankSourceId: tx.sourceId ?? tx.id,
         bankUuid: tx.uuid,
         project: tx.project || null,
         financialCode: tx.financialCode || null,
@@ -828,6 +907,7 @@ export default function CounteragentStatementPage() {
         uuid: row.uuid,
         accountUuid: row.bank_account_uuid || row.accountUuid || '',
         accountCurrencyUuid: row.account_currency_uuid || row.accountCurrencyUuid || '',
+        accountCurrencyCode: row.account_currency_code || row.accountCurrencyCode || null,
         accountCurrencyAmount: row.account_currency_amount || row.accountCurrencyAmount || null,
         paymentUuid: row.payment_uuid || row.paymentUuid || null,
         counteragentUuid: row.counteragent_uuid || row.counteragentUuid || null,
@@ -840,8 +920,8 @@ export default function CounteragentStatementPage() {
         exchangeRate: row.exchange_rate || row.exchangeRate || null,
         nominalExchangeRate: row.nominal_exchange_rate || row.nominalExchangeRate || null,
         usdGelRate: row.usd_gel_rate ?? row.usdGelRate ?? null,
-        id1: row.id1 || null,
-        id2: row.id2 || null,
+        id1: row.id1 || row.dockey || null,
+        id2: row.id2 || row.entriesid || null,
         recordUuid: row.raw_record_uuid || row.recordUuid || '',
         counteragentAccountNumber: row.counteragent_account_number ? String(row.counteragent_account_number) : null,
         description: row.description || null,
@@ -1603,6 +1683,7 @@ export default function CounteragentStatementPage() {
               renderMode="dialog-only"
               autoEditId={bankEditId ?? undefined}
               onDialogClose={() => setIsBankEditDialogOpen(false)}
+              onTransactionUpdated={handleBankTransactionUpdated}
             />
           )}
         </div>

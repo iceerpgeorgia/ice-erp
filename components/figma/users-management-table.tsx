@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { Download } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -22,6 +23,7 @@ import {
   TableRow,
 } from '../ui/table';
 import { Badge } from '../ui/badge';
+import { exportRowsToXlsx } from '@/lib/export-xlsx';
 
 type User = {
   id: string;
@@ -42,6 +44,7 @@ export default function UsersManagementTable() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newUser, setNewUser] = useState({ email: '', name: '', role: 'user' });
   const [addingUser, setAddingUser] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -58,6 +61,30 @@ export default function UsersManagementTable() {
       console.error('Failed to fetch users:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExportXlsx = () => {
+    if (filteredUsers.length === 0) return;
+    setIsExporting(true);
+    try {
+      const fileName = `users_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      exportRowsToXlsx({
+        rows: filteredUsers,
+        columns: [
+          { key: 'name', label: 'Name' },
+          { key: 'email', label: 'Email' },
+          { key: 'role', label: 'Role' },
+          { key: 'isAuthorized', label: 'Authorized' },
+          { key: 'authorizedAt', label: 'Authorized At' },
+          { key: 'authorizedBy', label: 'Authorized By' },
+          { key: 'emailVerified', label: 'Email Verified' },
+        ],
+        fileName,
+        sheetName: 'Users',
+      });
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -179,9 +206,20 @@ export default function UsersManagementTable() {
             Manage user access and roles for the application
           </p>
         </div>
-        <Button onClick={() => setShowAddForm(!showAddForm)}>
-          {showAddForm ? 'Cancel' : 'Add User'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportXlsx}
+            disabled={isExporting || filteredUsers.length === 0}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {isExporting ? 'Exporting...' : 'Export XLSX'}
+          </Button>
+          <Button onClick={() => setShowAddForm(!showAddForm)}>
+            {showAddForm ? 'Cancel' : 'Add User'}
+          </Button>
+        </div>
       </div>
 
       {showAddForm && (

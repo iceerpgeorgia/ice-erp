@@ -148,7 +148,7 @@ export async function loadPayments(
     fetchAllRows<any>(async (from, to) =>
       await supabase
         .from('payments')
-        .select('payment_id, counteragent_uuid, project_uuid, financial_code_uuid, currency_uuid')
+        .select('payment_id, counteragent_uuid, project_uuid, financial_code_uuid, currency_uuid, accrual_source')
         .not('payment_id', 'is', null)
         .range(from, to)
     ),
@@ -186,6 +186,7 @@ export async function loadPayments(
         project_uuid: row.project_uuid,
         financial_code_uuid: row.financial_code_uuid,
         currency_uuid: row.currency_uuid,
+        accrual_source: row.accrual_source ?? null,
         source: 'payments',
       });
       paymentsCount++;
