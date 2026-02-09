@@ -12,27 +12,27 @@ export async function POST(req: NextRequest) {
     };
 
     // Mandatory fields
-    if (counteragentUuid) where.counteragentUuid = counteragentUuid;
-    if (financialCodeUuid) where.financialCodeUuid = financialCodeUuid;
-    if (currencyUuid) where.currencyUuid = currencyUuid;
+    if (counteragentUuid) where.counteragent_uuid = counteragentUuid;
+    if (financialCodeUuid) where.financial_code_uuid = financialCodeUuid;
+    if (currencyUuid) where.currency_uuid = currencyUuid;
 
     // Optional fields - include in query if provided
     if (projectUuid !== undefined && projectUuid !== null && projectUuid !== '') {
-      where.projectUuid = projectUuid;
+      where.project_uuid = projectUuid;
     } else if (projectUuid === null || projectUuid === '') {
-      where.projectUuid = null;
+      where.project_uuid = null;
     }
     
     // Handle jobUuid - can be null or a specific value
     if (jobUuid === null || jobUuid === '') {
-      where.jobUuid = null;
+      where.job_uuid = null;
     } else if (jobUuid) {
-      where.jobUuid = jobUuid;
+      where.job_uuid = jobUuid;
     }
 
     // Handle income tax - boolean field
     if (typeof incomeTax === 'boolean') {
-      where.incomeTax = incomeTax;
+      where.income_tax = incomeTax;
     }
 
     // Exclude current record if editing
