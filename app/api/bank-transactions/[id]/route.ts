@@ -221,6 +221,7 @@ export async function PATCH(
       nominal_amount,
       payment_uuid,
       correction_date,
+      comment,
     } = body;
 
     const updateData: any = {};
@@ -232,6 +233,7 @@ export async function PATCH(
     console.log(`  - project_uuid: ${project_uuid} vs ${current.project_uuid}`);
     console.log(`  - financial_code_uuid: ${financial_code_uuid} vs ${current.financial_code_uuid}`);
     console.log(`  - nominal_currency_uuid: ${nominal_currency_uuid} vs ${current.nominal_currency_uuid}`);
+    console.log(`  - comment: ${comment} vs ${current.comment}`);
 
     // Track changes
     if (counteragent_uuid !== undefined && counteragent_uuid !== current.counteragent_uuid) {
@@ -304,6 +306,11 @@ export async function PATCH(
     if (correction_date !== undefined && correction_date !== current.correction_date) {
       updateData.correctionDate = correction_date ? new Date(correction_date) : null;
       changes.push(`correction_date: ${current.correction_date || 'null'} → ${correction_date || 'null'}`);
+    }
+
+    if (comment !== undefined && comment !== current.comment) {
+      updateData.comment = comment ? String(comment) : null;
+      changes.push(`comment: ${current.comment ?? 'null'} → ${comment ?? 'null'}`);
     }
     
     // Handle manual nominal currency change (only if not already set by payment change)
@@ -404,6 +411,7 @@ export async function PATCH(
     if (updateData.exchangeRate !== undefined) pushUpdate('exchange_rate', updateData.exchangeRate?.toString?.() ?? updateData.exchangeRate);
     if (updateData.parsingLock !== undefined) pushUpdate('parsing_lock', updateData.parsingLock);
     if (updateData.correctionDate !== undefined) pushUpdate('correction_date', updateData.correctionDate);
+    if (updateData.comment !== undefined) pushUpdate('comment', updateData.comment);
 
     updateFields.push('updated_at = NOW()');
     updateValues.push(idParam);

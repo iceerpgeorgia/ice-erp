@@ -19,6 +19,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
@@ -62,6 +63,7 @@ export type BankTransaction = {
   recordUuid: string;
   counteragentAccountNumber: string | null;
   description: string | null;
+  comment: string | null;
   processingCase: string | null;
   appliedRuleId: number | null;
   parsingLock?: boolean;
@@ -118,6 +120,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'nominalCurrencyCode', label: 'Nom ISO', width: 80, visible: true, sortable: true, filterable: true },
   { key: 'paymentId', label: 'Payment ID', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'description', label: 'Description', width: 300, visible: true, sortable: true, filterable: true },
+  { key: 'comment', label: 'Comment', width: 260, visible: true, sortable: true, filterable: true },
   { key: 'nominalAmount', label: 'Nominal Amt', width: 120, visible: false, sortable: true, filterable: true },
   { key: 'usdGelRate', label: 'USD/GEL', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'correctionDate', label: 'Correction Date', width: 120, visible: false, sortable: true, filterable: true },
@@ -261,6 +264,7 @@ export function BankTransactionsTable({
     nominal_amount: string;
     correction_date: string;
     parsing_lock: boolean;
+    comment: string;
   }>({
     payment_uuid: '',
     project_uuid: '',
@@ -270,6 +274,7 @@ export function BankTransactionsTable({
     nominal_amount: '',
     correction_date: '',
     parsing_lock: false,
+    comment: '',
   });
   const [isRawRecordDialogOpen, setIsRawRecordDialogOpen] = useState(false);
   const [viewingRawRecord, setViewingRawRecord] = useState<any>(null);
@@ -342,7 +347,7 @@ export function BankTransactionsTable({
     if (typeof window !== 'undefined') {
       const savedColumns = localStorage.getItem('bank-transactions-table-columns');
       const savedVersion = localStorage.getItem('bank-transactions-table-version');
-      const currentVersion = '6'; // Increment this when defaultColumns structure changes
+      const currentVersion = '7'; // Increment this when defaultColumns structure changes
       
       if (savedColumns && savedVersion === currentVersion) {
         try {
@@ -832,6 +837,7 @@ export function BankTransactionsTable({
       nominal_amount: transaction.nominalAmount || '',
       correction_date: toInputDate(transaction.correctionDate),
       parsing_lock: Boolean(transaction.parsingLock),
+      comment: transaction.comment || '',
     };
     console.log('[startEdit] Initial formData:', initialFormData);
     setFormData(initialFormData);
@@ -971,6 +977,7 @@ export function BankTransactionsTable({
       nominal_amount: '',
       correction_date: '',
       parsing_lock: false,
+      comment: '',
     });
     setPaymentDisplayValues({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '', nominalAmountLabel: '' });
     setJobOptions([]);
@@ -1302,6 +1309,10 @@ export function BankTransactionsTable({
       if (formData.parsing_lock !== Boolean(editingTransaction.parsingLock)) {
         updateData.parsing_lock = formData.parsing_lock;
       }
+      const currentComment = editingTransaction.comment || '';
+      if (formData.comment !== currentComment) {
+        updateData.comment = formData.comment ? formData.comment : null;
+      }
       // Note: nominal_amount is calculated on backend based on currency change
 
       const { parsing_lock, ...mainUpdate } = updateData;
@@ -1388,6 +1399,7 @@ export function BankTransactionsTable({
             recordUuid: row.raw_record_uuid || "",
             counteragentAccountNumber: row.counteragent_account_number || null,
             description: row.description || null,
+            comment: row.comment ?? null,
             processingCase: row.processing_case || null,
             appliedRuleId: row.applied_rule_id || null,
             parsingLock: row.parsing_lock ?? false,
@@ -1480,6 +1492,7 @@ export function BankTransactionsTable({
             recordUuid: row.raw_record_uuid || "",
             counteragentAccountNumber: row.counteragent_account_number || null,
             description: row.description || null,
+            comment: row.comment ?? null,
             processingCase: row.processing_case || null,
             appliedRuleId: row.applied_rule_id || null,
             parsingLock: row.parsing_lock ?? false,
@@ -2476,6 +2489,18 @@ export function BankTransactionsTable({
                       {editingTransaction?.description || 'N/A'}
                     </span>
                   </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-600">Comment</Label>
+                  <Textarea
+                    value={formData.comment}
+                    onChange={(event) =>
+                      setFormData((prev) => ({ ...prev, comment: event.target.value }))
+                    }
+                    placeholder="Add a comment..."
+                    className="bg-white border-gray-300"
+                  />
                 </div>
               </div>
 

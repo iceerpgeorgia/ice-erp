@@ -34,6 +34,7 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
       ${baseAlias}.correction_date,
       ${baseAlias}.exchange_rate,
       ${baseAlias}.description,
+      ${baseAlias}.comment,
       ${baseAlias}.docinformation,
       ${baseAlias}.docnomination,
       ${baseAlias}.counteragent_uuid,
@@ -78,6 +79,7 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
       ${baseAlias}.correction_date,
       ${baseAlias}.exchange_rate,
       ${baseAlias}.description,
+      ${baseAlias}.comment,
       ${baseAlias}.docinformation,
       ${baseAlias}.docnomination,
       ${baseAlias}.counteragent_uuid,
@@ -155,6 +157,7 @@ function toApi(row: any) {
     exchange_rate: row.exchange_rate ? Number(row.exchange_rate) : null, // NEW COLUMN
     nominal_exchange_rate: row.nominal_exchange_rate ? Number(row.nominal_exchange_rate) : null,
     description: row.description,
+    comment: row.comment ?? null,
     counteragent_uuid: hasBatch ? row.batch_counteragent_uuid : row.counteragent_uuid,
     counteragent_account_number: row.counteragent_account_number ? String(row.counteragent_account_number) : null,
     project_uuid: hasBatch ? row.batch_project_uuid : row.project_uuid,
@@ -198,6 +201,7 @@ function balanceToApi(row: any, currencyCode: string) {
     raw_record_uuid: null,
     transaction_date: balanceDate,
     description: 'Balance Depiction',
+    comment: null,
     counteragent_uuid: null,
     counteragent_account_number: `${row.accountNumber}${currencyCode}`, // Account number + currency
     project_uuid: null,

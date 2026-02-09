@@ -185,7 +185,17 @@ export async function PATCH(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const body = await request.json();
-    const { incomeTax, paymentId, accrualSource } = body;
+    const {
+      projectUuid,
+      counteragentUuid,
+      financialCodeUuid,
+      jobUuid,
+      incomeTax,
+      currencyUuid,
+      paymentId,
+      accrualSource,
+      isActive,
+    } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -194,43 +204,154 @@ export async function PATCH(request: Request) {
       );
     }
 
-    if (incomeTax === undefined && paymentId === undefined && accrualSource === undefined) {
+    const existingRows = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT * FROM payments WHERE id = $1 LIMIT 1`,
+      BigInt(id)
+    );
+
+    if (!existingRows || existingRows.length === 0) {
+      return NextResponse.json(
+        { error: 'Payment not found' },
+        { status: 404 }
+      );
+    }
+
+    const existing = existingRows[0];
+
+    if (
+      projectUuid === undefined &&
+      counteragentUuid === undefined &&
+      financialCodeUuid === undefined &&
+      jobUuid === undefined &&
+      incomeTax === undefined &&
+      currencyUuid === undefined &&
+      paymentId === undefined &&
+      accrualSource === undefined &&
+      isActive === undefined
+    ) {
       return NextResponse.json(
         { error: 'At least one field to update is required' },
         { status: 400 }
       );
     }
 
-    // Build dynamic update query
-    const updates: string[] = [];
-    const values: any[] = [];
-    
-    if (incomeTax !== undefined) {
-      updates.push(`income_tax = ${incomeTax}::boolean`);
-    }
-    
-    if (paymentId !== undefined) {
-      updates.push(`payment_id = '${paymentId}'`);
+    const normalizedProjectUuid = projectUuid === '' ? null : projectUuid;
+    const normalizedJobUuid = jobUuid === '' ? null : jobUuid;
+    const normalizedPaymentId = paymentId === '' ? null : paymentId;
+    const normalizedAccrualSource = accrualSource === '' ? null : accrualSource;
+
+    const nextCounteragentUuid = counteragentUuid ?? existing.counteragent_uuid;
+    const nextFinancialCodeUuid = financialCodeUuid ?? existing.financial_code_uuid;
+    const nextCurrencyUuid = currencyUuid ?? existing.currency_uuid;
+    const nextIncomeTax = incomeTax ?? existing.income_tax;
+    const nextProjectUuid = normalizedProjectUuid !== undefined ? normalizedProjectUuid : existing.project_uuid;
+    const nextJobUuid = normalizedJobUuid !== undefined ? normalizedJobUuid : existing.job_uuid;
+
+    if (!nextCounteragentUuid || !nextFinancialCodeUuid || !nextCurrencyUuid || typeof nextIncomeTax !== 'boolean') {
+      return NextResponse.json(
+        { error: 'Missing required fields: counteragentUuid, financialCodeUuid, currencyUuid, incomeTax' },
+        { status: 400 }
+      );
     }
 
-    if (accrualSource !== undefined) {
-      updates.push(`accrual_source = ${accrualSource ? `'${accrualSource}'` : 'NULL'}`);
+    if (normalizedPaymentId !== undefined && normalizedPaymentId !== existing.payment_id) {
+      if (normalizedPaymentId) {
+        const existingByPaymentId = await prisma.$queryRawUnsafe<Array<{ payment_id: string }>>(
+          `SELECT payment_id FROM payments WHERE payment_id = $1 AND id <> $2 LIMIT 1`,
+          normalizedPaymentId,
+          BigInt(id)
+        );
+        if (existingByPaymentId.length > 0) {
+          return NextResponse.json(
+            { error: 'Payment with this payment_id already exists', paymentId: normalizedPaymentId },
+            { status: 409 }
+          );
+        }
+      }
     }
-    
-    updates.push('updated_at = NOW()');
 
-    await prisma.$executeRawUnsafe(`
-      UPDATE payments 
-      SET ${updates.join(', ')}
-      WHERE id = ${BigInt(id)}
-    `);
-
-    const updatedPayment = await prisma.$queryRawUnsafe<Array<{ payment_id: string }>>(
-      `SELECT payment_id FROM payments WHERE id = $1 LIMIT 1`,
+    const existingByComposite = await prisma.$queryRawUnsafe<Array<{ payment_id: string }>>(
+      `SELECT payment_id
+       FROM payments
+       WHERE counteragent_uuid = $1::uuid
+         AND financial_code_uuid = $2::uuid
+         AND currency_uuid = $3::uuid
+         AND income_tax = $4::boolean
+         AND project_uuid IS NOT DISTINCT FROM $5::uuid
+         AND job_uuid IS NOT DISTINCT FROM $6::uuid
+         AND is_active = true
+         AND id <> $7
+       LIMIT 1`,
+      nextCounteragentUuid,
+      nextFinancialCodeUuid,
+      nextCurrencyUuid,
+      nextIncomeTax,
+      nextProjectUuid,
+      nextJobUuid,
       BigInt(id)
     );
 
-    const paymentIdToReparse = updatedPayment?.[0]?.payment_id;
+    if (existingByComposite.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'Payment with the same counteragent, financial code, currency, income tax, project, and job already exists',
+          paymentId: existingByComposite[0].payment_id,
+        },
+        { status: 409 }
+      );
+    }
+
+    // Build dynamic update query
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    const pushUpdate = (column: string, value: any, cast = '') => {
+      updates.push(`${column} = $${paramIndex++}${cast}`);
+      values.push(value);
+    };
+
+    if (normalizedProjectUuid !== undefined && normalizedProjectUuid !== existing.project_uuid) {
+      pushUpdate('project_uuid', normalizedProjectUuid, '::uuid');
+    }
+    if (counteragentUuid !== undefined && counteragentUuid !== existing.counteragent_uuid) {
+      pushUpdate('counteragent_uuid', counteragentUuid, '::uuid');
+    }
+    if (financialCodeUuid !== undefined && financialCodeUuid !== existing.financial_code_uuid) {
+      pushUpdate('financial_code_uuid', financialCodeUuid, '::uuid');
+    }
+    if (normalizedJobUuid !== undefined && normalizedJobUuid !== existing.job_uuid) {
+      pushUpdate('job_uuid', normalizedJobUuid, '::uuid');
+    }
+    if (incomeTax !== undefined && incomeTax !== existing.income_tax) {
+      pushUpdate('income_tax', incomeTax, '::boolean');
+    }
+    if (currencyUuid !== undefined && currencyUuid !== existing.currency_uuid) {
+      pushUpdate('currency_uuid', currencyUuid, '::uuid');
+    }
+    if (normalizedPaymentId !== undefined && normalizedPaymentId !== existing.payment_id) {
+      pushUpdate('payment_id', normalizedPaymentId);
+    }
+    if (normalizedAccrualSource !== undefined && normalizedAccrualSource !== existing.accrual_source) {
+      pushUpdate('accrual_source', normalizedAccrualSource);
+    }
+    if (isActive !== undefined && isActive !== existing.is_active) {
+      pushUpdate('is_active', isActive, '::boolean');
+    }
+
+    if (updates.length === 0) {
+      return NextResponse.json({ success: true, message: 'No changes to apply' });
+    }
+
+    updates.push('updated_at = NOW()');
+    values.push(BigInt(id));
+
+    await prisma.$executeRawUnsafe(
+      `UPDATE payments SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
+      ...values
+    );
+
+    const paymentIdToReparse = normalizedPaymentId ?? existing.payment_id;
     if (paymentIdToReparse) {
       await reparseByPaymentId(paymentIdToReparse);
     }

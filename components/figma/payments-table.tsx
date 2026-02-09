@@ -35,6 +35,7 @@ export type Payment = {
   jobUuid: string;
   incomeTax: boolean;
   currencyUuid: string;
+  accrualSource: string | null;
   paymentId: string;
   recordUuid: string;
   isActive: boolean;
@@ -119,19 +120,21 @@ export function PaymentsTable() {
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [editCounteragentUuid, setEditCounteragentUuid] = useState('');
+  const [editFinancialCodeUuid, setEditFinancialCodeUuid] = useState('');
+  const [editCurrencyUuid, setEditCurrencyUuid] = useState('');
+  const [editProjectUuid, setEditProjectUuid] = useState('');
+  const [editJobUuid, setEditJobUuid] = useState('');
   const [editIncomeTax, setEditIncomeTax] = useState(false);
+  const [editPaymentId, setEditPaymentId] = useState('');
+  const [editAccrualSource, setEditAccrualSource] = useState('');
+  const [editIsActive, setEditIsActive] = useState(true);
+  const [editFilteredJobs, setEditFilteredJobs] = useState<Array<{ jobUuid: string; jobIndex: string; jobName: string; jobDisplay?: string }>>([]);
 
   // Payment options state (for matching existing payments)
   const [paymentOptions, setPaymentOptions] = useState<Array<{ paymentId: string; projectUuid: string; jobUuid: string; financialCodeUuid: string; currencyUuid: string; projectName: string; jobName: string; jobDisplay: string; currencyCode: string; financialCodeValidation: string }>>([]);
   const [selectedPaymentId, setSelectedPaymentId] = useState('');
-  const [editSelectedPaymentId, setEditSelectedPaymentId] = useState('');
   const [paymentDisplayValues, setPaymentDisplayValues] = useState<{
-    projectLabel: string;
-    jobLabel: string;
-    financialCodeLabel: string;
-    currencyLabel: string;
-  }>({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '' });
-  const [editPaymentDisplayValues, setEditPaymentDisplayValues] = useState<{
     projectLabel: string;
     jobLabel: string;
     financialCodeLabel: string;
@@ -205,6 +208,26 @@ export function PaymentsTable() {
     };
     fetchProjectJobs();
   }, [selectedProjectUuid]);
+
+  useEffect(() => {
+    const fetchEditProjectJobs = async () => {
+      if (editProjectUuid) {
+        try {
+          const response = await fetch(`/api/jobs?projectUuid=${editProjectUuid}`);
+          if (!response.ok) throw new Error('Failed to fetch project jobs');
+          const data = await response.json();
+          setEditFilteredJobs(data);
+        } catch (error) {
+          console.error('Error fetching edit project jobs:', error);
+          setEditFilteredJobs([]);
+        }
+      } else {
+        setEditFilteredJobs([]);
+        setEditJobUuid('');
+      }
+    };
+    fetchEditProjectJobs();
+  }, [editProjectUuid]);
 
   // Fetch payment options when counteragent changes
   // Fetch all payment options for the selected counteragent
@@ -288,7 +311,30 @@ export function PaymentsTable() {
       const response = await fetch('/api/payments');
       if (!response.ok) throw new Error('Failed to fetch payments');
       const data = await response.json();
-      setPayments(data);
+      const normalized: Payment[] = Array.isArray(data)
+        ? data.map((payment: any) => ({
+            id: Number(payment.id),
+            projectUuid: payment.project_uuid || payment.projectUuid || '',
+            counteragentUuid: payment.counteragent_uuid || payment.counteragentUuid || '',
+            financialCodeUuid: payment.financial_code_uuid || payment.financialCodeUuid || '',
+            jobUuid: payment.job_uuid || payment.jobUuid || '',
+            incomeTax: Boolean(payment.incomeTax ?? payment.income_tax ?? false),
+            currencyUuid: payment.currency_uuid || payment.currencyUuid || '',
+            accrualSource: payment.accrualSource ?? payment.accrual_source ?? null,
+            paymentId: payment.paymentId || payment.payment_id || '',
+            recordUuid: payment.recordUuid || payment.record_uuid || '',
+            isActive: Boolean(payment.isActive ?? payment.is_active ?? true),
+            createdAt: payment.createdAt || payment.created_at || null,
+            updatedAt: payment.updatedAt || payment.updated_at || null,
+            projectIndex: payment.projectIndex || payment.project_index || null,
+            counteragentName: payment.counteragentName || payment.counteragent_name || null,
+            financialCodeValidation: payment.financialCodeValidation || payment.financial_code_validation || null,
+            jobName: payment.jobName || payment.job_name || null,
+            jobIdentifier: payment.jobIdentifier || payment.job_identifier || null,
+            currencyCode: payment.currencyCode || payment.currency_code || null,
+          }))
+        : [];
+      setPayments(normalized);
     } catch (error) {
       console.error('Error fetching payments:', error);
     } finally {
@@ -439,33 +485,6 @@ export function PaymentsTable() {
     }
   };
 
-  // Handle payment ID selection in edit dialog
-  const handleEditPaymentIdChange = (paymentId: string) => {
-    setEditSelectedPaymentId(paymentId);
-    
-    if (paymentId) {
-      const selectedPayment = paymentOptions.find(p => p.paymentId === paymentId);
-      if (selectedPayment && editingPayment) {
-        setEditPaymentDisplayValues({
-          projectLabel: selectedPayment.projectName || '',
-          jobLabel: selectedPayment.jobDisplay || selectedPayment.jobName || '',
-          financialCodeLabel: selectedPayment.financialCodeValidation || '',
-          currencyLabel: selectedPayment.currencyCode || '',
-        });
-      }
-    } else {
-      // Clear display values when payment is cleared
-      if (editingPayment) {
-        setEditPaymentDisplayValues({
-          projectLabel: editingPayment.projectIndex || '',
-          jobLabel: editingPayment.jobName || '',
-          financialCodeLabel: editingPayment.financialCodeValidation || '',
-          currencyLabel: editingPayment.currencyCode || '',
-        });
-      }
-    }
-  };
-
   // Custom filter function for exact regex matching in dropdowns
   const regexFilter = (value: string, search: string) => {
     if (!search) return 1;
@@ -528,6 +547,7 @@ export function PaymentsTable() {
         jobUuid: newPayment.job_uuid || '',
         incomeTax: newPayment.income_tax,
         currencyUuid: newPayment.currency_uuid,
+        accrualSource: newPayment.accrual_source ?? null,
         paymentId: newPayment.payment_id || '',
         recordUuid: newPayment.record_uuid || '',
         isActive: newPayment.is_active !== false,
@@ -555,44 +575,85 @@ export function PaymentsTable() {
 
   const handleOpenEditDialog = async (payment: Payment) => {
     setEditingPayment(payment);
-    setEditIncomeTax(payment.incomeTax);
-    setEditSelectedPaymentId(payment.paymentId || '');
-    
-    // Set initial display values
-    setEditPaymentDisplayValues({
-      projectLabel: payment.projectIndex || '',
-      jobLabel: payment.jobName || '',
-      financialCodeLabel: payment.financialCodeValidation || '',
-      currencyLabel: payment.currencyCode || '',
-    });
-    
-    // Fetch payment options for this counteragent
-    if (payment.counteragentUuid) {
-      await fetchPaymentOptions(payment.counteragentUuid);
-    }
+    setEditCounteragentUuid(payment.counteragentUuid || '');
+    setEditFinancialCodeUuid(payment.financialCodeUuid || '');
+    setEditCurrencyUuid(payment.currencyUuid || '');
+    setEditProjectUuid(payment.projectUuid || '');
+    setEditJobUuid(payment.jobUuid || '');
+    setEditIncomeTax(Boolean(payment.incomeTax));
+    setEditPaymentId(payment.paymentId || '');
+    setEditAccrualSource(payment.accrualSource || '');
+    setEditIsActive(Boolean(payment.isActive));
     
     setEditDialogOpen(true);
   };
 
-  const handleSaveIncomeTax = async () => {
+  const handleSavePaymentEdit = async () => {
     if (!editingPayment) return;
 
+    const missingFields: string[] = [];
+    if (!editCounteragentUuid) missingFields.push('Counteragent');
+    if (!editFinancialCodeUuid) missingFields.push('Financial Code');
+    if (!editCurrencyUuid) missingFields.push('Currency');
+
+    if (missingFields.length > 0) {
+      alert(`Missing required fields: ${missingFields.join(', ')}`);
+      return;
+    }
+
     try {
-      const response = await fetch(`/api/payments?id=${editingPayment.id}`, {
-        method: 'PATCH',
+      const duplicateResponse = await fetch('/api/payments/check-duplicates', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
+          projectUuid: editProjectUuid || null,
+          counteragentUuid: editCounteragentUuid,
+          financialCodeUuid: editFinancialCodeUuid,
+          jobUuid: editJobUuid || null,
+          currencyUuid: editCurrencyUuid,
           incomeTax: editIncomeTax,
-          paymentId: editSelectedPaymentId || undefined,
+          excludeId: editingPayment.id,
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to update payment');
+      if (!duplicateResponse.ok) {
+        throw new Error('Failed to check duplicates');
+      }
+
+      const duplicateData = await duplicateResponse.json();
+      if (duplicateData?.count > 0) {
+        const existingIds = (duplicateData.matches || []).map((m: any) => m.payment_id || m.paymentId).filter(Boolean);
+        alert(
+          `Duplicate payment exists with the same fields.\n\nExisting Payment ID(s): ${existingIds.join(', ') || 'Unknown'}`
+        );
+        return;
+      }
+
+      const response = await fetch(`/api/payments?id=${editingPayment.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectUuid: editProjectUuid || null,
+          counteragentUuid: editCounteragentUuid,
+          financialCodeUuid: editFinancialCodeUuid,
+          jobUuid: editJobUuid || null,
+          incomeTax: editIncomeTax,
+          currencyUuid: editCurrencyUuid,
+          paymentId: editPaymentId || null,
+          accrualSource: editAccrualSource || null,
+          isActive: editIsActive,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error?.error || 'Failed to update payment');
+      }
       await fetchPayments();
       setEditDialogOpen(false);
     } catch (error) {
       console.error('Error updating payment:', error);
-      alert('Failed to update payment');
+      alert(error instanceof Error ? error.message : 'Failed to update payment');
     }
   };
 
@@ -1289,48 +1350,52 @@ export function PaymentsTable() {
             {editingPayment && (
               <>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Current Payment ID</Label>
-                  <Input value={editingPayment.paymentId || '(None)'} disabled className="bg-muted" />
+                  <Label>Counteragent <span className="text-red-500">*</span></Label>
+                  <Combobox
+                    value={editCounteragentUuid}
+                    onValueChange={setEditCounteragentUuid}
+                    options={counteragents.map(ca => ({
+                      value: ca.counteragentUuid,
+                      label: `${ca.name}${ca.identificationNumber ? ` (ს.კ. ${ca.identificationNumber})` : ''}${ca.entityType ? ` - ${ca.entityType}` : ''}`
+                    }))}
+                    placeholder="Select counteragent..."
+                    searchPlaceholder="Search counteragents..."
+                    filter={regexFilter}
+                  />
                 </div>
+
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Counteragent</Label>
-                  <Input value={editingPayment.counteragentName || ''} disabled className="bg-muted" />
+                  <Label>Financial Code <span className="text-red-500">*</span></Label>
+                  <Combobox
+                    value={editFinancialCodeUuid}
+                    onValueChange={setEditFinancialCodeUuid}
+                    options={financialCodes.map(fc => ({
+                      value: fc.uuid,
+                      label: fc.validation
+                    }))}
+                    placeholder="Select financial code..."
+                    searchPlaceholder="Search financial codes..."
+                    filter={regexFilter}
+                  />
                 </div>
+
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Project</Label>
-                  <Input value={editPaymentDisplayValues.projectLabel} disabled className="bg-muted" />
+                  <Label>Currency <span className="text-red-500">*</span></Label>
+                  <Combobox
+                    value={editCurrencyUuid}
+                    onValueChange={setEditCurrencyUuid}
+                    options={currencies.map(c => ({
+                      value: c.uuid,
+                      label: c.code
+                    }))}
+                    placeholder={currencies.length === 0 ? "Loading currencies..." : "Select currency..."}
+                    searchPlaceholder="Search currencies..."
+                    disabled={currencies.length === 0}
+                    filter={regexFilter}
+                  />
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Job</Label>
-                  <Input value={editPaymentDisplayValues.jobLabel || '-- No Job --'} disabled className="bg-muted" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Financial Code</Label>
-                  <Input value={editPaymentDisplayValues.financialCodeLabel} disabled className="bg-muted" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Currency</Label>
-                  <Input value={editPaymentDisplayValues.currencyLabel} disabled className="bg-muted" />
-                </div>
-                {paymentOptions.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Change Payment ID</Label>
-                    <Combobox
-                      value={editSelectedPaymentId}
-                      onValueChange={handleEditPaymentIdChange}
-                      options={paymentOptions.map(opt => ({
-                        value: opt.paymentId,
-                        label: `${opt.paymentId} - ${opt.projectName} | ${opt.jobDisplay || opt.jobName || 'No Job'} | ${opt.financialCodeValidation} | ${opt.currencyCode}`
-                      }))}
-                      placeholder="Link to payment ID..."
-                      searchPlaceholder="Search payment IDs..."
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {paymentOptions.length} payment{paymentOptions.length !== 1 ? 's' : ''} available for this counteragent
-                    </p>
-                  </div>
-                )}
-                <div className="flex items-center space-x-2 pt-4 border-t">
+
+                <div className="flex items-center space-x-2">
                   <Switch 
                     checked={editIncomeTax} 
                     onCheckedChange={setEditIncomeTax}
@@ -1340,9 +1405,69 @@ export function PaymentsTable() {
                     Income Tax
                   </Label>
                 </div>
+
+                <div className="space-y-2">
+                  <Label>Project (Optional)</Label>
+                  <Combobox
+                    value={editProjectUuid}
+                    onValueChange={setEditProjectUuid}
+                    options={projects.map(p => ({
+                      value: p.projectUuid,
+                      label: p.projectIndex || p.projectName
+                    }))}
+                    placeholder="Select project..."
+                    searchPlaceholder="Search projects..."
+                    filter={regexFilter}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Job (Optional)</Label>
+                  <Combobox
+                    value={editJobUuid}
+                    onValueChange={setEditJobUuid}
+                    options={editFilteredJobs.map(job => ({
+                      value: job.jobUuid,
+                      label: job.jobDisplay || job.jobIndex || job.jobName
+                    }))}
+                    placeholder={editProjectUuid ? "Select job..." : "Select project first"}
+                    searchPlaceholder="Search jobs..."
+                    filter={regexFilter}
+                    disabled={!editProjectUuid}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Payment ID</Label>
+                  <Input
+                    value={editPaymentId}
+                    onChange={(e) => setEditPaymentId(e.target.value)}
+                    placeholder="Payment ID"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Accrual Source (Optional)</Label>
+                  <Input
+                    value={editAccrualSource}
+                    onChange={(e) => setEditAccrualSource(e.target.value)}
+                    placeholder="Accrual source"
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch 
+                    checked={editIsActive} 
+                    onCheckedChange={setEditIsActive}
+                    id="edit-is-active"
+                  />
+                  <Label htmlFor="edit-is-active" className="cursor-pointer font-semibold">
+                    Active
+                  </Label>
+                </div>
                 <div className="flex gap-2 pt-4">
                   <Button 
-                    onClick={handleSaveIncomeTax}
+                    onClick={handleSavePaymentEdit}
                     className="flex-1"
                   >
                     Save Changes
