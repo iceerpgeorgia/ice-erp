@@ -310,6 +310,7 @@ export function BatchEditor({
 
     const recalculated = updated.map((partition) => {
       if (!partition.paymentUuid) return partition;
+      if (field !== 'partitionAmount') return partition;
       const payment = payments.find((p) => p.recordUuid === partition.paymentUuid) || null;
       return applyNominalForPartition(partition, payment);
     });
@@ -358,6 +359,20 @@ export function BatchEditor({
       return ensureAutoPartition(updated);
     });
   };
+
+  useEffect(() => {
+    if (!exchangeRates) return;
+    if (payments.length === 0) return;
+    setPartitions((prev) =>
+      prev.map((partition) => {
+        if (!partition.paymentUuid) return partition;
+        if (partition.nominalAmount !== null && partition.nominalAmount !== undefined) return partition;
+        const payment = payments.find((p) => p.recordUuid === partition.paymentUuid) || null;
+        if (!payment) return partition;
+        return applyNominalForPartition(partition, payment);
+      })
+    );
+  }, [exchangeRates, payments]);
 
   const calculateRemaining = () => {
     const allocated = partitions
