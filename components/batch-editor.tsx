@@ -181,7 +181,7 @@ export function BatchEditor({
     return currencyMap[currencyUuid];
   };
 
-  const calculateNominalAmount = (amount: number, paymentCurrencyUuid?: string | null, paymentCurrencyCode?: string) => {
+  const convertAccountToNominal = (amount: number, paymentCurrencyUuid?: string | null, paymentCurrencyCode?: string) => {
     const accountCode = resolvedAccountCurrencyCode;
     const paymentCode = getCurrencyCode(paymentCurrencyUuid, paymentCurrencyCode);
     if (!paymentCode || !accountCode) return null;
@@ -206,6 +206,34 @@ export function BatchEditor({
     const accountRate = getRate(accountCode);
     const paymentRate = getRate(paymentCode);
     if (!accountRate || !paymentRate) return null;
+    return (Number(amount) * Number(paymentRate)) / Number(accountRate);
+  };
+
+  const convertNominalToAccount = (amount: number, paymentCurrencyUuid?: string | null, paymentCurrencyCode?: string) => {
+    const accountCode = resolvedAccountCurrencyCode;
+    const paymentCode = getCurrencyCode(paymentCurrencyUuid, paymentCurrencyCode);
+    if (!paymentCode || !accountCode) return null;
+    if (!exchangeRates) return null;
+
+    if (accountCode === paymentCode) return amount;
+
+    const getRate = (code: string) => exchangeRates?.[`${code.toLowerCase()}_rate`];
+
+    if (accountCode === 'GEL' && paymentCode !== 'GEL') {
+      const rate = getRate(paymentCode);
+      if (!rate) return null;
+      return Number(amount) * Number(rate);
+    }
+
+    if (accountCode !== 'GEL' && paymentCode === 'GEL') {
+      const rate = getRate(accountCode);
+      if (!rate) return null;
+      return Number(amount) / Number(rate);
+    }
+
+    const accountRate = getRate(accountCode);
+    const paymentRate = getRate(paymentCode);
+    if (!accountRate || !paymentRate) return null;
     return (Number(amount) * Number(accountRate)) / Number(paymentRate);
   };
 
@@ -218,7 +246,7 @@ export function BatchEditor({
       };
     }
 
-    const nominalAmount = calculateNominalAmount(partition.partitionAmount, payment.currencyUuid, payment.currencyCode);
+    const nominalAmount = convertAccountToNominal(partition.partitionAmount, payment.currencyUuid, payment.currencyCode);
     return {
       ...partition,
       nominalAmount: nominalAmount !== null ? Number(nominalAmount.toFixed(2)) : null,
@@ -305,6 +333,30 @@ export function BatchEditor({
         return ensureAutoPartition(updated);
       });
     }
+  };
+
+  const handleNominalChange = (partitionId: string, value: string) => {
+    const nominal = parseFloat(value);
+    setPartitions((prev) => {
+      const updated = prev.map((partition) => {
+        if (partition.id !== partitionId) return partition;
+        if (!partition.paymentUuid) return partition;
+        const payment = payments.find((p) => p.recordUuid === partition.paymentUuid) || null;
+        if (!payment) return partition;
+        const accountAmount = Number.isNaN(nominal)
+          ? null
+          : convertNominalToAccount(nominal, payment.currencyUuid, payment.currencyCode);
+        const nextPartitionAmount = accountAmount !== null ? Number(accountAmount.toFixed(2)) : partition.partitionAmount;
+        return {
+          ...partition,
+          nominalAmount: Number.isNaN(nominal) ? null : nominal,
+          nominalCurrencyUuid: payment.currencyUuid || null,
+          partitionAmount: nextPartitionAmount,
+          isAuto: false,
+        };
+      });
+      return ensureAutoPartition(updated);
+    });
   };
 
   const calculateRemaining = () => {
@@ -446,9 +498,11 @@ export function BatchEditor({
                   <Label htmlFor={`nominal-${partition.id}`}>Nominal Amount</Label>
                   <Input
                     id={`nominal-${partition.id}`}
-                    value={partition.nominalAmount !== null ? partition.nominalAmount.toFixed(2) : ''}
-                    readOnly
-                    className="bg-muted"
+                    type="number"
+                    step="0.01"
+                    value={partition.nominalAmount !== null ? partition.nominalAmount : ''}
+                    onChange={(e) => handleNominalChange(partition.id, e.target.value)}
+                    disabled={!partition.paymentUuid || partition.isAuto}
                   />
                   <p className="text-xs text-muted-foreground">
                     {partition.nominalCurrencyUuid
