@@ -12,6 +12,7 @@ interface Payment {
   paymentId: string;
   counteragentName: string;
   currencyCode: string;
+  currencyUuid: string;
   projectIndex: string | null;
   financialCode: string;
   counteragentUuid: string;
@@ -28,6 +29,7 @@ interface Partition {
   nominalCurrencyUuid: string | null;
   nominalAmount: number | null;
   partitionNote: string;
+  isAuto?: boolean;
 }
 
 interface BatchEditorProps {
@@ -38,6 +40,9 @@ interface BatchEditorProps {
   rawRecordId2: string;
   bankAccountUuid: string;
   counteragentUuid?: string | null;
+  accountCurrencyUuid?: string | null;
+  accountCurrencyCode?: string | null;
+  transactionDate?: string | null;
   totalAmount: number;
   description: string;
   onClose: () => void;
@@ -52,6 +57,9 @@ export function BatchEditor({
   rawRecordId2,
   bankAccountUuid,
   counteragentUuid = null,
+  accountCurrencyUuid = null,
+  accountCurrencyCode = null,
+  transactionDate = null,
   totalAmount,
   description,
   onClose,
@@ -73,18 +81,46 @@ export function BatchEditor({
   ]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currencyMap, setCurrencyMap] = useState<Record<string, string>>({});
+  const [exchangeRates, setExchangeRates] = useState<any | null>(null);
+
+  const AUTO_PARTITION_ID = 'auto-remaining';
 
   const filteredPayments = counteragentUuid
     ? payments.filter((payment) => payment.counteragentUuid === counteragentUuid)
     : payments;
 
+  const resolvedAccountCurrencyCode =
+    accountCurrencyCode || (accountCurrencyUuid ? currencyMap[accountCurrencyUuid] : undefined) || 'GEL';
+
+  const toDateInput = (value?: string | null) => {
+    if (!value) return '';
+    const trimmed = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10);
+    if (/^\d{2}\.\d{2}\.\d{4}$/.test(trimmed)) {
+      const [day, month, year] = trimmed.split('.');
+      return `${year}-${month}-${day}`;
+    }
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
+    return '';
+  };
+
   useEffect(() => {
     fetchPayments();
+    fetchCurrencies();
   }, []);
 
   useEffect(() => {
+    if (!transactionDate) return;
+    const effectiveDate = toDateInput(transactionDate);
+    if (!effectiveDate) return;
+    fetchExchangeRates(effectiveDate);
+  }, [transactionDate]);
+
+  useEffect(() => {
     if (initialPartitions && initialPartitions.length > 0) {
-      setPartitions(initialPartitions);
+      setPartitions(ensureAutoPartition(initialPartitions));
     }
   }, [initialPartitions]);
 
@@ -98,6 +134,7 @@ export function BatchEditor({
             paymentId: payment.paymentId || payment.payment_id || '',
             counteragentName: payment.counteragentName || payment.counteragent_name || '',
             currencyCode: payment.currencyCode || payment.currency_code || '',
+            currencyUuid: payment.currencyUuid || payment.currency_uuid || '',
             projectIndex: payment.projectIndex || payment.project_index || null,
             financialCode: payment.financialCode || payment.financial_code || '',
             counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || '',
@@ -109,10 +146,112 @@ export function BatchEditor({
     }
   };
 
+  const fetchCurrencies = async () => {
+    try {
+      const response = await fetch('/api/currencies');
+      const result = await response.json();
+      const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
+      const nextMap: Record<string, string> = {};
+      rows.forEach((currency: any) => {
+        if (currency?.uuid && currency?.code) {
+          nextMap[currency.uuid] = currency.code;
+        }
+      });
+      setCurrencyMap(nextMap);
+    } catch (error) {
+      console.error('Error fetching currencies:', error);
+    }
+  };
+
+  const fetchExchangeRates = async (date: string) => {
+    try {
+      const response = await fetch(`/api/exchange-rates?date=${date}`);
+      if (!response.ok) return;
+      const ratesData = await response.json();
+      const rates = Array.isArray(ratesData) && ratesData.length > 0 ? ratesData[0] : null;
+      setExchangeRates(rates);
+    } catch (error) {
+      console.error('Error fetching exchange rates:', error);
+    }
+  };
+
+  const getCurrencyCode = (currencyUuid?: string | null, fallbackCode?: string) => {
+    if (fallbackCode) return fallbackCode;
+    if (!currencyUuid) return undefined;
+    return currencyMap[currencyUuid];
+  };
+
+  const calculateNominalAmount = (amount: number, paymentCurrencyUuid?: string | null, paymentCurrencyCode?: string) => {
+    const accountCode = resolvedAccountCurrencyCode;
+    const paymentCode = getCurrencyCode(paymentCurrencyUuid, paymentCurrencyCode);
+    if (!paymentCode || !accountCode) return null;
+    if (!exchangeRates) return null;
+
+    if (accountCode === paymentCode) return amount;
+
+    const getRate = (code: string) => exchangeRates?.[`${code.toLowerCase()}_rate`];
+
+    if (accountCode === 'GEL' && paymentCode !== 'GEL') {
+      const rate = getRate(paymentCode);
+      if (!rate) return null;
+      return Number(amount) / Number(rate);
+    }
+
+    if (accountCode !== 'GEL' && paymentCode === 'GEL') {
+      const rate = getRate(accountCode);
+      if (!rate) return null;
+      return Number(amount) * Number(rate);
+    }
+
+    const accountRate = getRate(accountCode);
+    const paymentRate = getRate(paymentCode);
+    if (!accountRate || !paymentRate) return null;
+    return (Number(amount) * Number(accountRate)) / Number(paymentRate);
+  };
+
+  const applyNominalForPartition = (partition: Partition, payment?: Payment | null) => {
+    if (!payment) {
+      return {
+        ...partition,
+        nominalAmount: null,
+        nominalCurrencyUuid: null,
+      };
+    }
+
+    const nominalAmount = calculateNominalAmount(partition.partitionAmount, payment.currencyUuid, payment.currencyCode);
+    return {
+      ...partition,
+      nominalAmount: nominalAmount !== null ? Number(nominalAmount.toFixed(2)) : null,
+      nominalCurrencyUuid: payment.currencyUuid || null,
+    };
+  };
+
+  const ensureAutoPartition = (input: Partition[]) => {
+    const partitions = input.filter((p) => p.id !== AUTO_PARTITION_ID);
+    const totalAllocated = partitions.reduce((sum, p) => sum + (Number(p.partitionAmount) || 0), 0);
+    const remaining = Number((totalAmount - totalAllocated).toFixed(2));
+    if (remaining > 0.01) {
+      partitions.push({
+        id: AUTO_PARTITION_ID,
+        partitionAmount: remaining,
+        paymentUuid: null,
+        paymentId: null,
+        counteragentUuid: null,
+        projectUuid: null,
+        financialCodeUuid: null,
+        nominalCurrencyUuid: null,
+        nominalAmount: null,
+        partitionNote: 'Auto remainder',
+        isAuto: true,
+      });
+    }
+    return partitions;
+  };
+
   const addPartition = () => {
     const newId = String(partitions.length + 1);
-    setPartitions([
-      ...partitions,
+    setPartitions(ensureAutoPartition([
+      ...partitions.filter((p) => p.id !== AUTO_PARTITION_ID),
       {
         id: newId,
         partitionAmount: 0,
@@ -125,35 +264,53 @@ export function BatchEditor({
         nominalAmount: null,
         partitionNote: '',
       },
-    ]);
+    ]));
   };
 
   const removePartition = (id: string) => {
     if (partitions.length > 1) {
-      setPartitions(partitions.filter((p) => p.id !== id));
+      setPartitions(ensureAutoPartition(partitions.filter((p) => p.id !== id)));
     }
   };
 
   const updatePartition = (id: string, field: keyof Partition, value: any) => {
-    setPartitions(
-      partitions.map((p) => (p.id === id ? { ...p, [field]: value } : p))
-    );
+    const updated = partitions.map((partition) => {
+      if (partition.id !== id) return partition;
+      if (partition.isAuto && field === 'partitionAmount') return partition;
+      return { ...partition, [field]: value, isAuto: field === 'partitionAmount' ? false : partition.isAuto };
+    });
+
+    const recalculated = updated.map((partition) => {
+      if (!partition.paymentUuid) return partition;
+      const payment = payments.find((p) => p.recordUuid === partition.paymentUuid) || null;
+      return applyNominalForPartition(partition, payment);
+    });
+
+    setPartitions(ensureAutoPartition(recalculated));
   };
 
   const selectPayment = (partitionId: string, paymentUuid: string) => {
     const payment = payments.find((p) => p.recordUuid === paymentUuid);
     if (payment) {
-      updatePartition(partitionId, 'paymentUuid', payment.recordUuid);
-      updatePartition(partitionId, 'paymentId', payment.paymentId);
-      // Note: We'll need to fetch full payment details for UUIDs
+      setPartitions((prev) => {
+        const updated = prev.map((partition) => {
+          if (partition.id !== partitionId) return partition;
+          const next = {
+            ...partition,
+            paymentUuid: payment.recordUuid,
+            paymentId: payment.paymentId,
+          };
+          return applyNominalForPartition(next, payment);
+        });
+        return ensureAutoPartition(updated);
+      });
     }
   };
 
   const calculateRemaining = () => {
-    const allocated = partitions.reduce(
-      (sum, p) => sum + (parseFloat(String(p.partitionAmount)) || 0),
-      0
-    );
+    const allocated = partitions
+      .filter((p) => p.id !== AUTO_PARTITION_ID)
+      .reduce((sum, p) => sum + (parseFloat(String(p.partitionAmount)) || 0), 0);
     return totalAmount - allocated;
   };
 
@@ -255,12 +412,15 @@ export function BatchEditor({
           {partitions.map((partition, index) => (
             <div key={partition.id} className="border rounded-lg p-4 space-y-4">
               <div className="flex justify-between items-center">
-                <h4 className="font-medium">Partition {index + 1}</h4>
+                <h4 className="font-medium">
+                  {partition.isAuto ? 'Remaining Partition' : `Partition ${index + 1}`}
+                </h4>
                 {partitions.length > 1 && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => removePartition(partition.id)}
+                    disabled={partition.isAuto}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -278,10 +438,26 @@ export function BatchEditor({
                     onChange={(e) =>
                       updatePartition(partition.id, 'partitionAmount', parseFloat(e.target.value) || 0)
                     }
+                    disabled={partition.isAuto}
                   />
                 </div>
 
                 <div>
+                  <Label htmlFor={`nominal-${partition.id}`}>Nominal Amount</Label>
+                  <Input
+                    id={`nominal-${partition.id}`}
+                    value={partition.nominalAmount !== null ? partition.nominalAmount.toFixed(2) : ''}
+                    readOnly
+                    className="bg-muted"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {partition.nominalCurrencyUuid
+                      ? getCurrencyCode(partition.nominalCurrencyUuid) || ''
+                      : ''}
+                  </p>
+                </div>
+
+                <div className="col-span-2">
                   <Label htmlFor={`payment-${partition.id}`}>Payment ID</Label>
                   <Combobox
                     options={filteredPayments.map((p) => ({

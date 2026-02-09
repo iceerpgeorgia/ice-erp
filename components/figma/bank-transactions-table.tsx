@@ -2624,6 +2624,9 @@ export function BankTransactionsTable({
                       rawRecordId2={editingTransaction.id2 || ''}
                       bankAccountUuid={editingTransaction.accountUuid}
                       counteragentUuid={editingTransaction.counteragentUuid || null}
+                      accountCurrencyUuid={editingTransaction.accountCurrencyUuid}
+                      accountCurrencyCode={editingTransaction.accountCurrencyCode || null}
+                      transactionDate={editingTransaction.correctionDate || editingTransaction.date}
                       totalAmount={Math.abs(Number(editingTransaction.accountCurrencyAmount || 0))}
                       description={editingTransaction.description || ''}
                       onClose={handleBatchEditorClose}
