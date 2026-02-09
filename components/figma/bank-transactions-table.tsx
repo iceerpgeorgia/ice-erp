@@ -23,6 +23,7 @@ import { Textarea } from './ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
+import { BatchEditor } from '@/components/batch-editor';
 import {
   Select,
   SelectContent,
@@ -241,6 +242,11 @@ export function BankTransactionsTable({
   const [wasDialogOpen, setWasDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<BankTransaction | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isBatchEditorOpen, setIsBatchEditorOpen] = useState(false);
+  const [batchEditorLoading, setBatchEditorLoading] = useState(false);
+  const [batchEditorUuid, setBatchEditorUuid] = useState<string | null>(null);
+  const [batchInitialPartitions, setBatchInitialPartitions] = useState<any[] | null>(null);
+  const [batchEditorError, setBatchEditorError] = useState<string | null>(null);
   const [paymentOptions, setPaymentOptions] = useState<any[]>([]);
   const [allPayments, setAllPayments] = useState<any[]>([]); // All payments for search
   const [projectOptions, setProjectOptions] = useState<any[]>([]);
@@ -981,6 +987,66 @@ export function BankTransactionsTable({
     });
     setPaymentDisplayValues({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '', nominalAmountLabel: '' });
     setJobOptions([]);
+  };
+
+  const openBatchEditor = async () => {
+    if (!editingTransaction?.recordUuid) return;
+    setBatchEditorError(null);
+    setBatchInitialPartitions(null);
+    setBatchEditorUuid(null);
+    setIsBatchEditorOpen(true);
+    setBatchEditorLoading(true);
+
+    try {
+      const statusResponse = await fetch(`/api/bank-transaction-batches?rawRecordUuid=${editingTransaction.recordUuid}`);
+      if (!statusResponse.ok) {
+        throw new Error('Failed to check batch status');
+      }
+      const statusData = await statusResponse.json();
+      const existingBatch = Array.isArray(statusData?.batches) ? statusData.batches[0] : null;
+      if (existingBatch?.batchUuid) {
+        const batchResponse = await fetch(`/api/bank-transaction-batches?batchUuid=${existingBatch.batchUuid}`);
+        if (!batchResponse.ok) {
+          throw new Error('Failed to load batch partitions');
+        }
+        const batchData = await batchResponse.json();
+        const partitions = Array.isArray(batchData?.partitions) ? batchData.partitions : [];
+        const mapped = partitions.map((p: any, index: number) => ({
+          id: String(index + 1),
+          partitionAmount: Number(p.partition_amount ?? p.partitionAmount ?? 0),
+          paymentUuid: p.payment_uuid || p.paymentUuid || null,
+          paymentId: p.payment_id || p.paymentId || null,
+          counteragentUuid: p.counteragent_uuid || null,
+          projectUuid: p.project_uuid || null,
+          financialCodeUuid: p.financial_code_uuid || null,
+          nominalCurrencyUuid: p.nominal_currency_uuid || null,
+          nominalAmount: p.nominal_amount ? Number(p.nominal_amount) : null,
+          partitionNote: p.partition_note || '',
+        }));
+        setBatchEditorUuid(existingBatch.batchUuid);
+        setBatchInitialPartitions(mapped);
+      }
+    } catch (error: any) {
+      setBatchEditorError(error?.message || 'Failed to load batch editor');
+    } finally {
+      setBatchEditorLoading(false);
+    }
+  };
+
+  const handleBatchEditorClose = () => {
+    setIsBatchEditorOpen(false);
+    setBatchEditorLoading(false);
+    setBatchEditorUuid(null);
+    setBatchInitialPartitions(null);
+    setBatchEditorError(null);
+  };
+
+  const handleBatchEditorSaved = () => {
+    handleBatchEditorClose();
+    cancelEdit();
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
   };
 
   // Handle payment selection - auto-fill related fields
@@ -2165,6 +2231,20 @@ export function BankTransactionsTable({
                     />
                     <Label className="text-sm">Parsing lock (skip during backparse)</Label>
                   </div>
+                  <div className="pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={openBatchEditor}
+                      disabled={!editingTransaction?.recordUuid || !editingTransaction?.id1 || !editingTransaction?.id2 || !editingTransaction?.accountUuid}
+                    >
+                      Split into batches
+                    </Button>
+                    {batchEditorError && (
+                      <p className="mt-2 text-xs text-red-600">{batchEditorError}</p>
+                    )}
+                  </div>
                 </div>
 
               {/* Payment Details Section - Read-only when payment is selected */}
@@ -2697,6 +2777,29 @@ export function BankTransactionsTable({
           )}
         </DialogContent>
       </Dialog>
+
+      {isBatchEditorOpen && editingTransaction && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50">
+          {batchEditorLoading ? (
+            <div className="bg-white rounded-lg shadow-xl px-6 py-4">
+              <span className="text-gray-600">Loading...</span>
+            </div>
+          ) : (
+            <BatchEditor
+              batchUuid={batchEditorUuid}
+              initialPartitions={batchInitialPartitions ?? undefined}
+              rawRecordUuid={editingTransaction.recordUuid}
+              rawRecordId1={editingTransaction.id1 || ''}
+              rawRecordId2={editingTransaction.id2 || ''}
+              bankAccountUuid={editingTransaction.accountUuid}
+              totalAmount={Math.abs(Number(editingTransaction.accountCurrencyAmount || 0))}
+              description={editingTransaction.description || ''}
+              onClose={handleBatchEditorClose}
+              onSave={handleBatchEditorSaved}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
