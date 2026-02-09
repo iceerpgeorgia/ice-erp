@@ -181,60 +181,41 @@ export function BatchEditor({
     return currencyMap[currencyUuid];
   };
 
-  const convertAccountToNominal = (amount: number, paymentCurrencyUuid?: string | null, paymentCurrencyCode?: string) => {
+  const getExchangeRate = (paymentCurrencyUuid?: string | null, paymentCurrencyCode?: string) => {
     const accountCode = resolvedAccountCurrencyCode;
     const paymentCode = getCurrencyCode(paymentCurrencyUuid, paymentCurrencyCode);
     if (!paymentCode || !accountCode) return null;
     if (!exchangeRates) return null;
-
-    if (accountCode === paymentCode) return amount;
+    if (accountCode === paymentCode) return 1;
 
     const getRate = (code: string) => exchangeRates?.[`${code.toLowerCase()}_rate`];
 
     if (accountCode === 'GEL' && paymentCode !== 'GEL') {
       const rate = getRate(paymentCode);
-      if (!rate) return null;
-      return Number(amount) / Number(rate);
+      return rate ? Number(rate) : null;
     }
 
     if (accountCode !== 'GEL' && paymentCode === 'GEL') {
       const rate = getRate(accountCode);
-      if (!rate) return null;
-      return Number(amount) * Number(rate);
+      return rate ? Number(rate) : null;
     }
 
     const accountRate = getRate(accountCode);
     const paymentRate = getRate(paymentCode);
     if (!accountRate || !paymentRate) return null;
-    return (Number(amount) * Number(paymentRate)) / Number(accountRate);
+    return Number(accountRate) / Number(paymentRate);
+  };
+
+  const convertAccountToNominal = (amount: number, paymentCurrencyUuid?: string | null, paymentCurrencyCode?: string) => {
+    const rate = getExchangeRate(paymentCurrencyUuid, paymentCurrencyCode);
+    if (!rate) return null;
+    return Number(amount) * (1 / rate);
   };
 
   const convertNominalToAccount = (amount: number, paymentCurrencyUuid?: string | null, paymentCurrencyCode?: string) => {
-    const accountCode = resolvedAccountCurrencyCode;
-    const paymentCode = getCurrencyCode(paymentCurrencyUuid, paymentCurrencyCode);
-    if (!paymentCode || !accountCode) return null;
-    if (!exchangeRates) return null;
-
-    if (accountCode === paymentCode) return amount;
-
-    const getRate = (code: string) => exchangeRates?.[`${code.toLowerCase()}_rate`];
-
-    if (accountCode === 'GEL' && paymentCode !== 'GEL') {
-      const rate = getRate(paymentCode);
-      if (!rate) return null;
-      return Number(amount) * Number(rate);
-    }
-
-    if (accountCode !== 'GEL' && paymentCode === 'GEL') {
-      const rate = getRate(accountCode);
-      if (!rate) return null;
-      return Number(amount) / Number(rate);
-    }
-
-    const accountRate = getRate(accountCode);
-    const paymentRate = getRate(paymentCode);
-    if (!accountRate || !paymentRate) return null;
-    return (Number(amount) * Number(accountRate)) / Number(paymentRate);
+    const rate = getExchangeRate(paymentCurrencyUuid, paymentCurrencyCode);
+    if (!rate) return null;
+    return Number(amount) / (1 / rate);
   };
 
   const applyNominalForPartition = (partition: Partition, payment?: Payment | null) => {
