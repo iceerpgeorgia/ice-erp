@@ -14,6 +14,7 @@ interface Payment {
   currencyCode: string;
   projectIndex: string | null;
   financialCode: string;
+  counteragentUuid: string;
 }
 
 interface Partition {
@@ -36,6 +37,7 @@ interface BatchEditorProps {
   rawRecordId1: string;
   rawRecordId2: string;
   bankAccountUuid: string;
+  counteragentUuid?: string | null;
   totalAmount: number;
   description: string;
   onClose: () => void;
@@ -49,6 +51,7 @@ export function BatchEditor({
   rawRecordId1,
   rawRecordId2,
   bankAccountUuid,
+  counteragentUuid = null,
   totalAmount,
   description,
   onClose,
@@ -71,6 +74,10 @@ export function BatchEditor({
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const filteredPayments = counteragentUuid
+    ? payments.filter((payment) => payment.counteragentUuid === counteragentUuid)
+    : payments;
+
   useEffect(() => {
     fetchPayments();
   }, []);
@@ -85,7 +92,18 @@ export function BatchEditor({
     try {
       const response = await fetch('/api/payments');
       const data = await response.json();
-      setPayments(data);
+      const normalized: Payment[] = Array.isArray(data)
+        ? data.map((payment: any) => ({
+            recordUuid: payment.recordUuid || payment.record_uuid || '',
+            paymentId: payment.paymentId || payment.payment_id || '',
+            counteragentName: payment.counteragentName || payment.counteragent_name || '',
+            currencyCode: payment.currencyCode || payment.currency_code || '',
+            projectIndex: payment.projectIndex || payment.project_index || null,
+            financialCode: payment.financialCode || payment.financial_code || '',
+            counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || '',
+          }))
+        : [];
+      setPayments(normalized);
     } catch (error) {
       console.error('Error fetching payments:', error);
     }
@@ -198,7 +216,7 @@ export function BatchEditor({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-[95vw] max-w-6xl max-h-[90vh] overflow-y-auto p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">Split Transaction into Batches</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -266,7 +284,7 @@ export function BatchEditor({
                 <div>
                   <Label htmlFor={`payment-${partition.id}`}>Payment ID</Label>
                   <Combobox
-                    options={payments.map((p) => ({
+                    options={filteredPayments.map((p) => ({
                       value: p.recordUuid,
                       label: `${p.paymentId} | ${p.counteragentName} | ${p.currencyCode} | ${p.projectIndex || 'No Project'} | ${p.financialCode}`,
                     }))}

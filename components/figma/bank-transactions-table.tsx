@@ -2623,6 +2623,7 @@ export function BankTransactionsTable({
                       rawRecordId1={editingTransaction.id1 || ''}
                       rawRecordId2={editingTransaction.id2 || ''}
                       bankAccountUuid={editingTransaction.accountUuid}
+                      counteragentUuid={editingTransaction.counteragentUuid || null}
                       totalAmount={Math.abs(Number(editingTransaction.accountCurrencyAmount || 0))}
                       description={editingTransaction.description || ''}
                       onClose={handleBatchEditorClose}
