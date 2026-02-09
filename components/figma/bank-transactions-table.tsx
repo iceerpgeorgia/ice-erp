@@ -2606,6 +2606,31 @@ export function BankTransactionsTable({
                   {isSaving ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
+
+              {isBatchEditorOpen && editingTransaction && (
+                <div className="relative z-[80]">
+                  {batchEditorLoading ? (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+                      <div className="bg-white rounded-lg shadow-xl px-6 py-4">
+                        <span className="text-gray-600">Loading...</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <BatchEditor
+                      batchUuid={batchEditorUuid}
+                      initialPartitions={batchInitialPartitions ?? undefined}
+                      rawRecordUuid={editingTransaction.recordUuid}
+                      rawRecordId1={editingTransaction.id1 || ''}
+                      rawRecordId2={editingTransaction.id2 || ''}
+                      bankAccountUuid={editingTransaction.accountUuid}
+                      totalAmount={Math.abs(Number(editingTransaction.accountCurrencyAmount || 0))}
+                      description={editingTransaction.description || ''}
+                      onClose={handleBatchEditorClose}
+                      onSave={handleBatchEditorSaved}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
@@ -2778,28 +2803,6 @@ export function BankTransactionsTable({
         </DialogContent>
       </Dialog>
 
-      {isBatchEditorOpen && editingTransaction && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50">
-          {batchEditorLoading ? (
-            <div className="bg-white rounded-lg shadow-xl px-6 py-4">
-              <span className="text-gray-600">Loading...</span>
-            </div>
-          ) : (
-            <BatchEditor
-              batchUuid={batchEditorUuid}
-              initialPartitions={batchInitialPartitions ?? undefined}
-              rawRecordUuid={editingTransaction.recordUuid}
-              rawRecordId1={editingTransaction.id1 || ''}
-              rawRecordId2={editingTransaction.id2 || ''}
-              bankAccountUuid={editingTransaction.accountUuid}
-              totalAmount={Math.abs(Number(editingTransaction.accountCurrencyAmount || 0))}
-              description={editingTransaction.description || ''}
-              onClose={handleBatchEditorClose}
-              onSave={handleBatchEditorSaved}
-            />
-          )}
-        </div>
-      )}
     </div>
   );
 }
