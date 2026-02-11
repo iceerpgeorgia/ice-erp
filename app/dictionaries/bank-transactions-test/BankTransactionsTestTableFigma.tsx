@@ -129,6 +129,29 @@ export default function BankTransactionsTestTableFigma() {
     }
   }, [appliedFromDate, appliedToDate, appliedRecordLimit]);
 
+  // Restore filters from localStorage on mount and apply them
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storedFromDate = localStorage.getItem('bankTransactionsTest_fromDate') || '';
+    const storedToDate = localStorage.getItem('bankTransactionsTest_toDate') || '';
+    const storedRecordLimit = localStorage.getItem('bankTransactionsTest_recordLimit') || '';
+    const storedAppliedFromDate = localStorage.getItem('bankTransactionsTest_appliedFromDate') || '';
+    const storedAppliedToDate = localStorage.getItem('bankTransactionsTest_appliedToDate') || '';
+    const storedAppliedRecordLimit = localStorage.getItem('bankTransactionsTest_appliedRecordLimit') || '';
+
+    if (storedFromDate) setFromDateDisplay(storedFromDate);
+    if (storedToDate) setToDateDisplay(storedToDate);
+    if (storedRecordLimit) setRecordLimitInput(storedRecordLimit);
+
+    const nextAppliedFrom = storedAppliedFromDate || storedFromDate;
+    const nextAppliedTo = storedAppliedToDate || storedToDate;
+    const nextAppliedLimit = storedAppliedRecordLimit || storedRecordLimit;
+
+    if (nextAppliedFrom) setAppliedFromDate(nextAppliedFrom);
+    if (nextAppliedTo) setAppliedToDate(nextAppliedTo);
+    if (nextAppliedLimit) setAppliedRecordLimit(nextAppliedLimit);
+  }, []);
+
   // Validation helper - check if date is valid dd.mm.yyyy format
   const isValidDate = (date: string): boolean => {
     if (!date) return true; // Empty is valid (means no filter)
