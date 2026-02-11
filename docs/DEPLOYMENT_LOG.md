@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-11
+- Summary: Add verbose logging for FIFO redistribution calculations.
+- Changes:
+  - Payment redistribution FIFO: detailed allocation/partition logs behind verbose flag.
+- Commit: 8a9b086
+- Production: TBD
+
+## 2026-02-11
 - Summary: Align salary accrual paid matching to salary payment IDs with currency-safe fallback.
 - Changes:
   - Salary accruals: match paid totals by payment_id and nominal currency with safe fallback for single-currency IDs.

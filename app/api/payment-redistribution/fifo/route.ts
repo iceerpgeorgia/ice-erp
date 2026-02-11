@@ -119,6 +119,10 @@ export async function POST(request: NextRequest) {
     const transactionKeys = Array.isArray(body.transactionKeys)
       ? body.transactionKeys
       : [];
+    const verboseLogging = Boolean(body?.verboseLogging);
+    const logVerbose = (...args: any[]) => {
+      if (verboseLogging) console.log("[FIFO Redistribute]", ...args);
+    };
 
     if (paymentIds.length === 0 || transactionKeys.length === 0) {
       return NextResponse.json(
@@ -126,6 +130,13 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    logVerbose("Input", {
+      paymentIdsCount: paymentIds.length,
+      transactionKeysCount: transactionKeys.length,
+      paymentIds,
+      transactionKeys,
+    });
 
     const warnings: string[] = [];
 
@@ -149,6 +160,8 @@ export async function POST(request: NextRequest) {
        WHERE sa.payment_id = ANY($1::text[])`,
       paymentIds
     );
+
+    logVerbose("Salary rows fetched", { count: salaryRows.length });
 
     const salaryByPaymentId = new Map<string, any>();
     salaryRows.forEach((row) => salaryByPaymentId.set(row.payment_id, row));
@@ -191,6 +204,12 @@ export async function POST(request: NextRequest) {
         )
       : [];
 
+    logVerbose("Ledger rows fetched", {
+      count: ledgerRows.length,
+      normalPaymentIdsCount: normalPaymentIds.length,
+      projectedPaymentIdsCount: projectedPaymentIds.length,
+    });
+
     const targets: TargetRow[] = [];
     const seen = new Set<string>();
 
@@ -221,6 +240,13 @@ export async function POST(request: NextRequest) {
         source: "salary",
       });
       seen.add(row.payment_id);
+
+      logVerbose("Target: salary", {
+        payment_id: row.payment_id,
+        amount,
+        accrualDate: accrualDate?.toISOString() ?? null,
+        currency_code: row.currency_code || null,
+      });
     });
 
     if (projectedPaymentIds.length > 0) {
@@ -263,6 +289,12 @@ export async function POST(request: NextRequest) {
         }
       });
 
+      logVerbose("Projected salary bases", {
+        projectedPaymentIdsCount: projectedPaymentIds.length,
+        baseIdsCount: baseIds.length,
+        baseRowsCount: baseRows.length,
+      });
+
       projectedPaymentIds.forEach((paymentId: string) => {
         const baseId = basePaymentIdFromProjected(paymentId);
         const baseRow = baseRowsById.get(baseId);
@@ -297,6 +329,13 @@ export async function POST(request: NextRequest) {
           source: "salary",
         });
         seen.add(paymentId);
+
+        logVerbose("Target: projected salary", {
+          payment_id: paymentId,
+          amount,
+          accrualDate: accrualDate?.toISOString() ?? null,
+          currency_code: baseRow.currency_code || null,
+        });
       });
     }
 
@@ -320,6 +359,13 @@ export async function POST(request: NextRequest) {
         source: "ledger",
       });
       seen.add(row.payment_id);
+
+      logVerbose("Target: ledger", {
+        payment_id: row.payment_id,
+        amount,
+        accrualDate: accrualDate?.toISOString() ?? null,
+        currency_code: row.currency_code || null,
+      });
     });
 
     const missingTargets = paymentIds.filter((id: string) => !seen.has(id));
@@ -490,6 +536,12 @@ export async function POST(request: NextRequest) {
       sortedTargets.map((target) => [target.payment_id, target])
     );
 
+    logVerbose("Sorted totals", {
+      targets: sortedTargets.length,
+      items: sortedItems.length,
+      warningsCount: warnings.length,
+    });
+
     let targetIndex = 0;
 
     const updates: Array<{
@@ -538,6 +590,15 @@ export async function POST(request: NextRequest) {
     }> = [];
 
     for (const item of sortedItems) {
+      logVerbose("Allocate transaction", {
+        source_table: item.source_table,
+        id: item.id,
+        transaction_date: item.transaction_date,
+        amount: item.amount,
+        account_amount: item.account_amount,
+        account_currency_uuid: item.account_currency_uuid,
+        nominal_currency_uuid: item.nominal_currency_uuid,
+      });
       let remainingTx = item.amount;
       const partitions: Array<{
         payment_id: string | null;
@@ -571,6 +632,15 @@ export async function POST(request: NextRequest) {
           note: null,
         });
 
+        logVerbose("Partition", {
+          from_transaction: `${item.source_table}:${item.id}`,
+          to_payment_id: target.payment_id,
+          nominal_alloc: nominalAlloc,
+          account_alloc: accountAlloc,
+          target_remaining_before: roundMoney(target.remaining + nominalAlloc),
+          target_remaining_after: roundMoney(target.remaining - nominalAlloc),
+        });
+
         target.remaining = roundMoney(target.remaining - nominalAlloc);
         remainingTx = roundMoney(remainingTx - nominalAlloc);
         nominalAllocated = roundMoney(nominalAllocated + nominalAlloc);
@@ -591,6 +661,11 @@ export async function POST(request: NextRequest) {
           partition_amount: accountAlloc,
           note: "Free agent",
         });
+        logVerbose("Partition: free agent", {
+          from_transaction: `${item.source_table}:${item.id}`,
+          nominal_alloc: nominalAlloc,
+          account_alloc: accountAlloc,
+        });
         nominalAllocated = roundMoney(nominalAllocated + nominalAlloc);
         accountAllocated = roundMoney(accountAllocated + accountAlloc);
       }
@@ -600,12 +675,22 @@ export async function POST(request: NextRequest) {
         if (Math.abs(adjustmentNominal) >= 0.01) {
           const last = partitions[partitions.length - 1];
           last.amount = roundMoney(last.amount + adjustmentNominal);
+          logVerbose("Adjustment nominal", {
+            transaction: `${item.source_table}:${item.id}`,
+            adjustment: adjustmentNominal,
+            final_amount: last.amount,
+          });
         }
 
         const adjustmentAccount = roundMoney(accountTotal - accountAllocated);
         if (Math.abs(adjustmentAccount) >= 0.01) {
           const last = partitions[partitions.length - 1];
           last.partition_amount = roundMoney(last.partition_amount + adjustmentAccount);
+          logVerbose("Adjustment account", {
+            transaction: `${item.source_table}:${item.id}`,
+            adjustment: adjustmentAccount,
+            final_partition_amount: last.partition_amount,
+          });
         }
       }
 
@@ -619,6 +704,14 @@ export async function POST(request: NextRequest) {
         nominal_amount: item.amount,
         partitions,
         batch_required: batchRequired,
+      });
+
+      logVerbose("Allocation summary", {
+        transaction: `${item.source_table}:${item.id}`,
+        partitions: partitions.length,
+        batch_required: batchRequired,
+        nominal_allocated: nominalAllocated,
+        remaining_tx: remainingTx,
       });
 
       if (!batchRequired) {
@@ -636,6 +729,11 @@ export async function POST(request: NextRequest) {
             project_uuid: target?.project_uuid || null,
             financial_code_uuid: target?.financial_code_uuid || null,
             nominal_currency_uuid: target?.nominal_currency_uuid || null,
+            nominal_amount: nominalAmount,
+          });
+          logVerbose("Direct update", {
+            transaction: `${item.source_table}:${item.id}`,
+            to_payment_id: targetPaymentId,
             nominal_amount: nominalAmount,
           });
         }
@@ -683,6 +781,14 @@ export async function POST(request: NextRequest) {
         payment_id: row.payment_id,
         remaining: row.remaining,
       }));
+
+    logVerbose("Redistribution summary", {
+      updates: updates.length,
+      batches: batches.length,
+      allocations: allocations.length,
+      warnings: warnings.length,
+      unallocated: unallocated.length,
+    });
 
     return NextResponse.json({
       updates,
