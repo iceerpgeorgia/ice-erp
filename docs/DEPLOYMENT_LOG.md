@@ -5,7 +5,7 @@
 - Changes:
   - Bank transactions: map synthetic IDs to source table/id when query params are missing.
 - Commit: 37fb690
-- Production: TBD
+- Production: https://ice-r17ysi3dl-iceerp.vercel.app
 
 ## 2026-02-11
 - Summary: Highlight job name when payment ids share project/job/financial code.
