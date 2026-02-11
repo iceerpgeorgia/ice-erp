@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
+const SOURCE_TABLES = [
+  "GE78BG0000000893486000_BOG_GEL",
+  "GE65TB7856036050100002_TBC_GEL",
+];
+
 
 // GET all projects - FIXED VERSION with project_uuid join
 export async function GET(req: NextRequest) {
@@ -41,7 +46,33 @@ export async function GET(req: NextRequest) {
           SELECT
             payment_id,
             SUM(nominal_amount) as total_payment
-          FROM consolidated_bank_accounts
+          FROM (
+            SELECT
+              cba.payment_id,
+              cba.nominal_amount,
+              cba.raw_record_uuid,
+              cba.account_currency_amount
+            FROM (
+              ${SOURCE_TABLES.map((table) => `SELECT * FROM "${table}"`).join(' UNION ALL ')}
+            ) cba
+            WHERE NOT EXISTS (
+              SELECT 1 FROM bank_transaction_batches btb
+              WHERE btb.raw_record_uuid::text = cba.raw_record_uuid::text
+            )
+
+            UNION ALL
+
+            SELECT
+              btb.payment_id,
+              (btb.nominal_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
+              cba.raw_record_uuid,
+              cba.account_currency_amount
+            FROM (
+              ${SOURCE_TABLES.map((table) => `SELECT * FROM "${table}"`).join(' UNION ALL ')}
+            ) cba
+            JOIN bank_transaction_batches btb
+              ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
+          ) combined
           WHERE payment_id IS NOT NULL
           GROUP BY payment_id
         ) bank_agg ON p.payment_id = bank_agg.payment_id

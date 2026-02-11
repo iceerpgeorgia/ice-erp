@@ -65,7 +65,7 @@ export default function ProjectsClientPage() {
   }
 
   return (
-    <div className="w-full max-w-none px-4 md:px-6">
+    <div className="w-full">
       <ProjectsTableDynamic data={projects} />
     </div>
   );

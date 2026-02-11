@@ -69,7 +69,7 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="container mx-auto py-10">
+    <div className="w-full">
       <ProjectsTableDynamic data={projects} />
     </div>
   );
