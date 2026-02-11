@@ -5,7 +5,7 @@
 - Changes:
   - Salary accruals: match paid totals by payment_id and nominal currency with safe fallback for single-currency IDs.
 - Commit: 10cbf18
-- Production: TBD
+- Production: https://ice-rjhvkl885-iceerp.vercel.app
 
 ## 2026-02-11
 - Summary: Include batch partitions in salary accrual paid totals and keep payment redistribution selections aligned with filters.
