@@ -1,6 +1,21 @@
 # Deployment Log
 
 ## 2026-02-11
+- Summary: Add planned salary accrual payment IDs (36-month projection) to the payment redistribution list.
+- Changes:
+  - Payment redistribution: include salary_accruals projection rows for next 36 months.
+- Commit: 07c735f
+- Production: https://ice-ildmscwjh-iceerp.vercel.app
+
+## 2026-02-12
+- Summary: Add FIFO-based payment redistribution with salary net calculations and split batch application.
+- Changes:
+  - Payment redistribution: FIFO plan/apply endpoints with salary accrual net logic and batch splits.
+  - UI: FIFO run/apply controls and results display.
+- Commit: 779d016
+- Production: https://ice-xwt8hscz6-iceerp.vercel.app
+
+## 2026-02-11
 - Summary: Added refresh controls for projects lists and removed the payments export row cap by exporting from a full dataset fetch.
 - Changes:
   - Projects pages: refresh button + no-store fetch on admin and dictionaries.
