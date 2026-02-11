@@ -35,10 +35,32 @@ export function getSupabaseClient() {
     throw new Error('Missing Supabase environment variables');
   }
 
+  const debugFetch: typeof fetch = async (input, init) => {
+    const response = await fetch(input, init);
+    if (!response.ok) {
+      let bodyText: string | null = null;
+      try {
+        bodyText = await response.clone().text();
+      } catch {
+        bodyText = null;
+      }
+      console.error('❌ Supabase HTTP error:', {
+        url: typeof input === 'string' ? input : input?.toString?.(),
+        status: response.status,
+        statusText: response.statusText,
+        bodyText,
+      });
+    }
+    return response;
+  };
+
   return createClient(supabaseUrl, supabaseKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
+    },
+    global: {
+      fetch: debugFetch,
     },
   });
 }

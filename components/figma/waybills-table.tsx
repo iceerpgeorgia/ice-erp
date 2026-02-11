@@ -240,16 +240,31 @@ export function WaybillsTable() {
 
   const visibleColumns = useMemo(() => columns.filter((col) => col.visible), [columns]);
 
+  const getFacetBaseData = (excludeColumn?: ColumnKey) => {
+    let rows = data;
+    if (filters.size > 0) {
+      rows = rows.filter((row) =>
+        Array.from(filters.entries()).every(([key, selected]) => {
+          if (excludeColumn && key === excludeColumn) return true;
+          if (!selected || selected.size === 0) return true;
+          const value = normalizeValue((row as any)[key]);
+          return selected.has(value);
+        })
+      );
+    }
+    return rows;
+  };
+
   const filterOptions = useMemo(() => {
     const map = new Map<ColumnKey, string[]>();
     columns.filter((col) => col.filterable).forEach((col) => {
       const values = Array.from(
-        new Set(data.map((row) => normalizeValue((row as any)[col.key])).filter((val) => val !== ''))
+        new Set(getFacetBaseData(col.key).map((row) => normalizeValue((row as any)[col.key])).filter((val) => val !== ''))
       ).sort((a, b) => a.localeCompare(b));
       map.set(col.key, values);
     });
     return map;
-  }, [columns, data]);
+  }, [columns, data, filters]);
 
   const getUniqueValues = (columnKey: ColumnKey) => filterOptions.get(columnKey) || [];
 

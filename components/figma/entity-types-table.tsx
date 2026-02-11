@@ -30,6 +30,7 @@ import {
   TableRow 
 } from './ui/table';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
 
 
 
@@ -100,6 +101,7 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const filtersStorageKey = 'entity-types-table:column-filters';
   
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
@@ -121,6 +123,14 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number } | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
+
+  useEffect(() => {
+    setColumnFilters(loadColumnFilters(filtersStorageKey));
+  }, [filtersStorageKey]);
+
+  useEffect(() => {
+    saveColumnFilters(filtersStorageKey, columnFilters);
+  }, [filtersStorageKey, columnFilters]);
   
   // Form state with validation
   const [formData, setFormData] = useState({
@@ -142,6 +152,33 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
   useEffect(() => {
     if (data) setEntityTypes(data);
   }, [data]);
+
+  const getFacetBaseData = (excludeColumn?: ColumnKey) => {
+    let result = [...entityTypes];
+
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      result = result.filter(row =>
+        Object.values(row).some(val => String(val ?? '').toLowerCase().includes(search))
+      );
+    }
+
+    if (Object.keys(columnFilters).length > 0) {
+      result = result.filter(row => {
+        for (const [columnKey, values] of Object.entries(columnFilters)) {
+          if (excludeColumn && columnKey === excludeColumn) continue;
+          if (!values || values.length === 0) continue;
+          const rowValue = row[columnKey as ColumnKey];
+          if (!values.includes(String(rowValue ?? ''))) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    return result;
+  };
 
   // Measure scroll content width and whether a horizontal scrollbar is needed
   useEffect(() => {
@@ -559,7 +596,8 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
 
   // Get unique values for column filters
   const getUniqueValues = (column: ColumnKey) => {
-    return [...new Set(entityTypes.map(entityType => String(entityType[column])))].sort();
+    const baseData = getFacetBaseData(column);
+    return [...new Set(baseData.map(entityType => String(entityType[column] ?? '')))].sort();
   };
 
   // Column settings dialog
@@ -1197,7 +1235,10 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setColumnFilters({})}
+            onClick={() => {
+              clearColumnFilters(filtersStorageKey);
+              setColumnFilters({});
+            }}
             className="h-6 px-2 text-xs"
           >
             Clear all

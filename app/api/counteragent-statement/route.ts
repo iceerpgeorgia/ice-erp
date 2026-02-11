@@ -93,12 +93,14 @@ export async function GET(request: NextRequest) {
 
     const salaryRows = await prisma.$queryRawUnsafe<Array<{
       payment_id: string;
+      financial_code_validation: string | null;
       financial_code: string | null;
       currency_code: string | null;
     }>>(
       `SELECT
          sa.payment_id,
-         fc.validation as financial_code,
+         fc.validation as financial_code_validation,
+         fc.code as financial_code,
          curr.code as currency_code
        FROM salary_accruals sa
        LEFT JOIN financial_codes fc ON sa.financial_code_uuid = fc.uuid
@@ -107,30 +109,46 @@ export async function GET(request: NextRequest) {
       counteragentUuid
     );
 
+    const normalizePaymentKey = (value: string) => value.trim().toLowerCase();
+    const salaryInfoMap = new Map<string, { financialCode: string | null; currency: string | null }>();
+    for (const row of salaryRows) {
+      if (!row.payment_id) continue;
+      const key = normalizePaymentKey(row.payment_id);
+      salaryInfoMap.set(key, {
+        financialCode: row.financial_code_validation || row.financial_code || null,
+        currency: row.currency_code || null,
+      });
+    }
+
     const paymentInfoMap = new Map<string, any>();
+    const paymentIdSet = new Set<string>();
     for (const row of paymentRows) {
       if (!row.payment_id) continue;
-      paymentInfoMap.set(row.payment_id, {
-        project: row.project_index || row.project_name || null,
-        financialCode: row.financial_code_validation || row.financial_code || null,
-        job: row.job_name || null,
-        incomeTax: row.income_tax ?? null,
-        currency: row.currency_code || null,
+      const key = normalizePaymentKey(row.payment_id);
+      paymentIdSet.add(row.payment_id);
+      const salaryInfo = salaryInfoMap.get(key);
+      paymentInfoMap.set(key, {
+        project: salaryInfo ? null : (row.project_index || row.project_name || null),
+        financialCode: salaryInfo ? salaryInfo.financialCode : (row.financial_code_validation || row.financial_code || null),
+        job: salaryInfo ? null : (row.job_name || null),
+        incomeTax: salaryInfo ? null : (row.income_tax ?? null),
+        currency: salaryInfo ? salaryInfo.currency : (row.currency_code || null),
       });
     }
     for (const row of salaryRows) {
       if (!row.payment_id) continue;
-      if (paymentInfoMap.has(row.payment_id)) continue;
-      paymentInfoMap.set(row.payment_id, {
+      const key = normalizePaymentKey(row.payment_id);
+      paymentIdSet.add(row.payment_id);
+      paymentInfoMap.set(key, {
         project: null,
-        financialCode: row.financial_code || null,
+        financialCode: row.financial_code_validation || row.financial_code || null,
         job: null,
         incomeTax: null,
         currency: row.currency_code || null,
       });
     }
 
-    const paymentIds = Array.from(paymentInfoMap.keys());
+    const paymentIds = Array.from(paymentIdSet.values());
 
     const ledgerEntries = paymentIds.length
       ? await prisma.$queryRawUnsafe<any[]>(
@@ -153,7 +171,10 @@ export async function GET(request: NextRequest) {
 
     const bankTransactions = await prisma.$queryRawUnsafe<any[]>(
       `SELECT
-         result.id,
+        result.synthetic_id,
+        result.source_id,
+        result.source_table,
+        result.id,
          result.uuid,
          result.payment_id,
          result.account_currency_amount,
@@ -233,7 +254,7 @@ export async function GET(request: NextRequest) {
       counteragent,
       paymentIds,
       ledgerEntries: ledgerEntries.map((entry) => {
-        const info = entry.payment_id ? paymentInfoMap.get(entry.payment_id) : null;
+        const info = entry.payment_id ? paymentInfoMap.get(normalizePaymentKey(entry.payment_id)) : null;
         return {
         id: Number(entry.id),
         paymentId: entry.payment_id,
@@ -251,7 +272,7 @@ export async function GET(request: NextRequest) {
         };
       }),
       bankTransactions: bankTransactions.map((tx) => {
-        const info = tx.payment_id ? paymentInfoMap.get(tx.payment_id) : null;
+        const info = tx.payment_id ? paymentInfoMap.get(normalizePaymentKey(tx.payment_id)) : null;
         const accountCurrencyAmount = tx.account_currency_amount ? parseFloat(tx.account_currency_amount) : 0;
         const nominalAmount = tx.nominal_amount ? parseFloat(tx.nominal_amount) : 0;
         const exchangeRate = tx.exchange_rate ? parseFloat(tx.exchange_rate) : 0;

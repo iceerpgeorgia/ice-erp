@@ -91,7 +91,9 @@ export async function GET(request: NextRequest) {
           LEFT JOIN counteragents c ON sa.counteragent_uuid = c.counteragent_uuid
           LEFT JOIN financial_codes fc ON sa.financial_code_uuid = fc.uuid
           LEFT JOIN currencies curr ON sa.nominal_currency_uuid = curr.uuid
-          WHERE lower(sa.payment_id) = lower($1) OR lower(sa.payment_id) = lower($2)
+          WHERE lower(sa.payment_id) = lower($1)
+            OR lower(sa.payment_id) = lower($2)
+          ORDER BY sa.salary_month DESC, sa.created_at DESC
           LIMIT 1
           `,
           paymentId,
@@ -99,6 +101,7 @@ export async function GET(request: NextRequest) {
         )
       : [];
     const salaryPayment = (salaryResult as any[])[0];
+    const isSalaryPayment = Boolean(salaryPayment);
 
     if (!payment && !salaryPayment) {
       return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
@@ -126,6 +129,7 @@ export async function GET(request: NextRequest) {
       SELECT
         MIN(sa.id) as id,
         sa.payment_id,
+        sa.salary_month,
         (date_trunc('month', sa.salary_month) + interval '1 month')::date as effective_date,
         SUM(sa.net_sum * CASE WHEN COALESCE(ca.pension_scheme, false) THEN 0.98 ELSE 1 END) as accrual,
         SUM(sa.net_sum * CASE WHEN COALESCE(ca.pension_scheme, false) THEN 0.98 ELSE 1 END) as "order",
@@ -134,7 +138,8 @@ export async function GET(request: NextRequest) {
         MAX(sa.created_at) as created_at
       FROM salary_accruals sa
       LEFT JOIN counteragents ca ON sa.counteragent_uuid = ca.counteragent_uuid
-      WHERE lower(sa.payment_id) = lower($1) OR lower(sa.payment_id) = lower($2)
+      WHERE lower(sa.payment_id) = lower($1)
+        OR lower(sa.payment_id) = lower($2)
       GROUP BY sa.payment_id, sa.salary_month
       ORDER BY sa.salary_month DESC
     `;
@@ -237,7 +242,7 @@ export async function GET(request: NextRequest) {
             financialCode: payment.financial_code_validation || payment.financial_code,
             job: payment.job_name,
             floors: payment.floors ? Number(payment.floors) : 0,
-            incomeTax: payment.income_tax || false,
+            incomeTax: isSalaryPayment ? false : (payment.income_tax || false),
             currency: payment.currency_code,
             createdAt: payment.created_at,
             updatedAt: payment.updated_at,

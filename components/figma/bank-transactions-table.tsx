@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, 
   ArrowUpDown, 
@@ -126,8 +126,8 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'usdGelRate', label: 'USD/GEL', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'correctionDate', label: 'Correction Date', width: 120, visible: false, sortable: true, filterable: true },
   { key: 'exchangeRate', label: 'FX', width: 120, visible: false, sortable: true, filterable: true },
-  { key: 'id1', label: 'DocKey', width: 120, visible: false, sortable: true, filterable: true },
-  { key: 'id2', label: 'EntriesId', width: 120, visible: false, sortable: true, filterable: true },
+  { key: 'id1', label: 'ID1', width: 140, visible: true, sortable: true, filterable: true },
+  { key: 'id2', label: 'ID2', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'recordUuid', label: 'Record UUID', width: 200, visible: false, sortable: true, filterable: true },
   { key: 'uuid', label: 'UUID', width: 200, visible: false, sortable: true, filterable: true },
   { key: 'accountUuid', label: 'Account UUID', width: 200, visible: false, sortable: true, filterable: true },
@@ -238,10 +238,18 @@ export function BankTransactionsTable({
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [wasDialogOpen, setWasDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<BankTransaction | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importPreviewRows, setImportPreviewRows] = useState<any[]>([]);
+  const [importSummary, setImportSummary] = useState<any | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [pendingImportRows, setPendingImportRows] = useState<any[]>([]);
+  const [importFileName, setImportFileName] = useState<string>('');
   const [isBatchEditorOpen, setIsBatchEditorOpen] = useState(false);
   const [batchEditorLoading, setBatchEditorLoading] = useState(false);
   const [batchEditorUuid, setBatchEditorUuid] = useState<string | null>(null);
@@ -353,7 +361,7 @@ export function BankTransactionsTable({
     if (typeof window !== 'undefined') {
       const savedColumns = localStorage.getItem('bank-transactions-table-columns');
       const savedVersion = localStorage.getItem('bank-transactions-table-version');
-      const currentVersion = '7'; // Increment this when defaultColumns structure changes
+      const currentVersion = '9'; // Increment this when defaultColumns structure changes
       
       if (savedColumns && savedVersion === currentVersion) {
         try {
@@ -1080,7 +1088,7 @@ export function BankTransactionsTable({
             const accountCode = accountCurrency?.code || 'GEL';
             const nominalCode = selectedPayment.currencyCode;
             
-            console.log('[handlePaymentChange] Converting:', accountCode, 'ΓåÆ', nominalCode, 'Amount:', accountAmount);
+            console.log('[handlePaymentChange] Converting:', accountCode, 'G��', nominalCode, 'Amount:', accountAmount);
             console.log('[handlePaymentChange] Exchange rates object:', exchangeRates);
             
             const calculatedRate = getExchangeRateValue(nominalCode);
@@ -1460,8 +1468,8 @@ export function BankTransactionsTable({
             correctionDate: row.correction_date || null,
             exchangeRate: row.exchange_rate || null,
             nominalExchangeRate: row.nominal_exchange_rate || null,
-            id1: null,
-            id2: null,
+            id1: row.id1 || row.dockey || null,
+            id2: row.id2 || row.entriesid || null,
             recordUuid: row.raw_record_uuid || "",
             counteragentAccountNumber: row.counteragent_account_number || null,
             description: row.description || null,
@@ -1553,8 +1561,8 @@ export function BankTransactionsTable({
             correctionDate: row.correction_date || null,
             exchangeRate: row.exchange_rate || null,
             nominalExchangeRate: row.nominal_exchange_rate || null,
-            id1: null,
-            id2: null,
+            id1: row.id1 || row.dockey || null,
+            id2: row.id2 || row.entriesid || null,
             recordUuid: row.raw_record_uuid || "",
             counteragentAccountNumber: row.counteragent_account_number || null,
             description: row.description || null,
@@ -1674,6 +1682,131 @@ export function BankTransactionsTable({
       XLSX.writeFile(workbook, `bank-transactions-${dateStamp}.xlsx`, { bookType: 'xlsx' });
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const normalizeImportHeader = (value: any) => String(value || '').trim().toLowerCase();
+
+  const mapImportHeaderToKey = (header: string) => {
+    const normalized = normalizeImportHeader(header);
+    if (normalized === 'id1' || normalized === 'dockey') return 'id1';
+    if (normalized === 'id2' || normalized === 'entriesid') return 'id2';
+    if (normalized === 'payment id' || normalized === 'payment_id' || normalized === 'paymentid') return 'paymentId';
+    if (normalized === 'amount' || normalized === 'accountcurrencyamount') return 'accountCurrencyAmount';
+    if (normalized === 'nominal amt' || normalized === 'nominal amount' || normalized === 'nominalamount') return 'nominalAmount';
+    if (normalized === 'nom iso' || normalized === 'nominal currency' || normalized === 'nominalcurrencycode') return 'nominalCurrencyCode';
+    return null;
+  };
+
+  const parseImportRows = (data: any[][]) => {
+    if (data.length === 0) return { rows: [], errors: ['Empty sheet'] };
+    const [headerRow, ...bodyRows] = data;
+    const headerKeys = headerRow.map((cell) => mapImportHeaderToKey(cell));
+
+    const headerKeySet = new Set(headerKeys.filter((key) => Boolean(key)));
+    const required = ['id1', 'id2', 'paymentId'] as const;
+    const missingRequired = required.filter((key) => !headerKeySet.has(key));
+    if (missingRequired.length > 0) {
+      return {
+        rows: [],
+        errors: [`Missing required columns: ${missingRequired.join(', ')}`],
+      };
+    }
+
+    const rows = bodyRows
+      .filter((row) => row.some((cell: any) => String(cell || '').trim() !== ''))
+      .map((row) => {
+        const record: any = {};
+        headerKeys.forEach((key, idx) => {
+          if (!key) return;
+          record[key] = row[idx];
+        });
+        return {
+          id1: String(record.id1 || '').trim(),
+          id2: String(record.id2 || '').trim(),
+          paymentId: String(record.paymentId || '').trim(),
+          accountCurrencyAmount: record.accountCurrencyAmount ?? null,
+          nominalAmount: record.nominalAmount ?? null,
+          nominalCurrencyCode: record.nominalCurrencyCode ?? null,
+        };
+      })
+      .filter((row) => row.id1 || row.id2 || row.paymentId);
+
+    return { rows, errors: [] };
+  };
+
+  const handleImportFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setImportError(null);
+    setImportPreviewRows([]);
+    setImportSummary(null);
+    setImportFileName(file.name);
+
+    try {
+      setIsImporting(true);
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const data = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false }) as any[][];
+      const parsed = parseImportRows(data);
+      if (parsed.errors.length > 0) {
+        setImportError(parsed.errors.join(' '));
+        setIsImportDialogOpen(true);
+        return;
+      }
+
+      setPendingImportRows(parsed.rows);
+      const response = await fetch('/api/bank-transactions/import-xlsx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'preview', rows: parsed.rows }),
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to preview import');
+      }
+
+      setImportPreviewRows(Array.isArray(result?.rows) ? result.rows : []);
+      setImportSummary(result?.summary || null);
+      setIsImportDialogOpen(true);
+    } catch (error: any) {
+      setImportError(error?.message || 'Failed to read XLSX');
+      setIsImportDialogOpen(true);
+    } finally {
+      setIsImporting(false);
+      if (importInputRef.current) {
+        importInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleApplyImport = async () => {
+    if (pendingImportRows.length === 0) return;
+    try {
+      setIsImporting(true);
+      const response = await fetch('/api/bank-transactions/import-xlsx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'apply', rows: pendingImportRows }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to apply import');
+      }
+
+      const errorText = Array.isArray(result?.errors) && result.errors.length > 0
+        ? ` Warnings: ${result.errors.join(' | ')}`
+        : '';
+      alert(`Import complete. Updated ${result?.updated ?? 0} record(s), created ${result?.batchesCreated ?? 0} batch(es).${errorText}`);
+      setIsImportDialogOpen(false);
+      window.location.reload();
+    } catch (error: any) {
+      setImportError(error?.message || 'Failed to apply import');
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -1837,6 +1970,13 @@ export function BankTransactionsTable({
             onChange={handleFileUpload}
             className="hidden"
           />
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".xlsx"
+            onChange={handleImportFileChange}
+            className="hidden"
+          />
           <Button 
             variant="outline" 
             size="sm"
@@ -1845,6 +1985,16 @@ export function BankTransactionsTable({
           >
             <Upload className="h-4 w-4 mr-2" />
             {isUploading ? 'Processing...' : 'Upload XML'}
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => importInputRef.current?.click()}
+            disabled={isImporting}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            {isImporting ? 'Importing...' : 'Import XLSX'}
           </Button>
 
           <Button
@@ -2219,7 +2369,7 @@ export function BankTransactionsTable({
                     {editingTransaction?.counteragentUuid 
                       ? paymentOptions.length > 0
                         ? `Showing ${paymentOptions.length} payment${paymentOptions.length === 1 ? '' : 's'} for counteragent: ${editingTransaction.counteragentName || 'Unknown'}`
-                        : `ΓÜá∩╕Å No payments found for counteragent: ${editingTransaction.counteragentName || 'Unknown'}. Create a payment for this counteragent first.`
+                        : `G��n+� No payments found for counteragent: ${editingTransaction.counteragentName || 'Unknown'}. Create a payment for this counteragent first.`
                       : `Showing all ${paymentOptions.length} payments (no counteragent parsed)`}
                   </p>
                   <div className="flex items-center gap-2 pt-2">
@@ -2756,6 +2906,75 @@ export function BankTransactionsTable({
         </Dialog>
       )}
 
+      {showFullTable && (
+        <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Import XLSX Preview</DialogTitle>
+              <DialogDescription>
+                Review parsed rows from {importFileName || 'XLSX'} before applying.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {importError && (
+                <div className="text-sm text-red-600">{importError}</div>
+              )}
+
+              {importSummary && (
+                <div className="text-sm text-muted-foreground">
+                  Total rows: {importSummary.total ?? 0} � Missing records: {importSummary.missingRecords ?? 0} � Batch groups: {importSummary.batchGroups ?? 0}
+                </div>
+              )}
+
+              {importPreviewRows.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No preview rows loaded.</div>
+              ) : (
+                <div className="border rounded-md overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr className="text-left">
+                        <th className="p-2">ID1</th>
+                        <th className="p-2">ID2</th>
+                        <th className="p-2">Payment ID</th>
+                        <th className="p-2">New Payment</th>
+                        <th className="p-2">Amount</th>
+                        <th className="p-2">Status</th>
+                        <th className="p-2">Warnings</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importPreviewRows.map((row, idx) => (
+                        <tr key={`${row.id1}-${row.id2}-${idx}`} className="border-t">
+                          <td className="p-2 font-mono">{row.id1}</td>
+                          <td className="p-2 font-mono">{row.id2}</td>
+                          <td className="p-2 font-mono">{row.paymentId || '-'}</td>
+                          <td className="p-2 font-mono">{row.newPaymentId || '-'}</td>
+                          <td className="p-2">{row.accountCurrencyAmount ?? '-'}</td>
+                          <td className="p-2">{row.status}</td>
+                          <td className="p-2">
+                            {Array.isArray(row.warnings) && row.warnings.length > 0
+                              ? row.warnings.join(' | ')
+                              : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setIsImportDialogOpen(false)} disabled={isImporting}>
+                Close
+              </Button>
+              <Button onClick={handleApplyImport} disabled={isImporting || Boolean(importError)}>
+                {isImporting ? 'Applying...' : 'Confirm Import'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Raw Record Viewer Dialog */}
       <Dialog open={isRawRecordDialogOpen} onOpenChange={setIsRawRecordDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -2812,3 +3031,5 @@ export function BankTransactionsTable({
 }
 
 export default BankTransactionsTable;
+
+

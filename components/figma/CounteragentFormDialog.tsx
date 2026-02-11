@@ -7,6 +7,7 @@ import { Input } from '@/components/figma/ui/input';
 import { Label } from '@/components/figma/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/figma/ui/select';
 import { Combobox } from '@/components/ui/combobox';
+import { Switch } from '@/components/figma/ui/switch';
 
 
 interface FormData {
@@ -509,6 +510,57 @@ export function CounteragentFormDialog({
                 value={formData.orisId}
                 onChange={(e) => updateField('orisId', e.target.value)}
               />
+            </div>
+          </div>
+
+          {/* Status */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="isActive" className="text-right">Status</Label>
+            <div className="col-span-3">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="isActive"
+                  checked={formData.isActive}
+                  onCheckedChange={(checked) => updateField('isActive', checked)}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {formData.isActive ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Is Employee */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="isEmploye" className="text-right">Is Employee</Label>
+            <div className="col-span-3">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="isEmploye"
+                  checked={formData.isEmploye}
+                  onCheckedChange={(checked) => updateField('isEmploye', checked)}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {formData.isEmploye ? 'Yes' : 'No'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Was Employee */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="wasEmploye" className="text-right">Was Employee</Label>
+            <div className="col-span-3">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="wasEmploye"
+                  checked={formData.wasEmploye}
+                  onCheckedChange={(checked) => updateField('wasEmploye', checked)}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {formData.wasEmploye ? 'Yes' : 'No'}
+                </span>
+              </div>
             </div>
           </div>
         </div>

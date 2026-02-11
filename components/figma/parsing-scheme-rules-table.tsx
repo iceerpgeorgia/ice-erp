@@ -528,8 +528,34 @@ export function ParsingSchemeRulesTable() {
 
   const visibleColumns = useMemo(() => columns.filter(col => col.visible), [columns]);
 
+  const getFacetBaseData = (excludeColumn?: ColumnKey) => {
+    let result = [...data];
+
+    if (selectedSchemeFilter) {
+      result = result.filter(row => row.schemeUuid === selectedSchemeFilter);
+    }
+
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      result = result.filter(row =>
+        Object.values(row).some(val =>
+          String(val).toLowerCase().includes(lowerSearch)
+        )
+      );
+    }
+
+    filters.forEach((filterValues, columnKey) => {
+      if (excludeColumn && columnKey === excludeColumn) return;
+      if (filterValues.size > 0) {
+        result = result.filter(row => filterValues.has(row[columnKey as ColumnKey]));
+      }
+    });
+
+    return result;
+  };
+
   const getUniqueValues = (columnKey: ColumnKey) => {
-    const values = new Set(data.map(row => row[columnKey]));
+    const values = new Set(getFacetBaseData(columnKey).map(row => row[columnKey]));
     return Array.from(values).filter(v => v !== null && v !== undefined);
   };
 

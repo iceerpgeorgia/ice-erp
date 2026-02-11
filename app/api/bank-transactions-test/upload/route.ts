@@ -12,12 +12,20 @@ export async function POST(req: NextRequest) {
   let allLogs = "";
 
   const originalLog = console.log;
+  const originalError = console.error;
   console.log = (...args: any[]) => {
     const message = args
       .map((arg) => (typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg)))
       .join(" ");
     allLogs += message + "\n";
     originalLog(...args);
+  };
+  console.error = (...args: any[]) => {
+    const message = args
+      .map((arg) => (typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg)))
+      .join(" ");
+    allLogs += message + "\n";
+    originalError(...args);
   };
 
   try {
@@ -179,6 +187,15 @@ export async function POST(req: NextRequest) {
       } catch (error: any) {
         console.log(`\n✗ ERROR processing ${file.name}:`);
         console.log(error.message);
+        console.error('✗ ERROR details:', {
+          name: error?.name,
+          message: error?.message,
+          code: error?.code,
+          details: error?.details,
+          hint: error?.hint,
+          status: error?.status,
+          stack: error?.stack,
+        });
         if (error.stack) {
           console.log("\nStack trace:");
           console.log(error.stack);
@@ -196,6 +213,7 @@ export async function POST(req: NextRequest) {
     const failCount = results.filter((r) => !r.success).length;
 
     console.log = originalLog;
+    console.error = originalError;
 
     return NextResponse.json({
       success: failCount === 0,
@@ -210,6 +228,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.log = originalLog;
+    console.error = originalError;
     console.error("[Upload Test] Error:", error);
     return NextResponse.json(
       { error: error?.message || "Failed to upload files", logs: allLogs },

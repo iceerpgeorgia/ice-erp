@@ -130,6 +130,7 @@ export function SalaryAccrualsTable() {
   const [uploadMonth, setUploadMonth] = useState('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [uploadSummary, setUploadSummary] = useState<any | null>(null);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -244,7 +245,7 @@ export function SalaryAccrualsTable() {
   }, [projectedMonths, isInitialized]);
 
   useEffect(() => {
-    if (!filtersInitialized || typeof window === 'undefined') return;
+    if (!filtersInitialized || !isInitialized || typeof window === 'undefined') return;
     const serialized = {
       searchTerm,
       sortColumn,
@@ -253,7 +254,7 @@ export function SalaryAccrualsTable() {
       filters: Array.from(filters.entries()).map(([key, set]) => [key, Array.from(set)]),
     };
     localStorage.setItem(filtersStorageKey, JSON.stringify(serialized));
-  }, [filtersInitialized, searchTerm, sortColumn, sortDirection, pageSize, filters]);
+  }, [filtersInitialized, isInitialized, searchTerm, sortColumn, sortDirection, pageSize, filters]);
 
   const parseSalaryMonth = (value: string): Date | null => {
     if (!value) return null;
@@ -620,8 +621,11 @@ export function SalaryAccrualsTable() {
     return netSum * pensionMultiplier - paid - deductedInsurance - deductedFitness - deductedFine;
   };
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (options: { showLoading?: boolean } = {}) => {
+    const { showLoading = true } = options;
+    if (showLoading) {
+      setLoading(true);
+    }
     try {
       // Fetch salary accruals
       const response = await fetch('/api/salary-accruals');
@@ -742,7 +746,18 @@ export function SalaryAccrualsTable() {
     } catch (error) {
       console.error('Error fetching salary accruals:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchData({ showLoading: false });
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500);
     }
   };
 
@@ -1024,6 +1039,34 @@ export function SalaryAccrualsTable() {
     setCurrentPage(1);
   }, [searchTerm, filters]);
 
+  const getFacetBaseData = useCallback((excludeColumn?: ColumnKey) => {
+    let result = [...data];
+
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(row =>
+        Object.values(row).some(value =>
+          String(value).toLowerCase().includes(term)
+        )
+      );
+    }
+
+    if (filters.size > 0) {
+      result = result.filter(row => {
+        for (const [columnKey, allowedValues] of filters.entries()) {
+          if (excludeColumn && columnKey === excludeColumn) continue;
+          const rowValue = columnKey === 'month_balance' ? computeBalance(row) : row[columnKey as ColumnKey];
+          if (!allowedValues.has(rowValue)) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    return result;
+  }, [data, searchTerm, filters]);
+
   // Memoize unique values
   const uniqueValuesCache = useMemo(() => {
     const cache = new Map<ColumnKey, any[]>();
@@ -1031,13 +1074,13 @@ export function SalaryAccrualsTable() {
     
     filterableColumns.forEach(col => {
       const values = new Set(
-        data.map(row => col.key === 'month_balance' ? computeBalance(row) : row[col.key])
+        getFacetBaseData(col.key).map(row => col.key === 'month_balance' ? computeBalance(row) : row[col.key])
       );
       cache.set(col.key, Array.from(values).sort());
     });
     
     return cache;
-  }, [data, columns]);
+  }, [columns, getFacetBaseData]);
 
   const formatMonthLabel = (value: any) => {
     const date = parseSalaryMonth(String(value));
@@ -1322,6 +1365,18 @@ export function SalaryAccrualsTable() {
                 className="pl-8 w-64"
               />
             </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              title="Refresh data"
+            >
+              <span className={isRefreshing ? "animate-spin" : ""}>🔄</span>
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
             
             {activeFilterCount > 0 && (
               <Button

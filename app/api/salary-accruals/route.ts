@@ -4,6 +4,8 @@ import { reparseByPaymentId } from '@/lib/bank-import/reparse';
 
 const prisma = new PrismaClient();
 
+export const revalidate = 0;
+
 // Helper function to generate payment_id
 function generatePaymentId(counteragentUuid: string, financial_code_uuid: string, salaryMonth: Date): string {
   // Extract characters at positions 2, 4, 6, 8, 10, 12 (1-indexed Excel MID)

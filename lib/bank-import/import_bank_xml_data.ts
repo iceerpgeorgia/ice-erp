@@ -88,7 +88,7 @@ function formatTBCDate(dateStr: string | undefined): string | null {
  * Calculate nominal amount using NBG exchange rates
  * Matches Python implementation exactly
  */
-function calculateNominalAmount(
+export function calculateNominalAmount(
   accountCurrencyAmount: number,
   accountCurrencyCode: string,
   nominalCurrencyUuid: string | null,
@@ -140,7 +140,7 @@ function calculateNominalAmount(
 /**
  * Compute case description from flags
  */
-function computeCaseDescription(
+export function computeCaseDescription(
   case1: boolean,
   case2: boolean,
   case3: boolean,
@@ -232,7 +232,7 @@ function extractTBCPaymentId(row: Record<string, any>): string | null {
   return trimmed.replace(/\s+/g, '_').toLowerCase();
 }
 
-function processSingleRecord(
+export function processSingleRecord(
   row: any,
   counteragentsMap: Map<string, CounteragentData>,
   parsingRules: ParsingRule[],
@@ -681,6 +681,8 @@ export async function processBOGGEL(
   let skippedRawDuplicates = 0;
   let skippedMissingKeys = 0;
 
+  console.log(`🗂️  Raw table: ${rawTableName}`);
+
   for (const detail of details) {
     const getText = (tagName: string) => detail[tagName]?.[0] || null;
 
@@ -693,12 +695,22 @@ export async function processBOGGEL(
     }
 
     // Check for duplicates
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from(rawTableName)
       .select('uuid')
       .eq('dockey', DocKey)
       .eq('entriesid', EntriesId)
-      .single();
+      .maybeSingle();
+
+    if (existingError) {
+      console.error('❌ Supabase lookup error (raw duplicates):', {
+        table: rawTableName,
+        dockey: DocKey,
+        entriesid: EntriesId,
+        error: existingError,
+      });
+      throw existingError;
+    }
 
     if (existing) {
       skippedRawDuplicates++;
@@ -777,10 +789,32 @@ export async function processBOGGEL(
   // Insert raw records
   if (rawRecordsToInsert.length > 0) {
     console.log(`💾 Inserting ${rawRecordsToInsert.length} raw records...`);
+    const batchSize = 200;
+    for (let i = 0; i < rawRecordsToInsert.length; i += batchSize) {
+      const batch = rawRecordsToInsert.slice(i, i + batchSize);
+      const { error: insertError } = await supabase.from(rawTableName).insert(batch);
 
-    const { error: insertError } = await supabase.from(rawTableName).insert(rawRecordsToInsert);
+      if (insertError) {
+        const errorProps = insertError ? Object.getOwnPropertyNames(insertError) : [];
+        const errorSnapshot = insertError
+          ? Object.fromEntries(errorProps.map((key) => [key, (insertError as any)[key]]))
+          : null;
+        console.error('❌ Supabase insert error (raw records):', {
+          table: rawTableName,
+          batchStart: i,
+          batchEnd: Math.min(i + batchSize, rawRecordsToInsert.length),
+          error: insertError,
+          errorString: insertError ? String(insertError) : null,
+          errorProps,
+          errorSnapshot,
+          sampleRecord: batch[0] ?? null,
+          sampleKeys: batch[0] ? Object.keys(batch[0]) : null,
+        });
+        throw insertError;
+      }
 
-    if (insertError) throw insertError;
+      console.log(`  ✅ Inserted ${Math.min(i + batchSize, rawRecordsToInsert.length)}/${rawRecordsToInsert.length}`);
+    }
 
     console.log(`✅ Successfully inserted ${rawRecordsToInsert.length} raw records!\n`);
   } else {
@@ -1117,6 +1151,7 @@ export async function processTBCGEL(
 
   console.log(`📊 Bank Account UUID: ${bankAccountUuid}`);
   console.log(`💱 Account Currency UUID: ${accountCurrencyUuid}\n`);
+  console.log(`🗂️  Deconsolidated table: ${deconsolidatedTableName}`);
 
   console.log('📄 STEP 1: Parsing XML and inserting raw data...');
 
@@ -1198,7 +1233,22 @@ export async function processTBCGEL(
         .select('uuid')
         .in('uuid', batch);
 
-      if (existingError) throw existingError;
+      if (existingError) {
+        const errorProps = Object.getOwnPropertyNames(existingError || {});
+        const errorSnapshot = Object.fromEntries(
+          errorProps.map((key) => [key, (existingError as any)[key]])
+        );
+        console.error('❌ Supabase lookup error (tbc deconsolidated):', {
+          table: deconsolidatedTableName,
+          batchStart: i,
+          batchEnd: Math.min(i + batchSize, recordUuids.length),
+          error: existingError,
+          errorString: existingError ? String(existingError) : null,
+          errorProps,
+          errorSnapshot,
+        });
+        throw existingError;
+      }
       (existingBatch || []).forEach((row) => existingUuids.add(row.uuid));
     }
   }
@@ -1406,7 +1456,23 @@ export async function processTBCGEL(
         .from(deconsolidatedTableName)
         .insert(batch);
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        const errorProps = Object.getOwnPropertyNames(insertError || {});
+        const errorSnapshot = Object.fromEntries(
+          errorProps.map((key) => [key, (insertError as any)[key]])
+        );
+        console.error('❌ Supabase insert error (deconsolidated):', {
+          table: deconsolidatedTableName,
+          batchStart: i,
+          batchEnd: Math.min(i + batchSize, deconsolidatedRecords.length),
+          error: insertError,
+          errorString: insertError ? String(insertError) : null,
+          errorProps,
+          errorSnapshot,
+          sampleRecord: batch[0] ?? null,
+        });
+        throw insertError;
+      }
       console.log(`  ✅ Inserted ${Math.min(i + batchSize, deconsolidatedRecords.length)}/${deconsolidatedRecords.length}`);
     }
   }
@@ -1420,7 +1486,15 @@ export async function processTBCGEL(
         .from('payments_ledger')
         .upsert(batch, { onConflict: 'record_uuid' });
 
-      if (ledgerError) throw ledgerError;
+      if (ledgerError) {
+        console.error('❌ Supabase insert error (payments_ledger):', {
+          batchStart: i,
+          batchEnd: Math.min(i + batchSize, ledgerInserts.length),
+          error: ledgerError,
+          sampleRecord: batch[0] ?? null,
+        });
+        throw ledgerError;
+      }
       console.log(`  ✅ Inserted ${Math.min(i + batchSize, ledgerInserts.length)}/${ledgerInserts.length} ledger rows...`);
     }
   }

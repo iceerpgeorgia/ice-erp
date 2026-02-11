@@ -1,0 +1,137 @@
+{
+  "objective_abs_deviation": 100.0,
+  "result": {
+    "55c91c_58_40dc4a": {
+      "target": 3350.0,
+      "total": 3290.0,
+      "diff": -60.0,
+      "transactions": [
+        {
+          "source_table": "GE78BG0000000893486000_BOG_GEL",
+          "id": 28445,
+          "uuid": "1cdb3cb5-925c-4df6-8b3d-7c18b5f686a3",
+          "payment_id": "55c91c_58_40dc4a",
+          "transaction_date": "2022-09-09",
+          "amount": 350.0
+        },
+        {
+          "source_table": "GE78BG0000000893486000_BOG_GEL",
+          "id": 30212,
+          "uuid": "cc43a40f-d247-4d6d-98e4-337c8720edc8",
+          "payment_id": "8c828b_7b_5dc5ea",
+          "transaction_date": "2022-12-27",
+          "amount": 900.0
+        },
+        {
+          "source_table": "GE78BG0000000893486000_BOG_GEL",
+          "id": 28885,
+          "uuid": "800b2f2c-9391-425b-a2ad-154f638068fc",
+          "payment_id": "8e8764_4f_676fa4",
+          "transaction_date": "2022-10-12",
+          "amount": 840.0
+        },
+        {
+          "source_table": "GE78BG0000000893486000_BOG_GEL",
+          "id": 29212,
+          "uuid": "ddc3bec9-afb3-4e03-9314-f8523173f4a7",
+          "payment_id": "9edc9f_32_3e10de",
+          "transaction_date": "2022-11-02",
+          "amount": 1200.0
+        }
+      ]
+    },
+    "8c828b_7b_5dc5ea": {
+      "target": 3700.0,
+      "total": 3660.0,
+      "diff": -40.0,
+      "transactions": [
+        {
+          "source_table": "GE78BG0000000893486000_BOG_GEL",
+          "id": 28304,
+          "uuid": "c960556e-b230-48e5-b954-6ffd74ea56f2",
+          "payment_id": "55c91c_58_40dc4a",
+          "transaction_date": "2022-08-31",
+          "amount": 1700.0
+        },
+        {
+          "source_table": "GE78BG0000000893486000_BOG_GEL",
+          "id": 29209,
+          "uuid": "f2fd9292-f0a5-4ebe-936f-2df063f4a299",
+          "payment_id": "8e8764_4f_676fa4",
+          "transaction_date": "2022-11-02",
+          "amount": 1960.0
+        }
+      ]
+    },
+    "8e8764_4f_676fa4": {
+      "target": 3200.0,
+      "total": 3200.0,
+      "diff": 0.0,
+      "transactions": [
+        {
+          "source_table": "GE78BG0000000893486000_BOG_GEL",
+          "id": 29921,
+          "uuid": "1d76fe90-fd5d-4ea6-955b-6ef2be0ca43f",
+          "payment_id": "55c91c_58_40dc4a",
+          "transaction_date": "2022-12-14",
+          "amount": 700.0
+        },
+        {
+          "source_table": "GE78BG0000000893486000_BOG_GEL",
+          "id": 28884,
+          "uuid": "2431c43b-d2aa-4842-98b1-5028a9427c1b",
+          "payment_id": "8c828b_7b_5dc5ea",
+          "transaction_date": "2022-10-12",
+          "amount": 1800.0
+        },
+        {
+          "source_table": "GE78BG0000000893486000_BOG_GEL",
+          "id": 29785,
+          "uuid": "5ca26946-06af-4874-8271-2ada18a4ee7c",
+          "payment_id": "8c828b_7b_5dc5ea",
+          "transaction_date": "2022-12-07",
+          "amount": 700.0
+        }
+      ]
+    },
+    "9edc9f_32_3e10de": {
+      "target": 3100.0,
+      "total": 3100.0,
+      "diff": 0.0,
+      "transactions": [
+        {
+          "source_table": "GE78BG0000000893486000_BOG_GEL",
+          "id": 29943,
+          "uuid": "3ad2e92c-1582-4dbe-b89b-e20620ac68a8",
+          "payment_id": "55c91c_58_40dc4a",
+          "transaction_date": "2022-12-14",
+          "amount": 800.0
+        },
+        {
+          "source_table": "GE78BG0000000893486000_BOG_GEL",
+          "id": 29304,
+          "uuid": "8b17043d-cafd-4088-902a-8c1337c606a6",
+          "payment_id": "8c828b_7b_5dc5ea",
+          "transaction_date": "2022-11-04",
+          "amount": 300.0
+        },
+        {
+          "source_table": "GE78BG0000000893486000_BOG_GEL",
+          "id": 28001,
+          "uuid": "aa06b394-6ca4-4bea-8470-08ac68138b13",
+          "payment_id": "9edc9f_32_3e10de",
+          "transaction_date": "2022-08-05",
+          "amount": 1700.0
+        },
+        {
+          "source_table": "GE78BG0000000893486000_BOG_GEL",
+          "id": 28886,
+          "uuid": "fe37dbf4-909f-47ab-a733-697642b8c04f",
+          "payment_id": "9edc9f_32_3e10de",
+          "transaction_date": "2022-10-12",
+          "amount": 300.0
+        }
+      ]
+    }
+  }
+}

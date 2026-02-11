@@ -1,0 +1,914 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<gemini:AccountStatement xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:gemini="http://www.mygemini.com/schemas/mygemini">
+  <gemini:Head>
+    <gemini:AccountFriendlyName>ჩემი მიმდინარე</gemini:AccountFriendlyName>
+    <gemini:AccountType>მიმდინარე</gemini:AccountType>
+    <gemini:AccountNo>GE65TB7856036050100002</gemini:AccountNo>
+    <gemini:AccountNameGeorgian>შპს აი-სი-ი</gemini:AccountNameGeorgian>
+    <gemini:AccountNameEnglish>LTD ICE</gemini:AccountNameEnglish>
+    <gemini:Currency>GEL</gemini:Currency>
+    <gemini:FilterDateFrom>01/01/2026</gemini:FilterDateFrom>
+    <gemini:FilterDateTo>02/02/2026</gemini:FilterDateTo>
+    <gemini:StartingBalance>1938.19</gemini:StartingBalance>
+    <gemini:ClosingBalance>484.42</gemini:ClosingBalance>
+  </gemini:Head>
+  <gemini:Record>
+    <gemini:Date>12/01/2026</gemini:Date>
+    <gemini:PaidIn>1618.0</gemini:PaidIn>
+    <gemini:Balance>3556.19</gemini:Balance>
+    <gemini:Description>ლიფტის მომსახურების ღ-ბა - დეკემბერი, 2025</gemini:Description>
+    <gemini:AdditionalInformation>ნეო გუდაური, TBCBGE22, GE42TB7313336050100003</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>12/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768216669</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE42TB7313336050100003</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ნეო გუდაური</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMB</gemini:OperationCode>
+    <gemini:TaxpayerName>ნეო გუდაური</gemini:TaxpayerName>
+    <gemini:TransactionId>18396317615</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/01/2026</gemini:Date>
+    <gemini:PaidIn>11327.82</gemini:PaidIn>
+    <gemini:Balance>14884.01</gemini:Balance>
+    <gemini:Description>ლიფტების ტექ მომსახურება - გალერია 4200 $ ეკვ, კურსი 2.6971</gemini:Description>
+    <gemini:AdditionalInformation>შპს თბილი სახლი, 204976179, TBCBGE22, GE52TB7025136020100008</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>12/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>10004</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB7025136020100008</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს თბილი სახლი, 204976179</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>204976179</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>204976179</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს თბილი სახლი, 204976179</gemini:TaxpayerName>
+    <gemini:TransactionId>18397888065</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/01/2026</gemini:Date>
+    <gemini:PaidIn>3236.52</gemini:PaidIn>
+    <gemini:Balance>18120.53</gemini:Balance>
+    <gemini:Description>8 ერთეული ლიფტის ტექ მომსახურება ჯამში 1200 $ ეკვ,კურსი 2.6971</gemini:Description>
+    <gemini:AdditionalInformation>შპს თბილი სახლი, 204976179, TBCBGE22, GE52TB7025136020100008</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>12/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>10002</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB7025136020100008</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს თბილი სახლი, 204976179</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>204976179</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>204976179</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს თბილი სახლი, 204976179</gemini:TaxpayerName>
+    <gemini:TransactionId>18397888171</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/01/2026</gemini:Date>
+    <gemini:PaidIn>809.13</gemini:PaidIn>
+    <gemini:Balance>18929.66</gemini:Balance>
+    <gemini:Description>ლიფტების ტექ მომსახურება გალერია (300 აშშ დოლარის ეკვ, კურსი 2.6971)</gemini:Description>
+    <gemini:AdditionalInformation>შპს თბილი სახლი, 204976179, TBCBGE22, GE52TB7025136020100008</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>12/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>10005</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB7025136020100008</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს თბილი სახლი, 204976179</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>204976179</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>204976179</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს თბილი სახლი, 204976179</gemini:TaxpayerName>
+    <gemini:TransactionId>18397888229</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/01/2026</gemini:Date>
+    <gemini:PaidIn>500.0</gemini:PaidIn>
+    <gemini:Balance>19429.66</gemini:Balance>
+    <gemini:Description>HVAC პროგრამული უზრუნველყოფა - მაკდონალდსი შარტავა</gemini:Description>
+    <gemini:AdditionalInformation>შპს თბილი სახლი, 204976179, TBCBGE22, GE52TB7025136020100008</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>12/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>9999</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB7025136020100008</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს თბილი სახლი, 204976179</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>204976179</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>204976179</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს თბილი სახლი, 204976179</gemini:TaxpayerName>
+    <gemini:TransactionId>18397888253</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/01/2026</gemini:Date>
+    <gemini:PaidIn>700.0</gemini:PaidIn>
+    <gemini:Balance>20129.66</gemini:Balance>
+    <gemini:Description>მომსახურების ღირ-ბა - ქუთაისის მაკდონალდსი</gemini:Description>
+    <gemini:AdditionalInformation>შპს თბილი სახლი, 204976179, TBCBGE22, GE52TB7025136020100008</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>12/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>9998</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB7025136020100008</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს თბილი სახლი, 204976179</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>204976179</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>204976179</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს თბილი სახლი, 204976179</gemini:TaxpayerName>
+    <gemini:TransactionId>18397888257</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/01/2026</gemini:Date>
+    <gemini:PaidIn>1500.0</gemini:PaidIn>
+    <gemini:Balance>21629.66</gemini:Balance>
+    <gemini:Description>HVAC პროგრამული უზრუნველყოფა-  მაკდონალდსი ბათუმი</gemini:Description>
+    <gemini:AdditionalInformation>შპს თბილი სახლი, 204976179, TBCBGE22, GE52TB7025136020100008</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>12/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>10001</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB7025136020100008</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს თბილი სახლი, 204976179</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>204976179</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>204976179</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს თბილი სახლი, 204976179</gemini:TaxpayerName>
+    <gemini:TransactionId>18397888311</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/01/2026</gemini:Date>
+    <gemini:PaidIn>1000.0</gemini:PaidIn>
+    <gemini:Balance>22629.66</gemini:Balance>
+    <gemini:Description>აგრეგატების პროგრამული უზრუნველყოფა - მაკდონალდსი გოთუა, ვაჟა ფშაველა</gemini:Description>
+    <gemini:AdditionalInformation>შპს თბილი სახლი, 204976179, TBCBGE22, GE52TB7025136020100008</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>12/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>10000</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB7025136020100008</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს თბილი სახლი, 204976179</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>204976179</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>204976179</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს თბილი სახლი, 204976179</gemini:TaxpayerName>
+    <gemini:TransactionId>18397888321</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/01/2026</gemini:Date>
+    <gemini:PaidIn>300.0</gemini:PaidIn>
+    <gemini:Balance>22929.66</gemini:Balance>
+    <gemini:Description>ლიფტების ტექ მომსახურება - ეროვნული ბანკი</gemini:Description>
+    <gemini:AdditionalInformation>შპს თბილი სახლი, 204976179, TBCBGE22, GE52TB7025136020100008</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>12/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>9997</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB7025136020100008</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს თბილი სახლი, 204976179</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>204976179</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>204976179</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს თბილი სახლი, 204976179</gemini:TaxpayerName>
+    <gemini:TransactionId>18397888339</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/01/2026</gemini:Date>
+    <gemini:PaidIn>1918.0</gemini:PaidIn>
+    <gemini:Balance>24847.66</gemini:Balance>
+    <gemini:Description>ლიფტის მომსახურება</gemini:Description>
+    <gemini:AdditionalInformation>შპს სევენ ივენთ ენდ მარკეტინგ, BAGAGE22, GE49BG0000000607642557</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>12/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>4819</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE49BG0000000607642557</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს სევენ ივენთ ენდ მარკეტინგ</gemini:PartnerName>
+    <gemini:PartnerBankCode>BAGAGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "საქართველოს ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>BULK</gemini:OperationCode>
+    <gemini:PartnerTaxCode>445740538</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>445740538</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს სევენ ივენთ ენდ მარკეტინგ</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>Ref 4819</gemini:AdditionalDescription>
+    <gemini:TransactionId>18398025817</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>15/01/2026</gemini:Date>
+    <gemini:Balance>20801.41</gemini:Balance>
+    <gemini:PaidOut>4046.25</gemini:PaidOut>
+    <gemini:Description>ბონუსი</gemini:Description>
+    <gemini:AdditionalInformation>თეა ურიდია, TBCBGE22, GE26TB7457645064300069</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>15/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768483712</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE26TB7457645064300069</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>თეა ურიდია</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>62001030230</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>9E0F48 ED 59F858</gemini:AdditionalDescription>
+    <gemini:TransactionId>18430103542</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>16/01/2026</gemini:Date>
+    <gemini:Balance>20601.41</gemini:Balance>
+    <gemini:PaidOut>200.0</gemini:PaidOut>
+    <gemini:Description>მასალის ღირებულება</gemini:Description>
+    <gemini:AdditionalInformation>შპს სანტექ სერვისი, BAGAGE22, GE79BG0000000523963900</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>16/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768550551</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE79BG0000000523963900</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს სანტექ სერვისი</gemini:PartnerName>
+    <gemini:PartnerBankCode>BAGAGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "საქართველოს ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMN</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>18432497255</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>16/01/2026</gemini:Date>
+    <gemini:Balance>20563.41</gemini:Balance>
+    <gemini:PaidOut>38.0</gemini:PaidOut>
+    <gemini:Description>მასალის ღირებულება</gemini:Description>
+    <gemini:AdditionalInformation>შპს გეგა 2012, BAGAGE22, GE68BG0000000026544800</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>16/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768548791</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE68BG0000000026544800</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს გეგა 2012</gemini:PartnerName>
+    <gemini:PartnerBankCode>BAGAGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "საქართველოს ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIN</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>18432507145</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>16/01/2026</gemini:Date>
+    <gemini:Balance>19405.41</gemini:Balance>
+    <gemini:PaidOut>1158.0</gemini:PaidOut>
+    <gemini:Description>მასალის ღირებულება</gemini:Description>
+    <gemini:AdditionalInformation>შპს ელ+, BAGAGE22, GE41BG0000000677052700</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>16/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768548665</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE41BG0000000677052700</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს ელ+</gemini:PartnerName>
+    <gemini:PartnerBankCode>BAGAGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "საქართველოს ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIN</gemini:OperationCode>
+    <gemini:PartnerTaxCode>206108950</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>18436131421</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>16/01/2026</gemini:Date>
+    <gemini:Balance>18355.41</gemini:Balance>
+    <gemini:PaidOut>1050.0</gemini:PaidOut>
+    <gemini:Description>მაცივარაგენტის ღირებულება</gemini:Description>
+    <gemini:AdditionalInformation>შპს მუბაგი, TBCBGE22, GE95TB7330236080100013</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>16/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768549090</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE95TB7330236080100013</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს მუბაგი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>402215599</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>18436140729</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>16/01/2026</gemini:Date>
+    <gemini:Balance>18295.41</gemini:Balance>
+    <gemini:PaidOut>60.0</gemini:PaidOut>
+    <gemini:Description>სამივლინებო GANMUKHURI</gemini:Description>
+    <gemini:AdditionalInformation>დავით ჩიტაიშვილი, TBCBGE22, GE61TB0641045063622448</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>16/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768555362</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE61TB0641045063622448</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>დავით ჩიტაიშვილი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01030049942</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>18436153755</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>16/01/2026</gemini:Date>
+    <gemini:Balance>17890.41</gemini:Balance>
+    <gemini:PaidOut>405.0</gemini:PaidOut>
+    <gemini:Description>მასალის ღირებულება</gemini:Description>
+    <gemini:AdditionalInformation>შპს გეგა 2012, BAGAGE22, GE68BG0000000026544800</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>16/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768562200</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE68BG0000000026544800</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს გეგა 2012</gemini:PartnerName>
+    <gemini:PartnerBankCode>BAGAGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "საქართველოს ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIN</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>18436161551</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>16/01/2026</gemini:Date>
+    <gemini:Balance>16890.41</gemini:Balance>
+    <gemini:PaidOut>1000.0</gemini:PaidOut>
+    <gemini:Description>ხელფასი</gemini:Description>
+    <gemini:AdditionalInformation>გიორგი ნიქაბაძე, TBCBGE22, GE05TB0600000360111222</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>16/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768570506</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE05TB0600000360111222</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>გიორგი ნიქაბაძე</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01030030896</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>NP 518D84 NJ 1BA0B4 PRL012026</gemini:AdditionalDescription>
+    <gemini:TransactionId>18438099763</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>16/01/2026</gemini:Date>
+    <gemini:Balance>11606.05</gemini:Balance>
+    <gemini:PaidOut>5284.36</gemini:PaidOut>
+    <gemini:Description>ლიფტის ელექტრო მონტაჟის ღირებულება FIGURES L0003</gemini:Description>
+    <gemini:AdditionalInformation>ი/მ გიორგი ქოქაშვილი, TBCBGE22, GE31TB7852236010100041</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>16/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768565207</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE31TB7852236010100041</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ი/მ გიორგი ქოქაშვილი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01028003612</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>E780BE E8 BC8A7F</gemini:AdditionalDescription>
+    <gemini:TransactionId>18438109257</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>16/01/2026</gemini:Date>
+    <gemini:Balance>6321.69</gemini:Balance>
+    <gemini:PaidOut>5284.36</gemini:PaidOut>
+    <gemini:Description>ლიფტის ელექტრო მონტაჟის ღირებულება FIGURES P0004</gemini:Description>
+    <gemini:AdditionalInformation>ი/მ გიორგი ქოქაშვილი, TBCBGE22, GE31TB7852236010100041</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>16/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768565301</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE31TB7852236010100041</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ი/მ გიორგი ქოქაშვილი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01028003612</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>B905BD CC 9D5A1B</gemini:AdditionalDescription>
+    <gemini:TransactionId>18438115569</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>16/01/2026</gemini:Date>
+    <gemini:Balance>5512.44</gemini:Balance>
+    <gemini:PaidOut>809.25</gemini:PaidOut>
+    <gemini:Description>ანაზღაურება</gemini:Description>
+    <gemini:AdditionalInformation>გედეონ ყაჭეიშვილი, TBCBGE22, GE50TB7589845061100078</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>16/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768484680</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE50TB7589845061100078</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>გედეონ ყაჭეიშვილი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>37001044420</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>2DBEAA EB 9F11CE</gemini:AdditionalDescription>
+    <gemini:TransactionId>18438127585</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>17/01/2026</gemini:Date>
+    <gemini:Balance>4512.44</gemini:Balance>
+    <gemini:PaidOut>1000.0</gemini:PaidOut>
+    <gemini:Description>ხელფასი</gemini:Description>
+    <gemini:AdditionalInformation>გიორგი ნიქაბაძე, TBCBGE22, GE05TB0600000360111222</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>17/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768655292</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE05TB0600000360111222</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>გიორგი ნიქაბაძე</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01030030896</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>NP 518D84 NJ 1BA0B4 PRL012026</gemini:AdditionalDescription>
+    <gemini:TransactionId>18448357869</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>18/01/2026</gemini:Date>
+    <gemini:Balance>3882.92</gemini:Balance>
+    <gemini:PaidOut>629.52</gemini:PaidOut>
+    <gemini:Description>Tbilisi Energy;400017245;634576210;თანხა:629.52;საკ.:0.50</gemini:Description>
+    <gemini:AdditionalInformation>გადარიცხვების სატრანზიტო ანგარიში - Ucc, TBCBGE22, GE59TB0000000450109787</gemini:AdditionalInformation>
+    <gemini:TransactionType>კომუნალური, მობილური, ჯარიმები</gemini:TransactionType>
+    <gemini:DocumentDate>18/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>46637371</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE59TB0000000450109787</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>გადარიცხვების სატრანზიტო ანგარიში - Ucc</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>*MBS*</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>MPS_TRAN_ID_2815066409</gemini:AdditionalDescription>
+    <gemini:TransactionId>18457641217</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>18/01/2026</gemini:Date>
+    <gemini:Balance>3882.42</gemini:Balance>
+    <gemini:PaidOut>0.5</gemini:PaidOut>
+    <gemini:Description>საკომისიო: Tbilisi Energy;400017245;634576210;თანხა:629.52;საკ.:0.50</gemini:Description>
+    <gemini:AdditionalInformation>გადარიცხვების სატრანზიტო ანგარიში - Ucc, TBCBGE22, GE59TB0000000450109787</gemini:AdditionalInformation>
+    <gemini:TransactionType>კომუნალური, მობილური, ჯარიმები</gemini:TransactionType>
+    <gemini:DocumentDate>18/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>26098539</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE59TB0000000450109787</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>გადარიცხვების სატრანზიტო ანგარიში - Ucc</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>MBSFE</gemini:OperationCode>
+    <gemini:TransactionId>18457641218</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/01/2026</gemini:Date>
+    <gemini:Balance>3602.42</gemini:Balance>
+    <gemini:PaidOut>280.0</gemini:PaidOut>
+    <gemini:Description>სატრანსპორტო მომსახურების ღირებულება VARKETILI MALL</gemini:Description>
+    <gemini:AdditionalInformation>ალექსეი ოთარაშვილი, BAGAGE22, GE84BG0000000103359782</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>16/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768570028</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE84BG0000000103359782</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ალექსეი ოთარაშვილი</gemini:PartnerName>
+    <gemini:PartnerBankCode>BAGAGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "საქართველოს ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIN</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>18438120977</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/01/2026</gemini:Date>
+    <gemini:Balance>2882.42</gemini:Balance>
+    <gemini:PaidOut>720.0</gemini:PaidOut>
+    <gemini:Description>საწვავის ღირებულება</gemini:Description>
+    <gemini:AdditionalInformation>სს 'ვისოლ პეტროლიუმ ჯორჯია', TBCBGE22, GE48TB1100000018467453</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>20/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768912022</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE48TB1100000018467453</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>სს 'ვისოლ პეტროლიუმ ჯორჯია'</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>202161098</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>18473271025</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/01/2026</gemini:Date>
+    <gemini:Balance>2622.42</gemini:Balance>
+    <gemini:PaidOut>260.0</gemini:PaidOut>
+    <gemini:Description>მომსახურების ღირებულება</gemini:Description>
+    <gemini:AdditionalInformation>ი/მ ლუბა ბადრიძე, BAGAGE22, GE63BG0000000609762240</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>20/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768909051</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE63BG0000000609762240</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ი/მ ლუბა ბადრიძე</gemini:PartnerName>
+    <gemini:PartnerBankCode>BAGAGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "საქართველოს ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIN</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01027057250</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>18473274849</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/01/2026</gemini:Date>
+    <gemini:Balance>2502.42</gemini:Balance>
+    <gemini:PaidOut>120.0</gemini:PaidOut>
+    <gemini:Description>887762014100</gemini:Description>
+    <gemini:AdditionalInformation>შპს საინფორმაციო კომუნიკაციების სისტემები, TBCBGE22, GE47TB0600000022467240</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>20/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768895237</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE47TB0600000022467240</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს საინფორმაციო კომუნიკაციების სისტემები</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>204885810</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>18473279485</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/01/2026</gemini:Date>
+    <gemini:Balance>561.52</gemini:Balance>
+    <gemini:PaidOut>1940.9</gemini:PaidOut>
+    <gemini:Description>სატრანსპორტო მომსახურება ინვოისი BB/160126</gemini:Description>
+    <gemini:AdditionalInformation>შპს მარპრო ლოჯისტიკს ჯორჯია, TBCBGE22, GE53TB7134136080100001</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>20/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768909165</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE53TB7134136080100001</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს მარპრო ლოჯისტიკს ჯორჯია</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>415091796</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>18473339219</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/01/2026</gemini:Date>
+    <gemini:Balance>365.52</gemini:Balance>
+    <gemini:PaidOut>196.0</gemini:PaidOut>
+    <gemini:Description>მომსახურების ღირებულება KVARELI GALLERY</gemini:Description>
+    <gemini:AdditionalInformation>ბესიკ ლაბაძე, BAGAGE22, GE19BG0000000101579062</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>20/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1768914342</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE19BG0000000101579062</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბესიკ ლაბაძე</gemini:PartnerName>
+    <gemini:PartnerBankCode>BAGAGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "საქართველოს ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIN</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>18473725539</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>21/01/2026</gemini:Date>
+    <gemini:Balance>48.91</gemini:Balance>
+    <gemini:PaidOut>316.61</gemini:PaidOut>
+    <gemini:Description>ინვოისი  I 1430/26 ქონების დაზღვევის ღირებულება</gemini:Description>
+    <gemini:AdditionalInformation>სს 'დაზღვევის საერთაშორისო კომპანია 'ირაო', TBCBGE22, GE12TB1100000108467708</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>21/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1769001894</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE12TB1100000108467708</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>სს 'დაზღვევის საერთაშორისო კომპანია 'ირაო'</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>205023856</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>18484128062</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>23/01/2026</gemini:Date>
+    <gemini:PaidIn>22635.0</gemini:PaidIn>
+    <gemini:Balance>22683.91</gemini:Balance>
+    <gemini:Description>ლიფტის ღირებულების 35% ავანსი</gemini:Description>
+    <gemini:AdditionalInformation>გიორგი კვეკვეცია, 62001020421, TBCBGE22, GE62TB7814145068100001</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>23/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>9336</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE62TB7814145068100001</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>გიორგი კვეკვეცია, 62001020421</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:PartnerTaxCode>62001020421</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>62001020421</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>გიორგი კვეკვეცია, 62001020421</gemini:TaxpayerName>
+    <gemini:TransactionId>18496823752</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>23/01/2026</gemini:Date>
+    <gemini:Balance>22183.91</gemini:Balance>
+    <gemini:PaidOut>500.0</gemini:PaidOut>
+    <gemini:Description>მასალის ღირებულება ინვოისი 58</gemini:Description>
+    <gemini:AdditionalInformation>შპს ევრომასტერი;  პაატა რუსაძე 60001005614, TBCBGE22, GE92TB7930236020100011</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>23/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1769160681</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE92TB7930236020100011</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს ევრომასტერი;  პაატა რუსაძე 60001005614</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>412670499</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>18500788070</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>24/01/2026</gemini:Date>
+    <gemini:Balance>20223.91</gemini:Balance>
+    <gemini:PaidOut>1960.0</gemini:PaidOut>
+    <gemini:Description>ხელფასი</gemini:Description>
+    <gemini:AdditionalInformation>ლევან გოგიტიძე, TBCBGE22, GE68TB7371145064300049</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>24/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1769270319</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE68TB7371145064300049</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ლევან გოგიტიძე</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>61006040061</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>NP A119AB NJ 5C8B11 PRL012026</gemini:AdditionalDescription>
+    <gemini:TransactionId>18516573637</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>25/01/2026</gemini:Date>
+    <gemini:Balance>20222.91</gemini:Balance>
+    <gemini:PaidOut>1.0</gemini:PaidOut>
+    <gemini:Description>SMS მომსახურების საკომისიო, იანვარი, 2026</gemini:Description>
+    <gemini:AdditionalInformation>დებიტორები - SMS მომსახურების საკომისიო, TBCBGE22, GE14TB0000025013100012</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>25/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>35386836</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE14TB0000025013100012</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>დებიტორები - SMS მომსახურების საკომისიო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>SMSC</gemini:OperationCode>
+    <gemini:TransactionId>18516826579</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>25/01/2026</gemini:Date>
+    <gemini:Balance>17282.91</gemini:Balance>
+    <gemini:PaidOut>2940.0</gemini:PaidOut>
+    <gemini:Description>ხელფასი</gemini:Description>
+    <gemini:AdditionalInformation>ლიკა ავქოფაშვილი, TBCBGE22, GE82TB7121745061100015</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>25/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1769364811</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE82TB7121745061100015</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ლიკა ავქოფაშვილი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>10001058207</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>NP 0D1FEF NJ 4532F8 PRL012026</gemini:AdditionalDescription>
+    <gemini:TransactionId>18525874826</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>25/01/2026</gemini:Date>
+    <gemini:Balance>11377.91</gemini:Balance>
+    <gemini:PaidOut>5905.0</gemini:PaidOut>
+    <gemini:Description>ხელფასი</gemini:Description>
+    <gemini:AdditionalInformation>ანდრო ბადალოვი, TBCBGE22, GE67TB7941545063600016</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>25/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1769370560</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE67TB7941545063600016</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ანდრო ბადალოვი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01030006570</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>NP B31DEA NJ A34590 PRL012026</gemini:AdditionalDescription>
+    <gemini:TransactionId>18525875214</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>25/01/2026</gemini:Date>
+    <gemini:Balance>6667.91</gemini:Balance>
+    <gemini:PaidOut>4710.0</gemini:PaidOut>
+    <gemini:Description>ხელფასი</gemini:Description>
+    <gemini:AdditionalInformation>ინგა ბენიძე, TBCBGE22, GE56TB7887145068100048</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>25/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1769365331</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE56TB7887145068100048</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ინგა ბენიძე</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>62001004570</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>NP BFD2BF NJ 4532F8 PRL012026</gemini:AdditionalDescription>
+    <gemini:TransactionId>18525875896</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>25/01/2026</gemini:Date>
+    <gemini:Balance>4487.91</gemini:Balance>
+    <gemini:PaidOut>2180.0</gemini:PaidOut>
+    <gemini:Description>ხელფასი</gemini:Description>
+    <gemini:AdditionalInformation>თეა ურიდია, TBCBGE22, GE26TB7457645064300069</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>25/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1769364774</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE26TB7457645064300069</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>თეა ურიდია</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>62001030230</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>NP 2DE6C8 NJ 4532F8 PRL012026</gemini:AdditionalDescription>
+    <gemini:TransactionId>18525876774</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>25/01/2026</gemini:Date>
+    <gemini:Balance>1952.91</gemini:Balance>
+    <gemini:PaidOut>2535.0</gemini:PaidOut>
+    <gemini:Description>ხელფასი</gemini:Description>
+    <gemini:AdditionalInformation>გვანცა ლებანიძე, TBCBGE22, GE10TB7651545063300001</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>25/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1769364867</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE10TB7651545063300001</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>გვანცა ლებანიძე</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01019058668</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>NP 73E075 NJ 4532F8 PRL012026</gemini:AdditionalDescription>
+    <gemini:TransactionId>18525877582</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>26/01/2026</gemini:Date>
+    <gemini:Balance>686.68</gemini:Balance>
+    <gemini:PaidOut>1266.23</gemini:PaidOut>
+    <gemini:Description>ბონუსი</gemini:Description>
+    <gemini:AdditionalInformation>თეა ურიდია, TBCBGE22, GE26TB7457645064300069</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>26/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1769364671</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE26TB7457645064300069</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>თეა ურიდია</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>62001030230</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>9E0F48 ED 59F858</gemini:AdditionalDescription>
+    <gemini:TransactionId>18525880046</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>26/01/2026</gemini:Date>
+    <gemini:Balance>186.68</gemini:Balance>
+    <gemini:PaidOut>500.0</gemini:PaidOut>
+    <gemini:Description>ხელფასი</gemini:Description>
+    <gemini:AdditionalInformation>გიორგი ნიქაბაძე, TBCBGE22, GE05TB0600000360111222</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>26/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1769371414</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE05TB0600000360111222</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>გიორგი ნიქაბაძე</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01030030896</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>NP 518D84 NJ 1BA0B4 PRL012026</gemini:AdditionalDescription>
+    <gemini:TransactionId>18525929596</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>28/01/2026</gemini:Date>
+    <gemini:PaidIn>120001.74</gemini:PaidIn>
+    <gemini:Balance>120188.42</gemini:Balance>
+    <gemini:Description>ინვოისი 19/11, 19.11.2025 (დარჩენილი 50 % - 37490 ევროს ეკვ, კურსი 3.2009)</gemini:Description>
+    <gemini:AdditionalInformation>შპს თბილი სახლი, 204976179, TBCBGE22, GE52TB7025136020100008</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>28/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>10223</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB7025136020100008</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს თბილი სახლი, 204976179</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>204976179</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>204976179</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს თბილი სახლი, 204976179</gemini:TaxpayerName>
+    <gemini:TransactionId>18552159472</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>28/01/2026</gemini:Date>
+    <gemini:Balance>188.42</gemini:Balance>
+    <gemini:PaidOut>120000.0</gemini:PaidOut>
+    <gemini:Description>საკუთარ ანგარიშზე თანხის გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, BAGAGE22, GE78BG0000000893486000</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>28/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1769596342</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE78BG0000000893486000</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>BAGAGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "საქართველოს ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIN</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>18552629802</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>31/01/2026</gemini:Date>
+    <gemini:PaidIn>2700.0</gemini:PaidIn>
+    <gemini:Balance>2888.42</gemini:Balance>
+    <gemini:Description>საქვეანგარიშოდ ჩარიცხული თანხის დაბრუნება</gemini:Description>
+    <gemini:AdditionalInformation>გიორგი ნიქაბაძე, 01030030896, TBCBGE22, GE05TB0600000360111222</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>31/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1769850680</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE05TB0600000360111222</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>გიორგი ნიქაბაძე, 01030030896</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01030030896</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>01030030896</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>გიორგი ნიქაბაძე, 01030030896</gemini:TaxpayerName>
+    <gemini:TransactionId>18582691374</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>31/01/2026</gemini:Date>
+    <gemini:Balance>634.42</gemini:Balance>
+    <gemini:PaidOut>2254.0</gemini:PaidOut>
+    <gemini:Description>ხელფასი</gemini:Description>
+    <gemini:AdditionalInformation>აკაკი მგელაძე, TBCBGE22, GE36TB4411045064322336</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>31/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1769850736</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE36TB4411045064322336</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>აკაკი მგელაძე</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>61001034433</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>NP 1DE09E NJ 4532F8 PRL022026</gemini:AdditionalDescription>
+    <gemini:TransactionId>18588773072</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>31/01/2026</gemini:Date>
+    <gemini:Balance>484.42</gemini:Balance>
+    <gemini:PaidOut>150.0</gemini:PaidOut>
+    <gemini:Description>ბონუსი</gemini:Description>
+    <gemini:AdditionalInformation>ლევანი ლომიძე, TBCBGE22, GE68TB7273245061600002</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>31/01/2026</gemini:DocumentDate>
+    <gemini:DocumentNumber>1769781633</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE68TB7273245061600002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ლევანი ლომიძე</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GIB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>35001126484</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>F7429D 0F 9CD6AF</gemini:AdditionalDescription>
+    <gemini:TransactionId>18588778084</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Summary>
+    <gemini:TotalPaidOut>169699.98</gemini:TotalPaidOut>
+    <gemini:TotalPaidIn>168246.21</gemini:TotalPaidIn>
+  </gemini:Summary>
+</gemini:AccountStatement>

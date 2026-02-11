@@ -244,17 +244,18 @@ export async function PATCH(
     // Handle payment_uuid change - this triggers currency and amount recalculation
     if (payment_uuid !== undefined && payment_uuid !== current.payment_id) {
       console.log('[PATCH] Payment ID is changing, will recalculate nominal amount');
-      updateData.paymentId = payment_uuid;
+      const normalizedPaymentId = payment_uuid || null;
+      updateData.paymentId = normalizedPaymentId;
       changes.push(`payment_id: ${current.payment_id} → ${payment_uuid}`);
-      updateData.parsingLock = true;
-      changes.push('parsing_lock: false → true (payment override)');
+      updateData.parsingLock = Boolean(normalizedPaymentId);
+      changes.push(`parsing_lock: ${current.parsing_lock} → ${Boolean(normalizedPaymentId)} (payment override)`);
       
       // When payment changes, update nominal currency and recalculate amount
-      if (payment_uuid) {
+      if (normalizedPaymentId) {
         try {
           // Get payment's currency
           const payment = await prisma.payments.findUnique({
-            where: { payment_id: payment_uuid },
+            where: { payment_id: normalizedPaymentId },
             select: { currency_uuid: true }
           });
           
@@ -284,13 +285,17 @@ export async function PATCH(
           // Continue with update even if calculation fails
         }
       } else {
-        // Payment cleared - reset to account currency with exchange rate 1
+        // Payment cleared - reset payment overrides to account currency baseline
+        updateData.projectUuid = null;
+        updateData.financialCodeUuid = null;
         updateData.nominalCurrencyUuid = current.account_currency_uuid;
-        updateData.nominalAmount = current.account_currency_amount;
         updateData.exchangeRate = new Decimal(1);
-        changes.push(`nominal_currency: ${current.nominal_currency_uuid} → ${current.account_currency_uuid} (cleared payment)`);
-        changes.push(`exchange_rate: ${current.exchange_rate?.toString()} → 1.0000000000 (same currency)`);
-        changes.push(`nominal_amount: ${current.nominal_amount?.toString()} → ${current.account_currency_amount.toString()} (cleared payment)`);
+        updateData.nominalAmount = new Decimal(current.account_currency_amount?.toString?.() ?? current.account_currency_amount);
+        changes.push('project_uuid: cleared (payment removed)');
+        changes.push('financial_code_uuid: cleared (payment removed)');
+        changes.push(`nominal_currency_uuid: ${current.nominal_currency_uuid} → ${current.account_currency_uuid} (cleared payment)`);
+        changes.push(`exchange_rate: ${current.exchange_rate?.toString?.()} → 1 (cleared payment)`);
+        changes.push(`nominal_amount: ${current.nominal_amount?.toString?.()} → ${current.account_currency_amount?.toString?.() ?? current.account_currency_amount} (cleared payment)`);
       }
     }
     

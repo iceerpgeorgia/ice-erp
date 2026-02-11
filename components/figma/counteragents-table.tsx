@@ -25,6 +25,7 @@ import { Switch } from './ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
 import {
   Select,
@@ -206,6 +207,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const filtersStorageKey = 'counteragents-table:column-filters';
   const [isExporting, setIsExporting] = useState(false);
   
   // Initialize columns from localStorage or use defaults
@@ -256,6 +258,14 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   const selectedEntityType = entityTypesList.find(et => et.entity_type_uuid === formData.entityTypeUuid);
   const isNaturalPerson = !!selectedEntityType?.is_natural_person;
   const isIdExempt = !!selectedEntityType?.is_id_exempt;
+
+  useEffect(() => {
+    setColumnFilters(loadColumnFilters(filtersStorageKey));
+  }, [filtersStorageKey]);
+
+  useEffect(() => {
+    saveColumnFilters(filtersStorageKey, columnFilters);
+  }, [filtersStorageKey, columnFilters]);
 
   useEffect(() => {
     if (!isNaturalPerson && (formData.sex || formData.pensionScheme)) {
@@ -972,9 +982,37 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     }
   };
 
-  // Get unique values for column filters
+  const getFacetBaseData = (excludeColumn?: ColumnKey) => {
+    let result = [...entityTypes];
+
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      result = result.filter(row =>
+        Object.values(row).some(val => String(val ?? '').toLowerCase().includes(search))
+      );
+    }
+
+    if (Object.keys(columnFilters).length > 0) {
+      result = result.filter(row => {
+        for (const [columnKey, values] of Object.entries(columnFilters)) {
+          if (excludeColumn && columnKey === excludeColumn) continue;
+          if (!values || values.length === 0) continue;
+          const rowValue = row[columnKey as ColumnKey];
+          if (!values.includes(String(rowValue ?? ''))) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    return result;
+  };
+
+  // Get unique values for column filters (respecting other filters)
   const getUniqueValues = (column: ColumnKey) => {
-    return [...new Set(entityTypes.map(counteragent => String(counteragent[column])))].sort();
+    const baseData = getFacetBaseData(column);
+    return [...new Set(baseData.map(counteragent => String(counteragent[column] ?? '')))].sort();
   };
 
 
@@ -2259,7 +2297,10 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setColumnFilters({})}
+            onClick={() => {
+              clearColumnFilters(filtersStorageKey);
+              setColumnFilters({});
+            }}
             className="h-6 px-2 text-xs"
           >
             Clear all

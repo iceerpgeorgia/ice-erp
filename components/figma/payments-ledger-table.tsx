@@ -450,18 +450,46 @@ export function PaymentsLedgerTable() {
     return String(value);
   };
 
+  const getFacetBaseData = useCallback((excludeColumn?: ColumnKey) => {
+    let result = [...entries];
+
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(entry =>
+        Object.values(entry).some(value =>
+          String(value).toLowerCase().includes(term)
+        )
+      );
+    }
+
+    if (filters.size > 0) {
+      result = result.filter(row => {
+        for (const [columnKey, allowedValues] of filters.entries()) {
+          if (excludeColumn && columnKey === excludeColumn) continue;
+          const rowValue = row[columnKey as ColumnKey];
+          if (!allowedValues.has(rowValue)) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    return result;
+  }, [entries, searchTerm, filters]);
+
   // Memoize unique values to avoid recalculating on every render
   const uniqueValuesCache = useMemo(() => {
     const cache = new Map<ColumnKey, any[]>();
     const filterableColumns = columnConfig.filter(col => col.filterable);
     
     filterableColumns.forEach(col => {
-      const values = new Set(entries.map(entry => entry[col.key]));
+      const values = new Set(getFacetBaseData(col.key).map(entry => entry[col.key]));
       cache.set(col.key, Array.from(values).sort());
     });
     
     return cache;
-  }, [entries, columnConfig]);
+  }, [columnConfig, getFacetBaseData]);
 
   const getUniqueValues = useCallback((columnKey: ColumnKey): any[] => {
     return uniqueValuesCache.get(columnKey) || [];

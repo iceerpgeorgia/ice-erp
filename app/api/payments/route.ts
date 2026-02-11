@@ -2,6 +2,8 @@ import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { reparseByPaymentId } from '@/lib/bank-import/reparse';
 
+export const revalidate = 0;
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -83,10 +85,20 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid, paymentId, accrualSource } = body;
 
+    const paymentIdPattern = /^[0-9a-f]{6}_[0-9a-f]{2}_[0-9a-f]{6}$/i;
+
     // Validation - only counteragent, financial code, currency, and incomeTax are required
     if (!counteragentUuid || !financialCodeUuid || incomeTax === undefined || !currencyUuid) {
       return NextResponse.json(
         { error: 'Missing required fields: counteragentUuid, financialCodeUuid, incomeTax, and currencyUuid are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate payment_id format when provided
+    if (paymentId && !paymentIdPattern.test(paymentId)) {
+      return NextResponse.json(
+        { error: 'Invalid payment_id format. Expected 6_2_6 hex format.' },
         { status: 400 }
       );
     }

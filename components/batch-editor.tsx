@@ -29,7 +29,6 @@ interface Partition {
   nominalCurrencyUuid: string | null;
   nominalAmount: number | null;
   partitionNote: string;
-  isAuto?: boolean;
 }
 
 interface BatchEditorProps {
@@ -84,8 +83,6 @@ export function BatchEditor({
   const [currencyMap, setCurrencyMap] = useState<Record<string, string>>({});
   const [exchangeRates, setExchangeRates] = useState<any | null>(null);
 
-  const AUTO_PARTITION_ID = 'auto-remaining';
-
   const filteredPayments = counteragentUuid
     ? payments.filter((payment) => payment.counteragentUuid === counteragentUuid)
     : payments;
@@ -120,7 +117,7 @@ export function BatchEditor({
 
   useEffect(() => {
     if (initialPartitions && initialPartitions.length > 0) {
-      setPartitions(ensureAutoPartition(initialPartitions));
+      setPartitions(ensureTrailingPartition(initialPartitions));
     }
   }, [initialPartitions]);
 
@@ -188,7 +185,8 @@ export function BatchEditor({
     if (!exchangeRates) return null;
     if (accountCode === paymentCode) return 1;
 
-    const getRate = (code: string) => exchangeRates?.[`${code.toLowerCase()}_rate`];
+    const getRate = (code: string) =>
+      exchangeRates?.[code.toLowerCase()] ?? exchangeRates?.[`${code.toLowerCase()}_rate`];
 
     if (accountCode === 'GEL' && paymentCode !== 'GEL') {
       const rate = getRate(paymentCode);
@@ -235,32 +233,48 @@ export function BatchEditor({
     };
   };
 
-  const ensureAutoPartition = (input: Partition[]) => {
-    const partitions = input.filter((p) => p.id !== AUTO_PARTITION_ID);
-    const totalAllocated = partitions.reduce((sum, p) => sum + (Number(p.partitionAmount) || 0), 0);
+  const ensureTrailingPartition = (input: Partition[]) => {
+    const totalAllocated = input.reduce((sum, p) => sum + (Number(p.partitionAmount) || 0), 0);
     const remaining = Number((totalAmount - totalAllocated).toFixed(2));
     if (remaining > 0.01) {
-      partitions.push({
-        id: AUTO_PARTITION_ID,
-        partitionAmount: remaining,
-        paymentUuid: null,
-        paymentId: null,
-        counteragentUuid: null,
-        projectUuid: null,
-        financialCodeUuid: null,
-        nominalCurrencyUuid: null,
-        nominalAmount: null,
-        partitionNote: 'Auto remainder',
-        isAuto: true,
-      });
+      const last = input[input.length - 1];
+      if (
+        last &&
+        !last.paymentUuid &&
+        !last.paymentId &&
+        !last.partitionNote &&
+        !last.nominalAmount &&
+        !last.nominalCurrencyUuid &&
+        Number(last.partitionAmount) === 0
+      ) {
+        return input.map((partition, idx) =>
+          idx === input.length - 1 ? { ...partition, partitionAmount: remaining } : partition
+        );
+      }
+      const nextId = String(input.length + 1);
+      return [
+        ...input,
+        {
+          id: nextId,
+          partitionAmount: remaining,
+          paymentUuid: null,
+          paymentId: null,
+          counteragentUuid: null,
+          projectUuid: null,
+          financialCodeUuid: null,
+          nominalCurrencyUuid: null,
+          nominalAmount: null,
+          partitionNote: '',
+        },
+      ];
     }
-    return partitions;
+    return input;
   };
 
   const addPartition = () => {
     const newId = String(partitions.length + 1);
-    setPartitions(ensureAutoPartition([
-      ...partitions.filter((p) => p.id !== AUTO_PARTITION_ID),
+    setPartitions(ensureTrailingPartition([
+      ...partitions,
       {
         id: newId,
         partitionAmount: 0,
@@ -278,15 +292,14 @@ export function BatchEditor({
 
   const removePartition = (id: string) => {
     if (partitions.length > 1) {
-      setPartitions(ensureAutoPartition(partitions.filter((p) => p.id !== id)));
+      setPartitions(ensureTrailingPartition(partitions.filter((p) => p.id !== id)));
     }
   };
 
   const updatePartition = (id: string, field: keyof Partition, value: any) => {
     const updated = partitions.map((partition) => {
       if (partition.id !== id) return partition;
-      if (partition.isAuto && field === 'partitionAmount') return partition;
-      return { ...partition, [field]: value, isAuto: field === 'partitionAmount' ? false : partition.isAuto };
+      return { ...partition, [field]: value };
     });
 
     const recalculated = updated.map((partition) => {
@@ -296,7 +309,7 @@ export function BatchEditor({
       return applyNominalForPartition(partition, payment);
     });
 
-    setPartitions(ensureAutoPartition(recalculated));
+    setPartitions(ensureTrailingPartition(recalculated));
   };
 
   const selectPayment = (partitionId: string, paymentUuid: string) => {
@@ -312,7 +325,7 @@ export function BatchEditor({
           };
           return applyNominalForPartition(next, payment);
         });
-        return ensureAutoPartition(updated);
+        return ensureTrailingPartition(updated);
       });
     }
   };
@@ -334,10 +347,9 @@ export function BatchEditor({
           nominalAmount: Number.isNaN(nominal) ? null : nominal,
           nominalCurrencyUuid: payment.currencyUuid || null,
           partitionAmount: nextPartitionAmount,
-          isAuto: false,
         };
       });
-      return ensureAutoPartition(updated);
+      return ensureTrailingPartition(updated);
     });
   };
 
@@ -356,9 +368,10 @@ export function BatchEditor({
   }, [exchangeRates, payments]);
 
   const calculateRemaining = () => {
-    const allocated = partitions
-      .filter((p) => p.id !== AUTO_PARTITION_ID)
-      .reduce((sum, p) => sum + (parseFloat(String(p.partitionAmount)) || 0), 0);
+    const allocated = partitions.reduce(
+      (sum, p) => sum + (parseFloat(String(p.partitionAmount)) || 0),
+      0
+    );
     return totalAmount - allocated;
   };
 
@@ -460,15 +473,12 @@ export function BatchEditor({
           {partitions.map((partition, index) => (
             <div key={partition.id} className="border rounded-lg p-4 space-y-4">
               <div className="flex justify-between items-center">
-                <h4 className="font-medium">
-                  {partition.isAuto ? 'Remaining Partition' : `Partition ${index + 1}`}
-                </h4>
+                <h4 className="font-medium">Partition {index + 1}</h4>
                 {partitions.length > 1 && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => removePartition(partition.id)}
-                    disabled={partition.isAuto}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -486,7 +496,6 @@ export function BatchEditor({
                     onChange={(e) =>
                       updatePartition(partition.id, 'partitionAmount', parseFloat(e.target.value) || 0)
                     }
-                    disabled={partition.isAuto}
                   />
                 </div>
 
@@ -498,7 +507,7 @@ export function BatchEditor({
                     step="0.01"
                     value={partition.nominalAmount !== null ? partition.nominalAmount : ''}
                     onChange={(e) => handleNominalChange(partition.id, e.target.value)}
-                    disabled={!partition.paymentUuid || partition.isAuto}
+                    disabled={!partition.paymentUuid}
                   />
                   <p className="text-xs text-muted-foreground">
                     {partition.nominalCurrencyUuid

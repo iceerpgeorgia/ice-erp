@@ -33,6 +33,7 @@ import {
 import { Combobox } from '@/components/ui/combobox';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
 import { 
   Table, 
   TableBody, 
@@ -128,6 +129,7 @@ export function JobsTable() {
   const [sortField, setSortField] = useState<ColumnKey | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const filtersStorageKey = 'jobs-table:column-filters';
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
   
@@ -135,6 +137,45 @@ export function JobsTable() {
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number } | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
+
+  const getFacetBaseData = (excludeColumn?: ColumnKey) => {
+    let result = [...jobs];
+
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      result = result.filter(job =>
+        (job.jobName || '').toLowerCase().includes(search) ||
+        (job.projectIndex || '').toLowerCase().includes(search) ||
+        (job.projectName || '').toLowerCase().includes(search) ||
+        (job.brandName || '').toLowerCase().includes(search) ||
+        (job.jobIndex || '').toLowerCase().includes(search)
+      );
+    }
+
+    if (Object.keys(columnFilters).length > 0) {
+      result = result.filter(row => {
+        for (const [columnKey, values] of Object.entries(columnFilters)) {
+          if (excludeColumn && columnKey === excludeColumn) continue;
+          if (!values || values.length === 0) continue;
+          const rowValue = row[columnKey as ColumnKey];
+          if (!values.includes(String(rowValue ?? ''))) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    return result;
+  };
+
+  useEffect(() => {
+    setColumnFilters(loadColumnFilters(filtersStorageKey));
+  }, [filtersStorageKey]);
+
+  useEffect(() => {
+    saveColumnFilters(filtersStorageKey, columnFilters);
+  }, [filtersStorageKey, columnFilters]);
 
   const [formData, setFormData] = useState({
     projectUuid: '',
@@ -342,7 +383,8 @@ export function JobsTable() {
 
   // Helper function to get unique values for filtering
   const getUniqueValues = (column: ColumnKey) => {
-    return [...new Set(jobs.map(job => String(job[column])))].sort();
+    const baseData = getFacetBaseData(column);
+    return [...new Set(baseData.map(job => String(job[column] ?? '')))].sort();
   };
 
   const filteredJobs = useMemo(() => {
@@ -537,6 +579,21 @@ export function JobsTable() {
             className="pl-10"
           />
         </div>
+
+        {Object.values(columnFilters).some(filters => filters.length > 0) && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              clearColumnFilters(filtersStorageKey);
+              setColumnFilters({});
+            }}
+            className="gap-2"
+          >
+            <X className="h-4 w-4" />
+            Clear Filters
+          </Button>
+        )}
 
         {/* Column Visibility */}
         <Popover>

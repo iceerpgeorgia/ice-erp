@@ -1,0 +1,35 @@
+Ok now I want to create database table RS_Waybills_In. This is list of waybills which is exported from www.rs.ge, the sample is ginven in project root Waybills.csv. I just first want you to alalize this sample and plann how you will open the database table. This must be very similar to bank transactions table, with parsing of some columns. The page should be very similar to bank transaction table with parsed columns at display, with edit and viewa actions and with Import CSV button to do imports.
+
+
+Here are description of template/database columns: 
+
+base header|CSV file header name|Description
+waybill_no|ზედნადები|expression of serial number of waybill. When downloaded in csv somehow 0 is removed from the text and text is converted to number, like if waybill number is 0957701973 it is converted to 957701973. We must add 0 to imported values and save them as text for lookups.
+state|სტატუსი|State of waybill, there are three states : აქტიური,დასრულებული,გაუქმებული. აქტიური or active means that transportation is undergoing, დასრულებული means that transportation ended. გაუქმებული means cancelled.
+condition|მდგომარეობა|there can be 3 types of მდგომარეობა (condition) : მისაღები,მიღებული,უარყოფილი. This 3 states actually depict logic flow in the order they are given. მისაღები or to be receuved means that seller activated the waybill, მიღებული means that buyer received and signed that he received the goods. უარყოფილი means refused by the buyer.
+category|კატეგორია|Category: 1. ჩვეულებრივი basic goods; 2. ხე-ტყე (wood). Our system should not be sensetive to this, just store the values.
+type|ტიპი|Type can be : 1. ტრანსპორტირებით (assumes that seller is selling goods including transportatio), 2. უკან დაბრუნება means return, when whole or partial shipment is returned back. 3. შიდა გადაზიდვა when sender and receiver is the same and this means that our company transported it's own goods from one place to another. 4. ტრანსპორტირების გარეშე assuming that seller sold goods without transportation; 5.ქვე-ზედნადები sub-waybill (don't even know what that means :)))
+counteragent|ორგანიზაცია|The same counteragent where the information can be given in following format: (400017245-დღგ) შპს აი-სი-ი, where between ()  400017245 is INN of counteragent and if there is Regex -დღგ, this means that that waybill is subject VAT, so if this fireld contains -დღგ we must make parsed column VAT = true
+sum|თანხა|numeric meaning of sum in GEL
+driver|მძღოლი|Driver details given in format (04001014731) ბექა გელოვანი - between () we have id of the driver, if this ID matches counteragent ID in our database, we should connect driver_uuid based from this info
+vehicle|ავტო|number of vehichle whuch is involved in transportation
+transportation_sum|ტრანსპ თანხა|in case if seller sels including transportation this field is required to be > 0, but we just keep it in our base as it is without conditioning
+departure_address|ტრანსპორტ. დაწყება|addres of departure
+shipping_address|მიწოდების ადგილი|address of shipping
+activation_time|გააქტიურების თარ.|activation time is given in form of regex in csv file like "07-თებ-2026 13:12:23", first 2 places represent day of month, between -- we have month given in 3 letter Georgian code, which can be იან,თებ,მარ,აპრ,მაი,ივნ,ივლ,აგვ,სექ,ოქტ,ნოე or დეკ for Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov or Dec respectively. After second "-" we have year and after year we have time in format of hh:mm:ss. All this decoding we must turn into valid database time object
+transportation_beginning_time|ტრანსპ. დაწყება|transportation beginning time, needs same conversion as activation_time
+submission_time|ჩაბარების თარ.|submission time means time when buyer accepted  the goods and signed acceptance.This column also needs same conversion as activation_time
+cancellation_time|გაუქმების თარ.|if the waybill in cancelled this is time when it is programically cancelled .This column also needs same conversion as activation_time
+Note|შენიშვნა|note in case seller wants to append some comments. Just text
+vat_doc_id|ა/ფ ID|this column contains ID of VAT document, which we will use in the future to match VAT documents and incoming Waybills
+stat|STAT|statistical codes of RS. We just keep them in our base
+transportation_cost|ტრანსპორტირების ხარჯი|if seller denominates transportation cost in GEL this is numeric value
+id|ID|id of the waybill, for future lookups
+vat||boolen , triggered if ორგანიზაცია contains regex "-დღგ"
+counteragent_uuid||based on column ორგანიზაცია we must match this column
+project_uuid||assigned by the user from projects table as we do in make payments for example
+financial_code_uuid||assigned by the user from projects table as we do in make payments for example
+corresponding_account||assigned by the user from following custom list 1_4_30,1_6_10,1_6_20,1_6_30,1_6_55,1_6_70,2_1_50,2_1_60,2_1_70,3_1_10,3_1_90,7_4_15,7_4_20,7_4_21,7_4_22,7_4_22_1,7_4_22_2,7_4_30,7_4_41,7_4_42,7_4_45,7_4_56,7_4_60,7_4_65,7_4_70,7_4_85,7_4_90,7_4_91
+date||derivative of გააქტიურების თარ. In format of dd.mm.yyyy
+period||derivative of გააქტიურების თარ. In format of "MON YEAR". Like if გააქტიურების თარ. Is 1st January 2026 the value must be Jan 2026
+driver_uuid||derivarive of მძღოლი

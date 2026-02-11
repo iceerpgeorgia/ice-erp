@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { 
   Search, 
   Plus, 
@@ -15,6 +15,7 @@ import {
   EyeOff,
   ChevronLeft,
   ChevronRight,
+  Download,
 } from 'lucide-react';
   import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { Button } from './ui/button';
@@ -26,6 +27,7 @@ import { Switch } from './ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
+import { exportRowsToXlsx } from '@/lib/export-xlsx';
 
 export type Payment = {
   id: number;
@@ -91,6 +93,7 @@ export function PaymentsTable() {
   const [filteredJobs, setFilteredJobs] = useState<Array<{ jobUuid: string; jobIndex: string; jobName: string; jobDisplay?: string }>>([]);
   const [currencies, setCurrencies] = useState<Array<{ uuid: string; code: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<ColumnKey>('createdAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -148,6 +151,17 @@ export function PaymentsTable() {
 
   // Load saved column configuration after hydration
   useEffect(() => {
+    const versionKey = 'paymentsTableColumnsVersion';
+    const currentVersion = '2';
+    const savedVersion = localStorage.getItem(versionKey);
+    if (savedVersion !== currentVersion) {
+      localStorage.setItem('paymentsTableColumns', JSON.stringify(defaultColumns));
+      localStorage.setItem(versionKey, currentVersion);
+      setColumnConfig(defaultColumns);
+      setIsInitialized(true);
+      return;
+    }
+
     const saved = localStorage.getItem('paymentsTableColumns');
     if (saved) {
       try {
@@ -786,17 +800,45 @@ export function PaymentsTable() {
     setFilters(newFilters);
   };
 
+  const getFacetBaseData = useCallback((excludeColumn?: ColumnKey) => {
+    let result = [...payments];
+
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(payment =>
+        Object.values(payment).some(value =>
+          String(value).toLowerCase().includes(term)
+        )
+      );
+    }
+
+    if (filters.size > 0) {
+      result = result.filter(row => {
+        for (const [columnKey, allowedValues] of filters.entries()) {
+          if (excludeColumn && columnKey === excludeColumn) continue;
+          const rowValue = row[columnKey as ColumnKey];
+          if (!allowedValues.has(rowValue)) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    return result;
+  }, [payments, searchTerm, filters]);
+
   const uniqueValuesCache = useMemo(() => {
     const cache = new Map<ColumnKey, any[]>();
     const filterableColumns = columnConfig.filter(col => col.filterable);
-    
+
     filterableColumns.forEach(col => {
-      const values = new Set(payments.map(row => row[col.key]));
+      const values = new Set(getFacetBaseData(col.key).map(row => row[col.key]));
       cache.set(col.key, Array.from(values).sort());
     });
-    
+
     return cache;
-  }, [payments, columnConfig]);
+  }, [columnConfig, getFacetBaseData]);
 
   const getUniqueValues = (columnKey: ColumnKey): any[] => {
     return uniqueValuesCache.get(columnKey) || [];
@@ -871,6 +913,22 @@ export function PaymentsTable() {
   const visibleColumns = columnConfig.filter(col => col.visible);
   const activeFilterCount = filters.size;
 
+  const handleExportXlsx = () => {
+    if (filteredAndSortedPayments.length === 0) return;
+    setIsExporting(true);
+    try {
+      const fileName = `payments_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      exportRowsToXlsx({
+        rows: filteredAndSortedPayments,
+        columns: columnConfig,
+        fileName,
+        sheetName: 'Payments',
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (loading) {
     return <div className="p-8 text-center">Loading payments...</div>;
   }
@@ -892,6 +950,16 @@ export function PaymentsTable() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportXlsx}
+              disabled={isExporting || filteredAndSortedPayments.length === 0}
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              {isExporting ? 'Exporting...' : 'Export XLSX'}
+            </Button>
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
               setIsDialogOpen(open);
               if (open) {

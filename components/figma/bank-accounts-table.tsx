@@ -19,6 +19,7 @@ import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import { loadFilterMap, saveFilterMap, clearColumnFilters } from './shared/column-filter-storage';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from './ui/dialog';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -93,7 +94,8 @@ export function BankAccountsTable() {
   const [sortColumn, setSortColumn] = useState<ColumnKey>('accountNumber');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
-  const [filters, setFilters] = useState<Map<string, Set<any>>>(new Map());
+  const filtersStorageKey = 'filters:bank-accounts';
+  const [filters, setFilters] = useState<Map<string, Set<any>>>(() => loadFilterMap(filtersStorageKey));
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number; element: HTMLElement } | null>(null);
@@ -162,6 +164,10 @@ export function BankAccountsTable() {
       localStorage.setItem('bankAccountsColumns', JSON.stringify(columns));
     }
   }, [columns, isInitialized]);
+
+  useEffect(() => {
+    saveFilterMap(filtersStorageKey, filters);
+  }, [filters]);
 
   // Column resize handlers
   useEffect(() => {
@@ -320,8 +326,30 @@ export function BankAccountsTable() {
 
   const visibleColumns = useMemo(() => columns.filter(col => col.visible), [columns]);
 
+  const getFacetBaseData = (excludeColumn?: ColumnKey) => {
+    let result = [...data];
+
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      result = result.filter(row =>
+        Object.values(row).some(val =>
+          String(val).toLowerCase().includes(lowerSearch)
+        )
+      );
+    }
+
+    filters.forEach((filterValues, columnKey) => {
+      if (excludeColumn && columnKey === excludeColumn) return;
+      if (filterValues.size > 0) {
+        result = result.filter(row => filterValues.has(row[columnKey as ColumnKey]));
+      }
+    });
+
+    return result;
+  };
+
   const getUniqueValues = (columnKey: ColumnKey) => {
-    const values = new Set(data.map(row => row[columnKey]));
+    const values = new Set(getFacetBaseData(columnKey).map(row => row[columnKey]));
     return Array.from(values).filter(v => v !== null && v !== undefined);
   };
 
@@ -668,6 +696,17 @@ export function BankAccountsTable() {
                 </div>
               </PopoverContent>
             </Popover>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setFilters(new Map());
+                clearColumnFilters(filtersStorageKey);
+              }}
+            >
+              Clear Filters
+            </Button>
           </div>
         </div>
       </div>

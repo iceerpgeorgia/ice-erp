@@ -35,6 +35,7 @@ import {
 import { Combobox } from '@/components/ui/combobox';
 import { MultiCombobox } from '@/components/ui/multi-combobox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
 import { 
   Table, 
   TableBody, 
@@ -165,6 +166,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const filtersStorageKey = 'projects-table:column-filters';
   const [isExporting, setIsExporting] = useState(false);
   
   // Initialize columns from localStorage or use defaults
@@ -185,6 +187,41 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number } | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
+
+  const getFacetBaseData = (excludeColumn?: ColumnKey) => {
+    let result = [...projects];
+
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      result = result.filter(row =>
+        Object.values(row).some(val => String(val ?? '').toLowerCase().includes(search))
+      );
+    }
+
+    if (Object.keys(columnFilters).length > 0) {
+      result = result.filter(row => {
+        for (const [columnKey, values] of Object.entries(columnFilters)) {
+          if (excludeColumn && columnKey === excludeColumn) continue;
+          if (!values || values.length === 0) continue;
+          const rowValue = row[columnKey as ColumnKey];
+          if (!values.includes(String(rowValue ?? ''))) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    return result;
+  };
+
+  useEffect(() => {
+    setColumnFilters(loadColumnFilters(filtersStorageKey));
+  }, [filtersStorageKey]);
+
+  useEffect(() => {
+    saveColumnFilters(filtersStorageKey, columnFilters);
+  }, [filtersStorageKey, columnFilters]);
   
   // Form state with validation
   const [formData, setFormData] = useState({
@@ -783,14 +820,15 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
 
   // Get unique values for column filters
   const getUniqueValues = (column: ColumnKey) => {
+    const baseData = getFacetBaseData(column);
     if (column === 'employees') {
-      // For employees, extract all unique employee names from the nested array
-      const allEmployees = projects.flatMap(project => 
+      // For employees, extract all unique employee names from the filtered rows
+      const allEmployees = baseData.flatMap(project =>
         project.employees?.map(e => e.employeeName) || []
       );
       return [...new Set(allEmployees)].sort();
     }
-    return [...new Set(projects.map(Project => String(Project[column])))].sort();
+    return [...new Set(baseData.map(project => String(project[column] ?? '')))].sort();
   };
   // Column settings dialog
   const ColumnSettings = () => (
@@ -1601,7 +1639,10 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setColumnFilters({})}
+            onClick={() => {
+              clearColumnFilters(filtersStorageKey);
+              setColumnFilters({});
+            }}
             className="h-6 px-2 text-xs"
           >
             Clear all

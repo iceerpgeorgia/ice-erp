@@ -373,19 +373,19 @@ export default function PaymentStatementPage() {
     if (!isAddLedgerDialogOpen) return;
     const fetchPaymentsForLedger = async () => {
       try {
-        const response = await fetch('/api/payments?limit=5000&sort=desc');
+        const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
         if (!response.ok) throw new Error('Failed to fetch payments');
         const data = await response.json();
         if (Array.isArray(data)) {
           setPayments(data.map((p: any) => ({
-            paymentId: p.paymentId,
-            counteragentName: p.counteragentName,
-            projectIndex: p.projectIndex,
-            projectName: p.projectName,
-            jobName: p.jobName,
-            financialCode: p.financialCode,
-            incomeTax: p.incomeTax,
-            currencyCode: p.currencyCode,
+            paymentId: p.paymentId || p.payment_id,
+            counteragentName: p.counteragentName || p.counteragent_name || null,
+            projectIndex: p.projectIndex || p.project_index || null,
+            projectName: p.projectName || p.project_name || null,
+            jobName: p.jobName || p.job_name || null,
+            financialCode: p.financialCode || p.financialCodeValidation || p.financial_code || null,
+            incomeTax: p.incomeTax ?? null,
+            currencyCode: p.currencyCode || p.currency_code || null,
           })));
         }
       } catch (error) {
