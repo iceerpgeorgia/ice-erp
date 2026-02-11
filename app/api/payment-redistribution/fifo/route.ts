@@ -72,6 +72,20 @@ const salaryAccrualDate = (salaryMonth: Date) => {
   return new Date(Date.UTC(year, month + 1, 1));
 };
 
+const parseSalaryMonthFromPaymentId = (paymentId: string): Date | null => {
+  const match = paymentId.match(/_PRL(\d{2})(\d{4})$/i);
+  if (!match) return null;
+  const month = Number(match[1]);
+  const year = Number(match[2]);
+  if (!Number.isFinite(month) || !Number.isFinite(year) || month < 1 || month > 12) {
+    return null;
+  }
+  return new Date(Date.UTC(year, month - 1, 1));
+};
+
+const basePaymentIdFromProjected = (paymentId: string) =>
+  paymentId.replace(/_PRL\d{2}\d{4}$/i, "");
+
 type TransactionKey = {
   source_table: string;
   id: number | string;
@@ -141,6 +155,10 @@ export async function POST(request: NextRequest) {
       (id: string) => !salaryByPaymentId.has(id)
     );
 
+    const projectedPaymentIds = normalPaymentIds.filter((id: string) =>
+      /_PRL\d{2}\d{4}$/i.test(id)
+    );
+
     const ledgerRows = normalPaymentIds.length
       ? await prisma.$queryRawUnsafe<any[]>(
           `SELECT
@@ -202,6 +220,83 @@ export async function POST(request: NextRequest) {
       });
       seen.add(row.payment_id);
     });
+
+    if (projectedPaymentIds.length > 0) {
+      const baseIds = Array.from(
+        new Set(projectedPaymentIds.map((id: string) => basePaymentIdFromProjected(id)))
+      );
+      const basePatterns = baseIds.map((id) => `${id}%`);
+
+      const baseRows = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT
+           sa.payment_id,
+           sa.salary_month,
+           sa.net_sum,
+           sa.deducted_insurance,
+           sa.deducted_fitness,
+           sa.deducted_fine,
+           sa.counteragent_uuid,
+           sa.financial_code_uuid,
+           sa.nominal_currency_uuid,
+           curr.code as currency_code
+         FROM salary_accruals sa
+         LEFT JOIN currencies curr ON sa.nominal_currency_uuid = curr.uuid
+         WHERE sa.payment_id ILIKE ANY($1::text[])`,
+        basePatterns
+      );
+
+      const baseRowsById = new Map<string, any>();
+      baseRows.forEach((row) => {
+        const baseId = baseIds.find((id) =>
+          String(row.payment_id).toLowerCase().startsWith(id.toLowerCase())
+        );
+        if (!baseId) return;
+        const existing = baseRowsById.get(baseId);
+        const rowDate = row.salary_month ? new Date(row.salary_month).getTime() : 0;
+        const existingDate = existing?.salary_month
+          ? new Date(existing.salary_month).getTime()
+          : 0;
+        if (!existing || rowDate > existingDate) {
+          baseRowsById.set(baseId, row);
+        }
+      });
+
+      projectedPaymentIds.forEach((paymentId: string) => {
+        const baseId = basePaymentIdFromProjected(paymentId);
+        const baseRow = baseRowsById.get(baseId);
+        if (!baseRow) {
+          warnings.push(`Missing base salary accrual for ${paymentId}.`);
+          return;
+        }
+
+        const salaryMonth = parseSalaryMonthFromPaymentId(paymentId);
+        const accrualDate = salaryMonth ? salaryAccrualDate(salaryMonth) : null;
+        const net = Number(baseRow.net_sum || 0);
+        const insurance = Number(baseRow.deducted_insurance || 0);
+        const fitness = Number(baseRow.deducted_fitness || 0);
+        const fine = Number(baseRow.deducted_fine || 0);
+        const amount = roundMoney(net - insurance - fitness - fine);
+
+        if (!salaryMonth) {
+          warnings.push(`Missing salary month suffix for ${paymentId}.`);
+        }
+
+        targets.push({
+          payment_id: paymentId,
+          payment_uuid: null,
+          amount: amount > 0 ? amount : 0,
+          remaining: amount > 0 ? amount : 0,
+          accrual_date: accrualDate,
+          currency_code: baseRow.currency_code || null,
+          nominal_currency_uuid: baseRow.nominal_currency_uuid || null,
+          counteragent_uuid: baseRow.counteragent_uuid || null,
+          project_uuid: null,
+          financial_code_uuid: baseRow.financial_code_uuid || null,
+          source: "salary",
+        });
+        seen.add(paymentId);
+      });
+    }
 
     ledgerRows.forEach((row) => {
       const amount = roundMoney(Number(row.accrual_sum || 0));
