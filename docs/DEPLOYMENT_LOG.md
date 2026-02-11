@@ -4,7 +4,7 @@
 - Summary: Resolve synthetic bank transaction IDs during PATCH updates.
 - Changes:
   - Bank transactions: map synthetic IDs to source table/id when query params are missing.
-- Commit: 9950a84
+- Commit: 37fb690
 - Production: TBD
 
 ## 2026-02-11
