@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-11
+- Summary: Fix FIFO redistribution build by normalizing projected salary payment IDs.
+- Changes:
+  - Payment redistribution FIFO: normalize payment ID types and projected base ID handling for build.
+- Commit: 16b628c
+- Production: https://ice-5n6p41rh6-iceerp.vercel.app
+
+## 2026-02-11
 - Summary: Add planned salary accrual payment IDs (36-month projection) to the payment redistribution list.
 - Changes:
   - Payment redistribution: include salary_accruals projection rows for next 36 months.
