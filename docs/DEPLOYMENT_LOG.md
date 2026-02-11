@@ -8,7 +8,7 @@
 - Changes:
   - Payments report: flag job names when multiple rows share project, job, and financial code.
 - Commit: 389ceb4
-- Production: TBD
+- Production: https://ice-2utjgecyt-iceerp.vercel.app
 ## 2026-02-11
 - Summary: Add verbose logging for FIFO redistribution calculations.
 - Commit: d8688b6
