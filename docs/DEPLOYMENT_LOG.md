@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-11
+- Summary: Update FIFO redistribution apply to write deconsolidated fields.
+- Changes:
+  - Payment redistribution FIFO: include target metadata in updates and persist into deconsolidated table records.
+- Commit: bb8db5a
+- Production: https://ice-gufgtqgd2-iceerp.vercel.app
+
+## 2026-02-11
 - Summary: Fix FIFO redistribution build by normalizing projected salary payment IDs.
 - Changes:
   - Payment redistribution FIFO: normalize payment ID types and projected base ID handling for build.
