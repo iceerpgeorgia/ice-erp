@@ -102,10 +102,12 @@ export async function GET(request: NextRequest) {
     const paidRows = await prisma.$queryRaw<any[]>`
       SELECT
         regexp_replace(lower(payment_id), '[^a-z0-9]', '', 'g') as payment_id_key,
+        nominal_currency_uuid,
         SUM(ABS(nominal_amount))::numeric as paid
       FROM (
         SELECT
           cba.payment_id,
+          cba.nominal_currency_uuid,
           cba.nominal_amount
         FROM "GE78BG0000000893486000_BOG_GEL" cba
         WHERE NOT EXISTS (
@@ -115,6 +117,7 @@ export async function GET(request: NextRequest) {
         UNION ALL
         SELECT
           t.payment_id,
+          t.nominal_currency_uuid,
           t.nominal_amount
         FROM "GE65TB7856036050100002_TBC_GEL" t
         WHERE NOT EXISTS (
@@ -127,6 +130,7 @@ export async function GET(request: NextRequest) {
             CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
             p.payment_id
           ) as payment_id,
+          COALESCE(btb.nominal_currency_uuid, p.currency_uuid, cba.nominal_currency_uuid) as nominal_currency_uuid,
           COALESCE(btb.nominal_amount, btb.partition_amount) as nominal_amount
         FROM "GE78BG0000000893486000_BOG_GEL" cba
         JOIN bank_transaction_batches btb
@@ -143,6 +147,7 @@ export async function GET(request: NextRequest) {
             CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
             p.payment_id
           ) as payment_id,
+          COALESCE(btb.nominal_currency_uuid, p.currency_uuid, t.nominal_currency_uuid) as nominal_currency_uuid,
           COALESCE(btb.nominal_amount, btb.partition_amount) as nominal_amount
         FROM "GE65TB7856036050100002_TBC_GEL" t
         JOIN bank_transaction_batches btb
@@ -155,32 +160,51 @@ export async function GET(request: NextRequest) {
           )
       ) tx
       WHERE payment_id IS NOT NULL AND payment_id <> ''
-      GROUP BY regexp_replace(lower(payment_id), '[^a-z0-9]', '', 'g')
+      GROUP BY regexp_replace(lower(payment_id), '[^a-z0-9]', '', 'g'), nominal_currency_uuid
     `;
 
     const paidMap = new Map<string, number>();
+    const paidByPayment = new Map<string, number>();
+    const currencySetMap = new Map<string, Set<string>>();
     for (const row of paidRows) {
-      const key = String(row.payment_id_key || '').trim();
-      if (!key) continue;
+      const paymentKey = String(row.payment_id_key || '').trim();
+      if (!paymentKey) continue;
+      const currencyKey = row.nominal_currency_uuid ? String(row.nominal_currency_uuid) : '';
       const amount = row.paid ? Number(row.paid) : 0;
-      paidMap.set(key, amount);
+      paidMap.set(`${paymentKey}|${currencyKey}`, amount);
+      paidByPayment.set(paymentKey, (paidByPayment.get(paymentKey) || 0) + amount);
+      if (!currencySetMap.has(paymentKey)) {
+        currencySetMap.set(paymentKey, new Set());
+      }
+      currencySetMap.get(paymentKey)!.add(currencyKey);
     }
 
-    const formattedAccruals = accruals.map((accrual) => ({
-      paid: paidMap.get(
-        String(accrual.payment_id || '')
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, '')
-      ) || 0,
-      ...accrual,
+    const formattedAccruals = accruals.map((accrual) => {
+      const paymentKey = String(accrual.payment_id || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+      const currencyKey = accrual.nominal_currency_uuid ? String(accrual.nominal_currency_uuid) : '';
+      const paidByCurrencyKey = `${paymentKey}|${currencyKey}`;
+      const hasCurrencyMatch = paidMap.has(paidByCurrencyKey);
+      let paid = hasCurrencyMatch ? paidMap.get(paidByCurrencyKey) || 0 : 0;
+      if (!hasCurrencyMatch) {
+        const currencySet = currencySetMap.get(paymentKey);
+        if (currencySet && currencySet.size <= 1) {
+          paid = paidByPayment.get(paymentKey) || 0;
+        }
+      }
+      return {
+        paid,
+        ...accrual,
       id: accrual.id.toString(),
       net_sum: accrual.net_sum.toString(),
       surplus_insurance: accrual.surplus_insurance?.toString() || null,
       deducted_insurance: accrual.deducted_insurance?.toString() || null,
       deducted_fitness: accrual.deducted_fitness?.toString() || null,
       deducted_fine: accrual.deducted_fine?.toString() || null,
-    }));
+      };
+    });
 
     return NextResponse.json(formattedAccruals);
   } catch (error: any) {
