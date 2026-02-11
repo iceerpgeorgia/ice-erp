@@ -14,3 +14,10 @@
   - Importer: reduce duplicate UUID lookup batch size from 1000 to 200.
 - Commit: 0b55416
 - Production: https://ice-izdiriguj-iceerp.vercel.app
+
+## 2026-02-11
+- Summary: Avoid Supabase 406 errors when bank account lookup returns no rows during XML import.
+- Changes:
+  - Upload API: use maybeSingle for bank account lookups (main + test routes).
+- Commit: a0403b3
+- Production: https://ice-66a6anc24-iceerp.vercel.app
