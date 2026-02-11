@@ -104,11 +104,55 @@ export async function GET(request: NextRequest) {
         regexp_replace(lower(payment_id), '[^a-z0-9]', '', 'g') as payment_id_key,
         SUM(ABS(nominal_amount))::numeric as paid
       FROM (
-        SELECT payment_id, nominal_amount
-        FROM "GE78BG0000000893486000_BOG_GEL"
+        SELECT
+          cba.payment_id,
+          cba.nominal_amount
+        FROM "GE78BG0000000893486000_BOG_GEL" cba
+        WHERE NOT EXISTS (
+          SELECT 1 FROM bank_transaction_batches btb
+          WHERE btb.raw_record_uuid::text = cba.raw_record_uuid::text
+        )
         UNION ALL
-        SELECT payment_id, nominal_amount
-        FROM "GE65TB7856036050100002_TBC_GEL"
+        SELECT
+          t.payment_id,
+          t.nominal_amount
+        FROM "GE65TB7856036050100002_TBC_GEL" t
+        WHERE NOT EXISTS (
+          SELECT 1 FROM bank_transaction_batches btb
+          WHERE btb.raw_record_uuid::text = t.raw_record_uuid::text
+        )
+        UNION ALL
+        SELECT
+          COALESCE(
+            CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
+            p.payment_id
+          ) as payment_id,
+          COALESCE(btb.nominal_amount, btb.partition_amount) as nominal_amount
+        FROM "GE78BG0000000893486000_BOG_GEL" cba
+        JOIN bank_transaction_batches btb
+          ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
+        LEFT JOIN payments p
+          ON (
+            btb.payment_uuid IS NOT NULL AND p.record_uuid = btb.payment_uuid
+          ) OR (
+            btb.payment_uuid IS NULL AND btb.payment_id IS NOT NULL AND p.payment_id = btb.payment_id
+          )
+        UNION ALL
+        SELECT
+          COALESCE(
+            CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
+            p.payment_id
+          ) as payment_id,
+          COALESCE(btb.nominal_amount, btb.partition_amount) as nominal_amount
+        FROM "GE65TB7856036050100002_TBC_GEL" t
+        JOIN bank_transaction_batches btb
+          ON btb.raw_record_uuid::text = t.raw_record_uuid::text
+        LEFT JOIN payments p
+          ON (
+            btb.payment_uuid IS NOT NULL AND p.record_uuid = btb.payment_uuid
+          ) OR (
+            btb.payment_uuid IS NULL AND btb.payment_id IS NOT NULL AND p.payment_id = btb.payment_id
+          )
       ) tx
       WHERE payment_id IS NOT NULL AND payment_id <> ''
       GROUP BY regexp_replace(lower(payment_id), '[^a-z0-9]', '', 'g')

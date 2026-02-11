@@ -1,6 +1,14 @@
 # Deployment Log
 
 ## 2026-02-11
+- Summary: Include batch partitions in salary accrual paid totals and keep payment redistribution selections aligned with filters.
+- Changes:
+  - Salary accruals: paid aggregation now accounts for batch partitions.
+  - Payment redistribution: filter-aware select-all for accruals and payments.
+- Commit: 63845f1
+- Production: https://ice-lr4yynic0-iceerp.vercel.app
+
+## 2026-02-11
 - Summary: Update FIFO redistribution apply to write deconsolidated fields.
 - Changes:
   - Payment redistribution FIFO: include target metadata in updates and persist into deconsolidated table records.

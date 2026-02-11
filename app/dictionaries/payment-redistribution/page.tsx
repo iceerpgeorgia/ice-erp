@@ -377,6 +377,26 @@ export default function PaymentRedistributionPage() {
     });
   }, [transactions, paymentSearch, paymentInfoById]);
 
+  const allFilteredPaymentsSelected = useMemo(() => {
+    if (filteredAccruals.length === 0) return false;
+    return filteredAccruals.every((row) => selectedPayments.has(row.payment_id));
+  }, [filteredAccruals, selectedPayments]);
+
+  const someFilteredPaymentsSelected = useMemo(() => {
+    if (filteredAccruals.length === 0) return false;
+    return filteredAccruals.some((row) => selectedPayments.has(row.payment_id));
+  }, [filteredAccruals, selectedPayments]);
+
+  const allFilteredTransactionsSelected = useMemo(() => {
+    if (filteredTransactions.length === 0) return false;
+    return filteredTransactions.every((row) => selectedTransactions.has(transactionKey(row)));
+  }, [filteredTransactions, selectedTransactions]);
+
+  const someFilteredTransactionsSelected = useMemo(() => {
+    if (filteredTransactions.length === 0) return false;
+    return filteredTransactions.some((row) => selectedTransactions.has(transactionKey(row)));
+  }, [filteredTransactions, selectedTransactions]);
+
   const accrualColumnVisibility = useMemo(
     () => new Set(accrualColumns.filter((col) => col.visible).map((col) => col.key)),
     [accrualColumns]
@@ -437,6 +457,18 @@ export default function PaymentRedistributionPage() {
     });
   };
 
+  const toggleFilteredPayments = () => {
+    setSelectedPayments((prev) => {
+      const next = new Set(prev);
+      if (allFilteredPaymentsSelected) {
+        filteredAccruals.forEach((row) => next.delete(row.payment_id));
+      } else {
+        filteredAccruals.forEach((row) => next.add(row.payment_id));
+      }
+      return next;
+    });
+  };
+
   const toggleTransaction = (key: string) => {
     setSelectedTransactions((prev) => {
       const next = new Set(prev);
@@ -455,6 +487,18 @@ export default function PaymentRedistributionPage() {
         return new Set();
       }
       return new Set(transactions.map(transactionKey));
+    });
+  };
+
+  const toggleFilteredTransactions = () => {
+    setSelectedTransactions((prev) => {
+      const next = new Set(prev);
+      if (allFilteredTransactionsSelected) {
+        filteredTransactions.forEach((row) => next.delete(transactionKey(row)));
+      } else {
+        filteredTransactions.forEach((row) => next.add(transactionKey(row)));
+      }
+      return next;
     });
   };
 
@@ -758,7 +802,21 @@ export default function PaymentRedistributionPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12"></TableHead>
+                      <TableHead className="w-12">
+                        <div className="flex items-center justify-center">
+                          <Checkbox
+                            checked={
+                              allFilteredPaymentsSelected
+                                ? true
+                                : someFilteredPaymentsSelected
+                                  ? "indeterminate"
+                                  : false
+                            }
+                            onCheckedChange={toggleFilteredPayments}
+                            aria-label="Select filtered accruals"
+                          />
+                        </div>
+                      </TableHead>
                       {accrualColumnVisibility.has("payment_id") && (
                         <TableHead>Payment ID</TableHead>
                       )}
@@ -905,7 +963,21 @@ export default function PaymentRedistributionPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12"></TableHead>
+                      <TableHead className="w-12">
+                        <div className="flex items-center justify-center">
+                          <Checkbox
+                            checked={
+                              allFilteredTransactionsSelected
+                                ? true
+                                : someFilteredTransactionsSelected
+                                  ? "indeterminate"
+                                  : false
+                            }
+                            onCheckedChange={toggleFilteredTransactions}
+                            aria-label="Select filtered payments"
+                          />
+                        </div>
+                      </TableHead>
                       {paymentColumnVisibility.has("date") && (
                         <TableHead>Date</TableHead>
                       )}
