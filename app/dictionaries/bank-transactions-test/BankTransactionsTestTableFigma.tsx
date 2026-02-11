@@ -395,6 +395,7 @@ export default function BankTransactionsTestTableFigma() {
         currencySummaries={currencySummaries}
         uploadEndpoint="/api/bank-transactions-test/upload"
         apiBasePath="/api/bank-transactions"
+        listBasePath="/api/bank-transactions-test"
       />
     </div>
   );

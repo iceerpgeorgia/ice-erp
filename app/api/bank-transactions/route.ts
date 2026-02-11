@@ -236,10 +236,11 @@ export async function GET(req: NextRequest) {
     const fromDate = searchParams.get('fromDate'); // dd.mm.yyyy format
     const toDate = searchParams.get('toDate');     // dd.mm.yyyy format
     const idsParam = searchParams.get('ids');      // Comma-separated IDs for fetching specific records
+    const rawRecordUuid = searchParams.get('rawRecordUuid');
     const limitParam = searchParams.get('limit');  // Optional limit override (default: 1000)
     const offsetParam = searchParams.get('offset'); // Optional offset for pagination (default: 0)
     
-    console.log('[API] Query params:', { fromDate, toDate, idsParam, limitParam, offsetParam });
+    console.log('[API] Query params:', { fromDate, toDate, idsParam, rawRecordUuid, limitParam, offsetParam });
     
     // Helper to convert dd.mm.yyyy or yyyy-mm-dd to yyyy-mm-dd for comparison
     const toComparableDate = (dateStr: string | null): string | null => {
@@ -270,7 +271,7 @@ export async function GET(req: NextRequest) {
     
     // Limit to recent 1000 records by default unless specific IDs requested
     const defaultLimit = 1000;
-    const isUnfiltered = !fromDate && !toDate && !idsParam;
+    const isUnfiltered = !fromDate && !toDate && !idsParam && !rawRecordUuid;
     let limit = idsParam
       ? undefined
       : (limitParam ? (limitParam === '0' ? undefined : parseInt(limitParam)) : (isUnfiltered ? undefined : defaultLimit));
@@ -286,7 +287,30 @@ export async function GET(req: NextRequest) {
     console.log('[API] Step 1: Fetching transactions with JOINs...');
     // Use optimized SQL with all JOINs in one query to avoid N+1 problem
     let transactions: any[];
-    if (idsParam) {
+    if (rawRecordUuid) {
+      transactions = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT 
+           cba.*,
+           ba.account_number,
+           b.bank_name,
+           ca.counteragent as counteragent_name,
+           p.project_index,
+           fc.validation as financial_code,
+           curr_acc.code as account_currency_code,
+           curr_nom.code as nominal_currency_code
+         FROM (${UNION_SQL}) cba
+         LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
+         LEFT JOIN banks b ON ba.bank_uuid = b.uuid
+         LEFT JOIN counteragents ca ON COALESCE(cba.batch_counteragent_uuid, cba.counteragent_uuid) = ca.counteragent_uuid
+         LEFT JOIN projects p ON COALESCE(cba.batch_project_uuid, cba.project_uuid) = p.project_uuid
+         LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid) = fc.uuid
+         LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
+         LEFT JOIN currencies curr_nom ON cba.nominal_currency_uuid = curr_nom.uuid
+         WHERE cba.raw_record_uuid::text = $1::text
+         ORDER BY cba.transaction_date DESC, cba.id DESC`,
+        rawRecordUuid
+      );
+    } else if (idsParam) {
       const idsArray = idsParam.split(',').map(id => id.trim());
       transactions = await prisma.$queryRawUnsafe<any[]>(
         `SELECT 

@@ -199,6 +199,7 @@ export function BankTransactionsTable({
   currencySummaries,
   uploadEndpoint = '/api/bank-transactions/upload',
   apiBasePath = '/api/bank-transactions',
+  listBasePath,
   autoEditId: autoEditIdProp,
   renderMode = 'full',
   enableEditing = true,
@@ -209,6 +210,7 @@ export function BankTransactionsTable({
   currencySummaries?: any[];
   uploadEndpoint?: string;
   apiBasePath?: string;
+  listBasePath?: string;
   autoEditId?: number;
   renderMode?: 'full' | 'dialog-only';
   enableEditing?: boolean;
@@ -216,6 +218,7 @@ export function BankTransactionsTable({
   onTransactionUpdated?: (transaction: BankTransaction) => void;
 }) {
   const [transactions, setTransactions] = useState<BankTransaction[]>(data ?? []);
+  const resolvedListBasePath = listBasePath ?? apiBasePath;
   const showFullTable = renderMode !== 'dialog-only';
   
   console.log('[BankTransactionsTable] currencySummaries:', currencySummaries);
@@ -258,6 +261,107 @@ export function BankTransactionsTable({
   const [paymentOptions, setPaymentOptions] = useState<any[]>([]);
   const [allPayments, setAllPayments] = useState<any[]>([]); // All payments for search
   const [projectOptions, setProjectOptions] = useState<any[]>([]);
+
+  const mapApiRowToTransaction = (row: any, fallback?: BankTransaction): BankTransaction => ({
+    id: row.id,
+    uuid: row.uuid || fallback?.uuid || "",
+    accountUuid: row.bank_account_uuid || fallback?.accountUuid || "",
+    accountCurrencyUuid: row.account_currency_uuid || fallback?.accountCurrencyUuid || "",
+    accountCurrencyCode: row.account_currency_code || row.accountCurrencyCode || fallback?.accountCurrencyCode || null,
+    accountCurrencyAmount: row.account_currency_amount || fallback?.accountCurrencyAmount || "0",
+    paymentUuid: null,
+    counteragentUuid: row.counteragent_uuid || fallback?.counteragentUuid || null,
+    projectUuid: row.project_uuid || fallback?.projectUuid || null,
+    financialCodeUuid: row.financial_code_uuid || fallback?.financialCodeUuid || null,
+    nominalCurrencyUuid: row.nominal_currency_uuid || fallback?.nominalCurrencyUuid || null,
+    nominalAmount: row.nominal_amount ?? fallback?.nominalAmount ?? null,
+    date: row.transaction_date || fallback?.date || "",
+    correctionDate: row.correction_date ?? fallback?.correctionDate ?? null,
+    exchangeRate: row.exchange_rate ?? fallback?.exchangeRate ?? null,
+    nominalExchangeRate: row.nominal_exchange_rate ?? fallback?.nominalExchangeRate ?? null,
+    id1: row.id1 || row.dockey || fallback?.id1 || null,
+    id2: row.id2 || row.entriesid || fallback?.id2 || null,
+    recordUuid: row.raw_record_uuid || fallback?.recordUuid || "",
+    counteragentAccountNumber: row.counteragent_account_number ?? fallback?.counteragentAccountNumber ?? null,
+    description: row.description ?? fallback?.description ?? null,
+    comment: row.comment ?? fallback?.comment ?? null,
+    processingCase: row.processing_case ?? fallback?.processingCase ?? null,
+    appliedRuleId: row.applied_rule_id ?? fallback?.appliedRuleId ?? null,
+    parsingLock: row.parsing_lock ?? fallback?.parsingLock ?? false,
+    createdAt: row.created_at || fallback?.createdAt || "",
+    updatedAt: row.updated_at || fallback?.updatedAt || "",
+    isBalanceRecord: row.is_balance_record ?? fallback?.isBalanceRecord ?? false,
+    accountNumber: row.account_number ?? fallback?.accountNumber ?? null,
+    bankName: row.bank_name ?? fallback?.bankName ?? null,
+    counteragentName: row.counteragent_name ?? fallback?.counteragentName ?? null,
+    projectIndex: row.project_index ?? fallback?.projectIndex ?? null,
+    financialCode: row.financial_code ?? fallback?.financialCode ?? null,
+    paymentId: row.payment_id ?? fallback?.paymentId ?? null,
+    nominalCurrencyCode: row.nominal_currency_code ?? fallback?.nominalCurrencyCode ?? null,
+    sourceTable: row.source_table ?? fallback?.sourceTable ?? null,
+    sourceId: row.source_id ?? fallback?.sourceId ?? null,
+  });
+
+  const refreshTransactionById = async (transactionId: number, fallback?: BankTransaction) => {
+    try {
+      const updatedResponse = await fetch(`${apiBasePath}?ids=${transactionId}`);
+      if (!updatedResponse.ok) {
+        throw new Error('Failed to fetch updated transaction');
+      }
+      const updatedData = await updatedResponse.json();
+      const row = Array.isArray(updatedData) ? updatedData[0] : updatedData?.data?.[0];
+      if (!row || !row.id) {
+        throw new Error('No updated transaction returned');
+      }
+      const mapped = mapApiRowToTransaction(row, fallback);
+      setTransactions((prev) => prev.map((t) => (t.id === transactionId ? mapped : t)));
+      onTransactionUpdated?.(mapped);
+      return mapped;
+    } catch (error) {
+      console.error('[BankTransactionsTable] Failed to refresh transaction:', error);
+      return null;
+    }
+  };
+
+  const refreshTransactionsByRawRecordUuid = async (rawRecordUuid: string, fallback?: BankTransaction) => {
+    try {
+      const updatedResponse = await fetch(`${resolvedListBasePath}?rawRecordUuid=${encodeURIComponent(rawRecordUuid)}`);
+      if (!updatedResponse.ok) {
+        throw new Error('Failed to fetch updated batch transactions');
+      }
+      const updatedData = await updatedResponse.json();
+      const rows = Array.isArray(updatedData)
+        ? updatedData
+        : Array.isArray(updatedData?.data)
+          ? updatedData.data
+          : [];
+      if (rows.length === 0) {
+        throw new Error('No batch transactions returned');
+      }
+
+      const mappedRows = rows
+        .map((row: any) => mapApiRowToTransaction(row, fallback))
+        .filter((row: BankTransaction) => Boolean(row.id));
+
+      setTransactions((prev) => {
+        const firstIndex = prev.findIndex((t) => t.recordUuid === rawRecordUuid);
+        const filtered = prev.filter((t) => t.recordUuid !== rawRecordUuid);
+        if (firstIndex === -1) {
+          return [...mappedRows, ...filtered];
+        }
+        return [...filtered.slice(0, firstIndex), ...mappedRows, ...filtered.slice(firstIndex)];
+      });
+
+      if (mappedRows.length > 0) {
+        onTransactionUpdated?.(mappedRows[0]);
+      }
+
+      return mappedRows;
+    } catch (error) {
+      console.error('[BankTransactionsTable] Failed to refresh batch transactions:', error);
+      return null;
+    }
+  };
   const [jobOptions, setJobOptions] = useState<any[]>([]);
   const [financialCodeOptions, setFinancialCodeOptions] = useState<any[]>([]);
   const [currencyOptions, setCurrencyOptions] = useState<any[]>([]);
@@ -1051,10 +1155,10 @@ export function BankTransactionsTable({
 
   const handleBatchEditorSaved = () => {
     handleBatchEditorClose();
-    cancelEdit();
-    if (typeof window !== 'undefined') {
-      window.location.reload();
+    if (editingTransaction?.recordUuid) {
+      refreshTransactionsByRawRecordUuid(editingTransaction.recordUuid, editingTransaction);
     }
+    cancelEdit();
   };
 
   // Handle payment selection - auto-fill related fields
@@ -1430,82 +1534,13 @@ export function BankTransactionsTable({
 
       if (response.ok) {
         // Fetch the updated transaction to get calculated values (like nominal_amount)
-        const updatedResponse = await fetch(`${apiBasePath}?ids=${editingTransaction.id}`);
-        if (updatedResponse.ok) {
-          const updatedData = await updatedResponse.json();
-          
-          // Check if we got data back
-          if (!updatedData || !Array.isArray(updatedData) || updatedData.length === 0) {
-            console.error('No data returned from API after save, reloading page...');
-            window.location.reload();
-            return;
-          }
-          
-          // Map snake_case API response to camelCase component format
-          const row = updatedData[0];
-          
-          // Additional safety check
-          if (!row || !row.id) {
-            console.error('Invalid data structure returned from API, reloading page...');
-            window.location.reload();
-            return;
-          }
-          
-          const mapped = {
-            id: row.id,
-            uuid: row.uuid || "",
-            accountUuid: row.bank_account_uuid || "",
-            accountCurrencyUuid: row.account_currency_uuid || "",
-            accountCurrencyCode: row.account_currency_code || row.accountCurrencyCode || null,
-            accountCurrencyAmount: row.account_currency_amount || "0",
-            paymentUuid: null,
-            counteragentUuid: row.counteragent_uuid || null,
-            projectUuid: row.project_uuid || null,
-            financialCodeUuid: row.financial_code_uuid || null,
-            nominalCurrencyUuid: row.nominal_currency_uuid || null,
-            nominalAmount: row.nominal_amount || null,
-            date: row.transaction_date || "",
-            correctionDate: row.correction_date || null,
-            exchangeRate: row.exchange_rate || null,
-            nominalExchangeRate: row.nominal_exchange_rate || null,
-            id1: row.id1 || row.dockey || null,
-            id2: row.id2 || row.entriesid || null,
-            recordUuid: row.raw_record_uuid || "",
-            counteragentAccountNumber: row.counteragent_account_number || null,
-            description: row.description || null,
-            comment: row.comment ?? null,
-            processingCase: row.processing_case || null,
-            appliedRuleId: row.applied_rule_id || null,
-            parsingLock: row.parsing_lock ?? false,
-            createdAt: row.created_at || "",
-            updatedAt: row.updated_at || "",
-            isBalanceRecord: row.is_balance_record || false,
-            accountNumber: row.account_number || null,
-            bankName: row.bank_name || null,
-            counteragentName: row.counteragent_name || null,
-            projectIndex: row.project_index || null,
-            financialCode: row.financial_code || null,
-            paymentId: row.payment_id || null,
-            nominalCurrencyCode: row.nominal_currency_code || null,
-          };
-          
-          // Update the transaction in local state
-          setTransactions(prev => 
-            prev.map(t => 
-              t.id === editingTransaction.id 
-                ? mapped 
-                : t
-            )
-          );
-          onTransactionUpdated?.(mapped);
-          
-          // Close dialog and reset state
-          cancelEdit();
-        } else {
-          // Fallback to reload if fetch fails
-          console.error('Failed to fetch updated transaction, reloading page...');
-          window.location.reload();
+        const updated = await refreshTransactionById(editingTransaction.id, editingTransaction);
+        if (!updated) {
+          alert('Saved, but failed to refresh the edited row. Please try again if data looks stale.');
         }
+
+        // Close dialog and reset state
+        cancelEdit();
       } else {
         alert(`Error: ${result.error}`);
       }
