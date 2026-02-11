@@ -1,7 +1,11 @@
 # Deployment Log
 
 ## 2026-02-11
-  - Payments report: expose job UUID and flag job labels in red when only counteragent differs.
+- Summary: Resolve synthetic bank transaction IDs during PATCH updates.
+- Changes:
+  - Bank transactions: map synthetic IDs to source table/id when query params are missing.
+- Commit: 9950a84
+- Production: TBD
 
 ## 2026-02-11
 - Summary: Highlight job name when payment ids share project/job/financial code.
@@ -9,9 +13,11 @@
   - Payments report: flag job names when multiple rows share project, job, and financial code.
 - Commit: 389ceb4
 - Production: https://ice-2utjgecyt-iceerp.vercel.app
+
 ## 2026-02-11
 - Summary: Add verbose logging for FIFO redistribution calculations.
 - Commit: d8688b6
+
 ## 2026-02-11
 - Summary: Align salary accrual paid matching to salary payment IDs with currency-safe fallback.
 - Changes:

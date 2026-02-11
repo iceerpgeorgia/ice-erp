@@ -12,6 +12,9 @@ const ALLOWED_TABLES = new Set([
 ]);
 type AllowedTable = "GE78BG0000000893486000_BOG_GEL" | "GE65TB7856036050100002_TBC_GEL";
 
+const TBC_OFFSET = 1000000000000n;
+const BATCH_OFFSET = 2000000000000n;
+
 function resolveTableName(searchParams: URLSearchParams): AllowedTable {
   const sourceTable = searchParams.get('sourceTable');
   if (sourceTable && ALLOWED_TABLES.has(sourceTable)) {
@@ -23,6 +26,21 @@ function resolveTableName(searchParams: URLSearchParams): AllowedTable {
 function resolveRecordId(paramId: string, searchParams: URLSearchParams): string {
   const sourceId = searchParams.get('sourceId');
   return sourceId && sourceId.trim() ? sourceId : paramId;
+}
+
+function resolveSyntheticId(rawId: bigint): { tableName: AllowedTable; recordId: bigint; isBatch: boolean } | null {
+  if (rawId < 0n) return null;
+  if (rawId >= BATCH_OFFSET) {
+    const adjusted = rawId - BATCH_OFFSET;
+    if (adjusted >= TBC_OFFSET) {
+      return { tableName: "GE65TB7856036050100002_TBC_GEL", recordId: adjusted - TBC_OFFSET, isBatch: true };
+    }
+    return { tableName: "GE78BG0000000893486000_BOG_GEL", recordId: adjusted, isBatch: true };
+  }
+  if (rawId >= TBC_OFFSET) {
+    return { tableName: "GE65TB7856036050100002_TBC_GEL", recordId: rawId - TBC_OFFSET, isBatch: false };
+  }
+  return { tableName: "GE78BG0000000893486000_BOG_GEL", recordId: rawId, isBatch: false };
 }
 
 /**
@@ -173,9 +191,17 @@ export async function PATCH(
     const tableName = resolveTableName(searchParams);
     const recordId = resolveRecordId(params.id, searchParams);
     const idParam = /^\d+$/.test(recordId) ? BigInt(recordId) : recordId;
+    const sourceIdParam = searchParams.get('sourceId');
+    const sourceTableParam = searchParams.get('sourceTable');
     const body = await req.json();
 
     console.log(`[PATCH /bank-transactions/${params.id}] Update request received`);
+    console.log('[PATCH] Query params:', {
+      sourceTable: sourceTableParam,
+      sourceId: sourceIdParam,
+      resolvedTable: tableName,
+      resolvedRecordId: recordId,
+    });
     console.log('[PATCH] Request body:', JSON.stringify(body, null, 2));
 
     // Get current transaction from deconsolidated table
@@ -188,14 +214,61 @@ export async function PATCH(
       : (currentResult as { rows?: any[] })?.rows ?? [];
 
     if (currentRows.length === 0) {
-      console.log(`[PATCH /bank-transactions/${params.id}] Transaction not found`);
-      return NextResponse.json(
-        { error: "Transaction not found" },
-        { status: 404 }
-      );
+      if (typeof idParam === 'bigint' && !sourceIdParam) {
+        const fallback = resolveSyntheticId(idParam);
+        if (fallback) {
+          if (fallback.isBatch) {
+            console.log(`[PATCH /bank-transactions/${params.id}] Batch partition detected; patch not supported in this endpoint.`);
+            return NextResponse.json(
+              { error: "Batch partition records cannot be patched via this endpoint." },
+              { status: 400 }
+            );
+          }
+
+          console.log(`[PATCH /bank-transactions/${params.id}] Retrying via synthetic id mapping`, {
+            fallbackTable: fallback.tableName,
+            fallbackRecordId: fallback.recordId.toString(),
+          });
+
+          const fallbackResult = await prisma.$queryRawUnsafe<any[]>(
+            `SELECT * FROM "${fallback.tableName}" WHERE id = $1`,
+            fallback.recordId
+          );
+          const fallbackRows = Array.isArray(fallbackResult)
+            ? fallbackResult
+            : (fallbackResult as { rows?: any[] })?.rows ?? [];
+
+          if (fallbackRows.length === 0) {
+            console.log(`[PATCH /bank-transactions/${params.id}] Transaction not found after synthetic fallback`);
+            return NextResponse.json(
+              { error: "Transaction not found" },
+              { status: 404 }
+            );
+          }
+
+          // Override resolved table/id for downstream updates
+          (req as any).__resolvedTableName = fallback.tableName;
+          (req as any).__resolvedRecordId = fallback.recordId;
+          currentRows.splice(0, currentRows.length, fallbackRows[0]);
+        } else {
+          console.log(`[PATCH /bank-transactions/${params.id}] Transaction not found`);
+          return NextResponse.json(
+            { error: "Transaction not found" },
+            { status: 404 }
+          );
+        }
+      } else {
+        console.log(`[PATCH /bank-transactions/${params.id}] Transaction not found`);
+        return NextResponse.json(
+          { error: "Transaction not found" },
+          { status: 404 }
+        );
+      }
     }
     
     const current = currentRows[0];
+    const resolvedTableName = (req as any).__resolvedTableName ?? tableName;
+    const resolvedRecordId = (req as any).__resolvedRecordId ?? idParam;
 
     console.log(`[PATCH /bank-transactions/${params.id}] Current state:`, {
       counteragentUuid: current.counteragent_uuid,
@@ -419,10 +492,10 @@ export async function PATCH(
     if (updateData.comment !== undefined) pushUpdate('comment', updateData.comment);
 
     updateFields.push('updated_at = NOW()');
-    updateValues.push(idParam);
+    updateValues.push(resolvedRecordId);
 
     const updateQuery = `
-      UPDATE "${tableName}"
+      UPDATE "${resolvedTableName}"
       SET ${updateFields.join(', ')}
       WHERE id = $${paramIndex}
       RETURNING *
@@ -432,8 +505,8 @@ export async function PATCH(
     const updated = updatedRows[0];
 
     await logAudit({
-      table: tableName,
-      recordId: recordId,
+      table: resolvedTableName,
+      recordId: String(resolvedRecordId),
       action: "update",
       changes: {
         changes,
