@@ -181,7 +181,10 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       const savedColumns = localStorage.getItem('projects-table-columns');
       if (savedColumns) {
         try {
-          return JSON.parse(savedColumns);
+          const parsed = JSON.parse(savedColumns) as ColumnConfig[];
+          const byKey = new Map(parsed.map((col) => [col.key, col]));
+          const merged = defaultColumns.map((col) => byKey.get(col.key) ?? col);
+          return merged;
         } catch (error) {
           console.warn('Failed to parse saved column settings:', error);
         }
