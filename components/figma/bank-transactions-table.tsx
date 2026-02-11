@@ -1162,16 +1162,16 @@ export function BankTransactionsTable({
   };
 
   const deassignBatchForPayment = async () => {
-    const paymentId = formData.payment_uuid || editingTransaction?.paymentId || '';
-    if (!paymentId) {
-      alert('No payment ID selected.');
+    const rawRecordUuid = editingTransaction?.recordUuid;
+    if (!rawRecordUuid) {
+      alert('Transaction record is missing.');
       return;
     }
 
-    if (!confirm(`Deassign payment ${paymentId} from all batches?`)) return;
+    if (!confirm('Deassign this transaction from all batches?')) return;
 
     try {
-      const response = await fetch(`/api/bank-transaction-batches?paymentId=${encodeURIComponent(paymentId)}`, {
+      const response = await fetch(`/api/bank-transaction-batches?rawRecordUuid=${encodeURIComponent(rawRecordUuid)}`, {
         method: 'DELETE',
       });
       if (!response.ok) {
@@ -1182,7 +1182,7 @@ export function BankTransactionsTable({
       if (editingTransaction?.recordUuid) {
         await refreshTransactionsByRawRecordUuid(editingTransaction.recordUuid, editingTransaction);
       }
-      alert('Payment deassigned from batches.');
+      alert('Transaction deassigned from batches.');
     } catch (error: any) {
       alert(error?.message || 'Failed to deassign payment from batches');
     }
@@ -2458,7 +2458,7 @@ export function BankTransactionsTable({
                       variant="outline"
                       size="sm"
                       onClick={deassignBatchForPayment}
-                      disabled={!formData.payment_uuid && !editingTransaction?.paymentId}
+                      disabled={!editingTransaction?.recordUuid}
                     >
                       Deassign batch
                     </Button>

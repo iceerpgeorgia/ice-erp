@@ -285,6 +285,7 @@ export async function DELETE(request: Request) {
     const partitionUuid = searchParams.get('partitionUuid');
     const paymentId = searchParams.get('paymentId');
     const paymentUuid = searchParams.get('paymentUuid');
+    const rawRecordUuid = searchParams.get('rawRecordUuid');
 
     if (batchUuid) {
       // Delete entire batch
@@ -320,8 +321,16 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: true });
     }
 
+    if (rawRecordUuid) {
+      await prisma.$executeRaw`
+        DELETE FROM bank_transaction_batches
+        WHERE raw_record_uuid::text = ${rawRecordUuid}::text
+      `;
+      return NextResponse.json({ success: true });
+    }
+
     return NextResponse.json(
-      { error: 'Missing batchUuid, partitionUuid, paymentId, or paymentUuid' },
+      { error: 'Missing batchUuid, partitionUuid, paymentId, paymentUuid, or rawRecordUuid' },
       { status: 400 }
     );
   } catch (error) {
