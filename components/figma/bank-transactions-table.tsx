@@ -1161,6 +1161,33 @@ export function BankTransactionsTable({
     cancelEdit();
   };
 
+  const deassignBatchForPayment = async () => {
+    const paymentId = formData.payment_uuid || editingTransaction?.paymentId || '';
+    if (!paymentId) {
+      alert('No payment ID selected.');
+      return;
+    }
+
+    if (!confirm(`Deassign payment ${paymentId} from all batches?`)) return;
+
+    try {
+      const response = await fetch(`/api/bank-transaction-batches?paymentId=${encodeURIComponent(paymentId)}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error?.error || 'Failed to deassign payment from batches');
+      }
+
+      if (editingTransaction?.recordUuid) {
+        await refreshTransactionsByRawRecordUuid(editingTransaction.recordUuid, editingTransaction);
+      }
+      alert('Payment deassigned from batches.');
+    } catch (error: any) {
+      alert(error?.message || 'Failed to deassign payment from batches');
+    }
+  };
+
   // Handle payment selection - auto-fill related fields
   const handlePaymentChange = (paymentId: string) => {
     console.log('[handlePaymentChange] START - paymentId:', paymentId);
@@ -2416,7 +2443,7 @@ export function BankTransactionsTable({
                     />
                     <Label className="text-sm">Parsing lock (skip during backparse)</Label>
                   </div>
-                  <div className="pt-2">
+                  <div className="pt-2 flex items-center gap-2">
                     <Button
                       type="button"
                       variant="outline"
@@ -2425,6 +2452,15 @@ export function BankTransactionsTable({
                       disabled={!editingTransaction?.recordUuid || !editingTransaction?.id1 || !editingTransaction?.id2 || !editingTransaction?.accountUuid}
                     >
                       Split into batches
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={deassignBatchForPayment}
+                      disabled={!formData.payment_uuid && !editingTransaction?.paymentId}
+                    >
+                      Deassign batch
                     </Button>
                     {batchEditorError && (
                       <p className="mt-2 text-xs text-red-600">{batchEditorError}</p>
