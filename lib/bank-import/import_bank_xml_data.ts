@@ -1225,7 +1225,8 @@ export async function processTBCGEL(
 
   const existingUuids = new Set<string>();
   if (recordUuids.length > 0) {
-    const batchSize = 1000;
+    // Keep batch size small to avoid Supabase REST URL length limits
+    const batchSize = 200;
     for (let i = 0; i < recordUuids.length; i += batchSize) {
       const batch = recordUuids.slice(i, i + batchSize);
       const { data: existingBatch, error: existingError } = await supabase
