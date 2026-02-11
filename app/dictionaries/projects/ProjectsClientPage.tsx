@@ -4,6 +4,30 @@ import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import type { Project } from "@/components/figma/projects-table";
 
+const mapProjectData = (row: any): Project => ({
+  id: row.id || 0,
+  createdAt: row.created_at || row.createdAt || '',
+  updatedAt: row.updated_at || row.updatedAt || '',
+  projectUuid: row.project_uuid || row.projectUuid || '',
+  projectName: row.project_name || row.projectName || '',
+  date: row.date || '',
+  value: row.value || 0,
+  totalPayments: row.total_payments ?? row.totalPayments ?? null,
+  balance: row.balance ?? null,
+  oris1630: row.oris_1630 || row.oris1630 || null,
+  counteragentUuid: row.counteragent_uuid || row.counteragentUuid || '',
+  financialCodeUuid: row.financial_code_uuid || row.financialCodeUuid || '',
+  currencyUuid: row.currency_uuid || row.currencyUuid || '',
+  stateUuid: row.state_uuid || row.stateUuid || '',
+  counteragent: row.counteragent || null,
+  financialCode: row.financial_code || row.financialCode || null,
+  currency: row.currency || null,
+  state: row.state || null,
+  contractNo: row.contract_no || row.contractNo || null,
+  projectIndex: row.project_index || row.projectIndex || null,
+  employees: row.employees || [],
+});
+
 // Dynamically import the heavy table component
 const ProjectsTableDynamic = dynamic(
   () => import("@/components/figma/projects-table").then(mod => ({ default: mod.ProjectsTable })),
@@ -20,7 +44,8 @@ export default function ProjectsClientPage() {
         const res = await fetch("/api/projects");
         if (!res.ok) throw new Error("Failed to fetch");
         const data = await res.json();
-        setProjects(data);
+        const mapped = Array.isArray(data) ? data.map(mapProjectData) : [];
+        setProjects(mapped);
       } catch (err) {
         console.error("[ProjectsPage] Load error:", err);
       } finally {
@@ -40,7 +65,7 @@ export default function ProjectsClientPage() {
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full max-w-none px-4 md:px-6">
       <ProjectsTableDynamic data={projects} />
     </div>
   );
