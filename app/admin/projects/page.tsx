@@ -14,6 +14,8 @@ const mapProjectData = (row: any): Project => {
     projectName: row.project_name || row.projectName || '',
     date: row.date || '', // Already formatted as dd.mm.yyyy by API
     value: row.value || 0,
+    totalPayments: row.total_payments ?? row.totalPayments ?? null,
+    balance: row.balance ?? null,
     oris1630: row.oris_1630 || row.oris1630 || null,
     counteragentUuid: row.counteragent_uuid || row.counteragentUuid || '',
     financialCodeUuid: row.financial_code_uuid || row.financialCodeUuid || '',
