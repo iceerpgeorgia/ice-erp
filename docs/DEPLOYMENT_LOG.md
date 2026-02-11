@@ -5,7 +5,7 @@
 - Changes:
   - Payment redistribution FIFO: detailed allocation/partition logs behind verbose flag.
 - Commit: d8688b6
-- Production: TBD
+- Production: https://ice-d0mlrg8x0-iceerp.vercel.app
 
 ## 2026-02-11
 - Summary: Align salary accrual paid matching to salary payment IDs with currency-safe fallback.
