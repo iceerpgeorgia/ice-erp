@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import type { Project } from "@/components/figma/projects-table";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 
 const mapProjectData = (row: any): Project => ({
   id: row.id || 0,
@@ -37,24 +39,36 @@ const ProjectsTableDynamic = dynamic(
 export default function ProjectsClientPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const loadProjects = useCallback(async () => {
+    try {
+      const res = await fetch("/api/projects", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+      const mapped = Array.isArray(data) ? data.map(mapProjectData) : [];
+      setProjects(mapped);
+    } catch (err) {
+      console.error("[ProjectsPage] Load error:", err);
+    }
+  }, []);
 
   useEffect(() => {
-    async function loadProjects() {
+    const init = async () => {
       try {
-        const res = await fetch("/api/projects");
-        if (!res.ok) throw new Error("Failed to fetch");
-        const data = await res.json();
-        const mapped = Array.isArray(data) ? data.map(mapProjectData) : [];
-        setProjects(mapped);
-      } catch (err) {
-        console.error("[ProjectsPage] Load error:", err);
+        await loadProjects();
       } finally {
         setLoading(false);
       }
-    }
+    };
+    init();
+  }, [loadProjects]);
 
-    loadProjects();
-  }, []);
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadProjects();
+    setIsRefreshing(false);
+  };
 
   if (loading) {
     return (
@@ -66,6 +80,12 @@ export default function ProjectsClientPage() {
 
   return (
     <div className="w-full">
+      <div className="flex justify-end mb-4">
+        <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
       <ProjectsTableDynamic data={projects} />
     </div>
   );

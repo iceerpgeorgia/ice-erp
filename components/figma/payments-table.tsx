@@ -319,6 +319,28 @@ export function PaymentsTable() {
     checkDuplicates();
   }, [selectedProjectUuid, selectedCounteragentUuid, selectedFinancialCodeUuid, selectedJobUuid, selectedCurrencyUuid, selectedIncomeTax, selectedPaymentId]);
 
+  const normalizePayment = (payment: any): Payment => ({
+    id: Number(payment.id),
+    projectUuid: payment.project_uuid || payment.projectUuid || '',
+    counteragentUuid: payment.counteragent_uuid || payment.counteragentUuid || '',
+    financialCodeUuid: payment.financial_code_uuid || payment.financialCodeUuid || '',
+    jobUuid: payment.job_uuid || payment.jobUuid || '',
+    incomeTax: Boolean(payment.incomeTax ?? payment.income_tax ?? false),
+    currencyUuid: payment.currency_uuid || payment.currencyUuid || '',
+    accrualSource: payment.accrualSource ?? payment.accrual_source ?? null,
+    paymentId: payment.paymentId || payment.payment_id || '',
+    recordUuid: payment.recordUuid || payment.record_uuid || '',
+    isActive: Boolean(payment.isActive ?? payment.is_active ?? true),
+    createdAt: payment.createdAt || payment.created_at || null,
+    updatedAt: payment.updatedAt || payment.updated_at || null,
+    projectIndex: payment.projectIndex || payment.project_index || null,
+    counteragentName: payment.counteragentName || payment.counteragent_name || null,
+    financialCodeValidation: payment.financialCodeValidation || payment.financial_code_validation || null,
+    jobName: payment.jobName || payment.job_name || null,
+    jobIdentifier: payment.jobIdentifier || payment.job_identifier || null,
+    currencyCode: payment.currencyCode || payment.currency_code || null,
+  });
+
   const fetchPayments = async () => {
     try {
       setLoading(true);
@@ -326,27 +348,7 @@ export function PaymentsTable() {
       if (!response.ok) throw new Error('Failed to fetch payments');
       const data = await response.json();
       const normalized: Payment[] = Array.isArray(data)
-        ? data.map((payment: any) => ({
-            id: Number(payment.id),
-            projectUuid: payment.project_uuid || payment.projectUuid || '',
-            counteragentUuid: payment.counteragent_uuid || payment.counteragentUuid || '',
-            financialCodeUuid: payment.financial_code_uuid || payment.financialCodeUuid || '',
-            jobUuid: payment.job_uuid || payment.jobUuid || '',
-            incomeTax: Boolean(payment.incomeTax ?? payment.income_tax ?? false),
-            currencyUuid: payment.currency_uuid || payment.currencyUuid || '',
-            accrualSource: payment.accrualSource ?? payment.accrual_source ?? null,
-            paymentId: payment.paymentId || payment.payment_id || '',
-            recordUuid: payment.recordUuid || payment.record_uuid || '',
-            isActive: Boolean(payment.isActive ?? payment.is_active ?? true),
-            createdAt: payment.createdAt || payment.created_at || null,
-            updatedAt: payment.updatedAt || payment.updated_at || null,
-            projectIndex: payment.projectIndex || payment.project_index || null,
-            counteragentName: payment.counteragentName || payment.counteragent_name || null,
-            financialCodeValidation: payment.financialCodeValidation || payment.financial_code_validation || null,
-            jobName: payment.jobName || payment.job_name || null,
-            jobIdentifier: payment.jobIdentifier || payment.job_identifier || null,
-            currencyCode: payment.currencyCode || payment.currency_code || null,
-          }))
+        ? data.map(normalizePayment)
         : [];
       setPayments(normalized);
     } catch (error) {
@@ -844,8 +846,8 @@ export function PaymentsTable() {
     return uniqueValuesCache.get(columnKey) || [];
   };
 
-  const filteredAndSortedPayments = useMemo(() => {
-    let filtered = [...payments];
+  const applyFiltersAndSorting = useCallback((input: Payment[]) => {
+    let filtered = [...input];
 
     // Apply search filter
     if (searchTerm) {
@@ -893,7 +895,11 @@ export function PaymentsTable() {
     });
 
     return filtered;
-  }, [payments, searchTerm, sortColumn, sortDirection, filters]);
+  }, [searchTerm, sortColumn, sortDirection, filters]);
+
+  const filteredAndSortedPayments = useMemo(() => (
+    applyFiltersAndSorting(payments)
+  ), [payments, applyFiltersAndSorting]);
 
   // Pagination
   const totalRecords = filteredAndSortedPayments.length;
@@ -913,17 +919,26 @@ export function PaymentsTable() {
   const visibleColumns = columnConfig.filter(col => col.visible);
   const activeFilterCount = filters.size;
 
-  const handleExportXlsx = () => {
-    if (filteredAndSortedPayments.length === 0) return;
+  const handleExportXlsx = async () => {
     setIsExporting(true);
     try {
+      const response = await fetch('/api/payments?limit=all', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Failed to fetch payments for export');
+      const data = await response.json();
+      const normalized: Payment[] = Array.isArray(data)
+        ? data.map(normalizePayment)
+        : [];
+      const exportRows = applyFiltersAndSorting(normalized);
+      if (exportRows.length === 0) return;
       const fileName = `payments_${new Date().toISOString().slice(0, 10)}.xlsx`;
       exportRowsToXlsx({
-        rows: filteredAndSortedPayments,
+        rows: exportRows,
         columns: columnConfig,
         fileName,
         sheetName: 'Payments',
       });
+    } catch (error) {
+      console.error('Error exporting payments:', error);
     } finally {
       setIsExporting(false);
     }

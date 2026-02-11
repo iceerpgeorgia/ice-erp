@@ -9,8 +9,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get('limit');
     const sort = searchParams.get('sort');
-    
-    const limitClause = limit ? `LIMIT ${parseInt(limit)}` : '';
+
+    const parsedLimit = limit ? Number.parseInt(limit, 10) : null;
+    const limitClause = Number.isFinite(parsedLimit) && parsedLimit > 0 ? `LIMIT ${parsedLimit}` : '';
     const orderClause = sort === 'desc' ? 'DESC' : 'ASC';
     
     const payments = await prisma.$queryRawUnsafe(`
