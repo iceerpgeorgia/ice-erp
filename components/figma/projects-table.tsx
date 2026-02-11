@@ -55,6 +55,8 @@ export type Project = {
   projectName: string;
   date: string;
   value: string | number;
+  totalPayments: string | number | null;
+  balance: string | number | null;
   oris1630: string | null;
   counteragentUuid: string;
   financialCodeUuid: string;
@@ -92,6 +94,8 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'projectName', label: 'Project Name', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'date', label: 'Date', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'value', label: 'Value', width: 120, visible: true, sortable: true, filterable: true },
+  { key: 'totalPayments', label: 'Total Payments', width: 140, visible: true, sortable: true, filterable: true },
+  { key: 'balance', label: 'Balance', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'oris1630', label: 'ORIS 1630', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'counteragent', label: 'Counteragent', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'financialCode', label: 'Financial Code', width: 150, visible: true, sortable: true, filterable: true },
@@ -126,6 +130,8 @@ const mapProjectData = (row: any): Project => ({
   projectName: row.project_name || row.projectName || '',
   date: row.date || row.DATE || '',
   value: row.value || row.VALUE || 0,
+  totalPayments: row.total_payments ?? row.totalPayments ?? null,
+  balance: row.balance ?? row.BALANCE ?? null,
   oris1630: row.oris_1630 || row.oris1630 || null,
   counteragentUuid: row.counteragent_uuid || row.counteragentUuid || '',
   financialCodeUuid: row.financial_code_uuid || row.financialCodeUuid || '',
@@ -1543,6 +1549,18 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                           <span className="text-sm">{project.date}</span>
                         ) : column.key === 'value' ? (
                           <span className="text-sm">{Number(project.value).toLocaleString()}</span>
+                        ) : column.key === 'totalPayments' ? (
+                          <span className="text-sm">
+                            {project.totalPayments !== null && project.totalPayments !== undefined
+                              ? Number(project.totalPayments).toLocaleString()
+                              : '-'}
+                          </span>
+                        ) : column.key === 'balance' ? (
+                          <span className="text-sm">
+                            {project.balance !== null && project.balance !== undefined
+                              ? Number(project.balance).toLocaleString()
+                              : '-'}
+                          </span>
                         ) : column.key === 'oris1630' ? (
                           <span className="text-sm">{project.oris1630 || '-'}</span>
                         ) : column.key === 'counteragent' ? (
