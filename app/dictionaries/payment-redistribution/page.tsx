@@ -82,6 +82,57 @@ type OptimizationResult = {
   }>;
 };
 
+type FifoPartition = {
+  payment_id: string | null;
+  payment_uuid: string | null;
+  counteragent_uuid: string | null;
+  project_uuid: string | null;
+  financial_code_uuid: string | null;
+  nominal_currency_uuid: string | null;
+  nominal_amount: number;
+  partition_amount: number;
+  partition_note: string | null;
+};
+
+type FifoBatch = {
+  source_table: string;
+  id: number;
+  raw_record_uuid: string | null;
+  bank_account_uuid: string | null;
+  raw_record_id_1: string | null;
+  raw_record_id_2: string | null;
+  partitions: FifoPartition[];
+};
+
+type FifoAllocation = {
+  source_table: string;
+  id: number;
+  transaction_date: string | null;
+  nominal_amount: number;
+  partitions: Array<{
+    payment_id: string | null;
+    amount: number;
+    partition_amount: number;
+    note: string | null;
+  }>;
+  batch_required: boolean;
+};
+
+type FifoResult = {
+  updates: Array<{
+    source_table: string;
+    id: number;
+    to_payment_id: string;
+  }>;
+  batches: FifoBatch[];
+  allocations: FifoAllocation[];
+  warnings: string[];
+  unallocated: Array<{
+    payment_id: string;
+    remaining: number;
+  }>;
+};
+
 type ColumnConfig<T extends string> = {
   key: T;
   label: string;
@@ -165,7 +216,10 @@ export default function PaymentRedistributionPage() {
   const [optimization, setOptimization] = useState<OptimizationResult | null>(
     null
   );
+  const [fifoResult, setFifoResult] = useState<FifoResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fifoRunning, setFifoRunning] = useState(false);
+  const [fifoApplying, setFifoApplying] = useState(false);
 
   useEffect(() => {
     const loadCounteragents = async () => {
@@ -188,6 +242,7 @@ export default function PaymentRedistributionPage() {
       setSelectedPayments(new Set());
       setSelectedTransactions(new Set());
       setOptimization(null);
+      setFifoResult(null);
       return;
     }
 
@@ -213,6 +268,7 @@ export default function PaymentRedistributionPage() {
         setTransactions(nextTransactions);
         setSelectedPayments(new Set());
         setSelectedTransactions(new Set());
+        setFifoResult(null);
       } catch (err: any) {
         setError(err.message || "Failed to load data");
       } finally {
@@ -498,6 +554,94 @@ export default function PaymentRedistributionPage() {
     }
   };
 
+  const runFifo = async () => {
+    if (selectedPayments.size === 0 || selectedTransactions.size === 0) {
+      alert("Select at least one accrual and one payment transaction.");
+      return;
+    }
+    setFifoRunning(true);
+    setFifoResult(null);
+    setError(null);
+    try {
+      const response = await fetch("/api/payment-redistribution/fifo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentIds: Array.from(selectedPayments),
+          transactionKeys: Array.from(selectedTransactions).map((key) => {
+            const [source_table, id] = key.split(":");
+            return { source_table, id: Number(id) };
+          }),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "FIFO redistribution failed");
+      }
+      setFifoResult(data);
+    } catch (err: any) {
+      setError(err.message || "FIFO redistribution failed");
+    } finally {
+      setFifoRunning(false);
+    }
+  };
+
+  const applyFifo = async () => {
+    if (!fifoResult) {
+      alert("Run FIFO redistribution first.");
+      return;
+    }
+    if (!confirm("Apply FIFO redistribution?")) return;
+
+    setFifoApplying(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/payment-redistribution/fifo/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          updates: fifoResult.updates,
+          batches: fifoResult.batches,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "FIFO apply failed");
+      }
+
+      const updateMap = new Map<string, string>();
+      fifoResult.updates.forEach((u) => {
+        updateMap.set(`${u.source_table}:${u.id}`, u.to_payment_id);
+      });
+      if (Array.isArray(data.batchAssignments)) {
+        data.batchAssignments.forEach((b: any) => {
+          updateMap.set(`${b.source_table}:${b.id}`, b.batch_id);
+        });
+      }
+
+      setTransactions((prev) =>
+        prev.map((tx) => {
+          const key = `${tx.source_table}:${tx.id}`;
+          const nextPaymentId = updateMap.get(key);
+          if (!nextPaymentId) return tx;
+          return {
+            ...tx,
+            payment_id: nextPaymentId,
+            parsing_lock: true,
+          };
+        })
+      );
+
+      alert(
+        `Applied ${data.updated ?? 0} updates and ${data.batchesCreated ?? 0} batches.`
+      );
+    } catch (err: any) {
+      setError(err.message || "FIFO apply failed");
+    } finally {
+      setFifoApplying(false);
+    }
+  };
+
   return (
     <div className="w-full">
       <div className="mx-auto w-full max-w-none px-6 py-8 space-y-6">
@@ -505,7 +649,7 @@ export default function PaymentRedistributionPage() {
           <h1 className="text-2xl font-semibold">Payment Redistribution Tool</h1>
           <p className="text-sm text-gray-600">
             Select a counteragent, choose accrual targets and bank payments, then
-            run optimization using nominal amounts (no splits).
+            run optimization or FIFO redistribution (FIFO supports splits).
           </p>
         </div>
 
@@ -868,9 +1012,24 @@ export default function PaymentRedistributionPage() {
           >
             {applying ? "Applying..." : "Apply Updates"}
           </Button>
+          <Button onClick={runFifo} disabled={fifoRunning || loading}>
+            {fifoRunning ? "Running FIFO..." : "Run FIFO"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={applyFifo}
+            disabled={fifoApplying || !fifoResult}
+          >
+            {fifoApplying ? "Applying FIFO..." : "Apply FIFO"}
+          </Button>
           {optimization && (
             <span className="text-sm text-gray-600">
               Total deviation: {formatAmount(optimization.objective_abs_deviation)}
+            </span>
+          )}
+          {fifoResult && (
+            <span className="text-sm text-gray-600">
+              FIFO: {fifoResult.updates.length} updates, {fifoResult.batches.length} batches
             </span>
           )}
         </div>
@@ -899,6 +1058,42 @@ export default function PaymentRedistributionPage() {
                         <div key={`${tx.source_table}:${tx.id}`} className="flex justify-between gap-2">
                           <span className="truncate">{tx.source_table}:{tx.id}</span>
                           <span>{formatAmount(tx.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {fifoResult && (
+          <div className="space-y-4">
+            <div className="rounded border bg-white p-4">
+              <h3 className="text-lg font-semibold">FIFO Result</h3>
+              {fifoResult.warnings.length > 0 && (
+                <div className="mt-2 text-sm text-amber-700">
+                  {fifoResult.warnings.join(" ")}
+                </div>
+              )}
+              {fifoResult.unallocated.length > 0 && (
+                <div className="mt-2 text-sm text-red-600">
+                  Unallocated accruals: {fifoResult.unallocated.length}
+                </div>
+              )}
+              <div className="mt-4 grid gap-2 text-xs text-gray-600">
+                {fifoResult.allocations.map((row) => (
+                  <div key={`${row.source_table}:${row.id}`} className="rounded border p-2">
+                    <div className="flex justify-between">
+                      <span>{row.source_table}:{row.id}</span>
+                      <span>{formatAmount(row.nominal_amount)}</span>
+                    </div>
+                    <div className="mt-1 grid gap-1">
+                      {row.partitions.map((part, idx) => (
+                        <div key={`${row.source_table}:${row.id}:${idx}`} className="flex justify-between">
+                          <span>{part.payment_id || "FREE"}</span>
+                          <span>{formatAmount(part.amount)}</span>
                         </div>
                       ))}
                     </div>
