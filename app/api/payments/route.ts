@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get('limit');
     const sort = searchParams.get('sort');
 
-    const parsedLimit = limit ? Number.parseInt(limit, 10) : null;
+    const parsedLimit = Number.parseInt(limit ?? '', 10);
     const limitClause = Number.isFinite(parsedLimit) && parsedLimit > 0 ? `LIMIT ${parsedLimit}` : '';
     const orderClause = sort === 'desc' ? 'DESC' : 'ASC';
     
