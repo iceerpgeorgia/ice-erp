@@ -1,19 +1,17 @@
 # Deployment Log
 
 ## 2026-02-11
-- Summary: Highlight job label when payments match except counteragent.
-- Changes:
   - Payments report: expose job UUID and flag job labels in red when only counteragent differs.
-- Commit: 8d0dfcc
-- Production: https://ice-j0j7r4vlt-iceerp.vercel.app
 
 ## 2026-02-11
-- Summary: Add verbose logging for FIFO redistribution calculations.
+- Summary: Highlight job name when payment ids share project/job/financial code.
 - Changes:
-  - Payment redistribution FIFO: detailed allocation/partition logs behind verbose flag.
+  - Payments report: flag job names when multiple rows share project, job, and financial code.
+- Commit: 0bc7594
+- Production: TBD
+## 2026-02-11
+- Summary: Add verbose logging for FIFO redistribution calculations.
 - Commit: d8688b6
-- Production: https://ice-d0mlrg8x0-iceerp.vercel.app
-
 ## 2026-02-11
 - Summary: Align salary accrual paid matching to salary payment IDs with currency-safe fallback.
 - Changes:

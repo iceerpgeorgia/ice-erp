@@ -127,47 +127,24 @@ export function PaymentsReportTable() {
     return flagged;
   }, [data]);
 
-  const buildConflictKey = useCallback((row: PaymentReport) => {
-    const latestDate = row.latestDate ? String(row.latestDate) : '';
-    return [
-      row.paymentId,
-      row.project,
-      row.projectName || '',
-      row.job || '',
-      row.jobUuid || '',
-      row.floors,
-      row.financialCode,
-      row.incomeTax ? '1' : '0',
-      row.currency,
-      row.accrual,
-      row.order,
-      row.payment,
-      row.accrualPerFloor,
-      row.paidPercent,
-      row.due,
-      row.balance,
-      latestDate,
-    ].join('|');
+  const buildJobMatchKey = useCallback((row: PaymentReport) => {
+    return [row.project || '', row.job || '', row.financialCode || ''].join('|');
   }, []);
 
-  const jobConflictKeys = useMemo(() => {
-    const keyMap = new Map<string, Set<string>>();
+  const jobDuplicateKeys = useMemo(() => {
+    const counts = new Map<string, number>();
     data.forEach((row) => {
-      if (!row.jobUuid) return;
-      const key = buildConflictKey(row);
-      const counterKey = row.counteragentUuid || row.counteragent || '';
-      if (!counterKey) return;
-      if (!keyMap.has(key)) keyMap.set(key, new Set());
-      keyMap.get(key)!.add(counterKey);
+      const key = buildJobMatchKey(row);
+      counts.set(key, (counts.get(key) || 0) + 1);
     });
 
-    const conflicts = new Set<string>();
-    keyMap.forEach((counteragents, key) => {
-      if (counteragents.size > 1) conflicts.add(key);
+    const duplicates = new Set<string>();
+    counts.forEach((count, key) => {
+      if (count > 1) duplicates.add(key);
     });
 
-    return conflicts;
-  }, [data, buildConflictKey]);
+    return duplicates;
+  }, [data, buildJobMatchKey]);
 
 
   // BroadcastChannel for cross-tab updates
@@ -2159,7 +2136,7 @@ export function PaymentsReportTable() {
                   return (
                     <th 
                       key={col.key} 
-                      className={`font-semibold relative cursor-move overflow-hidden text-left px-4 py-3 text-sm sticky top-0 z-10 ${
+                      className={`font-semibold cursor-move overflow-hidden text-left px-4 py-3 text-sm sticky top-0 z-10 ${
                         draggedColumn === col.key ? 'opacity-50' : ''
                       } ${
                         dragOverColumn === col.key ? 'border-l-4 border-blue-500' : ''
@@ -2262,8 +2239,7 @@ export function PaymentsReportTable() {
                       counteragentsWithNegativeBalance.has(row.counteragent);
                     const isJobConflict =
                       col.key === 'job' &&
-                      Boolean(row.jobUuid) &&
-                      jobConflictKeys.has(buildConflictKey(row));
+                      jobDuplicateKeys.has(buildJobMatchKey(row));
                     
                     return (
                       <td 
