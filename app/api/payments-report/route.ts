@@ -109,6 +109,7 @@ export async function GET(request: NextRequest) {
     const formattedData = (reportData as any[]).map(row => ({
       paymentId: row.payment_id,
       counteragentUuid: row.counteragent_uuid,
+      jobUuid: row.job_uuid,
       counteragent: row.counteragent_formatted || row.counteragent_name,
       counteragentId: row.counteragent_id,
       counteragentIban: row.counteragent_iban,

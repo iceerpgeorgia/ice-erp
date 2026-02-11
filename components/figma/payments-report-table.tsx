@@ -33,6 +33,7 @@ import * as XLSX from 'xlsx';
 type PaymentReport = {
   paymentId: string;
   counteragentUuid?: string | null;
+  jobUuid?: string | null;
   counteragent: string;
   counteragentId?: string | null;
   counteragentIban?: string | null;
@@ -125,6 +126,48 @@ export function PaymentsReportTable() {
     });
     return flagged;
   }, [data]);
+
+  const buildConflictKey = useCallback((row: PaymentReport) => {
+    const latestDate = row.latestDate ? String(row.latestDate) : '';
+    return [
+      row.paymentId,
+      row.project,
+      row.projectName || '',
+      row.job || '',
+      row.jobUuid || '',
+      row.floors,
+      row.financialCode,
+      row.incomeTax ? '1' : '0',
+      row.currency,
+      row.accrual,
+      row.order,
+      row.payment,
+      row.accrualPerFloor,
+      row.paidPercent,
+      row.due,
+      row.balance,
+      latestDate,
+    ].join('|');
+  }, []);
+
+  const jobConflictKeys = useMemo(() => {
+    const keyMap = new Map<string, Set<string>>();
+    data.forEach((row) => {
+      if (!row.jobUuid) return;
+      const key = buildConflictKey(row);
+      const counterKey = row.counteragentUuid || row.counteragent || '';
+      if (!counterKey) return;
+      if (!keyMap.has(key)) keyMap.set(key, new Set());
+      keyMap.get(key)!.add(counterKey);
+    });
+
+    const conflicts = new Set<string>();
+    keyMap.forEach((counteragents, key) => {
+      if (counteragents.size > 1) conflicts.add(key);
+    });
+
+    return conflicts;
+  }, [data, buildConflictKey]);
 
 
   // BroadcastChannel for cross-tab updates
@@ -2217,6 +2260,10 @@ export function PaymentsReportTable() {
                     const isFlaggedCounteragent =
                       col.key === 'counteragent' &&
                       counteragentsWithNegativeBalance.has(row.counteragent);
+                    const isJobConflict =
+                      col.key === 'job' &&
+                      Boolean(row.jobUuid) &&
+                      jobConflictKeys.has(buildConflictKey(row));
                     
                     return (
                       <td 
@@ -2250,7 +2297,9 @@ export function PaymentsReportTable() {
                       ) : (
                         <div
                           className={`truncate ${
-                            isFlaggedCounteragent ? 'font-bold text-red-600' : ''
+                            isFlaggedCounteragent || isJobConflict
+                              ? 'font-bold text-red-600'
+                              : ''
                           }`}
                         >
                           {formatValue(row[col.key], col.format, col.key)}

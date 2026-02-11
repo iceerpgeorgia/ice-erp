@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-11
+- Summary: Highlight job label when payments match except counteragent.
+- Changes:
+  - Payments report: expose job UUID and flag job labels in red when only counteragent differs.
+- Commit: ad8e7c4
+- Production: TBD
+
+## 2026-02-11
 - Summary: Add verbose logging for FIFO redistribution calculations.
 - Changes:
   - Payment redistribution FIFO: detailed allocation/partition logs behind verbose flag.
