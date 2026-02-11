@@ -4,7 +4,7 @@
 - Summary: Align salary accrual paid matching to salary payment IDs with currency-safe fallback.
 - Changes:
   - Salary accruals: match paid totals by payment_id and nominal currency with safe fallback for single-currency IDs.
-- Commit: fe9404d
+- Commit: 10cbf18
 - Production: TBD
 
 ## 2026-02-11
