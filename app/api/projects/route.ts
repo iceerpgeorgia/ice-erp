@@ -7,6 +7,8 @@ const SOURCE_TABLES = [
   "GE65TB7856036050100002_TBC_GEL",
 ];
 
+const UNION_SQL = SOURCE_TABLES.map((table) => `SELECT * FROM "${table}"`).join(' UNION ALL ');
+
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -20,8 +22,8 @@ export async function GET(req: NextRequest) {
     const projectUuid = searchParams.get('uuid');
 
     if (projectUuid) {
-      const project = await prisma.$queryRaw`
-        SELECT 
+      const project = await prisma.$queryRawUnsafe(
+        `SELECT 
           p.*,
           COALESCE(pp.total_payment, 0) as total_payments,
           (p.value - COALESCE(pp.total_payment, 0)) as balance
@@ -43,7 +45,7 @@ export async function GET(req: NextRequest) {
                 cba.raw_record_uuid,
                 cba.account_currency_amount
               FROM (
-                ${SOURCE_TABLES.map((table) => `SELECT * FROM "${table}"`).join(' UNION ALL ')}
+                ${UNION_SQL}
               ) cba
               WHERE NOT EXISTS (
                 SELECT 1 FROM bank_transaction_batches btb
@@ -58,7 +60,7 @@ export async function GET(req: NextRequest) {
                 cba.raw_record_uuid,
                 cba.account_currency_amount
               FROM (
-                ${SOURCE_TABLES.map((table) => `SELECT * FROM "${table}"`).join(' UNION ALL ')}
+                ${UNION_SQL}
               ) cba
               JOIN bank_transaction_batches btb
                 ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
@@ -69,8 +71,10 @@ export async function GET(req: NextRequest) {
           WHERE p.is_active = true
           GROUP BY p.project_uuid, p.counteragent_uuid
         ) pp ON p.project_uuid = pp.project_uuid AND p.counteragent_uuid = pp.counteragent_uuid
-        WHERE p.project_uuid = ${projectUuid}::uuid
-      `;
+        WHERE p.project_uuid = $1::uuid
+        `,
+        projectUuid
+      );
       const serialized = (project as any[]).map((p: any) => ({
         ...p,
         id: Number(p.id),
@@ -85,7 +89,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Query uses project_uuid (not project_id) to join with project_employees table
-    const projects = await prisma.$queryRaw`
+    const projects = await prisma.$queryRawUnsafe(`
       SELECT 
         p.*,
         ARRAY_AGG(
@@ -116,7 +120,7 @@ export async function GET(req: NextRequest) {
               cba.raw_record_uuid,
               cba.account_currency_amount
             FROM (
-              ${SOURCE_TABLES.map((table) => `SELECT * FROM "${table}"`).join(' UNION ALL ')}
+              ${UNION_SQL}
             ) cba
             WHERE NOT EXISTS (
               SELECT 1 FROM bank_transaction_batches btb
@@ -131,7 +135,7 @@ export async function GET(req: NextRequest) {
               cba.raw_record_uuid,
               cba.account_currency_amount
             FROM (
-              ${SOURCE_TABLES.map((table) => `SELECT * FROM "${table}"`).join(' UNION ALL ')}
+              ${UNION_SQL}
             ) cba
             JOIN bank_transaction_batches btb
               ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
@@ -144,7 +148,7 @@ export async function GET(req: NextRequest) {
       ) pp ON p.project_uuid = pp.project_uuid AND p.counteragent_uuid = pp.counteragent_uuid
       GROUP BY p.id
       ORDER BY p.created_at DESC
-    `;
+    `);
 
     // Convert BigInt to Number for JSON serialization
     const serialized = (projects as any[]).map((project: any) => ({
