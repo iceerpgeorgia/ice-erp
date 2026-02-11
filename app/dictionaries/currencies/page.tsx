@@ -69,7 +69,12 @@ export default function CurrenciesPage() {
       setLoading(true);
       const response = await fetch("/api/currencies");
       if (response.ok) {
-        const data = await response.json();
+        const result = await response.json();
+        const data = Array.isArray(result)
+          ? result
+          : Array.isArray(result?.data)
+            ? result.data
+            : [];
         setCurrencies(data);
       }
     } catch (error) {
