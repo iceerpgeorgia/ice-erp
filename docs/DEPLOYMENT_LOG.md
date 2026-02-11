@@ -7,3 +7,10 @@
   - Payments: export fetches full dataset and applies filters/sort; API ignores non-numeric limit values.
 - Commit: 37d6692 (app changes: 415df4a)
 - Production: https://ice-ei576gt7q-iceerp.vercel.app (build fixed)
+
+## 2026-02-11
+- Summary: Fix Supabase duplicate lookup by reducing REST IN() batch size to avoid URL length errors.
+- Changes:
+  - Importer: reduce duplicate UUID lookup batch size from 1000 to 200.
+- Commit: 0b55416
+- Production: https://ice-izdiriguj-iceerp.vercel.app
