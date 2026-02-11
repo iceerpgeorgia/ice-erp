@@ -4,7 +4,7 @@
 - Summary: Highlight job label when payments match except counteragent.
 - Changes:
   - Payments report: expose job UUID and flag job labels in red when only counteragent differs.
-- Commit: ad8e7c4
+- Commit: 8d0dfcc
 - Production: TBD
 
 ## 2026-02-11
