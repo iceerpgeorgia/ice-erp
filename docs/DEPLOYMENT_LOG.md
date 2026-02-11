@@ -21,3 +21,10 @@
   - Upload API: use maybeSingle for bank account lookups (main + test routes).
 - Commit: a0403b3
 - Production: https://ice-66a6anc24-iceerp.vercel.app
+
+## 2026-02-11
+- Summary: Fix currencies page crash by handling API response shape.
+- Changes:
+  - Currencies page: read result.data when API returns { data: [...] }.
+- Commit: 4222952
+- Production: https://ice-7monwh5jg-iceerp.vercel.app
