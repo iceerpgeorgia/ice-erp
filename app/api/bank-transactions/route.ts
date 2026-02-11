@@ -101,15 +101,21 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
       '${table.name}' as source_table,
       btb.id as batch_partition_id,
       (btb.partition_amount * CASE WHEN ${baseAlias}.account_currency_amount < 0 THEN -1 ELSE 1 END) as batch_partition_amount,
-      btb.payment_id as batch_payment_id,
-      btb.counteragent_uuid as batch_counteragent_uuid,
-      btb.project_uuid as batch_project_uuid,
-      btb.financial_code_uuid as batch_financial_code_uuid,
-      btb.nominal_currency_uuid as batch_nominal_currency_uuid,
+      COALESCE(btb.payment_id, p.payment_id) as batch_payment_id,
+      COALESCE(btb.counteragent_uuid, p.counteragent_uuid) as batch_counteragent_uuid,
+      COALESCE(btb.project_uuid, p.project_uuid) as batch_project_uuid,
+      COALESCE(btb.financial_code_uuid, p.financial_code_uuid) as batch_financial_code_uuid,
+      COALESCE(btb.nominal_currency_uuid, p.currency_uuid) as batch_nominal_currency_uuid,
       (btb.nominal_amount * CASE WHEN ${baseAlias}.account_currency_amount < 0 THEN -1 ELSE 1 END) as batch_nominal_amount
     FROM "${table.name}" ${baseAlias}
     JOIN bank_transaction_batches btb
-      ON btb.raw_record_uuid::text = ${baseAlias}.raw_record_uuid::text`;
+      ON btb.raw_record_uuid::text = ${baseAlias}.raw_record_uuid::text
+    LEFT JOIN payments p
+      ON (
+        btb.payment_uuid IS NOT NULL AND p.record_uuid = btb.payment_uuid
+      ) OR (
+        btb.payment_uuid IS NULL AND btb.payment_id IS NOT NULL AND p.payment_id = btb.payment_id
+      )`;
 
   return `${baseSelect} UNION ALL ${batchSelect}`;
 }).join(' UNION ALL ');

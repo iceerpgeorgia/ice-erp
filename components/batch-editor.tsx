@@ -396,6 +396,21 @@ export function BatchEditor({
 
     setLoading(true);
     try {
+      const normalizedPartitions = partitions.map((partition) => {
+        if (!partition.paymentUuid) return partition;
+        const payment = payments.find((p) => p.recordUuid === partition.paymentUuid) || null;
+        if (!payment) return partition;
+
+        return {
+          ...partition,
+          paymentId: partition.paymentId || payment.paymentId,
+          counteragentUuid: partition.counteragentUuid || payment.counteragentUuid || null,
+          projectUuid: partition.projectUuid || payment.projectUuid || null,
+          financialCodeUuid: partition.financialCodeUuid || payment.financialCodeUuid || null,
+          nominalCurrencyUuid: partition.nominalCurrencyUuid || payment.currencyUuid || null,
+        };
+      });
+
       if (batchUuid) {
         await fetch(`/api/bank-transaction-batches?batchUuid=${batchUuid}`, {
           method: 'DELETE',
@@ -409,7 +424,7 @@ export function BatchEditor({
           rawRecordId1,
           rawRecordId2,
           rawRecordUuid,
-          partitions: partitions.map((p) => ({
+          partitions: normalizedPartitions.map((p) => ({
             partitionAmount: p.partitionAmount,
             paymentUuid: p.paymentUuid,
             paymentId: p.paymentId,
