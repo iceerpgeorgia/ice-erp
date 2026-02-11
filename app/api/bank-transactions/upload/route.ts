@@ -141,22 +141,30 @@ export async function POST(req: NextRequest) {
 
         const accountNumberNoCcy = isBog ? accountNumber.slice(0, -3) : accountNumber;
 
-        const { data: accountDataExact } = await supabase
+        const { data: accountDataExact, error: accountDataExactError } = await supabase
           .from('bank_accounts')
           .select('uuid, parsing_scheme_uuid, raw_table_name, account_number, currency_uuid')
           .eq('account_number', accountNumber)
           .eq('currency_uuid', currencyData.uuid)
-          .single();
+          .maybeSingle();
+
+        if (accountDataExactError) {
+          throw accountDataExactError;
+        }
 
         let accountData = accountDataExact;
 
         if (!accountData && isBog) {
-          const { data: accountDataFallback } = await supabase
+          const { data: accountDataFallback, error: accountDataFallbackError } = await supabase
             .from('bank_accounts')
             .select('uuid, parsing_scheme_uuid, raw_table_name, account_number, currency_uuid')
             .eq('account_number', accountNumberNoCcy)
             .eq('currency_uuid', currencyData.uuid)
-            .single();
+            .maybeSingle();
+
+          if (accountDataFallbackError) {
+            throw accountDataFallbackError;
+          }
 
           accountData = accountDataFallback || null;
         }
