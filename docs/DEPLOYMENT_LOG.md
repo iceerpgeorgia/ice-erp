@@ -5,7 +5,7 @@
 - Changes:
   - Payments report: expose job UUID and flag job labels in red when only counteragent differs.
 - Commit: 8d0dfcc
-- Production: TBD
+- Production: https://ice-j0j7r4vlt-iceerp.vercel.app
 
 ## 2026-02-11
 - Summary: Add verbose logging for FIFO redistribution calculations.
