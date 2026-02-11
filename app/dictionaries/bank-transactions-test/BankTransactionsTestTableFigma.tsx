@@ -211,25 +211,57 @@ export default function BankTransactionsTestTableFigma() {
     async function loadTransactions() {
       try {
         console.log('[BankTransactionsTestTableFigma] Fetching data...');
+        let effectiveFromDate = appliedFromDate;
+        let effectiveToDate = appliedToDate;
+        let effectiveRecordLimit = appliedRecordLimit;
+
+        if (typeof window !== 'undefined') {
+          if (!effectiveFromDate) {
+            effectiveFromDate = localStorage.getItem('bankTransactionsTest_appliedFromDate')
+              || localStorage.getItem('bankTransactionsTest_fromDate')
+              || '';
+          }
+          if (!effectiveToDate) {
+            effectiveToDate = localStorage.getItem('bankTransactionsTest_appliedToDate')
+              || localStorage.getItem('bankTransactionsTest_toDate')
+              || '';
+          }
+          if (!effectiveRecordLimit) {
+            effectiveRecordLimit = localStorage.getItem('bankTransactionsTest_appliedRecordLimit')
+              || localStorage.getItem('bankTransactionsTest_recordLimit')
+              || '';
+          }
+
+          if (effectiveFromDate && effectiveFromDate !== appliedFromDate) {
+            setAppliedFromDate(effectiveFromDate);
+          }
+          if (effectiveToDate && effectiveToDate !== appliedToDate) {
+            setAppliedToDate(effectiveToDate);
+          }
+          if (effectiveRecordLimit && effectiveRecordLimit !== appliedRecordLimit) {
+            setAppliedRecordLimit(effectiveRecordLimit);
+          }
+        }
+
         const params = new URLSearchParams();
         // Database stores dates in dd.mm.yyyy format - send as-is
         console.log('[BankTransactionsTestTableFigma] Dates:', {
-          fromDate: appliedFromDate,
-          toDate: appliedToDate
+          fromDate: effectiveFromDate,
+          toDate: effectiveToDate
         });
-        if (appliedFromDate) params.set('fromDate', appliedFromDate);
-        if (appliedToDate) params.set('toDate', appliedToDate);
+        if (effectiveFromDate) params.set('fromDate', effectiveFromDate);
+        if (effectiveToDate) params.set('toDate', effectiveToDate);
 
         // Apply record limit (if not 'all')
-        const limitValue = appliedRecordLimit.toLowerCase();
+        const limitValue = effectiveRecordLimit.toLowerCase();
         if (limitValue !== 'all' && limitValue !== '') {
-          params.set('limit', appliedRecordLimit);
+          params.set('limit', effectiveRecordLimit);
         }
         // If 'all', don't set limit parameter (will use API default or fetch all available)
 
         const queryString = params.toString();
         const url = `/api/bank-transactions-test${queryString ? `?${queryString}` : ''}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { cache: 'no-store' });
         console.log('[BankTransactionsTestTableFigma] Response status:', res.status);
 
         if (!res.ok) throw new Error("Failed to fetch");
