@@ -83,7 +83,7 @@ const parseSalaryMonthFromPaymentId = (paymentId: string): Date | null => {
   return new Date(Date.UTC(year, month - 1, 1));
 };
 
-const basePaymentIdFromProjected = (paymentId: string) =>
+const basePaymentIdFromProjected = (paymentId: string): string =>
   paymentId.replace(/_PRL\d{2}\d{4}$/i, "");
 
 type TransactionKey = {
@@ -113,7 +113,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const paymentIds = Array.isArray(body.paymentIds) ? body.paymentIds : [];
+    const paymentIds = Array.isArray(body.paymentIds)
+      ? body.paymentIds.map((id: unknown) => String(id))
+      : [];
     const transactionKeys = Array.isArray(body.transactionKeys)
       ? body.transactionKeys
       : [];
@@ -222,7 +224,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (projectedPaymentIds.length > 0) {
-      const baseIds = Array.from(
+      const baseIds: string[] = Array.from(
         new Set(projectedPaymentIds.map((id: string) => basePaymentIdFromProjected(id)))
       );
       const basePatterns = baseIds.map((id) => `${id}%`);
