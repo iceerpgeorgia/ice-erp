@@ -13,6 +13,8 @@ interface Payment {
   counteragentName: string;
   currencyCode: string;
   currencyUuid: string;
+  projectUuid: string | null;
+  financialCodeUuid: string | null;
   projectIndex: string | null;
   financialCode: string;
   counteragentUuid: string;
@@ -132,6 +134,8 @@ export function BatchEditor({
             counteragentName: payment.counteragentName || payment.counteragent_name || '',
             currencyCode: payment.currencyCode || payment.currency_code || '',
             currencyUuid: payment.currencyUuid || payment.currency_uuid || '',
+            projectUuid: payment.projectUuid || payment.project_uuid || null,
+            financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
             projectIndex: payment.projectIndex || payment.project_index || null,
             financialCode: payment.financialCode || payment.financial_code || '',
             counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || '',
@@ -322,6 +326,10 @@ export function BatchEditor({
             ...partition,
             paymentUuid: payment.recordUuid,
             paymentId: payment.paymentId,
+            counteragentUuid: payment.counteragentUuid || null,
+            projectUuid: payment.projectUuid || null,
+            financialCodeUuid: payment.financialCodeUuid || null,
+            nominalCurrencyUuid: payment.currencyUuid || null,
           };
           return applyNominalForPartition(next, payment);
         });
