@@ -123,6 +123,11 @@ type FifoResult = {
     source_table: string;
     id: number;
     to_payment_id: string;
+    counteragent_uuid: string | null;
+    project_uuid: string | null;
+    financial_code_uuid: string | null;
+    nominal_currency_uuid: string | null;
+    nominal_amount: number | null;
   }>;
   batches: FifoBatch[];
   allocations: FifoAllocation[];

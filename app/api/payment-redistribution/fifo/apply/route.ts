@@ -42,13 +42,25 @@ export async function POST(request: NextRequest) {
       if (!ALLOWED_TABLES.has(update.source_table)) {
         throw new Error(`Unsupported source table: ${update.source_table}`);
       }
+      const nominalAmount =
+        update.nominal_amount !== undefined ? Number(update.nominal_amount) : null;
       return prisma.$executeRawUnsafe(
         `UPDATE "${update.source_table}"
          SET payment_id = $1,
+             counteragent_uuid = $2::uuid,
+             project_uuid = $3::uuid,
+             financial_code_uuid = $4::uuid,
+             nominal_currency_uuid = $5::uuid,
+             nominal_amount = $6,
              parsing_lock = true,
              updated_at = NOW()
-         WHERE id = $2`,
+         WHERE id = $7`,
         update.to_payment_id,
+        update.counteragent_uuid || null,
+        update.project_uuid || null,
+        update.financial_code_uuid || null,
+        update.nominal_currency_uuid || null,
+        Number.isFinite(nominalAmount) ? nominalAmount : null,
         BigInt(update.id)
       );
     });

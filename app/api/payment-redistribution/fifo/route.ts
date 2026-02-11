@@ -442,6 +442,7 @@ export async function POST(request: NextRequest) {
         const accountAbs = Number.isFinite(accountAmount)
           ? Math.abs(accountAmount)
           : amount;
+        const accountSign = accountAmount < 0 ? -1 : 1;
 
         return {
           source_table: row.source_table,
@@ -452,6 +453,7 @@ export async function POST(request: NextRequest) {
           description: row.description,
           amount: roundMoney(amount),
           account_amount: roundMoney(accountAbs),
+          account_sign: accountSign,
           nominal_currency_uuid: row.nominal_currency_uuid,
           account_currency_uuid: row.account_currency_uuid,
           raw_record_uuid: row.raw_record_uuid,
@@ -484,12 +486,21 @@ export async function POST(request: NextRequest) {
       return a.id - b.id;
     });
 
+    const targetByPaymentId = new Map(
+      sortedTargets.map((target) => [target.payment_id, target])
+    );
+
     let targetIndex = 0;
 
     const updates: Array<{
       source_table: string;
       id: number;
       to_payment_id: string;
+      counteragent_uuid: string | null;
+      project_uuid: string | null;
+      financial_code_uuid: string | null;
+      nominal_currency_uuid: string | null;
+      nominal_amount: number | null;
     }> = [];
 
     const batches: Array<{
@@ -613,10 +624,19 @@ export async function POST(request: NextRequest) {
       if (!batchRequired) {
         const targetPaymentId = partitions[0]?.payment_id;
         if (targetPaymentId) {
+          const target = targetByPaymentId.get(targetPaymentId);
+          const nominalAmount = Number.isFinite(partitions[0]?.amount)
+            ? roundMoney(partitions[0].amount * item.account_sign)
+            : null;
           updates.push({
             source_table: item.source_table,
             id: item.id,
             to_payment_id: targetPaymentId,
+            counteragent_uuid: target?.counteragent_uuid || null,
+            project_uuid: target?.project_uuid || null,
+            financial_code_uuid: target?.financial_code_uuid || null,
+            nominal_currency_uuid: target?.nominal_currency_uuid || null,
+            nominal_amount: nominalAmount,
           });
         }
         continue;
@@ -631,7 +651,7 @@ export async function POST(request: NextRequest) {
 
       const batchPartitions = partitions.map((partition) => {
         const target = partition.payment_id
-          ? sortedTargets.find((row) => row.payment_id === partition.payment_id)
+          ? targetByPaymentId.get(partition.payment_id)
           : null;
         return {
           payment_id: partition.payment_id,
