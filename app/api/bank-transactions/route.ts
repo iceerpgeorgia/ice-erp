@@ -21,6 +21,10 @@ const SOURCE_TABLES = [
 
 const BATCH_OFFSET = 2000000000000;
 
+const BATCH_PAYMENT_ID_REGEX = /^BTC_[A-F0-9]{6}_[A-F0-9]{2}_[A-F0-9]{6}$/i;
+const isBatchPaymentId = (value?: string | null) =>
+  Boolean(value && BATCH_PAYMENT_ID_REGEX.test(value));
+
 const UNION_SQL = SOURCE_TABLES.map((table) => {
   const baseAlias = table.isTbc ? 't' : 'cba';
   const baseSelect = `SELECT
@@ -101,7 +105,10 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
       '${table.name}' as source_table,
       btb.id as batch_partition_id,
       (btb.partition_amount * CASE WHEN ${baseAlias}.account_currency_amount < 0 THEN -1 ELSE 1 END) as batch_partition_amount,
-      COALESCE(btb.payment_id, p.payment_id) as batch_payment_id,
+      COALESCE(
+        CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
+        p.payment_id
+      ) as batch_payment_id,
       COALESCE(btb.counteragent_uuid, p.counteragent_uuid) as batch_counteragent_uuid,
       COALESCE(btb.project_uuid, p.project_uuid) as batch_project_uuid,
       COALESCE(btb.financial_code_uuid, p.financial_code_uuid) as batch_financial_code_uuid,
@@ -147,6 +154,14 @@ function toApi(row: any) {
     row.payment_id || extractPaymentID(row.docinformation || row.docnomination);
   const hasBatch = row.batch_partition_id !== null && row.batch_partition_id !== undefined;
   const paymentId = hasBatch ? row.batch_payment_id : fallbackPaymentId;
+  const hasBatchIdAsPayment = isBatchPaymentId(paymentId);
+  const counteragentUuid = hasBatch ? row.batch_counteragent_uuid : row.counteragent_uuid;
+  const projectUuid = hasBatch ? row.batch_project_uuid : row.project_uuid;
+  const financialCodeUuid = hasBatch ? row.batch_financial_code_uuid : row.financial_code_uuid;
+  const nominalCurrencyUuid = hasBatch ? row.batch_nominal_currency_uuid : row.nominal_currency_uuid;
+  const nominalAmount = hasBatch
+    ? (row.batch_nominal_amount ? Number(row.batch_nominal_amount) : null)
+    : (row.nominal_amount ? Number(row.nominal_amount) : null);
   return {
     id: Number(row.synthetic_id ?? row.id),
     source_table: row.source_table ?? null,
@@ -164,19 +179,17 @@ function toApi(row: any) {
     nominal_exchange_rate: row.nominal_exchange_rate ? Number(row.nominal_exchange_rate) : null,
     description: row.description,
     comment: row.comment ?? null,
-    counteragent_uuid: hasBatch ? row.batch_counteragent_uuid : row.counteragent_uuid,
+    counteragent_uuid: hasBatchIdAsPayment ? null : counteragentUuid,
     counteragent_account_number: row.counteragent_account_number ? String(row.counteragent_account_number) : null,
-    project_uuid: hasBatch ? row.batch_project_uuid : row.project_uuid,
-    financial_code_uuid: hasBatch ? row.batch_financial_code_uuid : row.financial_code_uuid,
+    project_uuid: hasBatchIdAsPayment ? null : projectUuid,
+    financial_code_uuid: hasBatchIdAsPayment ? null : financialCodeUuid,
     account_currency_uuid: row.account_currency_uuid,
     account_currency_amount: hasBatch
       ? (row.batch_partition_amount ? Number(row.batch_partition_amount) : null)
       : (row.account_currency_amount ? Number(row.account_currency_amount) : null),
-    nominal_currency_uuid: hasBatch ? row.batch_nominal_currency_uuid : row.nominal_currency_uuid,
-    nominal_amount: hasBatch
-      ? (row.batch_nominal_amount ? Number(row.batch_nominal_amount) : null)
-      : (row.nominal_amount ? Number(row.nominal_amount) : null),
-    payment_id: paymentId ?? null,
+    nominal_currency_uuid: hasBatchIdAsPayment ? null : nominalCurrencyUuid,
+    nominal_amount: hasBatchIdAsPayment ? null : nominalAmount,
+    payment_id: hasBatchIdAsPayment ? null : (paymentId ?? null),
     batch_partition_id: hasBatch ? Number(row.batch_partition_id) : null,
     is_batch: hasBatch,
     parsing_lock: hasBatch ? true : (row.parsing_lock ?? false),

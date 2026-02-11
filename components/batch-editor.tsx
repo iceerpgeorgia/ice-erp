@@ -50,6 +50,10 @@ interface BatchEditorProps {
   onSave: () => void;
 }
 
+const BATCH_PAYMENT_ID_REGEX = /^BTC_[A-F0-9]{6}_[A-F0-9]{2}_[A-F0-9]{6}$/i;
+const sanitizePaymentId = (value?: string | null) =>
+  value && BATCH_PAYMENT_ID_REGEX.test(value) ? null : value ?? null;
+
 export function BatchEditor({
   batchUuid = null,
   initialPartitions,
@@ -119,7 +123,11 @@ export function BatchEditor({
 
   useEffect(() => {
     if (initialPartitions && initialPartitions.length > 0) {
-      setPartitions(ensureTrailingPartition(initialPartitions));
+      const sanitized = initialPartitions.map((partition) => ({
+        ...partition,
+        paymentId: sanitizePaymentId(partition.paymentId),
+      }));
+      setPartitions(ensureTrailingPartition(sanitized));
     }
   }, [initialPartitions]);
 
@@ -397,13 +405,19 @@ export function BatchEditor({
     setLoading(true);
     try {
       const normalizedPartitions = partitions.map((partition) => {
-        if (!partition.paymentUuid) return partition;
+        const sanitizedPaymentId = sanitizePaymentId(partition.paymentId);
+        if (!partition.paymentUuid) {
+          return {
+            ...partition,
+            paymentId: sanitizedPaymentId,
+          };
+        }
         const payment = payments.find((p) => p.recordUuid === partition.paymentUuid) || null;
         if (!payment) return partition;
 
         return {
           ...partition,
-          paymentId: partition.paymentId || payment.paymentId,
+          paymentId: sanitizedPaymentId || payment.paymentId,
           counteragentUuid: partition.counteragentUuid || payment.counteragentUuid || null,
           projectUuid: partition.projectUuid || payment.projectUuid || null,
           financialCodeUuid: partition.financialCodeUuid || payment.financialCodeUuid || null,
