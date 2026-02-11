@@ -4,7 +4,7 @@
 - Summary: Add verbose logging for FIFO redistribution calculations.
 - Changes:
   - Payment redistribution FIFO: detailed allocation/partition logs behind verbose flag.
-- Commit: 8a9b086
+- Commit: d8688b6
 - Production: TBD
 
 ## 2026-02-11
