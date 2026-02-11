@@ -7,7 +7,7 @@
 - Summary: Highlight job name when payment ids share project/job/financial code.
 - Changes:
   - Payments report: flag job names when multiple rows share project, job, and financial code.
-- Commit: 0bc7594
+- Commit: 389ceb4
 - Production: TBD
 ## 2026-02-11
 - Summary: Add verbose logging for FIFO redistribution calculations.
