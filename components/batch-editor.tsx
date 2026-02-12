@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Combobox } from '@/components/ui/combobox';
 import { X, Plus, Check, AlertCircle } from 'lucide-react';
 
@@ -53,6 +54,7 @@ interface BatchEditorProps {
 const BATCH_PAYMENT_ID_REGEX = /^BTC_[A-F0-9]{6}_[A-F0-9]{2}_[A-F0-9]{6}$/i;
 const sanitizePaymentId = (value?: string | null) =>
   value && BATCH_PAYMENT_ID_REGEX.test(value) ? null : value ?? null;
+const normalizePaymentId = (value: string) => value.trim().toLowerCase();
 
 export function BatchEditor({
   batchUuid = null,
@@ -88,6 +90,9 @@ export function BatchEditor({
   const [loading, setLoading] = useState(false);
   const [currencyMap, setCurrencyMap] = useState<Record<string, string>>({});
   const [exchangeRates, setExchangeRates] = useState<any | null>(null);
+  const [paymentIdsInput, setPaymentIdsInput] = useState('');
+  const [missingPaymentIds, setMissingPaymentIds] = useState<string[]>([]);
+  const [autoAddRemaining, setAutoAddRemaining] = useState(true);
 
   const filteredPayments = counteragentUuid
     ? payments.filter((payment) => payment.counteragentUuid === counteragentUuid)
@@ -246,6 +251,7 @@ export function BatchEditor({
   };
 
   const ensureTrailingPartition = (input: Partition[]) => {
+    if (!autoAddRemaining) return input;
     const totalAllocated = input.reduce((sum, p) => sum + (Number(p.partitionAmount) || 0), 0);
     const remaining = Number((totalAmount - totalAllocated).toFixed(2));
     if (remaining > 0.01) {
@@ -367,6 +373,89 @@ export function BatchEditor({
       });
       return ensureTrailingPartition(updated);
     });
+  };
+
+  const handlePaymentIdChange = (partitionId: string, value: string) => {
+    const trimmed = value.trim();
+    setPartitions((prev) => {
+      const updated = prev.map((partition) => {
+        if (partition.id !== partitionId) return partition;
+        if (!trimmed) {
+          return {
+            ...partition,
+            paymentId: null,
+            paymentUuid: null,
+            counteragentUuid: null,
+            projectUuid: null,
+            financialCodeUuid: null,
+            nominalCurrencyUuid: null,
+            nominalAmount: null,
+          };
+        }
+
+        const payment = payments.find(
+          (p) => normalizePaymentId(p.paymentId) === normalizePaymentId(trimmed)
+        );
+
+        if (!payment) {
+          return {
+            ...partition,
+            paymentId: trimmed,
+            paymentUuid: null,
+            counteragentUuid: null,
+            projectUuid: null,
+            financialCodeUuid: null,
+            nominalCurrencyUuid: null,
+            nominalAmount: null,
+          };
+        }
+
+        const next = {
+          ...partition,
+          paymentId: payment.paymentId,
+          paymentUuid: payment.recordUuid,
+          counteragentUuid: payment.counteragentUuid || null,
+          projectUuid: payment.projectUuid || null,
+          financialCodeUuid: payment.financialCodeUuid || null,
+          nominalCurrencyUuid: payment.currencyUuid || null,
+        };
+        return applyNominalForPartition(next, payment);
+      });
+
+      return ensureTrailingPartition(updated);
+    });
+  };
+
+  const buildPartitionsFromPaymentIds = () => {
+    const ids = paymentIdsInput
+      .split(/[,;\n]+/)
+      .map((id) => id.trim())
+      .filter(Boolean);
+    if (ids.length === 0) return;
+
+    const paymentById = new Map(payments.map((payment) => [normalizePaymentId(payment.paymentId), payment]));
+    const missing: string[] = [];
+    const next = ids.map((id, idx) => {
+      const payment = paymentById.get(normalizePaymentId(id)) || null;
+      if (!payment) missing.push(id);
+      const base: Partition = {
+        id: String(idx + 1),
+        partitionAmount: 0,
+        paymentUuid: payment?.recordUuid ?? null,
+        paymentId: payment?.paymentId ?? id,
+        counteragentUuid: payment?.counteragentUuid ?? null,
+        projectUuid: payment?.projectUuid ?? null,
+        financialCodeUuid: payment?.financialCodeUuid ?? null,
+        nominalCurrencyUuid: payment?.currencyUuid ?? null,
+        nominalAmount: null,
+        partitionNote: '',
+      };
+      return payment ? applyNominalForPartition(base, payment) : base;
+    });
+
+    setMissingPaymentIds(missing);
+    setAutoAddRemaining(false);
+    setPartitions(next);
   };
 
   useEffect(() => {
@@ -506,6 +595,34 @@ export function BatchEditor({
           </div>
         </div>
 
+        <div className="mb-6 rounded-lg border bg-gray-50 dark:bg-gray-900 p-4">
+          <div className="grid grid-cols-1 gap-3">
+            <div>
+              <Label htmlFor="payment-ids-input">Payment IDs (comma-separated)</Label>
+              <Textarea
+                id="payment-ids-input"
+                value={paymentIdsInput}
+                onChange={(e) => setPaymentIdsInput(e.target.value)}
+                placeholder="e.g. 12ab34_cd_56ef78, 90ab12_cd_34ef56"
+                rows={3}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="button" size="sm" onClick={buildPartitionsFromPaymentIds}>
+                Create Partitions from Payment IDs
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Creates one partition per payment ID so you only enter amounts.
+              </p>
+            </div>
+            {missingPaymentIds.length > 0 && (
+              <div className="text-xs text-red-600">
+                Missing payments: {missingPaymentIds.join(', ')}
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="space-y-4 mb-6">
           {partitions.map((partition, index) => (
             <div key={partition.id} className="border rounded-lg p-4 space-y-4">
@@ -555,16 +672,24 @@ export function BatchEditor({
 
                 <div className="col-span-2">
                   <Label htmlFor={`payment-${partition.id}`}>Payment ID</Label>
-                  <Combobox
-                    options={filteredPayments.map((p) => ({
-                      value: p.recordUuid,
-                      label: `${p.paymentId} | ${p.counteragentName} | ${p.currencyCode} | ${p.projectIndex || 'No Project'} | ${p.financialCode}`,
-                    }))}
-                    value={partition.paymentUuid || ''}
-                    onValueChange={(value) => selectPayment(partition.id, value)}
-                    placeholder="Select payment..."
-                    searchPlaceholder="Search payments..."
-                  />
+                  <div className="space-y-2">
+                    <Input
+                      id={`payment-${partition.id}`}
+                      value={partition.paymentId ?? ''}
+                      onChange={(e) => handlePaymentIdChange(partition.id, e.target.value)}
+                      placeholder="Enter payment ID or pick from the list"
+                    />
+                    <Combobox
+                      options={filteredPayments.map((p) => ({
+                        value: p.recordUuid,
+                        label: `${p.paymentId} | ${p.counteragentName} | ${p.currencyCode} | ${p.projectIndex || 'No Project'} | ${p.financialCode}`,
+                      }))}
+                      value={partition.paymentUuid || ''}
+                      onValueChange={(value) => selectPayment(partition.id, value)}
+                      placeholder="Select payment..."
+                      searchPlaceholder="Search payments..."
+                    />
+                  </div>
                 </div>
 
                 <div className="col-span-2">
