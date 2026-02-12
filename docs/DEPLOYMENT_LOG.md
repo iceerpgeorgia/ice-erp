@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-02-12
+- Summary: Allow entering comma-separated payment IDs to create editable batch partitions.
+- Changes:
+  - Batch editor: add payment ID input per partition and populate from CSV input without locking.
+- Commit: a1b331a
+- Production: https://ice-hvw528enq-iceerp.vercel.app
+
 ## 2026-02-11
 - Summary: Resolve synthetic bank transaction IDs during PATCH updates.
 - Changes:
