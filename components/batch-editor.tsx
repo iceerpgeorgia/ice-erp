@@ -58,6 +58,19 @@ const sanitizePaymentId = (value?: string | null) =>
   value && BATCH_PAYMENT_ID_REGEX.test(value) ? null : value ?? null;
 const normalizePaymentId = (value: string) => value.trim().toLowerCase();
 
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const stripCounteragentFromLabel = (label?: string | null, counteragent?: string | null) => {
+  if (!label) return null;
+  if (!counteragent) return label.trim();
+  const pattern = new RegExp(escapeRegExp(counteragent), 'ig');
+  const cleaned = label
+    .replace(pattern, '')
+    .replace(/[\s\-–—|:]+/g, ' ')
+    .trim();
+  return cleaned || null;
+};
+
 export function BatchEditor({
   batchUuid = null,
   initialPartitions,
@@ -101,6 +114,10 @@ export function BatchEditor({
   const filteredPayments = counteragentUuid
     ? payments.filter((payment) => payment.counteragentUuid === counteragentUuid)
     : payments;
+
+  const counteragentLabel = counteragentUuid
+    ? (filteredPayments[0]?.counteragentName || null)
+    : null;
 
   const resolvedAccountCurrencyCode =
     accountCurrencyCode || (accountCurrencyUuid ? currencyMap[accountCurrencyUuid] : undefined) || 'GEL';
@@ -631,12 +648,17 @@ export function BatchEditor({
 
         <div className="mb-6 rounded-lg border bg-gray-50 dark:bg-gray-900 p-4">
           <div className="grid grid-cols-1 gap-3">
+            {counteragentLabel && (
+              <div className="text-sm">
+                <span className="font-medium">Counteragent:</span> {counteragentLabel}
+              </div>
+            )}
             <div>
               <Label htmlFor="payment-label-select">Add payment by label</Label>
               <Combobox
                 options={filteredPayments.map((p) => ({
                   value: p.recordUuid,
-                  label: `${p.label ? `${p.label} — ` : ''}${p.paymentId} | ${p.counteragentName} | ${p.currencyCode} | ${p.projectIndex || 'No Project'} | ${p.financialCode}`,
+                  label: `${stripCounteragentFromLabel(p.label, counteragentLabel ?? p.counteragentName) ? `${stripCounteragentFromLabel(p.label, counteragentLabel ?? p.counteragentName)} — ` : ''}${p.paymentId} | ${p.projectIndex || 'No Project'}`,
                 }))}
                 value={paymentLabelSelect}
                 onValueChange={handlePaymentLabelSelect}
@@ -680,7 +702,10 @@ export function BatchEditor({
               payments.find((p) =>
                 normalizePaymentId(p.paymentId) === normalizePaymentId(partition.paymentId ?? '')
               );
-            const paymentLabel = partition.paymentLabel ?? matchedPayment?.label ?? null;
+            const paymentLabel = stripCounteragentFromLabel(
+              partition.paymentLabel ?? matchedPayment?.label ?? null,
+              counteragentLabel ?? matchedPayment?.counteragentName ?? null
+            );
 
             return (
               <div key={partition.id} className="border rounded-lg p-4 space-y-4">
@@ -740,7 +765,7 @@ export function BatchEditor({
                     <Combobox
                       options={filteredPayments.map((p) => ({
                         value: p.recordUuid,
-                        label: `${p.label ? `${p.label} — ` : ''}${p.paymentId} | ${p.counteragentName} | ${p.currencyCode} | ${p.projectIndex || 'No Project'} | ${p.financialCode}`,
+                        label: `${stripCounteragentFromLabel(p.label, counteragentLabel ?? p.counteragentName) ? `${stripCounteragentFromLabel(p.label, counteragentLabel ?? p.counteragentName)} — ` : ''}${p.paymentId} | ${p.projectIndex || 'No Project'}`,
                       }))}
                       value={partition.paymentUuid || ''}
                       onValueChange={(value) => selectPayment(partition.id, value)}
