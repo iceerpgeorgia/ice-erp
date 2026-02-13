@@ -172,6 +172,10 @@ export async function GET(request: NextRequest) {
           cba.source_table,
           cba.id,
           cba.uuid,
+          cba.dockey,
+          cba.entriesid,
+          cba.payment_id,
+          NULL::text as batch_payment_id_raw,
           cba.account_currency_amount,
           cba.nominal_amount,
           cba.transaction_date,
@@ -201,6 +205,9 @@ export async function GET(request: NextRequest) {
           cba.source_table,
           cba.id,
           cba.uuid,
+          cba.dockey,
+          cba.entriesid,
+          cba.payment_id,
           (btb.partition_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as account_currency_amount,
           (btb.nominal_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
           cba.transaction_date,
@@ -209,6 +216,7 @@ export async function GET(request: NextRequest) {
           cba.created_at,
           cba.bank_account_uuid,
           cba.account_currency_uuid,
+          btb.payment_id as batch_payment_id_raw,
           ba.account_number as bank_account_number,
           curr.code as account_currency_code
         FROM (
@@ -284,6 +292,11 @@ export async function GET(request: NextRequest) {
         accountCurrencyAmount: tx.account_currency_amount ? parseFloat(tx.account_currency_amount) : 0,
         nominalAmount: tx.nominal_amount ? parseFloat(tx.nominal_amount) : 0,
         date: tx.transaction_date,
+        id1: tx.dockey || null,
+        id2: tx.entriesid || null,
+        batchId: tx.batch_payment_id_raw && /^BTC_/i.test(tx.batch_payment_id_raw)
+          ? tx.batch_payment_id_raw
+          : (tx.payment_id && /^BTC_/i.test(tx.payment_id) ? tx.payment_id : null),
         counteragentAccountNumber: tx.counteragent_account_number,
         description: tx.description,
         createdAt: tx.created_at,

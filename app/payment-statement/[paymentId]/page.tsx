@@ -54,6 +54,9 @@ type TransactionRow = {
   user: string;
   caAccount: string;
   account: string;
+  id1?: string | null;
+  id2?: string | null;
+  batchId?: string | null;
   createdAt: string;
 };
 
@@ -88,6 +91,9 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'paidPercent', label: 'Paid %', visible: true, width: 100, align: 'right' },
   { key: 'due', label: 'Due', visible: true, width: 120, align: 'right' },
   { key: 'balance', label: 'Balance', visible: true, width: 120, align: 'right' },
+  { key: 'batchId', label: 'Batch ID', visible: false, width: 160, align: 'left' },
+  { key: 'id1', label: 'ID1', visible: false, width: 140, align: 'left' },
+  { key: 'id2', label: 'ID2', visible: false, width: 140, align: 'left' },
   { key: 'comment', label: 'Comment', visible: true, width: 300, align: 'left' },
   { key: 'user', label: 'User', visible: true, width: 180, align: 'left' },
   { key: 'caAccount', label: 'CA Account', visible: true, width: 180, align: 'left' },
@@ -587,6 +593,9 @@ export default function PaymentStatementPage() {
       user: entry.userEmail,
       caAccount: '-',
       account: '-',
+      id1: null,
+      id2: null,
+      batchId: null,
       createdAt: `${formatDate(entry.createdAt)} ${new Date(entry.createdAt).toLocaleTimeString()}`,
     })),
     ...statementData.bankTransactions.map((tx: any) => ({
@@ -608,6 +617,9 @@ export default function PaymentStatementPage() {
       user: '-',
       caAccount: tx.counteragentAccountNumber || '-',
       account: tx.accountLabel || '-',
+      id1: tx.id1 || null,
+      id2: tx.id2 || null,
+      batchId: tx.batchId || null,
       createdAt: `${formatDate(tx.createdAt)} ${new Date(tx.createdAt).toLocaleTimeString()}`,
     }))
   ].sort((a, b) => a.dateSort - b.dateSort) : []; // Sort by date ascending for cumulative calculation
@@ -1184,6 +1196,7 @@ export default function PaymentStatementPage() {
         usdGelRate: row.usd_gel_rate ?? row.usdGelRate ?? null,
         id1: row.id1 || row.dockey || null,
         id2: row.id2 || row.entriesid || null,
+        batchId: row.batch_id || row.batchId || null,
         recordUuid: row.raw_record_uuid || row.recordUuid || '',
         counteragentAccountNumber: row.counteragent_account_number ? String(row.counteragent_account_number) : null,
         description: row.description || null,
@@ -1199,6 +1212,7 @@ export default function PaymentStatementPage() {
         projectIndex: row.project_index || row.projectIndex || null,
         financialCode: row.financial_code || row.financialCode || null,
         paymentId: row.payment_id || row.paymentId || null,
+        batchId: row.batch_id || row.batchId || null,
         nominalCurrencyCode: row.nominal_currency_code || row.nominalCurrencyCode || null,
       }));
       setBankEditData(mapped);
