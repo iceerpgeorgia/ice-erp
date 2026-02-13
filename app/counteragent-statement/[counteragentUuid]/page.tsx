@@ -950,7 +950,6 @@ export default function CounteragentStatementPage() {
         projectIndex: row.project_index || row.projectIndex || null,
         financialCode: row.financial_code || row.financialCode || null,
         paymentId: row.payment_id || row.paymentId || null,
-        batchId: row.batch_id || row.batchId || null,
         nominalCurrencyCode: row.nominal_currency_code || row.nominalCurrencyCode || null,
       }));
       setBankEditData(mapped);
@@ -1448,7 +1447,7 @@ export default function CounteragentStatementPage() {
                   {columns.filter((col) => col.visible).map((col) => (
                     <th
                       key={col.key}
-                      className={`px-4 py-3 font-semibold ${col.align === 'right' ? 'text-right' : 'text-left'} relative group sticky top-0 z-10 bg-gray-50`}
+                      className={`px-4 py-3 font-semibold ${col.align === 'right' ? 'text-right' : 'text-left'} group sticky top-0 z-10 bg-gray-50`}
                       style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
                     >
                       <div className="flex items-center gap-1">

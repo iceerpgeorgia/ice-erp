@@ -1212,7 +1212,6 @@ export default function PaymentStatementPage() {
         projectIndex: row.project_index || row.projectIndex || null,
         financialCode: row.financial_code || row.financialCode || null,
         paymentId: row.payment_id || row.paymentId || null,
-        batchId: row.batch_id || row.batchId || null,
         nominalCurrencyCode: row.nominal_currency_code || row.nominalCurrencyCode || null,
       }));
       setBankEditData(mapped);
@@ -1461,7 +1460,7 @@ export default function PaymentStatementPage() {
                             onDragStart={(e) => handleDragStart(e, column.key)}
                             onDragOver={(e) => handleDragOver(e, column.key)}
                             onDrop={(e) => handleDrop(e, column.key)}
-                            className={`px-4 py-3 font-semibold relative cursor-move select-none sticky top-0 z-10 bg-gray-100 ${
+                            className={`px-4 py-3 font-semibold cursor-move select-none sticky top-0 z-10 bg-gray-100 ${
                               column.align === 'right' ? 'text-right' : 'text-left'
                             } ${dragOverColumn === column.key ? 'bg-blue-100' : ''}`}
                             style={{
