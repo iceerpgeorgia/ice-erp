@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
         p.income_tax,
         p.currency_uuid,
         p.accrual_source,
-        p.label,
+        to_jsonb(p)->>'label' as label,
         p.payment_id,
         p.record_uuid,
         p.is_active,
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       incomeTax: payment.income_tax,
       currencyUuid: payment.currency_uuid,
       accrualSource: payment.accrual_source,
-      label: payment.label,
+      label: payment.label ?? null,
       paymentId: payment.payment_id,
       recordUuid: payment.record_uuid,
       is_active: payment.is_active,
@@ -150,35 +150,77 @@ export async function POST(request: Request) {
       );
     }
 
-    // Insert new payment (triggers will generate payment_id and record_uuid)
-    const result = await prisma.$queryRaw`
-      INSERT INTO payments (
-        project_uuid,
-        counteragent_uuid,
-        financial_code_uuid,
-        job_uuid,
-        income_tax,
-        currency_uuid,
-        accrual_source,
-        label,
-        payment_id,
-        record_uuid,
-        updated_at
-      ) VALUES (
-        ${projectUuid || null}::uuid,
-        ${counteragentUuid}::uuid,
-        ${financialCodeUuid}::uuid,
-        ${jobUuid || null}::uuid,
-        ${incomeTax}::boolean,
-        ${currencyUuid}::uuid,
-        ${accrualSource || null},
-        ${label || null},
-        ${paymentId || ''},
-        '',
-        NOW()
-      )
-      RETURNING *
-    `;
+    const insertPayment = async (includeLabel: boolean) => {
+      if (includeLabel) {
+        return prisma.$queryRaw`
+          INSERT INTO payments (
+            project_uuid,
+            counteragent_uuid,
+            financial_code_uuid,
+            job_uuid,
+            income_tax,
+            currency_uuid,
+            accrual_source,
+            label,
+            payment_id,
+            record_uuid,
+            updated_at
+          ) VALUES (
+            ${projectUuid || null}::uuid,
+            ${counteragentUuid}::uuid,
+            ${financialCodeUuid}::uuid,
+            ${jobUuid || null}::uuid,
+            ${incomeTax}::boolean,
+            ${currencyUuid}::uuid,
+            ${accrualSource || null},
+            ${label || null},
+            ${paymentId || ''},
+            '',
+            NOW()
+          )
+          RETURNING *
+        `;
+      }
+
+      return prisma.$queryRaw`
+        INSERT INTO payments (
+          project_uuid,
+          counteragent_uuid,
+          financial_code_uuid,
+          job_uuid,
+          income_tax,
+          currency_uuid,
+          accrual_source,
+          payment_id,
+          record_uuid,
+          updated_at
+        ) VALUES (
+          ${projectUuid || null}::uuid,
+          ${counteragentUuid}::uuid,
+          ${financialCodeUuid}::uuid,
+          ${jobUuid || null}::uuid,
+          ${incomeTax}::boolean,
+          ${currencyUuid}::uuid,
+          ${accrualSource || null},
+          ${paymentId || ''},
+          '',
+          NOW()
+        )
+        RETURNING *
+      `;
+    };
+
+    let result;
+    try {
+      result = await insertPayment(label !== undefined);
+    } catch (error: any) {
+      const message = String(error?.message || '').toLowerCase();
+      if (message.includes('label') && message.includes('column')) {
+        result = await insertPayment(false);
+      } else {
+        throw error;
+      }
+    }
 
     // Serialize BigInt values for JSON response
     const payment = Array.isArray(result) ? result[0] : result;
@@ -321,58 +363,80 @@ export async function PATCH(request: Request) {
       );
     }
 
-    // Build dynamic update query
-    const updates: string[] = [];
-    const values: any[] = [];
-    let paramIndex = 1;
+    const buildUpdate = (includeLabel: boolean) => {
+      const updates: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
 
-    const pushUpdate = (column: string, value: any, cast = '') => {
-      updates.push(`${column} = $${paramIndex++}${cast}`);
-      values.push(value);
+      const pushUpdate = (column: string, value: any, cast = '') => {
+        updates.push(`${column} = $${paramIndex++}${cast}`);
+        values.push(value);
+      };
+
+      if (normalizedProjectUuid !== undefined && normalizedProjectUuid !== existing.project_uuid) {
+        pushUpdate('project_uuid', normalizedProjectUuid, '::uuid');
+      }
+      if (counteragentUuid !== undefined && counteragentUuid !== existing.counteragent_uuid) {
+        pushUpdate('counteragent_uuid', counteragentUuid, '::uuid');
+      }
+      if (financialCodeUuid !== undefined && financialCodeUuid !== existing.financial_code_uuid) {
+        pushUpdate('financial_code_uuid', financialCodeUuid, '::uuid');
+      }
+      if (normalizedJobUuid !== undefined && normalizedJobUuid !== existing.job_uuid) {
+        pushUpdate('job_uuid', normalizedJobUuid, '::uuid');
+      }
+      if (incomeTax !== undefined && incomeTax !== existing.income_tax) {
+        pushUpdate('income_tax', incomeTax, '::boolean');
+      }
+      if (currencyUuid !== undefined && currencyUuid !== existing.currency_uuid) {
+        pushUpdate('currency_uuid', currencyUuid, '::uuid');
+      }
+      if (normalizedPaymentId !== undefined && normalizedPaymentId !== existing.payment_id) {
+        pushUpdate('payment_id', normalizedPaymentId);
+      }
+      if (normalizedAccrualSource !== undefined && normalizedAccrualSource !== existing.accrual_source) {
+        pushUpdate('accrual_source', normalizedAccrualSource);
+      }
+      if (includeLabel && normalizedLabel !== undefined && normalizedLabel !== existing.label) {
+        pushUpdate('label', normalizedLabel);
+      }
+      if (isActive !== undefined && isActive !== existing.is_active) {
+        pushUpdate('is_active', isActive, '::boolean');
+      }
+
+      return { updates, values, paramIndex };
     };
+    let updatePayload = buildUpdate(true);
 
-    if (normalizedProjectUuid !== undefined && normalizedProjectUuid !== existing.project_uuid) {
-      pushUpdate('project_uuid', normalizedProjectUuid, '::uuid');
-    }
-    if (counteragentUuid !== undefined && counteragentUuid !== existing.counteragent_uuid) {
-      pushUpdate('counteragent_uuid', counteragentUuid, '::uuid');
-    }
-    if (financialCodeUuid !== undefined && financialCodeUuid !== existing.financial_code_uuid) {
-      pushUpdate('financial_code_uuid', financialCodeUuid, '::uuid');
-    }
-    if (normalizedJobUuid !== undefined && normalizedJobUuid !== existing.job_uuid) {
-      pushUpdate('job_uuid', normalizedJobUuid, '::uuid');
-    }
-    if (incomeTax !== undefined && incomeTax !== existing.income_tax) {
-      pushUpdate('income_tax', incomeTax, '::boolean');
-    }
-    if (currencyUuid !== undefined && currencyUuid !== existing.currency_uuid) {
-      pushUpdate('currency_uuid', currencyUuid, '::uuid');
-    }
-    if (normalizedPaymentId !== undefined && normalizedPaymentId !== existing.payment_id) {
-      pushUpdate('payment_id', normalizedPaymentId);
-    }
-    if (normalizedAccrualSource !== undefined && normalizedAccrualSource !== existing.accrual_source) {
-      pushUpdate('accrual_source', normalizedAccrualSource);
-    }
-    if (normalizedLabel !== undefined && normalizedLabel !== existing.label) {
-      pushUpdate('label', normalizedLabel);
-    }
-    if (isActive !== undefined && isActive !== existing.is_active) {
-      pushUpdate('is_active', isActive, '::boolean');
-    }
-
-    if (updates.length === 0) {
+    if (updatePayload.updates.length === 0) {
       return NextResponse.json({ success: true, message: 'No changes to apply' });
     }
 
-    updates.push('updated_at = NOW()');
-    values.push(BigInt(id));
+    updatePayload.updates.push('updated_at = NOW()');
+    updatePayload.values.push(BigInt(id));
 
-    await prisma.$executeRawUnsafe(
-      `UPDATE payments SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
-      ...values
-    );
+    try {
+      await prisma.$executeRawUnsafe(
+        `UPDATE payments SET ${updatePayload.updates.join(', ')} WHERE id = $${updatePayload.paramIndex}`,
+        ...updatePayload.values
+      );
+    } catch (error: any) {
+      const message = String(error?.message || '').toLowerCase();
+      if (message.includes('label') && message.includes('column')) {
+        updatePayload = buildUpdate(false);
+        if (updatePayload.updates.length === 0) {
+          return NextResponse.json({ success: true, message: 'No changes to apply' });
+        }
+        updatePayload.updates.push('updated_at = NOW()');
+        updatePayload.values.push(BigInt(id));
+        await prisma.$executeRawUnsafe(
+          `UPDATE payments SET ${updatePayload.updates.join(', ')} WHERE id = $${updatePayload.paramIndex}`,
+          ...updatePayload.values
+        );
+      } else {
+        throw error;
+      }
+    }
 
     const paymentIdToReparse = normalizedPaymentId ?? existing.payment_id;
     if (paymentIdToReparse) {
