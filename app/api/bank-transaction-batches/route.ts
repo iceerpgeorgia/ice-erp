@@ -54,10 +54,27 @@ export async function GET(request: NextRequest) {
         ORDER BY btb.partition_sequence
       `) as any[];
 
+      const mappedPartitions = partitions.map((partition) => ({
+        ...partition,
+        id: partition.id !== null && partition.id !== undefined ? Number(partition.id) : null,
+        partition_sequence:
+          partition.partition_sequence !== null && partition.partition_sequence !== undefined
+            ? Number(partition.partition_sequence)
+            : null,
+        partition_amount:
+          partition.partition_amount !== null && partition.partition_amount !== undefined
+            ? Number(partition.partition_amount)
+            : null,
+        nominal_amount:
+          partition.nominal_amount !== null && partition.nominal_amount !== undefined
+            ? Number(partition.nominal_amount)
+            : null,
+      }));
+
       return NextResponse.json({
         batchUuid,
         batchId: formatBatchId(batchUuid),
-        partitions,
+        partitions: mappedPartitions,
       });
     }
 
@@ -93,12 +110,29 @@ export async function GET(request: NextRequest) {
         ORDER BY btb.partition_sequence
       `) as any[];
 
+      const mappedPartitions = partitions.map((partition) => ({
+        ...partition,
+        id: partition.id !== null && partition.id !== undefined ? Number(partition.id) : null,
+        partition_sequence:
+          partition.partition_sequence !== null && partition.partition_sequence !== undefined
+            ? Number(partition.partition_sequence)
+            : null,
+        partition_amount:
+          partition.partition_amount !== null && partition.partition_amount !== undefined
+            ? Number(partition.partition_amount)
+            : null,
+        nominal_amount:
+          partition.nominal_amount !== null && partition.nominal_amount !== undefined
+            ? Number(partition.nominal_amount)
+            : null,
+      }));
+
       const batchUuidValue = partitions[0]?.batch_uuid ?? null;
 
       return NextResponse.json({
         batchUuid: batchUuidValue,
         batchId,
-        partitions,
+        partitions: mappedPartitions,
       });
     }
     
