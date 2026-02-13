@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Move blank filter values to top of selection lists.
+- Changes:
+  - Filters: sort blank/empty values before other options.
+- Commit: f47d4ff
+- Production: https://ice-62qp70ikd-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Add label-based batch splitter picker and batch IDs in bank transactions test.
 - Changes:
   - Batch splitter: add label dropdown to append payment IDs, clear input after create, show label in partition picker.
