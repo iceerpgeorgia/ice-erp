@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Restore payments report when label column is missing.
+- Changes:
+  - Payments/report APIs: fall back when label column is not yet applied.
+- Commit: 4561d9c
+- Production: https://ice-m9qbmuw5l-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Add payment label, report edit action, and job weight column.
 - Changes:
   - Payments: add optional label field and expose it in APIs and UI.
