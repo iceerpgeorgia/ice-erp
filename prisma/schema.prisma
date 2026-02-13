@@ -431,6 +431,7 @@ model payments {
   income_tax          Boolean           @default(false)
   currency_uuid       String            @db.Uuid
   accrual_source      String?           @db.VarChar(50)
+  label               String?           @db.Text
   payments_ledger     payments_ledger[]
 
   @@unique([project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid], map: "payments_project_uuid_counteragent_uuid_financial_code_uu_key")

@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
         p.income_tax,
         p.currency_uuid,
         p.accrual_source,
+        p.label,
         p.payment_id,
         p.record_uuid,
         p.is_active,
@@ -56,6 +57,7 @@ export async function GET(request: NextRequest) {
       incomeTax: payment.income_tax,
       currencyUuid: payment.currency_uuid,
       accrualSource: payment.accrual_source,
+      label: payment.label,
       paymentId: payment.payment_id,
       recordUuid: payment.record_uuid,
       is_active: payment.is_active,
@@ -84,7 +86,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid, paymentId, accrualSource } = body;
+    const { projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid, paymentId, accrualSource, label } = body;
 
     const paymentIdPattern = /^[0-9a-f]{6}_[0-9a-f]{2}_[0-9a-f]{6}$/i;
 
@@ -158,6 +160,7 @@ export async function POST(request: Request) {
         income_tax,
         currency_uuid,
         accrual_source,
+        label,
         payment_id,
         record_uuid,
         updated_at
@@ -169,6 +172,7 @@ export async function POST(request: Request) {
         ${incomeTax}::boolean,
         ${currencyUuid}::uuid,
         ${accrualSource || null},
+        ${label || null},
         ${paymentId || ''},
         '',
         NOW()
@@ -207,6 +211,7 @@ export async function PATCH(request: Request) {
       currencyUuid,
       paymentId,
       accrualSource,
+      label,
       isActive,
     } = body;
 
@@ -240,6 +245,7 @@ export async function PATCH(request: Request) {
       currencyUuid === undefined &&
       paymentId === undefined &&
       accrualSource === undefined &&
+      label === undefined &&
       isActive === undefined
     ) {
       return NextResponse.json(
@@ -252,6 +258,7 @@ export async function PATCH(request: Request) {
     const normalizedJobUuid = jobUuid === '' ? null : jobUuid;
     const normalizedPaymentId = paymentId === '' ? null : paymentId;
     const normalizedAccrualSource = accrualSource === '' ? null : accrualSource;
+    const normalizedLabel = label === '' ? null : label;
 
     const nextCounteragentUuid = counteragentUuid ?? existing.counteragent_uuid;
     const nextFinancialCodeUuid = financialCodeUuid ?? existing.financial_code_uuid;
@@ -347,6 +354,9 @@ export async function PATCH(request: Request) {
     }
     if (normalizedAccrualSource !== undefined && normalizedAccrualSource !== existing.accrual_source) {
       pushUpdate('accrual_source', normalizedAccrualSource);
+    }
+    if (normalizedLabel !== undefined && normalizedLabel !== existing.label) {
+      pushUpdate('label', normalizedLabel);
     }
     if (isActive !== undefined && isActive !== existing.is_active) {
       pushUpdate('is_active', isActive, '::boolean');

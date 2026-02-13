@@ -38,6 +38,7 @@ export type Payment = {
   incomeTax: boolean;
   currencyUuid: string;
   accrualSource: string | null;
+  label?: string | null;
   paymentId: string;
   recordUuid: string;
   isActive: boolean;
@@ -66,6 +67,7 @@ type ColumnConfig = {
 const defaultColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', width: 80, visible: false, sortable: true, filterable: true },
   { key: 'paymentId', label: 'Payment ID', width: 300, visible: true, sortable: true, filterable: true },
+  { key: 'label', label: 'Label', width: 220, visible: false, sortable: true, filterable: true },
   { key: 'recordUuid', label: 'Record UUID', width: 150, visible: true, sortable: true, filterable: true },
   { key: 'projectIndex', label: 'Project', width: 400, visible: true, sortable: true, filterable: true },
   { key: 'counteragentName', label: 'Counteragent', width: 250, visible: true, sortable: true, filterable: true },
@@ -119,6 +121,7 @@ export function PaymentsTable() {
   const [selectedJobUuid, setSelectedJobUuid] = useState('');
   const [selectedIncomeTax, setSelectedIncomeTax] = useState(false);
   const [selectedCurrencyUuid, setSelectedCurrencyUuid] = useState('');
+  const [selectedLabel, setSelectedLabel] = useState('');
 
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -132,6 +135,7 @@ export function PaymentsTable() {
   const [editPaymentId, setEditPaymentId] = useState('');
   const [editAccrualSource, setEditAccrualSource] = useState('');
   const [editIsActive, setEditIsActive] = useState(true);
+  const [editLabel, setEditLabel] = useState('');
   const [editFilteredJobs, setEditFilteredJobs] = useState<Array<{ jobUuid: string; jobIndex: string; jobName: string; jobDisplay?: string }>>([]);
 
   // Payment options state (for matching existing payments)
@@ -328,6 +332,7 @@ export function PaymentsTable() {
     incomeTax: Boolean(payment.incomeTax ?? payment.income_tax ?? false),
     currencyUuid: payment.currency_uuid || payment.currencyUuid || '',
     accrualSource: payment.accrualSource ?? payment.accrual_source ?? null,
+    label: payment.label ?? null,
     paymentId: payment.paymentId || payment.payment_id || '',
     recordUuid: payment.recordUuid || payment.record_uuid || '',
     isActive: Boolean(payment.isActive ?? payment.is_active ?? true),
@@ -543,6 +548,7 @@ export function PaymentsTable() {
           incomeTax: selectedIncomeTax,
           currencyUuid: selectedCurrencyUuid,
           paymentId: selectedPaymentId || undefined,
+          label: selectedLabel || null,
         }),
       });
 
@@ -564,6 +570,7 @@ export function PaymentsTable() {
         incomeTax: newPayment.income_tax,
         currencyUuid: newPayment.currency_uuid,
         accrualSource: newPayment.accrual_source ?? null,
+        label: newPayment.label ?? null,
         paymentId: newPayment.payment_id || '',
         recordUuid: newPayment.record_uuid || '',
         isActive: newPayment.is_active !== false,
@@ -598,6 +605,7 @@ export function PaymentsTable() {
     setEditJobUuid(payment.jobUuid || '');
     setEditIncomeTax(Boolean(payment.incomeTax));
     setEditPaymentId(payment.paymentId || '');
+    setEditLabel(payment.label || '');
     setEditAccrualSource(payment.accrualSource || '');
     setEditIsActive(Boolean(payment.isActive));
     
@@ -657,6 +665,7 @@ export function PaymentsTable() {
           currencyUuid: editCurrencyUuid,
           paymentId: editPaymentId || null,
           accrualSource: editAccrualSource || null,
+          label: editLabel || null,
           isActive: editIsActive,
         }),
       });
@@ -680,6 +689,7 @@ export function PaymentsTable() {
     setSelectedJobUuid('');
     setSelectedIncomeTax(false);
     setSelectedCurrencyUuid('');
+    setSelectedLabel('');
     setSelectedPaymentId('');
     setPaymentOptions([]);
     setPaymentDisplayValues({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '' });
@@ -1119,6 +1129,15 @@ export function PaymentsTable() {
                 )}
               </div>
 
+              <div className="space-y-2">
+                <Label>Label (Optional)</Label>
+                <Input
+                  value={selectedLabel}
+                  onChange={(e) => setSelectedLabel(e.target.value)}
+                  placeholder="Payment label"
+                />
+              </div>
+
               {/* Payment ID Information - Only show if no exact duplicates */}
               {selectedCounteragentUuid && duplicateCount === 0 && filteredPaymentOptions.length > 0 && (
                 <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2">
@@ -1526,6 +1545,15 @@ export function PaymentsTable() {
                     value={editPaymentId}
                     onChange={(e) => setEditPaymentId(e.target.value)}
                     placeholder="Payment ID"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Label (Optional)</Label>
+                  <Input
+                    value={editLabel}
+                    onChange={(e) => setEditLabel(e.target.value)}
+                    placeholder="Payment label"
                   />
                 </div>
 
