@@ -1165,12 +1165,13 @@ export default function PaymentStatementPage() {
   };
 
   const openBankEditDialog = async (bankId: number) => {
+    const resolvedBankId = Number(bankId);
     setIsBankEditDialogOpen(true);
     setBankEditLoading(true);
-    setBankEditId(bankId);
+    setBankEditId(Number.isFinite(resolvedBankId) ? resolvedBankId : bankId);
     setBankEditData([]);
     try {
-      const response = await fetch(`/api/bank-transactions?ids=${bankId}`);
+      const response = await fetch(`/api/bank-transactions?ids=${resolvedBankId}`);
       if (!response.ok) {
         const text = await response.text();
         throw new Error(text || 'Failed to fetch bank transaction');
@@ -1178,7 +1179,7 @@ export default function PaymentStatementPage() {
       const result = await response.json();
       const records = Array.isArray(result) ? result : Array.isArray(result?.data) ? result.data : [];
       const mapped = records.map((row: any) => ({
-        id: row.id,
+        id: Number(row.id),
         uuid: row.uuid,
         accountUuid: row.bank_account_uuid || row.accountUuid || '',
         accountCurrencyUuid: row.account_currency_uuid || row.accountCurrencyUuid || '',
