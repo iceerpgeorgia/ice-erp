@@ -1105,7 +1105,10 @@ export function BankTransactionsTable({
   };
 
   const openBatchEditor = async () => {
-    if (!editingTransaction?.recordUuid) return;
+    if (!editingTransaction?.recordUuid && !editingTransaction?.batchId) {
+      setBatchEditorError('Missing batch reference for this transaction');
+      return;
+    }
     setBatchEditorError(null);
     setBatchInitialPartitions(null);
     setBatchEditorUuid(null);
@@ -1113,12 +1116,15 @@ export function BankTransactionsTable({
     setBatchEditorLoading(true);
 
     try {
-      const statusResponse = await fetch(`/api/bank-transaction-batches?rawRecordUuid=${editingTransaction.recordUuid}`);
-      if (!statusResponse.ok) {
-        throw new Error('Failed to check batch status');
+      let existingBatch: any = null;
+      if (editingTransaction?.recordUuid) {
+        const statusResponse = await fetch(`/api/bank-transaction-batches?rawRecordUuid=${editingTransaction.recordUuid}`);
+        if (!statusResponse.ok) {
+          throw new Error('Failed to check batch status');
+        }
+        const statusData = await statusResponse.json();
+        existingBatch = Array.isArray(statusData?.batches) ? statusData.batches[0] : null;
       }
-      const statusData = await statusResponse.json();
-      const existingBatch = Array.isArray(statusData?.batches) ? statusData.batches[0] : null;
       const batchLookupUrl = existingBatch?.batchUuid
         ? `/api/bank-transaction-batches?batchUuid=${existingBatch.batchUuid}`
         : editingTransaction?.batchId
@@ -1146,6 +1152,8 @@ export function BankTransactionsTable({
         }));
         setBatchEditorUuid(batchData?.batchUuid || existingBatch?.batchUuid || null);
         setBatchInitialPartitions(mapped);
+      } else {
+        setBatchEditorError('No batch found for this transaction');
       }
     } catch (error: any) {
       setBatchEditorError(error?.message || 'Failed to load batch editor');

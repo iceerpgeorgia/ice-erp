@@ -18,6 +18,8 @@ interface Payment {
   projectUuid: string | null;
   financialCodeUuid: string | null;
   projectIndex: string | null;
+  projectName?: string | null;
+  financialCodeValidation?: string | null;
   financialCode: string;
   counteragentUuid: string;
 }
@@ -69,6 +71,14 @@ const stripCounteragentFromLabel = (label?: string | null, counteragent?: string
     .replace(/[\s\-–—|:]+/g, ' ')
     .trim();
   return cleaned || null;
+};
+
+const buildPaymentOptionLabel = (payment: Payment, counteragentLabel?: string | null) => {
+  const projectName = payment.projectName || payment.projectIndex || 'No Project';
+  const financialCode = payment.financialCodeValidation || payment.financialCode || '-';
+  const currencyCode = payment.currencyCode || '-';
+  const label = `${payment.paymentId} | ${projectName} | ${financialCode} | ${currencyCode}`;
+  return stripCounteragentFromLabel(label, counteragentLabel ?? payment.counteragentName) ?? label;
 };
 
 export function BatchEditor({
@@ -172,6 +182,8 @@ export function BatchEditor({
             projectUuid: payment.projectUuid || payment.project_uuid || null,
             financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
             projectIndex: payment.projectIndex || payment.project_index || null,
+            projectName: payment.projectName || payment.project_name || null,
+            financialCodeValidation: payment.financialCodeValidation || payment.financial_code_validation || null,
             financialCode: payment.financialCode || payment.financial_code || '',
             counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || '',
           }))
@@ -658,7 +670,7 @@ export function BatchEditor({
               <Combobox
                 options={filteredPayments.map((p) => ({
                   value: p.recordUuid,
-                  label: `${stripCounteragentFromLabel(p.label, counteragentLabel ?? p.counteragentName) ? `${stripCounteragentFromLabel(p.label, counteragentLabel ?? p.counteragentName)} — ` : ''}${p.paymentId} | ${p.projectIndex || 'No Project'}`,
+                  label: buildPaymentOptionLabel(p, counteragentLabel),
                 }))}
                 value={paymentLabelSelect}
                 onValueChange={handlePaymentLabelSelect}
@@ -765,7 +777,7 @@ export function BatchEditor({
                     <Combobox
                       options={filteredPayments.map((p) => ({
                         value: p.recordUuid,
-                        label: `${stripCounteragentFromLabel(p.label, counteragentLabel ?? p.counteragentName) ? `${stripCounteragentFromLabel(p.label, counteragentLabel ?? p.counteragentName)} — ` : ''}${p.paymentId} | ${p.projectIndex || 'No Project'}`,
+                        label: buildPaymentOptionLabel(p, counteragentLabel),
                       }))}
                       value={partition.paymentUuid || ''}
                       onValueChange={(value) => selectPayment(partition.id, value)}
