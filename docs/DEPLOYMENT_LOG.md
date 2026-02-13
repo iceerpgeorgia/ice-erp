@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Populate Batch ID from deconsolidated payment IDs.
+- Changes:
+  - Statements: derive batch id from raw deconsolidated payment_id when BTC_ prefixed.
+- Commit: d77c09d
+- Production: https://ice-euyfmz0mt-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Surface new columns in counteragent statement column picker.
 - Changes:
   - Counteragent statement: merge saved columns with new defaults (Batch ID/ID1/ID2).
