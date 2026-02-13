@@ -1,6 +1,14 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Fix batch selector labels and load splits from partitioned rows.
+- Changes:
+  - Batch editor: label format now uses payment_id | project name | financial code | currency.
+  - Batch editor: load existing partitions via batch_id when record UUID is missing.
+- Commit: 57bf51a
+- Production: https://ice-4yjuz0zl8-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Load existing batch partitions when opening from statements.
 - Changes:
   - Batch editor: allow lookup by batch_id and use it when batch_uuid is not returned.
