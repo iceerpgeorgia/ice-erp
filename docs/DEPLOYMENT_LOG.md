@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Fix batch partitions API JSON serialization.
+- Changes:
+  - Batch partitions: normalize BigInt fields before JSON response.
+- Commit: aeeb4bd
+- Production: https://ice-2fjm96v0c-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Fix batch selector labels and load splits from partitioned rows.
 - Changes:
   - Batch editor: label format now uses payment_id | project name | financial code | currency.
