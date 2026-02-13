@@ -1,6 +1,14 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Add label-based batch splitter picker and batch IDs in bank transactions test.
+- Changes:
+  - Batch splitter: add label dropdown to append payment IDs, clear input after create, show label in partition picker.
+  - Bank transactions test: include batch_id derived from raw BTC_ payment IDs.
+- Commit: e1656cc
+- Production: https://ice-wu43q63l4-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Populate Batch ID from deconsolidated payment IDs.
 - Changes:
   - Statements: derive batch id from raw deconsolidated payment_id when BTC_ prefixed.
