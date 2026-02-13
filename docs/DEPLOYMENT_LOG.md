@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-02-13
+- Summary: Add payment label, report edit action, and job weight column.
+- Changes:
+  - Payments: add optional label field and expose it in APIs and UI.
+  - Payments report: add edit action and selectable job weight column.
+- Commit: 7d4c2ba
+- Production: https://ice-6udytrhfe-iceerp.vercel.app
+
 ## 2026-02-12
 - Summary: Allow entering comma-separated payment IDs to create editable batch partitions.
 - Changes:
