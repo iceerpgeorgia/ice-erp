@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Show partition payment IDs in counteragent statements.
+- Changes:
+  - Counteragent statement: replace BTC_ batch IDs with partition payment IDs.
+- Commit: cce2fea
+- Production: https://ice-k40b9actm-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Ensure bank edit dialog opens from statements.
 - Changes:
   - Statements: normalize bank transaction IDs before opening bank edit dialog.
