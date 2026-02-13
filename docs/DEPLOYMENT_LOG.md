@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Fix batch editor total when editing partitions.
+- Changes:
+  - Batch editor: use sum of existing partitions for total validation.
+- Commit: cd283d7
+- Production: https://ice-9lkkyxvdc-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Fix batch partitions API JSON serialization.
 - Changes:
   - Batch partitions: normalize BigInt fields before JSON response.
