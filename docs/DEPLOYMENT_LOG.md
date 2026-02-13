@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Surface new columns in counteragent statement column picker.
+- Changes:
+  - Counteragent statement: merge saved columns with new defaults (Batch ID/ID1/ID2).
+- Commit: 0c41326
+- Production: https://ice-r8zxl503a-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Fix counteragent statement union type mismatch.
 - Changes:
   - Statements: align UNION columns for batch payment id fields.
