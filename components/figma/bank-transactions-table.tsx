@@ -2854,6 +2854,17 @@ export function BankTransactionsTable({
                       </div>
                     </div>
                   ) : (
+                    <>
+                      {(() => {
+                        const fallbackTotal = Math.abs(Number(editingTransaction.accountCurrencyAmount || 0));
+                        const batchTotal = (batchInitialPartitions && batchInitialPartitions.length > 0)
+                          ? batchInitialPartitions.reduce(
+                              (sum, p) => sum + (Number(p.partitionAmount) || 0),
+                              0
+                            )
+                          : null;
+                        const totalAmount = batchTotal && batchTotal > 0 ? batchTotal : fallbackTotal;
+                        return (
                     <BatchEditor
                       batchUuid={batchEditorUuid}
                       initialPartitions={batchInitialPartitions ?? undefined}
@@ -2865,11 +2876,14 @@ export function BankTransactionsTable({
                       accountCurrencyUuid={editingTransaction.accountCurrencyUuid}
                       accountCurrencyCode={editingTransaction.accountCurrencyCode || null}
                       transactionDate={editingTransaction.correctionDate || editingTransaction.date}
-                      totalAmount={Math.abs(Number(editingTransaction.accountCurrencyAmount || 0))}
+                      totalAmount={totalAmount}
                       description={editingTransaction.description || ''}
                       onClose={handleBatchEditorClose}
                       onSave={handleBatchEditorSaved}
                     />
+                        );
+                      })()}
+                    </>
                   )}
                 </div>
               )}
