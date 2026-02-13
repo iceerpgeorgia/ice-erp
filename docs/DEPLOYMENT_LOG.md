@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Fix statements build after adding batch/id fields.
+- Changes:
+  - Statements: remove duplicate fields and sticky/relative conflict.
+- Commit: 0b16cbc
+- Production: https://ice-ghta6y62s-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Restore payments report when label column is missing.
 - Changes:
   - Payments/report APIs: fall back when label column is not yet applied.
