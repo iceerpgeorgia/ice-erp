@@ -177,6 +177,9 @@ export async function GET(request: NextRequest) {
         result.id,
          result.uuid,
          result.payment_id,
+         result.dockey,
+         result.entriesid,
+         result.batch_payment_id_raw,
          result.account_currency_amount,
          result.nominal_amount,
          result.exchange_rate,
@@ -231,6 +234,7 @@ export async function GET(request: NextRequest) {
            btb.payment_id,
            cba.dockey,
            cba.entriesid,
+           btb.payment_id as batch_payment_id_raw,
            (btb.partition_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as account_currency_amount,
            (btb.nominal_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
            cba.exchange_rate,
@@ -240,8 +244,7 @@ export async function GET(request: NextRequest) {
            cba.created_at,
            ba.account_number as bank_account_number,
            curr.code as account_currency_code,
-           nominal_curr.code as nominal_currency_code,
-           btb.payment_id as batch_payment_id_raw
+           nominal_curr.code as nominal_currency_code
          FROM (
            ${SOURCE_TABLES.map((table) => `SELECT *, '${table.name}' as source_table, ${table.offset}::bigint as source_offset FROM "${table.name}"`).join(' UNION ALL ')}
          ) cba

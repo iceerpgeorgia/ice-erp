@@ -155,6 +155,10 @@ export async function GET(request: NextRequest) {
       SELECT 
         result.id,
         result.uuid,
+        result.payment_id,
+        result.dockey,
+        result.entriesid,
+        result.batch_payment_id_raw,
         result.account_currency_amount,
         result.nominal_amount,
         result.transaction_date,
@@ -208,6 +212,7 @@ export async function GET(request: NextRequest) {
           cba.dockey,
           cba.entriesid,
           cba.payment_id,
+          btb.payment_id as batch_payment_id_raw,
           (btb.partition_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as account_currency_amount,
           (btb.nominal_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
           cba.transaction_date,
@@ -216,7 +221,6 @@ export async function GET(request: NextRequest) {
           cba.created_at,
           cba.bank_account_uuid,
           cba.account_currency_uuid,
-          btb.payment_id as batch_payment_id_raw,
           ba.account_number as bank_account_number,
           curr.code as account_currency_code
         FROM (
