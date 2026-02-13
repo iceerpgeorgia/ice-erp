@@ -300,8 +300,10 @@ export default function CounteragentStatementPage() {
             width: savedCol.width,
           };
         });
+        const savedKeys = new Set(validSavedColumns.map((col) => col.key));
+        const newColumns = defaultColumns.filter((col) => !savedKeys.has(col.key));
         if (updatedSavedColumns.length > 0) {
-          setColumns(updatedSavedColumns);
+          setColumns([...updatedSavedColumns, ...newColumns]);
         }
       } catch {
         // ignore
