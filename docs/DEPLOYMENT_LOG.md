@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Fix counteragent statement union type mismatch.
+- Changes:
+  - Statements: align UNION columns for batch payment id fields.
+- Commit: 8e733a2
+- Production: https://ice-mk77i0bzq-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Fix statements build after adding batch/id fields.
 - Changes:
   - Statements: remove duplicate fields and sticky/relative conflict.
