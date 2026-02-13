@@ -1,6 +1,14 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Simplify batch splitter payment labels and show counteragent.
+- Changes:
+  - Batch splitter: show counteragent name above selectors and strip counteragent from payment labels.
+  - Batch splitter: show only project name with payment ID in selectors.
+- Commit: c2ac51b
+- Production: https://ice-6okc0jm3h-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Move blank filter values to top of selection lists.
 - Changes:
   - Filters: sort blank/empty values before other options.
