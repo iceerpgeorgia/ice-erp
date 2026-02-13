@@ -11,6 +11,7 @@ import { X, Plus, Check, AlertCircle } from 'lucide-react';
 interface Payment {
   recordUuid: string;
   paymentId: string;
+  label?: string | null;
   counteragentName: string;
   currencyCode: string;
   currencyUuid: string;
@@ -26,6 +27,7 @@ interface Partition {
   partitionAmount: number;
   paymentUuid: string | null;
   paymentId: string | null;
+  paymentLabel?: string | null;
   counteragentUuid: string | null;
   projectUuid: string | null;
   financialCodeUuid: string | null;
@@ -78,6 +80,7 @@ export function BatchEditor({
       partitionAmount: totalAmount,
       paymentUuid: null,
       paymentId: null,
+      paymentLabel: null,
       counteragentUuid: null,
       projectUuid: null,
       financialCodeUuid: null,
@@ -91,6 +94,7 @@ export function BatchEditor({
   const [currencyMap, setCurrencyMap] = useState<Record<string, string>>({});
   const [exchangeRates, setExchangeRates] = useState<any | null>(null);
   const [paymentIdsInput, setPaymentIdsInput] = useState('');
+  const [paymentLabelSelect, setPaymentLabelSelect] = useState('');
   const [missingPaymentIds, setMissingPaymentIds] = useState<string[]>([]);
   const [autoAddRemaining, setAutoAddRemaining] = useState(true);
 
@@ -144,6 +148,7 @@ export function BatchEditor({
         ? data.map((payment: any) => ({
             recordUuid: payment.recordUuid || payment.record_uuid || '',
             paymentId: payment.paymentId || payment.payment_id || '',
+            label: payment.label ?? payment.payment_label ?? null,
             counteragentName: payment.counteragentName || payment.counteragent_name || '',
             currencyCode: payment.currencyCode || payment.currency_code || '',
             currencyUuid: payment.currencyUuid || payment.currency_uuid || '',
@@ -298,6 +303,7 @@ export function BatchEditor({
         partitionAmount: 0,
         paymentUuid: null,
         paymentId: null,
+        paymentLabel: null,
         counteragentUuid: null,
         projectUuid: null,
         financialCodeUuid: null,
@@ -340,6 +346,7 @@ export function BatchEditor({
             ...partition,
             paymentUuid: payment.recordUuid,
             paymentId: payment.paymentId,
+            paymentLabel: payment.label ?? null,
             counteragentUuid: payment.counteragentUuid || null,
             projectUuid: payment.projectUuid || null,
             financialCodeUuid: payment.financialCodeUuid || null,
@@ -375,6 +382,28 @@ export function BatchEditor({
     });
   };
 
+  const appendPaymentIdToInput = (nextId: string) => {
+    setPaymentIdsInput((prev) => {
+      const existing = prev
+        .split(/[,;\n]+/)
+        .map((id) => id.trim())
+        .filter(Boolean);
+      if (existing.some((id) => normalizePaymentId(id) === normalizePaymentId(nextId))) {
+        return prev;
+      }
+      return [...existing, nextId].join(', ');
+    });
+  };
+
+  const handlePaymentLabelSelect = (value: string) => {
+    setPaymentLabelSelect(value);
+    const payment = payments.find((p) => p.recordUuid === value);
+    if (payment?.paymentId) {
+      appendPaymentIdToInput(payment.paymentId);
+      setPaymentLabelSelect('');
+    }
+  };
+
   const handlePaymentIdChange = (partitionId: string, value: string) => {
     const trimmed = value.trim();
     setPartitions((prev) => {
@@ -385,6 +414,7 @@ export function BatchEditor({
             ...partition,
             paymentId: null,
             paymentUuid: null,
+            paymentLabel: null,
             counteragentUuid: null,
             projectUuid: null,
             financialCodeUuid: null,
@@ -402,6 +432,7 @@ export function BatchEditor({
             ...partition,
             paymentId: trimmed,
             paymentUuid: null,
+            paymentLabel: null,
             counteragentUuid: null,
             projectUuid: null,
             financialCodeUuid: null,
@@ -414,6 +445,7 @@ export function BatchEditor({
           ...partition,
           paymentId: payment.paymentId,
           paymentUuid: payment.recordUuid,
+          paymentLabel: payment.label ?? null,
           counteragentUuid: payment.counteragentUuid || null,
           projectUuid: payment.projectUuid || null,
           financialCodeUuid: payment.financialCodeUuid || null,
@@ -443,6 +475,7 @@ export function BatchEditor({
         partitionAmount: 0,
         paymentUuid: payment?.recordUuid ?? null,
         paymentId: payment?.paymentId ?? id,
+        paymentLabel: payment?.label ?? null,
         counteragentUuid: payment?.counteragentUuid ?? null,
         projectUuid: payment?.projectUuid ?? null,
         financialCodeUuid: payment?.financialCodeUuid ?? null,
@@ -456,6 +489,7 @@ export function BatchEditor({
     setMissingPaymentIds(missing);
     setAutoAddRemaining(false);
     setPartitions(next);
+    setPaymentIdsInput('');
   };
 
   useEffect(() => {
@@ -517,6 +551,7 @@ export function BatchEditor({
       if (batchUuid) {
         await fetch(`/api/bank-transaction-batches?batchUuid=${batchUuid}`, {
           method: 'DELETE',
+          paymentLabel: null,
         });
       }
       const response = await fetch('/api/bank-transaction-batches', {
@@ -598,6 +633,22 @@ export function BatchEditor({
         <div className="mb-6 rounded-lg border bg-gray-50 dark:bg-gray-900 p-4">
           <div className="grid grid-cols-1 gap-3">
             <div>
+              <Label htmlFor="payment-label-select">Add payment by label</Label>
+              <Combobox
+                options={filteredPayments.map((p) => ({
+                  value: p.recordUuid,
+                  label: `${p.label ? `${p.label} — ` : ''}${p.paymentId} | ${p.counteragentName} | ${p.currencyCode} | ${p.projectIndex || 'No Project'} | ${p.financialCode}`,
+                }))}
+                value={paymentLabelSelect}
+                onValueChange={handlePaymentLabelSelect}
+                placeholder="Select payment by label..."
+                searchPlaceholder="Search by label or payment ID..."
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Selecting a payment adds its ID to the list below.
+              </p>
+            </div>
+            <div>
               <Label htmlFor="payment-ids-input">Payment IDs (comma-separated)</Label>
               <Textarea
                 id="payment-ids-input"
@@ -624,8 +675,16 @@ export function BatchEditor({
         </div>
 
         <div className="space-y-4 mb-6">
-          {partitions.map((partition, index) => (
-            <div key={partition.id} className="border rounded-lg p-4 space-y-4">
+          {partitions.map((partition, index) => {
+            const matchedPayment =
+              payments.find((p) => p.recordUuid === partition.paymentUuid) ||
+              payments.find((p) =>
+                normalizePaymentId(p.paymentId) === normalizePaymentId(partition.paymentId ?? '')
+              );
+            const paymentLabel = partition.paymentLabel ?? matchedPayment?.label ?? null;
+
+            return (
+              <div key={partition.id} className="border rounded-lg p-4 space-y-4">
               <div className="flex justify-between items-center">
                 <h4 className="font-medium">Partition {index + 1}</h4>
                 {partitions.length > 1 && (
@@ -682,13 +741,16 @@ export function BatchEditor({
                     <Combobox
                       options={filteredPayments.map((p) => ({
                         value: p.recordUuid,
-                        label: `${p.paymentId} | ${p.counteragentName} | ${p.currencyCode} | ${p.projectIndex || 'No Project'} | ${p.financialCode}`,
+                        label: `${p.label ? `${p.label} — ` : ''}${p.paymentId} | ${p.counteragentName} | ${p.currencyCode} | ${p.projectIndex || 'No Project'} | ${p.financialCode}`,
                       }))}
                       value={partition.paymentUuid || ''}
                       onValueChange={(value) => selectPayment(partition.id, value)}
                       placeholder="Select payment..."
                       searchPlaceholder="Search payments..."
                     />
+                    {paymentLabel && (
+                      <p className="text-xs text-muted-foreground">Label: {paymentLabel}</p>
+                    )}
                   </div>
                 </div>
 
@@ -704,8 +766,9 @@ export function BatchEditor({
                   />
                 </div>
               </div>
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
 
         {!valid && (
