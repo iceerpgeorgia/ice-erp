@@ -7,8 +7,19 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Checkbox } from '../ui/checkbox';
 
+const isBlankValue = (value: any) => {
+  if (value === null || value === undefined) return true;
+  const text = String(value).trim().toLowerCase();
+  return text === '' || text === 'blank' || text === '(blank)';
+};
+
 const defaultSortValues = (values: any[]) =>
   [...values].sort((a, b) => {
+    const aBlank = isBlankValue(a);
+    const bBlank = isBlankValue(b);
+    if (aBlank && !bBlank) return -1;
+    if (!aBlank && bBlank) return 1;
+
     const aIsNum = !Number.isNaN(Number(a));
     const bIsNum = !Number.isNaN(Number(b));
 
