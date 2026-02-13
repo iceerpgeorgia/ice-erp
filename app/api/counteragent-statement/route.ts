@@ -233,7 +233,10 @@ export async function GET(request: NextRequest) {
            cba.source_table,
            cba.id,
            cba.uuid,
-           btb.payment_id,
+           COALESCE(
+             CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
+             p.payment_id
+           ) as payment_id,
            cba.dockey,
            cba.entriesid,
            btb.payment_id as batch_payment_id_raw,
@@ -253,6 +256,12 @@ export async function GET(request: NextRequest) {
          ) cba
          JOIN bank_transaction_batches btb
            ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
+         LEFT JOIN payments p
+           ON (
+             btb.payment_uuid IS NOT NULL AND p.record_uuid = btb.payment_uuid
+           ) OR (
+             btb.payment_uuid IS NULL AND btb.payment_id IS NOT NULL AND p.payment_id = btb.payment_id
+           )
          LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
          LEFT JOIN currencies curr ON cba.account_currency_uuid = curr.uuid
          LEFT JOIN currencies nominal_curr ON COALESCE(btb.nominal_currency_uuid, cba.nominal_currency_uuid) = nominal_curr.uuid
