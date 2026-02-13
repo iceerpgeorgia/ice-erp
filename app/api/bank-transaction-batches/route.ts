@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const batchUuid = searchParams.get('batchUuid');
+    const batchId = searchParams.get('batchId');
     const rawRecordUuid = searchParams.get('rawRecordUuid');
     
     if (batchUuid) {
@@ -56,6 +57,47 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         batchUuid,
         batchId: formatBatchId(batchUuid),
+        partitions,
+      });
+    }
+
+    if (batchId) {
+      const partitions = await prisma.$queryRawUnsafe(`
+        SELECT 
+          btb.id,
+          btb.uuid,
+          btb.batch_id,
+          btb.batch_uuid,
+          btb.partition_amount,
+          btb.partition_sequence,
+          btb.payment_uuid,
+          btb.payment_id,
+          btb.counteragent_uuid,
+          btb.project_uuid,
+          btb.financial_code_uuid,
+          btb.nominal_currency_uuid,
+          btb.nominal_amount,
+          btb.partition_note,
+          p.payment_id as payment_identifier,
+          c.counteragent as counteragent_name,
+          proj.project_index,
+          fc.validation as financial_code,
+          curr.code as currency_code
+        FROM bank_transaction_batches btb
+        LEFT JOIN payments p ON btb.payment_uuid = p.record_uuid
+        LEFT JOIN counteragents c ON btb.counteragent_uuid = c.counteragent_uuid
+        LEFT JOIN projects proj ON btb.project_uuid = proj.project_uuid
+        LEFT JOIN financial_codes fc ON btb.financial_code_uuid = fc.uuid
+        LEFT JOIN currencies curr ON btb.nominal_currency_uuid = curr.uuid
+        WHERE btb.batch_id = '${batchId}'
+        ORDER BY btb.partition_sequence
+      `) as any[];
+
+      const batchUuidValue = partitions[0]?.batch_uuid ?? null;
+
+      return NextResponse.json({
+        batchUuid: batchUuidValue,
+        batchId,
         partitions,
       });
     }

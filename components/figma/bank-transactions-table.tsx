@@ -1119,8 +1119,14 @@ export function BankTransactionsTable({
       }
       const statusData = await statusResponse.json();
       const existingBatch = Array.isArray(statusData?.batches) ? statusData.batches[0] : null;
-      if (existingBatch?.batchUuid) {
-        const batchResponse = await fetch(`/api/bank-transaction-batches?batchUuid=${existingBatch.batchUuid}`);
+      const batchLookupUrl = existingBatch?.batchUuid
+        ? `/api/bank-transaction-batches?batchUuid=${existingBatch.batchUuid}`
+        : editingTransaction?.batchId
+          ? `/api/bank-transaction-batches?batchId=${encodeURIComponent(editingTransaction.batchId)}`
+          : null;
+
+      if (batchLookupUrl) {
+        const batchResponse = await fetch(batchLookupUrl);
         if (!batchResponse.ok) {
           throw new Error('Failed to load batch partitions');
         }
@@ -1138,7 +1144,7 @@ export function BankTransactionsTable({
           nominalAmount: p.nominal_amount ? Number(p.nominal_amount) : null,
           partitionNote: p.partition_note || '',
         }));
-        setBatchEditorUuid(existingBatch.batchUuid);
+        setBatchEditorUuid(batchData?.batchUuid || existingBatch?.batchUuid || null);
         setBatchInitialPartitions(mapped);
       }
     } catch (error: any) {
