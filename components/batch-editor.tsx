@@ -551,7 +551,6 @@ export function BatchEditor({
       if (batchUuid) {
         await fetch(`/api/bank-transaction-batches?batchUuid=${batchUuid}`, {
           method: 'DELETE',
-          paymentLabel: null,
         });
       }
       const response = await fetch('/api/bank-transaction-batches', {
