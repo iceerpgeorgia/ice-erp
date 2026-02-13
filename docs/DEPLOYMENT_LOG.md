@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Load existing batch partitions when opening from statements.
+- Changes:
+  - Batch editor: allow lookup by batch_id and use it when batch_uuid is not returned.
+- Commit: 250db33
+- Production: https://ice-84p5ke9kf-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Simplify batch splitter payment labels and show counteragent.
 - Changes:
   - Batch splitter: show counteragent name above selectors and strip counteragent from payment labels.
