@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Ensure bank edit dialog opens from statements.
+- Changes:
+  - Statements: normalize bank transaction IDs before opening bank edit dialog.
+- Commit: bc6aa78
+- Production: https://ice-nzhqg64c5-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Fix batch editor total when editing partitions.
 - Changes:
   - Batch editor: use sum of existing partitions for total validation.
