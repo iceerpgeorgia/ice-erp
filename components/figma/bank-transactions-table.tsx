@@ -1153,7 +1153,25 @@ export function BankTransactionsTable({
         setBatchEditorUuid(batchData?.batchUuid || existingBatch?.batchUuid || null);
         setBatchInitialPartitions(mapped);
       } else {
-        setBatchEditorError('No batch found for this transaction');
+        if (editingTransaction?.paymentId) {
+          const fallbackPartition = {
+            id: '1',
+            partitionAmount: Math.abs(Number(editingTransaction.accountCurrencyAmount || 0)),
+            paymentUuid: null,
+            paymentId: editingTransaction.paymentId || null,
+            counteragentUuid: editingTransaction.counteragentUuid || null,
+            projectUuid: editingTransaction.projectUuid || null,
+            financialCodeUuid: editingTransaction.financialCodeUuid || null,
+            nominalCurrencyUuid: editingTransaction.nominalCurrencyUuid || null,
+            nominalAmount: editingTransaction.nominalAmount !== null && editingTransaction.nominalAmount !== undefined
+              ? Math.abs(Number(editingTransaction.nominalAmount))
+              : null,
+            partitionNote: '',
+          };
+          setBatchInitialPartitions([fallbackPartition]);
+        } else {
+          setBatchEditorError('No batch found for this transaction');
+        }
       }
     } catch (error: any) {
       setBatchEditorError(error?.message || 'Failed to load batch editor');
