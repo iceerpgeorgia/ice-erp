@@ -20,6 +20,8 @@ interface Payment {
   projectIndex: string | null;
   projectName?: string | null;
   financialCodeValidation?: string | null;
+  jobName?: string | null;
+  incomeTax?: boolean | null;
   financialCode: string;
   counteragentUuid: string;
 }
@@ -75,9 +77,12 @@ const stripCounteragentFromLabel = (label?: string | null, counteragent?: string
 
 const buildPaymentOptionLabel = (payment: Payment, counteragentLabel?: string | null) => {
   const projectName = payment.projectName || payment.projectIndex || 'No Project';
+  const jobName = payment.jobName || '-';
   const financialCode = payment.financialCodeValidation || payment.financialCode || '-';
   const currencyCode = payment.currencyCode || '-';
-  const label = `${payment.paymentId} | ${projectName} | ${financialCode} | ${currencyCode}`;
+  const incomeTax = payment.incomeTax ? 'TRUE' : 'FALSE';
+  const labelParts = [payment.paymentId, projectName, jobName, financialCode, currencyCode, incomeTax];
+  const label = labelParts.join(' | ');
   return stripCounteragentFromLabel(label, counteragentLabel ?? payment.counteragentName) ?? label;
 };
 
@@ -184,6 +189,8 @@ export function BatchEditor({
             projectIndex: payment.projectIndex || payment.project_index || null,
             projectName: payment.projectName || payment.project_name || null,
             financialCodeValidation: payment.financialCodeValidation || payment.financial_code_validation || null,
+            jobName: payment.jobName || payment.job_name || null,
+            incomeTax: payment.incomeTax ?? payment.income_tax ?? null,
             financialCode: payment.financialCode || payment.financial_code || '',
             counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || '',
           }))
