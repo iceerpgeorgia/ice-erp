@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Normalize batch label separators and sign.
+- Changes:
+  - Batch editor: preserve " | " separators, auto-select payment label, and inject (+)/(-) into financial codes.
+- Commit: 686e3f2
+- Production: https://ice-rcckfxfkt-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Add job and tax to batch payment labels.
 - Changes:
   - Batch editor: labels now include job name and income tax flag.
