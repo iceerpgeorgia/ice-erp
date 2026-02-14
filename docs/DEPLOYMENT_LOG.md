@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Add job and tax to batch payment labels.
+- Changes:
+  - Batch editor: labels now include job name and income tax flag.
+- Commit: c5fa89c
+- Production: https://ice-j8ume1gcj-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Prefill split dialog for single payment transactions.
 - Changes:
   - Batch editor: prefill first partition with current payment and amounts when no batch exists.
