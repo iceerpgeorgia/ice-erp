@@ -52,12 +52,14 @@ function parseBOGDate(dateStr: string | undefined): Date | null {
     const cleaned = dateStr.trim();
     // Support both YYYY-MM-DD and YYYYMMDD formats
     if (cleaned.length === 10) {
-      return new Date(cleaned);
+      const parsed = new Date(cleaned);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
     } else if (cleaned.length === 8) {
       const year = cleaned.substring(0, 4);
       const month = cleaned.substring(4, 6);
       const day = cleaned.substring(6, 8);
-      return new Date(`${year}-${month}-${day}`);
+      const parsed = new Date(`${year}-${month}-${day}`);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
     }
     return null;
   } catch {
@@ -72,7 +74,8 @@ function parseTBCDate(dateStr: string | undefined): Date | null {
     const match = cleaned.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if (!match) return null;
     const [, day, month, year] = match;
-    return new Date(`${year}-${month}-${day}`);
+    const parsed = new Date(`${year}-${month}-${day}`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
   } catch {
     return null;
   }
