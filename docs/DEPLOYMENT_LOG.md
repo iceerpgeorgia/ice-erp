@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Prefill split dialog for single payment transactions.
+- Changes:
+  - Batch editor: prefill first partition with current payment and amounts when no batch exists.
+- Commit: 433df6f
+- Production: https://ice-fjblptlvs-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Show partition payment IDs in counteragent statements.
 - Changes:
   - Counteragent statement: replace BTC_ batch IDs with partition payment IDs.
