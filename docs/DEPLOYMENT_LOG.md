@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-13
+- Summary: Fix invalid dates during XML import.
+- Changes:
+  - Bank import: guard invalid Date parsing before toISOString.
+- Commit: ce9855b
+- Production: https://ice-mucwgghia-iceerp.vercel.app
+
+## 2026-02-13
 - Summary: Normalize batch label separators and sign.
 - Changes:
   - Batch editor: preserve " | " separators, auto-select payment label, and inject (+)/(-) into financial codes.
