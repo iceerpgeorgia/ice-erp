@@ -67,23 +67,32 @@ const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\
 const stripCounteragentFromLabel = (label?: string | null, counteragent?: string | null) => {
   if (!label) return null;
   if (!counteragent) return label.trim();
-  const pattern = new RegExp(escapeRegExp(counteragent), 'ig');
-  const cleaned = label
-    .replace(pattern, '')
-    .replace(/[\s\-–—|:]+/g, ' ')
-    .trim();
+  const pattern = new RegExp(`\\b${escapeRegExp(counteragent)}\\b`, 'ig');
+  const cleaned = label.replace(pattern, '').replace(/\s{2,}/g, ' ').trim();
   return cleaned || null;
+};
+
+const formatFinancialCodeLabel = (payment: Payment) => {
+  const value = payment.financialCodeValidation || payment.financialCode || '-';
+  if (!value || value === '-') return '-';
+  if (/(\(\+\)|\(-\))/i.test(value)) return value;
+  if (payment.incomeTax === null || payment.incomeTax === undefined) return value;
+  const sign = payment.incomeTax ? '+' : '-';
+  const [codePart, ...rest] = value.split(' ');
+  if (!codePart) return value;
+  const restText = rest.join(' ').trim();
+  return restText ? `${codePart} (${sign}) ${restText}` : `${codePart} (${sign})`;
 };
 
 const buildPaymentOptionLabel = (payment: Payment, counteragentLabel?: string | null) => {
   const projectName = payment.projectName || payment.projectIndex || 'No Project';
   const jobName = payment.jobName || '-';
-  const financialCode = payment.financialCodeValidation || payment.financialCode || '-';
+  const financialCode = formatFinancialCodeLabel(payment);
   const currencyCode = payment.currencyCode || '-';
   const incomeTax = payment.incomeTax ? 'TRUE' : 'FALSE';
   const labelParts = [payment.paymentId, projectName, jobName, financialCode, currencyCode, incomeTax];
   const label = labelParts.join(' | ');
-  return stripCounteragentFromLabel(label, counteragentLabel ?? payment.counteragentName) ?? label;
+  return counteragentLabel ? stripCounteragentFromLabel(label, counteragentLabel) ?? label : label;
 };
 
 export function BatchEditor({
@@ -542,6 +551,28 @@ export function BatchEditor({
     );
   }, [exchangeRates, payments]);
 
+  useEffect(() => {
+    if (payments.length === 0) return;
+    setPartitions((prev) =>
+      prev.map((partition) => {
+        if (partition.paymentUuid || !partition.paymentId) return partition;
+        const match = payments.find(
+          (p) => normalizePaymentId(p.paymentId) === normalizePaymentId(partition.paymentId ?? '')
+        );
+        if (!match) return partition;
+        return {
+          ...partition,
+          paymentUuid: match.recordUuid,
+          paymentLabel: match.label ?? partition.paymentLabel ?? null,
+          counteragentUuid: partition.counteragentUuid || match.counteragentUuid || null,
+          projectUuid: partition.projectUuid || match.projectUuid || null,
+          financialCodeUuid: partition.financialCodeUuid || match.financialCodeUuid || null,
+          nominalCurrencyUuid: partition.nominalCurrencyUuid || match.currencyUuid || null,
+        };
+      })
+    );
+  }, [payments]);
+
   const calculateRemaining = () => {
     const allocated = partitions.reduce(
       (sum, p) => sum + (parseFloat(String(p.partitionAmount)) || 0),
@@ -721,10 +752,9 @@ export function BatchEditor({
               payments.find((p) =>
                 normalizePaymentId(p.paymentId) === normalizePaymentId(partition.paymentId ?? '')
               );
-            const paymentLabel = stripCounteragentFromLabel(
-              partition.paymentLabel ?? matchedPayment?.label ?? null,
-              counteragentLabel ?? matchedPayment?.counteragentName ?? null
-            );
+            const paymentLabel = matchedPayment
+              ? buildPaymentOptionLabel(matchedPayment, counteragentLabel)
+              : stripCounteragentFromLabel(partition.paymentLabel ?? null, counteragentLabel ?? null);
 
             return (
               <div key={partition.id} className="border rounded-lg p-4 space-y-4">
