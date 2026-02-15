@@ -107,6 +107,11 @@ If a deconsolidated row has `payment_id` starting with `BTC_`, it represents a b
 1. Lookup partitions by `raw_record_uuid` (or `raw_record_id_1`/`raw_record_id_2`).
 2. Replace the single BTC_ row with **one row per partition** using the partition `payment_id` (or the payment linked by `payment_uuid`).
 3. Any UI column or calculation that uses payment IDs must use these resolved partition payment IDs and **never** the BTC_ value.
+4. **Single-batch rule:** one raw transaction (`raw_record_uuid`) can belong to **only one** batch ID. Creating a second batch for the same raw transaction is invalid and must be blocked in UI and at the database level.
+5. **Minimum partitions rule:** a batch must contain **at least 2 partitions**. Single-partition batches are invalid and must be blocked in UI and at the database level.
+6. **Raw BTC guard (DB trigger):** raw tables cannot set `payment_id` to `BTC_%` unless the batch has **≥2 partitions** for the same `raw_record_uuid` (deferrable constraint trigger).
+7. **Batch delete cleanup (DB trigger):** when the last partition for a `batch_id` is deleted, the raw tables clear `payment_id` and `parsing_lock` for the linked `raw_record_uuid`.
+8. **API/UI validation:** batch creation requires at least 2 partitions; UI blocks save and API returns 400 when `partitions.length < 2`.
 
 ### Fully Processed Definition
 A record is considered fully processed when ALL three flags are TRUE:

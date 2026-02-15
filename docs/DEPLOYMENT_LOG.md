@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-02-16
+- Summary: Enforce batch integrity with BTC guards and atomic batch creation.
+- Changes:
+  - Batch editor/API: require at least 2 partitions and insert partitions atomically.
+  - Database: block BTC payment_id without partitions and clear raw BTC on batch delete.
+  - Diagnostics: add batch integrity check script.
+- Commit: TBD
+- Production: TBD
+
 ## 2026-02-15
 - Summary: Persist bank transactions test filters and add clear filters button.
 - Changes:

@@ -583,10 +583,18 @@ export function BatchEditor({
 
   const isValid = () => {
     const remaining = calculateRemaining();
-    return Math.abs(remaining) < 0.01 && partitions.every((p) => p.partitionAmount > 0);
+    return (
+      partitions.length >= 2 &&
+      Math.abs(remaining) < 0.01 &&
+      partitions.every((p) => p.partitionAmount > 0)
+    );
   };
 
   const handleSave = async () => {
+    if (partitions.length < 2) {
+      alert('Batch must have at least 2 partitions');
+      return;
+    }
     if (!isValid()) {
       alert('Partitions must sum to total amount and all amounts must be positive');
       return;

@@ -260,10 +260,32 @@ export async function POST(request: Request) {
     };
 
     // Validation
-    if (!bankAccountUuid || !rawRecordId1 || !rawRecordId2 || !partitions || partitions.length === 0) {
+    if (!bankAccountUuid || !rawRecordId1 || !rawRecordId2 || !rawRecordUuid || !partitions || partitions.length === 0) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
+      );
+    }
+
+    if (partitions.length < 2) {
+      return NextResponse.json(
+        { error: 'Batch must have at least 2 partitions' },
+        { status: 400 }
+      );
+    }
+
+    const existingBatches = await prisma.$queryRawUnsafe<Array<{ batch_id: string }>>(
+      `SELECT DISTINCT batch_id FROM bank_transaction_batches WHERE raw_record_uuid::text = $1::text`,
+      rawRecordUuid
+    );
+
+    if (existingBatches.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'Batch already exists for this transaction.',
+          batchIds: existingBatches.map((row) => row.batch_id),
+        },
+        { status: 409 }
       );
     }
 
@@ -272,14 +294,36 @@ export async function POST(request: Request) {
     const newBatchUuid = batchUuid[0].uuid;
     const batchId = formatBatchId(newBatchUuid);
 
-    // Insert partitions
-    const insertPromises = partitions.map((partition: any, index: number) => {
-      const safePartitionAmount = Math.abs(Number(partition.partitionAmount));
-      const safeNominalAmount =
-        partition.nominalAmount !== null && partition.nominalAmount !== undefined
-          ? Math.abs(Number(partition.nominalAmount))
-          : null;
-      return prisma.$queryRawUnsafe(`
+    const partitionValues = partitions
+      .map((partition: any, index: number) => {
+        const safePartitionAmount = Math.abs(Number(partition.partitionAmount));
+        const safeNominalAmount =
+          partition.nominalAmount !== null && partition.nominalAmount !== undefined
+            ? Math.abs(Number(partition.nominalAmount))
+            : null;
+        return `(
+          '${bankAccountUuid}',
+          '${rawRecordId1}',
+          '${rawRecordId2}',
+          '${rawRecordUuid}',
+          '${batchId}',
+          '${newBatchUuid}',
+          ${safePartitionAmount},
+          ${index + 1},
+          ${partition.paymentUuid ? `'${partition.paymentUuid}'` : 'NULL'},
+          ${partition.paymentId ? `'${partition.paymentId}'` : 'NULL'},
+          ${partition.counteragentUuid ? `'${partition.counteragentUuid}'::uuid` : 'NULL'},
+          ${partition.projectUuid ? `'${partition.projectUuid}'::uuid` : 'NULL'},
+          ${partition.financialCodeUuid ? `'${partition.financialCodeUuid}'::uuid` : 'NULL'},
+          ${partition.nominalCurrencyUuid ? `'${partition.nominalCurrencyUuid}'::uuid` : 'NULL'},
+          ${safeNominalAmount ?? 'NULL'},
+          ${partition.partitionNote ? `'${partition.partitionNote.replace(/'/g, "''")}'` : 'NULL'}
+        )`;
+      })
+      .join(',\n');
+
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`
         INSERT INTO bank_transaction_batches (
           bank_account_uuid,
           raw_record_id_1,
@@ -297,48 +341,20 @@ export async function POST(request: Request) {
           nominal_currency_uuid,
           nominal_amount,
           partition_note
-        ) VALUES (
-          '${bankAccountUuid}',
-          '${rawRecordId1}',
-          '${rawRecordId2}',
-          '${rawRecordUuid}',
-          '${batchId}',
-          '${newBatchUuid}',
-          ${safePartitionAmount},
-          ${index + 1},
-          ${partition.paymentUuid ? `'${partition.paymentUuid}'` : 'NULL'},
-          ${partition.paymentId ? `'${partition.paymentId}'` : 'NULL'},
-          ${partition.counteragentUuid ? `'${partition.counteragentUuid}'::uuid` : 'NULL'},
-          ${partition.projectUuid ? `'${partition.projectUuid}'::uuid` : 'NULL'},
-          ${partition.financialCodeUuid ? `'${partition.financialCodeUuid}'::uuid` : 'NULL'},
-          ${partition.nominalCurrencyUuid ? `'${partition.nominalCurrencyUuid}'::uuid` : 'NULL'},
-          ${safeNominalAmount ?? 'NULL'},
-          ${partition.partitionNote ? `'${partition.partitionNote.replace(/'/g, "''")}'` : 'NULL'}
-        )
+        ) VALUES
+        ${partitionValues}
       `);
+
+      await Promise.all(
+        SOURCE_TABLES.map((table) =>
+          tx.$executeRawUnsafe(
+            `UPDATE "${table}" SET payment_id = $1, parsing_lock = true, updated_at = NOW() WHERE raw_record_uuid::text = $2::text`,
+            batchId,
+            rawRecordUuid
+          )
+        )
+      );
     });
-
-    await Promise.all(insertPromises);
-
-    // Enable parsing lock for the underlying bank transaction
-    await Promise.all(
-      SOURCE_TABLES.map((table) =>
-        prisma.$executeRawUnsafe(
-          `UPDATE "${table}" SET parsing_lock = true, updated_at = NOW() WHERE raw_record_uuid::text = $1::text`,
-          rawRecordUuid
-        )
-      )
-    );
-
-    await Promise.all(
-      SOURCE_TABLES.map((table) =>
-        prisma.$executeRawUnsafe(
-          `UPDATE "${table}" SET payment_id = $1, parsing_lock = true, updated_at = NOW() WHERE raw_record_uuid::text = $2::text`,
-          batchId,
-          rawRecordUuid
-        )
-      )
-    );
 
     return NextResponse.json({ 
       success: true, 
