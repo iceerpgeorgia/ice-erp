@@ -7,7 +7,7 @@
   - Database: block BTC payment_id without partitions and clear raw BTC on batch delete.
   - Diagnostics: add batch integrity check script.
 - Commit: 92ab134
-- Production: TBD
+- Production: https://ice-onban2k5r-iceerp.vercel.app
 
 ## 2026-02-15
 - Summary: Persist bank transactions test filters and add clear filters button.
