@@ -8,6 +8,13 @@
 - Production: https://ice-hu74hqooo-iceerp.vercel.app
 
 ## 2026-02-16
+- Summary: Export bank transaction dates as Excel dates.
+- Changes:
+  - Bank transactions: XLSX export writes date serials formatted as dd.mm.yyyy.
+- Commit: efcb128
+- Production: https://ice-b4fi9eumw-iceerp.vercel.app
+
+## 2026-02-16
 - Summary: Populate Batch ID column values in bank transactions tables.
 - Changes:
   - Bank transactions: map batch_id into table rows for display and filters.
