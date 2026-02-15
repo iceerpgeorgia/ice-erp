@@ -318,6 +318,7 @@ export default function BankTransactionsTestTableFigma() {
           isBalanceRecord: row.is_balance_record || false,
           isBatch: row.is_batch ?? false,
           batchPartitionId: row.batch_partition_id ?? null,
+          batchId: row.batch_id || row.batchId || null,
 
           accountNumber: row.account_number || null,
           bankName: row.bank_name || null,

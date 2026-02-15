@@ -263,6 +263,7 @@ export default function BankTransactionsTableFigma() {
           isBalanceRecord: row.is_balance_record || false, // Flag for balance records
           isBatch: row.is_batch ?? false,
           batchPartitionId: row.batch_partition_id ?? null,
+          batchId: row.batch_id || row.batchId || null,
           
           // Display fields (from joins)
           accountNumber: row.account_number || null,
