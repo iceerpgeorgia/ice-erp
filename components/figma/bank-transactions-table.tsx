@@ -1799,6 +1799,39 @@ export function BankTransactionsTable({
     return String(value);
   };
 
+  const dateKeys: ColumnKey[] = ['date', 'correctionDate', 'createdAt', 'updatedAt'];
+
+  const toExcelSerial = (value: string) => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    if (/^\d{2}\.\d{2}\.\d{4}$/.test(trimmed)) {
+      const [dayStr, monthStr, yearStr] = trimmed.split('.');
+      const day = Number(dayStr);
+      const month = Number(monthStr);
+      const year = Number(yearStr);
+      if (!day || !month || !year) return null;
+      const utc = Date.UTC(year, month - 1, day);
+      return utc / 86400000 + 25569;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      const [yearStr, monthStr, dayStr] = trimmed.slice(0, 10).split('-');
+      const day = Number(dayStr);
+      const month = Number(monthStr);
+      const year = Number(yearStr);
+      if (!day || !month || !year) return null;
+      const utc = Date.UTC(year, month - 1, day);
+      return utc / 86400000 + 25569;
+    }
+
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) return null;
+    const utc = Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate());
+    return utc / 86400000 + 25569;
+  };
+
   const handleExportXlsx = () => {
     if (filteredData.length === 0) {
       alert('No data to export');
@@ -1812,6 +1845,21 @@ export function BankTransactionsTable({
         exportColumns.map(col => formatExportValue(col.key, row[col.key]))
       );
       const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+      const dateColumnIndexes = exportColumns
+        .map((col, index) => (dateKeys.includes(col.key) ? index : -1))
+        .filter((index) => index >= 0);
+
+      if (dateColumnIndexes.length > 0) {
+        for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+          for (const colIndex of dateColumnIndexes) {
+            const value = rows[rowIndex][colIndex];
+            const serial = toExcelSerial(String(value || ''));
+            if (serial === null) continue;
+            const cellAddress = XLSX.utils.encode_cell({ r: rowIndex + 1, c: colIndex });
+            worksheet[cellAddress] = { t: 'n', v: serial, z: 'dd.mm.yyyy' };
+          }
+        }
+      }
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Bank Transactions');
       const dateStamp = new Date().toISOString().slice(0, 10);
