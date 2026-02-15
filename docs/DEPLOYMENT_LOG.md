@@ -7,6 +7,13 @@
 - Commit: 61724cf
 - Production: https://ice-hu74hqooo-iceerp.vercel.app
 
+## 2026-02-16
+- Summary: Populate Batch ID column values in bank transactions tables.
+- Changes:
+  - Bank transactions: map batch_id into table rows for display and filters.
+- Commit: da3d6af
+- Production: https://ice-q3fgzcmwt-iceerp.vercel.app
+
 ## 2026-02-15
 - Summary: Expose batch IDs in bank transactions APIs.
 - Changes:
