@@ -451,6 +451,7 @@ export default function BankTransactionsTestTableFigma() {
         uploadEndpoint="/api/bank-transactions-test/upload"
         apiBasePath="/api/bank-transactions"
         listBasePath="/api/bank-transactions-test"
+        filterStorageKey="bank-transactions-test-filters"
       />
     </div>
   );

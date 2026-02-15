@@ -11,7 +11,8 @@ import {
   Edit2,
   Loader2,
   Download,
-  RefreshCw
+  RefreshCw,
+  X
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
@@ -207,6 +208,7 @@ export function BankTransactionsTable({
   enableEditing = true,
   onDialogClose,
   onTransactionUpdated,
+  filterStorageKey,
 }: {
   data?: BankTransaction[];
   currencySummaries?: any[];
@@ -218,7 +220,9 @@ export function BankTransactionsTable({
   enableEditing?: boolean;
   onDialogClose?: () => void;
   onTransactionUpdated?: (transaction: BankTransaction) => void;
+  filterStorageKey?: string;
 }) {
+  const resolvedFiltersStorageKey = filterStorageKey ?? 'bank-transactions-table-filters';
   const [transactions, setTransactions] = useState<BankTransaction[]>(data ?? []);
   const resolvedListBasePath = listBasePath ?? apiBasePath;
   const showFullTable = renderMode !== 'dialog-only';
@@ -241,6 +245,7 @@ export function BankTransactionsTable({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -462,6 +467,40 @@ export function BankTransactionsTable({
       }
     }
   }, [autoEditIdProp]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const savedFilters = localStorage.getItem(resolvedFiltersStorageKey);
+    if (savedFilters) {
+      try {
+        const parsed = JSON.parse(savedFilters);
+        if (typeof parsed.searchTerm === 'string') setSearchTerm(parsed.searchTerm);
+        if (parsed.sortField) setSortField(parsed.sortField as ColumnKey);
+        if (parsed.sortDirection === 'asc' || parsed.sortDirection === 'desc') {
+          setSortDirection(parsed.sortDirection);
+        }
+        if (typeof parsed.pageSize === 'number') setPageSize(parsed.pageSize);
+        if (parsed.columnFilters && typeof parsed.columnFilters === 'object') {
+          setColumnFilters(parsed.columnFilters);
+        }
+      } catch (error) {
+        console.warn('Failed to parse saved bank transaction filters:', error);
+      }
+    }
+    setFiltersInitialized(true);
+  }, [resolvedFiltersStorageKey]);
+
+  useEffect(() => {
+    if (!filtersInitialized || typeof window === 'undefined') return;
+    const serialized = {
+      searchTerm,
+      sortField,
+      sortDirection,
+      pageSize,
+      columnFilters,
+    };
+    localStorage.setItem(resolvedFiltersStorageKey, JSON.stringify(serialized));
+  }, [filtersInitialized, resolvedFiltersStorageKey, searchTerm, sortField, sortDirection, pageSize, columnFilters]);
   
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
@@ -2058,6 +2097,17 @@ export function BankTransactionsTable({
         </div>
         
         <div className="flex items-center gap-2">
+          {Object.keys(columnFilters).length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setColumnFilters({})}
+              className="gap-2"
+            >
+              <X className="h-4 w-4" />
+              Clear Filters
+            </Button>
+          )}
           {/* Upload XML Button */}
           <input
             ref={fileInputRef}

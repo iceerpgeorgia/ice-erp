@@ -129,12 +129,12 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - `test_account_extraction.py`: Test suite validating account extraction logic (7/7 tests passing)
 - `COMPARISON_JS_VS_PYTHON.md`: Detailed comparison showing alignment with JavaScript implementation
 
-**Reference Scripts** (proven working logic, used as reference):
+**Re Scripts** (proven working logic, used as reference):
 - `scripts/process-bog-gel-counteragents-first.js`: Original three-stage processor (Python implementation now matches this)
 - `scripts/parse-bog-gel-comprehensive.js`: Original comprehensive parser (Python implementation now matches this)
 
 ## Build, Test, and Development Commands
-Install dependencies once with `pnpm i`. Use `pnpm dev` to launch web, API, and workers concurrently while developing. Whenever `prisma/schema.prisma` changes, run `pnpm prisma migrate dev --name <feature>` followed by `pnpm prisma generate` to refresh the client. After adding new models to the schema, run `python scripts/auto-generate-templates.py` to automatically create Excel import templates in the `templates/` folder. Execute `pnpm test` for Jest coverage and `pnpm test:e2e` when end-to-end verification is required; append `--watch` for quick feedback loops.
+Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, API, and workers concurrently while developing. Whenever `prisma/schema.prisma` changes, run `pnpm prisma migrate dev --name <feature>` followed by `pnpm prisma generate` to refresh the client. After adding new models to the schema, run `python scripts/auto-generate-templates.py` to automatically create Excel import templates in the `templates/` folder. Execute `pnpm test` for Jest coverage and `pnpm test:e2e` when end-to-end verification is required; append `--watch` for quick feedback loops.
 
 ## Coding Style & Naming Conventions
 All code is TypeScript and must satisfy the shared ESLint + Prettier rules via `pnpm lint` or `pnpm lint --fix`. Name files in kebab-case (`user-profile.ts`), React components in PascalCase (`UserProfile.tsx`), and variables or functions in camelCase. Keep comments purposeful: explain non-obvious invariants, integration quirks, or domain rules.
@@ -144,6 +144,9 @@ Favor tests on public contracts: API handlers, Prisma services, and UI state red
 
 ## Commit & Pull Request Guidelines
 Use Conventional Commits (for example `feat(auth): add oauth screen` or `fix(orders): correct pagination`) and mention migration identifiers in commit bodies when schema changes occur. Pull requests need a concise summary, linked Jira issue, updated tests, and UI screenshots whenever the webapp shifts. Call out manual steps (migrations, env vars, or backfills) so reviewers can reproduce outcomes.
+
+## Deployment Logging Policy
+Only commit, push, and deploy when explicitly instructed with the command "deploy". Every deployment must be logged in [docs/DEPLOYMENT_LOG.md](docs/DEPLOYMENT_LOG.md) using the same format as existing entries.
 
 ## Security & Configuration Tips
 Never commit secrets; `.env.local` should hold placeholders only. Regenerate the Prisma client after each migration, and cast BigInt identifiers as `BigInt(Number(id))` in server responses to avoid JSON serialization issues. Surface any new configuration or operational follow-ups in PR descriptions to keep deploys predictable.
