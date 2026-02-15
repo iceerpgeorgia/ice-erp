@@ -6,7 +6,7 @@
   - Payments report API: fix date filter SQL (AND vs WHERE).
   - Payments report UI: sanitize saved conditions to avoid empty results.
 - Commit: b74f3e0
-- Production: TBD
+- Production: https://ice-m4148tj25-iceerp.vercel.app
 
 ## 2026-02-16
 - Summary: Reset all payments report filters.
