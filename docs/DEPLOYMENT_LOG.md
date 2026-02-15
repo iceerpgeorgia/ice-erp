@@ -1,6 +1,14 @@
 # Deployment Log
 
 ## 2026-02-16
+- Summary: Fix payments report query and conditions restore.
+- Changes:
+  - Payments report API: fix date filter SQL (AND vs WHERE).
+  - Payments report UI: sanitize saved conditions to avoid empty results.
+- Commit: b74f3e0
+- Production: TBD
+
+## 2026-02-16
 - Summary: Reset all payments report filters.
 - Changes:
   - Payments report: Clear Filters now resets search, date, conditions, and saved filter state.
