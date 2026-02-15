@@ -246,6 +246,7 @@ export function BankTransactionsTable({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
   const [filtersInitialized, setFiltersInitialized] = useState(false);
+  const [pageSize, setPageSize] = useState(100);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -529,7 +530,6 @@ export function BankTransactionsTable({
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
   const pageSizeOptions = [50, 100, 200, 500, 1000];
   const [isExporting, setIsExporting] = useState(false);
 
