@@ -329,7 +329,7 @@ export async function PATCH(
           // Get payment's currency
           const payment = await prisma.payments.findUnique({
             where: { payment_id: normalizedPaymentId },
-            select: { currency_uuid: true }
+            select: { currency_uuid: true, counteragent_uuid: true }
           });
           
           if (payment && payment.currency_uuid) {
@@ -352,6 +352,16 @@ export async function PATCH(
               changes.push(`exchange_rate: ${current.exchange_rate?.toString()} → ${result.exchangeRate.toString()}`);
               changes.push(`nominal_amount: ${current.nominal_amount?.toString()} → ${result.nominalAmount.toString()} (recalculated)`);
             }
+          }
+
+          const shouldAutoAssignCounteragent =
+            !current.counteragent_uuid &&
+            counteragent_uuid === undefined &&
+            payment?.counteragent_uuid;
+
+          if (shouldAutoAssignCounteragent) {
+            updateData.counteragentUuid = payment.counteragent_uuid;
+            changes.push(`counteragent: ${current.counteragent_uuid} → ${payment.counteragent_uuid} (from payment)`);
           }
         } catch (error) {
           console.error('[PATCH] Error processing payment currency change:', error);
