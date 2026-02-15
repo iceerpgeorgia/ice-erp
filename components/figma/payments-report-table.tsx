@@ -1422,6 +1422,25 @@ export function PaymentsReportTable() {
 
   const visibleColumns = columns.filter(col => col.visible);
   const activeFilterCount = filters.size;
+  const hasActiveFilters =
+    activeFilterCount > 0 ||
+    searchTerm.length > 0 ||
+    dateFilterMode !== 'none' ||
+    (!selectedConditions.has('ALL') && selectedConditions.size > 0);
+
+  const resetAllFilters = () => {
+    setFilters(new Map());
+    setSearchTerm('');
+    setDateFilterMode('none');
+    setCustomDate('');
+    setSelectedConditions(new Set(allConditions));
+    setCurrentPage(1);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(filtersStorageKey);
+      localStorage.removeItem('paymentsReportDateFilter');
+      localStorage.removeItem('paymentsReportConditions');
+    }
+  };
   const filteredPaymentIds = filteredAndSortedData.map((row) => row.paymentId);
   const allFilteredSelected =
     filteredPaymentIds.length > 0 && filteredPaymentIds.every((id) => selectedPaymentIds.has(id));
@@ -1939,11 +1958,11 @@ export function PaymentsReportTable() {
               />
             </div>
             
-            {activeFilterCount > 0 && (
+            {hasActiveFilters && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setFilters(new Map())}
+                onClick={resetAllFilters}
                 className="gap-2"
               >
                 <X className="w-4 h-4" />
