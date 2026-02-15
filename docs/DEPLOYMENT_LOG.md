@@ -8,6 +8,13 @@
 - Production: https://ice-hu74hqooo-iceerp.vercel.app
 
 ## 2026-02-15
+- Summary: Reset bank transactions column defaults.
+- Changes:
+  - Bank transactions: bump column config version so Batch ID shows by default.
+- Commit: 8629806
+- Production: https://ice-bsg9o8qdx-iceerp.vercel.app
+
+## 2026-02-15
 - Summary: Resolve BTC_ batch IDs in statements and show batch IDs in bank transactions.
 - Changes:
   - Statements/reports: resolve batch partitions so BTC_ IDs never surface as payment IDs.
