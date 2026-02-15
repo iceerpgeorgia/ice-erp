@@ -8,6 +8,13 @@
 - Production: https://ice-hu74hqooo-iceerp.vercel.app
 
 ## 2026-02-15
+- Summary: Expose batch IDs in bank transactions APIs.
+- Changes:
+  - Bank transactions APIs: include batch_id so Batch ID column renders.
+- Commit: b92ac8b
+- Production: https://ice-h24mttwt0-iceerp.vercel.app
+
+## 2026-02-15
 - Summary: Reset bank transactions column defaults.
 - Changes:
   - Bank transactions: bump column config version so Batch ID shows by default.
