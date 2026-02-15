@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-15
+- Summary: Persist bank transactions test filters and add clear filters button.
+- Changes:
+  - Bank transactions test: save/restore table filters and add Clear Filters control.
+- Commit: 61724cf
+- Production: https://ice-hu74hqooo-iceerp.vercel.app
+
+## 2026-02-15
 - Summary: Auto-assign counteragent from payment on bank transaction edits.
 - Changes:
   - Bank transactions: when payment ID is set and counteragent is empty, assign counteragent from payment.
