@@ -8,6 +8,14 @@
 - Production: https://ice-hu74hqooo-iceerp.vercel.app
 
 ## 2026-02-15
+- Summary: Resolve BTC_ batch IDs in statements and show batch IDs in bank transactions.
+- Changes:
+  - Statements/reports: resolve batch partitions so BTC_ IDs never surface as payment IDs.
+  - Bank transactions: show Batch ID column by default.
+- Commit: a224166
+- Production: https://ice-ql17o3ac1-iceerp.vercel.app
+
+## 2026-02-15
 - Summary: Auto-assign counteragent from payment on bank transaction edits.
 - Changes:
   - Bank transactions: when payment ID is set and counteragent is empty, assign counteragent from payment.
