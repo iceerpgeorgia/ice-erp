@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-16
+- Summary: Prevent null nominal currency on bank transaction updates.
+- Changes:
+  - Bank transactions PATCH: when nominal currency is cleared, fall back to account currency and reset exchange rate/nominal amount.
+- Commit: 79525cf
+- Production: TBD
+
+## 2026-02-16
 - Summary: Enforce batch integrity with BTC guards and atomic batch creation.
 - Changes:
   - Batch editor/API: require at least 2 partitions and insert partitions atomically.
