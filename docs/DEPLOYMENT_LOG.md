@@ -6,7 +6,7 @@
   - Batch editor/API: require at least 2 partitions and insert partitions atomically.
   - Database: block BTC payment_id without partitions and clear raw BTC on batch delete.
   - Diagnostics: add batch integrity check script.
-- Commit: TBD
+- Commit: 92ab134
 - Production: TBD
 
 ## 2026-02-15
