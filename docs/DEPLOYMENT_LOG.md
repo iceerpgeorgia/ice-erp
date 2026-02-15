@@ -5,7 +5,7 @@
 - Changes:
   - Payments report: Clear Filters now resets search, date, conditions, and saved filter state.
 - Commit: ae6aa2f
-- Production: TBD
+- Production: https://ice-3h13cqtzn-iceerp.vercel.app
 
 ## 2026-02-16
 - Summary: Prevent null nominal currency on bank transaction updates.
