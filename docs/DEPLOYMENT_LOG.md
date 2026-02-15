@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-16
+- Summary: Reset all payments report filters.
+- Changes:
+  - Payments report: Clear Filters now resets search, date, conditions, and saved filter state.
+- Commit: ae6aa2f
+- Production: TBD
+
+## 2026-02-16
 - Summary: Prevent null nominal currency on bank transaction updates.
 - Changes:
   - Bank transactions PATCH: when nominal currency is cleared, fall back to account currency and reset exchange rate/nominal amount.
