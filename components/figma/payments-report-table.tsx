@@ -187,16 +187,23 @@ export function PaymentsReportTable() {
     'Current Due<0',
     'Current Due=0'
   ] as const;
+  const sanitizeConditions = useCallback((values: string[]) => {
+    const allowed = values.filter((value) => allConditions.includes(value as (typeof allConditions)[number]));
+    if (allowed.length === 0) {
+      return new Set(allConditions);
+    }
+    return new Set(allowed);
+  }, [allConditions]);
   const [selectedConditions, setSelectedConditions] = useState<Set<string>>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('paymentsReportConditions');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length === 0) {
-            return new Set(allConditions);
+          if (Array.isArray(parsed)) {
+            return sanitizeConditions(parsed);
           }
-          return new Set(parsed);
+          return new Set(allConditions);
         } catch {
           return new Set(allConditions);
         }

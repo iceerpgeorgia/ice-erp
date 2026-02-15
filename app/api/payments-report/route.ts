@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const maxDate = searchParams.get('maxDate');
 
     const ledgerDateFilter = maxDate ? `WHERE effective_date::date <= '${maxDate}'::date` : '';
-    const bankDateFilter = maxDate ? `WHERE transaction_date::date <= '${maxDate}'::date` : '';
+    const bankDateFilter = maxDate ? `AND transaction_date::date <= '${maxDate}'::date` : '';
 
     // Query to get payments with aggregated ledger data and actual payments from bank accounts
     // Use subqueries to prevent Cartesian product when payment has multiple ledger entries AND bank transactions
