@@ -114,6 +114,7 @@ export async function GET(request: NextRequest) {
           SELECT 1 FROM bank_transaction_batches btb
           WHERE btb.raw_record_uuid::text = cba.raw_record_uuid::text
         )
+        AND cba.payment_id NOT ILIKE 'BTC_%'
         UNION ALL
         SELECT
           t.payment_id,
@@ -124,6 +125,7 @@ export async function GET(request: NextRequest) {
           SELECT 1 FROM bank_transaction_batches btb
           WHERE btb.raw_record_uuid::text = t.raw_record_uuid::text
         )
+        AND t.payment_id NOT ILIKE 'BTC_%'
         UNION ALL
         SELECT
           COALESCE(

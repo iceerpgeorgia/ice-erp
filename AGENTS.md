@@ -97,6 +97,17 @@ The three-phase hierarchy ensures data integrity:
 2. **Parsing Rules** (SECOND): Must not conflict with counteragent, then apply other parameters
 3. **Payment ID** (THIRD): Must not conflict with counteragent, then apply payment parameters
 
+### Statement & Payment ID Constraints
+- **Never surface BTC_ batch IDs as `payment_id`** in any statement view (counteragent, payment ID, salary payment ID).
+- When a transaction has a BTC_ batch ID, resolve and display the **partition payment IDs** instead, and propagate those IDs into all payment-id-related fields.
+- All statement rendering, filtering, and aggregate calculations (including payments report paid sums) must **exclude BTC_ batch IDs** and operate on resolved partition payment IDs.
+
+### Batch Payment ID Resolution (BTC_)
+If a deconsolidated row has `payment_id` starting with `BTC_`, it represents a batch and **must be expanded** using `bank_transaction_batches`:
+1. Lookup partitions by `raw_record_uuid` (or `raw_record_id_1`/`raw_record_id_2`).
+2. Replace the single BTC_ row with **one row per partition** using the partition `payment_id` (or the payment linked by `payment_uuid`).
+3. Any UI column or calculation that uses payment IDs must use these resolved partition payment IDs and **never** the BTC_ value.
+
 ### Fully Processed Definition
 A record is considered fully processed when ALL three flags are TRUE:
 - `counteragent_processed=TRUE`

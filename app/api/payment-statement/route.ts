@@ -179,7 +179,7 @@ export async function GET(request: NextRequest) {
           cba.uuid,
           cba.dockey,
           cba.entriesid,
-          cba.payment_id,
+          CASE WHEN cba.payment_id ILIKE 'BTC_%' THEN NULL ELSE cba.payment_id END as payment_id,
           NULL::text as batch_payment_id_raw,
           cba.payment_id::text as raw_payment_id,
           cba.account_currency_amount,
@@ -201,6 +201,7 @@ export async function GET(request: NextRequest) {
           SELECT 1 FROM bank_transaction_batches btb
           WHERE btb.raw_record_uuid::text = cba.raw_record_uuid::text
         )
+          AND cba.payment_id NOT ILIKE 'BTC_%'
           AND (lower(cba.payment_id) = lower($1) OR lower(cba.payment_id) = lower($2))
 
         UNION ALL
@@ -231,9 +232,26 @@ export async function GET(request: NextRequest) {
         ) cba
         JOIN bank_transaction_batches btb
           ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
+        LEFT JOIN payments p
+          ON (
+            btb.payment_uuid IS NOT NULL AND p.record_uuid = btb.payment_uuid
+          ) OR (
+            btb.payment_uuid IS NULL AND btb.payment_id IS NOT NULL AND p.payment_id = btb.payment_id
+          )
         LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
         LEFT JOIN currencies curr ON cba.account_currency_uuid = curr.uuid
-        WHERE lower(btb.payment_id) = lower($1) OR lower(btb.payment_id) = lower($2)
+        WHERE lower(
+          COALESCE(
+            CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
+            p.payment_id
+          )
+        ) = lower($1)
+        OR lower(
+          COALESCE(
+            CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
+            p.payment_id
+          )
+        ) = lower($2)
       ) result
       ORDER BY result.transaction_date DESC
     `;

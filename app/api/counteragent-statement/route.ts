@@ -198,7 +198,7 @@ export async function GET(request: NextRequest) {
            cba.source_table,
            cba.id,
            cba.uuid,
-           cba.payment_id,
+           CASE WHEN cba.payment_id ILIKE 'BTC_%' THEN NULL ELSE cba.payment_id END as payment_id,
            cba.dockey,
            cba.entriesid,
            NULL::text as batch_payment_id_raw,

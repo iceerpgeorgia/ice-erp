@@ -122,7 +122,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'financialCode', label: 'Fin. Code', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'nominalCurrencyCode', label: 'Nom ISO', width: 80, visible: true, sortable: true, filterable: true },
   { key: 'paymentId', label: 'Payment ID', width: 140, visible: true, sortable: true, filterable: true },
-  { key: 'batchId', label: 'Batch ID', width: 140, visible: false, sortable: true, filterable: true },
+  { key: 'batchId', label: 'Batch ID', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'description', label: 'Description', width: 300, visible: true, sortable: true, filterable: true },
   { key: 'comment', label: 'Comment', width: 260, visible: true, sortable: true, filterable: true },
   { key: 'nominalAmount', label: 'Nominal Amt', width: 120, visible: false, sortable: true, filterable: true },

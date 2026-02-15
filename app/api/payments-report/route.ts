@@ -88,11 +88,15 @@ export async function GET(request: NextRequest) {
             SELECT 1 FROM bank_transaction_batches btb
             WHERE btb.raw_record_uuid::text = cba.raw_record_uuid::text
           )
+          AND cba.payment_id NOT ILIKE 'BTC_%'
 
           UNION ALL
 
           SELECT
-            btb.payment_id,
+            COALESCE(
+              CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
+              p.payment_id
+            ) as payment_id,
             (btb.nominal_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
             cba.transaction_date
           FROM (
@@ -100,7 +104,14 @@ export async function GET(request: NextRequest) {
           ) cba
           JOIN bank_transaction_batches btb
             ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
+          LEFT JOIN payments p
+            ON (
+              btb.payment_uuid IS NOT NULL AND p.record_uuid = btb.payment_uuid
+            ) OR (
+              btb.payment_uuid IS NULL AND btb.payment_id IS NOT NULL AND p.payment_id = btb.payment_id
+            )
         ) combined
+        WHERE payment_id IS NOT NULL AND payment_id <> ''
         ${bankDateFilter}
         GROUP BY payment_id
       ) bank_agg ON p.payment_id = bank_agg.payment_id
