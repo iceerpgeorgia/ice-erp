@@ -402,26 +402,44 @@ export async function PATCH(
     }
     
     // Handle manual nominal currency change (only if not already set by payment change)
-    if (nominal_currency_uuid !== undefined && 
-        nominal_currency_uuid !== current.nominal_currency_uuid && 
-        !updateData.nominalCurrencyUuid) {
-      updateData.nominalCurrencyUuid = nominal_currency_uuid;
-      changes.push(`nominal_currency: ${current.nominal_currency_uuid} → ${nominal_currency_uuid} (manual)`);
-      
-      // Recalculate exchange rate and amount
-      const result = await calculateExchangeRateAndAmount(
-        current.account_currency_uuid,
-        nominal_currency_uuid,
-        current.account_currency_amount,
-        current.transaction_date,
-        correction_date ?? current.correction_date
-      );
-      
-      if (result) {
-        updateData.exchangeRate = result.exchangeRate;
-        updateData.nominalAmount = result.nominalAmount;
-        changes.push(`exchange_rate: ${current.exchange_rate?.toString()} → ${result.exchangeRate.toString()}`);
-        changes.push(`nominal_amount: ${current.nominal_amount?.toString()} → ${result.nominalAmount.toString()} (recalculated)`);
+    if (
+      nominal_currency_uuid !== undefined &&
+      nominal_currency_uuid !== current.nominal_currency_uuid &&
+      !updateData.nominalCurrencyUuid
+    ) {
+      if (nominal_currency_uuid === null) {
+        // Null nominal currency is not allowed; fall back to account currency baseline
+        updateData.nominalCurrencyUuid = current.account_currency_uuid;
+        updateData.exchangeRate = new Decimal(1);
+        updateData.nominalAmount = new Decimal(
+          current.account_currency_amount?.toString?.() ?? current.account_currency_amount
+        );
+        changes.push(
+          `nominal_currency: ${current.nominal_currency_uuid} → ${current.account_currency_uuid} (cleared to account currency)`
+        );
+        changes.push(`exchange_rate: ${current.exchange_rate?.toString?.()} → 1 (cleared)`);
+        changes.push(
+          `nominal_amount: ${current.nominal_amount?.toString?.()} → ${current.account_currency_amount?.toString?.() ?? current.account_currency_amount} (cleared)`
+        );
+      } else {
+        updateData.nominalCurrencyUuid = nominal_currency_uuid;
+        changes.push(`nominal_currency: ${current.nominal_currency_uuid} → ${nominal_currency_uuid} (manual)`);
+
+        // Recalculate exchange rate and amount
+        const result = await calculateExchangeRateAndAmount(
+          current.account_currency_uuid,
+          nominal_currency_uuid,
+          current.account_currency_amount,
+          current.transaction_date,
+          correction_date ?? current.correction_date
+        );
+
+        if (result) {
+          updateData.exchangeRate = result.exchangeRate;
+          updateData.nominalAmount = result.nominalAmount;
+          changes.push(`exchange_rate: ${current.exchange_rate?.toString()} → ${result.exchangeRate.toString()}`);
+          changes.push(`nominal_amount: ${current.nominal_amount?.toString()} → ${result.nominalAmount.toString()} (recalculated)`);
+        }
       }
     }
 
