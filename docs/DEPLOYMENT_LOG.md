@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-02-15
+- Summary: Auto-assign counteragent from payment on bank transaction edits.
+- Changes:
+  - Bank transactions: when payment ID is set and counteragent is empty, assign counteragent from payment.
+- Commit: 7a29ae2
+- Production: https://ice-mdz6w8u80-iceerp.vercel.app
+
 ## 2026-02-13
 - Summary: Fix invalid dates during XML import.
 - Changes:
