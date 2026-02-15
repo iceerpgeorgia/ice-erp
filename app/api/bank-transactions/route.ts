@@ -62,6 +62,7 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
       NULL::numeric as batch_partition_amount,
       NULL::text as batch_payment_id,
       NULL::text as batch_payment_id_raw,
+      NULL::text as batch_id,
       NULL::uuid as batch_counteragent_uuid,
       NULL::uuid as batch_project_uuid,
       NULL::uuid as batch_financial_code_uuid,
@@ -111,6 +112,7 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
         p.payment_id
       ) as batch_payment_id,
       btb.payment_id as batch_payment_id_raw,
+      btb.batch_id as batch_id,
       COALESCE(btb.counteragent_uuid, p.counteragent_uuid) as batch_counteragent_uuid,
       COALESCE(btb.project_uuid, p.project_uuid) as batch_project_uuid,
       COALESCE(btb.financial_code_uuid, p.financial_code_uuid) as batch_financial_code_uuid,
@@ -157,9 +159,11 @@ function toApi(row: any) {
   const hasBatch = row.batch_partition_id !== null && row.batch_partition_id !== undefined;
   const paymentId = hasBatch ? row.batch_payment_id : fallbackPaymentId;
   const hasBatchIdAsPayment = isBatchPaymentId(paymentId);
-  const batchId = isBatchPaymentId(row.payment_id)
-    ? row.payment_id
-    : (isBatchPaymentId(row.batch_payment_id_raw) ? row.batch_payment_id_raw : null);
+  const batchId = row.batch_id ?? (
+    isBatchPaymentId(row.payment_id)
+      ? row.payment_id
+      : (isBatchPaymentId(row.batch_payment_id_raw) ? row.batch_payment_id_raw : null)
+  );
   const counteragentUuid = hasBatch ? row.batch_counteragent_uuid : row.counteragent_uuid;
   const projectUuid = hasBatch ? row.batch_project_uuid : row.project_uuid;
   const financialCodeUuid = hasBatch ? row.batch_financial_code_uuid : row.financial_code_uuid;
