@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-16
+- Summary: Flag counteragents with unbound transactions in payments report.
+- Changes:
+  - Payments report: mark counteragent statement icon red when unbound transactions exist.
+- Commit: eb7534f
+- Production: TBD
+
+## 2026-02-16
 - Summary: Normalize correction date display in bank transactions tables.
 - Changes:
   - Bank transactions list/test: convert correction date values to ISO strings to avoid [object Object].
