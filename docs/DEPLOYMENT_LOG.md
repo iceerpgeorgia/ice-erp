@@ -5,7 +5,7 @@
 - Changes:
   - Payments report: mark counteragent statement icon red when unbound transactions exist.
 - Commit: eb7534f
-- Production: TBD
+- Production: https://ice-g7suwdhp5-iceerp.vercel.app
 
 ## 2026-02-16
 - Summary: Normalize correction date display in bank transactions tables.
