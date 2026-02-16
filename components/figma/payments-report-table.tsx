@@ -1011,6 +1011,18 @@ export function PaymentsReportTable() {
     setFilters(newFilters);
   };
 
+  const normalizeFilterValue = (value: any) => {
+    if (value === null || value === undefined) return value;
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    }
+    return value;
+  };
+
   const applySearchFilter = useCallback((rows: PaymentReport[]) => {
     if (!searchTerm) return rows;
     return rows.filter(row =>
@@ -1026,7 +1038,8 @@ export function PaymentsReportTable() {
       for (const [columnKey, allowedValues] of filters.entries()) {
         if (excludeColumn && columnKey === excludeColumn) continue;
         const rowValue = row[columnKey as ColumnKey];
-        if (!allowedValues.has(rowValue)) {
+        const normalizedRowValue = normalizeFilterValue(rowValue);
+        if (!allowedValues.has(normalizedRowValue)) {
           return false;
         }
       }
@@ -1163,7 +1176,7 @@ export function PaymentsReportTable() {
 
     filterableColumns.forEach(col => {
       const baseData = getFacetBaseData(col.key);
-      const values = new Set(baseData.map(row => row[col.key]));
+      const values = new Set(baseData.map(row => normalizeFilterValue(row[col.key])));
       cache.set(col.key, Array.from(values).sort());
     });
 
