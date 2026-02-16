@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-16
+- Summary: Prevent object rendering errors in bank transactions.
+- Changes:
+  - Bank transactions table: stringify object cell values before rendering.
+- Commit: 27e336d
+- Production: TBD
+
+## 2026-02-16
 - Summary: Fix payments report filter rendering for object values.
 - Changes:
   - Payments report: normalize filter values to avoid React object rendering errors.
