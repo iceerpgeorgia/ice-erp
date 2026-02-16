@@ -127,17 +127,26 @@ export async function PATCH(
     const existingAccrual = Number(totals?.[0]?.accrual_total ?? 0);
     const existingOrder = Number(totals?.[0]?.order_total ?? 0);
     const newOrder = Number(order || 0);
+    const newAccrual = Number(accrual || 0);
     const beforePaymentId = beforeUpdate?.[0]?.payment_id;
-    const beforeAccrual =
-      beforePaymentId === paymentId ? Number(beforeUpdate?.[0]?.accrual ?? 0) : 0;
-    const existingAccrualTotal = existingAccrual + beforeAccrual;
+    const beforeAccrual = Number(beforeUpdate?.[0]?.accrual ?? 0);
+    const beforeOrder = Number(beforeUpdate?.[0]?.order ?? 0);
     const toCents = (value: number) => Math.round(value * 100);
-    const existingAccrualCents = toCents(existingAccrualTotal);
-    const existingOrderCents = toCents(existingOrder);
-    const newOrderCents = toCents(newOrder);
-    const newAccrualCents = toCents(Number(accrual || 0));
 
-    if (existingOrderCents + newOrderCents > existingAccrualCents + newAccrualCents) {
+    const currentAccrualTotal =
+      existingAccrual + (beforePaymentId === paymentId ? beforeAccrual : 0);
+    const currentOrderTotal =
+      existingOrder + (beforePaymentId === paymentId ? beforeOrder : 0);
+    const currentExcessCents = Math.max(
+      0,
+      toCents(currentOrderTotal) - toCents(currentAccrualTotal)
+    );
+    const nextExcessCents = Math.max(
+      0,
+      toCents(existingOrder + newOrder) - toCents(existingAccrual + newAccrual)
+    );
+
+    if (nextExcessCents > currentExcessCents) {
       return NextResponse.json(
         { error: 'Total order cannot exceed total accrual for this payment' },
         { status: 400 }

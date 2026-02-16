@@ -93,11 +93,14 @@ export async function POST(request: NextRequest) {
     for (const [paymentId, addedOrder] of orderAdditions.entries()) {
       const existing = totalsMap.get(paymentId) || { accrual: 0, order: 0 };
       const toCents = (value: number) => Math.round(value * 100);
-      const nextOrderCents = toCents(existing.order) + toCents(addedOrder);
-      const existingAccrualCents = toCents(existing.accrual);
-      const addedAccrualCents = toCents(accrualAdditions.get(paymentId) || 0);
+      const currentExcessCents = Math.max(0, toCents(existing.order) - toCents(existing.accrual));
+      const nextExcessCents = Math.max(
+        0,
+        (toCents(existing.order) + toCents(addedOrder)) -
+          (toCents(existing.accrual) + toCents(accrualAdditions.get(paymentId) || 0))
+      );
 
-      if (nextOrderCents > existingAccrualCents + addedAccrualCents) {
+      if (nextExcessCents > currentExcessCents) {
         return NextResponse.json(
           {
             error: `Total order cannot exceed total accrual for payment ${paymentId}`,

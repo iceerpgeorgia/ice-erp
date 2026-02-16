@@ -184,13 +184,15 @@ export async function POST(request: NextRequest) {
     const existingAccrual = Number(totals?.[0]?.accrual_total ?? 0);
     const existingOrder = Number(totals?.[0]?.order_total ?? 0);
     const newOrder = Number(order || 0);
+    const newAccrual = Number(accrual || 0);
     const toCents = (value: number) => Math.round(value * 100);
-    const existingAccrualCents = toCents(existingAccrual);
-    const existingOrderCents = toCents(existingOrder);
-    const newOrderCents = toCents(newOrder);
-    const newAccrualCents = toCents(Number(accrual || 0));
+    const currentExcessCents = Math.max(0, toCents(existingOrder) - toCents(existingAccrual));
+    const nextExcessCents = Math.max(
+      0,
+      toCents(existingOrder + newOrder) - toCents(existingAccrual + newAccrual)
+    );
 
-    if (existingOrderCents + newOrderCents > existingAccrualCents + newAccrualCents) {
+    if (nextExcessCents > currentExcessCents) {
       return NextResponse.json(
         { error: 'Total order cannot exceed total accrual for this payment' },
         { status: 400 }
