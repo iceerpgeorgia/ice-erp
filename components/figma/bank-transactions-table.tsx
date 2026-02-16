@@ -155,13 +155,13 @@ const formatDate = (dateString: string | null | undefined): string => {
     }
     // Fallback to Date parsing for other formats
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString;
+    if (isNaN(date.getTime())) return String(dateString);
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
     return `${day}.${month}.${year}`;
   } catch {
-    return dateString;
+    return String(dateString);
   }
 };
 
@@ -987,6 +987,11 @@ export function BankTransactionsTable({
     console.log('[startEdit] Transaction:', transaction);
     setEditingTransaction(transaction);
     
+    const transactionDateInput = toInputDate(transaction.date);
+    const correctionInput = toInputDate(transaction.correctionDate);
+    const initialCorrectionDate =
+      correctionInput && correctionInput !== transactionDateInput ? correctionInput : '';
+
     // Initialize form with transaction data - use paymentId (not UUID) for the Select value
     const initialFormData = {
       payment_uuid: transaction.paymentId || '', // Use paymentId as the form value
@@ -995,7 +1000,7 @@ export function BankTransactionsTable({
       financial_code_uuid: transaction.financialCodeUuid || '',
       nominal_currency_uuid: transaction.nominalCurrencyUuid || '',
       nominal_amount: transaction.nominalAmount || '',
-      correction_date: toInputDate(transaction.correctionDate),
+      correction_date: initialCorrectionDate,
       parsing_lock: Boolean(transaction.parsingLock),
       comment: transaction.comment || '',
     };
@@ -1013,7 +1018,7 @@ export function BankTransactionsTable({
     
     try {
       // Fetch exchange rates for the transaction date upfront
-      const effectiveDate = initialFormData.correction_date || toInputDate(transaction.date);
+      const effectiveDate = initialFormData.correction_date || transactionDateInput;
       const ratesResponse = await fetch(`/api/exchange-rates?date=${effectiveDate}`);
       const ratesData = await ratesResponse.json();
       const rates = ratesData && ratesData.length > 0 ? ratesData[0] : null;
@@ -1582,8 +1587,12 @@ export function BankTransactionsTable({
       if (formData.nominal_currency_uuid !== (editingTransaction.nominalCurrencyUuid || '')) {
         updateData.nominal_currency_uuid = formData.nominal_currency_uuid || null;
       }
+      const transactionDateInput = toInputDate(editingTransaction.date);
       if (formData.correction_date !== toInputDate(editingTransaction.correctionDate)) {
-        updateData.correction_date = formData.correction_date || null;
+        updateData.correction_date =
+          formData.correction_date && formData.correction_date !== transactionDateInput
+            ? formData.correction_date
+            : null;
       }
       if (formData.parsing_lock !== Boolean(editingTransaction.parsingLock)) {
         updateData.parsing_lock = formData.parsing_lock;
@@ -2889,7 +2898,7 @@ export function BankTransactionsTable({
                     <Label className="text-xs text-gray-600">Correction Date</Label>
                     <Input
                       type="date"
-                      value={formData.correction_date || toInputDate(editingTransaction?.correctionDate)}
+                      value={formData.correction_date}
                       onChange={(event) =>
                         setFormData((prev) => ({ ...prev, correction_date: event.target.value }))
                       }

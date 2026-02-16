@@ -121,6 +121,9 @@ A record is considered fully processed when ALL three flags are TRUE:
 
 Or equivalently: `is_processed=TRUE` (derived from all three flags)
 
+### Correction Date Rules
+- `correction_date` must never equal `transaction_date`. UI clears same-day values and the database enforces this via triggers.
+
 ### Raw Table Columns
 - `counteragent_processed`: Counteragent identified from INN
 - `counteragent_inn`: INN value found in raw data (may not exist in counteragents table)

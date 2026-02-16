@@ -15,6 +15,20 @@ type AllowedTable = "GE78BG0000000893486000_BOG_GEL" | "GE65TB7856036050100002_T
 const TBC_OFFSET = 1000000000000n;
 const BATCH_OFFSET = 2000000000000n;
 
+const normalizeDateToISO = (value?: string | null): string | null => {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10);
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(trimmed)) {
+    const [day, month, year] = trimmed.split('.');
+    return `${year}-${month}-${day}`;
+  }
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
+  return null;
+};
+
 function resolveTableName(searchParams: URLSearchParams): AllowedTable {
   const sourceTable = searchParams.get('sourceTable');
   if (sourceTable && ALLOWED_TABLES.has(sourceTable)) {
@@ -296,6 +310,12 @@ export async function PATCH(
       correction_date,
       comment,
     } = body;
+    const transactionDateIso = normalizeDateToISO(current.transaction_date);
+    const correctionDateIso = correction_date !== undefined ? normalizeDateToISO(correction_date) : null;
+    const effectiveCorrectionDateIso =
+      correction_date !== undefined && correctionDateIso && correctionDateIso !== transactionDateIso
+        ? correctionDateIso
+        : null;
 
     const updateData: any = {};
     const changes: string[] = [];
@@ -343,7 +363,7 @@ export async function PATCH(
               payment.currency_uuid,
               current.account_currency_amount,
               current.transaction_date,
-              correction_date ?? current.correction_date
+              effectiveCorrectionDateIso ?? current.correction_date
             );
             
             if (result) {
@@ -392,8 +412,8 @@ export async function PATCH(
     }
 
     if (correction_date !== undefined && correction_date !== current.correction_date) {
-      updateData.correctionDate = correction_date ? new Date(correction_date) : null;
-      changes.push(`correction_date: ${current.correction_date || 'null'} → ${correction_date || 'null'}`);
+      updateData.correctionDate = effectiveCorrectionDateIso ? new Date(effectiveCorrectionDateIso) : null;
+      changes.push(`correction_date: ${current.correction_date || 'null'} → ${effectiveCorrectionDateIso || 'null'}`);
     }
 
     if (comment !== undefined && comment !== current.comment) {
@@ -431,7 +451,7 @@ export async function PATCH(
           nominal_currency_uuid,
           current.account_currency_amount,
           current.transaction_date,
-          correction_date ?? current.correction_date
+          effectiveCorrectionDateIso ?? current.correction_date
         );
 
         if (result) {
@@ -451,7 +471,7 @@ export async function PATCH(
           targetNominalCurrency,
           current.account_currency_amount,
           current.transaction_date,
-          correction_date || null
+          effectiveCorrectionDateIso || null
         );
 
         if (result) {
