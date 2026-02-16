@@ -5,7 +5,7 @@
 - Changes:
   - Bank transactions: accept camelCase/snake_case correction date mapping in list and test views.
 - Commit: 84551b2
-- Production: TBD
+- Production: https://ice-46brqrpt5-iceerp.vercel.app
 
 ## 2026-02-16
 - Summary: Prevent object rendering errors in bank transactions.
