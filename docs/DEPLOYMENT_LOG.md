@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-16
+- Summary: Fix payments report filter rendering for object values.
+- Changes:
+  - Payments report: normalize filter values to avoid React object rendering errors.
+- Commit: bc17ebf
+- Production: TBD
+
+## 2026-02-16
 - Summary: Fix payments report query and conditions restore.
 - Changes:
   - Payments report API: fix date filter SQL (AND vs WHERE).
