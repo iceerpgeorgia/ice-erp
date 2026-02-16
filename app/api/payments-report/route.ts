@@ -30,6 +30,9 @@ export async function GET(request: NextRequest) {
       WITH raw_union AS (
         ${SOURCE_TABLES.map((table) => `SELECT raw_record_uuid, counteragent_uuid, payment_id FROM "${table}"`).join(' UNION ALL ')}
       ),
+      raw_union_bank AS (
+        ${SOURCE_TABLES.map((table) => `SELECT raw_record_uuid, payment_id, nominal_amount, transaction_date, account_currency_amount, counteragent_uuid FROM "${table}"`).join(' UNION ALL ')}
+      ),
       unbound_counteragent AS (
         SELECT
           counteragent_uuid,
@@ -99,7 +102,7 @@ export async function GET(request: NextRequest) {
             cba.payment_id,
             cba.nominal_amount,
             cba.transaction_date
-          FROM raw_union cba
+          FROM raw_union_bank cba
           WHERE NOT EXISTS (
             SELECT 1 FROM bank_transaction_batches btb
             WHERE btb.raw_record_uuid::text = cba.raw_record_uuid::text
@@ -115,7 +118,7 @@ export async function GET(request: NextRequest) {
             ) as payment_id,
             (btb.nominal_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
             cba.transaction_date
-          FROM raw_union cba
+          FROM raw_union_bank cba
           JOIN bank_transaction_batches btb
             ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
           LEFT JOIN payments p
