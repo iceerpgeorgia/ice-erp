@@ -60,6 +60,8 @@ type PaymentReport = {
   paidPercent: number;
   due: number;
   balance: number;
+  unboundCount?: number;
+  hasUnboundCounteragentTransactions?: boolean;
   latestDate: string | null;
 };
 
@@ -2469,9 +2471,19 @@ export function PaymentsReportTable() {
                         href={row.counteragentUuid ? `/counteragent-statement/${row.counteragentUuid}` : '#'}
                         target={row.counteragentUuid ? '_blank' : undefined}
                         rel={row.counteragentUuid ? 'noopener noreferrer' : undefined}
-                        className="inline-block text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
+                        className={`inline-block p-1 rounded transition-colors ${
+                          row.counteragentUuid
+                            ? row.hasUnboundCounteragentTransactions
+                              ? 'text-red-600 hover:text-red-800 hover:bg-red-50'
+                              : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50'
+                            : 'text-gray-400'
+                        }`}
                         aria-disabled={!row.counteragentUuid}
-                        title="View counteragent statement (opens in new tab)"
+                        title={
+                          row.hasUnboundCounteragentTransactions
+                            ? 'Counteragent has transactions without payment ID'
+                            : 'View counteragent statement (opens in new tab)'
+                        }
                         onClick={(event) => {
                           if (!row.counteragentUuid) {
                             event.preventDefault();
