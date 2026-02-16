@@ -5,7 +5,7 @@
 - Changes:
   - Payments report: use a full bank raw union for aggregation while keeping lean union for unbound counts.
 - Commit: 20d3e06
-- Production: TBD
+- Production: https://ice-h67rck1md-iceerp.vercel.app
 
 ## 2026-02-16
 - Summary: Flag counteragents with unbound transactions in payments report.
