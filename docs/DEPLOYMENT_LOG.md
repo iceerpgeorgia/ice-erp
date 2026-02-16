@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-16
+- Summary: Relax payments ledger order/accrual validation to allow corrections.
+- Changes:
+  - Payments ledger: allow inserts/updates that do not increase order-over-accrual excess.
+- Commit: 3358688
+- Production: TBD
+
+## 2026-02-16
 - Summary: Restore payments report bank aggregation after unbound counteragent change.
 - Changes:
   - Payments report: use a full bank raw union for aggregation while keeping lean union for unbound counts.
