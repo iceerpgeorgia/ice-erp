@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-16
+- Summary: Normalize correction date display in bank transactions tables.
+- Changes:
+  - Bank transactions list/test: convert correction date values to ISO strings to avoid [object Object].
+- Commit: 0d8cf45
+- Production: TBD
+
+## 2026-02-16
 - Summary: Enforce correction date validation across UI/API/DB.
 - Changes:
   - Bank transactions: clear same-day correction dates in UI and API.
