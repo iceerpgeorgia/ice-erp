@@ -5,7 +5,7 @@
 - Changes:
   - Bank transactions table: stringify object cell values before rendering.
 - Commit: 27e336d
-- Production: TBD
+- Production: https://ice-5cx0pc2dv-iceerp.vercel.app
 
 ## 2026-02-16
 - Summary: Fix payments report filter rendering for object values.
