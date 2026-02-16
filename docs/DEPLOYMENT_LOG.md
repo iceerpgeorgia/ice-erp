@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-16
+- Summary: Restore payments report bank aggregation after unbound counteragent change.
+- Changes:
+  - Payments report: use a full bank raw union for aggregation while keeping lean union for unbound counts.
+- Commit: 20d3e06
+- Production: TBD
+
+## 2026-02-16
 - Summary: Flag counteragents with unbound transactions in payments report.
 - Changes:
   - Payments report: mark counteragent statement icon red when unbound transactions exist.
