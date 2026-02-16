@@ -300,7 +300,7 @@ export default function BankTransactionsTestTableFigma() {
           nominalCurrencyUuid: row.nominal_currency_uuid || null,
           nominalAmount: row.nominal_amount || null,
           date: row.transaction_date || "",
-          correctionDate: row.correction_date || null,
+          correctionDate: row.correction_date ?? row.correctionDate ?? null,
           exchangeRate: row.nominal_exchange_rate || null,
           nominalExchangeRate: row.nominal_exchange_rate || null,
           usdGelRate: row.usd_gel_rate ?? null,

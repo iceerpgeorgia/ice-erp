@@ -284,7 +284,7 @@ export function BankTransactionsTable({
     nominalCurrencyUuid: row.nominal_currency_uuid || fallback?.nominalCurrencyUuid || null,
     nominalAmount: row.nominal_amount ?? fallback?.nominalAmount ?? null,
     date: row.transaction_date || fallback?.date || "",
-    correctionDate: row.correction_date ?? fallback?.correctionDate ?? null,
+    correctionDate: row.correction_date ?? row.correctionDate ?? fallback?.correctionDate ?? null,
     exchangeRate: row.exchange_rate ?? fallback?.exchangeRate ?? null,
     nominalExchangeRate: row.nominal_exchange_rate ?? fallback?.nominalExchangeRate ?? null,
     id1: row.id1 || row.dockey || fallback?.id1 || null,
