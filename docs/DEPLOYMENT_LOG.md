@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-16
+- Summary: Load correction dates in bank transaction edit dialog.
+- Changes:
+  - Bank transactions: accept camelCase/snake_case correction date mapping in list and test views.
+- Commit: 84551b2
+- Production: TBD
+
+## 2026-02-16
 - Summary: Prevent object rendering errors in bank transactions.
 - Changes:
   - Bank transactions table: stringify object cell values before rendering.
