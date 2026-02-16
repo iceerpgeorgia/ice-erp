@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-16
+- Summary: Enforce correction date validation across UI/API/DB.
+- Changes:
+  - Bank transactions: clear same-day correction dates in UI and API.
+  - Database: add trigger to block correction_date equal to transaction_date.
+  - Docs: document correction date rule.
+- Commit: 96d23ed
+- Production: TBD
+
+## 2026-02-16
 - Summary: Load correction dates in bank transaction edit dialog.
 - Changes:
   - Bank transactions: accept camelCase/snake_case correction date mapping in list and test views.
