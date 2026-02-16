@@ -7,7 +7,7 @@
   - Database: add trigger to block correction_date equal to transaction_date.
   - Docs: document correction date rule.
 - Commit: 96d23ed
-- Production: TBD
+- Production: https://ice-kf2tzg92k-iceerp.vercel.app
 
 ## 2026-02-16
 - Summary: Load correction dates in bank transaction edit dialog.
