@@ -5,7 +5,7 @@
 - Changes:
   - Bank transactions list/test: convert correction date values to ISO strings to avoid [object Object].
 - Commit: 0d8cf45
-- Production: TBD
+- Production: https://ice-dzk0xo3ym-iceerp.vercel.app
 
 ## 2026-02-16
 - Summary: Enforce correction date validation across UI/API/DB.
