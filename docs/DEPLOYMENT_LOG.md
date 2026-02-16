@@ -5,7 +5,7 @@
 - Changes:
   - Payments report: normalize filter values to avoid React object rendering errors.
 - Commit: bc17ebf
-- Production: TBD
+- Production: https://ice-fz4pm2h7m-iceerp.vercel.app
 
 ## 2026-02-16
 - Summary: Fix payments report query and conditions restore.
