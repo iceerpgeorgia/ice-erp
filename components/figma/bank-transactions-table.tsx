@@ -2391,7 +2391,9 @@ export function BankTransactionsTable({
                           ) : col.key === 'counteragentAccountNumber' ? (
                             row[col.key] ? String(row[col.key]) : '-'
                           ) : (
-                            row[col.key] ?? '-'
+                            typeof row[col.key] === 'object' && row[col.key] !== null
+                              ? JSON.stringify(row[col.key])
+                              : row[col.key] ?? '-'
                           )}
                         </div>
                       </td>
