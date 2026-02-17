@@ -32,6 +32,13 @@
 - Commit: 6f5aec4
 - Production: https://ice-jnhitb4hy-iceerp.vercel.app
 
+## 2026-02-18
+- Summary: Redeploy after Supabase env update.
+- Changes:
+  - Environment: set SUPABASE_URL for signed upload endpoint.
+- Commit: N/A
+- Production: https://ice-6beiotoux-iceerp.vercel.app
+
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
 - Changes:
