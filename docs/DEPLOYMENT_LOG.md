@@ -21,7 +21,7 @@
 - Summary: Add upload progress logging for bank XML imports.
 - Changes:
   - Bank transactions: show Supabase upload progress and import API status in the log window.
-- Commit: TBD
+- Commit: d7ae7f0
 - Production: TBD
 
 ## 2026-02-17
