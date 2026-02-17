@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { processBOGGEL, processTBCGEL } from "@/lib/bank-import/import_bank_xml_data";
+import { processBOGGELDeconsolidated } from "@/lib/bank-import/import_bank_xml_data_deconsolidated";
+import { processTBCGEL } from "@/lib/bank-import/import_bank_xml_data";
 import { getSupabaseClient } from "@/lib/bank-import/db-utils";
 
 /**
@@ -179,22 +180,19 @@ export async function POST(req: NextRequest) {
         console.log(`✅ Account UUID: ${accountUuid}\n`);
 
         // Determine raw table name (prefer stored mapping)
-        const accountDigits = accountData.account_number.replace(/\D/g, '').slice(-10);
-        const rawTablePrefix = isBog ? 'bog_gel_raw_' : 'tbc_gel_raw_';
-        const rawTableName = accountData.raw_table_name || `${rawTablePrefix}${accountDigits}`;
-        console.log(`📋 Raw Table: ${rawTableName}\n`);
-
-        // Process the XML using TypeScript implementation
         if (isBog) {
-          await processBOGGEL(
+          console.log(`📋 Deconsolidated Table: ${accountData.account_number}_BOG_${currencyCode}\n`);
+          await processBOGGELDeconsolidated(
             xmlContent,
             accountUuid,
             accountData.account_number,
             currencyCode,
-            rawTableName,
             importBatchId
           );
         } else {
+          const accountDigits = accountData.account_number.replace(/\D/g, '').slice(-10);
+          const rawTableName = accountData.raw_table_name || `tbc_gel_raw_${accountDigits}`;
+          console.log(`📋 Raw Table: ${rawTableName}\n`);
           await processTBCGEL(
             xmlContent,
             accountUuid,

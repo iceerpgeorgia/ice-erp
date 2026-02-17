@@ -2217,16 +2217,16 @@ def main():
             print(f"   Raw Table: {raw_table_name or 'Not specified'}\n")
             
             if not parsing_scheme:
-                parsing_scheme = 'BOG_GEL'
-                print(f"⚠️ No parsing scheme specified, defaulting to BOG_GEL\n")
-            
+                parsing_scheme = 'BOG_GEL' if currency_code == 'GEL' else f"BOG_{currency_code}"
+                print(f"⚠️ No parsing scheme specified, defaulting to {parsing_scheme}\n")
+
             if not raw_table_name:
-                print(f"❌ No raw_table_name configured for this account")
-                print(f"💡 Please set raw_table_name in bank_accounts table")
-                sys.exit(1)
+                derived_scheme = 'BOG_GEL' if currency_code == 'GEL' else f"BOG_{currency_code}"
+                raw_table_name = f'"{account_number}_{derived_scheme}"'
+                print(f"⚠️ No raw_table_name configured, using derived table: {raw_table_name}\n")
             
             # Step 3: Process based on parsing scheme
-            if parsing_scheme == 'BOG_GEL':
+            if parsing_scheme in ('BOG_GEL', 'BOG_USD', 'BOG_FX'):
                 process_bog_gel(xml_file, account_uuid, account_number, currency_code, 
                               raw_table_name, supabase_conn, supabase_conn)
             else:

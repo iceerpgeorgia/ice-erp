@@ -525,7 +525,11 @@ export async function processBOGGELDeconsolidated(
     .eq('uuid', accountData.parsing_scheme_uuid)
     .single();
 
-  const scheme = schemeData?.scheme || 'BOG_GEL';
+  const scheme = !schemeData?.scheme
+    ? (currencyCode === 'USD' ? 'BOG_USD' : 'BOG_GEL')
+    : (schemeData.scheme === 'BOG_GEL' && currencyCode === 'USD')
+      ? 'BOG_USD'
+      : schemeData.scheme;
   const deconsolidatedTableName = resolveDeconsolidatedTableName(accountNumber, scheme);
 
   console.log(`📊 Bank Account UUID: ${bankAccountUuid}`);
