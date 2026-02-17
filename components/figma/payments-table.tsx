@@ -67,7 +67,7 @@ type ColumnConfig = {
 const defaultColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', width: 80, visible: false, sortable: true, filterable: true },
   { key: 'paymentId', label: 'Payment ID', width: 300, visible: true, sortable: true, filterable: true },
-  { key: 'label', label: 'Label', width: 220, visible: false, sortable: true, filterable: true },
+  { key: 'label', label: 'Label', width: 220, visible: true, sortable: true, filterable: true },
   { key: 'recordUuid', label: 'Record UUID', width: 150, visible: true, sortable: true, filterable: true },
   { key: 'projectIndex', label: 'Project', width: 400, visible: true, sortable: true, filterable: true },
   { key: 'counteragentName', label: 'Counteragent', width: 250, visible: true, sortable: true, filterable: true },
@@ -156,7 +156,7 @@ export function PaymentsTable() {
   // Load saved column configuration after hydration
   useEffect(() => {
     const versionKey = 'paymentsTableColumnsVersion';
-    const currentVersion = '2';
+    const currentVersion = '3';
     const savedVersion = localStorage.getItem(versionKey);
     if (savedVersion !== currentVersion) {
       localStorage.setItem('paymentsTableColumns', JSON.stringify(defaultColumns));
