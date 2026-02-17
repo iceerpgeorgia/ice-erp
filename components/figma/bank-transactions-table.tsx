@@ -878,29 +878,19 @@ export function BankTransactionsTable({
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
-    const supabase = getSupabaseBrowser();
-    const bucketName = 'bank-xml-uploads';
-    const uploadedFiles = await Promise.all(
-      Array.from(files).map(async (file) => {
-        const fileSuffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        const filePath = `bank-xml/${fileSuffix}-${file.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from(bucketName)
-          .upload(filePath, file, {
-            contentType: file.type || 'application/xml',
-            upsert: false,
-          });
-
-        if (uploadError) {
-          throw new Error(`Storage upload failed for ${file.name}: ${uploadError.message}`);
-        }
-
-        const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath);
-        return { name: file.name, url: data.publicUrl };
-      })
-    );
-
     let logWindow: Window | null = null;
+    let logBuffer = '';
+
+    const writeLog = (message: string) => {
+      logBuffer += `${message}\n`;
+      if (logWindow) {
+        logWindow.document.body.innerHTML = `
+          <h2 class="info">Processing...</h2>
+          <pre>${logBuffer.replace(/</g, '&lt;')}</pre>
+        `;
+      }
+    };
+
     try {
       // Open log window immediately to avoid popup blockers
       logWindow = window.open('', 'Processing Logs', 'width=800,height=600');
@@ -914,16 +904,46 @@ export function BankTransactionsTable({
                 pre { white-space: pre-wrap; word-wrap: break-word; }
                 h2 { color: #4ec9b0; }
                 .info { color: #9cdcfe; }
+                .success { color: #4ec9b0; }
+                .error { color: #f48771; }
               </style>
             </head>
             <body>
-              <h2 class="info">Processing...</h2>
-              <pre>Waiting for server response...</pre>
+              <h2 class="info">Preparing upload...</h2>
+              <pre>Initializing...</pre>
             </body>
           </html>
         `);
         logWindow.document.close();
       }
+
+      const supabase = getSupabaseBrowser();
+      const bucketName = 'bank-xml-uploads';
+      writeLog(`Uploading ${files.length} file(s) to Supabase Storage bucket: ${bucketName}`);
+
+      const uploadedFiles = await Promise.all(
+        Array.from(files).map(async (file) => {
+          writeLog(`→ Uploading ${file.name} (${file.size.toLocaleString()} bytes)`);
+          const fileSuffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          const filePath = `bank-xml/${fileSuffix}-${file.name}`;
+          const { error: uploadError } = await supabase.storage
+            .from(bucketName)
+            .upload(filePath, file, {
+              contentType: file.type || 'application/xml',
+              upsert: false,
+            });
+
+          if (uploadError) {
+            throw new Error(`Storage upload failed for ${file.name}: ${uploadError.message}`);
+          }
+
+          const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+          writeLog(`✓ Uploaded ${file.name}`);
+          return { name: file.name, url: data.publicUrl };
+        })
+      );
+
+      writeLog('All files uploaded. Calling import API...');
 
       const response = await fetch(uploadEndpoint, {
         method: 'POST',
@@ -934,10 +954,6 @@ export function BankTransactionsTable({
       const result = await response.json();
 
       if (response.ok) {
-        // Show logs in a textarea for better readability
-        if (!logWindow) {
-          logWindow = window.open('', 'Processing Logs', 'width=800,height=600');
-        }
         if (logWindow) {
           logWindow.document.write(`
             <html>
@@ -964,9 +980,11 @@ export function BankTransactionsTable({
           window.location.reload();
         }
       } else {
+        writeLog(`✗ Import API error: ${result.error || 'Unknown error'}`);
         alert(`Error: ${result.error}${result.details ? '\n' + result.details : ''}`);
       }
     } catch (error: any) {
+      writeLog(`✗ Upload failed: ${error.message}`);
       alert(`Upload failed: ${error.message}`);
     } finally {
       setIsUploading(false);

@@ -17,6 +17,13 @@
 - Commit: 54e47dd
 - Production: https://ice-ko1t28e0u-iceerp.vercel.app
 
+## 2026-02-18
+- Summary: Add upload progress logging for bank XML imports.
+- Changes:
+  - Bank transactions: show Supabase upload progress and import API status in the log window.
+- Commit: TBD
+- Production: TBD
+
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
 - Changes:
