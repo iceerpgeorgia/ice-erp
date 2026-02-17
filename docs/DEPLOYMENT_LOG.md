@@ -14,7 +14,7 @@
 - Changes:
   - Bank transactions: upload XML files to Supabase Storage and pass public URLs to the import API.
   - Blob upload route: disable legacy Vercel Blob handler.
-- Commit: TBD
+- Commit: 54e47dd
 - Production: TBD
 
 ## 2026-02-17
