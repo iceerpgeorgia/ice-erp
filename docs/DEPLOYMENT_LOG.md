@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-17
+- Summary: Reset payments report column cache to reveal label.
+- Changes:
+  - Payments report: force column defaults refresh so Label appears in selector and defaults.
+- Commit: 141239d
+- Production: https://ice-ggtt1xd3b-iceerp.vercel.app
+
+## 2026-02-17
 - Summary: Expose payment label in payments report flows.
 - Changes:
   - Payments report: show Label column by default and add label input in Add Payment flow.
