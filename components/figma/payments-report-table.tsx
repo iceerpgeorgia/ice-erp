@@ -80,7 +80,7 @@ type ColumnConfig = {
 const defaultColumns: ColumnConfig[] = [
   { key: 'counteragent', label: 'Counteragent', visible: true, sortable: true, filterable: true, width: 280 },
   { key: 'paymentId', label: 'Payment ID', visible: true, sortable: true, filterable: true, width: 150 },
-  { key: 'label', label: 'Label', visible: false, sortable: true, filterable: true, width: 200 },
+  { key: 'label', label: 'Label', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'currency', label: 'Currency', visible: true, sortable: true, filterable: true, width: 100 },
   { key: 'financialCode', label: 'Financial Code', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'incomeTax', label: 'Income Tax', visible: true, sortable: true, filterable: true, format: 'boolean', width: 100 },
@@ -239,6 +239,7 @@ export function PaymentsReportTable() {
   const [selectedJobUuid, setSelectedJobUuid] = useState('');
   const [selectedCurrencyUuid, setSelectedCurrencyUuid] = useState('');
   const [selectedIncomeTax, setSelectedIncomeTax] = useState(false);
+  const [selectedLabel, setSelectedLabel] = useState('');
   const [payments, setPayments] = useState<Array<{ 
     paymentId: string; 
     counteragentName?: string;
@@ -274,6 +275,15 @@ export function PaymentsReportTable() {
 
   // Load saved column configuration and date filter after hydration
   useEffect(() => {
+    const versionKey = 'paymentsReportColumnsVersion';
+    const currentVersion = '2';
+    const savedVersion = localStorage.getItem(versionKey);
+    if (savedVersion !== currentVersion) {
+      localStorage.setItem('paymentsReportColumns', JSON.stringify(defaultColumns));
+      localStorage.setItem(versionKey, currentVersion);
+      setColumns(defaultColumns);
+    }
+
     const saved = localStorage.getItem('paymentsReportColumns');
     if (saved) {
       try {
@@ -687,6 +697,7 @@ export function PaymentsReportTable() {
     setSelectedJobUuid('');
     setSelectedCurrencyUuid('');
     setSelectedIncomeTax(false);
+    setSelectedLabel('');
     setIsCreatingPayment(false);
   };
 
@@ -783,7 +794,8 @@ export function PaymentsReportTable() {
           financialCodeUuid: selectedFinancialCodeUuid,
           jobUuid: selectedJobUuid || null,
           incomeTax: selectedIncomeTax,
-          currencyUuid: selectedCurrencyUuid
+          currencyUuid: selectedCurrencyUuid,
+          label: selectedLabel || null
         })
       });
 
@@ -1729,6 +1741,15 @@ export function PaymentsReportTable() {
                           placeholder="Select job..."
                           searchPlaceholder="Search jobs..."
                           disabled={!selectedProjectUuid}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Label (Optional)</Label>
+                        <Input
+                          value={selectedLabel}
+                          onChange={(e) => setSelectedLabel(e.target.value)}
+                          placeholder="Payment label"
                         />
                       </div>
 
