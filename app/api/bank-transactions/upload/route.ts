@@ -180,8 +180,12 @@ export async function POST(req: NextRequest) {
         console.log(`✅ Account UUID: ${accountUuid}\n`);
 
         // Determine raw table name (prefer stored mapping)
+        const deconsolidatedTableName = isBog
+          ? `${accountData.account_number}_BOG_${currencyCode}`
+          : null;
+
         if (isBog) {
-          console.log(`📋 Deconsolidated Table: ${accountData.account_number}_BOG_${currencyCode}\n`);
+          console.log(`📋 Deconsolidated Table: ${deconsolidatedTableName}\n`);
           await processBOGGELDeconsolidated(
             xmlContent,
             accountUuid,
@@ -207,7 +211,7 @@ export async function POST(req: NextRequest) {
           filename: file.name,
           success: true,
           accountNumber: accountNumber,
-          rawTable: rawTableName,
+          rawTable: isBog ? deconsolidatedTableName : rawTableName,
         });
 
         console.log(`\n✅ Successfully processed ${file.name}`);
