@@ -1,13 +1,8 @@
-import { handleUpload } from '@vercel/blob';
-
-export async function POST(request: Request) {
-  return handleUpload({
-    request,
-    onBeforeGenerateToken: async () => ({
-      allowedContentTypes: ['application/xml', 'text/xml'],
-      maximumSizeInBytes: 20 * 1024 * 1024,
-      tokenPayload: JSON.stringify({}),
+export async function POST() {
+  return new Response(
+    JSON.stringify({
+      error: 'Blob uploads are disabled. Use Supabase Storage uploads instead.',
     }),
-    onUploadCompleted: async () => {},
-  });
+    { status: 410, headers: { 'Content-Type': 'application/json' } }
+  );
 }

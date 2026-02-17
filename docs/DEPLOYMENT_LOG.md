@@ -9,6 +9,14 @@
 - Commit: a02f46b
 - Production: https://ice-oq9ojyouw-iceerp.vercel.app
 
+## 2026-02-18
+- Summary: Switch bank XML uploads to Supabase Storage.
+- Changes:
+  - Bank transactions: upload XML files to Supabase Storage and pass public URLs to the import API.
+  - Blob upload route: disable legacy Vercel Blob handler.
+- Commit: TBD
+- Production: TBD
+
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
 - Changes:

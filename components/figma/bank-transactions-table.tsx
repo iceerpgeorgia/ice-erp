@@ -14,7 +14,7 @@ import {
   RefreshCw,
   X
 } from 'lucide-react';
-import { upload } from '@vercel/blob/client';
+import { getSupabaseBrowser } from '@/lib/supabase';
 import * as XLSX from 'xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { Button } from './ui/button';
@@ -878,13 +878,25 @@ export function BankTransactionsTable({
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
+    const supabase = getSupabaseBrowser();
+    const bucketName = 'bank-xml-uploads';
     const uploadedFiles = await Promise.all(
       Array.from(files).map(async (file) => {
-        const blob = await upload(file.name, file, {
-          access: 'public',
-          handleUploadUrl: '/api/blob/upload',
-        });
-        return { name: file.name, url: blob.url };
+        const fileSuffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const filePath = `bank-xml/${fileSuffix}-${file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from(bucketName)
+          .upload(filePath, file, {
+            contentType: file.type || 'application/xml',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw new Error(`Storage upload failed for ${file.name}: ${uploadError.message}`);
+        }
+
+        const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+        return { name: file.name, url: data.publicUrl };
       })
     );
 
