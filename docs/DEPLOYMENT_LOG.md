@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-17
+- Summary: Enable BOG USD deconsolidated uploads.
+- Changes:
+  - Bank transactions upload: route BOG XML to deconsolidated processing and resolve BOG_USD tables.
+  - Deconsolidated importer: force BOG_USD scheme for USD accounts.
+  - Import script: support BOG_USD table name derivation when missing.
+- Commit: a02f46b
+- Production: https://ice-oq9ojyouw-iceerp.vercel.app
+
+## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
 - Changes:
   - Payments report: force column defaults refresh so Label appears in selector and defaults.
