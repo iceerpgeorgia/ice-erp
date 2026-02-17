@@ -44,7 +44,7 @@
 - Changes:
   - Supabase server client: fall back to NEXT_PUBLIC_SUPABASE_URL if SUPABASE_URL is missing.
 - Commit: 9fab944
-- Production: TBD
+- Production: https://ice-mnmgc1qxd-iceerp.vercel.app
 
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
