@@ -276,15 +276,16 @@ export function PaymentsReportTable() {
   // Load saved column configuration and date filter after hydration
   useEffect(() => {
     const versionKey = 'paymentsReportColumnsVersion';
-    const currentVersion = '2';
+    const currentVersion = '3';
     const savedVersion = localStorage.getItem(versionKey);
-    if (savedVersion !== currentVersion) {
+    const shouldLoadSavedColumns = savedVersion === currentVersion;
+    if (!shouldLoadSavedColumns) {
       localStorage.setItem('paymentsReportColumns', JSON.stringify(defaultColumns));
       localStorage.setItem(versionKey, currentVersion);
       setColumns(defaultColumns);
     }
 
-    const saved = localStorage.getItem('paymentsReportColumns');
+    const saved = shouldLoadSavedColumns ? localStorage.getItem('paymentsReportColumns') : null;
     if (saved) {
       try {
         const savedColumns = JSON.parse(saved) as ColumnConfig[];
