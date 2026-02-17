@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-17
+- Summary: Expose payment label in payments report flows.
+- Changes:
+  - Payments report: show Label column by default and add label input in Add Payment flow.
+- Commit: 47a1851
+- Production: https://ice-l2naqwnwd-iceerp.vercel.app
+
+## 2026-02-17
 - Summary: Enable payment labels in UI and schema.
 - Changes:
   - Payments: show Label column by default in the payments table.
