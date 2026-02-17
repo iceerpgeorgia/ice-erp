@@ -24,6 +24,14 @@
 - Commit: d7ae7f0
 - Production: https://ice-2nlrbs2f7-iceerp.vercel.app
 
+## 2026-02-18
+- Summary: Fix Supabase upload signatures with signed URLs.
+- Changes:
+  - Storage: add signed upload URL endpoint for bank XML files.
+  - Bank transactions: upload XML via signed URLs to avoid signature errors.
+- Commit: TBD
+- Production: TBD
+
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
 - Changes:

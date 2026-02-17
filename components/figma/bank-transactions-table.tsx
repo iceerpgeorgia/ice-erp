@@ -923,12 +923,23 @@ export function BankTransactionsTable({
 
       const uploadedFiles = await Promise.all(
         Array.from(files).map(async (file) => {
+          writeLog(`→ Requesting signed upload URL for ${file.name}`);
+          const urlResponse = await fetch('/api/storage/upload-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName: file.name, bucket: bucketName }),
+          });
+
+          const urlResult = await urlResponse.json();
+          if (!urlResponse.ok) {
+            throw new Error(`Failed to get signed URL for ${file.name}: ${urlResult.error || 'Unknown error'}`);
+          }
+
+          const { path, token } = urlResult;
           writeLog(`→ Uploading ${file.name} (${file.size.toLocaleString()} bytes)`);
-          const fileSuffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-          const filePath = `bank-xml/${fileSuffix}-${file.name}`;
           const { error: uploadError } = await supabase.storage
             .from(bucketName)
-            .upload(filePath, file, {
+            .uploadToSignedUrl(path, token, file, {
               contentType: file.type || 'application/xml',
               upsert: false,
             });
@@ -937,7 +948,7 @@ export function BankTransactionsTable({
             throw new Error(`Storage upload failed for ${file.name}: ${uploadError.message}`);
           }
 
-          const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+          const { data } = supabase.storage.from(bucketName).getPublicUrl(path);
           writeLog(`✓ Uploaded ${file.name}`);
           return { name: file.name, url: data.publicUrl };
         })
