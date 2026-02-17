@@ -43,7 +43,7 @@
 - Summary: Allow server Supabase URL fallback.
 - Changes:
   - Supabase server client: fall back to NEXT_PUBLIC_SUPABASE_URL if SUPABASE_URL is missing.
-- Commit: TBD
+- Commit: 9fab944
 - Production: TBD
 
 ## 2026-02-17
