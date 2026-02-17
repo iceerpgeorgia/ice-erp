@@ -30,7 +30,7 @@
   - Storage: add signed upload URL endpoint for bank XML files.
   - Bank transactions: upload XML via signed URLs to avoid signature errors.
 - Commit: 6f5aec4
-- Production: TBD
+- Production: https://ice-jnhitb4hy-iceerp.vercel.app
 
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
