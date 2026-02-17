@@ -1,4 +1,4 @@
-import { handleUpload } from '@vercel/blob/server';
+import { handleUpload } from '@vercel/blob';
 
 export async function POST(request: Request) {
   return handleUpload({

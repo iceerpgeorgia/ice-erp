@@ -14,6 +14,7 @@ import {
   RefreshCw,
   X
 } from 'lucide-react';
+import { upload } from '@vercel/blob/client';
 import * as XLSX from 'xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { Button } from './ui/button';
@@ -48,7 +49,6 @@ export type BankTransaction = {
   uuid: string;
   accountUuid: string;
   accountCurrencyUuid: string;
-import { upload } from '@vercel/blob/client';
   accountCurrencyAmount: string;
   paymentUuid: string | null;
   counteragentUuid: string | null;
