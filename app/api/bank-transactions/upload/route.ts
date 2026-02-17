@@ -183,6 +183,7 @@ export async function POST(req: NextRequest) {
         const deconsolidatedTableName = isBog
           ? `${accountData.account_number}_BOG_${currencyCode}`
           : null;
+        let rawTableName: string | null = null;
 
         if (isBog) {
           console.log(`📋 Deconsolidated Table: ${deconsolidatedTableName}\n`);
@@ -195,7 +196,7 @@ export async function POST(req: NextRequest) {
           );
         } else {
           const accountDigits = accountData.account_number.replace(/\D/g, '').slice(-10);
-          const rawTableName = accountData.raw_table_name || `tbc_gel_raw_${accountDigits}`;
+          rawTableName = accountData.raw_table_name || `tbc_gel_raw_${accountDigits}`;
           console.log(`📋 Raw Table: ${rawTableName}\n`);
           await processTBCGEL(
             xmlContent,
