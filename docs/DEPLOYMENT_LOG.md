@@ -22,7 +22,7 @@
 - Changes:
   - Bank transactions: show Supabase upload progress and import API status in the log window.
 - Commit: d7ae7f0
-- Production: TBD
+- Production: https://ice-2nlrbs2f7-iceerp.vercel.app
 
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
