@@ -15,7 +15,7 @@
   - Bank transactions: upload XML files to Supabase Storage and pass public URLs to the import API.
   - Blob upload route: disable legacy Vercel Blob handler.
 - Commit: 54e47dd
-- Production: TBD
+- Production: https://ice-ko1t28e0u-iceerp.vercel.app
 
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
