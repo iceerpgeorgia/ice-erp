@@ -1,11 +1,19 @@
 # Deployment Log
 
+## 2026-02-17
+- Summary: Enable payment labels in UI and schema.
+- Changes:
+  - Payments: show Label column by default in the payments table.
+  - Database: add `label` column to payments table via migration.
+- Commit: 23a8a1f
+- Production: https://ice-nfalvtg66-iceerp.vercel.app
+
 ## 2026-02-16
 - Summary: Relax payments ledger order/accrual validation to allow corrections.
 - Changes:
   - Payments ledger: allow inserts/updates that do not increase order-over-accrual excess.
 - Commit: 3358688
-- Production: TBD
+- Production: https://ice-otv52tnvr-iceerp.vercel.app
 
 ## 2026-02-16
 - Summary: Restore payments report bank aggregation after unbound counteragent change.
