@@ -198,6 +198,9 @@ export async function POST(req: NextRequest) {
           const accountDigits = accountData.account_number.replace(/\D/g, '').slice(-10);
           rawTableName = accountData.raw_table_name || `tbc_gel_raw_${accountDigits}`;
           console.log(`📋 Raw Table: ${rawTableName}\n`);
+          if (!rawTableName) {
+            throw new Error('Unable to resolve raw table name for TBC import');
+          }
           await processTBCGEL(
             xmlContent,
             accountUuid,
