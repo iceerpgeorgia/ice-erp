@@ -2,7 +2,7 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 // Server-side client: prefers service role (bypasses RLS), falls back to anon if needed
 export function getSupabaseServer(): SupabaseClient {
-  const url = process.env.SUPABASE_URL;
+  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const anonKey = process.env.SUPABASE_ANON_KEY;
   if (!url) throw new Error("SUPABASE_URL is not set");

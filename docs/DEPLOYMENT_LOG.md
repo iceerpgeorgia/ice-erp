@@ -39,6 +39,13 @@
 - Commit: N/A
 - Production: https://ice-6beiotoux-iceerp.vercel.app
 
+## 2026-02-18
+- Summary: Allow server Supabase URL fallback.
+- Changes:
+  - Supabase server client: fall back to NEXT_PUBLIC_SUPABASE_URL if SUPABASE_URL is missing.
+- Commit: TBD
+- Production: TBD
+
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
 - Changes:
