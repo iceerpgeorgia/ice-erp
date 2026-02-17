@@ -29,7 +29,7 @@
 - Changes:
   - Storage: add signed upload URL endpoint for bank XML files.
   - Bank transactions: upload XML via signed URLs to avoid signature errors.
-- Commit: TBD
+- Commit: 6f5aec4
 - Production: TBD
 
 ## 2026-02-17
