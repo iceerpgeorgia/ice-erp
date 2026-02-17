@@ -914,7 +914,6 @@ export function BankTransactionsTable({
       }
 
       const response = await fetch(uploadEndpoint, {
-      const response = await fetch(uploadEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ files: uploadedFiles }),
