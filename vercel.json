@@ -3,14 +3,6 @@
   "installCommand": "pnpm install",
   "framework": "nextjs",
   "regions": ["iad1"],
-  "functions": {
-    "app/api/bank-transactions/upload/route.ts": {
-      "maxBodySize": "10mb"
-    },
-    "app/api/bank-transactions-test/upload/route.ts": {
-      "maxBodySize": "10mb"
-    }
-  },
   "env": {
     "NEXTAUTH_URL": "https://iceerpgeorgia.com"
   },

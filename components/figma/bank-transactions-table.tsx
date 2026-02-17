@@ -48,6 +48,7 @@ export type BankTransaction = {
   uuid: string;
   accountUuid: string;
   accountCurrencyUuid: string;
+import { upload } from '@vercel/blob/client';
   accountCurrencyAmount: string;
   paymentUuid: string | null;
   counteragentUuid: string | null;
@@ -877,12 +878,15 @@ export function BankTransactionsTable({
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
-    const formData = new FormData();
-    
-    // Add all selected files
-    Array.from(files).forEach(file => {
-      formData.append('file', file);
-    });
+    const uploadedFiles = await Promise.all(
+      Array.from(files).map(async (file) => {
+        const blob = await upload(file.name, file, {
+          access: 'public',
+          handleUploadUrl: '/api/blob/upload',
+        });
+        return { name: file.name, url: blob.url };
+      })
+    );
 
     let logWindow: Window | null = null;
     try {
@@ -910,8 +914,10 @@ export function BankTransactionsTable({
       }
 
       const response = await fetch(uploadEndpoint, {
+      const response = await fetch(uploadEndpoint, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: uploadedFiles }),
       });
 
       const result = await response.json();

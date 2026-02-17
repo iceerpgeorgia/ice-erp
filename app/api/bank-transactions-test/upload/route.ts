@@ -29,34 +29,74 @@ export async function POST(req: NextRequest) {
   };
 
   try {
-    const formData = await req.formData();
-    const files = formData.getAll("file") as File[];
+    const contentType = req.headers.get('content-type') || '';
+    const fileItems: Array<{ name: string; getText: () => Promise<string> }> = [];
 
-    if (!files || files.length === 0) {
-      return NextResponse.json({ error: "No files provided" }, { status: 400 });
-    }
+    if (contentType.includes('application/json')) {
+      const body = await req.json();
+      const files = Array.isArray(body?.files) ? body.files : [];
 
-    const invalidFiles = files.filter((f) => !f.name.toLowerCase().endsWith(".xml"));
-    if (invalidFiles.length > 0) {
-      return NextResponse.json(
-        { error: `Only XML files are accepted. Invalid files: ${invalidFiles.map((f) => f.name).join(", ")}` },
-        { status: 400 }
-      );
+      if (files.length === 0) {
+        return NextResponse.json({ error: 'No files provided' }, { status: 400 });
+      }
+
+      for (const file of files) {
+        const name = String(file?.name || '').trim();
+        const url = String(file?.url || file?.blobUrl || '').trim();
+        if (!name || !url) {
+          return NextResponse.json({ error: 'Invalid file payload' }, { status: 400 });
+        }
+        if (!name.toLowerCase().endsWith('.xml')) {
+          return NextResponse.json(
+            { error: `Only XML files are accepted. Invalid file: ${name}` },
+            { status: 400 }
+          );
+        }
+        fileItems.push({
+          name,
+          getText: async () => {
+            const resp = await fetch(url);
+            if (!resp.ok) {
+              throw new Error(`Failed to fetch uploaded file: ${name}`);
+            }
+            return resp.text();
+          },
+        });
+      }
+    } else {
+      const formData = await req.formData();
+      const files = formData.getAll('file') as File[];
+
+      if (!files || files.length === 0) {
+        return NextResponse.json({ error: 'No files provided' }, { status: 400 });
+      }
+
+      const invalidFiles = files.filter((f) => !f.name.toLowerCase().endsWith('.xml'));
+      if (invalidFiles.length > 0) {
+        return NextResponse.json(
+          { error: `Only XML files are accepted. Invalid files: ${invalidFiles.map((f) => f.name).join(', ')}` },
+          { status: 400 }
+        );
+      }
+
+      files.forEach((file) => {
+        fileItems.push({ name: file.name, getText: () => file.text() });
+      });
     }
 
     const results = [];
-    console.log(`Processing ${files.length} file(s)...\n`);
+    console.log(`Processing ${fileItems.length} file(s)...\n`);
     console.log(`Import Batch ID: ${importBatchId}\n`);
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    for (let i = 0; i < fileItems.length; i++) {
+      const file = fileItems[i];
       const fileNum = i + 1;
       console.log("\n" + "=".repeat(60));
-      console.log(`FILE ${fileNum}/${files.length}: ${file.name}`);
+      console.log(`FILE ${fileNum}/${fileItems.length}: ${file.name}`);
       console.log("=".repeat(60) + "\n");
 
       try {
-        const xmlContent = await file.text();
+        const xmlContent = await file.getText();
         console.log(`✓ File read: ${file.name} (${xmlContent.length} bytes)\n`);
 
         const { parseStringPromise } = await import("xml2js");
@@ -225,7 +265,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: failCount === 0,
-      message: `Processed ${files.length} file(s): ${successCount} succeeded, ${failCount} failed`,
+      message: `Processed ${fileItems.length} file(s): ${successCount} succeeded, ${failCount} failed`,
       results,
       logs: allLogs,
       importBatchId,

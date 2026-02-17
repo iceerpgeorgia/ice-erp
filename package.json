@@ -47,6 +47,7 @@
     "@supabase/supabase-js": "^2.57.4",
     "@tanstack/react-table": "^8.16.0",
     "@tanstack/react-virtual": "^3.0.0",
+    "@vercel/blob": "^2.2.0",
     "axios": "^1.12.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
