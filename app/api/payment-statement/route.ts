@@ -204,7 +204,24 @@ export async function GET(request: NextRequest) {
           ba.account_number as bank_account_number,
           curr.code as account_currency_code
         FROM (
-          ${SOURCE_TABLES.map((table) => `SELECT *, '${table.name}' as source_table, ${table.offset}::bigint as source_offset FROM "${table.name}"`).join(' UNION ALL ')}
+          ${SOURCE_TABLES.map((table) => `SELECT
+            id,
+            uuid,
+            raw_record_uuid,
+            dockey,
+            entriesid,
+            payment_id,
+            account_currency_amount,
+            nominal_amount,
+            transaction_date,
+            counteragent_account_number,
+            description,
+            created_at,
+            bank_account_uuid,
+            account_currency_uuid,
+            '${table.name}' as source_table,
+            ${table.offset}::bigint as source_offset
+          FROM "${table.name}"`).join(' UNION ALL ')}
         ) cba
         LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
         LEFT JOIN currencies curr ON cba.account_currency_uuid = curr.uuid
@@ -239,7 +256,24 @@ export async function GET(request: NextRequest) {
           ba.account_number as bank_account_number,
           curr.code as account_currency_code
         FROM (
-          ${SOURCE_TABLES.map((table) => `SELECT *, '${table.name}' as source_table, ${table.offset}::bigint as source_offset FROM "${table.name}"`).join(' UNION ALL ')}
+          ${SOURCE_TABLES.map((table) => `SELECT
+            id,
+            uuid,
+            raw_record_uuid,
+            dockey,
+            entriesid,
+            payment_id,
+            account_currency_amount,
+            nominal_amount,
+            transaction_date,
+            counteragent_account_number,
+            description,
+            created_at,
+            bank_account_uuid,
+            account_currency_uuid,
+            '${table.name}' as source_table,
+            ${table.offset}::bigint as source_offset
+          FROM "${table.name}"`).join(' UNION ALL ')}
         ) cba
         JOIN bank_transaction_batches btb
           ON btb.raw_record_uuid::text = cba.raw_record_uuid::text

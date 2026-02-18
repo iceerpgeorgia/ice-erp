@@ -395,7 +395,7 @@ export function PaymentsReportTable() {
     const fetchDictionaries = async () => {
       try {
         const [projectsRes, counteragentsRes, financialCodesRes, currenciesRes] = await Promise.all([
-          fetch('/api/projects'),
+          fetch('/api/projects-v2'),
           fetch('/api/counteragents'),
           fetch('/api/financial-codes?leafOnly=true'),
           fetch('/api/currencies')
@@ -409,14 +409,20 @@ export function PaymentsReportTable() {
               ? projectsData.data
               : [];
           setProjects(list);
+        } else {
+          console.error('Error fetching projects:', await projectsRes.text());
         }
         if (counteragentsRes.ok) {
           const counteragentsData = await counteragentsRes.json();
           setCounteragents(Array.isArray(counteragentsData) ? counteragentsData : []);
+        } else {
+          console.error('Error fetching counteragents:', await counteragentsRes.text());
         }
         if (financialCodesRes.ok) {
           const financialCodesData = await financialCodesRes.json();
           setFinancialCodes(Array.isArray(financialCodesData) ? financialCodesData : []);
+        } else {
+          console.error('Error fetching financial codes:', await financialCodesRes.text());
         }
         if (currenciesRes.ok) {
           const currenciesData = await currenciesRes.json();
@@ -426,6 +432,8 @@ export function PaymentsReportTable() {
               ? currenciesData.data
               : [];
           setCurrencies(list);
+        } else {
+          console.error('Error fetching currencies:', await currenciesRes.text());
         }
       } catch (error) {
         console.error('Error fetching dictionaries:', error);
