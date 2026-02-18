@@ -90,7 +90,7 @@
 - Changes:
   - Deconsolidated import: handle null parsing_scheme_uuid and map EUR to BOG_EUR.
 - Commit: 6e66a0f
-- Production: TBD
+- Production: https://ice-6ak34akzj-iceerp.vercel.app
 
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
