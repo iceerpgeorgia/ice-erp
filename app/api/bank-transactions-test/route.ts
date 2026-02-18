@@ -13,6 +13,13 @@ const SOURCE_TABLES = [
     isTbc: false,
   },
   {
+    name: "GE78BG0000000893486000_BOG_USD",
+    offset: 500000000000,
+    bankAccountUuid: null,
+    accountCurrencyUuid: null,
+    isTbc: false,
+  },
+  {
     name: "GE65TB7856036050100002_TBC_GEL",
     offset: 1000000000000,
     bankAccountUuid: "1ef0f05d-00cc-4c6c-a858-4d8d50069496",

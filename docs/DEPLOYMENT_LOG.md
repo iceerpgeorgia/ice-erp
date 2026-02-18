@@ -53,6 +53,14 @@
 - Commit: da6b36b
 - Production: https://ice-hxm01m7b0-iceerp.vercel.app
 
+## 2026-02-18
+- Summary: Show BOG USD records in bank transactions.
+- Changes:
+  - Bank transactions API: include BOG USD table in list/test and record resolution.
+  - Parsing lock: allow BOG USD table updates.
+- Commit: TBD
+- Production: TBD
+
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
 - Changes:
