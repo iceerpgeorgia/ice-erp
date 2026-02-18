@@ -360,7 +360,7 @@ export default function CounteragentStatementPage() {
     const fetchDictionaries = async () => {
       try {
         const [projectsRes, counteragentsRes, financialCodesRes, currenciesRes] = await Promise.all([
-          fetch('/api/projects'),
+          fetch('/api/projects-v2', { cache: 'no-store' }),
           fetch('/api/counteragents'),
           fetch('/api/financial-codes?leafOnly=true'),
           fetch('/api/currencies')
@@ -374,6 +374,10 @@ export default function CounteragentStatementPage() {
               ? projectsData.data
               : [];
           setProjects(list);
+        } else {
+          const errorPayload = await projectsRes.json().catch(() => ({}));
+          console.error('Failed to fetch projects:', projectsRes.status, errorPayload);
+          setProjects([]);
         }
         if (counteragentsRes.ok) {
           const counteragentsData = await counteragentsRes.json();
