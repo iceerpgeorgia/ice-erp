@@ -573,6 +573,35 @@ export async function processBOGGELDeconsolidated(
       loadCurrencyCache(supabase),
     ]);
 
+  const { data: bankAccountsData, error: bankAccountsError } = await supabase
+    .from('bank_accounts')
+    .select('uuid, account_number, currency_uuid');
+  if (bankAccountsError) throw bankAccountsError;
+
+  const bankAccountsMap = new Map<string, { uuid: string; account_number: string; currency_uuid: string; currency_code: string }>();
+  const bankAccountsByNumber = new Map<string, { uuid: string; account_number: string; currency_uuid: string; currency_code: string }>();
+
+  for (const row of bankAccountsData ?? []) {
+    const currencyCode = currencyCache.get(row.currency_uuid) || '';
+    const accountNumber = String(row.account_number || '').trim();
+    if (!accountNumber || !currencyCode) continue;
+    const key = `${accountNumber}_${currencyCode}`;
+    bankAccountsMap.set(key, {
+      uuid: row.uuid,
+      account_number: accountNumber,
+      currency_uuid: row.currency_uuid,
+      currency_code: currencyCode,
+    });
+    if (!bankAccountsByNumber.has(accountNumber)) {
+      bankAccountsByNumber.set(accountNumber, {
+        uuid: row.uuid,
+        account_number: accountNumber,
+        currency_uuid: row.currency_uuid,
+        currency_code: currencyCode,
+      });
+    }
+  }
+
   const { paymentsMap, salaryBaseMap, salaryLatestMap, duplicatePaymentMap } = paymentsBundle;
 
   const stats: ProcessingStats = {
@@ -590,6 +619,17 @@ export async function processBOGGELDeconsolidated(
     string,
     { inn: string; count: number; name: string }
   >();
+
+  const conversionCandidates = new Map<string, {
+    dockey: string;
+    date: Date;
+    senderAcctNo: string;
+    benefAcctNo: string;
+    docSrcAmt: string | null;
+    docDstAmt: string | null;
+    docSrcCcy: string | null;
+    docDstCcy: string | null;
+  }>();
 
   const insertRecords: any[] = [];
   let skippedDuplicates = 0;
@@ -689,6 +729,34 @@ export async function processBOGGELDeconsolidated(
       docinformation: getText('DocInformation'),
       debit: debit,
     };
+
+    const senderAcctNo = getText('DocSenderAcctNo');
+    const benefAcctNo = getText('DocBenefAcctNo');
+    const docSrcAmt = getText('DocSrcAmt');
+    const docDstAmt = getText('DocDstAmt');
+    const docSrcCcy = getText('DocSrcCcy');
+    const docDstCcy = getText('DocDstCcy');
+
+    if (
+      senderAcctNo &&
+      benefAcctNo &&
+      docSrcAmt &&
+      docDstAmt &&
+      docSrcCcy &&
+      docDstCcy &&
+      !conversionCandidates.has(DocKey)
+    ) {
+      conversionCandidates.set(DocKey, {
+        dockey: DocKey,
+        date: transactionDate,
+        senderAcctNo: String(senderAcctNo).trim(),
+        benefAcctNo: String(benefAcctNo).trim(),
+        docSrcAmt,
+        docDstAmt,
+        docSrcCcy: String(docSrcCcy).trim().toUpperCase(),
+        docDstCcy: String(docDstCcy).trim().toUpperCase(),
+      });
+    }
 
     const result = processSingleRecord(
       row,
@@ -804,6 +872,7 @@ export async function processBOGGELDeconsolidated(
       nominal_amount: nominalAmount,
       correction_date: null,
       exchange_rate: getText('CcyRate') ? Number(getText('CcyRate')) : null,
+      conversion_id: null,
     });
 
     if ((idx + 1) % 500 === 0 || idx + 1 === detailMeta.length) {
@@ -843,6 +912,146 @@ export async function processBOGGELDeconsolidated(
     console.log(`✅ Inserted ${insertRecords.length} records\n`);
   } else {
     console.log('⚠️ No new records to insert\n');
+  }
+
+  const resolveAccountLookup = (acctNo: string) => {
+    const trimmed = acctNo.trim();
+    const match = trimmed.match(/^(.+?)([A-Z]{3})$/);
+    if (match) {
+      const baseNumber = match[1];
+      const currencyCode = match[2];
+      const key = `${baseNumber}_${currencyCode}`;
+      return bankAccountsMap.get(key) || null;
+    }
+    return bankAccountsByNumber.get(trimmed) || null;
+  };
+
+  const getRate = (dateKey: string, currencyCode: string) => {
+    if (currencyCode === 'GEL') return 1;
+    const rates = nbgRatesMap.get(dateKey);
+    if (!rates) return null;
+    const rate = rates[currencyCode as keyof NBGRates];
+    return rate && rate > 0 ? Number(rate) : null;
+  };
+
+  const resolveAmounts = (
+    outCurrency: string,
+    inCurrency: string,
+    docSrcCcy: string,
+    docDstCcy: string,
+    docSrcAmt: string,
+    docDstAmt: string
+  ) => {
+    const srcAmt = Number(docSrcAmt);
+    const dstAmt = Number(docDstAmt);
+    if (docSrcCcy === outCurrency && docDstCcy === inCurrency) {
+      return { amountOut: srcAmt, amountIn: dstAmt };
+    }
+    if (docSrcCcy === inCurrency && docDstCcy === outCurrency) {
+      return { amountOut: dstAmt, amountIn: srcAmt };
+    }
+    return null;
+  };
+
+  if (conversionCandidates.size > 0) {
+    console.log('\n' + '='.repeat(80));
+    console.log('🔁 STEP 2: PROCESSING CONVERSIONS');
+    console.log('='.repeat(80) + '\n');
+
+    for (const candidate of conversionCandidates.values()) {
+      const senderAccount = resolveAccountLookup(candidate.senderAcctNo);
+      const benefAccount = resolveAccountLookup(candidate.benefAcctNo);
+
+      if (!senderAccount || !benefAccount) continue;
+      if (senderAccount.currency_code === benefAccount.currency_code) continue;
+
+      const outAccount = senderAccount;
+      const inAccount = benefAccount;
+
+      const tableOut = resolveDeconsolidatedTableName(outAccount.account_number, defaultSchemeByCurrency(outAccount.currency_code));
+      const tableIn = resolveDeconsolidatedTableName(inAccount.account_number, defaultSchemeByCurrency(inAccount.currency_code));
+
+      const { data: outRow } = await supabase
+        .from(tableOut)
+        .select('uuid, conversion_id')
+        .eq('dockey', candidate.dockey)
+        .limit(1)
+        .maybeSingle();
+
+      const { data: inRow } = await supabase
+        .from(tableIn)
+        .select('uuid, conversion_id')
+        .eq('dockey', candidate.dockey)
+        .limit(1)
+        .maybeSingle();
+
+      if (!outRow || !inRow) continue;
+      if (outRow.conversion_id || inRow.conversion_id) continue;
+
+      const amounts = resolveAmounts(
+        outAccount.currency_code,
+        inAccount.currency_code,
+        candidate.docSrcCcy || '',
+        candidate.docDstCcy || '',
+        candidate.docSrcAmt || '0',
+        candidate.docDstAmt || '0'
+      );
+
+      if (!amounts) continue;
+
+      const dateKey = candidate.date.toISOString().split('T')[0];
+      const rateOut = getRate(dateKey, outAccount.currency_code);
+      const rateIn = getRate(dateKey, inAccount.currency_code);
+      let fee: number | null = null;
+
+      if (rateOut !== null && rateIn !== null) {
+        if (outAccount.currency_code === 'GEL') {
+          fee = amounts.amountOut - amounts.amountIn * rateIn;
+        } else {
+          fee = (amounts.amountOut * rateOut - amounts.amountIn * rateIn) / rateOut;
+        }
+      }
+
+      const { data: existingConversion } = await supabase
+        .from('conversion')
+        .select('uuid')
+        .eq('key_value', candidate.dockey)
+        .eq('account_out_uuid', outAccount.uuid)
+        .eq('account_in_uuid', inAccount.uuid)
+        .maybeSingle();
+
+      let conversionUuid = existingConversion?.uuid as string | undefined;
+
+      if (!conversionUuid) {
+        const { data: insertedConversion, error: conversionError } = await supabase
+          .from('conversion')
+          .insert({
+            date: dateKey,
+            key_value: candidate.dockey,
+            account_out_uuid: outAccount.uuid,
+            account_in_uuid: inAccount.uuid,
+            currency_out_uuid: outAccount.currency_uuid,
+            currency_in_uuid: inAccount.currency_uuid,
+            amount_out: amounts.amountOut,
+            amount_in: amounts.amountIn,
+            fee: fee,
+          })
+          .select('uuid')
+          .single();
+
+        if (conversionError) {
+          console.warn('⚠️ Failed to insert conversion:', conversionError.message);
+          continue;
+        }
+
+        conversionUuid = insertedConversion?.uuid;
+      }
+
+      if (!conversionUuid) continue;
+
+      await supabase.from(tableOut).update({ conversion_id: conversionUuid }).eq('uuid', outRow.uuid);
+      await supabase.from(tableIn).update({ conversion_id: conversionUuid }).eq('uuid', inRow.uuid);
+    }
   }
 
   console.log('\n' + '='.repeat(80));
