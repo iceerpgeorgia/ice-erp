@@ -882,6 +882,7 @@ export function BankTransactionsTable({
     setIsUploading(true);
     let logWindow: Window | null = null;
     let logBuffer = '';
+    let useDialogFallback = false;
 
     const writeLog = (message: string) => {
       logBuffer += `${message}\n`;
@@ -890,6 +891,8 @@ export function BankTransactionsTable({
           <h2 class="info">Processing...</h2>
           <pre>${logBuffer.replace(/</g, '&lt;')}</pre>
         `;
+      } else if (useDialogFallback) {
+        setUploadLogText(logBuffer);
       }
     };
 
@@ -917,6 +920,11 @@ export function BankTransactionsTable({
           </html>
         `);
         logWindow.document.close();
+      } else {
+        useDialogFallback = true;
+        setUploadLogOpen(true);
+        setUploadLogTitle('Preparing upload...');
+        setUploadLogText('Popup blocked. Showing logs here...');
       }
 
       writeLog(`Uploading ${files.length} file(s) directly to import API...`);
@@ -956,17 +964,28 @@ export function BankTransactionsTable({
             </html>
           `);
           logWindow.document.close();
+        } else if (useDialogFallback) {
+          setUploadLogTitle(result.message || 'Upload complete');
+          setUploadLogText(result.logs || logBuffer || 'No logs available');
         } else {
           alert(`Success! ${result.message}\n\nPage will reload.`);
           window.location.reload();
         }
       } else {
         writeLog(`✗ Import API error: ${result.error || 'Unknown error'}`);
-        alert(`Error: ${result.error}${result.details ? '\n' + result.details : ''}`);
+        if (useDialogFallback) {
+          setUploadLogTitle('Upload failed');
+        } else {
+          alert(`Error: ${result.error}${result.details ? '\n' + result.details : ''}`);
+        }
       }
     } catch (error: any) {
       writeLog(`✗ Upload failed: ${error.message}`);
-      alert(`Upload failed: ${error.message}`);
+      if (useDialogFallback) {
+        setUploadLogTitle('Upload failed');
+      } else {
+        alert(`Upload failed: ${error.message}`);
+      }
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {

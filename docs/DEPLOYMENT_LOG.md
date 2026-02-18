@@ -76,6 +76,15 @@
 - Commit: abf0504
 - Production: https://ice-2jtlqk6ia-iceerp.vercel.app
 
+## 2026-02-18
+- Summary: Add BOG EUR support and popup fallback logs.
+- Changes:
+  - Bank transactions: include BOG EUR sources and resolve IDs correctly; allow parsing lock updates.
+  - Payment statement: include BOG EUR table in bank sources.
+  - Upload logs: fallback to in-page dialog when popup is blocked.
+- Commit: TBD
+- Production: TBD
+
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
 - Changes:

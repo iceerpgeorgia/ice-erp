@@ -8,6 +8,7 @@ export const revalidate = 0;
 const SOURCE_TABLES = [
   { name: 'GE78BG0000000893486000_BOG_GEL', offset: 0 },
   { name: 'GE78BG0000000893486000_BOG_USD', offset: 500000000000 },
+  { name: 'GE78BG0000000893486000_BOG_EUR', offset: 600000000000 },
   { name: 'GE65TB7856036050100002_TBC_GEL', offset: 1000000000000 },
 ];
 
