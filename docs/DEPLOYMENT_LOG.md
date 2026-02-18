@@ -105,7 +105,7 @@
 - Changes:
   - Bank transactions raw-record API: include new BOG tables in lookup.
 - Commit: ad4ba69
-- Production: TBD
+- Production: https://ice-f1brm5f90-iceerp.vercel.app
 
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
