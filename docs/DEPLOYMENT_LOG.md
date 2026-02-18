@@ -104,7 +104,7 @@
 - Summary: Fix raw-record lookup for BOG multi-currency tables.
 - Changes:
   - Bank transactions raw-record API: include new BOG tables in lookup.
-- Commit: TBD
+- Commit: ad4ba69
 - Production: TBD
 
 ## 2026-02-17
