@@ -83,7 +83,7 @@
   - Payment statement: include BOG EUR table in bank sources.
   - Upload logs: fallback to in-page dialog when popup is blocked.
 - Commit: 31a20b6
-- Production: TBD
+- Production: https://ice-mjhtyj0oz-iceerp.vercel.app
 
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
