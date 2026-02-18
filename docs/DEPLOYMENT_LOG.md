@@ -97,7 +97,7 @@
 - Changes:
   - Deconsolidated import: map AED/GBP/KZT/CNY/TRY to BOG schemes.
   - Bank transactions/payment statement: include new BOG currency tables and second USD account.
-- Commit: TBD
+- Commit: a374d33
 - Production: TBD
 
 ## 2026-02-17
