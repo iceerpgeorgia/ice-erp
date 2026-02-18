@@ -587,7 +587,6 @@ export async function GET(req: NextRequest) {
         const inFinancialCodeUuid = inRaw?.financial_code_uuid ?? null;
 
         const baseId = conversionIdBase + Number(row.id) * 3;
-        const usdGelRate = getUsdGelRate(correctionDate || conversionDate);
 
         conversionRowsBuilder.push(
           {
@@ -633,7 +632,7 @@ export async function GET(req: NextRequest) {
             financial_code: null,
             account_currency_code: accountOutCurrencyCode,
             nominal_currency_code: accountOutCurrencyCode,
-            usd_gel_rate: usdGelRate,
+            usd_gel_rate: null,
           },
           {
             id: baseId + 1,
@@ -678,7 +677,7 @@ export async function GET(req: NextRequest) {
             financial_code: null,
             account_currency_code: accountOutCurrencyCode,
             nominal_currency_code: accountOutCurrencyCode,
-            usd_gel_rate: usdGelRate,
+            usd_gel_rate: null,
           },
           {
             id: baseId + 2,
@@ -723,7 +722,7 @@ export async function GET(req: NextRequest) {
             financial_code: null,
             account_currency_code: accountInCurrencyCode,
             nominal_currency_code: accountInCurrencyCode,
-            usd_gel_rate: usdGelRate,
+            usd_gel_rate: null,
           }
         );
       }
@@ -828,6 +827,13 @@ export async function GET(req: NextRequest) {
       if (!dateKey) return null;
       return rateMap.get(dateKey) ?? null;
     };
+
+    if (conversionRows.length > 0) {
+      conversionRows = conversionRows.map((row) => ({
+        ...row,
+        usd_gel_rate: getUsdGelRate(row.correction_date || row.transaction_date),
+      }));
+    }
 
     const result = filteredTransactions.map(row => {
       const base = toApi(row);
