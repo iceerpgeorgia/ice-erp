@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-02-18
+- Summary: Restore Add Payment project selector data.
+- Changes:
+  - Counteragent statement: fetch projects from /api/projects-v2 and log load errors.
+- Commit: 3439094
+- Production: https://ice-erp.vercel.app
+
 ## 2026-02-17
 - Summary: Enable BOG USD deconsolidated uploads.
 - Changes:
@@ -511,9 +518,3 @@
   - Currencies page: read result.data when API returns { data: [...] }.
 - Commit: 4222952
 - Production: https://ice-7monwh5jg-iceerp.vercel.app
-## 2026-02-18
-- Summary: Restore Add Payment project selector data.
-- Changes:
-  - Counteragent statement: fetch projects from /api/projects-v2 and log load errors.
-- Commit: 3439094
-- Production: pending
