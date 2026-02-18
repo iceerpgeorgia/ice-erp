@@ -73,7 +73,7 @@
 - Changes:
   - Payment statement API: include source identifiers for correct bank edit mapping and BOG USD table in source list.
   - Bank transactions: restore popup window for detailed upload logs.
-- Commit: TBD
+- Commit: abf0504
 - Production: TBD
 
 ## 2026-02-17
