@@ -13,6 +13,11 @@ const SOURCE_TABLES = [
     isTbc: false,
   },
   {
+    name: "GE74BG0000000586388146_BOG_USD",
+    offset: 300000000000,
+    isTbc: false,
+  },
+  {
     name: "GE78BG0000000893486000_BOG_USD",
     offset: 500000000000,
     isTbc: false,
@@ -20,6 +25,31 @@ const SOURCE_TABLES = [
   {
     name: "GE78BG0000000893486000_BOG_EUR",
     offset: 600000000000,
+    isTbc: false,
+  },
+  {
+    name: "GE78BG0000000893486000_BOG_AED",
+    offset: 700000000000,
+    isTbc: false,
+  },
+  {
+    name: "GE78BG0000000893486000_BOG_GBP",
+    offset: 800000000000,
+    isTbc: false,
+  },
+  {
+    name: "GE78BG0000000893486000_BOG_KZT",
+    offset: 900000000000,
+    isTbc: false,
+  },
+  {
+    name: "GE78BG0000000893486000_BOG_CNY",
+    offset: 950000000000,
+    isTbc: false,
+  },
+  {
+    name: "GE78BG0000000893486000_BOG_TRY",
+    offset: 980000000000,
     isTbc: false,
   },
   {

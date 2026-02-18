@@ -8,18 +8,36 @@ export const revalidate = 0;
 const DEFAULT_TABLE = "GE78BG0000000893486000_BOG_GEL" as const;
 const ALLOWED_TABLES = new Set([
   "GE78BG0000000893486000_BOG_GEL",
+  "GE74BG0000000586388146_BOG_USD",
   "GE78BG0000000893486000_BOG_USD",
   "GE78BG0000000893486000_BOG_EUR",
+  "GE78BG0000000893486000_BOG_AED",
+  "GE78BG0000000893486000_BOG_GBP",
+  "GE78BG0000000893486000_BOG_KZT",
+  "GE78BG0000000893486000_BOG_CNY",
+  "GE78BG0000000893486000_BOG_TRY",
   "GE65TB7856036050100002_TBC_GEL",
 ]);
 type AllowedTable =
   | "GE78BG0000000893486000_BOG_GEL"
+  | "GE74BG0000000586388146_BOG_USD"
   | "GE78BG0000000893486000_BOG_USD"
   | "GE78BG0000000893486000_BOG_EUR"
+  | "GE78BG0000000893486000_BOG_AED"
+  | "GE78BG0000000893486000_BOG_GBP"
+  | "GE78BG0000000893486000_BOG_KZT"
+  | "GE78BG0000000893486000_BOG_CNY"
+  | "GE78BG0000000893486000_BOG_TRY"
   | "GE65TB7856036050100002_TBC_GEL";
 
+const BOG_USD_2_OFFSET = 300000000000n;
 const BOG_USD_OFFSET = 500000000000n;
 const BOG_EUR_OFFSET = 600000000000n;
+const BOG_AED_OFFSET = 700000000000n;
+const BOG_GBP_OFFSET = 800000000000n;
+const BOG_KZT_OFFSET = 900000000000n;
+const BOG_CNY_OFFSET = 950000000000n;
+const BOG_TRY_OFFSET = 980000000000n;
 const TBC_OFFSET = 1000000000000n;
 const BATCH_OFFSET = 2000000000000n;
 
@@ -57,22 +75,58 @@ function resolveSyntheticId(rawId: bigint): { tableName: AllowedTable; recordId:
     if (adjusted >= TBC_OFFSET) {
       return { tableName: "GE65TB7856036050100002_TBC_GEL", recordId: adjusted - TBC_OFFSET, isBatch: true };
     }
+    if (adjusted >= BOG_TRY_OFFSET) {
+      return { tableName: "GE78BG0000000893486000_BOG_TRY", recordId: adjusted - BOG_TRY_OFFSET, isBatch: true };
+    }
+    if (adjusted >= BOG_CNY_OFFSET) {
+      return { tableName: "GE78BG0000000893486000_BOG_CNY", recordId: adjusted - BOG_CNY_OFFSET, isBatch: true };
+    }
+    if (adjusted >= BOG_KZT_OFFSET) {
+      return { tableName: "GE78BG0000000893486000_BOG_KZT", recordId: adjusted - BOG_KZT_OFFSET, isBatch: true };
+    }
+    if (adjusted >= BOG_GBP_OFFSET) {
+      return { tableName: "GE78BG0000000893486000_BOG_GBP", recordId: adjusted - BOG_GBP_OFFSET, isBatch: true };
+    }
+    if (adjusted >= BOG_AED_OFFSET) {
+      return { tableName: "GE78BG0000000893486000_BOG_AED", recordId: adjusted - BOG_AED_OFFSET, isBatch: true };
+    }
     if (adjusted >= BOG_EUR_OFFSET) {
       return { tableName: "GE78BG0000000893486000_BOG_EUR", recordId: adjusted - BOG_EUR_OFFSET, isBatch: true };
     }
     if (adjusted >= BOG_USD_OFFSET) {
       return { tableName: "GE78BG0000000893486000_BOG_USD", recordId: adjusted - BOG_USD_OFFSET, isBatch: true };
     }
+    if (adjusted >= BOG_USD_2_OFFSET) {
+      return { tableName: "GE74BG0000000586388146_BOG_USD", recordId: adjusted - BOG_USD_2_OFFSET, isBatch: true };
+    }
     return { tableName: "GE78BG0000000893486000_BOG_GEL", recordId: adjusted, isBatch: true };
   }
   if (rawId >= TBC_OFFSET) {
     return { tableName: "GE65TB7856036050100002_TBC_GEL", recordId: rawId - TBC_OFFSET, isBatch: false };
+  }
+  if (rawId >= BOG_TRY_OFFSET) {
+    return { tableName: "GE78BG0000000893486000_BOG_TRY", recordId: rawId - BOG_TRY_OFFSET, isBatch: false };
+  }
+  if (rawId >= BOG_CNY_OFFSET) {
+    return { tableName: "GE78BG0000000893486000_BOG_CNY", recordId: rawId - BOG_CNY_OFFSET, isBatch: false };
+  }
+  if (rawId >= BOG_KZT_OFFSET) {
+    return { tableName: "GE78BG0000000893486000_BOG_KZT", recordId: rawId - BOG_KZT_OFFSET, isBatch: false };
+  }
+  if (rawId >= BOG_GBP_OFFSET) {
+    return { tableName: "GE78BG0000000893486000_BOG_GBP", recordId: rawId - BOG_GBP_OFFSET, isBatch: false };
+  }
+  if (rawId >= BOG_AED_OFFSET) {
+    return { tableName: "GE78BG0000000893486000_BOG_AED", recordId: rawId - BOG_AED_OFFSET, isBatch: false };
   }
   if (rawId >= BOG_EUR_OFFSET) {
     return { tableName: "GE78BG0000000893486000_BOG_EUR", recordId: rawId - BOG_EUR_OFFSET, isBatch: false };
   }
   if (rawId >= BOG_USD_OFFSET) {
     return { tableName: "GE78BG0000000893486000_BOG_USD", recordId: rawId - BOG_USD_OFFSET, isBatch: false };
+  }
+  if (rawId >= BOG_USD_2_OFFSET) {
+    return { tableName: "GE74BG0000000586388146_BOG_USD", recordId: rawId - BOG_USD_2_OFFSET, isBatch: false };
   }
   return { tableName: "GE78BG0000000893486000_BOG_GEL", recordId: rawId, isBatch: false };
 }

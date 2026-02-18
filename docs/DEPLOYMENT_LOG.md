@@ -92,6 +92,14 @@
 - Commit: 6e66a0f
 - Production: https://ice-6ak34akzj-iceerp.vercel.app
 
+## 2026-02-18
+- Summary: Add multi-currency BOG sources.
+- Changes:
+  - Deconsolidated import: map AED/GBP/KZT/CNY/TRY to BOG schemes.
+  - Bank transactions/payment statement: include new BOG currency tables and second USD account.
+- Commit: TBD
+- Production: TBD
+
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
 - Changes:

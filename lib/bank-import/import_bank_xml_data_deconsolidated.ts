@@ -522,6 +522,11 @@ export async function processBOGGELDeconsolidated(
   const defaultSchemeByCurrency = (code: string) => {
     if (code === 'USD') return 'BOG_USD';
     if (code === 'EUR') return 'BOG_EUR';
+    if (code === 'AED') return 'BOG_AED';
+    if (code === 'GBP') return 'BOG_GBP';
+    if (code === 'KZT') return 'BOG_KZT';
+    if (code === 'CNY') return 'BOG_CNY';
+    if (code === 'TRY') return 'BOG_TRY';
     return 'BOG_GEL';
   };
 
