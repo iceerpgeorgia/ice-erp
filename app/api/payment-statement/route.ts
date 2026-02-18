@@ -7,6 +7,7 @@ export const revalidate = 0;
 
 const SOURCE_TABLES = [
   { name: 'GE78BG0000000893486000_BOG_GEL', offset: 0 },
+  { name: 'GE78BG0000000893486000_BOG_USD', offset: 500000000000 },
   { name: 'GE65TB7856036050100002_TBC_GEL', offset: 1000000000000 },
 ];
 
@@ -154,6 +155,9 @@ export async function GET(request: NextRequest) {
     const bankQuery = `
       SELECT 
         result.id,
+        result.synthetic_id,
+        result.source_id,
+        result.source_table,
         result.uuid,
         result.payment_id,
         result.dockey,

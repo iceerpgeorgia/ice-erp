@@ -880,17 +880,44 @@ export function BankTransactionsTable({
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
+    let logWindow: Window | null = null;
     let logBuffer = '';
 
     const writeLog = (message: string) => {
       logBuffer += `${message}\n`;
-      setUploadLogText(logBuffer);
+      if (logWindow) {
+        logWindow.document.body.innerHTML = `
+          <h2 class="info">Processing...</h2>
+          <pre>${logBuffer.replace(/</g, '&lt;')}</pre>
+        `;
+      }
     };
 
     try {
-      setUploadLogOpen(true);
-      setUploadLogTitle('Preparing upload...');
-      setUploadLogText('Initializing...');
+      // Open log window immediately to avoid popup blockers
+      logWindow = window.open('', 'Processing Logs', 'width=800,height=600');
+      if (logWindow) {
+        logWindow.document.write(`
+          <html>
+            <head>
+              <title>Processing Logs</title>
+              <style>
+                body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+                pre { white-space: pre-wrap; word-wrap: break-word; }
+                h2 { color: #4ec9b0; }
+                .info { color: #9cdcfe; }
+                .success { color: #4ec9b0; }
+                .error { color: #f48771; }
+              </style>
+            </head>
+            <body>
+              <h2 class="info">Preparing upload...</h2>
+              <pre>Initializing...</pre>
+            </body>
+          </html>
+        `);
+        logWindow.document.close();
+      }
 
       writeLog(`Uploading ${files.length} file(s) directly to import API...`);
 
@@ -908,15 +935,38 @@ export function BankTransactionsTable({
       const result = await response.json();
 
       if (response.ok) {
-        setUploadLogTitle(result.message || 'Upload complete');
-        setUploadLogText(result.logs || logBuffer || 'No logs available');
+        if (logWindow) {
+          logWindow.document.write(`
+            <html>
+              <head>
+                <title>Processing Logs</title>
+                <style>
+                  body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+                  pre { white-space: pre-wrap; word-wrap: break-word; }
+                  h2 { color: #4ec9b0; }
+                  .success { color: #4ec9b0; }
+                  .error { color: #f48771; }
+                </style>
+              </head>
+              <body>
+                <h2 class="success">${result.message}</h2>
+                <pre>${result.logs || logBuffer || 'No logs available'}</pre>
+                <p><button onclick="window.close(); opener.location.reload();">Close and Reload Page</button></p>
+              </body>
+            </html>
+          `);
+          logWindow.document.close();
+        } else {
+          alert(`Success! ${result.message}\n\nPage will reload.`);
+          window.location.reload();
+        }
       } else {
         writeLog(`✗ Import API error: ${result.error || 'Unknown error'}`);
-        setUploadLogTitle('Upload failed');
+        alert(`Error: ${result.error}${result.details ? '\n' + result.details : ''}`);
       }
     } catch (error: any) {
       writeLog(`✗ Upload failed: ${error.message}`);
-      setUploadLogTitle('Upload failed');
+      alert(`Upload failed: ${error.message}`);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {

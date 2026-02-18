@@ -68,6 +68,14 @@
 - Commit: 8feefc2
 - Production: https://ice-ftlulgfu9-iceerp.vercel.app
 
+## 2026-02-18
+- Summary: Fix payment statement bank edit mapping and restore popup logs.
+- Changes:
+  - Payment statement API: include source identifiers for correct bank edit mapping and BOG USD table in source list.
+  - Bank transactions: restore popup window for detailed upload logs.
+- Commit: TBD
+- Production: TBD
+
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
 - Changes:
