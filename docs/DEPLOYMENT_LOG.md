@@ -10,6 +10,15 @@
 - Production: https://ice-oq9ojyouw-iceerp.vercel.app
 
 ## 2026-02-18
+- Summary: Add conversions report UI.
+- Changes:
+  - Conversions: new API endpoint returning account and currency labels with full column set.
+  - Conversions: new table UI with filtering, resizing, and column reordering.
+  - Dictionaries: add Conversions page link.
+- Commit: 0e93687
+- Production: pending
+
+## 2026-02-18
 - Summary: Switch bank XML uploads to Supabase Storage.
 - Changes:
   - Bank transactions: upload XML files to Supabase Storage and pass public URLs to the import API.
