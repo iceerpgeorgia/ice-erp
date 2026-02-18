@@ -100,6 +100,13 @@
 - Commit: a374d33
 - Production: https://ice-f0bpuhgdd-iceerp.vercel.app
 
+## 2026-02-18
+- Summary: Fix raw-record lookup for BOG multi-currency tables.
+- Changes:
+  - Bank transactions raw-record API: include new BOG tables in lookup.
+- Commit: TBD
+- Production: TBD
+
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
 - Changes:
