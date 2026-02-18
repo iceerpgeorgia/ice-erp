@@ -14,7 +14,6 @@ import {
   RefreshCw,
   X
 } from 'lucide-react';
-import { getSupabaseBrowser } from '@/lib/supabase';
 import * as XLSX from 'xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { Button } from './ui/button';
@@ -917,49 +916,17 @@ export function BankTransactionsTable({
         logWindow.document.close();
       }
 
-      const supabase = getSupabaseBrowser();
-      const bucketName = 'bank-xml-uploads';
-      writeLog(`Uploading ${files.length} file(s) to Supabase Storage bucket: ${bucketName}`);
+      writeLog(`Uploading ${files.length} file(s) directly to import API...`);
 
-      const uploadedFiles = await Promise.all(
-        Array.from(files).map(async (file) => {
-          writeLog(`→ Requesting signed upload URL for ${file.name}`);
-          const urlResponse = await fetch('/api/storage/upload-url', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName: file.name, bucket: bucketName }),
-          });
-
-          const urlResult = await urlResponse.json();
-          if (!urlResponse.ok) {
-            throw new Error(`Failed to get signed URL for ${file.name}: ${urlResult.error || 'Unknown error'}`);
-          }
-
-          const { path, token } = urlResult;
-          writeLog(`→ Uploading ${file.name} (${file.size.toLocaleString()} bytes)`);
-          const { error: uploadError } = await supabase.storage
-            .from(bucketName)
-            .uploadToSignedUrl(path, token, file, {
-              contentType: file.type || 'application/xml',
-              upsert: false,
-            });
-
-          if (uploadError) {
-            throw new Error(`Storage upload failed for ${file.name}: ${uploadError.message}`);
-          }
-
-          const { data } = supabase.storage.from(bucketName).getPublicUrl(path);
-          writeLog(`✓ Uploaded ${file.name}`);
-          return { name: file.name, url: data.publicUrl };
-        })
-      );
-
-      writeLog('All files uploaded. Calling import API...');
+      const formData = new FormData();
+      Array.from(files).forEach((file) => {
+        writeLog(`→ Attaching ${file.name} (${file.size.toLocaleString()} bytes)`);
+        formData.append('file', file, file.name);
+      });
 
       const response = await fetch(uploadEndpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ files: uploadedFiles }),
+        body: formData,
       });
 
       const result = await response.json();

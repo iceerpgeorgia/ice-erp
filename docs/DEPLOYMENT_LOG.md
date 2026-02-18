@@ -46,6 +46,13 @@
 - Commit: 9fab944
 - Production: https://ice-mnmgc1qxd-iceerp.vercel.app
 
+## 2026-02-18
+- Summary: Revert bank XML upload to direct multipart.
+- Changes:
+  - Bank transactions: send XML files directly to upload API (no storage bucket).
+- Commit: TBD
+- Production: TBD
+
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
 - Changes:
