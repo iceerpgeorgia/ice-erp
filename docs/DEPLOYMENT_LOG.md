@@ -89,7 +89,7 @@
 - Summary: Fix EUR scheme fallback for BOG deconsolidated import.
 - Changes:
   - Deconsolidated import: handle null parsing_scheme_uuid and map EUR to BOG_EUR.
-- Commit: TBD
+- Commit: 6e66a0f
 - Production: TBD
 
 ## 2026-02-17
