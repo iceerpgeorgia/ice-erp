@@ -50,7 +50,7 @@
 - Summary: Revert bank XML upload to direct multipart.
 - Changes:
   - Bank transactions: send XML files directly to upload API (no storage bucket).
-- Commit: TBD
+- Commit: da6b36b
 - Production: TBD
 
 ## 2026-02-17
