@@ -85,6 +85,13 @@
 - Commit: 31a20b6
 - Production: https://ice-mjhtyj0oz-iceerp.vercel.app
 
+## 2026-02-18
+- Summary: Fix EUR scheme fallback for BOG deconsolidated import.
+- Changes:
+  - Deconsolidated import: handle null parsing_scheme_uuid and map EUR to BOG_EUR.
+- Commit: TBD
+- Production: TBD
+
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
 - Changes:

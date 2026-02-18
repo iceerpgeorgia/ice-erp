@@ -519,16 +519,26 @@ export async function processBOGGELDeconsolidated(
   const bankAccountUuid = accountData.uuid;
   const accountCurrencyUuid = accountData.currency_uuid;
 
-  const { data: schemeData } = await supabase
-    .from('parsing_schemes')
-    .select('scheme')
-    .eq('uuid', accountData.parsing_scheme_uuid)
-    .single();
+  const defaultSchemeByCurrency = (code: string) => {
+    if (code === 'USD') return 'BOG_USD';
+    if (code === 'EUR') return 'BOG_EUR';
+    return 'BOG_GEL';
+  };
+
+  let schemeData: { scheme?: string } | null = null;
+  if (accountData.parsing_scheme_uuid) {
+    const { data } = await supabase
+      .from('parsing_schemes')
+      .select('scheme')
+      .eq('uuid', accountData.parsing_scheme_uuid)
+      .single();
+    schemeData = data;
+  }
 
   const scheme = !schemeData?.scheme
-    ? (currencyCode === 'USD' ? 'BOG_USD' : 'BOG_GEL')
-    : (schemeData.scheme === 'BOG_GEL' && currencyCode === 'USD')
-      ? 'BOG_USD'
+    ? defaultSchemeByCurrency(currencyCode)
+    : (schemeData.scheme === 'BOG_GEL' && currencyCode !== 'GEL')
+      ? defaultSchemeByCurrency(currencyCode)
       : schemeData.scheme;
   const deconsolidatedTableName = resolveDeconsolidatedTableName(accountNumber, scheme);
 
