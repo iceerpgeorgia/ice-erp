@@ -66,7 +66,7 @@
 - Changes:
   - Bank transactions: replace popup logs with an in-page dialog.
 - Commit: 8feefc2
-- Production: TBD
+- Production: https://ice-ftlulgfu9-iceerp.vercel.app
 
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
