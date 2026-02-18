@@ -98,7 +98,7 @@
   - Deconsolidated import: map AED/GBP/KZT/CNY/TRY to BOG schemes.
   - Bank transactions/payment statement: include new BOG currency tables and second USD account.
 - Commit: a374d33
-- Production: TBD
+- Production: https://ice-f0bpuhgdd-iceerp.vercel.app
 
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
