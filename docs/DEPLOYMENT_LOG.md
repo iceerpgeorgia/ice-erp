@@ -74,7 +74,7 @@
   - Payment statement API: include source identifiers for correct bank edit mapping and BOG USD table in source list.
   - Bank transactions: restore popup window for detailed upload logs.
 - Commit: abf0504
-- Production: TBD
+- Production: https://ice-2jtlqk6ia-iceerp.vercel.app
 
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
