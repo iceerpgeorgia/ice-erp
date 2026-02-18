@@ -65,7 +65,7 @@
 - Summary: Show upload logs in-page.
 - Changes:
   - Bank transactions: replace popup logs with an in-page dialog.
-- Commit: TBD
+- Commit: 8feefc2
 - Production: TBD
 
 ## 2026-02-17
