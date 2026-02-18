@@ -51,7 +51,7 @@
 - Changes:
   - Bank transactions: send XML files directly to upload API (no storage bucket).
 - Commit: da6b36b
-- Production: TBD
+- Production: https://ice-hxm01m7b0-iceerp.vercel.app
 
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
