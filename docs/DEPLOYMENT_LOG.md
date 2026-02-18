@@ -59,7 +59,7 @@
   - Bank transactions API: include BOG USD table in list/test and record resolution.
   - Parsing lock: allow BOG USD table updates.
 - Commit: b90f4dc
-- Production: TBD
+- Production: https://ice-lzjjz5rap-iceerp.vercel.app
 
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
