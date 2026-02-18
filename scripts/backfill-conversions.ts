@@ -48,6 +48,7 @@ const defaultTables = [
 
 const batchSize = Number(process.env.BATCH_SIZE ?? '1000');
 const verbose = process.argv.includes('--verbose');
+const autoTables = process.argv.includes('--auto-tables') || !process.argv.some((arg) => !arg.startsWith('--'));
 
 function loadEnv() {
   const envPath = path.resolve(process.cwd(), '.env');
@@ -85,6 +86,33 @@ function resolveDeconsolidatedTableName(accountNumber: string, parsingScheme: st
   return `${accountNumber}_${safeScheme}`;
 }
 
+async function tableExists(supabase: ReturnType<typeof getSupabaseClient>, tableName: string): Promise<boolean> {
+  const { error } = await supabase.from(tableName).select('uuid', { count: 'exact', head: true }).limit(1);
+  return !error;
+}
+
+async function resolveTablesFromAccounts(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  accounts: AccountRow[]
+): Promise<string[]> {
+  const schemes = ['BOG_GEL', 'BOG_USD', 'BOG_EUR', 'BOG_AED', 'BOG_GBP', 'BOG_KZT', 'BOG_CNY', 'BOG_TRY'];
+  const unique = new Set<string>();
+  for (const account of accounts) {
+    const accountNumber = account.account_number;
+    for (const scheme of schemes) {
+      unique.add(resolveDeconsolidatedTableName(accountNumber, scheme));
+    }
+  }
+
+  const resolved: string[] = [];
+  for (const tableName of unique) {
+    if (await tableExists(supabase, tableName)) {
+      resolved.push(tableName);
+    }
+  }
+  return resolved;
+}
+
 async function fetchBatch(
   supabase: ReturnType<typeof getSupabaseClient>,
   tableName: string,
@@ -114,10 +142,7 @@ async function main() {
   loadEnv();
 
   const tableArgs = process.argv.slice(2).filter((arg) => !arg.startsWith('--'));
-  const tableNames = tableArgs.length > 0 ? tableArgs : defaultTables;
 
-  console.log(`🔁 Backfill conversions for ${tableNames.length} tables`);
-  console.log(`📦 Tables: ${tableNames.join(', ')}`);
   const supabase = getSupabaseClient();
 
   const [nbgRatesMap, currencyCache] = await Promise.all([
@@ -132,6 +157,7 @@ async function main() {
 
   const bankAccountsMap = new Map<string, AccountRow>();
   const bankAccountsByNumber = new Map<string, AccountRow>();
+  const bankAccountsList: AccountRow[] = [];
 
   for (const row of bankAccountsData ?? []) {
     const currencyCode = currencyCache.get(row.currency_uuid) || '';
@@ -148,7 +174,22 @@ async function main() {
     if (!bankAccountsByNumber.has(accountNumber)) {
       bankAccountsByNumber.set(accountNumber, accountRow);
     }
+    bankAccountsList.push(accountRow);
   }
+
+  let tableNames: string[] = [];
+  if (tableArgs.length > 0) {
+    tableNames = tableArgs;
+  } else if (autoTables) {
+    console.log('🔎 Auto-discovering BOG tables from bank accounts...');
+    tableNames = await resolveTablesFromAccounts(supabase, bankAccountsList);
+  }
+  if (tableNames.length === 0) {
+    tableNames = defaultTables;
+  }
+
+  console.log(`🔁 Backfill conversions for ${tableNames.length} tables`);
+  console.log(`📦 Tables: ${tableNames.join(', ')}`);
 
   const resolveAccountLookup = (acctNo: string) => {
     const trimmed = acctNo.trim();
@@ -276,6 +317,7 @@ async function main() {
   let skippedSameCurrency = 0;
   let skippedMissingPair = 0;
   let skippedExistingConversion = 0;
+  let skippedDuplicateKeyValue = 0;
   let skippedAmountResolution = 0;
   let skippedMissingRates = 0;
 
@@ -372,6 +414,18 @@ async function main() {
     let conversionUuid = existingConversion?.uuid as string | undefined;
 
     if (!conversionUuid) {
+      const { data: existingByKey } = await supabase
+        .from('conversion')
+        .select('uuid')
+        .eq('key_value', candidate.dockey)
+        .maybeSingle();
+      if (existingByKey?.uuid) {
+        skippedDuplicateKeyValue += 1;
+        continue;
+      }
+    }
+
+    if (!conversionUuid) {
       const { data: insertedConversion, error: conversionError } = await supabase
         .from('conversion')
         .insert({
@@ -411,6 +465,7 @@ async function main() {
   console.log(`  ⚠️  Skipped same currency: ${skippedSameCurrency}`);
   console.log(`  ⚠️  Skipped missing pairs: ${skippedMissingPair}`);
   console.log(`  ⚠️  Skipped existing conversion links: ${skippedExistingConversion}`);
+  console.log(`  ⚠️  Skipped duplicate key_value: ${skippedDuplicateKeyValue}`);
   console.log(`  ⚠️  Skipped amount resolution: ${skippedAmountResolution}`);
   console.log(`  ⚠️  Skipped missing rates: ${skippedMissingRates}`);
 }

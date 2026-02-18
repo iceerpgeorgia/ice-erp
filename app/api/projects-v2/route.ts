@@ -16,8 +16,7 @@ const UNION_SQL = SOURCE_TABLES.map(
 
 // GET all projects - FIXED VERSION with project_uuid join
 export async function GET(req: NextRequest) {
-  try {
-    const projects = await prisma.$queryRawUnsafe(`
+  const mainQuery = `
       SELECT 
         p.id,
         p.created_at,
@@ -85,7 +84,37 @@ export async function GET(req: NextRequest) {
         GROUP BY p.project_uuid, p.counteragent_uuid
       ) pp ON p.project_uuid = pp.project_uuid AND p.counteragent_uuid = pp.counteragent_uuid
       ORDER BY p.created_at DESC
-    `);
+    `;
+
+  const fallbackQuery = `
+      SELECT
+        p.id,
+        p.created_at,
+        p.updated_at,
+        p.project_uuid,
+        p.counteragent_uuid,
+        p.project_name,
+        p.financial_code_uuid,
+        TO_CHAR(p.date, 'DD.MM.YYYY') as date,
+        p.value,
+        p.currency_uuid,
+        p.state_uuid,
+        p.oris_1630,
+        p.contract_no,
+        p.project_index,
+        p.financial_code,
+        p.currency,
+        p.state,
+        p.counteragent,
+        '[]'::json as employees,
+        0 as total_payments,
+        p.value as balance
+      FROM projects p
+      ORDER BY p.created_at DESC
+    `;
+
+  try {
+    const projects = await prisma.$queryRawUnsafe(mainQuery);
 
     // Convert BigInt to Number for JSON serialization
     const serialized = (projects as any[]).map((project: any) => ({
@@ -96,9 +125,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(serialized);
   } catch (error: any) {
     console.error('GET /projects-v2 error:', error);
-    return NextResponse.json(
-      { error: error?.message || 'Failed to fetch projects' },
-      { status: 500 }
-    );
+    try {
+      const projects = await prisma.$queryRawUnsafe(fallbackQuery);
+      const serialized = (projects as any[]).map((project: any) => ({
+        ...project,
+        id: Number(project.id),
+      }));
+      return NextResponse.json(serialized);
+    } catch (fallbackError: any) {
+      console.error('GET /projects-v2 fallback error:', fallbackError);
+      return NextResponse.json(
+        { error: fallbackError?.message || 'Failed to fetch projects' },
+        { status: 500 }
+      );
+    }
   }
 }

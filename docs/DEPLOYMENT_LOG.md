@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-18
+- Summary: Add fallback for projects selector when aggregation fails.
+- Changes:
+  - Projects API: return base project list if payment aggregation errors.
+- Commit: N/A
+- Production: pending
+
+## 2026-02-18
 - Summary: Restore Add Payment project selector data.
 - Changes:
   - Counteragent statement: fetch projects from /api/projects-v2 and log load errors.

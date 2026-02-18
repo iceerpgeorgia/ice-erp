@@ -16,6 +16,8 @@ export type ConversionRow = {
   uuid: string;
   date: string;
   keyValue: string;
+  bankUuid: string | null;
+  bankName: string | null;
   accountOutUuid: string;
   accountOutNumber: string | null;
   currencyOutUuid: string;
@@ -47,7 +49,9 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', visible: false, sortable: true, filterable: true, format: 'number', width: 90 },
   { key: 'date', label: 'Date', visible: true, sortable: true, filterable: true, format: 'date', width: 120 },
   { key: 'keyValue', label: 'DocKey', visible: true, sortable: true, filterable: true, width: 180 },
+  { key: 'bankName', label: 'Bank', visible: true, sortable: true, filterable: true, width: 160 },
   { key: 'uuid', label: 'UUID', visible: false, sortable: true, filterable: true, width: 260 },
+  { key: 'bankUuid', label: 'Bank UUID', visible: false, sortable: true, filterable: true, width: 260 },
   { key: 'accountOutNumber', label: 'Account Out', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'accountOutUuid', label: 'Account Out UUID', visible: false, sortable: true, filterable: true, width: 260 },
   { key: 'currencyOutCode', label: 'Currency Out', visible: true, sortable: true, filterable: true, width: 120 },

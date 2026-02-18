@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS "conversion" (
   uuid uuid NOT NULL DEFAULT gen_random_uuid(),
   date date NOT NULL,
   key_value text NOT NULL,
+  bank_uuid uuid,
   account_out_uuid uuid NOT NULL,
   account_in_uuid uuid NOT NULL,
   currency_out_uuid uuid NOT NULL,
@@ -26,8 +27,15 @@ CREATE TABLE IF NOT EXISTS "conversion" (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE "conversion" ADD COLUMN IF NOT EXISTS bank_uuid uuid;
+
 CREATE UNIQUE INDEX IF NOT EXISTS conversion_key_unique
   ON "conversion" (key_value, account_out_uuid, account_in_uuid);
 
 CREATE INDEX IF NOT EXISTS conversion_date_idx ON "conversion" (date);
 CREATE INDEX IF NOT EXISTS conversion_key_idx ON "conversion" (key_value);
+CREATE INDEX IF NOT EXISTS conversion_bank_uuid_idx ON "conversion" (bank_uuid);
+
+UPDATE "conversion"
+SET bank_uuid = (SELECT uuid FROM banks WHERE bank_name = 'BOG' LIMIT 1)
+WHERE bank_uuid IS NULL;

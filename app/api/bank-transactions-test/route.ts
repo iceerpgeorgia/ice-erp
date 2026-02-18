@@ -95,6 +95,7 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
       ${baseAlias}.transaction_date,
       ${baseAlias}.correction_date,
       ${baseAlias}.exchange_rate,
+      ${baseAlias}.conversion_id,
       ${baseAlias}.description,
       ${baseAlias}.comment,
       ${baseAlias}.counteragent_uuid,
@@ -128,7 +129,8 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
     WHERE NOT EXISTS (
       SELECT 1 FROM bank_transaction_batches btb
       WHERE btb.raw_record_uuid::text = ${baseAlias}.raw_record_uuid::text
-    )`;
+    )
+      AND ${baseAlias}.conversion_id IS NULL`;
 
   const batchSelect = `SELECT
       ${baseAlias}.id,
@@ -140,6 +142,7 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
       ${baseAlias}.transaction_date,
       ${baseAlias}.correction_date,
       ${baseAlias}.exchange_rate,
+      ${baseAlias}.conversion_id,
       ${baseAlias}.description,
       ${baseAlias}.comment,
       ${baseAlias}.counteragent_uuid,
@@ -180,7 +183,8 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
         btb.payment_uuid IS NOT NULL AND p.record_uuid = btb.payment_uuid
       ) OR (
         btb.payment_uuid IS NULL AND btb.payment_id IS NOT NULL AND p.payment_id = btb.payment_id
-      )`;
+      )
+    WHERE ${baseAlias}.conversion_id IS NULL`;
 
   return `${baseSelect} UNION ALL ${batchSelect}`;
 }).join(' UNION ALL ');
@@ -195,14 +199,16 @@ const UNFETCHED_UNION_SQL = SOURCE_TABLES.map((table) => {
     WHERE NOT EXISTS (
       SELECT 1 FROM bank_transaction_batches btb
       WHERE btb.raw_record_uuid::text = ${baseAlias}.raw_record_uuid::text
-    )`;
+    )
+      AND ${baseAlias}.conversion_id IS NULL`;
   const batchSelect = `SELECT
       ( btb.id + ${BATCH_OFFSET} + ${table.offset} )::bigint as synthetic_id,
       ${baseAlias}.account_currency_uuid,
       (btb.partition_amount * CASE WHEN ${baseAlias}.account_currency_amount < 0 THEN -1 ELSE 1 END) as account_currency_amount
     FROM "${table.name}" ${baseAlias}
     JOIN bank_transaction_batches btb
-      ON btb.raw_record_uuid::text = ${baseAlias}.raw_record_uuid::text`;
+      ON btb.raw_record_uuid::text = ${baseAlias}.raw_record_uuid::text
+    WHERE ${baseAlias}.conversion_id IS NULL`;
   return `${baseSelect} UNION ALL ${batchSelect}`;
 }).join(' UNION ALL ');
 
@@ -467,6 +473,312 @@ export async function GET(req: NextRequest) {
     }
     console.log('[API] Step 3 complete: Filtered count =', filteredTransactions.length);
 
+    console.log('[API] Step 3b: Loading conversion transactions...');
+    let conversionRows: any[] = [];
+    let conversionSummaryRows: Array<{ account_currency_uuid: string; account_currency_amount: number }> = [];
+    let conversionOutsideSummary: Array<{ account_currency_uuid: string; account_currency_amount: number }> = [];
+
+    if (!idsParam && !rawRecordUuid) {
+      const conversions = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT
+           c.id,
+           c.uuid,
+           c.date,
+           c.key_value,
+           c.account_out_uuid,
+           c.account_in_uuid,
+           c.currency_out_uuid,
+           c.currency_in_uuid,
+           c.amount_out,
+           c.amount_in,
+           c.fee,
+           ao.account_number AS account_out_number,
+           ai.account_number AS account_in_number,
+           ao.currency_uuid AS account_out_currency_uuid,
+           ai.currency_uuid AS account_in_currency_uuid,
+           ao.raw_table_name AS out_table,
+           ai.raw_table_name AS in_table,
+           co.code AS currency_out_code,
+           ci.code AS currency_in_code,
+           b.bank_name AS bank_out_name
+         FROM conversion c
+         LEFT JOIN bank_accounts ao ON c.account_out_uuid = ao.uuid
+         LEFT JOIN bank_accounts ai ON c.account_in_uuid = ai.uuid
+         LEFT JOIN banks b ON ao.bank_uuid = b.uuid
+         LEFT JOIN currencies co ON c.currency_out_uuid = co.uuid
+         LEFT JOIN currencies ci ON c.currency_in_uuid = ci.uuid
+         ORDER BY c.date DESC, c.id DESC`
+      );
+
+      const fromComparable = toComparableDate(fromDate);
+      const toComparable = toComparableDate(toDate);
+
+      const conversionFiltered = (fromDate || toDate)
+        ? conversions.filter((row) => {
+            const rowDate = row.date ? String(row.date) : null;
+            const comparable = toComparableDate(rowDate);
+            if (!comparable) return false;
+            if (fromComparable && comparable < fromComparable) return false;
+            if (toComparable && comparable > toComparable) return false;
+            return true;
+          })
+        : conversions;
+
+      const conversionOutside = (fromDate || toDate)
+        ? conversions.filter((row) => !conversionFiltered.includes(row))
+        : [];
+
+      const fetchRawByKey = async (tableName: string | null, keyValue: string) => {
+        if (!tableName) return null;
+        const rows = await prisma.$queryRawUnsafe<any[]>(
+          `SELECT
+             uuid,
+             entriesid,
+             description,
+             comment,
+             counteragent_uuid,
+             counteragent_account_number,
+             financial_code_uuid,
+             exchange_rate,
+             correction_date,
+             docinformation,
+             docnomination
+           FROM "${tableName}"
+           WHERE dockey = $1
+           LIMIT 1`,
+          keyValue
+        );
+        return rows[0] ?? null;
+      };
+
+      const conversionIdBase = 3000000000000;
+      const conversionRowsBuilder: any[] = [];
+
+      for (const row of conversionFiltered) {
+        const amountOut = row.amount_out ? Number(row.amount_out) : 0;
+        const amountIn = row.amount_in ? Number(row.amount_in) : 0;
+        const feeValue = row.fee ? Number(row.fee) : 0;
+        const feeRounded = Math.round(feeValue * 100) / 100;
+        const amountOutBody = -Math.abs(amountOut - feeRounded);
+        const feeAmount = -Math.abs(feeRounded);
+        const amountInValue = amountIn;
+
+        const outRaw = await fetchRawByKey(row.out_table, row.key_value);
+        const inRaw = await fetchRawByKey(row.in_table, row.key_value);
+        const description = outRaw?.description ?? inRaw?.description ?? null;
+        const exchangeRate = outRaw?.exchange_rate ?? null;
+        const correctionDate = outRaw?.correction_date ?? null;
+        const currencyOutCode = row.currency_out_code ?? '';
+        const currencyInCode = row.currency_in_code ?? '';
+        const commentText = `კონვერტაცია ${amountOut.toFixed(2)} ${currencyOutCode} = ${amountIn.toFixed(2)} ${currencyInCode}`;
+        const conversionDate = row.date
+          ? new Date(row.date).toLocaleDateString('en-GB').split('/').join('.')
+          : null;
+
+        const outAccountNumber = row.account_out_number ?? null;
+        const inAccountNumber = row.account_in_number ?? null;
+        const accountOutCurrencyCode = row.currency_out_code ?? null;
+        const accountInCurrencyCode = row.currency_in_code ?? null;
+        const batchId = `CONV_${row.id}`;
+
+        const outCounteragentUuid = outRaw?.counteragent_uuid ?? null;
+        const inCounteragentUuid = inRaw?.counteragent_uuid ?? null;
+        const outFinancialCodeUuid = outRaw?.financial_code_uuid ?? null;
+        const inFinancialCodeUuid = inRaw?.financial_code_uuid ?? null;
+
+        const baseId = conversionIdBase + Number(row.id) * 3;
+        const usdGelRate = getUsdGelRate(correctionDate || conversionDate);
+
+        conversionRowsBuilder.push(
+          {
+            id: baseId,
+            source_table: 'conversion',
+            source_id: Number(row.id),
+            uuid: row.uuid,
+            bank_account_uuid: row.account_out_uuid,
+            raw_record_uuid: outRaw?.uuid ?? null,
+            dockey: row.key_value,
+            entriesid: outRaw?.entriesid ?? null,
+            transaction_date: conversionDate,
+            correction_date: correctionDate,
+            exchange_rate: exchangeRate,
+            description,
+            comment: commentText,
+            counteragent_uuid: outCounteragentUuid,
+            counteragent_account_number: inAccountNumber && accountInCurrencyCode
+              ? `${inAccountNumber}${accountInCurrencyCode}`
+              : null,
+            project_uuid: null,
+            financial_code_uuid: outFinancialCodeUuid,
+            account_currency_uuid: row.account_out_currency_uuid,
+            account_currency_amount: amountOutBody,
+            nominal_currency_uuid: row.currency_out_uuid,
+            nominal_amount: amountOutBody,
+            payment_id: null,
+            processing_case: null,
+            created_at: null,
+            updated_at: null,
+            parsing_lock: true,
+            applied_rule_id: null,
+            batch_id: batchId,
+            batch_partition_id: null,
+            is_batch: false,
+            is_balance_record: false,
+            account_number: outAccountNumber && accountOutCurrencyCode
+              ? `${outAccountNumber}${accountOutCurrencyCode}`
+              : outAccountNumber,
+            bank_name: row.bank_out_name ?? null,
+            counteragent_name: null,
+            project_index: null,
+            financial_code: null,
+            account_currency_code: accountOutCurrencyCode,
+            nominal_currency_code: accountOutCurrencyCode,
+            usd_gel_rate: usdGelRate,
+          },
+          {
+            id: baseId + 1,
+            source_table: 'conversion',
+            source_id: Number(row.id),
+            uuid: row.uuid,
+            bank_account_uuid: row.account_out_uuid,
+            raw_record_uuid: outRaw?.uuid ?? null,
+            dockey: row.key_value,
+            entriesid: outRaw?.entriesid ?? null,
+            transaction_date: conversionDate,
+            correction_date: correctionDate,
+            exchange_rate: exchangeRate,
+            description,
+            comment: commentText,
+            counteragent_uuid: outCounteragentUuid,
+            counteragent_account_number: inAccountNumber && accountOutCurrencyCode
+              ? `${inAccountNumber}${accountOutCurrencyCode}`
+              : null,
+            project_uuid: null,
+            financial_code_uuid: outFinancialCodeUuid,
+            account_currency_uuid: row.account_out_currency_uuid,
+            account_currency_amount: feeAmount,
+            nominal_currency_uuid: row.currency_out_uuid,
+            nominal_amount: feeAmount,
+            payment_id: null,
+            processing_case: null,
+            created_at: null,
+            updated_at: null,
+            parsing_lock: true,
+            applied_rule_id: null,
+            batch_id: batchId,
+            batch_partition_id: null,
+            is_batch: false,
+            is_balance_record: false,
+            account_number: outAccountNumber && accountOutCurrencyCode
+              ? `${outAccountNumber}${accountOutCurrencyCode}`
+              : outAccountNumber,
+            bank_name: row.bank_out_name ?? null,
+            counteragent_name: null,
+            project_index: null,
+            financial_code: null,
+            account_currency_code: accountOutCurrencyCode,
+            nominal_currency_code: accountOutCurrencyCode,
+            usd_gel_rate: usdGelRate,
+          },
+          {
+            id: baseId + 2,
+            source_table: 'conversion',
+            source_id: Number(row.id),
+            uuid: row.uuid,
+            bank_account_uuid: row.account_in_uuid,
+            raw_record_uuid: inRaw?.uuid ?? null,
+            dockey: row.key_value,
+            entriesid: inRaw?.entriesid ?? null,
+            transaction_date: conversionDate,
+            correction_date: correctionDate,
+            exchange_rate: exchangeRate,
+            description,
+            comment: commentText,
+            counteragent_uuid: inCounteragentUuid,
+            counteragent_account_number: inAccountNumber && accountInCurrencyCode
+              ? `${inAccountNumber}${accountInCurrencyCode}`
+              : null,
+            project_uuid: null,
+            financial_code_uuid: inFinancialCodeUuid,
+            account_currency_uuid: row.account_in_currency_uuid,
+            account_currency_amount: amountInValue,
+            nominal_currency_uuid: row.currency_in_uuid,
+            nominal_amount: amountInValue,
+            payment_id: null,
+            processing_case: null,
+            created_at: null,
+            updated_at: null,
+            parsing_lock: true,
+            applied_rule_id: null,
+            batch_id: batchId,
+            batch_partition_id: null,
+            is_batch: false,
+            is_balance_record: false,
+            account_number: inAccountNumber && accountInCurrencyCode
+              ? `${inAccountNumber}${accountInCurrencyCode}`
+              : inAccountNumber,
+            bank_name: row.bank_out_name ?? null,
+            counteragent_name: null,
+            project_index: null,
+            financial_code: null,
+            account_currency_code: accountInCurrencyCode,
+            nominal_currency_code: accountInCurrencyCode,
+            usd_gel_rate: usdGelRate,
+          }
+        );
+      }
+
+      const counteragentUuids = Array.from(
+        new Set(conversionRowsBuilder.map((r) => r.counteragent_uuid).filter(Boolean))
+      ) as string[];
+      const financialCodeUuids = Array.from(
+        new Set(conversionRowsBuilder.map((r) => r.financial_code_uuid).filter(Boolean))
+      ) as string[];
+
+      const [counteragents, financialCodes] = await Promise.all([
+        counteragentUuids.length > 0
+          ? prisma.counteragents.findMany({
+              where: { counteragent_uuid: { in: counteragentUuids } },
+              select: { counteragent_uuid: true, counteragent: true },
+            })
+          : Promise.resolve([]),
+        financialCodeUuids.length > 0
+          ? prisma.financial_codes.findMany({
+              where: { uuid: { in: financialCodeUuids } },
+              select: { uuid: true, validation: true },
+            })
+          : Promise.resolve([]),
+      ]);
+
+      const counteragentMap = new Map(counteragents.map((c) => [c.counteragent_uuid, c.counteragent]));
+      const financialCodeMap = new Map(financialCodes.map((c) => [c.uuid, c.validation]));
+
+      conversionRows = conversionRowsBuilder.map((row) => ({
+        ...row,
+        counteragent_name: row.counteragent_uuid ? counteragentMap.get(row.counteragent_uuid) ?? null : null,
+        financial_code: row.financial_code_uuid ? financialCodeMap.get(row.financial_code_uuid) ?? null : null,
+      }));
+
+      conversionSummaryRows = conversionRows.map((row) => ({
+        account_currency_uuid: row.account_currency_uuid,
+        account_currency_amount: Number(row.account_currency_amount || 0),
+      }));
+
+      conversionOutsideSummary = conversionOutside.flatMap((row) => {
+        const amountOut = row.amount_out ? Number(row.amount_out) : 0;
+        const amountIn = row.amount_in ? Number(row.amount_in) : 0;
+        const feeValue = row.fee ? Number(row.fee) : 0;
+        const feeRounded = Math.round(feeValue * 100) / 100;
+        const amountOutBody = -Math.abs(amountOut - feeRounded);
+        const feeAmount = -Math.abs(feeRounded);
+        return [
+          { account_currency_uuid: row.account_out_currency_uuid, account_currency_amount: amountOutBody },
+          { account_currency_uuid: row.account_out_currency_uuid, account_currency_amount: feeAmount },
+          { account_currency_uuid: row.account_in_currency_uuid, account_currency_amount: amountIn },
+        ];
+      });
+    }
+
     console.log('[API] Step 4: Fetching balance records...');
     const balanceRecords = await prisma.bankAccount.findMany({
       where: {
@@ -553,14 +865,13 @@ export async function GET(req: NextRequest) {
         return true;
       });
 
-    const combinedResult = [...result, ...balanceResults];
+    const combinedResult = [...result, ...conversionRows, ...balanceResults];
 
     const currencySummaries: Record<string, any> = {};
 
     const fetchedIdsArray = Array.from(
       new Set(
-        filteredTransactions
-          .map(t => t.id)
+        [...filteredTransactions.map(t => t.id), ...conversionRows.map(r => r.id)]
           .filter(id => id !== null && id !== undefined)
           .map(id => String(id))
           .filter(id => /^\d+$/.test(id))
@@ -595,6 +906,17 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    if ((fromDate || toDate) && conversionOutsideSummary.length > 0) {
+      for (const tx of conversionOutsideSummary) {
+        if (tx.account_currency_uuid) {
+          const amount = Number(tx.account_currency_amount);
+          if (!isNaN(amount)) {
+            openingByCurrency[tx.account_currency_uuid] = (openingByCurrency[tx.account_currency_uuid] || 0) + amount;
+          }
+        }
+      }
+    }
+
     const bankAccountBalances = await prisma.bankAccount.findMany({
       where: {
         balance: { not: null },
@@ -620,7 +942,7 @@ export async function GET(req: NextRequest) {
     const inflowByCurrency: Record<string, number> = {};
     const outflowByCurrency: Record<string, number> = {};
 
-    for (const tx of filteredTransactions) {
+    for (const tx of [...filteredTransactions, ...conversionSummaryRows]) {
       const currencyUuid = tx.account_currency_uuid;
       const amount = tx.account_currency_amount ? Number(tx.account_currency_amount) : 0;
 

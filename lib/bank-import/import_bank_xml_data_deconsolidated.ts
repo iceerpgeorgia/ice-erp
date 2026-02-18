@@ -575,11 +575,24 @@ export async function processBOGGELDeconsolidated(
 
   const { data: bankAccountsData, error: bankAccountsError } = await supabase
     .from('bank_accounts')
-    .select('uuid, account_number, currency_uuid');
+    .select('uuid, account_number, currency_uuid, bank_uuid');
   if (bankAccountsError) throw bankAccountsError;
 
-  const bankAccountsMap = new Map<string, { uuid: string; account_number: string; currency_uuid: string; currency_code: string }>();
-  const bankAccountsByNumber = new Map<string, { uuid: string; account_number: string; currency_uuid: string; currency_code: string }>();
+  const bankAccountsMap = new Map<
+    string,
+    { uuid: string; account_number: string; currency_uuid: string; currency_code: string; bank_uuid: string | null }
+  >();
+  const bankAccountsByNumber = new Map<
+    string,
+    { uuid: string; account_number: string; currency_uuid: string; currency_code: string; bank_uuid: string | null }
+  >();
+
+  const { data: bogBank } = await supabase
+    .from('banks')
+    .select('uuid')
+    .eq('bank_name', 'BOG')
+    .maybeSingle();
+  const bogBankUuid = bogBank?.uuid ?? null;
 
   for (const row of bankAccountsData ?? []) {
     const currencyCode = currencyCache.get(row.currency_uuid) || '';
@@ -591,6 +604,7 @@ export async function processBOGGELDeconsolidated(
       account_number: accountNumber,
       currency_uuid: row.currency_uuid,
       currency_code: currencyCode,
+      bank_uuid: row.bank_uuid ?? null,
     });
     if (!bankAccountsByNumber.has(accountNumber)) {
       bankAccountsByNumber.set(accountNumber, {
@@ -598,6 +612,7 @@ export async function processBOGGELDeconsolidated(
         account_number: accountNumber,
         currency_uuid: row.currency_uuid,
         currency_code: currencyCode,
+        bank_uuid: row.bank_uuid ?? null,
       });
     }
   }
@@ -1030,6 +1045,7 @@ export async function processBOGGELDeconsolidated(
             key_value: candidate.dockey,
             account_out_uuid: outAccount.uuid,
             account_in_uuid: inAccount.uuid,
+            bank_uuid: outAccount.bank_uuid ?? inAccount.bank_uuid ?? bogBankUuid,
             currency_out_uuid: outAccount.currency_uuid,
             currency_in_uuid: inAccount.currency_uuid,
             amount_out: amounts.amountOut,
