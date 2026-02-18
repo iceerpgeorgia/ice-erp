@@ -82,7 +82,7 @@
   - Bank transactions: include BOG EUR sources and resolve IDs correctly; allow parsing lock updates.
   - Payment statement: include BOG EUR table in bank sources.
   - Upload logs: fallback to in-page dialog when popup is blocked.
-- Commit: TBD
+- Commit: 31a20b6
 - Production: TBD
 
 ## 2026-02-17
