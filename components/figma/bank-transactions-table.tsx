@@ -261,6 +261,9 @@ export function BankTransactionsTable({
   const [importError, setImportError] = useState<string | null>(null);
   const [pendingImportRows, setPendingImportRows] = useState<any[]>([]);
   const [importFileName, setImportFileName] = useState<string>('');
+  const [uploadLogOpen, setUploadLogOpen] = useState(false);
+  const [uploadLogTitle, setUploadLogTitle] = useState('');
+  const [uploadLogText, setUploadLogText] = useState('');
   const [isBatchEditorOpen, setIsBatchEditorOpen] = useState(false);
   const [batchEditorLoading, setBatchEditorLoading] = useState(false);
   const [batchEditorUuid, setBatchEditorUuid] = useState<string | null>(null);
@@ -877,44 +880,17 @@ export function BankTransactionsTable({
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
-    let logWindow: Window | null = null;
     let logBuffer = '';
 
     const writeLog = (message: string) => {
       logBuffer += `${message}\n`;
-      if (logWindow) {
-        logWindow.document.body.innerHTML = `
-          <h2 class="info">Processing...</h2>
-          <pre>${logBuffer.replace(/</g, '&lt;')}</pre>
-        `;
-      }
+      setUploadLogText(logBuffer);
     };
 
     try {
-      // Open log window immediately to avoid popup blockers
-      logWindow = window.open('', 'Processing Logs', 'width=800,height=600');
-      if (logWindow) {
-        logWindow.document.write(`
-          <html>
-            <head>
-              <title>Processing Logs</title>
-              <style>
-                body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
-                pre { white-space: pre-wrap; word-wrap: break-word; }
-                h2 { color: #4ec9b0; }
-                .info { color: #9cdcfe; }
-                .success { color: #4ec9b0; }
-                .error { color: #f48771; }
-              </style>
-            </head>
-            <body>
-              <h2 class="info">Preparing upload...</h2>
-              <pre>Initializing...</pre>
-            </body>
-          </html>
-        `);
-        logWindow.document.close();
-      }
+      setUploadLogOpen(true);
+      setUploadLogTitle('Preparing upload...');
+      setUploadLogText('Initializing...');
 
       writeLog(`Uploading ${files.length} file(s) directly to import API...`);
 
@@ -932,38 +908,15 @@ export function BankTransactionsTable({
       const result = await response.json();
 
       if (response.ok) {
-        if (logWindow) {
-          logWindow.document.write(`
-            <html>
-              <head>
-                <title>Processing Logs</title>
-                <style>
-                  body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
-                  pre { white-space: pre-wrap; word-wrap: break-word; }
-                  h2 { color: #4ec9b0; }
-                  .success { color: #4ec9b0; }
-                  .error { color: #f48771; }
-                </style>
-              </head>
-              <body>
-                <h2 class="success">${result.message}</h2>
-                <pre>${result.logs || 'No logs available'}</pre>
-                <p><button onclick="window.close(); opener.location.reload();">Close and Reload Page</button></p>
-              </body>
-            </html>
-          `);
-          logWindow.document.close();
-        } else {
-          alert(`Success! ${result.message}\n\nPage will reload.`);
-          window.location.reload();
-        }
+        setUploadLogTitle(result.message || 'Upload complete');
+        setUploadLogText(result.logs || logBuffer || 'No logs available');
       } else {
         writeLog(`✗ Import API error: ${result.error || 'Unknown error'}`);
-        alert(`Error: ${result.error}${result.details ? '\n' + result.details : ''}`);
+        setUploadLogTitle('Upload failed');
       }
     } catch (error: any) {
       writeLog(`✗ Upload failed: ${error.message}`);
-      alert(`Upload failed: ${error.message}`);
+      setUploadLogTitle('Upload failed');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -3031,6 +2984,36 @@ export function BankTransactionsTable({
           )}
         </DialogContent>
       </Dialog>
+
+      {showFullTable && (
+        <Dialog open={uploadLogOpen} onOpenChange={setUploadLogOpen}>
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{uploadLogTitle || 'Upload Logs'}</DialogTitle>
+              <DialogDescription>Detailed upload and import output.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="rounded-md border bg-black text-green-200 p-3 text-xs overflow-auto whitespace-pre-wrap">
+                {uploadLogText || 'No logs available.'}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setUploadLogOpen(false)}
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => window.location.reload()}
+                  disabled={!uploadLogTitle || uploadLogTitle === 'Preparing upload...'}
+                >
+                  Close and Reload
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {showFullTable && (
         <Dialog open={isBackparseDialogOpen} onOpenChange={setIsBackparseDialogOpen}>

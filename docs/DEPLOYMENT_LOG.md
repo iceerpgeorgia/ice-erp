@@ -61,6 +61,13 @@
 - Commit: b90f4dc
 - Production: https://ice-lzjjz5rap-iceerp.vercel.app
 
+## 2026-02-18
+- Summary: Show upload logs in-page.
+- Changes:
+  - Bank transactions: replace popup logs with an in-page dialog.
+- Commit: TBD
+- Production: TBD
+
 ## 2026-02-17
 - Summary: Reset payments report column cache to reveal label.
 - Changes:
