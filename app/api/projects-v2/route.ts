@@ -8,7 +8,10 @@ const SOURCE_TABLES = [
   "GE65TB7856036050100002_TBC_GEL",
 ];
 
-const UNION_SQL = SOURCE_TABLES.map((table) => `SELECT * FROM "${table}"`).join(' UNION ALL ');
+const UNION_SQL = SOURCE_TABLES.map(
+  (table) =>
+    `SELECT payment_id, nominal_amount, raw_record_uuid, account_currency_amount FROM "${table}"`
+).join(' UNION ALL ');
 
 
 // GET all projects - FIXED VERSION with project_uuid join
