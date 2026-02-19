@@ -6,14 +6,14 @@
   - Conversions API: fallback query when bank_uuid join fails so rows still render.
   - Bank transactions test: skip conversion_id rows, inject conversion-derived synthetic records, and set USD/GEL after rate map loads.
 - Commit: N/A
-- Production: pending
+- Production: https://ice-l319vcwuz-iceerp.vercel.app
 
 ## 2026-02-18
 - Summary: Add fallback for projects selector when aggregation fails.
 - Changes:
   - Projects API: return base project list if payment aggregation errors.
 - Commit: N/A
-- Production: pending
+- Production: https://ice-l319vcwuz-iceerp.vercel.app
 
 ## 2026-02-18
 - Summary: Restore Add Payment project selector data.
@@ -38,7 +38,7 @@
   - Conversions: new table UI with filtering, resizing, and column reordering.
   - Dictionaries: add Conversions page link.
 - Commit: 0e93687
-- Production: pending
+- Production: https://ice-l319vcwuz-iceerp.vercel.app
 
 ## 2026-02-18
 - Summary: Switch bank XML uploads to Supabase Storage.
