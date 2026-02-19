@@ -5,7 +5,7 @@
 - Changes:
   - Bank transactions test: avoid conversion_id reference on TBC sources.
 - Commit: N/A
-- Production: pending
+- Production: https://ice-ia9tyl30p-iceerp.vercel.app
 
 ## 2026-02-19
 - Summary: Fix conversions visibility and align bank transactions test with conversion synthesis.
