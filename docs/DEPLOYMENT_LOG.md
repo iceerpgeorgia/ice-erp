@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-19
+- Summary: Fix bank-transactions-test conversion_id filter for TBC tables.
+- Changes:
+  - Bank transactions test: avoid conversion_id reference on TBC sources.
+- Commit: N/A
+- Production: pending
+
+## 2026-02-19
 - Summary: Fix conversions visibility and align bank transactions test with conversion synthesis.
 - Changes:
   - Conversions API: fallback query when bank_uuid join fails so rows still render.
