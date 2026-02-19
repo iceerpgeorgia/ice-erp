@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-02-19
+- Summary: Fix conversions visibility and align bank transactions test with conversion synthesis.
+- Changes:
+  - Conversions API: fallback query when bank_uuid join fails so rows still render.
+  - Bank transactions test: skip conversion_id rows, inject conversion-derived synthetic records, and set USD/GEL after rate map loads.
+- Commit: N/A
+- Production: pending
+
 ## 2026-02-18
 - Summary: Add fallback for projects selector when aggregation fails.
 - Changes:
