@@ -1,6 +1,14 @@
 # Deployment Log
 
 ## 2026-02-19
+- Summary: Guard conversion raw lookups for missing columns.
+- Changes:
+  - Bank transactions: use SELECT * when reading conversion raw rows to avoid missing column errors.
+  - Bank transactions test: same SELECT * fallback for conversion raw rows.
+- Commit: N/A
+- Production: pending
+
+## 2026-02-19
 - Summary: Fix bank-transactions-test conversion_id filter for TBC tables.
 - Changes:
   - Bank transactions test: avoid conversion_id reference on TBC sources.

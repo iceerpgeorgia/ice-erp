@@ -525,21 +525,7 @@ export async function GET(req: NextRequest) {
       const fetchRawByKey = async (tableName: string | null, keyValue: string) => {
         if (!tableName) return null;
         const rows = await prisma.$queryRawUnsafe<any[]>(
-          `SELECT
-             uuid,
-             entriesid,
-             description,
-             comment,
-             counteragent_uuid,
-             counteragent_account_number,
-             financial_code_uuid,
-             exchange_rate,
-             correction_date,
-             docinformation,
-             docnomination
-           FROM "${tableName}"
-           WHERE dockey = $1
-           LIMIT 1`,
+          `SELECT * FROM "${tableName}" WHERE dockey = $1 LIMIT 1`,
           keyValue
         );
         return rows[0] ?? null;
