@@ -6,7 +6,7 @@
   - Bank transactions: use SELECT * when reading conversion raw rows to avoid missing column errors.
   - Bank transactions test: same SELECT * fallback for conversion raw rows.
 - Commit: N/A
-- Production: pending
+- Production: https://ice-p1rl66kvp-iceerp.vercel.app
 
 ## 2026-02-19
 - Summary: Fix bank-transactions-test conversion_id filter for TBC tables.
