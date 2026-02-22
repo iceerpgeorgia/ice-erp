@@ -56,6 +56,7 @@ type PaymentReport = {
   accrual: number;
   order: number;
   payment: number;
+  confirmed: boolean;
   accrualPerFloor: number;
   paidPercent: number;
   due: number;
@@ -91,6 +92,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'accrual', label: 'Accrual', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },
   { key: 'order', label: 'Order', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },
   { key: 'payment', label: 'Payment', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },
+  { key: 'confirmed', label: 'Confirmed', visible: true, sortable: true, filterable: true, format: 'boolean', width: 110 },
   { key: 'paidPercent', label: 'Paid %', visible: true, sortable: true, filterable: true, format: 'percent', width: 100 },
   { key: 'due', label: 'Due', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },
   { key: 'accrualPerFloor', label: 'Accrual/Floor', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },
@@ -128,6 +130,9 @@ export function PaymentsReportTable() {
   const [aoOrder, setAoOrder] = useState('');
   const [aoComment, setAoComment] = useState('');
   const [isAOSubmitting, setIsAOSubmitting] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
   const counteragentsWithNegativeBalance = useMemo(() => {
     const flagged = new Set<string>();
@@ -170,6 +175,9 @@ export function PaymentsReportTable() {
   // Conditions filter state
   const allConditions = [
     'ALL',
+    'Confirmed',
+    'Confirmed & Due>0',
+    'Unconfirmed & Due>0',
     'Accrual>0',
     'Accrual<0',
     'Accrual=0',
@@ -942,6 +950,17 @@ export function PaymentsReportTable() {
     }
   };
 
+  const getMaxDateFilter = useCallback(() => {
+    if (dateFilterMode === 'today') {
+      return new Date().toISOString().split('T')[0];
+    }
+    if (dateFilterMode === 'custom' && customDate) {
+      const isValidDateString = /^\d{4}-\d{2}-\d{2}$/.test(customDate);
+      return isValidDateString ? customDate : null;
+    }
+    return null;
+  }, [dateFilterMode, customDate]);
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -1002,10 +1021,15 @@ export function PaymentsReportTable() {
 
       return () => {
         broadcastChannel.removeEventListener('message', handleMessage);
-        broadcastChannel.close();
       };
     }
   }, [broadcastChannel, fetchData]);
+
+  useEffect(() => {
+    return () => {
+      broadcastChannel?.close();
+    };
+  }, [broadcastChannel]);
 
   const handleToggleColumn = (columnKey: string) => {
     setColumns(prev => 
@@ -1131,6 +1155,15 @@ export function PaymentsReportTable() {
             break;
           case 'Current Due=0':
             matches = row.due === 0;
+            break;
+          case 'Confirmed':
+            matches = Boolean(row.confirmed);
+            break;
+          case 'Confirmed & Due>0':
+            matches = Boolean(row.confirmed) && row.due > 0;
+            break;
+          case 'Unconfirmed & Due>0':
+            matches = !row.confirmed && row.due > 0;
             break;
         }
 
@@ -1465,45 +1498,100 @@ export function PaymentsReportTable() {
 
   const visibleColumns = columns.filter(col => col.visible);
   const activeFilterCount = filters.size;
-  const hasActiveFilters =
-    activeFilterCount > 0 ||
-    searchTerm.length > 0 ||
-    dateFilterMode !== 'none' ||
-    (!selectedConditions.has('ALL') && selectedConditions.size > 0);
+  const hasActiveFilters = activeFilterCount > 0 || searchTerm.length > 0;
 
   const resetAllFilters = () => {
     setFilters(new Map());
     setSearchTerm('');
-    setDateFilterMode('none');
-    setCustomDate('');
-    setSelectedConditions(new Set(allConditions));
     setCurrentPage(1);
     if (typeof window !== 'undefined') {
       localStorage.removeItem(filtersStorageKey);
-      localStorage.removeItem('paymentsReportDateFilter');
-      localStorage.removeItem('paymentsReportConditions');
     }
   };
   const filteredPaymentIds = filteredAndSortedData.map((row) => row.paymentId);
   const allFilteredSelected =
     filteredPaymentIds.length > 0 && filteredPaymentIds.every((id) => selectedPaymentIds.has(id));
 
-  // Calculate totals
-  const totals = useMemo(() => {
-    const sums = filteredAndSortedData.reduce((acc, row) => ({
-      accrual: acc.accrual + row.accrual,
-      order: acc.order + row.order,
-      payment: acc.payment + row.payment,
-      due: acc.due + row.due,
-      balance: acc.balance + row.balance,
-      floors: acc.floors + row.floors,
-    }), { accrual: 0, order: 0, payment: 0, due: 0, balance: 0, floors: 0 });
-    
-    // Calculate overall paid percentage
-    const paidPercent = sums.accrual !== 0 ? (sums.payment / sums.accrual) * 100 : 0;
-    
-    return { ...sums, paidPercent };
+  const selectedRecords = useMemo(
+    () => filteredAndSortedData.filter((row) => selectedPaymentIds.has(row.paymentId)),
+    [filteredAndSortedData, selectedPaymentIds]
+  );
+
+  const handleConfirmSelected = async () => {
+    if (selectedPaymentIds.size === 0) return;
+
+    setIsConfirming(true);
+    setConfirmError(null);
+
+    try {
+      const maxDate = getMaxDateFilter();
+      const response = await fetch('/api/payments-ledger/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentIds: Array.from(selectedPaymentIds),
+          maxDate,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}));
+        throw new Error(errorPayload.error || 'Failed to confirm ledger entries.');
+      }
+
+      setIsConfirmOpen(false);
+      setSelectedPaymentIds(new Set());
+      broadcastChannel?.postMessage({ type: 'ledger-updated' });
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error confirming ledger entries:', error);
+      setConfirmError(error.message || 'Failed to confirm ledger entries.');
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  // Calculate totals per currency
+  const totalsByCurrency = useMemo(() => {
+    const totalsMap = new Map<string, {
+      accrual: number;
+      order: number;
+      payment: number;
+      due: number;
+      balance: number;
+      floors: number;
+    }>();
+
+    filteredAndSortedData.forEach((row) => {
+      const currency = row.currency || 'N/A';
+      const current = totalsMap.get(currency) || {
+        accrual: 0,
+        order: 0,
+        payment: 0,
+        due: 0,
+        balance: 0,
+        floors: 0,
+      };
+      totalsMap.set(currency, {
+        accrual: current.accrual + row.accrual,
+        order: current.order + row.order,
+        payment: current.payment + row.payment,
+        due: current.due + row.due,
+        balance: current.balance + row.balance,
+        floors: current.floors + row.floors,
+      });
+    });
+
+    return Array.from(totalsMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([currency, sums]) => ({
+        currency,
+        ...sums,
+        paidPercent: sums.accrual !== 0 ? (sums.payment / sums.accrual) * 100 : 0,
+      }));
   }, [filteredAndSortedData]);
+
+  const confirmMaxDate = getMaxDateFilter();
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -1530,106 +1618,74 @@ export function PaymentsReportTable() {
                 {isBankExporting ? 'Preparing...' : 'Bank XLSX'}
               </Button>
             )}
-            <Dialog open={isAOOpen} onOpenChange={handleAOOpenChange}>
-              <DialogTrigger asChild>
-                <Button variant="outline" disabled={selectedPaymentIds.size === 0} title="Add accruals/orders for selected payments">
-                  +A&O
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="w-[600px] max-w-[90vw]">
-                <DialogHeader>
-                  <DialogTitle>Add Accruals & Orders</DialogTitle>
-                  <DialogDescription>
-                    Apply the same accrual/order to {selectedPaymentIds.size} selected payment{selectedPaymentIds.size === 1 ? '' : 's'}.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Effective Date</Label>
-                    <div className="relative flex gap-2">
-                      <Input
-                        type="text"
-                        value={aoEffectiveDate}
-                        onChange={(e) => {
-                          let value = e.target.value.replace(/[^\d.]/g, '');
-                          if (value.length === 2 && !value.includes('.')) {
-                            value = value + '.';
-                          } else if (value.length === 5 && value.split('.').length === 2) {
-                            value = value + '.';
-                          }
-                          if (value.length <= 10) {
-                            setAoEffectiveDate(value);
-                          }
-                        }}
-                        placeholder="dd.mm.yyyy"
-                        maxLength={10}
-                        className="border-2 border-gray-400 flex-1"
-                      />
-                      <input
-                        type="date"
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            const [year, month, day] = e.target.value.split('-');
-                            setAoEffectiveDate(`${day}.${month}.${year}`);
-                          }
-                        }}
-                        className="border-2 border-gray-400 rounded-md px-3 cursor-pointer w-12 flex-shrink-0"
-                        title="Pick date from calendar"
-                      />
+            {selectedPaymentIds.size > 0 && (
+              <Dialog open={isConfirmOpen} onOpenChange={(open) => {
+                setIsConfirmOpen(open);
+                if (!open) {
+                  setConfirmError(null);
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button variant="default">
+                    Confirm
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl">
+                  <DialogHeader>
+                    <DialogTitle>Confirm selected payments</DialogTitle>
+                    <DialogDescription>
+                      You are about to confirm ledger entries for {selectedPaymentIds.size} payment{selectedPaymentIds.size === 1 ? '' : 's'}.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                      {confirmMaxDate
+                        ? `Only ledger entries with effective date <= ${confirmMaxDate} will be confirmed.`
+                        : 'No date filter is applied. All ledger entries for the selected payments will be confirmed.'}
                     </div>
-                    <p className="text-xs text-gray-500">Optional. Defaults to today if not set. Format: dd.mm.yyyy (e.g., 07.01.2026)</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Amount <span className="text-red-500">*</span></Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs text-gray-600 mb-1 block">Accrual</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={aoAccrual}
-                          onChange={(e) => setAoAccrual(e.target.value)}
-                          placeholder="0.00"
-                          className="border-[3px] border-gray-400 focus-visible:border-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-gray-600 mb-1 block">Order</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={aoOrder}
-                          onChange={(e) => setAoOrder(e.target.value)}
-                          placeholder="0.00"
-                          className="border-[3px] border-gray-400 focus-visible:border-blue-500"
-                        />
-                      </div>
+                    <div className="max-h-64 overflow-y-auto rounded-md border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                          <tr>
+                            <th className="px-3 py-2 text-left">Payment ID</th>
+                            <th className="px-3 py-2 text-left">Counteragent</th>
+                            <th className="px-3 py-2 text-left">Project</th>
+                            <th className="px-3 py-2 text-right">Due</th>
+                            <th className="px-3 py-2 text-right">Latest Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedRecords.map((row) => (
+                            <tr key={row.paymentId} className="border-t">
+                              <td className="px-3 py-2">{row.paymentId}</td>
+                              <td className="px-3 py-2">{row.counteragent || '-'}</td>
+                              <td className="px-3 py-2">{row.projectName || row.project || '-'}</td>
+                              <td className="px-3 py-2 text-right">
+                                {formatValue(row.due, 'currency', 'due')}
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                {formatValue(row.latestDate, 'date', 'latestDate')}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                    <p className="text-xs text-gray-500">Enter at least one amount (Accrual or Order).</p>
+                    {confirmError && (
+                      <div className="text-sm text-red-600">{confirmError}</div>
+                    )}
+                    <div className="flex gap-3 pt-2">
+                      <Button onClick={handleConfirmSelected} disabled={isConfirming} className="flex-1">
+                        {isConfirming ? 'Confirming...' : 'Confirm'}
+                      </Button>
+                      <Button variant="outline" onClick={() => setIsConfirmOpen(false)} className="flex-1">
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label>Comment (Optional)</Label>
-                    <Input
-                      value={aoComment}
-                      onChange={(e) => setAoComment(e.target.value)}
-                      placeholder="Notes for ledger entries"
-                      className="border-2 border-gray-300"
-                    />
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
-                    <Button onClick={handleAddAccrualOrderBulk} disabled={isAOSubmitting} className="flex-1">
-                      {isAOSubmitting ? 'Saving...' : 'Create Entries'}
-                    </Button>
-                    <Button variant="outline" onClick={() => setIsAOOpen(false)} className="flex-1">
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogContent>
+              </Dialog>
+            )}
             {/* Add Entry Button */}
             <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
               <DialogTrigger asChild>
@@ -2244,49 +2300,20 @@ export function PaymentsReportTable() {
 
       {/* Totals Bar */}
       <div className="sticky top-[60px] z-20 flex-shrink-0 bg-blue-50 border-b border-blue-200 px-4 py-2 border-t border-t-gray-200">
-        <div className="flex items-center gap-6 text-sm">
-          <div>
-            <span className="text-gray-600">Total Accrual:</span>
-            <span className="ml-2 font-semibold text-blue-900">
-              {formatValue(totals.accrual, 'currency', 'accrual')}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-600">Total Order:</span>
-            <span className="ml-2 font-semibold text-blue-900">
-              {formatValue(totals.order, 'currency', 'order')}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-600">Total Payment:</span>
-            <span className="ml-2 font-semibold text-blue-900">
-              {formatValue(totals.payment, 'currency', 'payment')}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-600">Paid %:</span>
-            <span className="ml-2 font-semibold text-blue-900">
-              {formatValue(totals.paidPercent, 'percent', 'paidPercent')}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-600">Total Due:</span>
-            <span className="ml-2 font-semibold text-blue-900">
-              {formatValue(totals.due, 'currency', 'due')}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-600">Total Balance:</span>
-            <span className="ml-2 font-semibold text-blue-900">
-              {formatValue(totals.balance, 'currency', 'balance')}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-600">Total Floors:</span>
-            <span className="ml-2 font-semibold text-blue-900">
-              {formatValue(totals.floors, 'number', 'floors')}
-            </span>
-          </div>
+        <div className="flex flex-wrap items-center gap-4 text-sm">
+          {totalsByCurrency.length === 0 ? (
+            <div className="text-gray-600">No totals available</div>
+          ) : (
+            totalsByCurrency.map((totals) => (
+              <div key={totals.currency} className="rounded-md border border-blue-100 bg-white px-3 py-2">
+                <div className="text-xs font-semibold text-blue-700">{totals.currency}</div>
+                <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <div className="text-gray-600">Due:</div>
+                  <div className="font-semibold text-blue-900">{formatValue(totals.due, 'currency', 'due')}</div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -2396,10 +2423,25 @@ export function PaymentsReportTable() {
                 </td>
               </tr>
             ) : (
-              paginatedData.map((row, idx) => (
-                <tr key={`${row.paymentId}-${idx}`} className="group border-b border-gray-200 hover:bg-gray-50">
+              paginatedData.map((row, idx) => {
+                const isConfirmedDue = Boolean(row.confirmed && row.due > 0);
+                const isConfirmedPaid = Boolean(row.confirmed && row.due === 0);
+
+                return (
+                <tr
+                  key={`${row.paymentId}-${idx}`}
+                  className={`group border-b border-gray-200 hover:bg-gray-50 ${
+                    isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : ''
+                  }`}
+                >
                   <td
-                    className="sticky left-0 z-10 bg-white px-2 py-2 text-sm group-hover:bg-gray-50"
+                    className={`sticky left-0 z-10 px-2 py-2 text-sm ${
+                      isConfirmedPaid
+                        ? 'bg-gray-100 group-hover:bg-gray-200'
+                        : isConfirmedDue
+                          ? 'bg-[#e8f5e9] group-hover:bg-[#dff1e1]'
+                          : 'bg-white group-hover:bg-gray-50'
+                    }`}
                     style={{ width: 60, minWidth: 60, maxWidth: 60 }}
                   >
                     <div className="flex items-center justify-center">
@@ -2430,7 +2472,7 @@ export function PaymentsReportTable() {
                           width: col.width, 
                           minWidth: col.width, 
                           maxWidth: col.width,
-                          backgroundColor: bgColor
+                          backgroundColor: bgColor || (isConfirmedPaid ? '#f3f4f6' : isConfirmedDue ? '#e8f5e9' : undefined)
                         }}
                       >
                       {col.format === 'boolean' ? (
@@ -2525,7 +2567,8 @@ export function PaymentsReportTable() {
                     </div>
                   </td>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>
