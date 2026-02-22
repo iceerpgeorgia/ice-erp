@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-23
+- Summary: Add Users column to payments report.
+- Changes:
+  - Payments report: show unique ledger entry creators per payment.
+- Commit: 8263cb8
+- Production: https://ice-18zk9lwia-iceerp.vercel.app
+
+## 2026-02-23
 - Summary: Add TBC beneficiary tax code column.
 - Changes:
   - Payments report: include Beneficiary's Tax Code column in TBC export.
