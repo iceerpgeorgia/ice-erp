@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-23
+- Summary: Add TBC beneficiary tax code column.
+- Changes:
+  - Payments report: include Beneficiary's Tax Code column in TBC export.
+- Commit: 0768fbb
+- Production: https://ice-r8e16maa9-iceerp.vercel.app
+
+## 2026-02-23
 - Summary: Add TBC additional description column.
 - Changes:
   - Payments report: include Additional Description column in TBC export with payment IDs.
