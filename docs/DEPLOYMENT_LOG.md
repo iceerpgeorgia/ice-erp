@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-23
+- Summary: Adjust TBC export to Transfer within bank format.
+- Changes:
+  - Payments report: export TBC batch with Account Number, Employee's Name, Amount, Description columns only.
+- Commit: 9e26cbb
+- Production: https://ice-ibbedracf-iceerp.vercel.app
+
+## 2026-02-23
 - Summary: Fix bank payment binding and add TBC export.
 - Changes:
   - Bank transactions: use raw payment_id for edit binding and avoid phantom assignments.
