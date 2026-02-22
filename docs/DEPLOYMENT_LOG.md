@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-23
+- Summary: Add TBC additional description column.
+- Changes:
+  - Payments report: include Additional Description column in TBC export with payment IDs.
+- Commit: af2d15f
+- Production: https://ice-n6c7n8d44-iceerp.vercel.app
+
+## 2026-02-23
 - Summary: Adjust TBC export to Transfer within bank format.
 - Changes:
   - Payments report: export TBC batch with Account Number, Employee's Name, Amount, Description columns only.
