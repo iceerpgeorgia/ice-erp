@@ -30,15 +30,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid maxDate format' }, { status: 400 });
     }
 
-    const updated = await prisma.$executeRawUnsafe(
-      `UPDATE payments_ledger
-       SET confirmed = false
-       WHERE payment_id = ANY($1::text[])
-         AND (is_deleted = false OR is_deleted IS NULL)
-         AND ($2::date IS NULL OR effective_date::date <= $2::date)`,
-      paymentIds,
-      maxDate
-    );
+    const [, updated] = await prisma.$transaction([
+      prisma.$executeRaw`SELECT set_config('app.allow_deconfirm', 'true', true)`,
+      prisma.$executeRawUnsafe(
+        `UPDATE payments_ledger
+         SET confirmed = false
+         WHERE payment_id = ANY($1::text[])
+           AND (is_deleted = false OR is_deleted IS NULL)
+           AND ($2::date IS NULL OR effective_date::date <= $2::date)`,
+        paymentIds,
+        maxDate
+      ),
+    ]);
 
     return NextResponse.json({ success: true, updated });
   } catch (error: any) {
