@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-23
+- Summary: Fix bank payment binding and add TBC export.
+- Changes:
+  - Bank transactions: use raw payment_id for edit binding and avoid phantom assignments.
+  - Audit logs: sanitize JSON values before insert.
+  - Payments report: add TBC bank batch export with 6 2 6 payment IDs.
+- Commit: 4984955
+- Production: https://ice-a1d324jjn-iceerp.vercel.app
+
+## 2026-02-23
 - Summary: Fix bank transactions conversion filter for TBC.
 - Changes:
   - Bank transactions: avoid conversion_id references on TBC tables.
