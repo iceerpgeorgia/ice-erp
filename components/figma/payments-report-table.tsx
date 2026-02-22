@@ -141,6 +141,9 @@ export function PaymentsReportTable() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [isDeconfirmOpen, setIsDeconfirmOpen] = useState(false);
+  const [isDeconfirming, setIsDeconfirming] = useState(false);
+  const [deconfirmError, setDeconfirmError] = useState<string | null>(null);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
   const counteragentsWithNegativeBalance = useMemo(() => {
     const flagged = new Set<string>();
@@ -1606,6 +1609,40 @@ export function PaymentsReportTable() {
     }
   };
 
+  const handleDeconfirmSelected = async () => {
+    if (selectedPaymentIds.size === 0) return;
+
+    setIsDeconfirming(true);
+    setDeconfirmError(null);
+
+    try {
+      const maxDate = getMaxDateFilter();
+      const response = await fetch('/api/payments-ledger/deconfirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentIds: Array.from(selectedPaymentIds),
+          maxDate,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}));
+        throw new Error(errorPayload.error || 'Failed to deconfirm ledger entries.');
+      }
+
+      setIsDeconfirmOpen(false);
+      setSelectedPaymentIds(new Set());
+      broadcastChannel?.postMessage({ type: 'ledger-updated' });
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error deconfirming ledger entries:', error);
+      setDeconfirmError(error.message || 'Failed to deconfirm ledger entries.');
+    } finally {
+      setIsDeconfirming(false);
+    }
+  };
+
   // Calculate totals per currency
   const totalsByCurrency = useMemo(() => {
     const totalsMap = new Map<string, {
@@ -1746,6 +1783,74 @@ export function PaymentsReportTable() {
                         {isConfirming ? 'Confirming...' : 'Confirm'}
                       </Button>
                       <Button variant="outline" onClick={() => setIsConfirmOpen(false)} className="flex-1">
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+            {selectedPaymentIds.size > 0 && (
+              <Dialog open={isDeconfirmOpen} onOpenChange={(open) => {
+                setIsDeconfirmOpen(open);
+                if (!open) {
+                  setDeconfirmError(null);
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    Deconfirm
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl">
+                  <DialogHeader>
+                    <DialogTitle>Deconfirm selected payments</DialogTitle>
+                    <DialogDescription>
+                      You are about to deconfirm ledger entries for {selectedPaymentIds.size} payment{selectedPaymentIds.size === 1 ? '' : 's'}.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                      {confirmMaxDate
+                        ? `Only ledger entries with effective date <= ${confirmMaxDate} will be deconfirmed.`
+                        : 'No date filter is applied. All ledger entries for the selected payments will be deconfirmed.'}
+                    </div>
+                    <div className="max-h-64 overflow-y-auto rounded-md border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                          <tr>
+                            <th className="px-3 py-2 text-left">Payment ID</th>
+                            <th className="px-3 py-2 text-left">Counteragent</th>
+                            <th className="px-3 py-2 text-left">Project</th>
+                            <th className="px-3 py-2 text-right">Due</th>
+                            <th className="px-3 py-2 text-right">Latest Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedRecords.map((row) => (
+                            <tr key={row.paymentId} className="border-t">
+                              <td className="px-3 py-2">{row.paymentId}</td>
+                              <td className="px-3 py-2">{row.counteragent || '-'}</td>
+                              <td className="px-3 py-2">{row.projectName || row.project || '-'}</td>
+                              <td className="px-3 py-2 text-right">
+                                {formatValue(row.due, 'currency', 'due')}
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                {formatValue(row.latestDate, 'date', 'latestDate')}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {deconfirmError && (
+                      <div className="text-sm text-red-600">{deconfirmError}</div>
+                    )}
+                    <div className="flex gap-3 pt-2">
+                      <Button onClick={handleDeconfirmSelected} disabled={isDeconfirming} className="flex-1" variant="destructive">
+                        {isDeconfirming ? 'Deconfirming...' : 'Deconfirm'}
+                      </Button>
+                      <Button variant="outline" onClick={() => setIsDeconfirmOpen(false)} className="flex-1">
                         Cancel
                       </Button>
                     </div>
