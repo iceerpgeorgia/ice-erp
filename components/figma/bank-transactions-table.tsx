@@ -254,6 +254,7 @@ export function BankTransactionsTable({
   const [wasDialogOpen, setWasDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<BankTransaction | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importPreviewRows, setImportPreviewRows] = useState<any[]>([]);
@@ -431,11 +432,25 @@ export function BankTransactionsTable({
   const [calculatedExchangeRate, setCalculatedExchangeRate] = useState<string>('');
 
   const updatePaymentOptions = (transaction: BankTransaction, paymentsList: any[]) => {
-    // Filter payments by counteragent if one exists
+    // Filter payments by counteragent if one exists, with casing/name fallback.
     let payments = paymentsList;
+    const counteragentUuid = transaction.counteragentUuid?.toLowerCase() || '';
+    const counteragentName = transaction.counteragentName?.toLowerCase() || '';
 
-    if (transaction.counteragentUuid) {
-      payments = paymentsList.filter((p: any) => p.counteragentUuid === transaction.counteragentUuid);
+    if (counteragentUuid) {
+      payments = paymentsList.filter((p: any) =>
+        String(p.counteragentUuid || '').toLowerCase() === counteragentUuid
+      );
+    }
+
+    if (!payments.length && counteragentName) {
+      payments = paymentsList.filter((p: any) =>
+        String(p.counteragentName || '').toLowerCase() === counteragentName
+      );
+    }
+
+    if (!payments.length) {
+      payments = paymentsList;
     }
 
     setPaymentOptions(payments);
@@ -1021,6 +1036,7 @@ export function BankTransactionsTable({
   const startEdit = async (transaction: BankTransaction) => {
     console.log('[startEdit] Transaction:', transaction);
     setEditingTransaction(transaction);
+    setSaveNotice(null);
     
     const transactionDateInput = toInputDate(transaction.date);
     const correctionInput = toInputDate(transaction.correctionDate);
@@ -1041,6 +1057,15 @@ export function BankTransactionsTable({
     };
     console.log('[startEdit] Initial formData:', initialFormData);
     setFormData(initialFormData);
+    if (!transaction.paymentId) {
+      setPaymentDisplayValues({
+        projectLabel: '',
+        jobLabel: '',
+        financialCodeLabel: '',
+        currencyLabel: '',
+        nominalAmountLabel: '',
+      });
+    }
     setLoadingOptions(true);
     setIsEditDialogOpen(true); // Open dialog immediately with loading state
     
@@ -1395,6 +1420,9 @@ export function BankTransactionsTable({
     
     setFormData(newFormData);
     setPaymentSearch('');
+    if (saveNotice) {
+      setSaveNotice(null);
+    }
   };
 
   const recomputeNominalAmountLabel = () => {
@@ -1525,6 +1553,9 @@ export function BankTransactionsTable({
     const isClearing = projectUuid === '__none__' || !projectUuid;
     const newFormData = { ...formData, project_uuid: isClearing ? '' : projectUuid, job_uuid: '' };
     setFormData(newFormData);
+    if (saveNotice) {
+      setSaveNotice(null);
+    }
     setProjectSearch('');
     
     if (!isClearing) {
@@ -1581,6 +1612,9 @@ export function BankTransactionsTable({
   const handleJobChange = (jobUuid: string) => {
     const newFormData = { ...formData, job_uuid: jobUuid === '__none__' ? '' : jobUuid };
     setFormData(newFormData);
+    if (saveNotice) {
+      setSaveNotice(null);
+    }
     setJobSearch('');
     checkAndAutoSelectPayment(newFormData);
   };
@@ -1589,6 +1623,9 @@ export function BankTransactionsTable({
   const handleFinancialCodeChange = (codeUuid: string) => {
     const newFormData = { ...formData, financial_code_uuid: codeUuid === '__none__' ? '' : codeUuid };
     setFormData(newFormData);
+    if (saveNotice) {
+      setSaveNotice(null);
+    }
     setFinancialCodeSearch('');
     checkAndAutoSelectPayment(newFormData);
   };
@@ -1597,6 +1634,9 @@ export function BankTransactionsTable({
   const handleCurrencyChange = (currencyUuid: string) => {
     const newFormData = { ...formData, nominal_currency_uuid: currencyUuid === '__none__' ? '' : currencyUuid };
     setFormData(newFormData);
+    if (saveNotice) {
+      setSaveNotice(null);
+    }
     setCurrencySearch('');
     checkAndAutoSelectPayment(newFormData);
   };
@@ -1607,6 +1647,7 @@ export function BankTransactionsTable({
     setIsSaving(true);
     
     try {
+      setSaveNotice(null);
       const updateData: any = {};
       
       // Only include changed fields
@@ -1641,7 +1682,7 @@ export function BankTransactionsTable({
       const { parsing_lock, ...mainUpdate } = updateData;
 
       if (Object.keys(mainUpdate).length === 0 && parsing_lock === undefined) {
-        cancelEdit();
+        setSaveNotice('No changes detected. Update a field or choose a different payment to save.');
         return;
       }
 
@@ -1662,7 +1703,7 @@ export function BankTransactionsTable({
       }
 
       if (Object.keys(mainUpdate).length === 0) {
-        cancelEdit();
+        setSaveNotice('No changes detected. Update a field or choose a different payment to save.');
         return;
       }
 
@@ -1678,6 +1719,7 @@ export function BankTransactionsTable({
       const result = await response.json();
 
       if (response.ok) {
+        setSaveNotice(null);
         // Fetch the updated transaction to get calculated values (like nominal_amount)
         const updated = await refreshTransactionById(editingTransaction.id, editingTransaction);
         if (!updated) {
@@ -1819,6 +1861,7 @@ export function BankTransactionsTable({
 
   const visibleColumns = columns.filter(col => col.visible);
   const totalWidth = visibleColumns.reduce((sum, col) => sum + col.width, 0);
+  const showPaymentMeta = Boolean(formData.payment_uuid || editingTransaction?.paymentId);
 
   const formatExportValue = (key: ColumnKey, value: BankTransaction[ColumnKey]) => {
     if (value === null || value === undefined) return '';
@@ -2594,7 +2637,7 @@ export function BankTransactionsTable({
                           .map((payment) => (
                             <SelectItem key={payment.paymentId} value={payment.paymentId}>
                               {payment.paymentId}
-                              {(payment.projectIndex || payment.jobName || payment.financialCodeValidation) && (
+                              {showPaymentMeta && (payment.projectIndex || payment.jobName || payment.financialCodeValidation) && (
                                 <span className="text-muted-foreground text-xs">
                                   {' | '}{payment.projectIndex || '-'}
                                   {payment.jobName && ` | ${payment.jobName}`}
@@ -2616,9 +2659,12 @@ export function BankTransactionsTable({
                   <div className="flex items-center gap-2 pt-2">
                     <Checkbox
                       checked={formData.parsing_lock}
-                      onCheckedChange={(checked) =>
-                        setFormData((prev) => ({ ...prev, parsing_lock: Boolean(checked) }))
-                      }
+                      onCheckedChange={(checked) => {
+                        setFormData((prev) => ({ ...prev, parsing_lock: Boolean(checked) }));
+                        if (saveNotice) {
+                          setSaveNotice(null);
+                        }
+                      }}
                     />
                     <Label className="text-sm">Parsing lock (skip during backparse)</Label>
                   </div>
@@ -2934,9 +2980,12 @@ export function BankTransactionsTable({
                     <Input
                       type="date"
                       value={formData.correction_date}
-                      onChange={(event) =>
-                        setFormData((prev) => ({ ...prev, correction_date: event.target.value }))
-                      }
+                      onChange={(event) => {
+                        setFormData((prev) => ({ ...prev, correction_date: event.target.value }));
+                        if (saveNotice) {
+                          setSaveNotice(null);
+                        }
+                      }}
                       className="bg-white border-gray-300"
                     />
                   </div>
@@ -2975,14 +3024,23 @@ export function BankTransactionsTable({
                   <Label className="text-xs text-gray-600">Comment</Label>
                   <Textarea
                     value={formData.comment}
-                    onChange={(event) =>
-                      setFormData((prev) => ({ ...prev, comment: event.target.value }))
-                    }
+                    onChange={(event) => {
+                      setFormData((prev) => ({ ...prev, comment: event.target.value }));
+                      if (saveNotice) {
+                        setSaveNotice(null);
+                      }
+                    }}
                     placeholder="Add a comment..."
                     className="bg-white border-gray-300"
                   />
                 </div>
               </div>
+
+              {saveNotice && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                  {saveNotice}
+                </p>
+              )}
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button

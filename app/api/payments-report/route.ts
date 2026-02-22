@@ -24,14 +24,26 @@ export async function GET(request: NextRequest) {
     const ledgerDateFilter = maxDate ? `WHERE effective_date::date <= '${maxDate}'::date` : '';
     const bankDateFilter = maxDate ? `AND transaction_date::date <= '${maxDate}'::date` : '';
 
+    const rawUnionQuery = SOURCE_TABLES.length
+      ? SOURCE_TABLES.map((table) => (
+        `SELECT raw_record_uuid::text AS raw_record_uuid, counteragent_uuid::uuid AS counteragent_uuid, payment_id::text AS payment_id FROM "${table}"`
+      )).join(' UNION ALL ')
+      : 'SELECT NULL::text AS raw_record_uuid, NULL::uuid AS counteragent_uuid, NULL::text AS payment_id WHERE false';
+
+    const rawUnionBankQuery = SOURCE_TABLES.length
+      ? SOURCE_TABLES.map((table) => (
+        `SELECT raw_record_uuid::text AS raw_record_uuid, payment_id::text AS payment_id, nominal_amount::numeric AS nominal_amount, transaction_date::date AS transaction_date, account_currency_amount::numeric AS account_currency_amount, counteragent_uuid::text AS counteragent_uuid FROM "${table}"`
+      )).join(' UNION ALL ')
+      : 'SELECT NULL::text AS raw_record_uuid, NULL::text AS payment_id, NULL::numeric AS nominal_amount, NULL::date AS transaction_date, NULL::numeric AS account_currency_amount, NULL::text AS counteragent_uuid WHERE false';
+
     // Query to get payments with aggregated ledger data and actual payments from bank accounts
     // Use subqueries to prevent Cartesian product when payment has multiple ledger entries AND bank transactions
     const query = `
       WITH raw_union AS (
-        ${SOURCE_TABLES.map((table) => `SELECT raw_record_uuid, counteragent_uuid, payment_id FROM "${table}"`).join(' UNION ALL ')}
+        ${rawUnionQuery}
       ),
       raw_union_bank AS (
-        ${SOURCE_TABLES.map((table) => `SELECT raw_record_uuid, payment_id, nominal_amount, transaction_date, account_currency_amount, counteragent_uuid FROM "${table}"`).join(' UNION ALL ')}
+        ${rawUnionBankQuery}
       ),
       unbound_counteragent AS (
         SELECT
@@ -73,6 +85,7 @@ export async function GET(request: NextRequest) {
         COALESCE(uc.unbound_count, 0) as unbound_count,
         COALESCE(ledger_agg.total_accrual, 0) as total_accrual,
         COALESCE(ledger_agg.total_order, 0) as total_order,
+        COALESCE(ledger_agg.confirmed, false) as confirmed,
         COALESCE(bank_agg.total_payment, 0) as total_payment,
         COALESCE(GREATEST(ledger_agg.latest_ledger_date, bank_agg.latest_bank_date), ledger_agg.latest_ledger_date, bank_agg.latest_bank_date) as latest_date
       FROM payments p
@@ -87,6 +100,7 @@ export async function GET(request: NextRequest) {
           payment_id,
           SUM(accrual) as total_accrual,
           SUM("order") as total_order,
+          BOOL_OR(confirmed) as confirmed,
           MAX(effective_date) as latest_ledger_date
         FROM payments_ledger
         ${ledgerDateFilter}
@@ -163,6 +177,7 @@ export async function GET(request: NextRequest) {
       accrual: row.total_accrual ? parseFloat(row.total_accrual) : 0,
       order: row.total_order ? parseFloat(row.total_order) : 0,
       payment: row.total_payment ? parseFloat(row.total_payment) : 0,
+      confirmed: Boolean(row.confirmed),
       unboundCount: row.unbound_count ? Number(row.unbound_count) : 0,
       hasUnboundCounteragentTransactions: Boolean(row.unbound_count && Number(row.unbound_count) > 0),
       latestDate: row.latest_date || null,

@@ -150,6 +150,52 @@ export async function GET(request: NextRequest) {
 
     const paymentIds = Array.from(paymentIdSet.values());
 
+      const rawBankUnionQuery = SOURCE_TABLES.length
+        ? SOURCE_TABLES.map((table) => (
+            `SELECT
+               id,
+               uuid,
+               raw_record_uuid,
+               payment_id,
+               dockey,
+               entriesid,
+               account_currency_amount,
+               nominal_amount,
+               exchange_rate,
+               transaction_date,
+               counteragent_account_number,
+               description,
+               created_at,
+               bank_account_uuid,
+               account_currency_uuid,
+               nominal_currency_uuid,
+               counteragent_uuid,
+               '${table.name}' as source_table,
+               ${table.offset}::bigint as source_offset
+             FROM "${table.name}"`
+          )).join(' UNION ALL ')
+        : `SELECT
+             NULL::bigint as id,
+             NULL::uuid as uuid,
+             NULL::uuid as raw_record_uuid,
+             NULL::text as payment_id,
+             NULL::text as dockey,
+             NULL::text as entriesid,
+             NULL::numeric as account_currency_amount,
+             NULL::numeric as nominal_amount,
+             NULL::numeric as exchange_rate,
+             NULL::date as transaction_date,
+             NULL::text as counteragent_account_number,
+             NULL::text as description,
+             NULL::timestamptz as created_at,
+             NULL::uuid as bank_account_uuid,
+             NULL::uuid as account_currency_uuid,
+             NULL::uuid as nominal_currency_uuid,
+             NULL::uuid as counteragent_uuid,
+             NULL::text as source_table,
+             NULL::bigint as source_offset
+           WHERE false`;
+
     const ledgerEntries = paymentIds.length
       ? await prisma.$queryRawUnsafe<any[]>(
           `SELECT
@@ -214,7 +260,7 @@ export async function GET(request: NextRequest) {
            curr.code as account_currency_code,
            nominal_curr.code as nominal_currency_code
          FROM (
-           ${SOURCE_TABLES.map((table) => `SELECT *, '${table.name}' as source_table, ${table.offset}::bigint as source_offset FROM "${table.name}"`).join(' UNION ALL ')}
+           ${rawBankUnionQuery}
          ) cba
          LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
          LEFT JOIN currencies curr ON cba.account_currency_uuid = curr.uuid
@@ -252,7 +298,7 @@ export async function GET(request: NextRequest) {
            curr.code as account_currency_code,
            nominal_curr.code as nominal_currency_code
          FROM (
-           ${SOURCE_TABLES.map((table) => `SELECT *, '${table.name}' as source_table, ${table.offset}::bigint as source_offset FROM "${table.name}"`).join(' UNION ALL ')}
+           ${rawBankUnionQuery}
          ) cba
          JOIN bank_transaction_batches btb
            ON btb.raw_record_uuid::text = cba.raw_record_uuid::text

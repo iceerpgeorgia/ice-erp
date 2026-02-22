@@ -159,6 +159,7 @@ export default function CounteragentStatementPage() {
   const [selectedIncomeTax, setSelectedIncomeTax] = useState(false);
   const [payments, setPayments] = useState<Array<{ 
     paymentId: string; 
+    counteragentUuid?: string | null;
     counteragentName?: string;
     projectIndex?: string;
     projectName?: string;
@@ -173,6 +174,10 @@ export default function CounteragentStatementPage() {
   const [order, setOrder] = useState('');
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedBankIds, setSelectedBankIds] = useState<Set<number>>(new Set());
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [bulkPaymentId, setBulkPaymentId] = useState('');
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
 
   const getPaymentInfo = useCallback(
     (paymentId: string | null) => {
@@ -416,6 +421,7 @@ export default function CounteragentStatementPage() {
         }
         setPayments(data.map((p: any) => ({
           paymentId: p.paymentId || p.payment_id,
+          counteragentUuid: p.counteragentUuid || p.counteragent_uuid || null,
           counteragentName: p.counteragentName || p.counteragent_name || null,
           projectIndex: p.projectIndex || p.project_index || null,
           projectName: p.projectName || p.project_name || null,
@@ -573,6 +579,37 @@ export default function CounteragentStatementPage() {
     return filtered;
   }, [rows, filters, sortColumn, sortDirection]);
 
+  const allBankIds = useMemo(() => {
+    if (!statement?.bankTransactions) return [] as number[];
+    return (statement.bankTransactions as any[])
+      .map((tx) => Number(tx.id))
+      .filter((id) => Number.isFinite(id));
+  }, [statement]);
+
+  const selectableBankIds = useMemo(() => {
+    if (!statement?.bankTransactions) return [] as number[];
+    return (statement.bankTransactions as any[])
+      .filter((tx) => !tx.batchId)
+      .map((tx) => Number(tx.id))
+      .filter((id) => Number.isFinite(id));
+  }, [statement]);
+
+  const visibleBankIds = useMemo(() => {
+    return filteredRows
+      .filter((row) => row.type === 'bank' && row.bankId && !row.batchId)
+      .map((row) => Number(row.bankId))
+      .filter((id) => Number.isFinite(id));
+  }, [filteredRows]);
+
+  useEffect(() => {
+    if (!selectedBankIds.size) return;
+    setSelectedBankIds((prev) => {
+      const allowed = new Set(selectableBankIds);
+      const next = new Set(Array.from(prev).filter((id) => allowed.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [selectableBankIds, selectedBankIds.size]);
+
   const filteredTotals = useMemo(() => {
     return filteredRows.reduce(
       (acc, row) => {
@@ -585,6 +622,14 @@ export default function CounteragentStatementPage() {
       { accrual: 0, order: 0, payment: 0, ppc: 0 }
     );
   }, [filteredRows]);
+
+  const visibleSelectedCount = useMemo(() => {
+    if (!selectedBankIds.size || !visibleBankIds.length) return 0;
+    return visibleBankIds.filter((id) => selectedBankIds.has(id)).length;
+  }, [visibleBankIds, selectedBankIds]);
+
+  const allVisibleSelected = visibleBankIds.length > 0 && visibleSelectedCount === visibleBankIds.length;
+  const someVisibleSelected = visibleSelectedCount > 0 && !allVisibleSelected;
 
   const handleExportXlsx = () => {
     if (!filteredRows.length) return;
@@ -825,6 +870,142 @@ export default function CounteragentStatementPage() {
     setAddLedgerStep('ledger');
   };
 
+  const counteragentPayments = useMemo(() => {
+    if (!counteragentUuid) return [];
+    return payments.filter((payment) => payment.counteragentUuid === counteragentUuid);
+  }, [payments, counteragentUuid]);
+
+  const bulkPaymentOptions = useMemo(() => {
+    return counteragentPayments.map((p) => {
+      const parts = [p.paymentId];
+      if (p.projectName) parts.push(p.projectName);
+      if (p.jobName) parts.push(p.jobName);
+      if (p.financialCode) parts.push(p.financialCode);
+      if (p.currencyCode) parts.push(p.currencyCode);
+      const fullLabel = parts.join(' | ');
+      const searchKeywords = [
+        p.paymentId,
+        p.projectName || '',
+        p.jobName || '',
+        p.financialCode || '',
+        p.currencyCode || ''
+      ].filter(Boolean).join(' ');
+      return {
+        value: p.paymentId,
+        label: fullLabel,
+        displayLabel: fullLabel,
+        keywords: searchKeywords
+      };
+    });
+  }, [counteragentPayments]);
+
+  const toggleSelectBank = (bankId: number, checked: boolean) => {
+    setSelectedBankIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(bankId);
+      } else {
+        next.delete(bankId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAllVisible = (checked: boolean) => {
+    setSelectedBankIds((prev) => {
+      const next = new Set(prev);
+      visibleBankIds.forEach((id) => {
+        if (checked) {
+          next.add(id);
+        } else {
+          next.delete(id);
+        }
+      });
+      return next;
+    });
+  };
+
+  const handleBulkBind = async () => {
+    if (!bulkPaymentId) {
+      alert('Please select a payment');
+      return;
+    }
+
+    const targetIds = Array.from(selectedBankIds);
+    if (!targetIds.length) return;
+
+    setIsBulkSaving(true);
+    const info = getPaymentInfo(bulkPaymentId);
+    try {
+      const results = await Promise.allSettled(
+        targetIds.map(async (id) => {
+          const response = await fetch(`/api/bank-transactions/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ payment_uuid: bulkPaymentId }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || `Failed to update transaction ${id}`);
+          }
+
+          return id;
+        })
+      );
+
+      const successIds: number[] = [];
+      const failedMessages: string[] = [];
+      results.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          successIds.push(result.value);
+        } else {
+          failedMessages.push(result.reason?.message || 'Failed to update transaction');
+        }
+      });
+
+      if (successIds.length) {
+        setStatement((prev: any) => {
+          if (!prev) return prev;
+          const nextBankTransactions = (prev.bankTransactions || []).map((tx: any) => {
+            if (!successIds.includes(Number(tx.id))) return tx;
+            return {
+              ...tx,
+              paymentId: bulkPaymentId,
+              project: info.project,
+              financialCode: info.financialCode,
+              job: info.job,
+              incomeTax: info.incomeTax,
+              currency: info.currency,
+            };
+          });
+          const nextPaymentIds = prev.paymentIds?.includes(bulkPaymentId)
+            ? prev.paymentIds
+            : [...(prev.paymentIds || []), bulkPaymentId];
+          return {
+            ...prev,
+            bankTransactions: nextBankTransactions,
+            paymentIds: nextPaymentIds,
+          };
+        });
+      }
+
+      const failedCount = results.length - successIds.length;
+      if (failedCount) {
+        alert(`Updated ${successIds.length} transactions, ${failedCount} failed. ${failedMessages[0] || ''}`.trim());
+        setSelectedBankIds(new Set(targetIds.filter((id) => !successIds.includes(id))));
+      } else {
+        setSelectedBankIds(new Set());
+        setIsBulkEditOpen(false);
+        setBulkPaymentId('');
+      }
+    } catch (error: any) {
+      alert(error.message || 'Failed to update selected transactions');
+    } finally {
+      setIsBulkSaving(false);
+    }
+  };
+
   const handleDialogOpenChange = (open: boolean) => {
     setIsDialogOpen(open);
     if (!open) {
@@ -1045,6 +1226,59 @@ export default function CounteragentStatementPage() {
             <p className="text-gray-600 mt-1">{counteragentName}</p>
           </div>
           <div className="flex items-center gap-2">
+            {selectedBankIds.size > 0 ? (
+              <Dialog open={isBulkEditOpen} onOpenChange={(open) => {
+                setIsBulkEditOpen(open);
+                if (!open) {
+                  setBulkPaymentId('');
+                  setIsBulkSaving(false);
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button variant="default">
+                    Bulk Edit ({selectedBankIds.size})
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Bulk Bind Bank Transactions</DialogTitle>
+                    <DialogDescription>
+                      Bind selected bank transactions to a payment ID for this counteragent.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Payment</Label>
+                      <Combobox
+                        value={bulkPaymentId}
+                        onValueChange={setBulkPaymentId}
+                        options={bulkPaymentOptions}
+                        placeholder="Select payment..."
+                        searchPlaceholder="Search by payment ID, project, job..."
+                        filter={(value, search) => {
+                          if (!search) return 1;
+                          try {
+                            const regex = new RegExp(search, 'i');
+                            return regex.test(value) ? 1 : 0;
+                          } catch {
+                            return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      onClick={handleBulkBind}
+                      disabled={isBulkSaving || !bulkPaymentId}
+                    >
+                      {isBulkSaving ? 'Saving...' : `Bind ${selectedBankIds.size} Transactions`}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            ) : null}
+
             <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
               <DialogTrigger asChild>
                 <Button variant="default">
@@ -1451,6 +1685,13 @@ export default function CounteragentStatementPage() {
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
+                  <th className="px-2 py-3 font-semibold text-left sticky top-0 z-10 bg-gray-50" style={{ width: 48 }}>
+                    <Checkbox
+                      checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
+                      onCheckedChange={(checked) => toggleSelectAllVisible(Boolean(checked))}
+                      disabled={!visibleBankIds.length}
+                    />
+                  </th>
                   {columns.filter((col) => col.visible).map((col) => (
                     <th
                       key={col.key}
@@ -1491,13 +1732,24 @@ export default function CounteragentStatementPage() {
               <tbody>
                 {filteredRows.length === 0 ? (
                   <tr>
-                    <td colSpan={columns.filter((col) => col.visible).length + 2} className="text-center py-6 text-gray-500">
+                    <td colSpan={columns.filter((col) => col.visible).length + 3} className="text-center py-6 text-gray-500">
                       No data found
                     </td>
                   </tr>
                 ) : (
                   filteredRows.map((row) => (
                     <tr key={row.id} className="border-b">
+                      <td className="px-2 py-2 text-sm">
+                        {row.type === 'bank' && row.bankId ? (
+                          <Checkbox
+                            checked={selectedBankIds.has(Number(row.bankId))}
+                            onCheckedChange={(checked) => toggleSelectBank(Number(row.bankId), Boolean(checked))}
+                            disabled={Boolean(row.batchId)}
+                          />
+                        ) : (
+                          <span className="text-gray-300">-</span>
+                        )}
+                      </td>
                       {columns.filter((col) => col.visible).map((col) => {
                         const value = row[col.key];
                         const displayValue = (() => {

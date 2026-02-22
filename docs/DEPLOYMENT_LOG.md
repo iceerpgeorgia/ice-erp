@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-02-23
+- Summary: Show only Due in payments report totals.
+- Changes:
+  - Payments report: display only Due in per-currency totals boxes.
+- Commit: 4bbb123
+- Production: https://ice-38vtzcypa-iceerp.vercel.app
+
 ## 2026-02-19
 - Summary: Guard conversion raw lookups for missing columns.
 - Changes:

@@ -7,7 +7,14 @@ const SOURCE_TABLES = [
   "GE65TB7856036050100002_TBC_GEL",
 ];
 
-const UNION_SQL = SOURCE_TABLES.map((table) => `SELECT * FROM "${table}"`).join(' UNION ALL ');
+const UNION_SQL = SOURCE_TABLES.map((table) => (
+  `SELECT
+     raw_record_uuid::text as raw_record_uuid,
+     payment_id::text as payment_id,
+     nominal_amount::numeric as nominal_amount,
+     account_currency_amount::numeric as account_currency_amount
+   FROM "${table}"`
+)).join(' UNION ALL ');
 
 
 // Disable caching for this route

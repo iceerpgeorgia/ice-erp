@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import dynamic from "next/dynamic";
+import dynamicImport from "next/dynamic";
 import type { Project } from "@/components/figma/projects-table";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 // Helper function to map API response (snake_case) to Project interface (camelCase)
 const mapProjectData = (row: any): Project => {
@@ -34,7 +36,7 @@ const mapProjectData = (row: any): Project => {
 };
 
 // Dynamically import the heavy table component
-const ProjectsTableDynamic = dynamic(
+const ProjectsTableDynamic = dynamicImport(
   () => import("@/components/figma/projects-table").then(mod => ({ default: mod.ProjectsTable })),
   { ssr: false }
 );
