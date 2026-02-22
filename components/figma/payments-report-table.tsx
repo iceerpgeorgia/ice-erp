@@ -1476,18 +1476,20 @@ export function PaymentsReportTable() {
 
     setIsBankExporting(true);
 
-    const headers = ['Account Number', "Employee's Name", 'Amount', 'Description'];
+    const headers = ['Account Number', "Employee's Name", 'Amount', 'Description', 'Additional Description'];
 
     try {
       const rows = await Promise.all(
         selectedRecords.map(async (record) => {
           const description = buildPaymentDescription(record.financialCodeDescription, record);
           const amount = await calculateExportAmount(record);
+          const paymentId = record.paymentId ? record.paymentId.replace(/_/g, ' ') : '';
           return [
             record.counteragentIban || '',
             sanitizeRecipientName(record.counteragent || ''),
             amount,
             description || 'Payment',
+            paymentId,
           ];
         })
       );
