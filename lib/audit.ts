@@ -4,7 +4,7 @@ import { authOptions, prisma } from "@/lib/auth";
 export type AuditAction = "create" | "update" | "delete" | "deactivate" | "activate";
 
 export async function logAudit(params: {
-  table: "countries" | "entity_types" | "counteragents" | "financial_codes" | "nbg_exchange_rates" | "currencies" | "projects" | "project_states" | "consolidated_bank_accounts" | "GE78BG0000000893486000_BOG_GEL" | "GE65TB7856036050100002_TBC_GEL";
+  table: "countries" | "entity_types" | "counteragents" | "financial_codes" | "nbg_exchange_rates" | "currencies" | "projects" | "project_states" | "consolidated_bank_accounts" | "GE78BG0000000893486000_BOG_GEL";
   recordId: bigint | string | number;
   action: AuditAction;
   changes?: any;
@@ -30,6 +30,16 @@ export async function logAudit(params: {
       userId: userId ?? undefined,
       changes: params.changes ?? undefined,
     });
+    const safeChanges = params.changes === undefined
+      ? undefined
+      : JSON.parse(JSON.stringify(params.changes, (_key, value) => {
+        if (typeof value === 'bigint') return value.toString();
+        if (value && typeof value === 'object' && value.constructor?.name === 'Decimal') {
+          return value.toString();
+        }
+        if (value instanceof Date) return value.toISOString();
+        return value;
+      }));
     const result = await prisma.auditLog.create({
       data: {
         table: params.table,
@@ -37,7 +47,7 @@ export async function logAudit(params: {
         action: params.action,
         user_email: email ?? undefined,
         user_id: userId ?? undefined,
-        changes: params.changes ?? undefined,
+        changes: safeChanges ?? undefined,
       },
       select: { id: true },
     });

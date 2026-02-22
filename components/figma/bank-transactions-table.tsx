@@ -80,6 +80,7 @@ export type BankTransaction = {
   projectIndex: string | null;
   financialCode: string | null;
   paymentId: string | null;
+  paymentIdRaw?: string | null;
   batchId?: string | null;
   nominalCurrencyCode: string | null;
   accountCurrencyCode?: string | null;
@@ -309,6 +310,7 @@ export function BankTransactionsTable({
     projectIndex: row.project_index ?? fallback?.projectIndex ?? null,
     financialCode: row.financial_code ?? fallback?.financialCode ?? null,
     paymentId: row.payment_id ?? fallback?.paymentId ?? null,
+    paymentIdRaw: row.payment_id_raw ?? row.paymentIdRaw ?? fallback?.paymentIdRaw ?? null,
     batchId: row.batch_id ?? row.batchId ?? fallback?.batchId ?? null,
     nominalCurrencyCode: row.nominal_currency_code ?? fallback?.nominalCurrencyCode ?? null,
     sourceTable: row.source_table ?? fallback?.sourceTable ?? null,
@@ -1045,7 +1047,7 @@ export function BankTransactionsTable({
 
     // Initialize form with transaction data - use paymentId (not UUID) for the Select value
     const initialFormData = {
-      payment_uuid: transaction.paymentId || '', // Use paymentId as the form value
+      payment_uuid: transaction.paymentIdRaw ?? transaction.paymentId ?? '', // Use stored payment id when available
       project_uuid: transaction.projectUuid || '',
       job_uuid: '', // Will be populated after jobs load
       financial_code_uuid: transaction.financialCodeUuid || '',
@@ -1651,7 +1653,8 @@ export function BankTransactionsTable({
       const updateData: any = {};
       
       // Only include changed fields
-      if (formData.payment_uuid !== (editingTransaction.paymentId || '')) {
+      const storedPaymentId = editingTransaction.paymentIdRaw ?? editingTransaction.paymentId ?? '';
+      if (formData.payment_uuid !== storedPaymentId) {
         updateData.payment_uuid = formData.payment_uuid || null;
       }
       if (formData.project_uuid !== (editingTransaction.projectUuid || '')) {

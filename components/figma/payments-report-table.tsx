@@ -28,6 +28,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from './ui/label';
 import { Combobox } from '../ui/combobox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import * as XLSX from 'xlsx';
 
 
@@ -1461,6 +1467,74 @@ export function PaymentsReportTable() {
     }
   };
 
+  const handleDownloadTbcBankXlsx = async () => {
+    const selectedRecords = filteredAndSortedData.filter((row) => selectedPaymentIds.has(row.paymentId));
+    if (selectedRecords.length === 0) {
+      alert('No records selected');
+      return;
+    }
+
+    setIsBankExporting(true);
+
+    const headers = [
+      'საბუთის ნომერი',
+      'მიმღების ანგარიში',
+      'მიმღების სახელი',
+      'მიმღ. საგადასახადო კოდი',
+      'თანხა',
+      'დანიშნულება',
+      'დამატებითი დანიშნულება',
+      'სახაზინო კოდი',
+      'გადამხდელის კოდი',
+      'გადამხდელის დასახელება',
+    ];
+
+    const tags = [
+      'ns1:DOCNUM',
+      'ns1:ACCIBANTO',
+      'ns1:BENEFNAME',
+      'ns1:BENEFTAXCODE',
+      'ns1:AMOUNT',
+      'ns1:DESCR',
+      'ns1:ADDDESCR',
+      'ns1:TREASCODE',
+      'ns1:TAXPAYCODE',
+      'ns1:TAXPAYNAME',
+    ];
+
+    try {
+      const rows = await Promise.all(
+        selectedRecords.map(async (record) => {
+          const description = buildPaymentDescription(record.financialCodeDescription, record);
+          const amount = await calculateExportAmount(record);
+          const paymentId = record.paymentId ? record.paymentId.replace(/_/g, ' ') : '';
+          return [
+            '',
+            record.counteragentIban || '',
+            sanitizeRecipientName(record.counteragent || ''),
+            record.counteragentId || '',
+            amount,
+            description || 'გადახდა',
+            paymentId,
+            '',
+            '',
+            '',
+          ];
+        })
+      );
+
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, tags, ...rows]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+      XLSX.writeFile(workbook, 'TBC_BANK.xlsx');
+    } catch (error: any) {
+      console.error('Failed to generate TBC bank XLSX:', error);
+      alert(error.message || 'Failed to generate bank XLSX');
+    } finally {
+      setIsBankExporting(false);
+    }
+  };
+
   const handleOpenBaseInfo = async (paymentId: string) => {
     setIsBaseInfoOpen(true);
     setBaseInfoLoading(true);
@@ -1614,9 +1688,21 @@ export function PaymentsReportTable() {
               Export XLSX
             </Button>
             {selectedPaymentIds.size > 0 && (
-              <Button variant="outline" onClick={handleDownloadBankXlsx} disabled={isBankExporting}>
-                {isBankExporting ? 'Preparing...' : 'Bank XLSX'}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" disabled={isBankExporting}>
+                    {isBankExporting ? 'Preparing...' : 'Bank XLSX'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleDownloadBankXlsx} disabled={isBankExporting}>
+                    Export BOG format
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDownloadTbcBankXlsx} disabled={isBankExporting}>
+                    Export TBC format
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             {selectedPaymentIds.size > 0 && (
               <Dialog open={isConfirmOpen} onOpenChange={(open) => {

@@ -215,12 +215,15 @@ export default function CounteragentStatementPage() {
 
   const handleBankTransactionUpdated = useCallback(
     (transaction: BankTransaction) => {
+      const resolvedPaymentId = transaction.paymentIdRaw !== undefined
+        ? transaction.paymentIdRaw
+        : (transaction.paymentId || null);
       setBankEditData((prev) =>
         prev.map((row) =>
           row.id === transaction.id
             ? {
                 ...row,
-                paymentId: transaction.paymentId || null,
+                paymentId: resolvedPaymentId,
                 projectUuid: transaction.projectUuid || null,
                 financialCodeUuid: transaction.financialCodeUuid || null,
                 nominalCurrencyUuid: transaction.nominalCurrencyUuid || null,
@@ -244,7 +247,7 @@ export default function CounteragentStatementPage() {
 
       setStatement((prev: any) => {
         if (!prev) return prev;
-        const info = getPaymentInfo(transaction.paymentId || null);
+        const info = getPaymentInfo(resolvedPaymentId);
         const nextBankTransactions = (prev.bankTransactions || []).map((tx: any) => {
           if (Number(tx.id) !== transaction.id) return tx;
           const accountLabel =
@@ -253,7 +256,7 @@ export default function CounteragentStatementPage() {
             '-';
           return {
             ...tx,
-            paymentId: transaction.paymentId || null,
+            paymentId: resolvedPaymentId,
             accountCurrencyAmount:
               transaction.accountCurrencyAmount != null
                 ? Number(transaction.accountCurrencyAmount)
@@ -274,10 +277,10 @@ export default function CounteragentStatementPage() {
             currency: info.currency,
           };
         });
-        const nextPaymentIds = transaction.paymentId
-          ? prev.paymentIds?.includes(transaction.paymentId)
+        const nextPaymentIds = resolvedPaymentId
+          ? prev.paymentIds?.includes(resolvedPaymentId)
             ? prev.paymentIds
-            : [...(prev.paymentIds || []), transaction.paymentId]
+            : [...(prev.paymentIds || []), resolvedPaymentId]
           : prev.paymentIds;
         return {
           ...prev,

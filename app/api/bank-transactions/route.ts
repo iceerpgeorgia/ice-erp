@@ -250,6 +250,7 @@ function toApi(row: any) {
     nominal_currency_uuid: hasBatchIdAsPayment ? null : nominalCurrencyUuid,
     nominal_amount: hasBatchIdAsPayment ? null : nominalAmount,
     payment_id: hasBatchIdAsPayment ? null : (paymentId ?? null),
+    payment_id_raw: row.payment_id ?? null,
     batch_id: batchId ?? null,
     batch_partition_id: hasBatch ? Number(row.batch_partition_id) : null,
     is_batch: hasBatch,
