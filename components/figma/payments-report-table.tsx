@@ -62,6 +62,7 @@ type PaymentReport = {
   accrual: number;
   order: number;
   payment: number;
+  users: string;
   confirmed: boolean;
   accrualPerFloor: number;
   paidPercent: number;
@@ -87,6 +88,7 @@ type ColumnConfig = {
 const defaultColumns: ColumnConfig[] = [
   { key: 'counteragent', label: 'Counteragent', visible: true, sortable: true, filterable: true, width: 280 },
   { key: 'paymentId', label: 'Payment ID', visible: true, sortable: true, filterable: true, width: 150 },
+  { key: 'users', label: 'Users', visible: true, sortable: true, filterable: true, width: 220 },
   { key: 'label', label: 'Label', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'currency', label: 'Currency', visible: true, sortable: true, filterable: true, width: 100 },
   { key: 'financialCode', label: 'Financial Code', visible: true, sortable: true, filterable: true, width: 200 },
@@ -1455,7 +1457,7 @@ export function PaymentsReportTable() {
         })
       );
 
-      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      const worksheet = XLSX.utils.aoa_to_sheet([[], headers, ...rows]);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
       XLSX.writeFile(workbook, 'Payments Bank XLSX.xlsx');
@@ -1490,7 +1492,7 @@ export function PaymentsReportTable() {
         selectedRecords.map(async (record) => {
           const description = buildPaymentDescription(record.financialCodeDescription, record);
           const amount = await calculateExportAmount(record);
-          const paymentId = record.paymentId ? record.paymentId.replace(/_/g, ' ') : '';
+          const paymentId = record.paymentId ? record.paymentId.replace(/_/g, ' ').toUpperCase() : '';
           return [
             record.counteragentIban || '',
             sanitizeRecipientName(record.counteragent || ''),

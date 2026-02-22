@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const maxDate = searchParams.get('maxDate');
 
-    const ledgerDateFilter = maxDate ? `WHERE effective_date::date <= '${maxDate}'::date` : '';
+    const ledgerDateFilter = maxDate ? `WHERE pl.effective_date::date <= '${maxDate}'::date` : '';
     const bankDateFilter = maxDate ? `AND transaction_date::date <= '${maxDate}'::date` : '';
 
     const rawUnionQuery = SOURCE_TABLES.length
@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
         COALESCE(uc.unbound_count, 0) as unbound_count,
         COALESCE(ledger_agg.total_accrual, 0) as total_accrual,
         COALESCE(ledger_agg.total_order, 0) as total_order,
+        COALESCE(ledger_agg.ledger_users, '') as ledger_users,
         COALESCE(ledger_agg.confirmed, false) as confirmed,
         COALESCE(bank_agg.total_payment, 0) as total_payment,
         COALESCE(GREATEST(ledger_agg.latest_ledger_date, bank_agg.latest_bank_date), ledger_agg.latest_ledger_date, bank_agg.latest_bank_date) as latest_date
@@ -100,9 +101,15 @@ export async function GET(request: NextRequest) {
           payment_id,
           SUM(accrual) as total_accrual,
           SUM("order") as total_order,
+          STRING_AGG(
+            DISTINCT COALESCE(NULLIF(u.name, ''), u.email, pl.user_email),
+            ', '
+            ORDER BY COALESCE(NULLIF(u.name, ''), u.email, pl.user_email)
+          ) as ledger_users,
           BOOL_OR(confirmed) as confirmed,
           MAX(effective_date) as latest_ledger_date
-        FROM payments_ledger
+        FROM payments_ledger pl
+        LEFT JOIN "User" u ON u.email = pl.user_email
         ${ledgerDateFilter}
         GROUP BY payment_id
       ) ledger_agg ON p.payment_id = ledger_agg.payment_id
@@ -177,6 +184,7 @@ export async function GET(request: NextRequest) {
       accrual: row.total_accrual ? parseFloat(row.total_accrual) : 0,
       order: row.total_order ? parseFloat(row.total_order) : 0,
       payment: row.total_payment ? parseFloat(row.total_payment) : 0,
+      users: row.ledger_users || '',
       confirmed: Boolean(row.confirmed),
       unboundCount: row.unbound_count ? Number(row.unbound_count) : 0,
       hasUnboundCounteragentTransactions: Boolean(row.unbound_count && Number(row.unbound_count) > 0),
