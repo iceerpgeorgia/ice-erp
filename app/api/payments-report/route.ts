@@ -75,6 +75,8 @@ export async function GET(request: NextRequest) {
         ca.name as counteragent_name,
         ca.identification_number as counteragent_id,
         ca.iban as counteragent_iban,
+        et.name_ka as counteragent_entity_name,
+        et.is_natural_person as counteragent_is_natural_person,
         fc.validation as financial_code_validation,
         fc.code as financial_code,
         fc.description as financial_code_description,
@@ -95,6 +97,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
       LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
       LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
+      LEFT JOIN entity_types et ON ca.entity_type_uuid = et.entity_type_uuid
       LEFT JOIN unbound_counteragent uc ON p.counteragent_uuid = uc.counteragent_uuid
       LEFT JOIN (
         SELECT 
@@ -172,6 +175,8 @@ export async function GET(request: NextRequest) {
       counteragent: row.counteragent_formatted || row.counteragent_name,
       counteragentId: row.counteragent_id,
       counteragentIban: row.counteragent_iban,
+      counteragentEntityName: row.counteragent_entity_name ?? null,
+      counteragentIsNaturalPerson: row.counteragent_is_natural_person ?? false,
       project: row.project_index,
       projectName: row.project_name,
       job: row.job_name,

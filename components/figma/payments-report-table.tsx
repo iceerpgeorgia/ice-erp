@@ -50,6 +50,8 @@ type PaymentReport = {
   counteragent: string;
   counteragentId?: string | null;
   counteragentIban?: string | null;
+  counteragentEntityName?: string | null;
+  counteragentIsNaturalPerson?: boolean;
   project: string;
   projectName?: string | null;
   job: string;
@@ -1314,6 +1316,15 @@ export function PaymentsReportTable() {
       .trim();
   };
 
+  const buildCounteragentExportName = (record: PaymentReport) => {
+    const baseName = record.counteragent || '';
+    if (record.counteragentIsNaturalPerson) return baseName;
+
+    const entityName = record.counteragentEntityName || '';
+    if (!entityName) return baseName;
+    return `${entityName} ${baseName}`.trim();
+  };
+
   const buildPaymentDescription = (template: string | null | undefined, row: PaymentReport) => {
     const variables = {
       project: row.projectName || row.project || '',
@@ -1449,7 +1460,7 @@ export function PaymentsReportTable() {
             '',
             '',
             record.counteragentIban || '',
-            sanitizeRecipientName(record.counteragent || ''),
+            sanitizeRecipientName(buildCounteragentExportName(record)),
             record.counteragentId || '',
             description || 'გადახდა',
             amount,
@@ -1463,7 +1474,7 @@ export function PaymentsReportTable() {
       const worksheet = XLSX.utils.aoa_to_sheet([[], headers, ...rows]);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-      XLSX.writeFile(workbook, 'Payments Bank XLSX.xlsx');
+      XLSX.writeFile(workbook, 'Bank_of_Georgia.xlsx');
     } catch (error: any) {
       console.error('Failed to generate bank XLSX:', error);
       alert(error.message || 'Failed to generate bank XLSX');
@@ -1498,7 +1509,7 @@ export function PaymentsReportTable() {
           const paymentId = record.paymentId ? record.paymentId.replace(/_/g, ' ').toUpperCase() : '';
           return [
             record.counteragentIban || '',
-            sanitizeRecipientName(record.counteragent || ''),
+            sanitizeRecipientName(buildCounteragentExportName(record)),
             amount,
             description || 'Payment',
             paymentId,
