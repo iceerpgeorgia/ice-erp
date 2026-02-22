@@ -1476,7 +1476,14 @@ export function PaymentsReportTable() {
 
     setIsBankExporting(true);
 
-    const headers = ['Account Number', "Employee's Name", 'Amount', 'Description', 'Additional Description'];
+    const headers = [
+      'Account Number',
+      "Employee's Name",
+      'Amount',
+      'Description',
+      'Additional Description',
+      "Beneficiary's Tax Code",
+    ];
 
     try {
       const rows = await Promise.all(
@@ -1490,6 +1497,7 @@ export function PaymentsReportTable() {
             amount,
             description || 'Payment',
             paymentId,
+            record.counteragentId || '',
           ];
         })
       );
