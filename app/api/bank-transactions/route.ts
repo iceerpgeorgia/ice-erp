@@ -67,6 +67,11 @@ const isBatchPaymentId = (value?: string | null) =>
 
 const UNION_SQL = SOURCE_TABLES.map((table) => {
   const baseAlias = table.isTbc ? 't' : 'cba';
+  const conversionSelect = table.isTbc
+    ? 'NULL::uuid as conversion_id'
+    : `${baseAlias}.conversion_id`;
+  const conversionWhere = table.isTbc ? '' : `
+      AND ${baseAlias}.conversion_id IS NULL`;
   const baseSelect = `SELECT
       ${baseAlias}.id,
       ${baseAlias}.uuid,
@@ -77,7 +82,7 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
       ${baseAlias}.transaction_date,
       ${baseAlias}.correction_date,
       ${baseAlias}.exchange_rate,
-      ${baseAlias}.conversion_id,
+      ${conversionSelect},
       ${baseAlias}.description,
       ${baseAlias}.comment,
       ${baseAlias}.docinformation,
@@ -113,8 +118,7 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
     WHERE NOT EXISTS (
       SELECT 1 FROM bank_transaction_batches btb
       WHERE btb.raw_record_uuid::text = ${baseAlias}.raw_record_uuid::text
-    )
-      AND ${baseAlias}.conversion_id IS NULL`;
+    )${conversionWhere}`;
 
   const batchSelect = `SELECT
       ${baseAlias}.id,
@@ -126,7 +130,7 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
       ${baseAlias}.transaction_date,
       ${baseAlias}.correction_date,
       ${baseAlias}.exchange_rate,
-      ${baseAlias}.conversion_id,
+      ${conversionSelect},
       ${baseAlias}.description,
       ${baseAlias}.comment,
       ${baseAlias}.docinformation,
@@ -170,13 +174,15 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
       ) OR (
         btb.payment_uuid IS NULL AND btb.payment_id IS NOT NULL AND p.payment_id = btb.payment_id
       )
-    WHERE ${baseAlias}.conversion_id IS NULL`;
+    ${table.isTbc ? 'WHERE 1=1' : `WHERE ${baseAlias}.conversion_id IS NULL`}`;
 
   return `${baseSelect} UNION ALL ${batchSelect}`;
 }).join(' UNION ALL ');
 
 const UNFETCHED_UNION_SQL = SOURCE_TABLES.map((table) => {
   const baseAlias = table.isTbc ? 't' : 'cba';
+  const conversionWhere = table.isTbc ? '' : `
+      AND ${baseAlias}.conversion_id IS NULL`;
   const baseSelect = `SELECT
       ( ${baseAlias}.id + ${table.offset} )::bigint as synthetic_id,
       ${baseAlias}.account_currency_uuid,
@@ -185,8 +191,7 @@ const UNFETCHED_UNION_SQL = SOURCE_TABLES.map((table) => {
     WHERE NOT EXISTS (
       SELECT 1 FROM bank_transaction_batches btb
       WHERE btb.raw_record_uuid::text = ${baseAlias}.raw_record_uuid::text
-    )
-      AND ${baseAlias}.conversion_id IS NULL`;
+    )${conversionWhere}`;
   const batchSelect = `SELECT
       ( btb.id + ${BATCH_OFFSET} + ${table.offset} )::bigint as synthetic_id,
       ${baseAlias}.account_currency_uuid,
@@ -194,7 +199,7 @@ const UNFETCHED_UNION_SQL = SOURCE_TABLES.map((table) => {
     FROM "${table.name}" ${baseAlias}
     JOIN bank_transaction_batches btb
       ON btb.raw_record_uuid::text = ${baseAlias}.raw_record_uuid::text
-    WHERE ${baseAlias}.conversion_id IS NULL`;
+    ${table.isTbc ? 'WHERE 1=1' : `WHERE ${baseAlias}.conversion_id IS NULL`}`;
   return `${baseSelect} UNION ALL ${batchSelect}`;
 }).join(' UNION ALL ');
 
