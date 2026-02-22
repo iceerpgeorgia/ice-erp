@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-23
+- Summary: Fix bank transactions conversion filter for TBC.
+- Changes:
+  - Bank transactions: avoid conversion_id references on TBC tables.
+- Commit: 3bb0cda
+- Production: https://ice-2f7oug4ki-iceerp.vercel.app
+
+## 2026-02-23
 - Summary: Show only Due in payments report totals.
 - Changes:
   - Payments report: display only Due in per-currency totals boxes.
