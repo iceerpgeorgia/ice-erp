@@ -1,6 +1,14 @@
 # Deployment Log
 
 ## 2026-02-23
+- Summary: Allow deconfirm and block over-due confirm.
+- Changes:
+  - Payments ledger API: set session flag to allow deconfirm updates on confirmed rows.
+  - Database: add trigger scripts for deconfirm bypass and due > balance confirm guard.
+- Commit: 347d5e8
+- Production: https://ice-3k8r5qfbm-iceerp.vercel.app
+
+## 2026-02-23
 - Summary: Add payments deconfirm action.
 - Changes:
   - Payments report: allow deconfirming selected ledger entries with date filter.
