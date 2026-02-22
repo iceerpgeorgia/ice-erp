@@ -1,6 +1,14 @@
 # Deployment Log
 
 ## 2026-02-23
+- Summary: Update bank export file naming and counteragent naming.
+- Changes:
+  - Payments report API: include counteragent entity type fields for export naming.
+  - Payments report: rename BOG export file and standardize counteragent display for BOG/TBC exports.
+- Commit: c266967
+- Production: https://ice-pvhpd2xc5-iceerp.vercel.app
+
+## 2026-02-23
 - Summary: Allow deconfirm and block over-due confirm.
 - Changes:
   - Payments ledger API: set session flag to allow deconfirm updates on confirmed rows.
