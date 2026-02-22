@@ -1476,54 +1476,23 @@ export function PaymentsReportTable() {
 
     setIsBankExporting(true);
 
-    const headers = [
-      'საბუთის ნომერი',
-      'მიმღების ანგარიში',
-      'მიმღების სახელი',
-      'მიმღ. საგადასახადო კოდი',
-      'თანხა',
-      'დანიშნულება',
-      'დამატებითი დანიშნულება',
-      'სახაზინო კოდი',
-      'გადამხდელის კოდი',
-      'გადამხდელის დასახელება',
-    ];
-
-    const tags = [
-      'ns1:DOCNUM',
-      'ns1:ACCIBANTO',
-      'ns1:BENEFNAME',
-      'ns1:BENEFTAXCODE',
-      'ns1:AMOUNT',
-      'ns1:DESCR',
-      'ns1:ADDDESCR',
-      'ns1:TREASCODE',
-      'ns1:TAXPAYCODE',
-      'ns1:TAXPAYNAME',
-    ];
+    const headers = ['Account Number', "Employee's Name", 'Amount', 'Description'];
 
     try {
       const rows = await Promise.all(
         selectedRecords.map(async (record) => {
           const description = buildPaymentDescription(record.financialCodeDescription, record);
           const amount = await calculateExportAmount(record);
-          const paymentId = record.paymentId ? record.paymentId.replace(/_/g, ' ') : '';
           return [
-            '',
             record.counteragentIban || '',
             sanitizeRecipientName(record.counteragent || ''),
-            record.counteragentId || '',
             amount,
-            description || 'გადახდა',
-            paymentId,
-            '',
-            '',
-            '',
+            description || 'Payment',
           ];
         })
       );
 
-      const worksheet = XLSX.utils.aoa_to_sheet([headers, tags, ...rows]);
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
       XLSX.writeFile(workbook, 'TBC_BANK.xlsx');
