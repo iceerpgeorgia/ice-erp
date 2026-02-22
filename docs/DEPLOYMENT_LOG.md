@@ -1,6 +1,14 @@
 # Deployment Log
 
 ## 2026-02-23
+- Summary: Add payments deconfirm action.
+- Changes:
+  - Payments report: allow deconfirming selected ledger entries with date filter.
+  - Payments ledger API: add deconfirm endpoint for selected payment IDs.
+- Commit: 03195ab
+- Production: https://ice-iwyu1ehid-iceerp.vercel.app
+
+## 2026-02-23
 - Summary: Add Users column to payments report.
 - Changes:
   - Payments report: show unique ledger entry creators per payment.
