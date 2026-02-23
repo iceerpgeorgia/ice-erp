@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-23
+- Summary: Show accrual and order totals in payments report totals bar.
+- Changes:
+  - Payments report: add accrual and order values to per-currency totals cards.
+- Commit: b960575
+- Production: https://ice-2cwmjlh0f-iceerp.vercel.app
+
+## 2026-02-23
 - Summary: Use conversion_entries for conversion transactions and populate it on import.
 - Changes:
   - Bank transactions APIs: load conversion rows from conversion_entries instead of synthesizing from conversion/raw tables.
