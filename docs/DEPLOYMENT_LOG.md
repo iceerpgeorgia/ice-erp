@@ -1,6 +1,14 @@
 # Deployment Log
 
 ## 2026-02-23
+- Summary: Use conversion_entries for conversion transactions and populate it on import.
+- Changes:
+  - Bank transactions APIs: load conversion rows from conversion_entries instead of synthesizing from conversion/raw tables.
+  - Deconsolidated importer: upsert OUT/FEE/IN conversion_entries rows when conversions are created.
+- Commit: ea3ebd4
+- Production: https://ice-45yo5g9dt-iceerp.vercel.app
+
+## 2026-02-23
 - Summary: Improve bank transactions test filtering and payment selector details.
 - Changes:
   - Bank transactions test API: push date filtering into SQL, avoid total count work when filtered, and cache raw lookups for conversions.
