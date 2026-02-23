@@ -2587,7 +2587,7 @@ export function BankTransactionsTable({
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-[1120px]">
+        <DialogContent className="max-w-[1456px]">
           <DialogHeader>
             <DialogTitle>Edit Bank Transaction</DialogTitle>
             <DialogDescription>

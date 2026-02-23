@@ -254,6 +254,11 @@ export default function CounteragentStatementPage() {
             `${transaction.accountNumber || ''} ${transaction.accountCurrencyCode || ''}`.trim() ||
             tx.accountLabel ||
             '-';
+          const project = transaction.projectIndex || info.project || tx.project || null;
+          const financialCode = transaction.financialCode || info.financialCode || tx.financialCode || null;
+          const job = info.job || tx.job || null;
+          const incomeTax = info.incomeTax ?? tx.incomeTax ?? null;
+          const currency = info.currency || tx.currency || null;
           return {
             ...tx,
             paymentId: resolvedPaymentId,
@@ -270,11 +275,12 @@ export default function CounteragentStatementPage() {
             counteragentAccountNumber:
               transaction.counteragentAccountNumber ?? tx.counteragentAccountNumber,
             accountLabel,
-            project: info.project,
-            financialCode: info.financialCode,
-            job: info.job,
-            incomeTax: info.incomeTax,
-            currency: info.currency,
+            batchId: transaction.batchId ?? tx.batchId ?? null,
+            project,
+            financialCode,
+            job,
+            incomeTax,
+            currency,
           };
         });
         const nextPaymentIds = resolvedPaymentId
@@ -1052,28 +1058,31 @@ export default function CounteragentStatementPage() {
         throw new Error(data.error || 'Failed to update ledger entry');
       }
 
-      const info = getPaymentInfo(editPaymentId || null);
+      const resolvedPaymentId = editPaymentId || null;
+      const info = getPaymentInfo(resolvedPaymentId);
       setStatement((prev: any) => {
         if (!prev) return prev;
         const nextEntries = ((prev.ledgerEntries as any[]) || []).map((entry) => {
           if (Number(entry.id) !== editingLedgerId) return entry;
           return {
             ...entry,
-            paymentId: editPaymentId,
+            paymentId: resolvedPaymentId,
             effectiveDate: editEffectiveDate,
             accrual: editAccrual ? Number(editAccrual) : 0,
             order: editOrder ? Number(editOrder) : 0,
             comment: editComment || null,
-            project: info.project,
-            financialCode: info.financialCode,
-            job: info.job,
-            incomeTax: info.incomeTax,
-            currency: info.currency,
+            project: info.project ?? entry.project ?? null,
+            financialCode: info.financialCode ?? entry.financialCode ?? null,
+            job: info.job ?? entry.job ?? null,
+            incomeTax: info.incomeTax ?? entry.incomeTax ?? null,
+            currency: info.currency ?? entry.currency ?? null,
           };
         });
-        const nextPaymentIds = prev.paymentIds?.includes(editPaymentId)
-          ? prev.paymentIds
-          : [...(prev.paymentIds || []), editPaymentId];
+        const nextPaymentIds = resolvedPaymentId
+          ? prev.paymentIds?.includes(resolvedPaymentId)
+            ? prev.paymentIds
+            : [...(prev.paymentIds || []), resolvedPaymentId]
+          : prev.paymentIds;
         return {
           ...prev,
           paymentIds: nextPaymentIds,

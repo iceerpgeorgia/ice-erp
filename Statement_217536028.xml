@@ -1,0 +1,1680 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<gemini:AccountStatement xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:gemini="http://www.mygemini.com/schemas/mygemini">
+  <HEADER>
+    <CanCopyDocument>False</CanCopyDocument>
+    <CanViewDocument>False</CanViewDocument>
+    <CanPrintDocument>False</CanPrintDocument>
+    <IsReval>False</IsReval>
+    <Lang>GE</Lang>
+    <AcctKey>10190140208</AcctKey>
+    <ClientKey>133003215</ClientKey>
+    <ClientName>შპს აი-სი-ი</ClientName>
+    <AcctNo>GE78BG0000000893486000EUR (893486000)</AcctNo>
+    <LastTurnDate>31.12.2025</LastTurnDate>
+    <Branch>502</Branch>
+    <ExecCode>TKASRASHVILI</ExecCode>
+    <Ccy>EUR</Ccy>
+    <Period>01.01.2026-18.02.2026</Period>
+    <StartDate>01.01.2026</StartDate>
+    <InAmtPer>643.13</InAmtPer>
+    <InAmtBasePer>2041.1</InAmtBasePer>
+    <InCcyRatePer>3.1737</InCcyRatePer>
+    <EndDate>17.02.26</EndDate>
+    <OutAmtPer>0</OutAmtPer>
+    <OutAmtBasePer>0</OutAmtBasePer>
+    <SumCrPer>104875.35</SumCrPer>
+    <SumDbPer>105518.48</SumDbPer>
+    <OutCcyRatePer>3.1724</OutCcyRatePer>
+  </HEADER>
+  <DETAILS>
+    <DETAIL>
+      <CanCopyDocument>False</CanCopyDocument>
+      <CanViewDocument>False</CanViewDocument>
+      <CanPrintDocument>False</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>Guarantee Commission  ADV1122456-25 - Periodic - Principal  ,Service</DocNomination>
+      <DocInformation>Guarantee Commission  ADV1122456-25 - Periodic - Principal  ,Service</DocInformation>
+      <DocSrcAmt>151.35</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>151.35</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31282612287</DocKey>
+      <DocRecDate>06.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>LFG</DocProdGroup>
+      <DocNo>I/ADV/252047028</DocNo>
+      <DocValueDate>05.01.2026</DocValueDate>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocCorAcct>26119780200100000000</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>109098854743</EntriesId>
+      <CcyRate>3.1646</CcyRate>
+      <EntryPDate>05.01.2026</EntryPDate>
+      <EntryDocNo>I/ADV/252047028</EntryDocNo>
+      <EntryLAcct>26119780200100000000</EntryLAcct>
+      <EntryDbAmt>151.35</EntryDbAmt>
+      <EntryDbAmtBase>478.96</EntryDbAmtBase>
+      <OutBalance>491.78</OutBalance>
+      <EntryAmtBase>478.96</EntryAmtBase>
+      <EntryComment>Guarantee Commission  ADV1122456-25 - Periodic - Principal  ,Service</EntryComment>
+      <EntryDepartment>CENT00</EntryDepartment>
+      <EntryAcctPoint>BANK</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefAcctNo>26119780200100000000</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+      <DocPayerName>შპს აი-სი-ი</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>ვალუტის გაცვლა</DocNomination>
+      <DocInformation>ვალუტის გაცვლა</DocInformation>
+      <DocSrcAmt>9690.84</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>30526.15</DocDstAmt>
+      <DocDstCcy>GEL</DocDstCcy>
+      <DocKey>31337716824</DocKey>
+      <DocRecDate>09.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>CCO</DocProdGroup>
+      <DocNo>CBN0901262601093660000176</DocNo>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000GEL</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocActualDate>09.01.2026</DocActualDate>
+      <DocExpiryDate>19.01.2026</DocExpiryDate>
+      <DocRateLimit>3.15</DocRateLimit>
+      <DocRate>3.15</DocRate>
+      <DocRegRate>3.15</DocRegRate>
+      <DocCorAcct>GE78BG0000000893486000GEL</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>109295911270</EntriesId>
+      <CcyRate>3.1512</CcyRate>
+      <EntryPDate>09.01.2026</EntryPDate>
+      <EntryDocNo>2601093660000176</EntryDocNo>
+      <EntryLAcct>26119783660100000000</EntryLAcct>
+      <EntryCrAmt>9690.84</EntryCrAmt>
+      <OutBalance>0.00</OutBalance>
+      <EntryCrAmtBase>30537.78</EntryCrAmtBase>
+      <EntryAmtBase>30537.78</EntryAmtBase>
+      <EntryComment>ვალუტის გაცვლითი ოპერაცია. კურსი:3.15 კონტრთანხა: GEL30,526.15. ვალუტის გაცვლა</EntryComment>
+      <EntryDepartment>4B366</EntryDepartment>
+      <EntryAcctPoint>4B366</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>შპს აი-სი-ი</DocBenefName>
+      <DocBenefInn>400017245</DocBenefInn>
+      <DocBenefAcctNo>GE78BG0000000893486000EUR</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>ვალუტის გაცვლა</DocNomination>
+      <DocInformation>ვალუტის გაცვლა</DocInformation>
+      <DocSrcAmt>6830.48</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>21516.01</DocDstAmt>
+      <DocDstCcy>GEL</DocDstCcy>
+      <DocKey>31337878542</DocKey>
+      <DocRecDate>09.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>CCO</DocProdGroup>
+      <DocNo>CBN0901262601093660000183</DocNo>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000GEL</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocActualDate>09.01.2026</DocActualDate>
+      <DocExpiryDate>19.01.2026</DocExpiryDate>
+      <DocRateLimit>3.15</DocRateLimit>
+      <DocRate>3.15</DocRate>
+      <DocRegRate>3.15</DocRegRate>
+      <DocCorAcct>GE78BG0000000893486000GEL</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>109296287728</EntriesId>
+      <CcyRate>3.1512</CcyRate>
+      <EntryPDate>09.01.2026</EntryPDate>
+      <EntryDocNo>2601093660000183</EntryDocNo>
+      <EntryLAcct>26119783660100000000</EntryLAcct>
+      <EntryCrAmt>6830.48</EntryCrAmt>
+      <OutBalance>-9,690.84</OutBalance>
+      <EntryCrAmtBase>21524.21</EntryCrAmtBase>
+      <EntryAmtBase>21524.21</EntryAmtBase>
+      <EntryComment>ვალუტის გაცვლითი ოპერაცია. კურსი:3.15 კონტრთანხა: GEL21,516.01. ვალუტის გაცვლა</EntryComment>
+      <EntryDepartment>4B366</EntryDepartment>
+      <EntryAcctPoint>4B366</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>შპს აი-სი-ი</DocBenefName>
+      <DocBenefInn>400017245</DocBenefInn>
+      <DocBenefAcctNo>GE78BG0000000893486000EUR</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>False</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>False</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>გადარიცხვის საკომისიო: Cost of grills invoice  TT185A1R4\25TS Kvareli Gallery project</DocNomination>
+      <DocInformation>გადარიცხვის საკომისიო: Cost of grills invoice  TT185A1R4\25TS Kvareli Gallery project</DocInformation>
+      <DocSrcAmt>17.12</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>17.12</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31337901689</DocKey>
+      <DocRecDate>09.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>COM</DocProdGroup>
+      <DocNo>PMI178626429</DocNo>
+      <DocValueDate>09.01.2026</DocValueDate>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocCorAcct>26119781540100000000</DocCorAcct>
+      <EntriesId>109296348657</EntriesId>
+      <DocComment>1/TROX TURKEY TEKNIK KLIMA SAN. VE \1/TIC. LTD. STI\2/Barbaros Mah Kardelen Sokak No:\3/TR/ISTANBUL TR110006200167600009099958 </DocComment>
+      <CcyRate>3.1512</CcyRate>
+      <EntryPDate>09.01.2026</EntryPDate>
+      <EntryDocNo>PMI178626429</EntryDocNo>
+      <EntryLAcct>26119781540100000000</EntryLAcct>
+      <EntryDbAmt>17.12</EntryDbAmt>
+      <EntryDbAmtBase>53.95</EntryDbAmtBase>
+      <OutBalance>474.66</OutBalance>
+      <EntryAmtBase>53.95</EntryAmtBase>
+      <EntryComment>გადარიცხვის საკომისიო: Cost of grills invoice  TT185A1R4\25TS Kvareli Gallery project</EntryComment>
+      <EntryDepartment>CENT14</EntryDepartment>
+      <EntryAcctPoint>CENTRAL14</EntryAcctPoint>
+      <DocBenefAcctNo>26119781540100000000</DocBenefAcctNo>
+      <DocPayerName>შპს აი-სი-ი</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>Cost of grills invoice  TT185A1R4\25TS Kvareli Gallery project</DocNomination>
+      <DocInformation>/PPRO/</DocInformation>
+      <DocSrcAmt>10165.5</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>10165.5</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31337790255</DocKey>
+      <DocRecDate>09.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>CENT14</DocDepartment>
+      <DocProdGroup>PMI</DocProdGroup>
+      <DocNo>PMI178626429</DocNo>
+      <DocValueDate>09.01.2026</DocValueDate>
+      <DocSenderName>1/LTD ICE TXID-400017245\2/ZURAB ANJAPARIDZIS I SHES\2/AKHVEVI 4 SARTULI17 FL\3/GE/TBILISI</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocCorAcct>TR110006200167600009099958</DocCorAcct>
+      <DocCorBic>TGBATRISXXX</DocCorBic>
+      <DocCorBankName>TURKIYE GARANTI BANKASI A.S.</DocCorBankName>
+      <EntriesId>109296348673</EntriesId>
+      <DocComment>1/TROX TURKEY TEKNIK KLIMA SAN. VE \1/TIC. LTD. STI\2/Barbaros Mah Kardelen Sokak No:\3/TR/ISTANBUL TR110006200167600009099958 </DocComment>
+      <CcyRate>3.1512</CcyRate>
+      <EntryPDate>09.01.2026</EntryPDate>
+      <EntryDocNo>PMI178626429</EntryDocNo>
+      <EntryLAcct>48419780200100000000</EntryLAcct>
+      <EntryDbAmt>10165.5</EntryDbAmt>
+      <EntryDbAmtBase>32033.52</EntryDbAmtBase>
+      <OutBalance>-16,521.32</OutBalance>
+      <EntryAmtBase>32033.52</EntryAmtBase>
+      <EntryComment>Cost of grills invoice  TT185A1R4\25TS Kvareli Gallery project</EntryComment>
+      <EntryDepartment>CENT00</EntryDepartment>
+      <EntryAcctPoint>BANK</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>1/TROX TURKEY TEKNIK KLIMA SAN. VE \1/TIC. LTD. STI\2/Barbaros Mah Kardelen Sokak No:\3/TR/ISTANBUL</DocBenefName>
+      <DocBenefAcctNo>TR110006200167600009099958</DocBenefAcctNo>
+      <DocBenefBic>TGBATRISXXX</DocBenefBic>
+      <DocBenefBicName>TURKIYE GARANTI BANKASI A.S.</DocBenefBicName>
+      <DocPayerName>1/LTD ICE TXID-400017245\2/ZURAB ANJAPARIDZIS I SHES\2/AKHVEVI 4 SARTULI17 FL\3/GE/TBILISI</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>False</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>False</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>გადარიცხვის საკომისიო: Cost of goods offer 25.TFT 25969-\R4 Kvareli Galleria</DocNomination>
+      <DocInformation>გადარიცხვის საკომისიო: Cost of goods offer 25.TFT 25969-\R4 Kvareli Galleria</DocInformation>
+      <DocSrcAmt>17.12</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>17.12</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31338037458</DocKey>
+      <DocRecDate>09.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>COM</DocProdGroup>
+      <DocNo>PMI178626825</DocNo>
+      <DocValueDate>09.01.2026</DocValueDate>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocCorAcct>26119781540100000000</DocCorAcct>
+      <EntriesId>109296727369</EntriesId>
+      <DocComment>1/Termofan havalandirma sistemleri \1/san. tic.a.s\2/OIZ analitik str.no 62 TUZLA\3/TR/ISTANBUL TR250001500158048014399838 </DocComment>
+      <CcyRate>3.1512</CcyRate>
+      <EntryPDate>09.01.2026</EntryPDate>
+      <EntryDocNo>PMI178626825</EntryDocNo>
+      <EntryLAcct>26119781540100000000</EntryLAcct>
+      <EntryDbAmt>17.12</EntryDbAmt>
+      <EntryDbAmtBase>53.95</EntryDbAmtBase>
+      <OutBalance>457.54</OutBalance>
+      <EntryAmtBase>53.95</EntryAmtBase>
+      <EntryComment>გადარიცხვის საკომისიო: Cost of goods offer 25.TFT 25969-\R4 Kvareli Galleria</EntryComment>
+      <EntryDepartment>CENT14</EntryDepartment>
+      <EntryAcctPoint>CENTRAL14</EntryAcctPoint>
+      <DocBenefAcctNo>26119781540100000000</DocBenefAcctNo>
+      <DocPayerName>შპს აი-სი-ი</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>Cost of goods offer 25.TFT 25969-\R4 Kvareli Galleria</DocNomination>
+      <DocInformation>/PPRO/</DocInformation>
+      <DocSrcAmt>4146.24</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>4146.24</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31337940714</DocKey>
+      <DocRecDate>09.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>CENT14</DocDepartment>
+      <DocProdGroup>PMI</DocProdGroup>
+      <DocNo>PMI178626825</DocNo>
+      <DocValueDate>09.01.2026</DocValueDate>
+      <DocSenderName>1/LTD ICE TXID-400017245\2/SAKARVELO TBILISI ZURAB ANJAPARID\2/ZIS ISHESAKHVEVI 4 SARTULI17 FL\3/GE/TBILISI</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocCorAcct>TR250001500158048014399838</DocCorAcct>
+      <DocCorBic>TVBATR2AXXX</DocCorBic>
+      <DocCorBankName>TURKIYE VAKIFLAR BANKASI T.A.O.</DocCorBankName>
+      <EntriesId>109296727395</EntriesId>
+      <DocComment>1/Termofan havalandirma sistemleri \1/san. tic.a.s\2/OIZ analitik str.no 62 TUZLA\3/TR/ISTANBUL TR250001500158048014399838 </DocComment>
+      <CcyRate>3.1512</CcyRate>
+      <EntryPDate>09.01.2026</EntryPDate>
+      <EntryDocNo>PMI178626825</EntryDocNo>
+      <EntryLAcct>48419780200100000000</EntryLAcct>
+      <EntryDbAmt>4146.24</EntryDbAmt>
+      <EntryDbAmtBase>13065.63</EntryDbAmtBase>
+      <OutBalance>-6,355.82</OutBalance>
+      <EntryAmtBase>13065.63</EntryAmtBase>
+      <EntryComment>Cost of goods offer 25.TFT 25969-\R4 Kvareli Galleria</EntryComment>
+      <EntryDepartment>CENT00</EntryDepartment>
+      <EntryAcctPoint>BANK</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>1/Termofan havalandirma sistemleri \1/san. tic.a.s\2/OIZ analitik str.no 62 TUZLA\3/TR/ISTANBUL</DocBenefName>
+      <DocBenefAcctNo>TR250001500158048014399838</DocBenefAcctNo>
+      <DocBenefBic>TVBATR2AXXX</DocBenefBic>
+      <DocBenefBicName>TURKIYE VAKIFLAR BANKASI T.A.O.</DocBenefBicName>
+      <DocPayerName>1/LTD ICE TXID-400017245\2/SAKARVELO TBILISI ZURAB ANJAPARID\2/ZIS ISHESAKHVEVI 4 SARTULI17 FL\3/GE/TBILISI</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>False</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>False</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>გადარიცხვის საკომისიო: INVOICE  ICE-MNJJFD COST OF ADDIT\IONAL FAN COILS TBC PROJECT</DocNomination>
+      <DocInformation>გადარიცხვის საკომისიო: INVOICE  ICE-MNJJFD COST OF ADDIT\IONAL FAN COILS TBC PROJECT</DocInformation>
+      <DocSrcAmt>17.12</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>17.12</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31340695628</DocKey>
+      <DocRecDate>09.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>COM</DocProdGroup>
+      <DocNo>PMI178633682</DocNo>
+      <DocValueDate>09.01.2026</DocValueDate>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocCorAcct>26119781540100000000</DocCorAcct>
+      <EntriesId>109307743573</EntriesId>
+      <DocComment>1/Paterson Brothers Limited\2/CO Pillsbury Winthrop Shaw Pittma\2/n LLP, Tower 42\3/GB/London BE58967194748579 </DocComment>
+      <CcyRate>3.1512</CcyRate>
+      <EntryPDate>09.01.2026</EntryPDate>
+      <EntryDocNo>PMI178633682</EntryDocNo>
+      <EntryLAcct>26119781540100000000</EntryLAcct>
+      <EntryDbAmt>17.12</EntryDbAmt>
+      <EntryDbAmtBase>53.95</EntryDbAmtBase>
+      <OutBalance>440.42</OutBalance>
+      <EntryAmtBase>53.95</EntryAmtBase>
+      <EntryComment>გადარიცხვის საკომისიო: INVOICE  ICE-MNJJFD COST OF ADDIT\IONAL FAN COILS TBC PROJECT</EntryComment>
+      <EntryDepartment>CENT14</EntryDepartment>
+      <EntryAcctPoint>CENTRAL14</EntryAcctPoint>
+      <DocBenefAcctNo>26119781540100000000</DocBenefAcctNo>
+      <DocPayerName>შპს აი-სი-ი</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>INVOICE  ICE-MNJJFD COST OF ADDIT\IONAL FAN COILS TBC PROJECT</DocNomination>
+      <DocInformation>INVOICE  ICE-MNJJFD COST OF ADDIT\IONAL FAN COILS TBC PROJECT</DocInformation>
+      <DocSrcAmt>2650</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>2650</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31340256478</DocKey>
+      <DocRecDate>09.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>CENT14</DocDepartment>
+      <DocProdGroup>PMI</DocProdGroup>
+      <DocNo>PMI178633682</DocNo>
+      <DocValueDate>09.01.2026</DocValueDate>
+      <DocSenderName>1/LTD ICE TXID-400017245\2/ANJAPARIDZIS I SHESAKHVEVI\2/ 4 SARTULI17 FL\3/GE/TBILISI</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocCorAcct>BE58967194748579</DocCorAcct>
+      <DocCorBic>TRWIBEB1XXX</DocCorBic>
+      <DocCorBankName>WISE EUROPE S.A</DocCorBankName>
+      <EntriesId>109307743587</EntriesId>
+      <DocComment>1/Paterson Brothers Limited\2/CO Pillsbury Winthrop Shaw Pittma\2/n LLP, Tower 42\3/GB/London BE58967194748579 </DocComment>
+      <CcyRate>3.1512</CcyRate>
+      <EntryPDate>09.01.2026</EntryPDate>
+      <EntryDocNo>PMI178633682</EntryDocNo>
+      <EntryLAcct>48419780200100000000</EntryLAcct>
+      <EntryDbAmt>2650</EntryDbAmt>
+      <EntryDbAmtBase>8350.68</EntryDbAmtBase>
+      <OutBalance>-2,209.58</OutBalance>
+      <EntryAmtBase>8350.68</EntryAmtBase>
+      <EntryComment>INVOICE  ICE-MNJJFD COST OF ADDIT\IONAL FAN COILS TBC PROJECT</EntryComment>
+      <EntryDepartment>CENT00</EntryDepartment>
+      <EntryAcctPoint>BANK</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>1/Paterson Brothers Limited\2/CO Pillsbury Winthrop Shaw Pittma\2/n LLP, Tower 42\3/GB/London</DocBenefName>
+      <DocBenefAcctNo>BE58967194748579</DocBenefAcctNo>
+      <DocBenefBic>TRWIBEB1XXX</DocBenefBic>
+      <DocBenefBicName>WISE EUROPE S.A</DocBenefBicName>
+      <DocPayerName>1/LTD ICE TXID-400017245\2/ANJAPARIDZIS I SHESAKHVEVI\2/ 4 SARTULI17 FL\3/GE/TBILISI</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>ვალუტის გაცვლა</DocNomination>
+      <DocInformation>ვალუტის გაცვლა</DocInformation>
+      <DocSrcAmt>10535.92</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>33293.51</DocDstAmt>
+      <DocDstCcy>GEL</DocDstCcy>
+      <DocKey>31400145996</DocKey>
+      <DocRecDate>13.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>CCO</DocProdGroup>
+      <DocNo>CBN1301262601133660000111</DocNo>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000GEL</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocActualDate>13.01.2026</DocActualDate>
+      <DocExpiryDate>23.01.2026</DocExpiryDate>
+      <DocRateLimit>3.16</DocRateLimit>
+      <DocRate>3.16</DocRate>
+      <DocRegRate>3.16</DocRegRate>
+      <DocCorAcct>GE78BG0000000893486000GEL</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>109513369987</EntriesId>
+      <CcyRate>3.1503</CcyRate>
+      <EntryPDate>13.01.2026</EntryPDate>
+      <EntryDocNo>2601133660000111</EntryDocNo>
+      <EntryLAcct>26119783660100000000</EntryLAcct>
+      <EntryCrAmt>10535.92</EntryCrAmt>
+      <OutBalance>-16,017.12</OutBalance>
+      <EntryCrAmtBase>33191.31</EntryCrAmtBase>
+      <EntryAmtBase>33191.31</EntryAmtBase>
+      <EntryComment>ვალუტის გაცვლითი ოპერაცია. კურსი:3.16 კონტრთანხა: GEL33,293.51. ვალუტის გაცვლა</EntryComment>
+      <EntryDepartment>4B366</EntryDepartment>
+      <EntryAcctPoint>4B366</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>შპს აი-სი-ი</DocBenefName>
+      <DocBenefInn>400017245</DocBenefInn>
+      <DocBenefAcctNo>GE78BG0000000893486000EUR</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>False</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>False</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>გადარიცხვის საკომისიო: Cost of goods invoice 13.01.2026\Project Kvareli Galallery</DocNomination>
+      <DocInformation>გადარიცხვის საკომისიო: Cost of goods invoice 13.01.2026\Project Kvareli Galallery</DocInformation>
+      <DocSrcAmt>17.12</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>17.12</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31400512794</DocKey>
+      <DocRecDate>13.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>COM</DocProdGroup>
+      <DocNo>PMI178766896</DocNo>
+      <DocValueDate>13.01.2026</DocValueDate>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocCorAcct>26119781540100000000</DocCorAcct>
+      <EntriesId>109514393886</EntriesId>
+      <DocComment>1/MITSUBISHI ELECTRIC TURKEY\2/Serifali Mah. Kale Sok., No: 41 3\2/4775\3/TR/ISTANBUL TR870006400000214440007665 </DocComment>
+      <CcyRate>3.1503</CcyRate>
+      <EntryPDate>13.01.2026</EntryPDate>
+      <EntryDocNo>PMI178766896</EntryDocNo>
+      <EntryLAcct>26119781540100000000</EntryLAcct>
+      <EntryDbAmt>17.12</EntryDbAmt>
+      <EntryDbAmtBase>53.93</EntryDbAmtBase>
+      <OutBalance>-17.12</OutBalance>
+      <EntryAmtBase>53.93</EntryAmtBase>
+      <EntryComment>გადარიცხვის საკომისიო: Cost of goods invoice 13.01.2026\Project Kvareli Galallery</EntryComment>
+      <EntryDepartment>CENT14</EntryDepartment>
+      <EntryAcctPoint>CENTRAL14</EntryAcctPoint>
+      <DocBenefAcctNo>26119781540100000000</DocBenefAcctNo>
+      <DocPayerName>შპს აი-სი-ი</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>Cost of goods invoice 13.01.2026\Project Kvareli Galallery</DocNomination>
+      <DocInformation>/PPRO/</DocInformation>
+      <DocSrcAmt>10518.8</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>10518.8</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31400390440</DocKey>
+      <DocRecDate>13.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>CENT14</DocDepartment>
+      <DocProdGroup>PMI</DocProdGroup>
+      <DocNo>PMI178766896</DocNo>
+      <DocValueDate>13.01.2026</DocValueDate>
+      <DocSenderName>1/LTD ICE TXID-400017245\2/SAKARVELO TBILISI ZURAB ANJAPARID\2/ZIS I SHESAKHVEVI 4 SARTULI17 FL\3/GE/TBILISI</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocCorAcct>TR870006400000214440007665</DocCorAcct>
+      <DocCorBic>ISBKTRISXXX</DocCorBic>
+      <DocCorBankName>TURKIYE IS BANKASI A.S.</DocCorBankName>
+      <EntriesId>109514393896</EntriesId>
+      <DocComment>1/MITSUBISHI ELECTRIC TURKEY\2/Serifali Mah. Kale Sok., No: 41 3\2/4775\3/TR/ISTANBUL TR870006400000214440007665 </DocComment>
+      <CcyRate>3.1503</CcyRate>
+      <EntryPDate>13.01.2026</EntryPDate>
+      <EntryDocNo>PMI178766896</EntryDocNo>
+      <EntryLAcct>48419780200100000000</EntryLAcct>
+      <EntryDbAmt>10518.8</EntryDbAmt>
+      <EntryDbAmtBase>33137.38</EntryDbAmtBase>
+      <OutBalance>-10,553.04</OutBalance>
+      <EntryAmtBase>33137.38</EntryAmtBase>
+      <EntryComment>Cost of goods invoice 13.01.2026\Project Kvareli Galallery</EntryComment>
+      <EntryDepartment>CENT00</EntryDepartment>
+      <EntryAcctPoint>BANK</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>1/MITSUBISHI ELECTRIC TURKEY\2/Serifali Mah. Kale Sok., No: 41 3\2/4775\3/TR/ISTANBUL</DocBenefName>
+      <DocBenefAcctNo>TR870006400000214440007665</DocBenefAcctNo>
+      <DocBenefBic>ISBKTRISXXX</DocBenefBic>
+      <DocBenefBicName>TURKIYE IS BANKASI A.S.</DocBenefBicName>
+      <DocPayerName>1/LTD ICE TXID-400017245\2/SAKARVELO TBILISI ZURAB ANJAPARID\2/ZIS I SHESAKHVEVI 4 SARTULI17 FL\3/GE/TBILISI</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>ვალუტის გაცვლა</DocNomination>
+      <DocInformation>ვალუტის გაცვლა</DocInformation>
+      <DocSrcAmt>16019</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>50620.04</DocDstAmt>
+      <DocDstCcy>GEL</DocDstCcy>
+      <DocKey>31401412653</DocKey>
+      <DocRecDate>13.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>CCO</DocProdGroup>
+      <DocNo>CBN1301262601133660000140</DocNo>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000GEL</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocActualDate>13.01.2026</DocActualDate>
+      <DocExpiryDate>23.01.2026</DocExpiryDate>
+      <DocRateLimit>3.16</DocRateLimit>
+      <DocRate>3.16</DocRate>
+      <DocRegRate>3.16</DocRegRate>
+      <DocCorAcct>GE78BG0000000893486000GEL</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>109517022826</EntriesId>
+      <CcyRate>3.1503</CcyRate>
+      <EntryPDate>13.01.2026</EntryPDate>
+      <EntryDocNo>2601133660000140</EntryDocNo>
+      <EntryLAcct>26119783660100000000</EntryLAcct>
+      <EntryCrAmt>16019</EntryCrAmt>
+      <OutBalance>1.88</OutBalance>
+      <EntryCrAmtBase>50464.66</EntryCrAmtBase>
+      <EntryAmtBase>50464.66</EntryAmtBase>
+      <EntryComment>ვალუტის გაცვლითი ოპერაცია. კურსი:3.16 კონტრთანხა: GEL50,620.04. ვალუტის გაცვლა</EntryComment>
+      <EntryDepartment>4B366</EntryDepartment>
+      <EntryAcctPoint>4B366</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>შპს აი-სი-ი</DocBenefName>
+      <DocBenefInn>400017245</DocBenefInn>
+      <DocBenefAcctNo>GE78BG0000000893486000EUR</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>ვალუტის გაცვლა</DocNomination>
+      <DocInformation>ვალუტის გაცვლა</DocInformation>
+      <DocSrcAmt>20708</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>65395.86</DocDstAmt>
+      <DocDstCcy>GEL</DocDstCcy>
+      <DocKey>31401948554</DocKey>
+      <DocRecDate>13.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>CCO</DocProdGroup>
+      <DocNo>CBN1301262601133660000163</DocNo>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000GEL</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocActualDate>13.01.2026</DocActualDate>
+      <DocExpiryDate>23.01.2026</DocExpiryDate>
+      <DocRateLimit>3.158</DocRateLimit>
+      <DocRate>3.158</DocRate>
+      <DocRegRate>3.158</DocRegRate>
+      <DocCorAcct>GE78BG0000000893486000GEL</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>109518596935</EntriesId>
+      <CcyRate>3.1503</CcyRate>
+      <EntryPDate>13.01.2026</EntryPDate>
+      <EntryDocNo>2601133660000163</EntryDocNo>
+      <EntryLAcct>26119783660100000000</EntryLAcct>
+      <EntryCrAmt>20708</EntryCrAmt>
+      <OutBalance>20,709.88</OutBalance>
+      <EntryCrAmtBase>65236.41</EntryCrAmtBase>
+      <EntryAmtBase>65236.41</EntryAmtBase>
+      <EntryComment>ვალუტის გაცვლითი ოპერაცია. კურსი:3.158 კონტრთანხა: GEL65,395.86. ვალუტის გაცვლა</EntryComment>
+      <EntryDepartment>4B366</EntryDepartment>
+      <EntryAcctPoint>4B366</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>შპს აი-სი-ი</DocBenefName>
+      <DocBenefInn>400017245</DocBenefInn>
+      <DocBenefAcctNo>GE78BG0000000893486000EUR</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>False</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>False</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>გადარიცხვის საკომისიო: Cost of Goods invoice\INVOICE GEO/3/26 DATE 13.01.2026</DocNomination>
+      <DocInformation>გადარიცხვის საკომისიო: Cost of Goods invoice\INVOICE GEO/3/26 DATE 13.01.2026</DocInformation>
+      <DocSrcAmt>17.12</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>17.12</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31402190123</DocKey>
+      <DocRecDate>13.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>COM</DocProdGroup>
+      <DocNo>PMI178772806</DocNo>
+      <DocValueDate>13.01.2026</DocValueDate>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocCorAcct>26119781540100000000</DocCorAcct>
+      <EntriesId>109519126580</EntriesId>
+      <DocComment>1/WILO SE\2/Wilopark 1, Dortmund\3/DE/DORTMUND DE40440700500169161700 </DocComment>
+      <CcyRate>3.1503</CcyRate>
+      <EntryPDate>13.01.2026</EntryPDate>
+      <EntryDocNo>PMI178772806</EntryDocNo>
+      <EntryLAcct>26119781540100000000</EntryLAcct>
+      <EntryDbAmt>17.12</EntryDbAmt>
+      <EntryDbAmtBase>53.93</EntryDbAmtBase>
+      <OutBalance>-34.24</OutBalance>
+      <EntryAmtBase>53.93</EntryAmtBase>
+      <EntryComment>გადარიცხვის საკომისიო: Cost of Goods invoice\INVOICE GEO/3/26 DATE 13.01.2026</EntryComment>
+      <EntryDepartment>CENT14</EntryDepartment>
+      <EntryAcctPoint>CENTRAL14</EntryAcctPoint>
+      <DocBenefAcctNo>26119781540100000000</DocBenefAcctNo>
+      <DocPayerName>შპს აი-სი-ი</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>Cost of Goods invoice\INVOICE GEO/3/26 DATE 13.01.2026</DocNomination>
+      <DocInformation>Cost of Goods invoice\INVOICE GEO/3/26 DATE 13.01.2026</DocInformation>
+      <DocSrcAmt>16000</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>16000</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31401936058</DocKey>
+      <DocRecDate>13.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>CENT14</DocDepartment>
+      <DocProdGroup>PMI</DocProdGroup>
+      <DocNo>PMI178772806</DocNo>
+      <DocValueDate>13.01.2026</DocValueDate>
+      <DocSenderName>1/LTD ICE TXID-400017245\2/SAKARVELO TBILISI ZURAB ANJAPARID\2/ZIS I SHESAKHVEVI 4SARTULI17 FL\3/GE/TBILISI</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocCorAcct>DE40440700500169161700</DocCorAcct>
+      <DocCorBic>DEUTDEDE440</DocCorBic>
+      <DocCorBankName>DEUTSCHE BANK AG</DocCorBankName>
+      <EntriesId>109519126596</EntriesId>
+      <DocComment>1/WILO SE\2/Wilopark 1, Dortmund\3/DE/DORTMUND DE40440700500169161700 </DocComment>
+      <CcyRate>3.1503</CcyRate>
+      <EntryPDate>13.01.2026</EntryPDate>
+      <EntryDocNo>PMI178772806</EntryDocNo>
+      <EntryLAcct>48419780200100000000</EntryLAcct>
+      <EntryDbAmt>16000</EntryDbAmt>
+      <EntryDbAmtBase>50404.8</EntryDbAmtBase>
+      <OutBalance>-26,553.04</OutBalance>
+      <EntryAmtBase>50404.8</EntryAmtBase>
+      <EntryComment>Cost of Goods invoice\INVOICE GEO/3/26 DATE 13.01.2026</EntryComment>
+      <EntryDepartment>CENT00</EntryDepartment>
+      <EntryAcctPoint>BANK</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>1/WILO SE\2/Wilopark 1, Dortmund\3/DE/DORTMUND</DocBenefName>
+      <DocBenefAcctNo>DE40440700500169161700</DocBenefAcctNo>
+      <DocBenefBic>DEUTDEDE440</DocBenefBic>
+      <DocBenefBicName>DEUTSCHE BANK AG</DocBenefBicName>
+      <DocPayerName>1/LTD ICE TXID-400017245\2/SAKARVELO TBILISI ZURAB ANJAPARID\2/ZIS I SHESAKHVEVI 4SARTULI17 FL\3/GE/TBILISI</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>False</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>False</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>გადარიცხვის საკომისიო: INVOICE  ICE-JHHHGD  COST OF AHU\AMBASSADOR GODERDZI PROJECT</DocNomination>
+      <DocInformation>გადარიცხვის საკომისიო: INVOICE  ICE-JHHHGD  COST OF AHU\AMBASSADOR GODERDZI PROJECT</DocInformation>
+      <DocSrcAmt>17.14</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>17.14</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31417079406</DocKey>
+      <DocRecDate>14.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>COM</DocProdGroup>
+      <DocNo>PMI178804530</DocNo>
+      <DocValueDate>14.01.2026</DocValueDate>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocCorAcct>26119781540100000000</DocCorAcct>
+      <EntriesId>109572561897</EntriesId>
+      <DocComment>1/Paterson Brothers Limited\2/CO Pillsbury Winthrop Shaw Pittma\2/n LLP, Tower 42\3/GB/London BE58967194748579 </DocComment>
+      <CcyRate>3.1467</CcyRate>
+      <EntryPDate>14.01.2026</EntryPDate>
+      <EntryDocNo>PMI178804530</EntryDocNo>
+      <EntryLAcct>26119781540100000000</EntryLAcct>
+      <EntryDbAmt>17.14</EntryDbAmt>
+      <EntryDbAmtBase>53.93</EntryDbAmtBase>
+      <OutBalance>20,692.74</OutBalance>
+      <EntryAmtBase>53.93</EntryAmtBase>
+      <EntryComment>გადარიცხვის საკომისიო: INVOICE  ICE-JHHHGD  COST OF AHU\AMBASSADOR GODERDZI PROJECT</EntryComment>
+      <EntryDepartment>CENT14</EntryDepartment>
+      <EntryAcctPoint>CENTRAL14</EntryAcctPoint>
+      <DocBenefAcctNo>26119781540100000000</DocBenefAcctNo>
+      <DocPayerName>შპს აი-სი-ი</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>INVOICE  ICE-JHHHGD  COST OF AHU\AMBASSADOR GODERDZI PROJECT</DocNomination>
+      <DocInformation>INVOICE  ICE-JHHHGD  COST OF AHU\AMBASSADOR GODERDZI PROJECT</DocInformation>
+      <DocSrcAmt>20690</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>20690</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31415112547</DocKey>
+      <DocRecDate>14.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>CENT14</DocDepartment>
+      <DocProdGroup>PMI</DocProdGroup>
+      <DocNo>PMI178804530</DocNo>
+      <DocValueDate>14.01.2026</DocValueDate>
+      <DocSenderName>1/LTD ICE TXID-400017245\2/SAKARVELO TBILISI ZURAB ANJAPARID\2/ZIS I SHESAKHVEVI 4SARTULI17 FL\3/GE/TBILISI</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocCorAcct>BE58967194748579</DocCorAcct>
+      <DocCorBic>TRWIBEB1XXX</DocCorBic>
+      <DocCorBankName>WISE EUROPE S.A</DocCorBankName>
+      <EntriesId>109572561917</EntriesId>
+      <DocComment>1/Paterson Brothers Limited\2/CO Pillsbury Winthrop Shaw Pittma\2/n LLP, Tower 42\3/GB/London BE58967194748579 </DocComment>
+      <CcyRate>3.1467</CcyRate>
+      <EntryPDate>14.01.2026</EntryPDate>
+      <EntryDocNo>PMI178804530</EntryDocNo>
+      <EntryLAcct>48419780200100000000</EntryLAcct>
+      <EntryDbAmt>20690</EntryDbAmt>
+      <EntryDbAmtBase>65105.22</EntryDbAmtBase>
+      <OutBalance>2.74</OutBalance>
+      <EntryAmtBase>65105.22</EntryAmtBase>
+      <EntryComment>INVOICE  ICE-JHHHGD  COST OF AHU\AMBASSADOR GODERDZI PROJECT</EntryComment>
+      <EntryDepartment>CENT00</EntryDepartment>
+      <EntryAcctPoint>BANK</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>1/Paterson Brothers Limited\2/CO Pillsbury Winthrop Shaw Pittma\2/n LLP, Tower 42\3/GB/London</DocBenefName>
+      <DocBenefAcctNo>BE58967194748579</DocBenefAcctNo>
+      <DocBenefBic>TRWIBEB1XXX</DocBenefBic>
+      <DocBenefBicName>WISE EUROPE S.A</DocBenefBicName>
+      <DocPayerName>1/LTD ICE TXID-400017245\2/SAKARVELO TBILISI ZURAB ANJAPARID\2/ZIS I SHESAKHVEVI 4SARTULI17 FL\3/GE/TBILISI</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>False</CanCopyDocument>
+      <CanViewDocument>False</CanViewDocument>
+      <CanPrintDocument>False</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>კონვერტაცია</DocNomination>
+      <DocInformation>კონვერტაცია</DocInformation>
+      <DocSrcAmt>2.74</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>2.74</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31439673750</DocKey>
+      <DocRecDate>16.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>ALR</DocProdGroup>
+      <DocNo>13968476</DocNo>
+      <DocValueDate>15.01.2026</DocValueDate>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocCorAcct>26119780200100000000</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>109648469851</EntriesId>
+      <CcyRate>3.1439</CcyRate>
+      <EntryPDate>15.01.2026</EntryPDate>
+      <EntryDocNo>13968476</EntryDocNo>
+      <EntryLAcct>26119780200100000000</EntryLAcct>
+      <EntryDbAmt>2.74</EntryDbAmt>
+      <EntryDbAmtBase>8.61</EntryDbAmtBase>
+      <OutBalance>0.00</OutBalance>
+      <EntryAmtBase>8.61</EntryAmtBase>
+      <EntryComment>კონვერტაცია</EntryComment>
+      <EntryDepartment>CENT00</EntryDepartment>
+      <EntryAcctPoint>BANK</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefAcctNo>26119780200100000000</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+      <DocPayerName>შპს აი-სი-ი</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>ვალუტის გაცვლა</DocNomination>
+      <DocInformation>ვალუტის გაცვლა</DocInformation>
+      <DocSrcAmt>25516.83</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>82546.95</DocDstAmt>
+      <DocDstCcy>GEL</DocDstCcy>
+      <DocKey>31641925045</DocKey>
+      <DocRecDate>28.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>CCO</DocProdGroup>
+      <DocNo>CBN2801262601283660000139</DocNo>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000GEL</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocActualDate>28.01.2026</DocActualDate>
+      <DocExpiryDate>07.02.2026</DocExpiryDate>
+      <DocRate>3.235</DocRate>
+      <DocRegRate>3.235</DocRegRate>
+      <DocCorAcct>GE78BG0000000893486000GEL</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>110347987707</EntriesId>
+      <CcyRate>3.2009</CcyRate>
+      <EntryPDate>28.01.2026</EntryPDate>
+      <EntryDocNo>2601283660000139</EntryDocNo>
+      <EntryLAcct>26119783660100000000</EntryLAcct>
+      <EntryCrAmt>25516.83</EntryCrAmt>
+      <OutBalance>300.55</OutBalance>
+      <EntryCrAmtBase>81676.82</EntryCrAmtBase>
+      <EntryAmtBase>81676.82</EntryAmtBase>
+      <EntryComment>ვალუტის გაცვლითი ოპერაცია. კურსი:3.235 კონტრთანხა: GEL82,546.95. ვალუტის გაცვლა</EntryComment>
+      <EntryDepartment>4B366</EntryDepartment>
+      <EntryAcctPoint>4B366</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>შპს აი-სი-ი</DocBenefName>
+      <DocBenefInn>400017245</DocBenefInn>
+      <DocBenefAcctNo>GE78BG0000000893486000EUR</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>ვალუტის გაცვლა</DocNomination>
+      <DocInformation>ვალუტის გაცვლა</DocInformation>
+      <DocSrcAmt>299.55</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>977.43</DocDstAmt>
+      <DocDstCcy>GEL</DocDstCcy>
+      <DocKey>31643638642</DocKey>
+      <DocRecDate>28.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>CCO</DocProdGroup>
+      <DocNo>CBN2801262601283660000180</DocNo>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000GEL</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocActualDate>28.01.2026</DocActualDate>
+      <DocExpiryDate>07.02.2026</DocExpiryDate>
+      <DocRate>3.263</DocRate>
+      <DocRegRate>3.263</DocRegRate>
+      <DocCorAcct>GE78BG0000000893486000GEL</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>110352617893</EntriesId>
+      <CcyRate>3.2009</CcyRate>
+      <EntryPDate>28.01.2026</EntryPDate>
+      <EntryDocNo>2601283660000180</EntryDocNo>
+      <EntryLAcct>26119783660100000000</EntryLAcct>
+      <EntryCrAmt>299.55</EntryCrAmt>
+      <OutBalance>-25,216.28</OutBalance>
+      <EntryCrAmtBase>958.83</EntryCrAmtBase>
+      <EntryAmtBase>958.83</EntryAmtBase>
+      <EntryComment>ვალუტის გაცვლითი ოპერაცია. კურსი:3.263 კონტრთანხა: GEL977.43. ვალუტის გაცვლა</EntryComment>
+      <EntryDepartment>4B366</EntryDepartment>
+      <EntryAcctPoint>4B366</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>შპს აი-სი-ი</DocBenefName>
+      <DocBenefInn>400017245</DocBenefInn>
+      <DocBenefAcctNo>GE78BG0000000893486000EUR</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>ვალუტის გაცვლა</DocNomination>
+      <DocInformation>ვალუტის გაცვლა</DocInformation>
+      <DocSrcAmt>1</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>3.26</DocDstAmt>
+      <DocDstCcy>GEL</DocDstCcy>
+      <DocKey>31645304186</DocKey>
+      <DocRecDate>28.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>CCO</DocProdGroup>
+      <DocNo>CBN2801262601283660000256</DocNo>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000GEL</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocActualDate>28.01.2026</DocActualDate>
+      <DocExpiryDate>07.02.2026</DocExpiryDate>
+      <DocRate>3.26</DocRate>
+      <DocRegRate>3.26</DocRegRate>
+      <DocCorAcct>GE78BG0000000893486000GEL</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>110362000112</EntriesId>
+      <CcyRate>3.2009</CcyRate>
+      <EntryPDate>28.01.2026</EntryPDate>
+      <EntryDocNo>2601283660000256</EntryDocNo>
+      <EntryLAcct>26119783660100000000</EntryLAcct>
+      <EntryCrAmt>1</EntryCrAmt>
+      <OutBalance>-25,515.83</OutBalance>
+      <EntryCrAmtBase>3.2</EntryCrAmtBase>
+      <EntryAmtBase>3.2</EntryAmtBase>
+      <EntryComment>ვალუტის გაცვლითი ოპერაცია. კურსი:3.26 კონტრთანხა: GEL3.26. ვალუტის გაცვლა</EntryComment>
+      <EntryDepartment>4B366</EntryDepartment>
+      <EntryAcctPoint>4B366</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>შპს აი-სი-ი</DocBenefName>
+      <DocBenefInn>400017245</DocBenefInn>
+      <DocBenefAcctNo>GE78BG0000000893486000EUR</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>False</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>False</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>გადარიცხვის საკომისიო: cost of goods invoice 28.11.2025P\roject Mcdonalds Gldani</DocNomination>
+      <DocInformation>გადარიცხვის საკომისიო: cost of goods invoice 28.11.2025P\roject Mcdonalds Gldani</DocInformation>
+      <DocSrcAmt>16.83</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>16.83</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31645486341</DocKey>
+      <DocRecDate>28.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>COM</DocProdGroup>
+      <DocNo>PMI179379590</DocNo>
+      <DocValueDate>28.01.2026</DocValueDate>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocCorAcct>26119781540100000000</DocCorAcct>
+      <EntriesId>110362443153</EntriesId>
+      <DocComment>1/Form Endustri Urunleri Ticaret A.\1/S\2/Eski buyukdere Cad Sumer Sok no 3\3/TR/ISTANBUL TR370006200044800009022113 </DocComment>
+      <CcyRate>3.2009</CcyRate>
+      <EntryPDate>28.01.2026</EntryPDate>
+      <EntryDocNo>PMI179379590</EntryDocNo>
+      <EntryLAcct>26119781540100000000</EntryLAcct>
+      <EntryDbAmt>16.83</EntryDbAmt>
+      <EntryDbAmtBase>53.87</EntryDbAmtBase>
+      <OutBalance>-16.83</OutBalance>
+      <EntryAmtBase>53.87</EntryAmtBase>
+      <EntryComment>გადარიცხვის საკომისიო: cost of goods invoice 28.11.2025P\roject Mcdonalds Gldani</EntryComment>
+      <EntryDepartment>CENT14</EntryDepartment>
+      <EntryAcctPoint>CENTRAL14</EntryAcctPoint>
+      <DocBenefAcctNo>26119781540100000000</DocBenefAcctNo>
+      <DocPayerName>შპს აი-სი-ი</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>cost of goods invoice 28.11.2025P\roject Mcdonalds Gldani</DocNomination>
+      <DocInformation>/PPRO/</DocInformation>
+      <DocSrcAmt>25500</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>25500</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31645304223</DocKey>
+      <DocRecDate>28.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>CENT14</DocDepartment>
+      <DocProdGroup>PMI</DocProdGroup>
+      <DocNo>PMI179379590</DocNo>
+      <DocValueDate>28.01.2026</DocValueDate>
+      <DocSenderName>1/LTD ICE TXID-400017245\2/SAKARVELO TBILISI ZURAB ANJAPARID\2/ZIS I SHESAKHVEVI 4SARTULI17 FL\3/GE/TBILISI</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocCorAcct>TR370006200044800009022113</DocCorAcct>
+      <DocCorBic>TGBATRISXXX</DocCorBic>
+      <DocCorBankName>TURKIYE GARANTI BANKASI A.S.</DocCorBankName>
+      <EntriesId>110362443175</EntriesId>
+      <DocComment>1/Form Endustri Urunleri Ticaret A.\1/S\2/Eski buyukdere Cad Sumer Sok no 3\3/TR/ISTANBUL TR370006200044800009022113 </DocComment>
+      <CcyRate>3.2009</CcyRate>
+      <EntryPDate>28.01.2026</EntryPDate>
+      <EntryDocNo>PMI179379590</EntryDocNo>
+      <EntryLAcct>48419780200100000000</EntryLAcct>
+      <EntryDbAmt>25500</EntryDbAmt>
+      <EntryDbAmtBase>81622.95</EntryDbAmtBase>
+      <OutBalance>-25,516.83</OutBalance>
+      <EntryAmtBase>81622.95</EntryAmtBase>
+      <EntryComment>cost of goods invoice 28.11.2025P\roject Mcdonalds Gldani</EntryComment>
+      <EntryDepartment>CENT00</EntryDepartment>
+      <EntryAcctPoint>BANK</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>1/Form Endustri Urunleri Ticaret A.\1/S\2/Eski buyukdere Cad Sumer Sok no 3\3/TR/ISTANBUL</DocBenefName>
+      <DocBenefAcctNo>TR370006200044800009022113</DocBenefAcctNo>
+      <DocBenefBic>TGBATRISXXX</DocBenefBic>
+      <DocBenefBicName>TURKIYE GARANTI BANKASI A.S.</DocBenefBicName>
+      <DocPayerName>1/LTD ICE TXID-400017245\2/SAKARVELO TBILISI ZURAB ANJAPARID\2/ZIS I SHESAKHVEVI 4SARTULI17 FL\3/GE/TBILISI</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>ვალუტის გაცვლა</DocNomination>
+      <DocInformation>ვალუტის გაცვლა</DocInformation>
+      <DocSrcAmt>955.75</DocSrcAmt>
+      <DocSrcCcy>GEL</DocSrcCcy>
+      <DocDstAmt>300.55</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31658635689</DocKey>
+      <DocRecDate>29.01.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>CCO</DocProdGroup>
+      <DocNo>CBN2901262601293660000090</DocNo>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocActualDate>29.01.2026</DocActualDate>
+      <DocExpiryDate>08.02.2026</DocExpiryDate>
+      <DocRate>3.18</DocRate>
+      <DocRegRate>3.18</DocRegRate>
+      <DocCorAcct>GE78BG0000000893486000GEL</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>110409874918</EntriesId>
+      <CcyRate>3.2277</CcyRate>
+      <EntryPDate>29.01.2026</EntryPDate>
+      <EntryDocNo>2601293660000090</EntryDocNo>
+      <EntryLAcct>26119783660100000000</EntryLAcct>
+      <EntryDbAmt>300.55</EntryDbAmt>
+      <EntryDbAmtBase>970.09</EntryDbAmtBase>
+      <OutBalance>0.00</OutBalance>
+      <EntryAmtBase>970.09</EntryAmtBase>
+      <EntryComment>ვალუტის გაცვლითი ოპერაცია. კურსი:3.18 კონტრთანხა: GEL955.75. ვალუტის გაცვლა</EntryComment>
+      <EntryDepartment>4B366</EntryDepartment>
+      <EntryAcctPoint>4B366</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>შპს აი-სი-ი</DocBenefName>
+      <DocBenefInn>400017245</DocBenefInn>
+      <DocBenefAcctNo>GE78BG0000000893486000GEL</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+      <DocPayerName>შპს აი-სი-ი</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>ვალუტის გაცვლა</DocNomination>
+      <DocInformation>ვალუტის გაცვლა</DocInformation>
+      <DocSrcAmt>9029.86</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>28723.98</DocDstAmt>
+      <DocDstCcy>GEL</DocDstCcy>
+      <DocKey>31780623312</DocKey>
+      <DocRecDate>05.02.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>CCO</DocProdGroup>
+      <DocNo>CBN0502262602053660000120</DocNo>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000GEL</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocActualDate>05.02.2026</DocActualDate>
+      <DocExpiryDate>15.02.2026</DocExpiryDate>
+      <DocRate>3.181</DocRate>
+      <DocRegRate>3.181</DocRegRate>
+      <DocCorAcct>GE78BG0000000893486000GEL</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>110828083021</EntriesId>
+      <CcyRate>3.1749</CcyRate>
+      <EntryPDate>05.02.2026</EntryPDate>
+      <EntryDocNo>2602053660000120</EntryDocNo>
+      <EntryLAcct>26119783660100000000</EntryLAcct>
+      <EntryCrAmt>9029.86</EntryCrAmt>
+      <OutBalance>0.00</OutBalance>
+      <EntryCrAmtBase>28668.9</EntryCrAmtBase>
+      <EntryAmtBase>28668.9</EntryAmtBase>
+      <EntryComment>ვალუტის გაცვლითი ოპერაცია. კურსი:3.181 კონტრთანხა: GEL28,723.98. ვალუტის გაცვლა</EntryComment>
+      <EntryDepartment>4B366</EntryDepartment>
+      <EntryAcctPoint>4B366</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>შპს აი-სი-ი</DocBenefName>
+      <DocBenefInn>400017245</DocBenefInn>
+      <DocBenefAcctNo>GE78BG0000000893486000EUR</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>False</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>False</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>გადარიცხვის საკომისიო: Cost of goods invoice 20.01.2026\Project Varketili Mall</DocNomination>
+      <DocInformation>გადარიცხვის საკომისიო: Cost of goods invoice 20.01.2026\Project Varketili Mall</DocInformation>
+      <DocSrcAmt>16.93</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>16.93</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31780903830</DocKey>
+      <DocRecDate>05.02.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>COM</DocProdGroup>
+      <DocNo>PMI179717942</DocNo>
+      <DocValueDate>05.02.2026</DocValueDate>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocCorAcct>26119781540100000000</DocCorAcct>
+      <EntriesId>110828804850</EntriesId>
+      <DocComment>1/TETRA ELEKTROMEKANIK AS\2/MareSal Fevzi Cakmak Cd. No 113A \2/AtaSehir -Istanbul\3/TR/ANKARA TR230001002046811573925005 </DocComment>
+      <CcyRate>3.1749</CcyRate>
+      <EntryPDate>05.02.2026</EntryPDate>
+      <EntryDocNo>PMI179717942</EntryDocNo>
+      <EntryLAcct>26119781540100000000</EntryLAcct>
+      <EntryDbAmt>16.93</EntryDbAmt>
+      <EntryDbAmtBase>53.75</EntryDbAmtBase>
+      <OutBalance>-21.93</OutBalance>
+      <EntryAmtBase>53.75</EntryAmtBase>
+      <EntryComment>გადარიცხვის საკომისიო: Cost of goods invoice 20.01.2026\Project Varketili Mall</EntryComment>
+      <EntryDepartment>CENT14</EntryDepartment>
+      <EntryAcctPoint>CENTRAL14</EntryAcctPoint>
+      <DocBenefAcctNo>26119781540100000000</DocBenefAcctNo>
+      <DocPayerName>შპს აი-სი-ი</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>Cost of goods invoice 20.01.2026\Project Varketili Mall</DocNomination>
+      <DocInformation>Cost of goods invoice 20.01.2026\Project Varketili Mall</DocInformation>
+      <DocSrcAmt>2648</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>2648</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31780729328</DocKey>
+      <DocRecDate>05.02.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>CENT14</DocDepartment>
+      <DocProdGroup>PMI</DocProdGroup>
+      <DocNo>PMI179717942</DocNo>
+      <DocValueDate>05.02.2026</DocValueDate>
+      <DocSenderName>1/LTD ICE TXID-400017245\2/ZURAB ANJAPARIDZIS I SHESAKHVEVI \2/4 SARTULI17 FL\3/GE/TBILISI</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocCorAcct>TR230001002046811573925005</DocCorAcct>
+      <DocCorBic>TCZBTR2AXXX</DocCorBic>
+      <DocCorBankName>TURKIYE CUMHURIYETI ZIRAAT BANKASI A.S.</DocCorBankName>
+      <EntriesId>110828804874</EntriesId>
+      <DocComment>1/TETRA ELEKTROMEKANIK AS\2/MareSal Fevzi Cakmak Cd. No 113A \2/AtaSehir -Istanbul\3/TR/ANKARA TR230001002046811573925005 </DocComment>
+      <CcyRate>3.1749</CcyRate>
+      <EntryPDate>05.02.2026</EntryPDate>
+      <EntryDocNo>PMI179717942</EntryDocNo>
+      <EntryLAcct>48419780200100000000</EntryLAcct>
+      <EntryDbAmt>2648</EntryDbAmt>
+      <EntryDbAmtBase>8407.14</EntryDbAmtBase>
+      <OutBalance>-2,686.86</OutBalance>
+      <EntryAmtBase>8407.14</EntryAmtBase>
+      <EntryComment>Cost of goods invoice 20.01.2026\Project Varketili Mall</EntryComment>
+      <EntryDepartment>CENT00</EntryDepartment>
+      <EntryAcctPoint>BANK</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>1/TETRA ELEKTROMEKANIK AS\2/MareSal Fevzi Cakmak Cd. No 113A \2/AtaSehir -Istanbul\3/TR/ANKARA</DocBenefName>
+      <DocBenefAcctNo>TR230001002046811573925005</DocBenefAcctNo>
+      <DocBenefBic>TCZBTR2AXXX</DocBenefBic>
+      <DocBenefBicName>TURKIYE CUMHURIYETI ZIRAAT BANKASI A.S.</DocBenefBicName>
+      <DocPayerName>1/LTD ICE TXID-400017245\2/ZURAB ANJAPARIDZIS I SHESAKHVEVI \2/4 SARTULI17 FL\3/GE/TBILISI</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>ვალუტის გაცვლა</DocNomination>
+      <DocInformation>ვალუტის გაცვლა</DocInformation>
+      <DocSrcAmt>5</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>16.04</DocDstAmt>
+      <DocDstCcy>GEL</DocDstCcy>
+      <DocKey>31780959822</DocKey>
+      <DocRecDate>05.02.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>CCO</DocProdGroup>
+      <DocNo>CBN0502262602053660000133</DocNo>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000GEL</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocActualDate>05.02.2026</DocActualDate>
+      <DocExpiryDate>15.02.2026</DocExpiryDate>
+      <DocRate>3.207</DocRate>
+      <DocRegRate>3.207</DocRegRate>
+      <DocCorAcct>GE78BG0000000893486000GEL</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>110828979119</EntriesId>
+      <CcyRate>3.1749</CcyRate>
+      <EntryPDate>05.02.2026</EntryPDate>
+      <EntryDocNo>2602053660000133</EntryDocNo>
+      <EntryLAcct>26119783660100000000</EntryLAcct>
+      <EntryCrAmt>5</EntryCrAmt>
+      <OutBalance>-9,029.86</OutBalance>
+      <EntryCrAmtBase>15.87</EntryCrAmtBase>
+      <EntryAmtBase>15.87</EntryAmtBase>
+      <EntryComment>ვალუტის გაცვლითი ოპერაცია. კურსი:3.207 კონტრთანხა: GEL16.04. ვალუტის გაცვლა</EntryComment>
+      <EntryDepartment>4B366</EntryDepartment>
+      <EntryAcctPoint>4B366</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>შპს აი-სი-ი</DocBenefName>
+      <DocBenefInn>400017245</DocBenefInn>
+      <DocBenefAcctNo>GE78BG0000000893486000EUR</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>False</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>False</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>გადარიცხვის საკომისიო: Cost of Goods invoiceINVOICE GEO3\26 DATE 13.01.2026</DocNomination>
+      <DocInformation>გადარიცხვის საკომისიო: Cost of Goods invoiceINVOICE GEO3\26 DATE 13.01.2026</DocInformation>
+      <DocSrcAmt>16.93</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>16.93</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31781156803</DocKey>
+      <DocRecDate>05.02.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>COM</DocProdGroup>
+      <DocNo>PMI179719097</DocNo>
+      <DocValueDate>05.02.2026</DocValueDate>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocCorAcct>26119781540100000000</DocCorAcct>
+      <EntriesId>110829505626</EntriesId>
+      <DocComment>1/WILO SE\2/Wilopark 1, Dortmund\3/DE/DORTMUND DE40440700500169161700 </DocComment>
+      <CcyRate>3.1749</CcyRate>
+      <EntryPDate>05.02.2026</EntryPDate>
+      <EntryDocNo>PMI179719097</EntryDocNo>
+      <EntryLAcct>26119781540100000000</EntryLAcct>
+      <EntryDbAmt>16.93</EntryDbAmt>
+      <EntryDbAmtBase>53.75</EntryDbAmtBase>
+      <OutBalance>-38.86</OutBalance>
+      <EntryAmtBase>53.75</EntryAmtBase>
+      <EntryComment>გადარიცხვის საკომისიო: Cost of Goods invoiceINVOICE GEO3\26 DATE 13.01.2026</EntryComment>
+      <EntryDepartment>CENT14</EntryDepartment>
+      <EntryAcctPoint>CENTRAL14</EntryAcctPoint>
+      <DocBenefAcctNo>26119781540100000000</DocBenefAcctNo>
+      <DocPayerName>შპს აი-სი-ი</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>Cost of Goods invoiceINVOICE GEO3\26 DATE 13.01.2026</DocNomination>
+      <DocInformation>Cost of Goods invoiceINVOICE GEO3\26 DATE 13.01.2026</DocInformation>
+      <DocSrcAmt>6348</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>6348</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31781071811</DocKey>
+      <DocRecDate>05.02.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>CENT14</DocDepartment>
+      <DocProdGroup>PMI</DocProdGroup>
+      <DocNo>PMI179719097</DocNo>
+      <DocValueDate>05.02.2026</DocValueDate>
+      <DocSenderName>1/LTD ICE TXID-400017245\2/ZURAB ANJAPARIDZIS I SHESAKHVEVI \2/4 SARTULI17 FL\3/GE/TBILISI</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocCorAcct>DE40440700500169161700</DocCorAcct>
+      <DocCorBic>DEUTDEDE440</DocCorBic>
+      <DocCorBankName>DEUTSCHE BANK AG</DocCorBankName>
+      <EntriesId>110829505646</EntriesId>
+      <DocComment>1/WILO SE\2/Wilopark 1, Dortmund\3/DE/DORTMUND DE40440700500169161700 </DocComment>
+      <CcyRate>3.1749</CcyRate>
+      <EntryPDate>05.02.2026</EntryPDate>
+      <EntryDocNo>PMI179719097</EntryDocNo>
+      <EntryLAcct>48419780200100000000</EntryLAcct>
+      <EntryDbAmt>6348</EntryDbAmt>
+      <EntryDbAmtBase>20154.27</EntryDbAmtBase>
+      <OutBalance>-9,034.86</OutBalance>
+      <EntryAmtBase>20154.27</EntryAmtBase>
+      <EntryComment>Cost of Goods invoiceINVOICE GEO3\26 DATE 13.01.2026</EntryComment>
+      <EntryDepartment>CENT00</EntryDepartment>
+      <EntryAcctPoint>BANK</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>1/WILO SE\2/Wilopark 1, Dortmund\3/DE/DORTMUND</DocBenefName>
+      <DocBenefAcctNo>DE40440700500169161700</DocBenefAcctNo>
+      <DocBenefBic>DEUTDEDE440</DocBenefBic>
+      <DocBenefBicName>DEUTSCHE BANK AG</DocBenefBicName>
+      <DocPayerName>1/LTD ICE TXID-400017245\2/ZURAB ANJAPARIDZIS I SHESAKHVEVI \2/4 SARTULI17 FL\3/GE/TBILISI</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>False</CanCopyDocument>
+      <CanViewDocument>False</CanViewDocument>
+      <CanPrintDocument>False</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>Conversion for Pay Commission of Agreement : ADV1126089-25</DocNomination>
+      <DocInformation>Conversion for Pay Commission of Agreement : ADV1126089-25</DocInformation>
+      <DocSrcAmt>5</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>5</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31791670144</DocKey>
+      <DocRecDate>06.02.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>LFG</DocProdGroup>
+      <DocNo>I/ADV/252254905</DocNo>
+      <DocValueDate>05.02.2026</DocValueDate>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocCorAcct>26119780200100000000</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>110860677861</EntriesId>
+      <CcyRate>3.1749</CcyRate>
+      <EntryPDate>05.02.2026</EntryPDate>
+      <EntryDocNo>I/ADV/252254905</EntryDocNo>
+      <EntryLAcct>26119780200100000000</EntryLAcct>
+      <EntryDbAmt>5</EntryDbAmt>
+      <EntryDbAmtBase>15.87</EntryDbAmtBase>
+      <OutBalance>-5.00</OutBalance>
+      <EntryAmtBase>15.87</EntryAmtBase>
+      <EntryComment>Conversion for Pay Commission of Agreement : ADV1126089-25</EntryComment>
+      <EntryDepartment>CENT00</EntryDepartment>
+      <EntryAcctPoint>BANK</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefAcctNo>26119780200100000000</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+      <DocPayerName>შპს აი-სი-ი</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>ვალუტის გაცვლა</DocNomination>
+      <DocInformation>ვალუტის გაცვლა</DocInformation>
+      <DocSrcAmt>6236.31</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>19831.47</DocDstAmt>
+      <DocDstCcy>GEL</DocDstCcy>
+      <DocKey>31801026623</DocKey>
+      <DocRecDate>06.02.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>CCO</DocProdGroup>
+      <DocNo>CBN0602262602063660000142</DocNo>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000GEL</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocActualDate>06.02.2026</DocActualDate>
+      <DocExpiryDate>16.02.2026</DocExpiryDate>
+      <DocRate>3.18</DocRate>
+      <DocRegRate>3.18</DocRegRate>
+      <DocCorAcct>GE78BG0000000893486000GEL</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>110896256233</EntriesId>
+      <CcyRate>3.1689</CcyRate>
+      <EntryPDate>06.02.2026</EntryPDate>
+      <EntryDocNo>2602063660000142</EntryDocNo>
+      <EntryLAcct>26119783660100000000</EntryLAcct>
+      <EntryCrAmt>6236.31</EntryCrAmt>
+      <OutBalance>2.56</OutBalance>
+      <EntryCrAmtBase>19762.24</EntryCrAmtBase>
+      <EntryAmtBase>19762.24</EntryAmtBase>
+      <EntryComment>ვალუტის გაცვლითი ოპერაცია. კურსი:3.18 კონტრთანხა: GEL19,831.47. ვალუტის გაცვლა</EntryComment>
+      <EntryDepartment>4B366</EntryDepartment>
+      <EntryAcctPoint>4B366</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>შპს აი-სი-ი</DocBenefName>
+      <DocBenefInn>400017245</DocBenefInn>
+      <DocBenefAcctNo>GE78BG0000000893486000EUR</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>ვალუტის გაცვლა</DocNomination>
+      <DocInformation>ვალუტის გაცვლა</DocInformation>
+      <DocSrcAmt>2.56</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>8.21</DocDstAmt>
+      <DocDstCcy>GEL</DocDstCcy>
+      <DocKey>31802263133</DocKey>
+      <DocRecDate>06.02.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>CCO</DocProdGroup>
+      <DocNo>CBN0602262602063660000186</DocNo>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000GEL</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocActualDate>06.02.2026</DocActualDate>
+      <DocExpiryDate>16.02.2026</DocExpiryDate>
+      <DocRate>3.207</DocRate>
+      <DocRegRate>3.207</DocRegRate>
+      <DocCorAcct>GE78BG0000000893486000GEL</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>110899683535</EntriesId>
+      <CcyRate>3.1689</CcyRate>
+      <EntryPDate>06.02.2026</EntryPDate>
+      <EntryDocNo>2602063660000186</EntryDocNo>
+      <EntryLAcct>26119783660100000000</EntryLAcct>
+      <EntryCrAmt>2.56</EntryCrAmt>
+      <OutBalance>-6,233.75</OutBalance>
+      <EntryCrAmtBase>8.11</EntryCrAmtBase>
+      <EntryAmtBase>8.11</EntryAmtBase>
+      <EntryComment>ვალუტის გაცვლითი ოპერაცია. კურსი:3.207 კონტრთანხა: GEL8.21. ვალუტის გაცვლა</EntryComment>
+      <EntryDepartment>4B366</EntryDepartment>
+      <EntryAcctPoint>4B366</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>შპს აი-სი-ი</DocBenefName>
+      <DocBenefInn>400017245</DocBenefInn>
+      <DocBenefAcctNo>GE78BG0000000893486000EUR</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>False</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>False</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>გადარიცხვის საკომისიო: Cost of goods offer 25.TFT 25969-\R6 Kvareli Galleria</DocNomination>
+      <DocInformation>გადარიცხვის საკომისიო: Cost of goods offer 25.TFT 25969-\R6 Kvareli Galleria</DocInformation>
+      <DocSrcAmt>16.96</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>16.96</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31802394020</DocKey>
+      <DocRecDate>06.02.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>COM</DocProdGroup>
+      <DocNo>PMI179779041</DocNo>
+      <DocValueDate>06.02.2026</DocValueDate>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocCorAcct>26119781540100000000</DocCorAcct>
+      <EntriesId>110900044111</EntriesId>
+      <DocComment>1/Termofan havalandirma sistemleri \1/san. tic.a.s\2/OIZ analitik str.no 62 TUZLA\3/TR/ISTANBUL TR250001500158048014399838 </DocComment>
+      <CcyRate>3.1689</CcyRate>
+      <EntryPDate>06.02.2026</EntryPDate>
+      <EntryDocNo>PMI179779041</EntryDocNo>
+      <EntryLAcct>26119781540100000000</EntryLAcct>
+      <EntryDbAmt>16.96</EntryDbAmt>
+      <EntryDbAmtBase>53.74</EntryDbAmtBase>
+      <OutBalance>-16.96</OutBalance>
+      <EntryAmtBase>53.74</EntryAmtBase>
+      <EntryComment>გადარიცხვის საკომისიო: Cost of goods offer 25.TFT 25969-\R6 Kvareli Galleria</EntryComment>
+      <EntryDepartment>CENT14</EntryDepartment>
+      <EntryAcctPoint>CENTRAL14</EntryAcctPoint>
+      <DocBenefAcctNo>26119781540100000000</DocBenefAcctNo>
+      <DocPayerName>შპს აი-სი-ი</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>Cost of goods offer 25.TFT 25969-\R6 Kvareli Galleria</DocNomination>
+      <DocInformation>/PPRO/</DocInformation>
+      <DocSrcAmt>6219.35</DocSrcAmt>
+      <DocSrcCcy>EUR</DocSrcCcy>
+      <DocDstAmt>6219.35</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31802271665</DocKey>
+      <DocRecDate>06.02.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>CENT14</DocDepartment>
+      <DocProdGroup>PMI</DocProdGroup>
+      <DocNo>PMI179779041</DocNo>
+      <DocValueDate>06.02.2026</DocValueDate>
+      <DocSenderName>1/LTD ICE TXID-400017245\2/SAKARVELO TBILISI ZURAB ANJAPARID\2/ZIS I SHESAKHVEVI 4 SARTULI1\3/GE/TBILISI</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocCorAcct>TR250001500158048014399838</DocCorAcct>
+      <DocCorBic>TVBATR2AXXX</DocCorBic>
+      <DocCorBankName>TURKIYE VAKIFLAR BANKASI T.A.O.</DocCorBankName>
+      <EntriesId>110900044125</EntriesId>
+      <DocComment>1/Termofan havalandirma sistemleri \1/san. tic.a.s\2/OIZ analitik str.no 62 TUZLA\3/TR/ISTANBUL TR250001500158048014399838 </DocComment>
+      <CcyRate>3.1689</CcyRate>
+      <EntryPDate>06.02.2026</EntryPDate>
+      <EntryDocNo>PMI179779041</EntryDocNo>
+      <EntryLAcct>48419780200100000000</EntryLAcct>
+      <EntryDbAmt>6219.35</EntryDbAmt>
+      <EntryDbAmtBase>19708.5</EntryDbAmtBase>
+      <OutBalance>-6,236.31</OutBalance>
+      <EntryAmtBase>19708.5</EntryAmtBase>
+      <EntryComment>Cost of goods offer 25.TFT 25969-\R6 Kvareli Galleria</EntryComment>
+      <EntryDepartment>CENT00</EntryDepartment>
+      <EntryAcctPoint>BANK</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>1/Termofan havalandirma sistemleri \1/san. tic.a.s\2/OIZ analitik str.no 62 TUZLA\3/TR/ISTANBUL</DocBenefName>
+      <DocBenefAcctNo>TR250001500158048014399838</DocBenefAcctNo>
+      <DocBenefBic>TVBATR2AXXX</DocBenefBic>
+      <DocBenefBicName>TURKIYE VAKIFLAR BANKASI T.A.O.</DocBenefBicName>
+      <DocPayerName>1/LTD ICE TXID-400017245\2/SAKARVELO TBILISI ZURAB ANJAPARID\2/ZIS I SHESAKHVEVI 4 SARTULI1\3/GE/TBILISI</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+    <DETAIL>
+      <CanCopyDocument>True</CanCopyDocument>
+      <CanViewDocument>True</CanViewDocument>
+      <CanPrintDocument>True</CanPrintDocument>
+      <IsReval>False</IsReval>
+      <DocNomination>ვალუტის გაცვლა</DocNomination>
+      <DocInformation>ვალუტის გაცვლა</DocInformation>
+      <DocSrcAmt>8.07</DocSrcAmt>
+      <DocSrcCcy>GEL</DocSrcCcy>
+      <DocDstAmt>2.56</DocDstAmt>
+      <DocDstCcy>EUR</DocDstCcy>
+      <DocKey>31875515946</DocKey>
+      <DocRecDate>10.02.2026</DocRecDate>
+      <DocBranch>502</DocBranch>
+      <DocDepartment>4B366</DocDepartment>
+      <DocProdGroup>CCO</DocProdGroup>
+      <DocNo>CBN1002262602103660000362</DocNo>
+      <DocSenderName>შპს აი-სი-ი</DocSenderName>
+      <DocSenderInn>400017245</DocSenderInn>
+      <DocSenderAcctNo>GE78BG0000000893486000EUR</DocSenderAcctNo>
+      <DocSenderBic>BAGAGE22</DocSenderBic>
+      <DocActualDate>10.02.2026</DocActualDate>
+      <DocExpiryDate>20.02.2026</DocExpiryDate>
+      <DocRate>3.153</DocRate>
+      <DocRegRate>3.153</DocRegRate>
+      <DocCorAcct>GE78BG0000000893486000GEL</DocCorAcct>
+      <DocCorBic>BAGAGE22</DocCorBic>
+      <DocCorBankName>სს "საქართველოს ბანკი"</DocCorBankName>
+      <EntriesId>111152947317</EntriesId>
+      <CcyRate>3.1857</CcyRate>
+      <EntryPDate>10.02.2026</EntryPDate>
+      <EntryDocNo>2602103660000362</EntryDocNo>
+      <EntryLAcct>26119783660100000000</EntryLAcct>
+      <EntryDbAmt>2.56</EntryDbAmt>
+      <EntryDbAmtBase>8.16</EntryDbAmtBase>
+      <OutBalance>0.00</OutBalance>
+      <EntryAmtBase>8.16</EntryAmtBase>
+      <EntryComment>ვალუტის გაცვლითი ოპერაცია. კურსი:3.153 კონტრთანხა: GEL8.07. ვალუტის გაცვლა</EntryComment>
+      <EntryDepartment>4B366</EntryDepartment>
+      <EntryAcctPoint>4B366</EntryAcctPoint>
+      <DocSenderBicName>სს "საქართველოს ბანკი"</DocSenderBicName>
+      <DocBenefName>შპს აი-სი-ი</DocBenefName>
+      <DocBenefInn>400017245</DocBenefInn>
+      <DocBenefAcctNo>GE78BG0000000893486000GEL</DocBenefAcctNo>
+      <DocBenefBic>BAGAGE22</DocBenefBic>
+      <DocBenefBicName>სს "საქართველოს ბანკი"</DocBenefBicName>
+      <DocPayerName>შპს აი-სი-ი</DocPayerName>
+      <DocPayerInn>400017245</DocPayerInn>
+    </DETAIL>
+  </DETAILS>
+</gemini:AccountStatement>
