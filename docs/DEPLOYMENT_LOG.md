@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-23
+- Summary: Improve bank transactions test filtering and payment selector details.
+- Changes:
+  - Bank transactions test API: push date filtering into SQL, avoid total count work when filtered, and cache raw lookups for conversions.
+  - Bank transactions UI: send explicit limit=0 for all records and enrich payment selector rows with metadata.
+  - Deploy config: ignore local artifacts via .vercelignore.
+- Commit: 5cb15e7
+- Production: https://ice-rjd6tdf7w-iceerp.vercel.app
+
+## 2026-02-23
 - Summary: Update bank export file naming and counteragent naming.
 - Changes:
   - Payments report API: include counteragent entity type fields for export naming.
