@@ -988,14 +988,14 @@ export async function processBOGGELDeconsolidated(
 
       const { data: outRow } = await supabase
         .from(tableOut)
-        .select('uuid, conversion_id')
+        .select('*')
         .eq('dockey', candidate.dockey)
         .limit(1)
         .maybeSingle();
 
       const { data: inRow } = await supabase
         .from(tableIn)
-        .select('uuid, conversion_id')
+        .select('*')
         .eq('dockey', candidate.dockey)
         .limit(1)
         .maybeSingle();
@@ -1029,13 +1029,14 @@ export async function processBOGGELDeconsolidated(
 
       const { data: existingConversion } = await supabase
         .from('conversion')
-        .select('uuid')
+        .select('id, uuid')
         .eq('key_value', candidate.dockey)
         .eq('account_out_uuid', outAccount.uuid)
         .eq('account_in_uuid', inAccount.uuid)
         .maybeSingle();
 
       let conversionUuid = existingConversion?.uuid as string | undefined;
+      let conversionId = existingConversion?.id as number | undefined;
 
       if (!conversionUuid) {
         const { data: insertedConversion, error: conversionError } = await supabase
@@ -1052,7 +1053,7 @@ export async function processBOGGELDeconsolidated(
             amount_in: amounts.amountIn,
             fee: fee,
           })
-          .select('uuid')
+          .select('id, uuid')
           .single();
 
         if (conversionError) {
@@ -1061,9 +1062,145 @@ export async function processBOGGELDeconsolidated(
         }
 
         conversionUuid = insertedConversion?.uuid;
+        conversionId = insertedConversion?.id ?? conversionId;
       }
 
       if (!conversionUuid) continue;
+
+      const conversionDate = candidate.date
+        ? candidate.date.toLocaleDateString('en-GB').split('/').join('.')
+        : null;
+      const amountOut = amounts.amountOut;
+      const amountIn = amounts.amountIn;
+      const feeValue = fee ?? 0;
+      const feeRounded = Math.round(feeValue * 100) / 100;
+      const amountOutBody = -Math.abs(amountOut - feeRounded);
+      const feeAmount = -Math.abs(feeRounded);
+      const amountInValue = amountIn;
+      const commentText = `კონვერტაცია ${amountOut.toFixed(2)} ${outAccount.currency_code} = ${amountIn.toFixed(2)} ${inAccount.currency_code}`;
+      const exchangeRate = outRow?.exchange_rate ?? inRow?.exchange_rate ?? null;
+      const correctionDate = outRow?.correction_date ?? inRow?.correction_date ?? null;
+      const description = outRow?.description ?? inRow?.description ?? null;
+      const counteragentAccountNumber = inAccount.account_number && inAccount.currency_code
+        ? `${inAccount.account_number}${inAccount.currency_code}`
+        : inAccount.account_number ?? null;
+      const batchId = conversionId ? `CONV_${conversionId}` : `CONV_${conversionUuid}`;
+
+      const conversionEntriesPayload = [
+        {
+          conversion_id: conversionId ?? null,
+          conversion_uuid: conversionUuid,
+          entry_type: 'OUT',
+          bank_account_uuid: outAccount.uuid,
+          raw_record_uuid: outRow?.uuid ?? null,
+          dockey: candidate.dockey,
+          entriesid: outRow?.entriesid ?? null,
+          transaction_date: conversionDate,
+          correction_date: correctionDate,
+          exchange_rate: exchangeRate,
+          description,
+          comment: commentText,
+          counteragent_uuid: outRow?.counteragent_uuid ?? null,
+          counteragent_account_number: counteragentAccountNumber,
+          project_uuid: outRow?.project_uuid ?? null,
+          financial_code_uuid: outRow?.financial_code_uuid ?? null,
+          account_currency_uuid: outRow?.account_currency_uuid ?? outAccount.currency_uuid,
+          account_currency_amount: amountOutBody,
+          nominal_currency_uuid: outRow?.nominal_currency_uuid ?? outAccount.currency_uuid,
+          nominal_amount: amountOutBody,
+          payment_id: outRow?.payment_id ?? null,
+          processing_case: outRow?.processing_case ?? null,
+          parsing_lock: true,
+          applied_rule_id: outRow?.applied_rule_id ?? null,
+          batch_id: batchId,
+          account_number: outAccount.account_number ?? null,
+          bank_name: outRow?.bank_name ?? null,
+          account_currency_code: outAccount.currency_code ?? null,
+          nominal_currency_code: outAccount.currency_code ?? null,
+          usd_gel_rate: outRow?.usd_gel_rate ?? null,
+          counteragent_name: outRow?.counteragent_name ?? null,
+          financial_code: outRow?.financial_code ?? null,
+          project_index: outRow?.project_index ?? null,
+        },
+        {
+          conversion_id: conversionId ?? null,
+          conversion_uuid: conversionUuid,
+          entry_type: 'FEE',
+          bank_account_uuid: outAccount.uuid,
+          raw_record_uuid: outRow?.uuid ?? null,
+          dockey: candidate.dockey,
+          entriesid: outRow?.entriesid ?? null,
+          transaction_date: conversionDate,
+          correction_date: correctionDate,
+          exchange_rate: exchangeRate,
+          description,
+          comment: commentText,
+          counteragent_uuid: outRow?.counteragent_uuid ?? null,
+          counteragent_account_number: counteragentAccountNumber,
+          project_uuid: outRow?.project_uuid ?? null,
+          financial_code_uuid: outRow?.financial_code_uuid ?? null,
+          account_currency_uuid: outRow?.account_currency_uuid ?? outAccount.currency_uuid,
+          account_currency_amount: feeAmount,
+          nominal_currency_uuid: outRow?.nominal_currency_uuid ?? outAccount.currency_uuid,
+          nominal_amount: feeAmount,
+          payment_id: outRow?.payment_id ?? null,
+          processing_case: outRow?.processing_case ?? null,
+          parsing_lock: true,
+          applied_rule_id: outRow?.applied_rule_id ?? null,
+          batch_id: batchId,
+          account_number: outAccount.account_number ?? null,
+          bank_name: outRow?.bank_name ?? null,
+          account_currency_code: outAccount.currency_code ?? null,
+          nominal_currency_code: outAccount.currency_code ?? null,
+          usd_gel_rate: outRow?.usd_gel_rate ?? null,
+          counteragent_name: outRow?.counteragent_name ?? null,
+          financial_code: outRow?.financial_code ?? null,
+          project_index: outRow?.project_index ?? null,
+        },
+        {
+          conversion_id: conversionId ?? null,
+          conversion_uuid: conversionUuid,
+          entry_type: 'IN',
+          bank_account_uuid: inAccount.uuid,
+          raw_record_uuid: inRow?.uuid ?? null,
+          dockey: candidate.dockey,
+          entriesid: inRow?.entriesid ?? null,
+          transaction_date: conversionDate,
+          correction_date: correctionDate,
+          exchange_rate: exchangeRate,
+          description,
+          comment: commentText,
+          counteragent_uuid: inRow?.counteragent_uuid ?? null,
+          counteragent_account_number: counteragentAccountNumber,
+          project_uuid: inRow?.project_uuid ?? null,
+          financial_code_uuid: inRow?.financial_code_uuid ?? null,
+          account_currency_uuid: inRow?.account_currency_uuid ?? inAccount.currency_uuid,
+          account_currency_amount: amountInValue,
+          nominal_currency_uuid: inRow?.nominal_currency_uuid ?? inAccount.currency_uuid,
+          nominal_amount: amountInValue,
+          payment_id: inRow?.payment_id ?? null,
+          processing_case: inRow?.processing_case ?? null,
+          parsing_lock: true,
+          applied_rule_id: inRow?.applied_rule_id ?? null,
+          batch_id: batchId,
+          account_number: inAccount.account_number ?? null,
+          bank_name: inRow?.bank_name ?? outRow?.bank_name ?? null,
+          account_currency_code: inAccount.currency_code ?? null,
+          nominal_currency_code: inAccount.currency_code ?? null,
+          usd_gel_rate: inRow?.usd_gel_rate ?? null,
+          counteragent_name: inRow?.counteragent_name ?? null,
+          financial_code: inRow?.financial_code ?? null,
+          project_index: inRow?.project_index ?? null,
+        },
+      ];
+
+      const { error: conversionEntriesError } = await supabase
+        .from('conversion_entries')
+        .upsert(conversionEntriesPayload, { onConflict: 'conversion_uuid,entry_type' });
+
+      if (conversionEntriesError) {
+        console.warn('⚠️ Failed to upsert conversion entries:', conversionEntriesError.message);
+      }
 
       await supabase.from(tableOut).update({ conversion_id: conversionUuid }).eq('uuid', outRow.uuid);
       await supabase.from(tableIn).update({ conversion_id: conversionUuid }).eq('uuid', inRow.uuid);
