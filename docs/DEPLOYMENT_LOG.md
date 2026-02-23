@@ -1,6 +1,14 @@
 # Deployment Log
 
 ## 2026-02-23
+- Summary: Show payment total in payments report totals bar.
+- Changes:
+  - Payments report: add payment to per-currency totals cards.
+  - Ledger guard script: update confirmed edit error message text.
+- Commit: 7a11c59
+- Production: https://ice-47h8vqqvy-iceerp.vercel.app
+
+## 2026-02-23
 - Summary: Show accrual and order totals in payments report totals bar.
 - Changes:
   - Payments report: add accrual and order values to per-currency totals cards.
