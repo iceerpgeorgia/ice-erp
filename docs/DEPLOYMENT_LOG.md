@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-23
+- Summary: Widen counteragent statement edit dialog and add bank statement assets.
+- Changes:
+  - Counteragent statement: update local row data after bank/ledger edits.
+  - Bank transactions: widen edit dialog.
+  - Data/SQL: add bank statement files and deconsolidated table scripts.
+- Commit: 107f6ed
+- Production: https://ice-4mg9o97s1-iceerp.vercel.app
+
+## 2026-02-23
 - Summary: Show payment total in payments report totals bar.
 - Changes:
   - Payments report: add payment to per-currency totals cards.
