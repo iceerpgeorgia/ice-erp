@@ -355,11 +355,18 @@ export async function GET(req: NextRequest) {
       console.log('[API] Fetching specific IDs:', idsParam.split(',').map(id => id.trim()));
     }
 
+    const fromComparable = toComparableDate(fromDate);
+    const toComparable = toComparableDate(toDate);
+    const dateFilterEnabled = Boolean((fromComparable || toComparable) && !idsParam && !rawRecordUuid);
+
     const defaultLimit = 1000;
-    const isUnfiltered = !fromDate && !toDate && !idsParam && !rawRecordUuid;
-    let limit = idsParam
+    const parsedLimit = limitParam && limitParam !== '0' ? Number.parseInt(limitParam, 10) : undefined;
+    const limitRequested = limitParam === '0'
+      ? 0
+      : (Number.isNaN(parsedLimit) ? undefined : parsedLimit);
+    let limit = idsParam || rawRecordUuid
       ? undefined
-      : (limitParam ? (limitParam === '0' ? undefined : parseInt(limitParam)) : (isUnfiltered ? undefined : defaultLimit));
+      : (limitRequested === 0 ? undefined : (limitRequested ?? defaultLimit));
     const offset = offsetParam ? parseInt(offsetParam) : 0;
 
     if (limit && limit > 5000) {
@@ -420,6 +427,25 @@ export async function GET(req: NextRequest) {
       );
     } else {
       const limitSql = typeof limit === 'number' ? ` LIMIT ${limit} OFFSET ${offset || 0}` : '';
+      const dateFilters: string[] = [];
+      const params: any[] = [];
+      const txDateExpr = `CASE
+        WHEN cba.transaction_date LIKE '%.%' THEN to_date(cba.transaction_date, 'DD.MM.YYYY')
+        WHEN cba.transaction_date LIKE '____-__-__%' THEN to_date(substr(cba.transaction_date, 1, 10), 'YYYY-MM-DD')
+        ELSE NULL
+      END`;
+
+      if (fromComparable) {
+        params.push(fromComparable);
+        dateFilters.push(`${txDateExpr} >= to_date($${params.length}, 'YYYY-MM-DD')`);
+      }
+      if (toComparable) {
+        params.push(toComparable);
+        dateFilters.push(`${txDateExpr} <= to_date($${params.length}, 'YYYY-MM-DD')`);
+      }
+
+      const whereSql = dateFilters.length ? ` WHERE ${dateFilters.join(' AND ')}` : '';
+
       transactions = await prisma.$queryRawUnsafe<any[]>(
         `SELECT 
            cba.*,
@@ -438,25 +464,27 @@ export async function GET(req: NextRequest) {
          LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid) = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
          LEFT JOIN currencies curr_nom ON cba.nominal_currency_uuid = curr_nom.uuid
-         ORDER BY cba.transaction_date DESC, cba.id DESC${limitSql}`
+         ${whereSql}
+         ORDER BY cba.transaction_date DESC, cba.id DESC${limitSql}`,
+        ...params
       );
     }
 
     console.log('[API] Step 1 complete: Got', transactions.length, 'transactions with all joins');
 
     console.log('[API] Step 2: Getting total count...');
-    const totalCount = idsParam || !limit ? undefined : (await prisma.$queryRawUnsafe<Array<{count: bigint}>>(
-      `SELECT SUM(count)::bigint as count FROM (
-        ${SOURCE_TABLES.map(table => `SELECT COUNT(*)::bigint as count FROM "${table.name}"`).join(' UNION ALL ')}
-      ) counts`
-    ))[0].count;
+    const totalCount = idsParam || rawRecordUuid || dateFilterEnabled || typeof limit !== 'number'
+      ? undefined
+      : (await prisma.$queryRawUnsafe<Array<{count: bigint}>>(
+          `SELECT SUM(count)::bigint as count FROM (
+            ${SOURCE_TABLES.map(table => `SELECT COUNT(*)::bigint as count FROM "${table.name}"`).join(' UNION ALL ')}
+          ) counts`
+        ))[0].count;
     console.log('[API] Step 2 complete: Total count =', totalCount);
 
     console.log('[API] Step 3: Filtering transactions by date...');
     let filteredTransactions = transactions;
-    if ((fromDate || toDate) && !idsParam) {
-      const fromComparable = toComparableDate(fromDate);
-      const toComparable = toComparableDate(toDate);
+    if ((fromDate || toDate) && !idsParam && !dateFilterEnabled) {
       console.log('[API] Comparable dates:', { fromComparable, toComparable });
 
       filteredTransactions = transactions.filter(t => {
@@ -478,6 +506,18 @@ export async function GET(req: NextRequest) {
     let conversionOutsideSummary: Array<{ account_currency_uuid: string; account_currency_amount: number }> = [];
 
     if (!idsParam && !rawRecordUuid) {
+      const conversionFilters: string[] = [];
+      const conversionParams: any[] = [];
+      if (fromComparable) {
+        conversionParams.push(fromComparable);
+        conversionFilters.push(`c.date >= to_date($${conversionParams.length}, 'YYYY-MM-DD')`);
+      }
+      if (toComparable) {
+        conversionParams.push(toComparable);
+        conversionFilters.push(`c.date <= to_date($${conversionParams.length}, 'YYYY-MM-DD')`);
+      }
+      const conversionWhere = conversionFilters.length ? ` WHERE ${conversionFilters.join(' AND ')}` : '';
+
       const conversions = await prisma.$queryRawUnsafe<any[]>(
         `SELECT
            c.id,
@@ -506,34 +546,74 @@ export async function GET(req: NextRequest) {
          LEFT JOIN banks b ON ao.bank_uuid = b.uuid
          LEFT JOIN currencies co ON c.currency_out_uuid = co.uuid
          LEFT JOIN currencies ci ON c.currency_in_uuid = ci.uuid
-         ORDER BY c.date DESC, c.id DESC`
+         ${conversionWhere}
+         ORDER BY c.date DESC, c.id DESC`,
+        ...conversionParams
       );
 
-      const fromComparable = toComparableDate(fromDate);
-      const toComparable = toComparableDate(toDate);
+      const conversionFiltered = conversions;
 
-      const conversionFiltered = (fromDate || toDate)
-        ? conversions.filter((row) => {
-            const rowDate = row.date ? String(row.date) : null;
-            const comparable = toComparableDate(rowDate);
-            if (!comparable) return false;
-            if (fromComparable && comparable < fromComparable) return false;
-            if (toComparable && comparable > toComparable) return false;
-            return true;
-          })
-        : conversions;
+      let conversionOutside: any[] = [];
+      if (fromComparable || toComparable) {
+        const outsideFilters: string[] = [];
+        const outsideParams: any[] = [];
+        if (fromComparable && toComparable) {
+          outsideParams.push(fromComparable, toComparable);
+          outsideFilters.push(`(c.date < to_date($1, 'YYYY-MM-DD') OR c.date > to_date($2, 'YYYY-MM-DD'))`);
+        } else if (fromComparable) {
+          outsideParams.push(fromComparable);
+          outsideFilters.push(`c.date < to_date($1, 'YYYY-MM-DD')`);
+        } else if (toComparable) {
+          outsideParams.push(toComparable);
+          outsideFilters.push(`c.date > to_date($1, 'YYYY-MM-DD')`);
+        }
+        const outsideWhere = outsideFilters.length ? ` WHERE ${outsideFilters.join(' AND ')}` : '';
+        conversionOutside = await prisma.$queryRawUnsafe<any[]>(
+          `SELECT
+             c.id,
+             c.uuid,
+             c.date,
+             c.key_value,
+             c.account_out_uuid,
+             c.account_in_uuid,
+             c.currency_out_uuid,
+             c.currency_in_uuid,
+             c.amount_out,
+             c.amount_in,
+             c.fee,
+             ao.account_number AS account_out_number,
+             ai.account_number AS account_in_number,
+             ao.currency_uuid AS account_out_currency_uuid,
+             ai.currency_uuid AS account_in_currency_uuid,
+             ao.raw_table_name AS out_table,
+             ai.raw_table_name AS in_table,
+             co.code AS currency_out_code,
+             ci.code AS currency_in_code,
+             b.bank_name AS bank_out_name
+           FROM conversion c
+           LEFT JOIN bank_accounts ao ON c.account_out_uuid = ao.uuid
+           LEFT JOIN bank_accounts ai ON c.account_in_uuid = ai.uuid
+           LEFT JOIN banks b ON ao.bank_uuid = b.uuid
+           LEFT JOIN currencies co ON c.currency_out_uuid = co.uuid
+           LEFT JOIN currencies ci ON c.currency_in_uuid = ci.uuid
+           ${outsideWhere}
+           ORDER BY c.date DESC, c.id DESC`,
+          ...outsideParams
+        );
+      }
 
-      const conversionOutside = (fromDate || toDate)
-        ? conversions.filter((row) => !conversionFiltered.includes(row))
-        : [];
-
+      const rawRecordCache = new Map<string, any>();
       const fetchRawByKey = async (tableName: string | null, keyValue: string) => {
         if (!tableName) return null;
+        const cacheKey = `${tableName}::${keyValue}`;
+        if (rawRecordCache.has(cacheKey)) return rawRecordCache.get(cacheKey);
         const rows = await prisma.$queryRawUnsafe<any[]>(
           `SELECT * FROM "${tableName}" WHERE dockey = $1 LIMIT 1`,
           keyValue
         );
-        return rows[0] ?? null;
+        const row = rows[0] ?? null;
+        rawRecordCache.set(cacheKey, row);
+        return row;
       };
 
       const conversionIdBase = 3000000000000;

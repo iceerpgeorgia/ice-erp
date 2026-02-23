@@ -1864,7 +1864,6 @@ export function BankTransactionsTable({
 
   const visibleColumns = columns.filter(col => col.visible);
   const totalWidth = visibleColumns.reduce((sum, col) => sum + col.width, 0);
-  const showPaymentMeta = Boolean(formData.payment_uuid || editingTransaction?.paymentId);
 
   const formatExportValue = (key: ColumnKey, value: BankTransaction[ColumnKey]) => {
     if (value === null || value === undefined) return '';
@@ -2637,18 +2636,27 @@ export function BankTransactionsTable({
                               payment.financialCodeValidation?.toLowerCase().includes(searchLower)
                             );
                           })
-                          .map((payment) => (
-                            <SelectItem key={payment.paymentId} value={payment.paymentId}>
-                              {payment.paymentId}
-                              {showPaymentMeta && (payment.projectIndex || payment.jobName || payment.financialCodeValidation) && (
-                                <span className="text-muted-foreground text-xs">
-                                  {' | '}{payment.projectIndex || '-'}
-                                  {payment.jobName && ` | ${payment.jobName}`}
-                                  {' | '}{payment.financialCodeValidation || '-'}
-                                </span>
-                              )}
-                            </SelectItem>
-                          ))}
+                          .map((payment) => {
+                            const secondaryParts = [
+                              payment.counteragentName,
+                              payment.projectIndex,
+                              payment.jobName,
+                              payment.financialCodeValidation,
+                              payment.currencyCode,
+                            ].filter(Boolean);
+                            return (
+                              <SelectItem key={payment.paymentId} value={payment.paymentId}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{payment.paymentId}</span>
+                                  {secondaryParts.length > 0 && (
+                                    <span className="text-muted-foreground text-xs">
+                                      {secondaryParts.join(' | ')}
+                                    </span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
                       </div>
                     </SelectContent>
                   </Select>

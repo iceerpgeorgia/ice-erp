@@ -1,0 +1,12 @@
+# Exclude local/untracked artifacts from deploy
+_deploy-log/
+BatchTransfers_Extended2.xlsx
+File_description_EN.docx
+File_description_EN.mht
+File_description_EN.pdf
+Statement_217387307.xml
+Statement_217536028.xml
+create-bog-eur-deconsolidated-table.sql
+create-bog-fx-deconsolidated-table.sql
+create-bog-multi-deconsolidated-tables.sql
+scripts/fix-salary-accruals-insurance-swap.sql

@@ -252,12 +252,13 @@ export default function BankTransactionsTestTableFigma() {
         if (effectiveFromDate) params.set('fromDate', effectiveFromDate);
         if (effectiveToDate) params.set('toDate', effectiveToDate);
 
-        // Apply record limit (if not 'all')
+        // Apply record limit (explicitly send 0 for all to bypass default pagination)
         const limitValue = effectiveRecordLimit.toLowerCase();
-        if (limitValue !== 'all' && limitValue !== '') {
+        if (limitValue === 'all') {
+          params.set('limit', '0');
+        } else if (limitValue !== '') {
           params.set('limit', effectiveRecordLimit);
         }
-        // If 'all', don't set limit parameter (will use API default or fetch all available)
 
         const queryString = params.toString();
         const url = `/api/bank-transactions-test${queryString ? `?${queryString}` : ''}`;
