@@ -11,12 +11,12 @@ BEGIN
       RETURN NEW;
     END IF;
 
-    RAISE EXCEPTION 'Confirmed payments_ledger record cannot be modified (id=%)', OLD.id
+    RAISE EXCEPTION 'Confirmed entry can not be modified (id=%)', OLD.id
       USING ERRCODE = '23514';
   END IF;
 
   IF TG_OP = 'DELETE' AND OLD.confirmed = true THEN
-    RAISE EXCEPTION 'Confirmed payments_ledger record cannot be deleted (id=%)', OLD.id
+    RAISE EXCEPTION 'Confirmed entry can not be deleted (id=%)', OLD.id
       USING ERRCODE = '23514';
   END IF;
 

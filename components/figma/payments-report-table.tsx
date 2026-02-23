@@ -2495,6 +2495,8 @@ export function PaymentsReportTable() {
                   <div className="font-semibold text-blue-900">{formatValue(totals.accrual, 'currency', 'accrual')}</div>
                   <div className="text-gray-600">Order:</div>
                   <div className="font-semibold text-blue-900">{formatValue(totals.order, 'currency', 'order')}</div>
+                  <div className="text-gray-600">Payment:</div>
+                  <div className="font-semibold text-blue-900">{formatValue(totals.payment, 'currency', 'payment')}</div>
                   <div className="text-gray-600">Due:</div>
                   <div className="font-semibold text-blue-900">{formatValue(totals.due, 'currency', 'due')}</div>
                 </div>
