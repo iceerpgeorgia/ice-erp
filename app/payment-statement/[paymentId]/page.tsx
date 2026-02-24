@@ -1077,33 +1077,6 @@ export default function PaymentStatementPage() {
                 </span>
               </h3>
               <div className="flex items-center gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      Columns
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56">
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-sm">Toggle Columns</h4>
-                      {columns.map((col) => (
-                        <div key={col.key} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`payment-statement-column-${col.key}`}
-                            checked={col.visible}
-                            onCheckedChange={() => handleToggleColumn(col.key)}
-                          />
-                          <label
-                            htmlFor={`payment-statement-column-${col.key}`}
-                            className="text-sm cursor-pointer"
-                          >
-                            {col.label}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
                 <button
                   onClick={handleOpenAddLedger}
                   className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
@@ -1123,12 +1096,91 @@ export default function PaymentStatementPage() {
                 </button>
               </div>
             </div>
+            <div className="flex items-center justify-between mb-3">
+              <div></div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    Columns
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56">
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">Toggle Columns</h4>
+                    {columns.map((col) => (
+                      <div key={col.key} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`payment-statement-column-${col.key}`}
+                          checked={col.visible}
+                          onCheckedChange={() => handleToggleColumn(col.key)}
+                        />
+                        <label
+                          htmlFor={`payment-statement-column-${col.key}`}
+                          className="text-sm cursor-pointer"
+                        >
+                          {col.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
             {mergedTransactions.length > 0 ? (
               <div className="border rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
                     <thead className="bg-gray-100">
                       <tr>
+                        {(() => {
+                          const eligibleIds = mergedTransactions
+                            .filter((row) => row.type === 'bank' && row.payment !== 0)
+                            .map((row) => row.id);
+                          const allAccrualSelected =
+                            eligibleIds.length > 0 && eligibleIds.every((id) => selectedAccrualIds.has(id));
+                          const allOrderSelected =
+                            eligibleIds.length > 0 && eligibleIds.every((id) => selectedOrderIds.has(id));
+                          return (
+                            <>
+                              <th
+                                className="px-2 py-3 font-semibold text-center bg-red-100 text-red-700"
+                                style={{ width: '70px' }}
+                                title="Accrual selector"
+                              >
+                                <div className="flex items-center justify-center gap-2">
+                                  A
+                                  <Checkbox
+                                    checked={allAccrualSelected}
+                                    disabled={isAoSubmitting || eligibleIds.length === 0}
+                                    onCheckedChange={(checked) => {
+                                      setSelectedAccrualIds(
+                                        checked ? new Set(eligibleIds) : new Set()
+                                      );
+                                    }}
+                                  />
+                                </div>
+                              </th>
+                              <th
+                                className="px-2 py-3 font-semibold text-center bg-yellow-100 text-yellow-800"
+                                style={{ width: '70px' }}
+                                title="Order selector"
+                              >
+                                <div className="flex items-center justify-center gap-2">
+                                  O
+                                  <Checkbox
+                                    checked={allOrderSelected}
+                                    disabled={isAoSubmitting || eligibleIds.length === 0}
+                                    onCheckedChange={(checked) => {
+                                      setSelectedOrderIds(
+                                        checked ? new Set(eligibleIds) : new Set()
+                                      );
+                                    }}
+                                  />
+                                </div>
+                              </th>
+                            </>
+                          );
+                        })()}
                         {columns.filter(col => col.visible).map((column) => (
                           <th
                             key={column.key}
@@ -1155,20 +1207,6 @@ export default function PaymentStatementPage() {
                             </div>
                           </th>
                         ))}
-                        <th
-                          className="px-2 py-3 font-semibold text-center bg-emerald-50 text-emerald-700"
-                          style={{ width: '70px' }}
-                          title="Accrual selector"
-                        >
-                          A
-                        </th>
-                        <th
-                          className="px-2 py-3 font-semibold text-center bg-rose-50 text-rose-700"
-                          style={{ width: '70px' }}
-                          title="Order selector"
-                        >
-                          O
-                        </th>
                         <th className="px-4 py-3 font-semibold text-left" style={{ width: '70px' }}>
                           View
                         </th>
@@ -1183,6 +1221,41 @@ export default function PaymentStatementPage() {
                     <tbody>
                       {mergedTransactions.map((row, index) => (
                         <tr key={row.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          {(() => {
+                            const canSelect = row.type === 'bank' && row.payment !== 0;
+                            return (
+                              <>
+                                <td
+                                  className="px-2 py-3 text-center bg-red-100"
+                                  style={{ width: '70px' }}
+                                >
+                                  {canSelect ? (
+                                    <Checkbox
+                                      checked={selectedAccrualIds.has(row.id)}
+                                      disabled={isAoSubmitting}
+                                      onCheckedChange={(checked) => toggleAccrualSelect(row.id, Boolean(checked))}
+                                    />
+                                  ) : (
+                                    <span className="text-gray-300">-</span>
+                                  )}
+                                </td>
+                                <td
+                                  className="px-2 py-3 text-center bg-yellow-100"
+                                  style={{ width: '70px' }}
+                                >
+                                  {canSelect ? (
+                                    <Checkbox
+                                      checked={selectedOrderIds.has(row.id)}
+                                      disabled={isAoSubmitting}
+                                      onCheckedChange={(checked) => toggleOrderSelect(row.id, Boolean(checked))}
+                                    />
+                                  ) : (
+                                    <span className="text-gray-300">-</span>
+                                  )}
+                                </td>
+                              </>
+                            );
+                          })()}
                           {columns.filter(col => col.visible).map((column) => {
                             let displayValue = row[column.key];
                             
@@ -1217,41 +1290,6 @@ export default function PaymentStatementPage() {
                               </td>
                             );
                           })}
-                          {(() => {
-                            const canSelect = row.type === 'bank' && row.payment !== 0;
-                            return (
-                              <>
-                                <td
-                                  className="px-2 py-3 text-center bg-emerald-50"
-                                  style={{ width: '70px' }}
-                                >
-                                  {canSelect ? (
-                                    <Checkbox
-                                      checked={selectedAccrualIds.has(row.id)}
-                                      disabled={isAoSubmitting}
-                                      onCheckedChange={(checked) => toggleAccrualSelect(row.id, Boolean(checked))}
-                                    />
-                                  ) : (
-                                    <span className="text-gray-300">-</span>
-                                  )}
-                                </td>
-                                <td
-                                  className="px-2 py-3 text-center bg-rose-50"
-                                  style={{ width: '70px' }}
-                                >
-                                  {canSelect ? (
-                                    <Checkbox
-                                      checked={selectedOrderIds.has(row.id)}
-                                      disabled={isAoSubmitting}
-                                      onCheckedChange={(checked) => toggleOrderSelect(row.id, Boolean(checked))}
-                                    />
-                                  ) : (
-                                    <span className="text-gray-300">-</span>
-                                  )}
-                                </td>
-                              </>
-                            );
-                          })()}
                           <td className="px-4 py-3" style={{ width: '70px' }}>
                             {row.type === 'ledger' && row.ledgerId && (
                               <button
@@ -1317,6 +1355,8 @@ export default function PaymentStatementPage() {
                       
                       {/* Totals Row */}
                       <tr className="bg-blue-50 font-bold border-t-2 border-blue-300">
+                        <td className="px-2 py-3 bg-red-100" style={{ width: '70px' }}></td>
+                        <td className="px-2 py-3 bg-yellow-100" style={{ width: '70px' }}></td>
                         {columns.filter(col => col.visible).map((column) => {
                           let totalValue: string | number = '';
                           
@@ -1355,8 +1395,6 @@ export default function PaymentStatementPage() {
                             </td>
                           );
                         })}
-                        <td className="px-2 py-3 bg-emerald-50" style={{ width: '70px' }}></td>
-                        <td className="px-2 py-3 bg-rose-50" style={{ width: '70px' }}></td>
                         <td className="px-4 py-3" style={{ width: '70px' }}></td>
                         <td className="px-4 py-3" style={{ width: '70px' }}></td>
                         <td className="px-4 py-3" style={{ width: '90px' }}></td>
