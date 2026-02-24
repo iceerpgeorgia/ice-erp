@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-24
+- Summary: Restore +A&O label for payment statement add entry.
+- Changes:
+  - Payment statement: rename add ledger entry button and dialog title back to +A&O wording.
+- Commit: 9b0fd70
+- Production: https://ice-owzshbkp5-iceerp.vercel.app
+
+## 2026-02-24
 - Summary: Show user emails in payments report and filter by unique emails.
 - Changes:
   - Payments report API: aggregate ledger users by email only.
