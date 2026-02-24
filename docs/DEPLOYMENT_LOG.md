@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-02-24
+- Summary: Add payments ledger bulk upload and payment fallback in bank transactions test.
+- Changes:
+  - Payments report: download ledger template, upload XLSX with preview, and confirm bulk insert.
+  - Payments ledger API: accept Excel serial dates, enforce required effective date, and validate totals.
+  - Bank transactions test API: fall back to payment-linked counteragent/project/financial code.
+- Commit: a853d9f
+- Production: https://ice-9i0mydvf8-iceerp.vercel.app
+
 ## 2026-02-23
 - Summary: Widen counteragent statement edit dialog and add bank statement assets.
 - Changes:
