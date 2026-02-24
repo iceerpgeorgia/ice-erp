@@ -1,6 +1,14 @@
 # Deployment Log
 
 ## 2026-02-24
+- Summary: Add A/O selectors to payment statement and bulk add ledger entries.
+- Changes:
+  - Payment statement: add accrual/order selector columns for payment rows and +A&O bulk insert.
+  - Payment statement: rename manual add entry button to Add Ledger.
+- Commit: 839ad0c
+- Production: https://ice-jeeqh5wzl-iceerp.vercel.app
+
+## 2026-02-24
 - Summary: Restore +A&O label for payment statement add entry.
 - Changes:
   - Payment statement: rename add ledger entry button and dialog title back to +A&O wording.
