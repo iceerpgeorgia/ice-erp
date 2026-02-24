@@ -576,10 +576,10 @@ export default function PaymentStatementPage() {
       const createdEntries: any[] = [];
 
       for (const row of selectedRows) {
-        const accrual = selectedAccrualIds.has(row.id) ? Math.abs(row.payment) : 0;
-        const order = selectedOrderIds.has(row.id) ? Math.abs(row.payment) : 0;
+        const accrual = selectedAccrualIds.has(row.id) ? Math.abs(row.payment) : null;
+        const order = selectedOrderIds.has(row.id) ? Math.abs(row.payment) : null;
 
-        if (accrual === 0 && order === 0) continue;
+        if (!accrual && !order) continue;
 
         const response = await fetch('/api/payments-ledger', {
           method: 'POST',
@@ -587,8 +587,8 @@ export default function PaymentStatementPage() {
           body: JSON.stringify({
             paymentId: statementData.payment.paymentId,
             effectiveDate: toIsoDateFromDisplay(row.date) || undefined,
-            accrual: accrual || null,
-            order: order || null,
+            accrual,
+            order,
           }),
         });
 
