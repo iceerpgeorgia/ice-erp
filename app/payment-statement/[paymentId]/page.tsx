@@ -18,6 +18,21 @@ const formatDate = (date: string | Date): string => {
   return `${day}.${month}.${year}`;
 };
 
+const toIsoDateFromDisplay = (value: string): string => {
+  if (!value) return '';
+  if (value.includes('.')) {
+    const [day, month, year] = value.split('.');
+    if (year && month && day) {
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+  }
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10);
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().split('T')[0];
+};
+
 const toValidDate = (val: any): Date | null => {
   if (!val) return null;
   if (val instanceof Date) return val;
@@ -153,6 +168,9 @@ export default function PaymentStatementPage() {
   const [addOrder, setAddOrder] = useState('');
   const [addComment, setAddComment] = useState('');
   const [isAddingLedger, setIsAddingLedger] = useState(false);
+  const [selectedAccrualIds, setSelectedAccrualIds] = useState<Set<string>>(new Set());
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+  const [isAoSubmitting, setIsAoSubmitting] = useState(false);
 
   useEffect(() => {
     if (pageTitleSet || !statementData?.payment) return;
@@ -231,6 +249,11 @@ export default function PaymentStatementPage() {
     if (paymentId) {
       fetchStatement();
     }
+  }, [paymentId]);
+
+  useEffect(() => {
+    setSelectedAccrualIds(new Set());
+    setSelectedOrderIds(new Set());
   }, [paymentId]);
 
   // Fetch all payments for the payment ID dropdown
@@ -428,6 +451,30 @@ export default function PaymentStatementPage() {
     setIsAddingLedger(false);
   };
 
+  const toggleAccrualSelect = (rowId: string, checked: boolean) => {
+    setSelectedAccrualIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(rowId);
+      } else {
+        next.delete(rowId);
+      }
+      return next;
+    });
+  };
+
+  const toggleOrderSelect = (rowId: string, checked: boolean) => {
+    setSelectedOrderIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(rowId);
+      } else {
+        next.delete(rowId);
+      }
+      return next;
+    });
+  };
+
   const handleOpenAddLedger = () => {
     resetAddLedgerForm();
     setIsAddLedgerDialogOpen(true);
@@ -506,6 +553,90 @@ export default function PaymentStatementPage() {
       alert(error.message || 'Failed to add ledger entry');
     } finally {
       setIsAddingLedger(false);
+    }
+  };
+
+  const handleAddAccrualOrderFromPayments = async () => {
+    if (!statementData?.payment?.paymentId) {
+      alert('Payment ID is missing');
+      return;
+    }
+
+    const selectedRows = mergedTransactions.filter((row) =>
+      row.type === 'bank' && (selectedAccrualIds.has(row.id) || selectedOrderIds.has(row.id))
+    );
+
+    if (selectedRows.length === 0) {
+      alert('Select at least one payment row for accrual/order');
+      return;
+    }
+
+    setIsAoSubmitting(true);
+    try {
+      const createdEntries: any[] = [];
+
+      for (const row of selectedRows) {
+        const accrual = selectedAccrualIds.has(row.id) ? Math.abs(row.payment) : 0;
+        const order = selectedOrderIds.has(row.id) ? Math.abs(row.payment) : 0;
+
+        if (accrual === 0 && order === 0) continue;
+
+        const response = await fetch('/api/payments-ledger', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            paymentId: statementData.payment.paymentId,
+            effectiveDate: toIsoDateFromDisplay(row.date) || undefined,
+            accrual: accrual || null,
+            order: order || null,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || 'Failed to add accrual/order entry');
+        }
+
+        const result = await response.json();
+        const created = Array.isArray(result) ? result[0] : result;
+        if (created) {
+          createdEntries.push(created);
+        }
+      }
+
+      if (createdEntries.length && statementData) {
+        const mapped = createdEntries.map((created) => ({
+          id: Number(created.id),
+          effectiveDate: created.effective_date || created.effectiveDate,
+          accrual: created.accrual ? Number(created.accrual) : 0,
+          order: created.order ? Number(created.order) : 0,
+          comment: created.comment,
+          userEmail: created.user_email || created.userEmail,
+          createdAt: created.created_at || created.createdAt,
+        }));
+
+        setStatementData({
+          ...statementData,
+          ledgerEntries: [...(statementData.ledgerEntries || []), ...mapped],
+        });
+
+        if (broadcastChannel) {
+          broadcastChannel.postMessage({
+            type: 'ledger-updated',
+            paymentId: statementData.payment.paymentId,
+            ledgerId: mapped[mapped.length - 1]?.id,
+            timestamp: Date.now(),
+          });
+        }
+      }
+
+      setSelectedAccrualIds(new Set());
+      setSelectedOrderIds(new Set());
+    } catch (error: any) {
+      console.error('Error adding accrual/order entries:', error);
+      alert(error.message || 'Failed to add accrual/order entries');
+    } finally {
+      setIsAoSubmitting(false);
     }
   };
 
@@ -976,7 +1107,16 @@ export default function PaymentStatementPage() {
                 <button
                   onClick={handleOpenAddLedger}
                   className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                  title="Add accrual/order entry"
+                  title="Add ledger entry"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Ledger
+                </button>
+                <button
+                  onClick={handleAddAccrualOrderFromPayments}
+                  className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors"
+                  disabled={isAoSubmitting}
+                  title="Add accrual/order from selected payment rows"
                 >
                   <Plus className="h-4 w-4" />
                   +A&O
@@ -1015,6 +1155,20 @@ export default function PaymentStatementPage() {
                             </div>
                           </th>
                         ))}
+                        <th
+                          className="px-2 py-3 font-semibold text-center bg-emerald-50 text-emerald-700"
+                          style={{ width: '70px' }}
+                          title="Accrual selector"
+                        >
+                          A
+                        </th>
+                        <th
+                          className="px-2 py-3 font-semibold text-center bg-rose-50 text-rose-700"
+                          style={{ width: '70px' }}
+                          title="Order selector"
+                        >
+                          O
+                        </th>
                         <th className="px-4 py-3 font-semibold text-left" style={{ width: '70px' }}>
                           View
                         </th>
@@ -1063,6 +1217,41 @@ export default function PaymentStatementPage() {
                               </td>
                             );
                           })}
+                          {(() => {
+                            const canSelect = row.type === 'bank' && row.payment !== 0;
+                            return (
+                              <>
+                                <td
+                                  className="px-2 py-3 text-center bg-emerald-50"
+                                  style={{ width: '70px' }}
+                                >
+                                  {canSelect ? (
+                                    <Checkbox
+                                      checked={selectedAccrualIds.has(row.id)}
+                                      disabled={isAoSubmitting}
+                                      onCheckedChange={(checked) => toggleAccrualSelect(row.id, Boolean(checked))}
+                                    />
+                                  ) : (
+                                    <span className="text-gray-300">-</span>
+                                  )}
+                                </td>
+                                <td
+                                  className="px-2 py-3 text-center bg-rose-50"
+                                  style={{ width: '70px' }}
+                                >
+                                  {canSelect ? (
+                                    <Checkbox
+                                      checked={selectedOrderIds.has(row.id)}
+                                      disabled={isAoSubmitting}
+                                      onCheckedChange={(checked) => toggleOrderSelect(row.id, Boolean(checked))}
+                                    />
+                                  ) : (
+                                    <span className="text-gray-300">-</span>
+                                  )}
+                                </td>
+                              </>
+                            );
+                          })()}
                           <td className="px-4 py-3" style={{ width: '70px' }}>
                             {row.type === 'ledger' && row.ledgerId && (
                               <button
@@ -1166,6 +1355,8 @@ export default function PaymentStatementPage() {
                             </td>
                           );
                         })}
+                        <td className="px-2 py-3 bg-emerald-50" style={{ width: '70px' }}></td>
+                        <td className="px-2 py-3 bg-rose-50" style={{ width: '70px' }}></td>
                         <td className="px-4 py-3" style={{ width: '70px' }}></td>
                         <td className="px-4 py-3" style={{ width: '70px' }}></td>
                         <td className="px-4 py-3" style={{ width: '90px' }}></td>
@@ -1196,7 +1387,7 @@ export default function PaymentStatementPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">Add Accrual/Order</h2>
+              <h2 className="text-xl font-bold">Add Ledger</h2>
               <button
                 onClick={handleCloseAddLedger}
                 className="p-1 hover:bg-gray-100 rounded"
