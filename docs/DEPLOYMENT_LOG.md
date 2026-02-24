@@ -1,6 +1,14 @@
 # Deployment Log
 
 ## 2026-02-24
+- Summary: Align payment statement A/O selectors and action buttons.
+- Changes:
+  - Payment statement: move A/O selector columns to the left, add select-all toggles, and match accrual/order colors.
+  - Payment statement: move +A&O and Add Ledger buttons to the left above selectors.
+- Commit: d880810
+- Production: https://ice-hhhhqtkt1-iceerp.vercel.app
+
+## 2026-02-24
 - Summary: Add A/O selectors to payment statement and bulk add ledger entries.
 - Changes:
   - Payment statement: add accrual/order selector columns for payment rows and +A&O bulk insert.
