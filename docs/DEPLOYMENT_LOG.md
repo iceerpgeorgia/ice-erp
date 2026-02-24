@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-02-24
+- Summary: Respect A/O selection when adding ledger entries.
+- Changes:
+  - Payment statement: only set accrual/order when the respective selector is checked.
+- Commit: 88df23a
+- Production: https://ice-quxb3cvok-iceerp.vercel.app
+
+## 2026-02-24
 - Summary: Align payment statement A/O selectors and action buttons.
 - Changes:
   - Payment statement: move A/O selector columns to the left, add select-all toggles, and match accrual/order colors.
