@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   Search, 
   Filter, 
@@ -17,6 +17,7 @@ import {
   ChevronRight,
   FileText,
   Plus,
+  Upload,
   User
 } from 'lucide-react';
 import { Button } from './ui/button';
@@ -87,6 +88,16 @@ type ColumnConfig = {
   width: number;
 };
 
+type LedgerUploadRow = {
+  rowNumber: number;
+  paymentId: string;
+  effectiveDate: string;
+  accrual: number | null;
+  order: number | null;
+  comment: string | null;
+  errors: string[];
+};
+
 const defaultColumns: ColumnConfig[] = [
   { key: 'counteragent', label: 'Counteragent', visible: true, sortable: true, filterable: true, width: 280 },
   { key: 'paymentId', label: 'Payment ID', visible: true, sortable: true, filterable: true, width: 150 },
@@ -147,6 +158,13 @@ export function PaymentsReportTable() {
   const [isDeconfirming, setIsDeconfirming] = useState(false);
   const [deconfirmError, setDeconfirmError] = useState<string | null>(null);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
+  const ledgerUploadInputRef = useRef<HTMLInputElement>(null);
+  const [isLedgerUploadOpen, setIsLedgerUploadOpen] = useState(false);
+  const [ledgerUploadFileName, setLedgerUploadFileName] = useState('');
+  const [ledgerUploadError, setLedgerUploadError] = useState<string | null>(null);
+  const [ledgerPreviewRows, setLedgerPreviewRows] = useState<LedgerUploadRow[]>([]);
+  const [isLedgerUploading, setIsLedgerUploading] = useState(false);
+  const [isLedgerApplying, setIsLedgerApplying] = useState(false);
   const counteragentsWithNegativeBalance = useMemo(() => {
     const flagged = new Set<string>();
     data.forEach((row) => {
@@ -1483,6 +1501,222 @@ export function PaymentsReportTable() {
     }
   };
 
+  const ledgerTemplateHeaders = ['Payment ID', 'Date', 'Accrual', 'Order', 'Comment'];
+
+  const handleDownloadLedgerTemplate = () => {
+    const worksheet = XLSX.utils.aoa_to_sheet([ledgerTemplateHeaders]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Ledger Upload');
+    XLSX.writeFile(workbook, 'PaymentsLedgerTemplate.xlsx');
+  };
+
+  const excelSerialToIso = (value: number) => {
+    const epoch = Date.UTC(1899, 11, 30);
+    const ms = Math.round(value * 86400000);
+    return new Date(epoch + ms).toISOString().split('T')[0];
+  };
+
+  const parseLedgerDate = (value: unknown) => {
+    if (value === null || value === undefined || value === '') {
+      return { date: '', error: 'Date is required' };
+    }
+
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return { date: value.toISOString().split('T')[0] };
+    }
+
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return { date: excelSerialToIso(value) };
+    }
+
+    const raw = String(value).trim();
+    if (!raw) {
+      return { date: '', error: 'Date is required' };
+    }
+
+    if (/^\d+(\.\d+)?$/.test(raw)) {
+      const numeric = Number(raw);
+      if (Number.isFinite(numeric)) {
+        return { date: excelSerialToIso(numeric) };
+      }
+    }
+
+    const ddmmyyyyPattern = /^(\d{2})\.(\d{2})\.(\d{4})$/;
+    const ddMatch = raw.match(ddmmyyyyPattern);
+    if (ddMatch) {
+      const [, day, month, year] = ddMatch;
+      return { date: `${year}-${month}-${day}` };
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      return { date: raw };
+    }
+
+    const mmddyyyyPattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+    const mdMatch = raw.match(mmddyyyyPattern);
+    if (mdMatch) {
+      const [, month, day, year] = mdMatch;
+      return { date: `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}` };
+    }
+
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) {
+      return { date: parsed.toISOString().split('T')[0] };
+    }
+
+    return { date: '', error: `Invalid date: ${raw}` };
+  };
+
+  const parseLedgerNumber = (value: unknown, label: string) => {
+    if (value === null || value === undefined || value === '') {
+      return { value: null };
+    }
+
+    const raw = typeof value === 'string' ? value.replace(/,/g, '').trim() : value;
+    const numeric = Number(raw);
+    if (Number.isNaN(numeric)) {
+      return { value: null, error: `Invalid ${label}` };
+    }
+    return { value: numeric };
+  };
+
+  const handleLedgerUploadSelect = async (file: File) => {
+    setIsLedgerUploading(true);
+    setLedgerUploadError(null);
+    setLedgerPreviewRows([]);
+    setLedgerUploadFileName(file.name);
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true, defval: '' }) as any[][];
+
+      if (!rows || rows.length === 0) {
+        setLedgerUploadError('The file appears to be empty.');
+        return;
+      }
+
+      const headerRow = rows[0].map((cell) => String(cell).trim());
+      const headerMap = new Map(headerRow.map((header, index) => [header.toLowerCase(), index]));
+      const requiredHeaders = ['payment id', 'date', 'accrual', 'order'];
+      const missingHeaders = requiredHeaders.filter((header) => !headerMap.has(header));
+
+      if (missingHeaders.length > 0) {
+        setLedgerUploadError(`Missing required headers: ${missingHeaders.join(', ')}`);
+        return;
+      }
+
+      const previewRows: LedgerUploadRow[] = [];
+
+      rows.slice(1).forEach((row, idx) => {
+        const rowNumber = idx + 2;
+        const trimmedRow = row.map((cell) => (cell === null || cell === undefined ? '' : cell));
+        const hasData = trimmedRow.some((cell) => String(cell).trim() !== '');
+        if (!hasData) return;
+
+        const paymentId = String(trimmedRow[headerMap.get('payment id') ?? -1] ?? '').trim();
+        const dateCell = trimmedRow[headerMap.get('date') ?? -1];
+        const accrualCell = trimmedRow[headerMap.get('accrual') ?? -1];
+        const orderCell = trimmedRow[headerMap.get('order') ?? -1];
+        const commentCell = headerMap.has('comment')
+          ? trimmedRow[headerMap.get('comment') ?? -1]
+          : '';
+
+        const errors: string[] = [];
+        if (!paymentId) {
+          errors.push('Payment ID is required');
+        }
+
+        const parsedDate = parseLedgerDate(dateCell);
+        if (parsedDate.error) {
+          errors.push(parsedDate.error);
+        }
+
+        const parsedAccrual = parseLedgerNumber(accrualCell, 'accrual');
+        if (parsedAccrual.error) {
+          errors.push(parsedAccrual.error);
+        }
+
+        const parsedOrder = parseLedgerNumber(orderCell, 'order');
+        if (parsedOrder.error) {
+          errors.push(parsedOrder.error);
+        }
+
+        const accrualValue = parsedAccrual.value ?? 0;
+        const orderValue = parsedOrder.value ?? 0;
+        if (accrualValue === 0 && orderValue === 0) {
+          errors.push('Accrual or Order must be provided');
+        }
+
+        previewRows.push({
+          rowNumber,
+          paymentId,
+          effectiveDate: parsedDate.date,
+          accrual: parsedAccrual.value,
+          order: parsedOrder.value,
+          comment: commentCell ? String(commentCell).trim() : null,
+          errors,
+        });
+      });
+
+      if (previewRows.length === 0) {
+        setLedgerUploadError('No data rows found in the file.');
+        return;
+      }
+
+      setLedgerPreviewRows(previewRows);
+      setIsLedgerUploadOpen(true);
+    } catch (error: any) {
+      setLedgerUploadError(error?.message || 'Failed to read the file.');
+    } finally {
+      setIsLedgerUploading(false);
+      if (ledgerUploadInputRef.current) {
+        ledgerUploadInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleApplyLedgerUpload = async () => {
+    if (ledgerPreviewRows.length === 0) return;
+
+    const hasErrors = ledgerPreviewRows.some((row) => row.errors.length > 0);
+    if (hasErrors) return;
+
+    setIsLedgerApplying(true);
+    try {
+      const entries = ledgerPreviewRows.map((row) => ({
+        paymentId: row.paymentId,
+        effectiveDate: row.effectiveDate,
+        accrual: row.accrual ?? 0,
+        order: row.order ?? 0,
+        comment: row.comment,
+      }));
+
+      const response = await fetch('/api/payments-ledger/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries }),
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to upload ledger entries');
+      }
+
+      setIsLedgerUploadOpen(false);
+      setLedgerPreviewRows([]);
+      setLedgerUploadFileName('');
+      broadcastChannel?.postMessage({ type: 'ledger-updated' });
+      await fetchData();
+    } catch (error: any) {
+      setLedgerUploadError(error.message || 'Failed to upload ledger entries');
+    } finally {
+      setIsLedgerApplying(false);
+    }
+  };
+
   const handleDownloadTbcBankXlsx = async () => {
     const selectedRecords = filteredAndSortedData.filter((row) => selectedPaymentIds.has(row.paymentId));
     if (selectedRecords.length === 0) {
@@ -1715,6 +1949,28 @@ export function PaymentsReportTable() {
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={handleExportXlsx}>
               Export XLSX
+            </Button>
+            <Button variant="outline" onClick={handleDownloadLedgerTemplate}>
+              Download Ledger Template
+            </Button>
+            <input
+              ref={ledgerUploadInputRef}
+              type="file"
+              accept=".xlsx"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                handleLedgerUploadSelect(file);
+              }}
+            />
+            <Button
+              variant="outline"
+              onClick={() => ledgerUploadInputRef.current?.click()}
+              disabled={isLedgerUploading}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              {isLedgerUploading ? 'Reading...' : 'Upload Ledger XLSX'}
             </Button>
             {selectedPaymentIds.size > 0 && (
               <DropdownMenu>
@@ -2480,6 +2736,72 @@ export function PaymentsReportTable() {
           </div>
         </div>
       </div>
+
+      <Dialog open={isLedgerUploadOpen} onOpenChange={setIsLedgerUploadOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Ledger Upload Preview</DialogTitle>
+            <DialogDescription>
+              Review {ledgerPreviewRows.length} row(s) from {ledgerUploadFileName || 'the file'} before importing.
+            </DialogDescription>
+          </DialogHeader>
+          {ledgerUploadError && (
+            <div className="text-sm text-red-600">{ledgerUploadError}</div>
+          )}
+          <div className="text-sm text-muted-foreground">
+            Rows with errors must be fixed before upload.
+          </div>
+          <div className="border rounded-md overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr className="text-left">
+                  <th className="p-2 w-14">Row</th>
+                  <th className="p-2">Payment ID</th>
+                  <th className="p-2">Effective Date</th>
+                  <th className="p-2">Accrual</th>
+                  <th className="p-2">Order</th>
+                  <th className="p-2">Comment</th>
+                  <th className="p-2">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ledgerPreviewRows.map((row) => (
+                  <tr key={`${row.rowNumber}-${row.paymentId}`} className="border-t">
+                    <td className="p-2">{row.rowNumber}</td>
+                    <td className="p-2 font-mono">{row.paymentId || '-'}</td>
+                    <td className="p-2">{row.effectiveDate || '-'}</td>
+                    <td className="p-2">{row.accrual ?? '-'}</td>
+                    <td className="p-2">{row.order ?? '-'}</td>
+                    <td className="p-2 max-w-[280px] truncate" title={row.comment || ''}>
+                      {row.comment || '-'}
+                    </td>
+                    <td className="p-2">
+                      {row.errors.length > 0 ? (
+                        <span className="text-xs text-red-600">
+                          {row.errors.join(' | ')}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-green-700">Ready</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setIsLedgerUploadOpen(false)} disabled={isLedgerApplying}>
+              Close
+            </Button>
+            <Button
+              onClick={handleApplyLedgerUpload}
+              disabled={isLedgerApplying || ledgerPreviewRows.some((row) => row.errors.length > 0)}
+            >
+              {isLedgerApplying ? 'Uploading...' : 'Confirm Upload'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Totals Bar */}
       <div className="sticky top-[60px] z-20 flex-shrink-0 bg-blue-50 border-b border-blue-200 px-4 py-2 border-t border-t-gray-200">

@@ -5,19 +5,59 @@ import { prisma } from '@/lib/prisma';
 
 export const revalidate = 0;
 
-const parseEffectiveDate = (effectiveDate?: string | null) => {
-  if (effectiveDate) {
-    const ddmmyyyyPattern = /^(\d{2})\.(\d{2})\.(\d{4})$/;
-    const match = effectiveDate.match(ddmmyyyyPattern);
-    if (match) {
-      const [, day, month, year] = match;
-      return `${year}-${month}-${day}`;
-    }
-    return effectiveDate;
+const excelSerialToIso = (value: number) => {
+  const epoch = Date.UTC(1899, 11, 30);
+  const ms = Math.round(value * 86400000);
+  return new Date(epoch + ms).toISOString().split('T')[0];
+};
+
+const parseEffectiveDate = (effectiveDate?: string | number | Date | null) => {
+  if (effectiveDate === null || effectiveDate === undefined || effectiveDate === '') {
+    return null;
   }
 
-  const now = new Date();
-  return now.toISOString().split('T')[0];
+  if (effectiveDate instanceof Date && !Number.isNaN(effectiveDate.getTime())) {
+    return effectiveDate.toISOString().split('T')[0];
+  }
+
+  if (typeof effectiveDate === 'number' && Number.isFinite(effectiveDate)) {
+    return excelSerialToIso(effectiveDate);
+  }
+
+  const raw = String(effectiveDate).trim();
+  if (!raw) return null;
+
+  if (/^\d+(\.\d+)?$/.test(raw)) {
+    const numeric = Number(raw);
+    if (Number.isFinite(numeric)) {
+      return excelSerialToIso(numeric);
+    }
+  }
+
+  const ddmmyyyyPattern = /^(\d{2})\.(\d{2})\.(\d{4})$/;
+  const ddMatch = raw.match(ddmmyyyyPattern);
+  if (ddMatch) {
+    const [, day, month, year] = ddMatch;
+    return `${year}-${month}-${day}`;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  const mmddyyyyPattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+  const mdMatch = raw.match(mmddyyyyPattern);
+  if (mdMatch) {
+    const [, month, day, year] = mdMatch;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().split('T')[0];
+  }
+
+  return null;
 };
 
 export async function POST(request: NextRequest) {
@@ -45,6 +85,13 @@ export async function POST(request: NextRequest) {
     for (const entry of normalized) {
       if (!entry.paymentId) {
         return NextResponse.json({ error: 'Payment ID is required' }, { status: 400 });
+      }
+
+      if (!entry.effectiveDate) {
+        return NextResponse.json(
+          { error: `Effective date is required (payment ${entry.paymentId})` },
+          { status: 400 }
+        );
       }
 
       if ((!entry.accrual || entry.accrual === 0) && (!entry.order || entry.order === 0)) {

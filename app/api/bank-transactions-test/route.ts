@@ -224,6 +224,9 @@ function toApi(row: any) {
   const counteragentUuid = hasBatch ? row.batch_counteragent_uuid : row.counteragent_uuid;
   const projectUuid = hasBatch ? row.batch_project_uuid : row.project_uuid;
   const financialCodeUuid = hasBatch ? row.batch_financial_code_uuid : row.financial_code_uuid;
+  const resolvedCounteragentUuid = counteragentUuid ?? row.payment_counteragent_uuid ?? null;
+  const resolvedProjectUuid = projectUuid ?? row.payment_project_uuid ?? null;
+  const resolvedFinancialCodeUuid = financialCodeUuid ?? row.payment_financial_code_uuid ?? null;
   const nominalCurrencyUuid = hasBatch ? row.batch_nominal_currency_uuid : row.nominal_currency_uuid;
   const nominalAmount = hasBatch
     ? (row.batch_nominal_amount ? Number(row.batch_nominal_amount) : null)
@@ -242,10 +245,10 @@ function toApi(row: any) {
     exchange_rate: row.exchange_rate ? Number(row.exchange_rate) : null,
     description: row.description,
     comment: row.comment ?? null,
-    counteragent_uuid: hasBatchIdAsPayment ? null : counteragentUuid,
+    counteragent_uuid: hasBatchIdAsPayment ? null : resolvedCounteragentUuid,
     counteragent_account_number: row.counteragent_account_number ? String(row.counteragent_account_number) : null,
-    project_uuid: hasBatchIdAsPayment ? null : projectUuid,
-    financial_code_uuid: hasBatchIdAsPayment ? null : financialCodeUuid,
+    project_uuid: hasBatchIdAsPayment ? null : resolvedProjectUuid,
+    financial_code_uuid: hasBatchIdAsPayment ? null : resolvedFinancialCodeUuid,
     account_currency_uuid: row.account_currency_uuid,
     account_currency_amount: hasBatch
       ? (row.batch_partition_amount ? Number(row.batch_partition_amount) : null)
@@ -385,16 +388,20 @@ export async function GET(req: NextRequest) {
            ba.account_number,
            b.bank_name,
            ca.counteragent as counteragent_name,
-           p.project_index,
+           proj.project_index,
            fc.validation as financial_code,
+           pay.counteragent_uuid as payment_counteragent_uuid,
+           pay.project_uuid as payment_project_uuid,
+           pay.financial_code_uuid as payment_financial_code_uuid,
            curr_acc.code as account_currency_code,
            curr_nom.code as nominal_currency_code
          FROM (${UNION_SQL}) cba
+         LEFT JOIN payments pay ON COALESCE(cba.batch_payment_id, cba.payment_id) = pay.payment_id
          LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
          LEFT JOIN banks b ON ba.bank_uuid = b.uuid
-         LEFT JOIN counteragents ca ON COALESCE(cba.batch_counteragent_uuid, cba.counteragent_uuid) = ca.counteragent_uuid
-         LEFT JOIN projects p ON COALESCE(cba.batch_project_uuid, cba.project_uuid) = p.project_uuid
-         LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid) = fc.uuid
+         LEFT JOIN counteragents ca ON COALESCE(cba.batch_counteragent_uuid, cba.counteragent_uuid, pay.counteragent_uuid) = ca.counteragent_uuid
+         LEFT JOIN projects proj ON COALESCE(cba.batch_project_uuid, cba.project_uuid, pay.project_uuid) = proj.project_uuid
+         LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid, pay.financial_code_uuid) = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
          LEFT JOIN currencies curr_nom ON cba.nominal_currency_uuid = curr_nom.uuid
          WHERE cba.raw_record_uuid::text = $1::text
@@ -409,16 +416,20 @@ export async function GET(req: NextRequest) {
            ba.account_number,
            b.bank_name,
            ca.counteragent as counteragent_name,
-           p.project_index,
+           proj.project_index,
            fc.validation as financial_code,
+           pay.counteragent_uuid as payment_counteragent_uuid,
+           pay.project_uuid as payment_project_uuid,
+           pay.financial_code_uuid as payment_financial_code_uuid,
            curr_acc.code as account_currency_code,
            curr_nom.code as nominal_currency_code
          FROM (${UNION_SQL}) cba
+         LEFT JOIN payments pay ON COALESCE(cba.batch_payment_id, cba.payment_id) = pay.payment_id
          LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
          LEFT JOIN banks b ON ba.bank_uuid = b.uuid
-         LEFT JOIN counteragents ca ON COALESCE(cba.batch_counteragent_uuid, cba.counteragent_uuid) = ca.counteragent_uuid
-         LEFT JOIN projects p ON COALESCE(cba.batch_project_uuid, cba.project_uuid) = p.project_uuid
-         LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid) = fc.uuid
+         LEFT JOIN counteragents ca ON COALESCE(cba.batch_counteragent_uuid, cba.counteragent_uuid, pay.counteragent_uuid) = ca.counteragent_uuid
+         LEFT JOIN projects proj ON COALESCE(cba.batch_project_uuid, cba.project_uuid, pay.project_uuid) = proj.project_uuid
+         LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid, pay.financial_code_uuid) = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
          LEFT JOIN currencies curr_nom ON cba.nominal_currency_uuid = curr_nom.uuid
          WHERE cba.synthetic_id = ANY($1::bigint[])
@@ -452,16 +463,20 @@ export async function GET(req: NextRequest) {
            ba.account_number,
            b.bank_name,
            ca.counteragent as counteragent_name,
-           p.project_index,
+           proj.project_index,
            fc.validation as financial_code,
+           pay.counteragent_uuid as payment_counteragent_uuid,
+           pay.project_uuid as payment_project_uuid,
+           pay.financial_code_uuid as payment_financial_code_uuid,
            curr_acc.code as account_currency_code,
            curr_nom.code as nominal_currency_code
          FROM (${UNION_SQL}) cba
+         LEFT JOIN payments pay ON COALESCE(cba.batch_payment_id, cba.payment_id) = pay.payment_id
          LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
          LEFT JOIN banks b ON ba.bank_uuid = b.uuid
-         LEFT JOIN counteragents ca ON COALESCE(cba.batch_counteragent_uuid, cba.counteragent_uuid) = ca.counteragent_uuid
-         LEFT JOIN projects p ON COALESCE(cba.batch_project_uuid, cba.project_uuid) = p.project_uuid
-         LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid) = fc.uuid
+         LEFT JOIN counteragents ca ON COALESCE(cba.batch_counteragent_uuid, cba.counteragent_uuid, pay.counteragent_uuid) = ca.counteragent_uuid
+         LEFT JOIN projects proj ON COALESCE(cba.batch_project_uuid, cba.project_uuid, pay.project_uuid) = proj.project_uuid
+         LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid, pay.financial_code_uuid) = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
          LEFT JOIN currencies curr_nom ON cba.nominal_currency_uuid = curr_nom.uuid
          ${whereSql}
