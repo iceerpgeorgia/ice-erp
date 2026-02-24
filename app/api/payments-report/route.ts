@@ -105,9 +105,9 @@ export async function GET(request: NextRequest) {
           SUM(accrual) as total_accrual,
           SUM("order") as total_order,
           STRING_AGG(
-            DISTINCT COALESCE(NULLIF(u.name, ''), u.email, pl.user_email),
+            DISTINCT COALESCE(NULLIF(u.email, ''), pl.user_email),
             ', '
-            ORDER BY COALESCE(NULLIF(u.name, ''), u.email, pl.user_email)
+            ORDER BY COALESCE(NULLIF(u.email, ''), pl.user_email)
           ) as ledger_users,
           BOOL_OR(confirmed) as confirmed,
           MAX(effective_date) as latest_ledger_date

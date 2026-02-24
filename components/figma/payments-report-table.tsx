@@ -1101,6 +1101,25 @@ export function PaymentsReportTable() {
     return value;
   };
 
+  const splitUserEmails = (value: unknown) => {
+    if (value === null || value === undefined) return [];
+    return String(value)
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+
+  const normalizeUserEmail = (value: string) => value.trim().toLowerCase();
+
+  const matchesUsersFilter = (rowValue: unknown, allowedValues: Set<any>) => {
+    const allowedEmails = new Set(
+      Array.from(allowedValues).map((value) => normalizeUserEmail(String(value)))
+    );
+    const rowEmails = splitUserEmails(rowValue).map(normalizeUserEmail);
+    if (rowEmails.length === 0) return false;
+    return rowEmails.some((email) => allowedEmails.has(email));
+  };
+
   const applySearchFilter = useCallback((rows: PaymentReport[]) => {
     if (!searchTerm) return rows;
     return rows.filter(row =>
@@ -1115,6 +1134,12 @@ export function PaymentsReportTable() {
     return rows.filter(row => {
       for (const [columnKey, allowedValues] of filters.entries()) {
         if (excludeColumn && columnKey === excludeColumn) continue;
+        if (columnKey === 'users') {
+          if (!matchesUsersFilter(row.users, allowedValues)) {
+            return false;
+          }
+          continue;
+        }
         const rowValue = row[columnKey as ColumnKey];
         const normalizedRowValue = normalizeFilterValue(rowValue);
         if (!allowedValues.has(normalizedRowValue)) {
@@ -1263,6 +1288,16 @@ export function PaymentsReportTable() {
 
     filterableColumns.forEach(col => {
       const baseData = getFacetBaseData(col.key);
+      if (col.key === 'users') {
+        const values = new Set<string>();
+        baseData.forEach((row) => {
+          splitUserEmails(row.users).forEach((email) => {
+            values.add(normalizeUserEmail(email));
+          });
+        });
+        cache.set(col.key, Array.from(values).sort());
+        return;
+      }
       const values = new Set(baseData.map(row => normalizeFilterValue(row[col.key])));
       cache.set(col.key, Array.from(values).sort());
     });
