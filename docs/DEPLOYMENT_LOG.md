@@ -1,6 +1,14 @@
 # Deployment Log
 
 ## 2026-02-24
+- Summary: Show user emails in payments report and filter by unique emails.
+- Changes:
+  - Payments report API: aggregate ledger users by email only.
+  - Payments report UI: split Users column into distinct emails for filtering.
+- Commit: f0dc729
+- Production: https://ice-oq4r2ks2c-iceerp.vercel.app
+
+## 2026-02-24
 - Summary: Add payments ledger bulk upload and payment fallback in bank transactions test.
 - Changes:
   - Payments report: download ledger template, upload XLSX with preview, and confirm bulk insert.
