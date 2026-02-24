@@ -976,9 +976,10 @@ export default function PaymentStatementPage() {
                 <button
                   onClick={handleOpenAddLedger}
                   className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  title="Add accrual/order entry"
                 >
                   <Plus className="h-4 w-4" />
-                  Add Ledger Entry
+                  +A&O
                 </button>
               </div>
             </div>
@@ -1195,7 +1196,7 @@ export default function PaymentStatementPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">Add Ledger Entry</h2>
+              <h2 className="text-xl font-bold">Add Accrual/Order</h2>
               <button
                 onClick={handleCloseAddLedger}
                 className="p-1 hover:bg-gray-100 rounded"
