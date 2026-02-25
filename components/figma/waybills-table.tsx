@@ -195,14 +195,6 @@ export function WaybillsTable() {
     fetchWaybills();
   }, [currentPage, pageSize, appliedSearch, sortColumn, sortDirection, filters]);
 
-  const runSearch = () => {
-    if (currentPage === 1) {
-      fetchWaybills({ page: 1 });
-      return;
-    }
-    setCurrentPage(1);
-  };
-
   useEffect(() => {
     if (!isResizing) return;
     const handleMove = (event: MouseEvent) => {
