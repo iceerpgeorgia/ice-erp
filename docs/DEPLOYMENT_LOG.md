@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-25
+- Summary: Waybills filters and bulk edit with counteragent labels.
+- Changes:
+  - Waybills: bulk edit for project/financial code/corresponding account with cross-page selection.
+  - Waybills: filter values come from full-table facets and counteragent labels.
+  - Waybills: server-side filters/sort with corrected VAT and orderBy handling.
+- Commit: c98456b
+- Production: https://ice-4fr62mk6u-iceerp.vercel.app
+
+## 2026-02-25
 - Summary: Add checked subtotal, waybills pagination, and labels.
 - Changes:
   - Counteragent statement: add Subtotal (checked) for selected rows.
