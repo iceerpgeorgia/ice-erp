@@ -7,28 +7,30 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Checkbox } from '../ui/checkbox';
 
-const isBlankValue = (value: any) => {
+const isBlankValue = (value: any, renderValue?: (value: any) => string) => {
   if (value === null || value === undefined) return true;
-  const text = String(value).trim().toLowerCase();
+  const text = (renderValue ? renderValue(value) : String(value)).trim().toLowerCase();
   return text === '' || text === 'blank' || text === '(blank)';
 };
 
-const defaultSortValues = (values: any[]) =>
+const defaultSortValues = (values: any[], renderValue?: (value: any) => string) =>
   [...values].sort((a, b) => {
-    const aBlank = isBlankValue(a);
-    const bBlank = isBlankValue(b);
+    const aBlank = isBlankValue(a, renderValue);
+    const bBlank = isBlankValue(b, renderValue);
     if (aBlank && !bBlank) return -1;
     if (!aBlank && bBlank) return 1;
 
-    const aIsNum = !Number.isNaN(Number(a));
-    const bIsNum = !Number.isNaN(Number(b));
+    const aLabel = renderValue ? renderValue(a) : String(a);
+    const bLabel = renderValue ? renderValue(b) : String(b);
+    const aIsNum = !Number.isNaN(Number(aLabel));
+    const bIsNum = !Number.isNaN(Number(bLabel));
 
     if (aIsNum && bIsNum) {
-      return Number(a) - Number(b);
+      return Number(aLabel) - Number(bLabel);
     }
     if (aIsNum && !bIsNum) return -1;
     if (!aIsNum && bIsNum) return 1;
-    return String(a).localeCompare(String(b));
+    return aLabel.localeCompare(bLabel);
   });
 
 export function ColumnFilterPopover({
@@ -39,6 +41,7 @@ export function ColumnFilterPopover({
   onFilterChange,
   onSort,
   maxOptions = 250,
+  renderValue,
 }: {
   columnKey: string;
   columnLabel: string;
@@ -47,6 +50,7 @@ export function ColumnFilterPopover({
   onFilterChange: (values: Set<any>) => void;
   onSort: (direction: 'asc' | 'desc') => void;
   maxOptions?: number;
+  renderValue?: (value: any) => string;
 }) {
   const [open, setOpen] = useState(false);
   const [tempSelected, setTempSelected] = useState<Set<any>>(new Set(activeFilters));
@@ -55,11 +59,16 @@ export function ColumnFilterPopover({
   const filteredValues = useMemo(() => {
     if (!filterSearchTerm) return values;
     return values.filter((value) =>
-      String(value).toLowerCase().includes(filterSearchTerm.toLowerCase())
+      (renderValue ? renderValue(value) : String(value))
+        .toLowerCase()
+        .includes(filterSearchTerm.toLowerCase())
     );
-  }, [values, filterSearchTerm]);
+  }, [values, filterSearchTerm, renderValue]);
 
-  const sortedFilteredValues = useMemo(() => defaultSortValues(filteredValues), [filteredValues]);
+  const sortedFilteredValues = useMemo(
+    () => defaultSortValues(filteredValues, renderValue),
+    [filteredValues, renderValue]
+  );
 
   const visibleValues = useMemo(() => sortedFilteredValues.slice(0, maxOptions), [sortedFilteredValues, maxOptions]);
 
@@ -190,7 +199,7 @@ export function ColumnFilterPopover({
                         onCheckedChange={() => handleToggle(value)}
                       />
                       <label htmlFor={`${columnKey}-${value}`} className="text-sm flex-1 cursor-pointer">
-                        {String(value)}
+                        {renderValue ? renderValue(value) : String(value)}
                       </label>
                     </div>
                   ))}

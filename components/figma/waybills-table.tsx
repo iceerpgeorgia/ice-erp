@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
@@ -90,14 +90,6 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'corresponding_account', label: 'Corresponding Account', visible: true, sortable: true, filterable: true, width: 180 },
 ];
 
-const normalizeValue = (value: any) => {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'string') return value.trim();
-  if (typeof value === 'number') return value.toString();
-  if (value instanceof Date) return value.toISOString();
-  return String(value);
-};
-
 const formatCell = (value: any, format?: ColumnConfig['format']) => {
   if (value === null || value === undefined || value === '') return '-';
   if (format === 'boolean') return value ? 'Yes' : 'No';
@@ -117,13 +109,20 @@ export function WaybillsTable() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [selected, setSelected] = useState<Waybill | null>(null);
   const [editing, setEditing] = useState<Waybill | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [bulkProjectUuid, setBulkProjectUuid] = useState('');
+  const [bulkFinancialCodeUuid, setBulkFinancialCodeUuid] = useState('');
+  const [bulkCorrespondingAccount, setBulkCorrespondingAccount] = useState('');
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
   const [fileUploading, setFileUploading] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
   const [financialCodes, setFinancialCodes] = useState<any[]>([]);
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
-  const [filters, setFilters] = useState<Map<ColumnKey, Set<string>>>(new Map());
+  const [filters, setFilters] = useState<Map<ColumnKey, Set<any>>>(new Map());
   const [sortColumn, setSortColumn] = useState<ColumnKey>('activation_time');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isResizing, setIsResizing] = useState<{ key: ColumnKey; startX: number; startWidth: number } | null>(null);
@@ -131,6 +130,7 @@ export function WaybillsTable() {
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(200);
+  const [facetValues, setFacetValues] = useState<Map<ColumnKey, any[]>>(new Map());
 
   const fetchWaybills = async (options?: { page?: number; pageSize?: number }) => {
     setLoading(true);
@@ -139,13 +139,29 @@ export function WaybillsTable() {
       const resolvedSize = options?.pageSize ?? pageSize;
       const offset = Math.max(resolvedPage - 1, 0) * resolvedSize;
       const params = new URLSearchParams();
-      if (search.trim()) params.set('search', search.trim());
+      if (appliedSearch.trim()) params.set('search', appliedSearch.trim());
       params.set('limit', String(resolvedSize));
       params.set('offset', String(offset));
+      params.set('includeFacets', 'true');
+      if (sortColumn) params.set('sortColumn', sortColumn);
+      if (sortDirection) params.set('sortDirection', sortDirection);
+      if (filters.size > 0) {
+        const serialized = Array.from(filters.entries()).map(([key, set]) => [key, Array.from(set)]);
+        params.set('filters', JSON.stringify(serialized));
+      }
       const res = await fetch(`/api/waybills?${params.toString()}`);
       const body = await res.json();
       setData(body.data || []);
       setTotal(body.total || 0);
+      const nextFacets = new Map<ColumnKey, string[]>();
+      if (body?.facets && typeof body.facets === 'object') {
+        Object.entries(body.facets).forEach(([key, values]) => {
+          if (Array.isArray(values)) {
+            nextFacets.set(key as ColumnKey, values as any[]);
+          }
+        });
+      }
+      setFacetValues(nextFacets);
     } catch (err) {
       console.error('Failed to load waybills', err);
       alert('Failed to load waybills');
@@ -177,7 +193,7 @@ export function WaybillsTable() {
 
   useEffect(() => {
     fetchWaybills();
-  }, [currentPage, pageSize]);
+  }, [currentPage, pageSize, appliedSearch, sortColumn, sortDirection, filters]);
 
   const runSearch = () => {
     if (currentPage === 1) {
@@ -290,60 +306,111 @@ export function WaybillsTable() {
 
   const visibleColumns = useMemo(() => columns.filter((col) => col.visible), [columns]);
 
-  const getFacetBaseData = (excludeColumn?: ColumnKey) => {
-    let rows = data;
-    if (filters.size > 0) {
-      rows = rows.filter((row) =>
-        Array.from(filters.entries()).every(([key, selected]) => {
-          if (excludeColumn && key === excludeColumn) return true;
-          if (!selected || selected.size === 0) return true;
-          const value = normalizeValue(getCellValue(row, key));
-          return selected.has(value);
-        })
-      );
-    }
-    return rows;
-  };
-
   const filterOptions = useMemo(() => {
-    const map = new Map<ColumnKey, string[]>();
-    columns.filter((col) => col.filterable).forEach((col) => {
-      const values = Array.from(
-        new Set(
-          getFacetBaseData(col.key)
-            .map((row) => normalizeValue(getCellValue(row, col.key)))
-            .filter((val) => val !== '')
-        )
-      ).sort((a, b) => a.localeCompare(b));
-      map.set(col.key, values);
-    });
-    return map;
-  }, [columns, data, filters]);
+    return facetValues;
+  }, [facetValues]);
 
   const getUniqueValues = (columnKey: ColumnKey) => filterOptions.get(columnKey) || [];
 
-  const filteredData = useMemo(() => {
-    let rows = data;
-    if (filters.size > 0) {
-      rows = rows.filter((row) =>
-        Array.from(filters.entries()).every(([key, selected]) => {
-          if (!selected || selected.size === 0) return true;
-          const value = normalizeValue(getCellValue(row, key));
-          return selected.has(value);
-        })
-      );
+  const filteredData = useMemo(() => data, [data]);
+
+  const renderFilterValue = useCallback((columnKey: ColumnKey, value: any) => {
+    if (value === null || value === undefined || value === '') return '';
+    if (columnKey === 'project_uuid') {
+      return projectLabelMap.get(String(value)) || String(value);
     }
-    if (sortColumn) {
-      rows = [...rows].sort((a, b) => {
-        const aValue = normalizeValue(getCellValue(a, sortColumn));
-        const bValue = normalizeValue(getCellValue(b, sortColumn));
-        if (aValue === bValue) return 0;
-        const order = aValue > bValue ? 1 : -1;
-        return sortDirection === 'asc' ? order : -order;
+    if (columnKey === 'financial_code_uuid') {
+      return financialCodeLabelMap.get(String(value)) || String(value);
+    }
+    if (columnKey === 'vat') {
+      return value ? 'Yes' : 'No';
+    }
+    return String(value);
+  }, [financialCodeLabelMap, projectLabelMap]);
+
+  const runSearch = () => {
+    const nextSearch = search.trim();
+    setAppliedSearch(nextSearch);
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  };
+
+  const visibleIds = useMemo(
+    () => filteredData.map((row) => row.id).filter((id) => Number.isFinite(id)),
+    [filteredData]
+  );
+  const visibleSelectedCount = useMemo(
+    () => visibleIds.filter((id) => selectedIds.has(id)).length,
+    [visibleIds, selectedIds]
+  );
+  const allVisibleSelected = visibleIds.length > 0 && visibleSelectedCount === visibleIds.length;
+  const someVisibleSelected = visibleSelectedCount > 0 && !allVisibleSelected;
+
+  const toggleSelectAllVisible = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        visibleIds.forEach((id) => next.add(id));
+      } else {
+        visibleIds.forEach((id) => next.delete(id));
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectRow = (id: number, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const resetBulkEdit = () => {
+    setBulkProjectUuid('');
+    setBulkFinancialCodeUuid('');
+    setBulkCorrespondingAccount('');
+    setIsBulkSaving(false);
+  };
+
+  const handleBulkEditSave = async () => {
+    if (!selectedIds.size) return;
+    if (!bulkProjectUuid && !bulkFinancialCodeUuid && !bulkCorrespondingAccount) {
+      alert('Select at least one field to update');
+      return;
+    }
+    setIsBulkSaving(true);
+    try {
+      const response = await fetch('/api/waybills/bulk', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: Array.from(selectedIds),
+          project_uuid: bulkProjectUuid || null,
+          financial_code_uuid: bulkFinancialCodeUuid || null,
+          corresponding_account: bulkCorrespondingAccount || null,
+        }),
       });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.error || 'Bulk update failed');
+      }
+      await fetchWaybills();
+      setSelectedIds(new Set());
+      setIsBulkEditOpen(false);
+      resetBulkEdit();
+    } catch (err: any) {
+      console.error('Bulk update error', err);
+      alert(err?.message || 'Bulk update failed');
+    } finally {
+      setIsBulkSaving(false);
     }
-    return rows;
-  }, [data, filters, sortColumn, sortDirection]);
+  };
 
   return (
     <div className="space-y-4">
@@ -406,6 +473,68 @@ export function WaybillsTable() {
               </Badge>
             </Button>
           )}
+          {selectedIds.size > 0 && (
+            <Dialog open={isBulkEditOpen} onOpenChange={(open) => {
+              setIsBulkEditOpen(open);
+              if (!open) resetBulkEdit();
+            }}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  Bulk Edit ({selectedIds.size})
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Bulk Edit Waybills</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Project</Label>
+                    <Combobox
+                      options={projectOptions}
+                      value={bulkProjectUuid}
+                      onValueChange={setBulkProjectUuid}
+                      placeholder="Select project"
+                      searchPlaceholder="Search projects..."
+                      emptyText="No projects found"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Financial Code</Label>
+                    <Combobox
+                      options={financialCodeOptions}
+                      value={bulkFinancialCodeUuid}
+                      onValueChange={setBulkFinancialCodeUuid}
+                      placeholder="Select financial code"
+                      searchPlaceholder="Search financial codes..."
+                      emptyText="No financial codes found"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Corresponding Account</Label>
+                    <select
+                      className="w-full border rounded px-3 py-2 text-sm"
+                      value={bulkCorrespondingAccount}
+                      onChange={(e) => setBulkCorrespondingAccount(e.target.value)}
+                    >
+                      <option value="">Select account</option>
+                      {CORRESPONDING_ACCOUNTS.map((acc) => (
+                        <option key={acc} value={acc}>{acc}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button variant="outline" onClick={() => setIsBulkEditOpen(false)} disabled={isBulkSaving}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleBulkEditSave} disabled={isBulkSaving}>
+                    {isBulkSaving ? 'Saving...' : 'Apply Updates'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
           <input
             id="waybills-import"
             type="file"
@@ -453,6 +582,13 @@ export function WaybillsTable() {
         <table className="min-w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
+              <th className="text-left px-3 py-2">
+                <Checkbox
+                  checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
+                  onCheckedChange={(checked) => toggleSelectAllVisible(Boolean(checked))}
+                  disabled={!visibleIds.length}
+                />
+              </th>
               {visibleColumns.map((col) => (
                 <th
                   key={col.key}
@@ -519,11 +655,14 @@ export function WaybillsTable() {
                             }
                             return next;
                           });
+                          setCurrentPage(1);
                         }}
                         onSort={(direction) => {
                           setSortColumn(col.key);
                           setSortDirection(direction);
+                          setCurrentPage(1);
                         }}
+                        renderValue={(value) => renderFilterValue(col.key, value)}
                       />
                     )}
                   </div>
@@ -541,6 +680,12 @@ export function WaybillsTable() {
           <tbody>
             {filteredData.map((row) => (
               <tr key={row.id} className="border-t">
+                <td className="px-3 py-2">
+                  <Checkbox
+                    checked={selectedIds.has(row.id)}
+                    onCheckedChange={(checked) => toggleSelectRow(row.id, Boolean(checked))}
+                  />
+                </td>
                 {visibleColumns.map((col) => (
                   <td key={col.key} className="px-3 py-2" style={{ width: col.width }}>
                     {col.key === 'counteragent_name'
@@ -562,7 +707,7 @@ export function WaybillsTable() {
             ))}
             {filteredData.length === 0 && (
               <tr>
-                <td className="px-3 py-6 text-center text-muted-foreground" colSpan={visibleColumns.length + 1}>
+                <td className="px-3 py-6 text-center text-muted-foreground" colSpan={visibleColumns.length + 2}>
                   {loading ? 'Loading...' : 'No waybills found'}
                 </td>
               </tr>
