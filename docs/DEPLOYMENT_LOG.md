@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-02-25
+- Summary: Add checked subtotal, waybills pagination, and labels.
+- Changes:
+  - Counteragent statement: add Subtotal (checked) for selected rows.
+  - Waybills: pagination controls and rows-per-page; show all columns with project/financial code labels.
+  - Payment statement: show Adding... on +A&O.
+- Commit: 03668ec
+- Production: https://ice-pto2lw94j-iceerp.vercel.app
+
 ## 2026-02-24
 - Summary: Respect A/O selection when adding ledger entries.
 - Changes:
