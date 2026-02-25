@@ -1092,7 +1092,7 @@ export default function PaymentStatementPage() {
                   title="Add accrual/order from selected payment rows"
                 >
                   <Plus className="h-4 w-4" />
-                  +A&O
+                  {isAoSubmitting ? 'Adding...' : '+A&O'}
                 </button>
               </div>
             </div>

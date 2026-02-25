@@ -632,6 +632,24 @@ export default function CounteragentStatementPage() {
     );
   }, [filteredRows]);
 
+  const checkedTotals = useMemo(() => {
+    if (!selectedBankIds.size) {
+      return { accrual: 0, order: 0, payment: 0, ppc: 0 };
+    }
+    return filteredRows.reduce(
+      (acc, row) => {
+        if (row.type !== 'bank' || !row.bankId) return acc;
+        if (!selectedBankIds.has(Number(row.bankId))) return acc;
+        acc.accrual += Number(row.accrual || 0);
+        acc.order += Number(row.order || 0);
+        acc.payment += Number(row.payment || 0);
+        acc.ppc += Number(row.ppc || 0);
+        return acc;
+      },
+      { accrual: 0, order: 0, payment: 0, ppc: 0 }
+    );
+  }, [filteredRows, selectedBankIds]);
+
   const visibleSelectedCount = useMemo(() => {
     if (!selectedBankIds.size || !visibleBankIds.length) return 0;
     return visibleBankIds.filter((id) => selectedBankIds.has(id)).length;
@@ -1688,6 +1706,34 @@ export default function CounteragentStatementPage() {
             <span className="text-gray-500">PPC:</span>
             <span className="font-semibold text-gray-900">
               {filteredTotals.ppc.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-4 rounded-lg border bg-white px-4 py-2 text-sm text-gray-700">
+          <span className="font-semibold">Subtotal (checked)</span>
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500">Accrual:</span>
+            <span className="font-semibold text-gray-900">
+              {checkedTotals.accrual.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500">Order:</span>
+            <span className="font-semibold text-gray-900">
+              {checkedTotals.order.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500">Payment:</span>
+            <span className="font-semibold text-gray-900">
+              {checkedTotals.payment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500">PPC:</span>
+            <span className="font-semibold text-gray-900">
+              {checkedTotals.ppc.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
         </div>

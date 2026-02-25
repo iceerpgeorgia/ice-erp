@@ -70,21 +70,24 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'waybill_no', label: 'Waybill No', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'state', label: 'State', visible: true, sortable: true, filterable: true, width: 120 },
   { key: 'condition', label: 'Condition', visible: true, sortable: true, filterable: true, width: 140 },
-  { key: 'category', label: 'Category', visible: false, sortable: true, filterable: true, width: 140 },
-  { key: 'type', label: 'Type', visible: false, sortable: true, filterable: true, width: 140 },
+  { key: 'category', label: 'Category', visible: true, sortable: true, filterable: true, width: 140 },
+  { key: 'type', label: 'Type', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'counteragent_name', label: 'Counteragent', visible: true, sortable: true, filterable: true, width: 240 },
   { key: 'counteragent_inn', label: 'INN', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'vat', label: 'VAT', visible: true, sortable: true, filterable: true, format: 'boolean', width: 80 },
   { key: 'sum', label: 'Sum', visible: true, sortable: true, filterable: false, format: 'number', width: 120 },
   { key: 'driver', label: 'Driver', visible: true, sortable: true, filterable: true, width: 200 },
-  { key: 'vehicle', label: 'Vehicle', visible: false, sortable: true, filterable: true, width: 160 },
+  { key: 'vehicle', label: 'Vehicle', visible: true, sortable: true, filterable: true, width: 160 },
   { key: 'activation_time', label: 'Activation Time', visible: true, sortable: true, filterable: false, format: 'datetime', width: 190 },
   { key: 'period', label: 'Period', visible: true, sortable: true, filterable: true, width: 120 },
-  { key: 'rs_id', label: 'RS ID', visible: false, sortable: true, filterable: true, width: 140 },
-  { key: 'transportation_sum', label: 'Transport Sum', visible: false, sortable: true, filterable: false, format: 'number', width: 140 },
-  { key: 'transportation_cost', label: 'Transport Cost', visible: false, sortable: true, filterable: false, format: 'number', width: 140 },
-  { key: 'shipping_address', label: 'Shipping Address', visible: false, sortable: true, filterable: true, width: 260 },
-  { key: 'departure_address', label: 'Departure Address', visible: false, sortable: true, filterable: true, width: 260 },
+  { key: 'rs_id', label: 'RS ID', visible: true, sortable: true, filterable: true, width: 140 },
+  { key: 'transportation_sum', label: 'Transport Sum', visible: true, sortable: true, filterable: false, format: 'number', width: 140 },
+  { key: 'transportation_cost', label: 'Transport Cost', visible: true, sortable: true, filterable: false, format: 'number', width: 140 },
+  { key: 'shipping_address', label: 'Shipping Address', visible: true, sortable: true, filterable: true, width: 260 },
+  { key: 'departure_address', label: 'Departure Address', visible: true, sortable: true, filterable: true, width: 260 },
+  { key: 'project_uuid', label: 'Project', visible: true, sortable: true, filterable: true, width: 200 },
+  { key: 'financial_code_uuid', label: 'Financial Code', visible: true, sortable: true, filterable: true, width: 220 },
+  { key: 'corresponding_account', label: 'Corresponding Account', visible: true, sortable: true, filterable: true, width: 180 },
 ];
 
 const normalizeValue = (value: any) => {
@@ -126,13 +129,19 @@ export function WaybillsTable() {
   const [isResizing, setIsResizing] = useState<{ key: ColumnKey; startX: number; startWidth: number } | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(200);
 
-  const fetchWaybills = async () => {
+  const fetchWaybills = async (options?: { page?: number; pageSize?: number }) => {
     setLoading(true);
     try {
+      const resolvedPage = options?.page ?? currentPage;
+      const resolvedSize = options?.pageSize ?? pageSize;
+      const offset = Math.max(resolvedPage - 1, 0) * resolvedSize;
       const params = new URLSearchParams();
       if (search.trim()) params.set('search', search.trim());
-      params.set('limit', '300');
+      params.set('limit', String(resolvedSize));
+      params.set('offset', String(offset));
       const res = await fetch(`/api/waybills?${params.toString()}`);
       const body = await res.json();
       setData(body.data || []);
@@ -163,9 +172,20 @@ export function WaybillsTable() {
   };
 
   useEffect(() => {
-    fetchWaybills();
     fetchOptions();
   }, []);
+
+  useEffect(() => {
+    fetchWaybills();
+  }, [currentPage, pageSize]);
+
+  const runSearch = () => {
+    if (currentPage === 1) {
+      fetchWaybills({ page: 1 });
+      return;
+    }
+    setCurrentPage(1);
+  };
 
   useEffect(() => {
     if (!isResizing) return;
@@ -238,6 +258,36 @@ export function WaybillsTable() {
     keywords: `${c.code} ${c.name}`
   })), [financialCodes]);
 
+  const projectLabelMap = useMemo(() => {
+    const map = new Map<string, string>();
+    projects.forEach((project: any) => {
+      if (!project?.project_uuid) return;
+      const label = project.project_name || project.project_index || project.project_uuid;
+      map.set(project.project_uuid, label);
+    });
+    return map;
+  }, [projects]);
+
+  const financialCodeLabelMap = useMemo(() => {
+    const map = new Map<string, string>();
+    financialCodes.forEach((code: any) => {
+      if (!code?.uuid) return;
+      const label = code.code && code.name ? `${code.code} — ${code.name}` : (code.code || code.name || code.uuid);
+      map.set(code.uuid, label);
+    });
+    return map;
+  }, [financialCodes]);
+
+  const getCellValue = (row: Waybill, columnKey: ColumnKey) => {
+    if (columnKey === 'project_uuid') {
+      return projectLabelMap.get(row.project_uuid || '') || row.project_uuid || '';
+    }
+    if (columnKey === 'financial_code_uuid') {
+      return financialCodeLabelMap.get(row.financial_code_uuid || '') || row.financial_code_uuid || '';
+    }
+    return (row as any)[columnKey];
+  };
+
   const visibleColumns = useMemo(() => columns.filter((col) => col.visible), [columns]);
 
   const getFacetBaseData = (excludeColumn?: ColumnKey) => {
@@ -247,7 +297,7 @@ export function WaybillsTable() {
         Array.from(filters.entries()).every(([key, selected]) => {
           if (excludeColumn && key === excludeColumn) return true;
           if (!selected || selected.size === 0) return true;
-          const value = normalizeValue((row as any)[key]);
+          const value = normalizeValue(getCellValue(row, key));
           return selected.has(value);
         })
       );
@@ -259,7 +309,11 @@ export function WaybillsTable() {
     const map = new Map<ColumnKey, string[]>();
     columns.filter((col) => col.filterable).forEach((col) => {
       const values = Array.from(
-        new Set(getFacetBaseData(col.key).map((row) => normalizeValue((row as any)[col.key])).filter((val) => val !== ''))
+        new Set(
+          getFacetBaseData(col.key)
+            .map((row) => normalizeValue(getCellValue(row, col.key)))
+            .filter((val) => val !== '')
+        )
       ).sort((a, b) => a.localeCompare(b));
       map.set(col.key, values);
     });
@@ -274,15 +328,15 @@ export function WaybillsTable() {
       rows = rows.filter((row) =>
         Array.from(filters.entries()).every(([key, selected]) => {
           if (!selected || selected.size === 0) return true;
-          const value = normalizeValue((row as any)[key]);
+          const value = normalizeValue(getCellValue(row, key));
           return selected.has(value);
         })
       );
     }
     if (sortColumn) {
       rows = [...rows].sort((a, b) => {
-        const aValue = normalizeValue((a as any)[sortColumn]);
-        const bValue = normalizeValue((b as any)[sortColumn]);
+        const aValue = normalizeValue(getCellValue(a, sortColumn));
+        const bValue = normalizeValue(getCellValue(b, sortColumn));
         if (aValue === bValue) return 0;
         const order = aValue > bValue ? 1 : -1;
         return sortDirection === 'asc' ? order : -order;
@@ -303,11 +357,11 @@ export function WaybillsTable() {
               placeholder="Search waybills..."
               className="pl-9"
               onKeyDown={(e) => {
-                if (e.key === 'Enter') fetchWaybills();
+                if (e.key === 'Enter') runSearch();
               }}
             />
           </div>
-          <Button variant="outline" size="sm" onClick={fetchWaybills} disabled={loading}>
+          <Button variant="outline" size="sm" onClick={runSearch} disabled={loading}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -375,7 +429,25 @@ export function WaybillsTable() {
         </div>
       </div>
 
-      <div className="text-sm text-muted-foreground">Total records: {total}</div>
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+        <div>Total records: {total}</div>
+        <div className="flex items-center gap-2">
+          <span>Rows per page</span>
+          <select
+            className="border rounded px-2 py-1 text-sm"
+            value={pageSize}
+            onChange={(e) => {
+              const nextSize = Number(e.target.value) || 200;
+              setPageSize(nextSize);
+              setCurrentPage(1);
+            }}
+          >
+            {[100, 200, 300, 500, 1000].map((size) => (
+              <option key={size} value={size}>{size}</option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       <div className="overflow-auto border rounded">
         <table className="min-w-full text-sm">
@@ -473,7 +545,7 @@ export function WaybillsTable() {
                   <td key={col.key} className="px-3 py-2" style={{ width: col.width }}>
                     {col.key === 'counteragent_name'
                       ? row.counteragent_name || row.counteragent || '-'
-                      : formatCell((row as any)[col.key], col.format)}
+                      : formatCell(getCellValue(row, col.key), col.format)}
                   </td>
                 ))}
                 <td className="px-3 py-2">
@@ -497,6 +569,32 @@ export function WaybillsTable() {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+        <div>
+          Page {currentPage} of {Math.max(1, Math.ceil(total / pageSize))}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage <= 1 || loading}
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage >= Math.ceil(total / pageSize) || loading}
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(Math.ceil(total / pageSize) || 1, prev + 1))
+            }
+          >
+            Next
+          </Button>
+        </div>
       </div>
 
       <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
