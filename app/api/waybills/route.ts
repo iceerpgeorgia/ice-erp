@@ -149,8 +149,8 @@ export async function GET(req: NextRequest) {
               .map((value) => String(value).toLowerCase())
               .filter((value) => value === 'true' || value === 'false')
               .map((value) => value === 'true');
-            if (boolValues.length > 0) {
-              filterClauses.push({ vat: { in: boolValues } });
+            if (boolValues.length === 1) {
+              filterClauses.push({ vat: { equals: boolValues[0] } });
             }
             return;
           }
@@ -165,9 +165,16 @@ export async function GET(req: NextRequest) {
       AND: [baseSearch, ...filterClauses],
     };
 
-    const orderBy = allowedSortColumns.has(sortColumn)
-      ? [{ [sortColumn]: sortDirection } as Prisma.rs_waybills_inOrderByWithRelationInput, { id: 'desc' }]
-      : [{ activation_time: 'desc' }, { id: 'desc' }];
+    const orderBy: Prisma.rs_waybills_inOrderByWithRelationInput[] =
+      allowedSortColumns.has(sortColumn)
+        ? [
+            { [sortColumn]: sortDirection } as Prisma.rs_waybills_inOrderByWithRelationInput,
+            { id: Prisma.SortOrder.desc },
+          ]
+        : [
+            { activation_time: Prisma.SortOrder.desc },
+            { id: Prisma.SortOrder.desc },
+          ];
 
     const [rows, total] = await Promise.all([
       prisma.rs_waybills_in.findMany({
