@@ -130,6 +130,10 @@ export function SalaryAccrualsTable() {
   const [uploadMonth, setUploadMonth] = useState('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSalaryUploadDialogOpen, setIsSalaryUploadDialogOpen] = useState(false);
+  const [salaryUploadMonth, setSalaryUploadMonth] = useState('');
+  const [salaryUploadFile, setSalaryUploadFile] = useState<File | null>(null);
+  const [isSalaryUploading, setIsSalaryUploading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [uploadSummary, setUploadSummary] = useState<any | null>(null);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
@@ -413,6 +417,48 @@ export function SalaryAccrualsTable() {
 
   const handleApplyTbcInsurance = async () => {
     await handleUploadTbcInsurance('apply');
+  };
+
+  const handleSalaryPeriodUpload = async () => {
+    if (!salaryUploadMonth || !salaryUploadFile) {
+      alert('Please select a period and choose an XLSX file.');
+      return;
+    }
+
+    setIsSalaryUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('month', salaryUploadMonth);
+      formData.append('file', salaryUploadFile);
+      formData.append('updated_by', 'user');
+
+      const response = await fetch('/api/salary-accruals/upload-period', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to upload salary accrual XLSX');
+      }
+
+      const errorCount = Array.isArray(result.errors) ? result.errors.length : 0;
+      alert(
+        `Upload completed for ${result.month}. Inserted: ${result.inserted}, Updated: ${result.updated}, Errors: ${errorCount}`
+      );
+
+      setIsSalaryUploadDialogOpen(false);
+      setSalaryUploadFile(null);
+      await fetchData({ showLoading: false });
+    } catch (error: any) {
+      alert(error.message || 'Failed to upload salary accrual XLSX');
+    } finally {
+      setIsSalaryUploading(false);
+    }
+  };
+
+  const handleDownloadSalaryTemplate = () => {
+    window.open('/api/salary-accruals/upload-period', '_blank', 'noopener,noreferrer');
   };
 
   const handleToggleSelect = (id: string) => {
@@ -1222,11 +1268,57 @@ export function SalaryAccrualsTable() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsSalaryUploadDialogOpen(true)}>
+                  Salary Accruals (Period)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownloadSalaryTemplate}>
+                  Download Salary Template
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setIsUploadDialogOpen(true)}>
                   TBC Insurance
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Dialog open={isSalaryUploadDialogOpen} onOpenChange={setIsSalaryUploadDialogOpen}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Upload Salary Accruals by Period</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="salaryPeriodMonth">Period</Label>
+                    <Input
+                      id="salaryPeriodMonth"
+                      type="month"
+                      value={salaryUploadMonth}
+                      onChange={(e) => setSalaryUploadMonth(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="salaryPeriodFile">XLSX File</Label>
+                    <Input
+                      id="salaryPeriodFile"
+                      type="file"
+                      accept=".xlsx"
+                      onChange={(e) => setSalaryUploadFile(e.target.files?.[0] || null)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Button variant="outline" onClick={handleDownloadSalaryTemplate}>
+                      Download Template
+                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" onClick={() => setIsSalaryUploadDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleSalaryPeriodUpload} disabled={isSalaryUploading}>
+                        {isSalaryUploading ? 'Uploading...' : 'Upload'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button onClick={() => handleOpenDialog()}>
