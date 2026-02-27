@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-27
+- Summary: Salary accrual paid parity fix for batch sign normalization.
+- Changes:
+  - Salary accruals API: align batch partition nominal sign handling with statement/bank APIs before `SUM(ABS(...))` aggregation.
+  - Salary accruals API/UI: normalize payment-id matching keys using statement-style base ID normalization (strip optional `:suffix`, lowercase).
+  - Salary accruals totals: preserve per-transaction absolute paid aggregation while restoring parity with counteragent statement/bank transactions.
+- Commit: 7b8aa40
+- Production: https://ice-4yvf0pmy9-iceerp.vercel.app
+
+## 2026-02-27
 - Summary: Salary accrual paid/statement parity correction.
 - Changes:
   - Salary accruals paid: revert to sum of absolute transaction amounts (`SUM(ABS(...))`) for parity with counteragent statement totals.
