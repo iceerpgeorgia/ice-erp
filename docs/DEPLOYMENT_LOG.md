@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-27
+- Summary: Stabilize Waybills API against UUID parse failures and pool timeouts.
+- Changes:
+  - Waybills API: sanitize malformed UUID values in `rs_waybills_in` UUID columns before list/facet reads.
+  - Waybills API: validate UUID inputs in single and bulk PATCH routes to block invalid writes.
+  - Waybills API: run list/count/facet queries sequentially to avoid Prisma pool timeouts in low-connection environments.
+- Commit: 7358dca
+- Production: https://ice-m069f4ixs-iceerp.vercel.app
+
+## 2026-02-27
 - Summary: Waybills column clipping parity with Payments Report and blank rendering alignment.
 - Changes:
   - Waybills table: use Payments Report-style overflow clipping/truncation when columns are resized.
