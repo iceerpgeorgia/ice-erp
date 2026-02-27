@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
       SELECT
         regexp_replace(lower(payment_id), '[^a-z0-9]', '', 'g') as payment_id_key,
         nominal_currency_uuid,
-        SUM(nominal_amount)::numeric as paid
+        ABS(SUM(nominal_amount))::numeric as paid
       FROM (
         SELECT
           cba.payment_id,

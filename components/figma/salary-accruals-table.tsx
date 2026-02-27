@@ -692,7 +692,7 @@ export function SalaryAccrualsTable() {
           ? txResult
           : [];
       
-      // Create a map of payment_id to total paid amount (signed value)
+      // Create a map of payment_id to total paid amount (absolute of signed aggregate)
       // Use lowercase keys for case-insensitive matching
       const paidMap = new Map<string, number>();
       transactions.forEach((tx: any) => {
@@ -709,6 +709,10 @@ export function SalaryAccrualsTable() {
           paidMap.set(paymentIdLower, (paidMap.get(paymentIdLower) || 0) + amount);
         }
       });
+
+      for (const [paymentIdKey, aggregatedAmount] of paidMap.entries()) {
+        paidMap.set(paymentIdKey, Math.abs(aggregatedAmount));
+      }
       
 
       let projectedData: SalaryAccrual[] = salaryData;
@@ -779,7 +783,7 @@ export function SalaryAccrualsTable() {
         const paid = typeof accrual.paid === 'number'
           ? accrual.paid
           : (paidMap.get(paymentIdLower) || 0);
-        const monthBalance = computeBalance(accrual);
+        const monthBalance = computeBalance({ ...accrual, paid });
 
         return {
           ...accrual,
@@ -1137,11 +1141,7 @@ export function SalaryAccrualsTable() {
   };
 
   const getUniqueValues = useCallback((columnKey: ColumnKey): any[] => {
-    const values = uniqueValuesCache.get(columnKey) || [];
-    if (columnKey === 'salary_month') {
-      return values.map(value => ({ value, label: formatMonthLabel(value) }));
-    }
-    return values;
+    return uniqueValuesCache.get(columnKey) || [];
   }, [uniqueValuesCache]);
 
   const formatValue = (value: any, format?: 'currency' | 'date' | 'text') => {
@@ -1792,6 +1792,11 @@ export function SalaryAccrualsTable() {
                             setSortColumn(col.key);
                             setSortDirection(direction);
                           }}
+                          renderValue={(value) =>
+                            col.key === 'salary_month'
+                              ? formatMonthLabel(value)
+                              : formatValue(value, col.format)
+                          }
                         />
                       )}
                     </div>
