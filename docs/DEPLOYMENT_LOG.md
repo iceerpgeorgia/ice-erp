@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-27
+- Summary: Salaries table period-based XLSX upload API and template.
+- Changes:
+  - Salary accruals: add `upload-period` API to upload XLSX for a selected period with upsert behavior.
+  - Salary accruals UI: add Upload XLSX action for Salary Accruals (Period) with month + file dialog.
+  - Salary accruals: add downloadable Excel template for period upload from API and templates folder.
+- Commit: 5435574
+- Production: https://ice-f4aj5eajx-iceerp.vercel.app
+
+## 2026-02-27
 - Summary: Stabilize Waybills API against UUID parse failures and pool timeouts.
 - Changes:
   - Waybills API: sanitize malformed UUID values in `rs_waybills_in` UUID columns before list/facet reads.
