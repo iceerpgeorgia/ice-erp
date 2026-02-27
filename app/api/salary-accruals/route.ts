@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
         lower(trim(split_part(payment_id, ':', 1))) as payment_id_key,
         counteragent_uuid,
         nominal_currency_uuid,
-        SUM(ABS(nominal_amount))::numeric as paid
+        ABS(SUM(nominal_amount))::numeric as paid
       FROM (
         SELECT
           cba.payment_id,
