@@ -144,50 +144,66 @@ export async function GET(req: NextRequest) {
         .filter(([key]) => allowedFilterFields.has(key))
         .map(([key, values]) => {
           const list = Array.isArray(values) ? values : [];
-          const cleaned = list
+          const normalized = list
             .filter((value) => value !== null && value !== undefined)
-            .map((value) => String(value))
-            .filter((value) => value !== '');
-          return [key, cleaned] as const;
+            .map((value) => String(value));
+          const includeBlank = normalized.some((value) => value === '');
+          const nonBlank = normalized.filter((value) => value !== '');
+          return [key, { nonBlank, includeBlank }] as const;
         })
-        .filter(([key, cleaned]) => key !== excludeColumnKey && cleaned.length > 0);
+        .filter(
+          ([key, value]) => key !== excludeColumnKey && (value.nonBlank.length > 0 || value.includeBlank)
+        );
 
       const counteragentFilter = entries.find(([key]) => key === 'counteragent_name');
       if (counteragentFilter) {
-        const cleaned = counteragentFilter[1];
-        const counteragents = await prisma.counteragents.findMany({
-          where: {
-            OR: [
-              { counteragent: { in: cleaned } },
-              { name: { in: cleaned } },
-            ],
-          },
-          select: { counteragent_uuid: true },
-        });
-        const uuids = counteragents.map((row) => row.counteragent_uuid).filter(Boolean);
-        if (uuids.length > 0) {
+        const { nonBlank, includeBlank } = counteragentFilter[1];
+        let uuids: string[] = [];
+        if (nonBlank.length > 0) {
+          const counteragents = await prisma.counteragents.findMany({
+            where: {
+              OR: [
+                { counteragent: { in: nonBlank } },
+                { name: { in: nonBlank } },
+              ],
+            },
+            select: { counteragent_uuid: true },
+          });
+          uuids = counteragents.map((row) => row.counteragent_uuid).filter(Boolean);
+        }
+
+        if (uuids.length > 0 && includeBlank) {
+          clauses.push({ OR: [{ counteragent_uuid: { in: uuids } }, { counteragent_uuid: null }] });
+        } else if (uuids.length > 0) {
           clauses.push({ counteragent_uuid: { in: uuids } });
+        } else if (includeBlank) {
+          clauses.push({ counteragent_uuid: null });
         } else {
           clauses.push({ counteragent_uuid: { in: ['__none__'] } });
         }
       }
 
-      entries.forEach(([key, cleaned]) => {
+      entries.forEach(([key, value]) => {
         if (key === 'counteragent_name') return;
+        const { nonBlank, includeBlank } = value;
 
         if (key === 'vat') {
-          const boolValues = cleaned
+          const boolValues = nonBlank
             .map((value) => value.toLowerCase())
             .filter((value) => value === 'true' || value === 'false')
             .map((value) => value === 'true');
-          if (boolValues.length === 1) {
+          if (boolValues.length === 1 && includeBlank) {
+            clauses.push({ OR: [{ vat: { equals: boolValues[0] } }, { vat: null }] });
+          } else if (boolValues.length === 1) {
             clauses.push({ vat: { equals: boolValues[0] } });
+          } else if (includeBlank) {
+            clauses.push({ vat: null });
           }
           return;
         }
 
         if (key === 'date') {
-          const ranges = cleaned
+          const ranges = nonBlank
             .map((value) => value.trim())
             .map((value) => {
               const parts = value.split('.');
@@ -201,37 +217,65 @@ export async function GET(req: NextRequest) {
             })
             .filter((range): range is { start: Date; end: Date } => Boolean(range));
           if (ranges.length > 0) {
-            clauses.push({
-              OR: ranges.map((range) => ({
-                activation_time: {
-                  gte: range.start,
-                  lt: range.end,
-                },
-              })),
-            });
+            const dateOr: Prisma.rs_waybills_inWhereInput[] = ranges.map((range) => ({
+              activation_time: {
+                gte: range.start,
+                lt: range.end,
+              },
+            }));
+            if (includeBlank) {
+              dateOr.push({ activation_time: null });
+            }
+            clauses.push({ OR: dateOr });
+          } else if (includeBlank) {
+            clauses.push({ activation_time: null });
           }
           return;
         }
 
         if (key === 'activation_time') {
-          const dates = cleaned
+          const dates = nonBlank
             .map((value) => new Date(value))
             .filter((date) => !Number.isNaN(date.getTime()));
-          if (dates.length > 0) {
+          if (dates.length > 0 && includeBlank) {
+            clauses.push({ OR: [{ activation_time: { in: dates } }, { activation_time: null }] });
+          } else if (dates.length > 0) {
             clauses.push({ activation_time: { in: dates } });
+          } else if (includeBlank) {
+            clauses.push({ activation_time: null });
           }
           return;
         }
 
         if (['sum', 'transportation_sum', 'transportation_cost'].includes(key)) {
-          const numbers = cleaned.map((value) => Number(value)).filter((value) => !Number.isNaN(value));
-          if (numbers.length > 0) {
+          const numbers = nonBlank.map((value) => Number(value)).filter((value) => !Number.isNaN(value));
+          if (numbers.length > 0 && includeBlank) {
+            clauses.push({ OR: [{ [key]: { in: numbers } }, { [key]: null }] } as Prisma.rs_waybills_inWhereInput);
+          } else if (numbers.length > 0) {
             clauses.push({ [key]: { in: numbers } } as Prisma.rs_waybills_inWhereInput);
+          } else if (includeBlank) {
+            clauses.push({ [key]: null } as Prisma.rs_waybills_inWhereInput);
           }
           return;
         }
 
-        clauses.push({ [key]: { in: cleaned } } as Prisma.rs_waybills_inWhereInput);
+        if (nonBlank.length > 0 && includeBlank) {
+          clauses.push({
+            OR: [
+              { [key]: { in: nonBlank } } as Prisma.rs_waybills_inWhereInput,
+              { [key]: null } as Prisma.rs_waybills_inWhereInput,
+              { [key]: '' } as Prisma.rs_waybills_inWhereInput,
+            ],
+          });
+          return;
+        }
+        if (nonBlank.length > 0) {
+          clauses.push({ [key]: { in: nonBlank } } as Prisma.rs_waybills_inWhereInput);
+          return;
+        }
+        if (includeBlank) {
+          clauses.push({ OR: [{ [key]: null } as Prisma.rs_waybills_inWhereInput, { [key]: '' } as Prisma.rs_waybills_inWhereInput] });
+        }
       });
 
       return clauses;
@@ -333,7 +377,9 @@ export async function GET(req: NextRequest) {
             const values = counteragents
               .map((row) => row.counteragent || row.name)
               .filter((value) => value !== null && value !== undefined && String(value).trim() !== '');
-            return [field, values] as const;
+            const includeBlank = uuids.some((row: any) => row.counteragent_uuid === null);
+            if (includeBlank) values.unshift('');
+            return [field, Array.from(new Set(values))] as const;
           }
           if (field === 'date') {
             const rows = await prisma.rs_waybills_in.findMany({
@@ -343,9 +389,7 @@ export async function GET(req: NextRequest) {
             });
             const values = rows
               .map((row: any) => row.activation_time)
-              .filter((value) => value !== null && value !== undefined)
-              .map((value) => formatDate(new Date(value)))
-              .filter((value) => value !== null && value !== undefined && String(value).trim() !== '');
+              .map((value) => (value ? formatDate(new Date(value)) : ''));
             return [field, Array.from(new Set(values))] as const;
           }
           const rows = await prisma.rs_waybills_in.findMany({
@@ -355,8 +399,8 @@ export async function GET(req: NextRequest) {
           });
           const values = rows
             .map((row: any) => row[field])
-            .filter((value) => value !== null && value !== undefined && String(value).trim() !== '');
-          return [field, values] as const;
+            .map((value) => (value === null || value === undefined ? '' : value));
+          return [field, Array.from(new Set(values))] as const;
         })
       );
       facets = Object.fromEntries(facetResults);

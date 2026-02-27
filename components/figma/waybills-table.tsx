@@ -10,7 +10,7 @@ import { Combobox } from '@/components/ui/combobox';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
-import { Search, Upload, RefreshCw, Eye, Edit2, Settings, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, Upload, Eye, Edit2, Settings, ArrowUp, ArrowDown } from 'lucide-react';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import * as XLSX from 'xlsx';
 
@@ -125,6 +125,7 @@ export function WaybillsTable() {
   const [isBulkSaving, setIsBulkSaving] = useState(false);
   const [fileUploading, setFileUploading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
   const [financialCodes, setFinancialCodes] = useState<any[]>([]);
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
@@ -543,9 +544,23 @@ export function WaybillsTable() {
 
   const visibleColumns = useMemo(() => columns.filter((col) => col.visible), [columns]);
 
+  const fallbackFacetValues = useMemo(() => {
+    const next = new Map<ColumnKey, any[]>();
+    const filterableColumns = columns.filter((col) => col.filterable).map((col) => col.key);
+    for (const key of filterableColumns) {
+      const values = new Set<any>();
+      data.forEach((row) => {
+        const value = (row as any)[key];
+        values.add(value === null || value === undefined ? '' : value);
+      });
+      next.set(key, Array.from(values));
+    }
+    return next;
+  }, [columns, data]);
+
   const filterOptions = useMemo(() => {
-    return facetValues;
-  }, [facetValues]);
+    return facetValues.size > 0 ? facetValues : fallbackFacetValues;
+  }, [facetValues, fallbackFacetValues]);
 
   const getUniqueValues = (columnKey: ColumnKey) => filterOptions.get(columnKey) || [];
 
@@ -562,7 +577,7 @@ export function WaybillsTable() {
   const totalSize = rowVirtualizer.getTotalSize();
 
   const renderFilterValue = useCallback((columnKey: ColumnKey, value: any) => {
-    if (value === null || value === undefined || value === '') return '';
+    if (value === null || value === undefined || value === '') return '(Blank)';
     if (columnKey === 'project_uuid') {
       return projectLabelMap.get(String(value)) || String(value);
     }
@@ -612,6 +627,15 @@ export function WaybillsTable() {
     setAppliedSearch(nextSearch);
     if (currentPage !== 1) {
       setCurrentPage(1);
+    }
+  };
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([fetchWaybills(), fetchWaybillFacets()]);
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500);
     }
   };
 
@@ -913,9 +937,16 @@ export function WaybillsTable() {
               }}
             />
           </div>
-          <Button variant="outline" size="sm" onClick={runSearch} disabled={loading}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            title="Refresh data"
+          >
+            <span className={isRefreshing ? 'animate-spin' : ''}>🔄</span>
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
         </div>
 
@@ -1097,7 +1128,7 @@ export function WaybillsTable() {
       <div ref={tableContainerRef} className="overflow-auto border rounded max-h-[70vh]">
         <table style={{ tableLayout: 'fixed', width: '100%' }} className="min-w-full text-sm">
           <thead
-            className="bg-muted/50"
+            className="bg-background"
             style={{
               display: 'table',
               width: '100%',
