@@ -692,7 +692,7 @@ export function SalaryAccrualsTable() {
           ? txResult
           : [];
       
-      // Create a map of payment_id to total paid amount (absolute value)
+      // Create a map of payment_id to total paid amount (signed value)
       // Use lowercase keys for case-insensitive matching
       const paidMap = new Map<string, number>();
       transactions.forEach((tx: any) => {
@@ -705,7 +705,7 @@ export function SalaryAccrualsTable() {
             tx.account_currency_amount ??
             tx.accountCurrencyAmount ??
             '0';
-          const amount = Math.abs(parseFloat(rawAmount || '0'));
+          const amount = parseFloat(rawAmount || '0') || 0;
           paidMap.set(paymentIdLower, (paidMap.get(paymentIdLower) || 0) + amount);
         }
       });

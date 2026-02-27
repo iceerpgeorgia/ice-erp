@@ -1,10 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, PrismaClient } from '@prisma/client';
-import { reparseByPaymentId } from '@/lib/bank-import/reparse';
 
 const prisma = new PrismaClient();
 
 export const revalidate = 0;
+
+const DECONSOLIDATED_TABLES = [
+  'GE78BG0000000893486000_BOG_GEL',
+  'GE65TB7856036050100002_TBC_GEL',
+] as const;
+
+async function remapPaymentIdBindings(oldPaymentId: string, newPaymentId: string) {
+  if (!oldPaymentId || !newPaymentId) return;
+  if (oldPaymentId.trim().toLowerCase() === newPaymentId.trim().toLowerCase()) return;
+
+  for (const tableName of DECONSOLIDATED_TABLES) {
+    await prisma.$executeRawUnsafe(
+      `
+        UPDATE "${tableName}"
+        SET payment_id = $1,
+            updated_at = NOW()
+        WHERE lower(trim(payment_id)) = lower(trim($2))
+      `,
+      newPaymentId,
+      oldPaymentId
+    );
+  }
+
+  await prisma.$executeRawUnsafe(
+    `
+      UPDATE bank_transaction_batches
+      SET payment_id = $1,
+          updated_at = NOW()
+      WHERE payment_id IS NOT NULL
+        AND lower(trim(payment_id)) = lower(trim($2))
+    `,
+    newPaymentId,
+    oldPaymentId
+  );
+}
 
 // Helper function to generate payment_id
 function generatePaymentId(counteragentUuid: string, financial_code_uuid: string, salaryMonth: Date): string {
@@ -103,7 +137,7 @@ export async function GET(request: NextRequest) {
       SELECT
         regexp_replace(lower(payment_id), '[^a-z0-9]', '', 'g') as payment_id_key,
         nominal_currency_uuid,
-        SUM(ABS(nominal_amount))::numeric as paid
+        SUM(nominal_amount)::numeric as paid
       FROM (
         SELECT
           cba.payment_id,
@@ -403,12 +437,8 @@ export async function PUT(request: NextRequest) {
     });
 
     const oldPaymentId = existing?.payment_id || null;
-    const paymentIdsToReparse = new Set<string>();
-    if (oldPaymentId) paymentIdsToReparse.add(oldPaymentId);
-    if (payment_id) paymentIdsToReparse.add(payment_id);
-
-    for (const pid of paymentIdsToReparse) {
-      await reparseByPaymentId(pid);
+    if (oldPaymentId && payment_id) {
+      await remapPaymentIdBindings(oldPaymentId, payment_id);
     }
 
     return NextResponse.json({

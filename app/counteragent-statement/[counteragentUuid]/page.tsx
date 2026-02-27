@@ -1753,13 +1753,13 @@ export default function CounteragentStatementPage() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-gray-500">Payment:</span>
+            <span className="text-gray-500">Payment (signed):</span>
             <span className="font-semibold text-gray-900">
               {filteredTotals.payment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-gray-500">PPC:</span>
+            <span className="text-gray-500">PPC (signed):</span>
             <span className="font-semibold text-gray-900">
               {filteredTotals.ppc.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
@@ -1781,13 +1781,13 @@ export default function CounteragentStatementPage() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-gray-500">Payment:</span>
+            <span className="text-gray-500">Payment (signed):</span>
             <span className="font-semibold text-gray-900">
               {checkedTotals.payment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-gray-500">PPC:</span>
+            <span className="text-gray-500">PPC (signed):</span>
             <span className="font-semibold text-gray-900">
               {checkedTotals.ppc.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>

@@ -290,11 +290,43 @@ export async function POST(request: NextRequest) {
     `, Number(ruleData.id));
     
     const ruleParams = ruleWithParams[0];
+
+    let paymentParams: {
+      counteragent_uuid: string | null;
+      financial_code_uuid: string | null;
+      currency_uuid: string | null;
+    } | null = null;
+
+    if (ruleParams?.payment_id) {
+      const paymentRows = await prisma.$queryRawUnsafe<Array<{
+        counteragent_uuid: string | null;
+        financial_code_uuid: string | null;
+        currency_uuid: string | null;
+      }>>(
+        `
+          SELECT counteragent_uuid, financial_code_uuid, currency_uuid
+          FROM payments
+          WHERE payment_id = $1
+          LIMIT 1
+        `,
+        ruleParams.payment_id
+      );
+      paymentParams = paymentRows[0] ?? null;
+    }
+
+    const effectiveCounteragentUuid =
+      ruleParams?.counteragent_uuid ?? paymentParams?.counteragent_uuid ?? null;
+    const effectiveFinancialCodeUuid =
+      ruleParams?.financial_code_uuid ?? paymentParams?.financial_code_uuid ?? null;
+    const effectiveNominalCurrencyUuid =
+      ruleParams?.nominal_currency_uuid ?? paymentParams?.currency_uuid ?? null;
+    const effectivePaymentId = ruleParams?.payment_id ?? null;
+
     const hasRuleParams = !!(
-      ruleParams?.counteragent_uuid ||
-      ruleParams?.financial_code_uuid ||
-      ruleParams?.nominal_currency_uuid ||
-      ruleParams?.payment_id
+      effectiveCounteragentUuid ||
+      effectiveFinancialCodeUuid ||
+      effectiveNominalCurrencyUuid ||
+      effectivePaymentId
     );
 
     if (ruleParams && hasRuleParams) {
@@ -399,10 +431,10 @@ export async function POST(request: NextRequest) {
           FROM target_rows t
           WHERE d.raw_record_uuid = t.raw_record_uuid
         `,
-          ruleParams.counteragent_uuid,
-          ruleParams.financial_code_uuid,
-          ruleParams.nominal_currency_uuid,
-          ruleParams.payment_id,
+          effectiveCounteragentUuid,
+          effectiveFinancialCodeUuid,
+          effectiveNominalCurrencyUuid,
+          effectivePaymentId,
           uuids,
           Number(ruleData.id),
           `Applied rule manually, rule ID ${ruleData.id}`
