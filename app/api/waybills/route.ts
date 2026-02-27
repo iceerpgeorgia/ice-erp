@@ -123,117 +123,140 @@ export async function GET(req: NextRequest) {
         }
       : {};
 
-    const filterClauses: Prisma.rs_waybills_inWhereInput[] = [];
+    let parsedFilterEntries: Array<[string, any[]]> = [];
     if (filtersParam) {
       try {
         const parsed = JSON.parse(filtersParam);
-        const entries: Array<[string, string[]]> = Array.isArray(parsed)
+        parsedFilterEntries = (Array.isArray(parsed)
           ? parsed
-          : Object.entries(parsed || {});
-
-        const counteragentFilter = entries.find(([key]) => key === 'counteragent_name');
-        if (counteragentFilter) {
-          const values = Array.isArray(counteragentFilter[1]) ? counteragentFilter[1] : [];
-          const cleaned = values.filter((value) => value !== null && value !== undefined && String(value) !== '');
-          if (cleaned.length > 0) {
-            const counteragents = await prisma.counteragents.findMany({
-              where: {
-                OR: [
-                  { counteragent: { in: cleaned } },
-                  { name: { in: cleaned } },
-                ],
-              },
-              select: { counteragent_uuid: true },
-            });
-            const uuids = counteragents.map((row) => row.counteragent_uuid).filter(Boolean);
-            if (uuids.length > 0) {
-              filterClauses.push({ counteragent_uuid: { in: uuids } });
-            } else {
-              filterClauses.push({ counteragent_uuid: { in: ['__none__'] } });
-            }
-          }
-        }
-
-        entries.forEach(([key, values]) => {
-          if (!allowedFilterFields.has(key)) return;
-          if (key === 'counteragent_name') return;
-          const list = Array.isArray(values) ? values : [];
-          const cleaned = list.filter((value) => value !== null && value !== undefined && String(value) !== '');
-          if (cleaned.length === 0) return;
-          if (key === 'vat') {
-            const boolValues = cleaned
-              .map((value) => String(value).toLowerCase())
-              .filter((value) => value === 'true' || value === 'false')
-              .map((value) => value === 'true');
-            if (boolValues.length === 1) {
-              filterClauses.push({ vat: { equals: boolValues[0] } });
-            }
-            return;
-          }
-          if (key === 'date') {
-            const ranges = cleaned
-              .map((value) => String(value).trim())
-              .map((value) => {
-                const parts = value.split('.');
-                if (parts.length !== 3) return null;
-                const [day, month, year] = parts;
-                const start = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
-                if (Number.isNaN(start.getTime())) return null;
-                const end = new Date(start);
-                end.setUTCDate(start.getUTCDate() + 1);
-                return { start, end };
-              })
-              .filter((range): range is { start: Date; end: Date } => Boolean(range));
-            if (ranges.length > 0) {
-              filterClauses.push({
-                OR: ranges.map((range) => ({
-                  activation_time: {
-                    gte: range.start,
-                    lt: range.end,
-                  },
-                })),
-              });
-            }
-            return;
-          }
-          if (key === 'activation_time') {
-            const dates = cleaned
-              .map((value) => new Date(String(value)))
-              .filter((date) => !Number.isNaN(date.getTime()));
-            if (dates.length > 0) {
-              filterClauses.push({ activation_time: { in: dates } });
-            }
-            return;
-          }
-          if (['sum', 'transportation_sum', 'transportation_cost'].includes(key)) {
-            const numbers = cleaned
-              .map((value) => Number(value))
-              .filter((value) => !Number.isNaN(value));
-            if (numbers.length > 0) {
-              filterClauses.push({ [key]: { in: numbers } } as Prisma.rs_waybills_inWhereInput);
-            }
-            return;
-          }
-          filterClauses.push({ [key]: { in: cleaned } } as Prisma.rs_waybills_inWhereInput);
-        });
+          : Object.entries(parsed || {})) as Array<[string, any[]]>;
       } catch {
-        // ignore invalid filters
+        parsedFilterEntries = [];
       }
     }
 
-    const where: Prisma.rs_waybills_inWhereInput = {
-      AND: [
-        baseSearch,
-        ...filterClauses,
-        ...(missingCounteragents
-          ? [
-              { counteragent_uuid: null },
-              { counteragent_inn: { not: null } },
-              { counteragent_inn: { not: '' } },
-            ]
-          : []),
-      ],
+    const buildFilterClauses = async (
+      excludeColumnKey?: string
+    ): Promise<Prisma.rs_waybills_inWhereInput[]> => {
+      const clauses: Prisma.rs_waybills_inWhereInput[] = [];
+
+      const entries = parsedFilterEntries
+        .filter(([key]) => allowedFilterFields.has(key))
+        .map(([key, values]) => {
+          const list = Array.isArray(values) ? values : [];
+          const cleaned = list
+            .filter((value) => value !== null && value !== undefined)
+            .map((value) => String(value))
+            .filter((value) => value !== '');
+          return [key, cleaned] as const;
+        })
+        .filter(([key, cleaned]) => key !== excludeColumnKey && cleaned.length > 0);
+
+      const counteragentFilter = entries.find(([key]) => key === 'counteragent_name');
+      if (counteragentFilter) {
+        const cleaned = counteragentFilter[1];
+        const counteragents = await prisma.counteragents.findMany({
+          where: {
+            OR: [
+              { counteragent: { in: cleaned } },
+              { name: { in: cleaned } },
+            ],
+          },
+          select: { counteragent_uuid: true },
+        });
+        const uuids = counteragents.map((row) => row.counteragent_uuid).filter(Boolean);
+        if (uuids.length > 0) {
+          clauses.push({ counteragent_uuid: { in: uuids } });
+        } else {
+          clauses.push({ counteragent_uuid: { in: ['__none__'] } });
+        }
+      }
+
+      entries.forEach(([key, cleaned]) => {
+        if (key === 'counteragent_name') return;
+
+        if (key === 'vat') {
+          const boolValues = cleaned
+            .map((value) => value.toLowerCase())
+            .filter((value) => value === 'true' || value === 'false')
+            .map((value) => value === 'true');
+          if (boolValues.length === 1) {
+            clauses.push({ vat: { equals: boolValues[0] } });
+          }
+          return;
+        }
+
+        if (key === 'date') {
+          const ranges = cleaned
+            .map((value) => value.trim())
+            .map((value) => {
+              const parts = value.split('.');
+              if (parts.length !== 3) return null;
+              const [day, month, year] = parts;
+              const start = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
+              if (Number.isNaN(start.getTime())) return null;
+              const end = new Date(start);
+              end.setUTCDate(start.getUTCDate() + 1);
+              return { start, end };
+            })
+            .filter((range): range is { start: Date; end: Date } => Boolean(range));
+          if (ranges.length > 0) {
+            clauses.push({
+              OR: ranges.map((range) => ({
+                activation_time: {
+                  gte: range.start,
+                  lt: range.end,
+                },
+              })),
+            });
+          }
+          return;
+        }
+
+        if (key === 'activation_time') {
+          const dates = cleaned
+            .map((value) => new Date(value))
+            .filter((date) => !Number.isNaN(date.getTime()));
+          if (dates.length > 0) {
+            clauses.push({ activation_time: { in: dates } });
+          }
+          return;
+        }
+
+        if (['sum', 'transportation_sum', 'transportation_cost'].includes(key)) {
+          const numbers = cleaned.map((value) => Number(value)).filter((value) => !Number.isNaN(value));
+          if (numbers.length > 0) {
+            clauses.push({ [key]: { in: numbers } } as Prisma.rs_waybills_inWhereInput);
+          }
+          return;
+        }
+
+        clauses.push({ [key]: { in: cleaned } } as Prisma.rs_waybills_inWhereInput);
+      });
+
+      return clauses;
     };
+
+    const buildWhere = async (excludeColumnKey?: string): Promise<Prisma.rs_waybills_inWhereInput> => {
+      const filterClauses = await buildFilterClauses(excludeColumnKey);
+      return {
+        AND: [
+          baseSearch,
+          ...filterClauses,
+          ...(missingCounteragents
+            ? [
+                { counteragent_uuid: null },
+                { counteragent_inn: { not: null } },
+                { counteragent_inn: { not: '' } },
+              ]
+            : []),
+        ],
+      };
+    };
+
+    const filterClauses = await buildFilterClauses();
+
+    const where: Prisma.rs_waybills_inWhereInput = await buildWhere();
 
     const missingCounteragentWhere: Prisma.rs_waybills_inWhereInput = {
       AND: [
@@ -290,9 +313,10 @@ export async function GET(req: NextRequest) {
       const facetFields = Array.from(allowedFilterFields);
       const facetResults = await Promise.all(
         facetFields.map(async (field) => {
+          const facetWhere = await buildWhere(field);
           if (field === 'counteragent_name') {
             const uuids = await prisma.rs_waybills_in.findMany({
-              where,
+              where: facetWhere,
               distinct: ['counteragent_uuid'],
               select: { counteragent_uuid: true },
             });
@@ -313,7 +337,7 @@ export async function GET(req: NextRequest) {
           }
           if (field === 'date') {
             const rows = await prisma.rs_waybills_in.findMany({
-              where,
+              where: facetWhere,
               distinct: ['activation_time'],
               select: { activation_time: true },
             });
@@ -325,7 +349,7 @@ export async function GET(req: NextRequest) {
             return [field, Array.from(new Set(values))] as const;
           }
           const rows = await prisma.rs_waybills_in.findMany({
-            where,
+            where: facetWhere,
             distinct: [field as any],
             select: { [field]: true } as Prisma.rs_waybills_inSelect,
           });

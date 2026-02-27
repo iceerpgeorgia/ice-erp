@@ -148,6 +148,7 @@ export function WaybillsTable() {
   const [filtersInitialized, setFiltersInitialized] = useState(false);
   const resizeRafRef = useRef<number | null>(null);
   const resizePendingRef = useRef<{ element: HTMLElement; width: number } | null>(null);
+  const facetsRequestIdRef = useRef(0);
 
   useEffect(() => {
     const versionKey = 'waybillsColumnsVersion';
@@ -249,29 +250,63 @@ export function WaybillsTable() {
     }
   }, [columns, isInitialized]);
 
-  const fetchWaybills = async (options?: { page?: number; pageSize?: number }) => {
-    setLoading(true);
-    try {
-      const resolvedPage = options?.page ?? currentPage;
-      const resolvedSize = options?.pageSize ?? pageSize;
+  const buildWaybillsQueryParams = useCallback((options: {
+    page?: number;
+    pageSize?: number;
+    includeFacets: boolean;
+    includePagination?: boolean;
+  }) => {
+    const params = new URLSearchParams();
+    if (appliedSearch.trim()) params.set('search', appliedSearch.trim());
+    if (options.includePagination !== false) {
+      const resolvedPage = options.page ?? currentPage;
+      const resolvedSize = options.pageSize ?? pageSize;
       const offset = Math.max(resolvedPage - 1, 0) * resolvedSize;
-      const params = new URLSearchParams();
-      if (appliedSearch.trim()) params.set('search', appliedSearch.trim());
       params.set('limit', String(resolvedSize));
       params.set('offset', String(offset));
-      params.set('includeFacets', 'true');
-      if (showMissingCounteragents) params.set('missingCounteragents', 'true');
-      if (sortColumn) params.set('sortColumn', sortColumn);
-      if (sortDirection) params.set('sortDirection', sortDirection);
-      if (filters.size > 0) {
-        const serialized = Array.from(filters.entries()).map(([key, set]) => [key, Array.from(set)]);
-        params.set('filters', JSON.stringify(serialized));
-      }
+    }
+    params.set('includeFacets', options.includeFacets ? 'true' : 'false');
+    if (showMissingCounteragents) params.set('missingCounteragents', 'true');
+    if (sortColumn) params.set('sortColumn', sortColumn);
+    if (sortDirection) params.set('sortDirection', sortDirection);
+    if (filters.size > 0) {
+      const serialized = Array.from(filters.entries()).map(([key, set]) => [key, Array.from(set)]);
+      params.set('filters', JSON.stringify(serialized));
+    }
+    return params;
+  }, [appliedSearch, currentPage, pageSize, showMissingCounteragents, sortColumn, sortDirection, filters]);
+
+  const fetchWaybills = useCallback(async (options?: { page?: number; pageSize?: number }) => {
+    setLoading(true);
+    try {
+      const params = buildWaybillsQueryParams({
+        page: options?.page,
+        pageSize: options?.pageSize,
+        includeFacets: false,
+      });
       const res = await fetch(`/api/waybills?${params.toString()}`);
       const body = await res.json();
       setData(body.data || []);
       setTotal(body.total || 0);
       setMissingCounteragentCount(Number(body.missingCounteragentCount || 0));
+    } catch (err) {
+      console.error('Failed to load waybills', err);
+      alert('Failed to load waybills');
+    } finally {
+      setLoading(false);
+    }
+  }, [buildWaybillsQueryParams]);
+
+  const fetchWaybillFacets = useCallback(async () => {
+    const requestId = facetsRequestIdRef.current + 1;
+    facetsRequestIdRef.current = requestId;
+    try {
+      const params = buildWaybillsQueryParams({ includeFacets: true, includePagination: false });
+      const res = await fetch(`/api/waybills?${params.toString()}`);
+      const body = await res.json();
+      if (requestId !== facetsRequestIdRef.current) {
+        return;
+      }
       const nextFacets = new Map<ColumnKey, string[]>();
       if (body?.facets && typeof body.facets === 'object') {
         Object.entries(body.facets).forEach(([key, values]) => {
@@ -282,12 +317,9 @@ export function WaybillsTable() {
       }
       setFacetValues(nextFacets);
     } catch (err) {
-      console.error('Failed to load waybills', err);
-      alert('Failed to load waybills');
-    } finally {
-      setLoading(false);
+      console.error('Failed to load waybills facets', err);
     }
-  };
+  }, [buildWaybillsQueryParams]);
 
   const fetchOptions = async () => {
     try {
@@ -312,7 +344,11 @@ export function WaybillsTable() {
 
   useEffect(() => {
     fetchWaybills();
-  }, [currentPage, pageSize, appliedSearch, sortColumn, sortDirection, filters, showMissingCounteragents]);
+  }, [fetchWaybills]);
+
+  useEffect(() => {
+    fetchWaybillFacets();
+  }, [fetchWaybillFacets]);
 
   useEffect(() => {
     const applyPendingResize = () => {
@@ -652,12 +688,21 @@ export function WaybillsTable() {
           {visibleColumns.map((col) => (
             <td
               key={col.key}
-              className="px-3 py-2"
+              className="px-3 py-2 overflow-visible"
               style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
             >
-              {col.key === 'counteragent_name'
-                ? row.counteragent_name || row.counteragent || '-'
-                : formatCell(getCellValue(row, col.key), col.format)}
+              <div
+                className="whitespace-nowrap"
+                title={String(
+                  col.key === 'counteragent_name'
+                    ? row.counteragent_name || row.counteragent || '-'
+                    : formatCell(getCellValue(row, col.key), col.format)
+                )}
+              >
+                {col.key === 'counteragent_name'
+                  ? row.counteragent_name || row.counteragent || '-'
+                  : formatCell(getCellValue(row, col.key), col.format)}
+              </div>
             </td>
           ))}
           <td className="px-3 py-2" style={{ width: 96, minWidth: 96, maxWidth: 96 }}>
@@ -1092,7 +1137,7 @@ export function WaybillsTable() {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className="flex items-center gap-1"
+                      className="flex items-center gap-1 whitespace-nowrap"
                       onClick={() => {
                         if (!col.sortable) return;
                         if (sortColumn === col.key) {
