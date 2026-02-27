@@ -192,12 +192,8 @@ export async function GET(req: NextRequest) {
             .map((value) => value.toLowerCase())
             .filter((value) => value === 'true' || value === 'false')
             .map((value) => value === 'true');
-          if (boolValues.length === 1 && includeBlank) {
-            clauses.push({ OR: [{ vat: { equals: boolValues[0] } }, { vat: null }] });
-          } else if (boolValues.length === 1) {
+          if (boolValues.length === 1) {
             clauses.push({ vat: { equals: boolValues[0] } });
-          } else if (includeBlank) {
-            clauses.push({ vat: null });
           }
           return;
         }
