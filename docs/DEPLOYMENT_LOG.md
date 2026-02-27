@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-27
+- Summary: Signed salary paid aggregation and statement subtotal semantics alignment.
+- Changes:
+  - Salary accruals API/UI: switch paid aggregation from absolute to signed nominal sums.
+  - Counteragent statement: clarify subtotal labels for Payment/PPC as signed values.
+  - Parsing rules apply (`test-rule`/`batch-run`): derive effective counteragent/financial code/currency from linked payment when rule fields are null.
+- Commit: e95a3e1
+- Production: https://ice-gug5ts6ii-iceerp.vercel.app
+
+## 2026-02-27
 - Summary: Parsing-rule nominal amount conversion fix and statement/waybills parity updates.
 - Changes:
   - Parsing rules apply (`test-rule`/`batch-run`): when rule changes `nominal_currency_uuid`, recalculate `nominal_amount` using transaction-date NBG rates.
