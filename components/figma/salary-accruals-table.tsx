@@ -1261,6 +1261,12 @@ export function SalaryAccrualsTable() {
                 Bank XLSX
               </Button>
             )}
+            <Button variant="outline" onClick={handleDownloadSalaryTemplate}>
+              Salary Template
+            </Button>
+            <Button variant="outline" onClick={() => setIsSalaryUploadDialogOpen(true)}>
+              Upload Salary XLSX
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
