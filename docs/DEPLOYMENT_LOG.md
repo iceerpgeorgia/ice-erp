@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-27
+- Summary: Waybills filter parity with bank transactions and no-wrap row rendering.
+- Changes:
+  - Waybills API: facet options now exclude the active column filter to match bank transactions filter behavior.
+  - Waybills table: split records/facets fetching for faster filter response.
+  - Waybills table: keep cell text single-line during resize so rows do not grow in height.
+- Commit: 1896fac
+- Production: https://ice-fmbkk7k9q-iceerp.vercel.app
+
+## 2026-02-27
 - Summary: Waybills de-binding options for project/financial code/corresponding account.
 - Changes:
   - Waybills edit/bulk edit: keep explicit No options to clear project, financial code, and corresponding account.
