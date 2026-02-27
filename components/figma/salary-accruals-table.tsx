@@ -651,11 +651,11 @@ export function SalaryAccrualsTable() {
     setDragOverColumn(null);
   };
 
-  const normalizePaymentId = (value: any) =>
-    String(value ?? '')
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '');
+  const normalizePaymentId = (value: any) => {
+    const trimmed = String(value ?? '').trim();
+    const base = trimmed.includes(':') ? trimmed.split(':')[0] : trimmed;
+    return base.toLowerCase();
+  };
 
   const computeBalance = (row: SalaryAccrual) => {
     const netSum = parseFloat(row.net_sum || '0');

@@ -10,6 +10,12 @@ const DECONSOLIDATED_TABLES = [
   'GE65TB7856036050100002_TBC_GEL',
 ] as const;
 
+const normalizePaymentKey = (value: string) => {
+  const trimmed = value.trim();
+  const base = trimmed.includes(':') ? trimmed.split(':')[0] : trimmed;
+  return base.toLowerCase();
+};
+
 async function remapPaymentIdBindings(oldPaymentId: string, newPaymentId: string) {
   if (!oldPaymentId || !newPaymentId) return;
   if (oldPaymentId.trim().toLowerCase() === newPaymentId.trim().toLowerCase()) return;
@@ -135,7 +141,7 @@ export async function GET(request: NextRequest) {
 
     const paidRows = await prisma.$queryRaw<any[]>`
       SELECT
-        regexp_replace(lower(payment_id), '[^a-z0-9]', '', 'g') as payment_id_key,
+        lower(trim(split_part(payment_id, ':', 1))) as payment_id_key,
         nominal_currency_uuid,
         SUM(ABS(nominal_amount))::numeric as paid
       FROM (
@@ -167,7 +173,7 @@ export async function GET(request: NextRequest) {
             p.payment_id
           ) as payment_id,
           COALESCE(btb.nominal_currency_uuid, p.currency_uuid, cba.nominal_currency_uuid) as nominal_currency_uuid,
-          COALESCE(btb.nominal_amount, btb.partition_amount) as nominal_amount
+          (COALESCE(btb.nominal_amount, btb.partition_amount) * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount
         FROM "GE78BG0000000893486000_BOG_GEL" cba
         JOIN bank_transaction_batches btb
           ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
@@ -184,7 +190,7 @@ export async function GET(request: NextRequest) {
             p.payment_id
           ) as payment_id,
           COALESCE(btb.nominal_currency_uuid, p.currency_uuid, t.nominal_currency_uuid) as nominal_currency_uuid,
-          COALESCE(btb.nominal_amount, btb.partition_amount) as nominal_amount
+          (COALESCE(btb.nominal_amount, btb.partition_amount) * CASE WHEN t.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount
         FROM "GE65TB7856036050100002_TBC_GEL" t
         JOIN bank_transaction_batches btb
           ON btb.raw_record_uuid::text = t.raw_record_uuid::text
@@ -196,7 +202,7 @@ export async function GET(request: NextRequest) {
           )
       ) tx
       WHERE payment_id IS NOT NULL AND payment_id <> ''
-      GROUP BY regexp_replace(lower(payment_id), '[^a-z0-9]', '', 'g'), nominal_currency_uuid
+      GROUP BY lower(trim(split_part(payment_id, ':', 1))), nominal_currency_uuid
     `;
 
     const paidMap = new Map<string, number>();
@@ -216,10 +222,7 @@ export async function GET(request: NextRequest) {
     }
 
     const formattedAccruals = accruals.map((accrual) => {
-      const paymentKey = String(accrual.payment_id || '')
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '');
+      const paymentKey = normalizePaymentKey(String(accrual.payment_id || ''));
       const currencyKey = accrual.nominal_currency_uuid ? String(accrual.nominal_currency_uuid) : '';
       const paidByCurrencyKey = `${paymentKey}|${currencyKey}`;
       const hasCurrencyMatch = paidMap.has(paidByCurrencyKey);
