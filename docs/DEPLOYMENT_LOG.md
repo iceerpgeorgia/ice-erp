@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-27
+- Summary: Parsing-rule nominal amount conversion fix and statement/waybills parity updates.
+- Changes:
+  - Parsing rules apply (`test-rule`/`batch-run`): when rule changes `nominal_currency_uuid`, recalculate `nominal_amount` using transaction-date NBG rates.
+  - Counteragent statement: keep richer payment metadata for salary-linked rows and normalize payment-id matching.
+  - Waybills: add top-level period range filter support and persistence wiring.
+- Commit: 6bac4af
+- Production: https://ice-hsm5ow5ux-iceerp.vercel.app
+
+## 2026-02-27
 - Summary: Salary accrual upload/template actions made always visible in toolbar.
 - Changes:
   - Salary accruals UI: add direct `Salary Template` and `Upload Salary XLSX` buttons in the table header.
