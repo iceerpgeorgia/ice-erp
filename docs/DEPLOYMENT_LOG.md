@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-27
+- Summary: Salary accrual paid aggregation scoped by counteragent.
+- Changes:
+  - Salary accruals API: include `counteragent_uuid` in paid aggregation grouping and lookup keys to prevent cross-counteragent leakage on shared payment IDs.
+  - Salary accruals API: retain batch sign normalization and per-transaction absolute paid aggregation behavior.
+  - Salary accruals parity: align salary paid totals with counteragent statement when filtering salary payment IDs for a specific employee.
+- Commit: 65aff0f
+- Production: https://ice-oyafr0zlf-iceerp.vercel.app
+
+## 2026-02-27
 - Summary: Salary accrual paid parity fix for batch sign normalization.
 - Changes:
   - Salary accruals API: align batch partition nominal sign handling with statement/bank APIs before `SUM(ABS(...))` aggregation.
