@@ -1,6 +1,16 @@
 # Deployment Log
 
 ## 2026-02-27
+- Summary: Waybills filter options restored, blank-first filters, refresh control, and header overlap fix.
+- Changes:
+  - Waybills filters: restore facet options rendering and include `(Blank)` values at top of filter lists.
+  - Waybills API: preserve blank facet values and align filtering logic with active-column exclusion.
+  - Waybills table: add Payments Report-style manual refresh button with loading state.
+  - Waybills table: make sticky header opaque to prevent row text overlap while scrolling.
+- Commit: 19953b0
+- Production: https://ice-eapdhqr60-iceerp.vercel.app
+
+## 2026-02-27
 - Summary: Waybills filter parity with bank transactions and no-wrap row rendering.
 - Changes:
   - Waybills API: facet options now exclude the active column filter to match bank transactions filter behavior.
