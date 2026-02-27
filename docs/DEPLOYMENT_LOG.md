@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-27
+- Summary: Salary accrual month filter fix and absolute paid aggregation parity.
+- Changes:
+  - Salary accruals filter: fix Month facet values rendering as `[object Object]` by using primitive filter values with formatted labels.
+  - Salary accruals paid: compute `paid` as absolute of aggregated `+/-` bank amounts.
+  - Salary accruals month balance: derive from absolute paid total for parity with table expectations.
+- Commit: 9d9567a
+- Production: https://ice-23z4dvkrk-iceerp.vercel.app
+
+## 2026-02-27
 - Summary: Signed salary paid aggregation and statement subtotal semantics alignment.
 - Changes:
   - Salary accruals API/UI: switch paid aggregation from absolute to signed nominal sums.
