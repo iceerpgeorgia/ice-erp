@@ -42,6 +42,7 @@ export function ColumnFilterPopover({
   onSort,
   maxOptions = 250,
   renderValue,
+  sortValues,
 }: {
   columnKey: string;
   columnLabel: string;
@@ -51,6 +52,7 @@ export function ColumnFilterPopover({
   onSort: (direction: 'asc' | 'desc') => void;
   maxOptions?: number;
   renderValue?: (value: any) => string;
+  sortValues?: (values: any[], renderValue?: (value: any) => string) => any[];
 }) {
   const [open, setOpen] = useState(false);
   const [tempSelected, setTempSelected] = useState<Set<any>>(new Set(activeFilters));
@@ -65,10 +67,12 @@ export function ColumnFilterPopover({
     );
   }, [values, filterSearchTerm, renderValue]);
 
-  const sortedFilteredValues = useMemo(
-    () => defaultSortValues(filteredValues, renderValue),
-    [filteredValues, renderValue]
-  );
+  const sortedFilteredValues = useMemo(() => {
+    if (sortValues) {
+      return sortValues(filteredValues, renderValue);
+    }
+    return defaultSortValues(filteredValues, renderValue);
+  }, [filteredValues, renderValue, sortValues]);
 
   const visibleValues = useMemo(() => sortedFilteredValues.slice(0, maxOptions), [sortedFilteredValues, maxOptions]);
 

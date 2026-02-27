@@ -58,6 +58,7 @@ type TransactionRow = {
   paidPercent: number;
   due: number;
   balance: number;
+  confirmed?: boolean | null;
   comment: string;
   user: string;
   caAccount: string;
@@ -81,6 +82,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'accrual', label: 'Accrual', visible: true, width: 120, align: 'right' },
   { key: 'payment', label: 'Payment', visible: true, width: 120, align: 'right' },
   { key: 'order', label: 'Order', visible: true, width: 120, align: 'right' },
+  { key: 'confirmed', label: 'Confirmed', visible: true, width: 120, align: 'left' },
   { key: 'ppc', label: 'PPC', visible: true, width: 120, align: 'right' },
   { key: 'paidPercent', label: 'Paid %', visible: true, width: 100, align: 'right' },
   { key: 'due', label: 'Due', visible: true, width: 120, align: 'right' },
@@ -378,6 +380,7 @@ export default function PaymentStatementPage() {
       accrual: entry.accrual,
       payment: 0,
       order: entry.order,
+      confirmed: entry.confirmed ?? false,
       ppc: 0,
       paidPercent: 0,
       due: 0,
@@ -391,7 +394,10 @@ export default function PaymentStatementPage() {
       id2: null,
       batchId: null,
     })),
-    ...statementData.bankTransactions.map((tx: any) => ({
+    ...statementData.bankTransactions.map((tx: any) => {
+      const nominalAmount = Number(tx.nominalAmount ?? 0);
+      const accountAmount = Number(tx.accountCurrencyAmount ?? 0);
+      return {
       id: `bank-${tx.id}`,
       bankUuid: tx.uuid,
       bankId: tx.id,
@@ -399,9 +405,10 @@ export default function PaymentStatementPage() {
       date: formatDate(tx.date),
       dateSort: new Date(tx.date).getTime(),
       accrual: 0,
-      payment: Math.abs(tx.nominalAmount),
+      payment: Number.isFinite(nominalAmount) ? -nominalAmount : 0,
       order: 0,
-      ppc: Math.abs(tx.accountCurrencyAmount),
+        confirmed: null,
+      ppc: Number.isFinite(accountAmount) ? -accountAmount : 0,
       paidPercent: 0,
       due: 0,
       balance: 0,
@@ -413,7 +420,7 @@ export default function PaymentStatementPage() {
       id1: tx.id1 || null,
       id2: tx.id2 || null,
       batchId: tx.batchId || null,
-    }))
+    }})
   ].sort((a, b) => a.dateSort - b.dateSort) : []; // Sort by date ascending for cumulative calculation
 
   // Calculate cumulative values for each row (from oldest to newest)
@@ -527,6 +534,7 @@ export default function PaymentStatementPage() {
           effectiveDate: created.effective_date || created.effectiveDate,
           accrual: created.accrual ? Number(created.accrual) : 0,
           order: created.order ? Number(created.order) : 0,
+          confirmed: created.confirmed ?? false,
           comment: created.comment,
           userEmail: created.user_email || created.userEmail,
           createdAt: created.created_at || created.createdAt,
@@ -1259,6 +1267,15 @@ export default function PaymentStatementPage() {
                           {columns.filter(col => col.visible).map((column) => {
                             let displayValue = row[column.key];
                             
+                            if (column.key === 'confirmed') {
+                              displayValue =
+                                displayValue === null || displayValue === undefined
+                                  ? ''
+                                  : displayValue
+                                    ? 'Yes'
+                                    : 'No';
+                            }
+
                             // Format numeric values
                             if (column.align === 'right' && typeof displayValue === 'number') {
                               // Show blank for 0.00 in accrual, order, payment, and ppc columns

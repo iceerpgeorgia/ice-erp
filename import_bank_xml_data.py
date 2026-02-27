@@ -97,13 +97,16 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
     EntriesId = row.get('entriesid')
     DocSenderInn = row.get('docsenderinn')
     DocBenefInn = row.get('docbenefinn')
-    DocCorAcct = row.get('doccorracct')
+    DocCorAcct = row.get('doccoracct')
+    DocSenderName = row.get('docsendername')
+    DocBenefName = row.get('docbenefname')
     DocSenderAcctNo = row.get('docsenderacctno')
     DocBenefAcctNo = row.get('docbenefacctno')
     DocProdGroup = row.get('docprodgroup')
     DocNomination = row.get('docnomination')
     DocInformation = row.get('docinformation')
     debit = row.get('debit')
+    credit = row.get('credit')
     
     # Initialize return values
     result = {
@@ -914,8 +917,8 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
         SELECT 
             uuid, DocKey, EntriesId, DocRecDate, DocValueDate,
             EntryCrAmt, EntryDbAmt, DocSenderInn, DocBenefInn,
-            DocSenderAcctNo, DocBenefAcctNo, DocCorAcct,
-            DocNomination, DocInformation, DocProdGroup, CcyRate
+            DocSenderAcctNo, DocBenefAcctNo, DocSenderName, DocBenefName,
+            DocCorAcct, DocNomination, DocInformation, DocProdGroup, CcyRate
         FROM {raw_table_name}
         WHERE import_batch_id = %s
         ORDER BY DocValueDate DESC
@@ -959,11 +962,13 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
         DocBenefInn = raw_record[8]
         DocSenderAcctNo = raw_record[9]
         DocBenefAcctNo = raw_record[10]
-        DocCorAcct = raw_record[11]
-        DocNomination = raw_record[12]
-        DocInformation = raw_record[13]
-        DocProdGroup = raw_record[14]
-        CcyRate = raw_record[15]
+        DocSenderName = raw_record[11]
+        DocBenefName = raw_record[12]
+        DocCorAcct = raw_record[13]
+        DocNomination = raw_record[14]
+        DocInformation = raw_record[15]
+        DocProdGroup = raw_record[16]
+        CcyRate = raw_record[17]
         
         # Calculate amounts
         credit = Decimal(EntryCrAmt) if EntryCrAmt else Decimal('0')
@@ -985,13 +990,18 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
             'entriesid': EntriesId,
             'docsenderinn': DocSenderInn,
             'docbenefinn': DocBenefInn,
-            'doccorracct': DocCorAcct,
+            'doccoracct': DocCorAcct,
             'docsenderacctno': DocSenderAcctNo,
             'docbenefacctno': DocBenefAcctNo,
+            'docsendername': DocSenderName,
+            'docbenefname': DocBenefName,
             'docprodgroup': DocProdGroup,
             'docnomination': DocNomination,
             'docinformation': DocInformation,
-            'debit': debit
+            'entrydbamt': debit,
+            'entrycramt': credit,
+            'debit': debit,
+            'credit': credit
         }
         
         # ===== USE SHARED PROCESSING FUNCTION =====

@@ -22,18 +22,31 @@ export async function PATCH(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const ids = Array.isArray(body?.ids) ? body.ids : [];
-    const projectUuid = body?.project_uuid ?? body?.projectUuid ?? null;
-    const financialCodeUuid = body?.financial_code_uuid ?? body?.financialCodeUuid ?? null;
-    const correspondingAccount = body?.corresponding_account ?? body?.correspondingAccount ?? null;
+    const hasProject = Object.prototype.hasOwnProperty.call(body, 'project_uuid')
+      || Object.prototype.hasOwnProperty.call(body, 'projectUuid');
+    const hasFinancialCode = Object.prototype.hasOwnProperty.call(body, 'financial_code_uuid')
+      || Object.prototype.hasOwnProperty.call(body, 'financialCodeUuid');
+    const hasCorrespondingAccount = Object.prototype.hasOwnProperty.call(body, 'corresponding_account')
+      || Object.prototype.hasOwnProperty.call(body, 'correspondingAccount');
+
+    const projectUuid = hasProject ? (body?.project_uuid ?? body?.projectUuid ?? null) : null;
+    const financialCodeUuid = hasFinancialCode
+      ? (body?.financial_code_uuid ?? body?.financialCodeUuid ?? null)
+      : null;
+    const correspondingAccount = hasCorrespondingAccount
+      ? (body?.corresponding_account ?? body?.correspondingAccount ?? null)
+      : null;
 
     if (!ids.length) {
       return NextResponse.json({ error: 'No ids provided' }, { status: 400 });
     }
 
     const updates: Record<string, any> = {};
-    if (projectUuid) updates.project_uuid = String(projectUuid);
-    if (financialCodeUuid) updates.financial_code_uuid = String(financialCodeUuid);
-    if (correspondingAccount) updates.corresponding_account = String(correspondingAccount);
+    if (hasProject) updates.project_uuid = projectUuid ? String(projectUuid) : null;
+    if (hasFinancialCode) updates.financial_code_uuid = financialCodeUuid ? String(financialCodeUuid) : null;
+    if (hasCorrespondingAccount) {
+      updates.corresponding_account = correspondingAccount ? String(correspondingAccount) : null;
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });

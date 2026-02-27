@@ -14,6 +14,13 @@ const tableExists = async (tableName: string) => {
 
 const toNumber = (value: any) => (typeof value === 'bigint' ? Number(value) : value);
 
+const formatDate = (value: Date) => {
+  const day = String(value.getUTCDate()).padStart(2, '0');
+  const month = String(value.getUTCMonth() + 1).padStart(2, '0');
+  const year = String(value.getUTCFullYear());
+  return `${day}.${month}.${year}`;
+};
+
 const serializeWaybill = (row: any) => ({
   ...row,
   id: toNumber(row.id),
@@ -21,6 +28,7 @@ const serializeWaybill = (row: any) => ({
   transportation_sum: row.transportation_sum?.toString() ?? null,
   transportation_cost: row.transportation_cost?.toString() ?? null,
   activation_time: row.activation_time ? new Date(row.activation_time).toISOString() : null,
+  date: row.activation_time ? formatDate(new Date(row.activation_time)) : null,
   transportation_beginning_time: row.transportation_beginning_time
     ? new Date(row.transportation_beginning_time).toISOString()
     : null,
@@ -46,6 +54,8 @@ export async function GET(req: NextRequest) {
     const sortColumn = searchParams.get('sortColumn') || '';
     const sortDirection = searchParams.get('sortDirection') === 'asc' ? 'asc' : 'desc';
     const filtersParam = searchParams.get('filters');
+    const missingCounteragents = searchParams.get('missingCounteragents') === 'true';
+    const exportAll = searchParams.get('exportAll') === 'true';
 
     const allowedFilterFields = new Set([
       'waybill_no',
@@ -56,10 +66,15 @@ export async function GET(req: NextRequest) {
       'counteragent_name',
       'counteragent_inn',
       'vat',
+      'sum',
       'driver',
       'vehicle',
+      'activation_time',
+      'date',
       'period',
       'rs_id',
+      'transportation_sum',
+      'transportation_cost',
       'shipping_address',
       'departure_address',
       'project_uuid',
@@ -80,6 +95,7 @@ export async function GET(req: NextRequest) {
       'driver',
       'vehicle',
       'activation_time',
+      'date',
       'period',
       'rs_id',
       'transportation_sum',
@@ -154,6 +170,50 @@ export async function GET(req: NextRequest) {
             }
             return;
           }
+          if (key === 'date') {
+            const ranges = cleaned
+              .map((value) => String(value).trim())
+              .map((value) => {
+                const parts = value.split('.');
+                if (parts.length !== 3) return null;
+                const [day, month, year] = parts;
+                const start = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
+                if (Number.isNaN(start.getTime())) return null;
+                const end = new Date(start);
+                end.setUTCDate(start.getUTCDate() + 1);
+                return { start, end };
+              })
+              .filter((range): range is { start: Date; end: Date } => Boolean(range));
+            if (ranges.length > 0) {
+              filterClauses.push({
+                OR: ranges.map((range) => ({
+                  activation_time: {
+                    gte: range.start,
+                    lt: range.end,
+                  },
+                })),
+              });
+            }
+            return;
+          }
+          if (key === 'activation_time') {
+            const dates = cleaned
+              .map((value) => new Date(String(value)))
+              .filter((date) => !Number.isNaN(date.getTime()));
+            if (dates.length > 0) {
+              filterClauses.push({ activation_time: { in: dates } });
+            }
+            return;
+          }
+          if (['sum', 'transportation_sum', 'transportation_cost'].includes(key)) {
+            const numbers = cleaned
+              .map((value) => Number(value))
+              .filter((value) => !Number.isNaN(value));
+            if (numbers.length > 0) {
+              filterClauses.push({ [key]: { in: numbers } } as Prisma.rs_waybills_inWhereInput);
+            }
+            return;
+          }
           filterClauses.push({ [key]: { in: cleaned } } as Prisma.rs_waybills_inWhereInput);
         });
       } catch {
@@ -162,13 +222,35 @@ export async function GET(req: NextRequest) {
     }
 
     const where: Prisma.rs_waybills_inWhereInput = {
-      AND: [baseSearch, ...filterClauses],
+      AND: [
+        baseSearch,
+        ...filterClauses,
+        ...(missingCounteragents
+          ? [
+              { counteragent_uuid: null },
+              { counteragent_inn: { not: null } },
+              { counteragent_inn: { not: '' } },
+            ]
+          : []),
+      ],
+    };
+
+    const missingCounteragentWhere: Prisma.rs_waybills_inWhereInput = {
+      AND: [
+        baseSearch,
+        ...filterClauses,
+        { counteragent_uuid: null },
+        { counteragent_inn: { not: null } },
+        { counteragent_inn: { not: '' } },
+      ],
     };
 
     const orderBy: Prisma.rs_waybills_inOrderByWithRelationInput[] =
       allowedSortColumns.has(sortColumn)
         ? [
-            { [sortColumn]: sortDirection } as Prisma.rs_waybills_inOrderByWithRelationInput,
+            sortColumn === 'date'
+              ? ({ activation_time: sortDirection } as Prisma.rs_waybills_inOrderByWithRelationInput)
+              : ({ [sortColumn]: sortDirection } as Prisma.rs_waybills_inOrderByWithRelationInput),
             { id: Prisma.SortOrder.desc },
           ]
         : [
@@ -176,14 +258,14 @@ export async function GET(req: NextRequest) {
             { id: Prisma.SortOrder.desc },
           ];
 
-    const [rows, total] = await Promise.all([
+    const [rows, total, missingCounteragentCount] = await Promise.all([
       prisma.rs_waybills_in.findMany({
         where,
         orderBy,
-        take: limit,
-        skip: offset,
+        ...(exportAll ? {} : { take: limit, skip: offset }),
       }),
       prisma.rs_waybills_in.count({ where }),
+      prisma.rs_waybills_in.count({ where: missingCounteragentWhere }),
     ]);
 
     const counteragentUuids = Array.from(
@@ -229,6 +311,19 @@ export async function GET(req: NextRequest) {
               .filter((value) => value !== null && value !== undefined && String(value).trim() !== '');
             return [field, values] as const;
           }
+          if (field === 'date') {
+            const rows = await prisma.rs_waybills_in.findMany({
+              where,
+              distinct: ['activation_time'],
+              select: { activation_time: true },
+            });
+            const values = rows
+              .map((row: any) => row.activation_time)
+              .filter((value) => value !== null && value !== undefined)
+              .map((value) => formatDate(new Date(value)))
+              .filter((value) => value !== null && value !== undefined && String(value).trim() !== '');
+            return [field, Array.from(new Set(values))] as const;
+          }
           const rows = await prisma.rs_waybills_in.findMany({
             where,
             distinct: [field as any],
@@ -255,6 +350,7 @@ export async function GET(req: NextRequest) {
       limit,
       offset,
       facets,
+      missingCounteragentCount,
     });
   } catch (error: any) {
     console.error('[GET /api/waybills] Error:', error);

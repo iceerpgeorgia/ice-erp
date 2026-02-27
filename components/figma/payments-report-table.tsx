@@ -7,6 +7,7 @@ import {
   ArrowUpDown, 
   ArrowUp, 
   ArrowDown,
+  ArrowUpRight,
   Settings,
   Eye,
   EyeOff,
@@ -1480,10 +1481,48 @@ export function PaymentsReportTable() {
     return Math.round(converted * 100) / 100;
   };
 
+  const getBankExportEligibility = (rows: PaymentReport[]) => {
+    const eligible: PaymentReport[] = [];
+    const ineligible: PaymentReport[] = [];
+    rows.forEach((row) => {
+      const due = Number(row.due || 0);
+      if (row.confirmed && due > 0) {
+        eligible.push(row);
+      } else {
+        ineligible.push(row);
+      }
+    });
+    return { eligible, ineligible };
+  };
+
+  const confirmBankExport = (ineligible: PaymentReport[]) => {
+    if (ineligible.length === 0) return true;
+    const maxDetails = 20;
+    const detailLines = ineligible.slice(0, maxDetails).map((row) =>
+      `- ${row.paymentId} | confirmed: ${row.confirmed ? 'Yes' : 'No'} | due: ${row.due}`
+    );
+    const moreCount = ineligible.length - detailLines.length;
+    const detailSuffix = moreCount > 0 ? `\n...and ${moreCount} more` : '';
+    const message =
+      `Some selected payments are not eligible for bank export (must be Confirmed and Due > 0).\n\n` +
+      `${detailLines.join('\n')}${detailSuffix}\n\n` +
+      `Proceed with exporting only eligible payments?`;
+    return confirm(message);
+  };
+
   const handleDownloadBankXlsx = async () => {
     const selectedRecords = filteredAndSortedData.filter((row) => selectedPaymentIds.has(row.paymentId));
     if (selectedRecords.length === 0) {
       alert('No records selected');
+      return;
+    }
+
+    const { eligible, ineligible } = getBankExportEligibility(selectedRecords);
+    if (eligible.length === 0) {
+      alert('No eligible records to export (requires Confirmed and Due > 0).');
+      return;
+    }
+    if (!confirmBankExport(ineligible)) {
       return;
     }
 
@@ -1505,7 +1544,7 @@ export function PaymentsReportTable() {
 
     try {
       const rows = await Promise.all(
-        selectedRecords.map(async (record) => {
+        eligible.map(async (record) => {
           const description = buildPaymentDescription(record.financialCodeDescription, record);
           const amount = await calculateExportAmount(record);
           return [
@@ -1759,6 +1798,15 @@ export function PaymentsReportTable() {
       return;
     }
 
+    const { eligible, ineligible } = getBankExportEligibility(selectedRecords);
+    if (eligible.length === 0) {
+      alert('No eligible records to export (requires Confirmed and Due > 0).');
+      return;
+    }
+    if (!confirmBankExport(ineligible)) {
+      return;
+    }
+
     setIsBankExporting(true);
 
     const headers = [
@@ -1772,7 +1820,7 @@ export function PaymentsReportTable() {
 
     try {
       const rows = await Promise.all(
-        selectedRecords.map(async (record) => {
+        eligible.map(async (record) => {
           const description = buildPaymentDescription(record.financialCodeDescription, record);
           const amount = await calculateExportAmount(record);
           const paymentId = record.paymentId ? record.paymentId.replace(/_/g, ' ').toUpperCase() : '';
@@ -3038,6 +3086,31 @@ export function PaymentsReportTable() {
                           >
                             <Copy className="h-3.5 w-3.5" />
                           </button>
+                        </div>
+                      ) : col.key === 'project' ? (
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="truncate">
+                            {formatValue(row[col.key], col.format, col.key)}
+                          </span>
+                          <a
+                            href={row.projectUuid ? `/admin/projects?projectUuid=${encodeURIComponent(row.projectUuid)}` : '#'}
+                            target={row.projectUuid ? '_blank' : undefined}
+                            rel={row.projectUuid ? 'noopener noreferrer' : undefined}
+                            className={`inline-flex items-center justify-center rounded p-1 transition-colors ${
+                              row.projectUuid
+                                ? 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                                : 'text-gray-300 cursor-not-allowed'
+                            }`}
+                            title="Open project in Projects table"
+                            aria-disabled={!row.projectUuid}
+                            onClick={(event) => {
+                              if (!row.projectUuid) {
+                                event.preventDefault();
+                              }
+                            }}
+                          >
+                            <ArrowUpRight className="h-3.5 w-3.5" />
+                          </a>
                         </div>
                       ) : (
                         <div

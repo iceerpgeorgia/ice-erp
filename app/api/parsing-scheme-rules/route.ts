@@ -5,7 +5,25 @@ import { prisma } from '@/lib/prisma';
 import { validateFormulaSync } from '@/lib/formula-validator';
 import { compileFormulaToJS } from '@/lib/formula-compiler';
 
-const DECONSOLIDATED_TABLE = "GE78BG0000000893486000_BOG_GEL";
+const RAW_TABLE_NAME_RE = /^[A-Za-z0-9_]+$/;
+
+const buildDeconsolidatedTableName = (
+  accountNumber: string | null,
+  schemeName: string | null,
+  currencyCode: string | null
+) => {
+  if (!accountNumber || !schemeName) {
+    return null;
+  }
+  if (schemeName.endsWith('_FX')) {
+    if (!currencyCode) {
+      return null;
+    }
+    const prefix = schemeName.replace(/_FX$/, '');
+    return `${accountNumber}_${prefix}_${currencyCode}`;
+  }
+  return `${accountNumber}_${schemeName}`;
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,7 +41,7 @@ export async function GET(request: NextRequest) {
       scheme: string;
       condition: string;
       condition_script: string | null;
-      payment_id: bigint | null;
+      payment_id: string | null;
       counteragent_uuid: string | null;
       financial_code_uuid: string | null;
       nominal_currency_uuid: string | null;
@@ -66,19 +84,65 @@ export async function GET(request: NextRequest) {
       `;
     }
 
-    let appliedCounts = new Map<number, number>();
-    try {
-      const counts = await prisma.$queryRawUnsafe<Array<{ applied_rule_id: number; applied_count: number }>>(`
-        SELECT applied_rule_id, COUNT(*)::bigint as applied_count
-        FROM "${DECONSOLIDATED_TABLE}"
-        WHERE applied_rule_id IS NOT NULL
-        GROUP BY applied_rule_id
-      `);
-      counts.forEach(row => {
-        appliedCounts.set(Number(row.applied_rule_id), Number(row.applied_count));
-      });
-    } catch (error) {
-      console.error('Error fetching applied counts from deconsolidated table:', error);
+    const appliedCounts = new Map<number, number>();
+    const schemeUuids = Array.from(new Set(rules.map(rule => rule.scheme_uuid)));
+    if (schemeUuids.length > 0) {
+      try {
+        const bankAccounts = await prisma.$queryRawUnsafe<Array<{
+          raw_table_name: string;
+          account_number: string | null;
+          parsing_scheme_name: string | null;
+          currency_code: string | null;
+          scheme_uuid: string;
+        }>>(`
+          SELECT
+            ba.raw_table_name,
+            ba.account_number,
+            ps.scheme as parsing_scheme_name,
+            c.code as currency_code,
+            ba.parsing_scheme_uuid as scheme_uuid
+          FROM bank_accounts ba
+          LEFT JOIN parsing_schemes ps ON ba.parsing_scheme_uuid = ps.uuid
+          LEFT JOIN currencies c ON ba.currency_uuid = c.uuid
+          WHERE ba.parsing_scheme_uuid = ANY($1::uuid[])
+            AND ba.raw_table_name IS NOT NULL
+        `, schemeUuids);
+
+        const deconsolidatedTables = new Set<string>();
+        for (const account of bankAccounts) {
+          const tableName = buildDeconsolidatedTableName(
+            account.account_number,
+            account.parsing_scheme_name,
+            account.currency_code
+          );
+          if (tableName && RAW_TABLE_NAME_RE.test(tableName)) {
+            deconsolidatedTables.add(tableName);
+          }
+        }
+
+        for (const tableName of deconsolidatedTables) {
+          try {
+            const counts = await prisma.$queryRawUnsafe<Array<{
+              applied_rule_id: number;
+              applied_count: number;
+            }>>(`
+              SELECT applied_rule_id, COUNT(*)::bigint as applied_count
+              FROM "${tableName}"
+              WHERE applied_rule_id IS NOT NULL
+              GROUP BY applied_rule_id
+            `);
+            counts.forEach(row => {
+              const id = Number(row.applied_rule_id);
+              const current = appliedCounts.get(id) ?? 0;
+              appliedCounts.set(id, current + Number(row.applied_count));
+            });
+          } catch (error) {
+            console.error(`Error fetching applied counts from ${tableName}:`, error);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching applied counts from deconsolidated tables:', error);
+      }
     }
 
     const formattedRules = rules.map(rule => ({

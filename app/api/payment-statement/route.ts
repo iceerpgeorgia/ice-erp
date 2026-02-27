@@ -123,6 +123,7 @@ export async function GET(request: NextRequest) {
         effective_date,
         accrual,
         "order",
+        confirmed,
         comment,
         user_email,
         created_at
@@ -348,6 +349,7 @@ export async function GET(request: NextRequest) {
         effectiveDate: entry.effective_date,
         accrual: entry.accrual ? parseFloat(entry.accrual) : 0,
         order: entry.order ? parseFloat(entry.order) : 0,
+        confirmed: Boolean(entry.confirmed),
         comment: entry.comment,
         userEmail: entry.user_email,
         createdAt: entry.created_at,

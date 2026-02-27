@@ -40,11 +40,11 @@ export async function GET() {
       bankUuid: account.bank_uuid,
       bankName: account.bank_name,
       balance: account.balance ? Number(account.balance) : null,
-      balance_date: account.balance_date,
+      balanceDate: account.balance_date,
       parsingSchemeUuid: account.parsing_scheme_uuid,
       parsingSchemeName: account.parsing_scheme_name,
       rawTableName: account.raw_table_name,
-      is_active: account.is_active,
+      isActive: account.is_active,
       createdAt: account.created_at,
       updatedAt: account.updated_at,
     }));

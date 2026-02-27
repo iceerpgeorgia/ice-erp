@@ -60,6 +60,7 @@ type StatementRow = {
   job: string | null;
   incomeTax: boolean | null;
   currency: string | null;
+  confirmed?: boolean | null;
   accrual: number;
   order: number;
   payment: number;
@@ -95,6 +96,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'accrual', label: 'Accrual', visible: true, sortable: true, filterable: true, width: 120, align: 'right' },
   { key: 'order', label: 'Order', visible: true, sortable: true, filterable: true, width: 120, align: 'right' },
   { key: 'payment', label: 'Payment', visible: true, sortable: true, filterable: true, width: 120, align: 'right' },
+  { key: 'confirmed', label: 'Confirmed', visible: true, sortable: true, filterable: true, width: 120, align: 'left' },
   { key: 'ppc', label: 'PPC', visible: true, sortable: true, filterable: true, width: 120, align: 'right' },
   { key: 'batchId', label: 'Batch ID', visible: false, sortable: true, filterable: true, width: 160, align: 'left' },
   { key: 'id1', label: 'ID1', visible: false, sortable: true, filterable: true, width: 140, align: 'left' },
@@ -514,6 +516,7 @@ export default function CounteragentStatementPage() {
         accrual: entry.accrual,
         order: entry.order,
         payment: 0,
+        confirmed: entry.confirmed ?? false,
         ppc: 0,
         account: '-',
         comment: entry.comment || '-',
@@ -538,6 +541,7 @@ export default function CounteragentStatementPage() {
         accrual: 0,
         order: 0,
         payment: tx.nominalAmount,
+        confirmed: null,
         ppc: tx.accountCurrencyAmount,
         account: tx.accountLabel || '-',
         comment: tx.description || '-',
@@ -668,6 +672,9 @@ export default function CounteragentStatementPage() {
         if (col.key === 'incomeTax') {
           value = value === null || value === undefined ? '' : value ? 'Yes' : 'No';
         }
+        if (col.key === 'confirmed') {
+          value = value === null || value === undefined ? '' : value ? 'Yes' : 'No';
+        }
         if (col.key === 'accrual' || col.key === 'order' || col.key === 'payment' || col.key === 'ppc') {
           if (value === 0 || value === null || value === undefined) {
             value = '';
@@ -781,6 +788,7 @@ export default function CounteragentStatementPage() {
               effectiveDate: createdEntry.effective_date || createdEntry.effectiveDate || effectiveDate,
               accrual: createdEntry.accrual ? Number(createdEntry.accrual) : accrualValue || 0,
               order: createdEntry.order ? Number(createdEntry.order) : orderValue || 0,
+              confirmed: createdEntry.confirmed ?? false,
               comment: createdEntry.comment ?? comment ?? null,
               userEmail: createdEntry.user_email || createdEntry.userEmail || null,
               createdAt: createdEntry.created_at || createdEntry.createdAt || null,
@@ -1811,7 +1819,7 @@ export default function CounteragentStatementPage() {
                       {columns.filter((col) => col.visible).map((col) => {
                         const value = row[col.key];
                         const displayValue = (() => {
-                          if (col.key === 'incomeTax') {
+                          if (col.key === 'incomeTax' || col.key === 'confirmed') {
                             return value === null || value === undefined ? '' : value ? 'Yes' : 'No';
                           }
                           if (col.key === 'accrual' || col.key === 'order' || col.key === 'payment' || col.key === 'ppc') {

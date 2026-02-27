@@ -225,7 +225,27 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   };
 
   useEffect(() => {
-    setColumnFilters(loadColumnFilters(filtersStorageKey));
+    const savedFilters = loadColumnFilters(filtersStorageKey);
+    if (typeof window === 'undefined') {
+      setColumnFilters(savedFilters);
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const projectUuid = params.get('projectUuid');
+    const projectName = params.get('projectName');
+    const projectIndex = params.get('projectIndex');
+    const nextFilters = { ...savedFilters };
+
+    if (projectUuid) {
+      nextFilters.projectUuid = [projectUuid];
+    } else if (projectIndex) {
+      nextFilters.projectIndex = [projectIndex];
+    } else if (projectName) {
+      nextFilters.projectName = [projectName];
+    }
+
+    setColumnFilters(nextFilters);
   }, [filtersStorageKey]);
 
   useEffect(() => {

@@ -1,5 +1,143 @@
 # Deployment Log
 
+## 2026-02-27
+- Summary: Waybills de-binding options for project/financial code/corresponding account.
+- Changes:
+  - Waybills edit/bulk edit: keep explicit No options to clear project, financial code, and corresponding account.
+  - Waybills bulk API: support explicit null updates so clearing values is applied correctly.
+- Commit: TBD
+- Production: TBD
+
+## 2026-02-27
+- Summary: Parsing rules scan full raw tables and count correctly.
+- Changes:
+  - Parsing rules test/batch: scan raw tables in batches to avoid missing older rows.
+  - Parsing rules apply: set `applied_rule_id` on deconsolidated updates for accurate counts.
+- Commit: 2c4864c
+- Production: https://ice-aqix4jj0r-iceerp.vercel.app
+
+## 2026-02-27
+- Summary: Parsing rules update correct deconsolidated tables.
+- Changes:
+  - Parsing rules apply: derive deconsolidated table from account + scheme (including BOG_FX) per raw table.
+  - Parsing rules apply: update `payment_id` and other parameters even when counteragent is empty.
+- Commit: 2c4864c
+- Production: https://ice-gg9yjyzr7-iceerp.vercel.app
+
+## 2026-02-26
+- Summary: Parsing rules preview shows debit/credit and parties.
+- Changes:
+  - Parsing rules test: map raw fields into preview columns and format records consistently.
+  - Parsing rules apply: update the raw table that actually matched the rule.
+- Commit: 2c4864c
+- Production: https://ice-5bar91bmm-iceerp.vercel.app
+
+## 2026-02-26
+- Summary: Parsing rules test-rule JSON handles BigInt values.
+- Changes:
+  - Parsing rules test: sanitize matching records so BigInt values serialize safely in JSON responses.
+- Commit: 2c4864c
+- Production: https://ice-of1iacb23-iceerp.vercel.app
+
+## 2026-02-26
+- Summary: Parsing rules evaluate against scheme raw tables.
+- Changes:
+  - Parsing rules test/batch: load raw_table_name list from the rule's parsing scheme and evaluate across those tables.
+  - Parsing rules: validate raw table names before querying.
+- Commit: 2c4864c
+- Production: https://ice-i94zgeu20-iceerp.vercel.app
+
+## 2026-02-26
+- Summary: Bank accounts edit dialog dropdowns fixed.
+- Changes:
+  - Bank accounts API: return balanceDate and isActive fields used by the edit dialog.
+  - Bank accounts UI: load banks/currencies from API response shape and active flags.
+- Commit: 2c4864c
+- Production: https://ice-kkyei2q1r-iceerp.vercel.app
+
+## 2026-02-26
+- Summary: Parsing rules evaluation uses raw column names.
+- Changes:
+  - Parsing rules: normalize raw row keys for test/batch evaluation to support raw column names (e.g., docsendername).
+  - Importer: include sender/beneficiary names and entry credit/debit in rule evaluation context.
+- Commit: 2c4864c
+- Production: https://ice-mf2d1b39p-iceerp.vercel.app
+
+## 2026-02-26
+- Summary: Statement confirmed columns + payment statement sign inversion.
+- Changes:
+  - Payment statement: include ledger confirmed status in table/export and show Yes/No.
+  - Counteragent statement: include ledger confirmed status in table/export and show Yes/No.
+  - Statements API: include ledger confirmed flag in payment/counteragent statements.
+  - Payment statement: invert bank transaction payment/PPC signs.
+- Commit: 2c4864c
+- Production: https://ice-9ekqbrqx1-iceerp.vercel.app
+
+## 2026-02-26
+- Summary: Payments report project link + bank transactions filter options.
+- Changes:
+  - Payments report: add project link arrow to open Projects table with a project filter.
+  - Projects: apply URL-based project filters on load.
+  - Bank transactions: filter dropdown options respect active filters/search; empty cells render blank.
+- Commit: 2c4864c
+- Production: https://ice-3aejdyllf-iceerp.vercel.app
+
+## 2026-02-25
+- Summary: Waybills export all + bank export eligibility.
+- Changes:
+  - Waybills: export all filtered records with Excel date serials (dd.mm.yyyy).
+  - Payments report: bank export filters to Confirmed + Due > 0 with warning prompt.
+- Commit: 2c4864c
+- Production: https://ice-ehszrj3y2-iceerp.vercel.app
+
+## 2026-02-25
+- Summary: Waybills missing counteragents toggle.
+- Changes:
+  - Waybills: add Missing Counteragents button that appears only when needed.
+  - Waybills API: support missing counteragent filtering and counts.
+- Commit: 2c4864c
+- Production: https://ice-b3lftn4u3-iceerp.vercel.app
+
+## 2026-02-25
+- Summary: Waybills filters for all columns with date and period sorting.
+- Changes:
+  - Waybills: add Date column derived from Activation Time (dd.mm.yyyy).
+  - Waybills: enable filters/facets for all columns including sum/activation time.
+  - Waybills: sort Period filter values by date descending.
+- Commit: 2c4864c
+- Production: https://ice-jpk9amz85-iceerp.vercel.app
+
+## 2026-02-25
+- Summary: Virtualize Waybills rows for performance.
+- Changes:
+  - Waybills: render only visible rows with virtualization to reduce memory and freezes.
+- Commit: 2c4864c
+- Production: https://ice-cdkzka2y1-iceerp.vercel.app
+
+## 2026-02-25
+- Summary: Optimize Waybills column resizing and edit labels.
+- Changes:
+  - Waybills: throttle resize DOM updates to avoid freezing during drag.
+  - Waybills: show project_index and financial code validation labels in edit/bulk dialogs.
+- Commit: 2c4864c
+- Production: https://ice-53y0dgyyw-iceerp.vercel.app
+
+## 2026-02-25
+- Summary: Fix Waybills checkbox column width and row rendering.
+- Changes:
+  - Waybills: fix checkbox column width so it does not overlap the first column.
+  - Waybills: memoize row rendering for smoother interaction.
+- Commit: 2c4864c
+- Production: https://ice-8mcje6m2a-iceerp.vercel.app
+
+## 2026-02-25
+- Summary: Waybills column resize parity and persistence.
+- Changes:
+  - Waybills: match Payments Report drag/resize behavior and fixed column widths.
+  - Waybills: persist column layout and filters/search/sort/page size in localStorage.
+- Commit: 2c4864c
+- Production: https://ice-n2broj6s8-iceerp.vercel.app
+
 ## 2026-02-25
 - Summary: Waybills filters and bulk edit with counteragent labels.
 - Changes:

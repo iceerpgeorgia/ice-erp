@@ -147,7 +147,7 @@ const defaultColumns: ColumnConfig[] = [
 
 // Helper function to format date as dd.mm.yyyy
 const formatDate = (dateString: string | null | undefined): string => {
-  if (!dateString) return '-';
+  if (!dateString) return '';
   try {
     // Handle YYYY-MM-DD format directly
     if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateString)) {
@@ -168,9 +168,9 @@ const formatDate = (dateString: string | null | undefined): string => {
 
 // Helper function to format amount with thousands separator and 2 decimals
 const formatAmount = (amount: string | number | null | undefined): string => {
-  if (amount == null) return '-';
+  if (amount == null) return '';
   const num = Number(amount);
-  if (isNaN(num)) return '-';
+  if (isNaN(num)) return '';
   return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
@@ -744,60 +744,52 @@ export function BankTransactionsTable({
     setDragOverColumn(null);
   };
 
-  // Filtering and sorting
-  const filteredData = useMemo(() => {
+  const getFilterBaseData = (excludeColumnKey?: ColumnKey) => {
     let result = [...transactions];
 
     // Apply search filter - supports regex patterns
     if (debouncedSearchTerm) {
       const searchableColumns: ColumnKey[] = [
-        'counteragentName',        // Counteragent
-        'counteragentAccountNumber', // CA Account
-        'projectIndex',            // Project
-        'paymentId',               // Payment ID
-        'financialCode',           // Fin. Code
-        'description'              // Description
+        'counteragentName',
+        'counteragentAccountNumber',
+        'projectIndex',
+        'paymentId',
+        'financialCode',
+        'description'
       ];
-      
-      // Try to compile as regex, fallback to literal string search if invalid
+
       let searchRegex: RegExp | null = null;
       let isValidRegex = false;
       try {
-        searchRegex = new RegExp(debouncedSearchTerm, 'i'); // Case-insensitive
+        searchRegex = new RegExp(debouncedSearchTerm, 'i');
         isValidRegex = true;
       } catch (e) {
-        // Invalid regex - will use literal string search as fallback
         console.warn('Invalid regex pattern, using literal search:', debouncedSearchTerm);
       }
-      
+
       result = result.filter(row => {
-        // Early exit optimization - check each column and return immediately on match
         for (const key of searchableColumns) {
           const val = row[key];
           if (val !== null && val !== undefined) {
             const strVal = typeof val === 'string' ? val : String(val);
-            
+
             if (isValidRegex && searchRegex) {
-              // Use regex matching
               if (searchRegex.test(strVal)) {
-                return true; // Found a match, include this row
-              }
-            } else {
-              // Fallback to case-insensitive literal search
-              if (strVal.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) {
                 return true;
               }
+            } else if (strVal.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) {
+              return true;
             }
           }
         }
-        return false; // No matches found
+        return false;
       });
     }
 
-    // Apply column filters
     if (Object.keys(columnFilters).length > 0) {
       result = result.filter(row => {
         for (const [columnKey, allowedValues] of Object.entries(columnFilters)) {
+          if (excludeColumnKey && columnKey === excludeColumnKey) continue;
           if (allowedValues.length === 0) continue;
           const rowValue = row[columnKey as ColumnKey];
           if (!allowedValues.includes(String(rowValue ?? ''))) {
@@ -808,23 +800,29 @@ export function BankTransactionsTable({
       });
     }
 
+    return result;
+  };
+
+  // Filtering and sorting
+  const filteredData = useMemo(() => {
+    let result = getFilterBaseData();
+
     // Apply sorting
     if (sortField) {
       result.sort((a, b) => {
         const aVal = a[sortField];
         const bVal = b[sortField];
-        
+
         if (aVal === bVal) return 0;
-        
+
         // Handle null/undefined values
         if (aVal === null || aVal === undefined) return 1;
         if (bVal === null || bVal === undefined) return -1;
-        
+
         let comparison = 0;
         if (typeof aVal === 'number' && typeof bVal === 'number') {
           comparison = aVal - bVal;
         } else if (sortField === 'date') {
-          // Special handling for dd.mm.yyyy date format
           const toComparable = (dateStr: any): string => {
             if (!dateStr || typeof dateStr !== 'string') return '';
             const parts = dateStr.split('.');
@@ -842,7 +840,7 @@ export function BankTransactionsTable({
         } else {
           comparison = String(aVal).localeCompare(String(bVal));
         }
-        
+
         return sortDirection === 'asc' ? comparison : -comparison;
       });
     }
@@ -1854,10 +1852,11 @@ export function BankTransactionsTable({
 
   // Get unique values for column filters
   const getColumnUniqueValues = (columnKey: ColumnKey) => {
+    const baseRows = getFilterBaseData(columnKey);
     const values = new Set<string>();
-    transactions.forEach(row => {
+    baseRows.forEach(row => {
       const val = row[columnKey];
-      if (val != null) values.add(String(val));
+      values.add(String(val ?? ''));
     });
     return Array.from(values).sort();
   };
@@ -2468,21 +2467,21 @@ export function BankTransactionsTable({
                               {formatAmount(row[col.key])}
                             </span>
                               ) : col.key === 'usdGelRate' ? (
-                                row[col.key] !== null && row[col.key] !== undefined
-                                  ? Number(row[col.key]).toFixed(6)
-                                  : '-'
+                                    row[col.key] !== null && row[col.key] !== undefined
+                                      ? Number(row[col.key]).toFixed(6)
+                                      : ''
                           ) : col.key === 'exchangeRate' ? (
-                            row[col.key] ? Number(row[col.key]).toFixed(10) : '-'
+                                row[col.key] ? Number(row[col.key]).toFixed(10) : ''
                           ) : col.key === 'parsingLock' ? (
                             <Checkbox checked={Boolean(row[col.key])} disabled className="cursor-default" />
                           ) : col.key === 'date' || col.key === 'correctionDate' || col.key === 'createdAt' || col.key === 'updatedAt' ? (
                             formatDate(row[col.key])
                           ) : col.key === 'counteragentAccountNumber' ? (
-                            row[col.key] ? String(row[col.key]) : '-'
+                                row[col.key] ? String(row[col.key]) : ''
                           ) : (
                             typeof row[col.key] === 'object' && row[col.key] !== null
                               ? JSON.stringify(row[col.key])
-                              : row[col.key] ?? '-'
+                                  : row[col.key] ?? ''
                           )}
                         </div>
                       </td>

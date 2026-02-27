@@ -227,7 +227,8 @@ export function BankAccountsTable() {
       const response = await fetch('/api/currencies');
       if (!response.ok) throw new Error('Failed to fetch currencies');
       const result = await response.json();
-      setCurrencies(result.filter((c: Currency & { isActive: boolean }) => c.isActive));
+      const rows = Array.isArray(result) ? result : result.data;
+      setCurrencies((rows || []).filter((c: Currency & { is_active?: boolean }) => c.is_active !== false));
     } catch (error) {
       console.error('Error fetching currencies:', error);
     }
@@ -238,7 +239,7 @@ export function BankAccountsTable() {
       const response = await fetch('/api/banks');
       if (!response.ok) throw new Error('Failed to fetch banks');
       const result = await response.json();
-      setBanks(result.filter((b: Bank & { isActive: boolean }) => b.isActive));
+      setBanks((result || []).filter((b: Bank & { is_active?: boolean }) => b.is_active !== false));
     } catch (error) {
       console.error('Error fetching banks:', error);
     }
