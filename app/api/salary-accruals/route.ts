@@ -142,11 +142,13 @@ export async function GET(request: NextRequest) {
     const paidRows = await prisma.$queryRaw<any[]>`
       SELECT
         lower(trim(split_part(payment_id, ':', 1))) as payment_id_key,
+        counteragent_uuid,
         nominal_currency_uuid,
         SUM(ABS(nominal_amount))::numeric as paid
       FROM (
         SELECT
           cba.payment_id,
+          cba.counteragent_uuid,
           cba.nominal_currency_uuid,
           cba.nominal_amount
         FROM "GE78BG0000000893486000_BOG_GEL" cba
@@ -158,6 +160,7 @@ export async function GET(request: NextRequest) {
         UNION ALL
         SELECT
           t.payment_id,
+          t.counteragent_uuid,
           t.nominal_currency_uuid,
           t.nominal_amount
         FROM "GE65TB7856036050100002_TBC_GEL" t
@@ -172,6 +175,7 @@ export async function GET(request: NextRequest) {
             CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
             p.payment_id
           ) as payment_id,
+          COALESCE(btb.counteragent_uuid, p.counteragent_uuid, cba.counteragent_uuid) as counteragent_uuid,
           COALESCE(btb.nominal_currency_uuid, p.currency_uuid, cba.nominal_currency_uuid) as nominal_currency_uuid,
           (COALESCE(btb.nominal_amount, btb.partition_amount) * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount
         FROM "GE78BG0000000893486000_BOG_GEL" cba
@@ -189,6 +193,7 @@ export async function GET(request: NextRequest) {
             CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
             p.payment_id
           ) as payment_id,
+          COALESCE(btb.counteragent_uuid, p.counteragent_uuid, t.counteragent_uuid) as counteragent_uuid,
           COALESCE(btb.nominal_currency_uuid, p.currency_uuid, t.nominal_currency_uuid) as nominal_currency_uuid,
           (COALESCE(btb.nominal_amount, btb.partition_amount) * CASE WHEN t.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount
         FROM "GE65TB7856036050100002_TBC_GEL" t
@@ -202,7 +207,7 @@ export async function GET(request: NextRequest) {
           )
       ) tx
       WHERE payment_id IS NOT NULL AND payment_id <> ''
-      GROUP BY lower(trim(split_part(payment_id, ':', 1))), nominal_currency_uuid
+      GROUP BY lower(trim(split_part(payment_id, ':', 1))), counteragent_uuid, nominal_currency_uuid
     `;
 
     const paidMap = new Map<string, number>();
@@ -211,26 +216,30 @@ export async function GET(request: NextRequest) {
     for (const row of paidRows) {
       const paymentKey = String(row.payment_id_key || '').trim();
       if (!paymentKey) continue;
+      const counteragentKey = row.counteragent_uuid ? String(row.counteragent_uuid) : '';
       const currencyKey = row.nominal_currency_uuid ? String(row.nominal_currency_uuid) : '';
       const amount = row.paid ? Number(row.paid) : 0;
-      paidMap.set(`${paymentKey}|${currencyKey}`, amount);
-      paidByPayment.set(paymentKey, (paidByPayment.get(paymentKey) || 0) + amount);
-      if (!currencySetMap.has(paymentKey)) {
-        currencySetMap.set(paymentKey, new Set());
+      const compositeKey = `${paymentKey}|${counteragentKey}`;
+      paidMap.set(`${compositeKey}|${currencyKey}`, amount);
+      paidByPayment.set(compositeKey, (paidByPayment.get(compositeKey) || 0) + amount);
+      if (!currencySetMap.has(compositeKey)) {
+        currencySetMap.set(compositeKey, new Set());
       }
-      currencySetMap.get(paymentKey)!.add(currencyKey);
+      currencySetMap.get(compositeKey)!.add(currencyKey);
     }
 
     const formattedAccruals = accruals.map((accrual) => {
       const paymentKey = normalizePaymentKey(String(accrual.payment_id || ''));
+      const counteragentKey = accrual.counteragent_uuid ? String(accrual.counteragent_uuid) : '';
+      const compositeKey = `${paymentKey}|${counteragentKey}`;
       const currencyKey = accrual.nominal_currency_uuid ? String(accrual.nominal_currency_uuid) : '';
-      const paidByCurrencyKey = `${paymentKey}|${currencyKey}`;
+      const paidByCurrencyKey = `${compositeKey}|${currencyKey}`;
       const hasCurrencyMatch = paidMap.has(paidByCurrencyKey);
       let paid = hasCurrencyMatch ? paidMap.get(paidByCurrencyKey) || 0 : 0;
       if (!hasCurrencyMatch) {
-        const currencySet = currencySetMap.get(paymentKey);
+        const currencySet = currencySetMap.get(compositeKey);
         if (currencySet && currencySet.size <= 1) {
-          paid = paidByPayment.get(paymentKey) || 0;
+          paid = paidByPayment.get(compositeKey) || 0;
         }
       }
       return {
