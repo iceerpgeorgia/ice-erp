@@ -4,6 +4,14 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const normalizeUuid = (value: unknown) => {
+  if (value === null || value === undefined || value === '') return null;
+  const normalized = String(value).trim();
+  return UUID_REGEX.test(normalized) ? normalized : null;
+};
+
 const tableExists = async (tableName: string) => {
   const rows = await prisma.$queryRaw<{ regclass: string | null }[]>`
     SELECT to_regclass(${`public.${tableName}`})::text as regclass
@@ -42,8 +50,20 @@ export async function PATCH(req: NextRequest) {
     }
 
     const updates: Record<string, any> = {};
-    if (hasProject) updates.project_uuid = projectUuid ? String(projectUuid) : null;
-    if (hasFinancialCode) updates.financial_code_uuid = financialCodeUuid ? String(financialCodeUuid) : null;
+    if (hasProject) {
+      const normalized = normalizeUuid(projectUuid);
+      if (projectUuid && !normalized) {
+        return NextResponse.json({ error: 'Invalid UUID for project_uuid' }, { status: 400 });
+      }
+      updates.project_uuid = normalized;
+    }
+    if (hasFinancialCode) {
+      const normalized = normalizeUuid(financialCodeUuid);
+      if (financialCodeUuid && !normalized) {
+        return NextResponse.json({ error: 'Invalid UUID for financial_code_uuid' }, { status: 400 });
+      }
+      updates.financial_code_uuid = normalized;
+    }
     if (hasCorrespondingAccount) {
       updates.corresponding_account = correspondingAccount ? String(correspondingAccount) : null;
     }

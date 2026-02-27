@@ -14,6 +14,47 @@ const tableExists = async (tableName: string) => {
 
 const toNumber = (value: any) => (typeof value === 'bigint' ? Number(value) : value);
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_FILTER_FIELDS = new Set(['counteragent_uuid', 'driver_uuid', 'project_uuid', 'financial_code_uuid']);
+
+const isValidUuid = (value: string) => UUID_REGEX.test(value.trim());
+
+const sanitizeWaybillUuidColumns = async () => {
+  await prisma.$executeRawUnsafe(`
+    UPDATE rs_waybills_in
+    SET
+      counteragent_uuid = CASE
+        WHEN counteragent_uuid IS NULL THEN NULL
+        WHEN TRIM(counteragent_uuid::text) = '' THEN NULL
+        WHEN TRIM(counteragent_uuid::text) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN counteragent_uuid
+        ELSE NULL
+      END,
+      driver_uuid = CASE
+        WHEN driver_uuid IS NULL THEN NULL
+        WHEN TRIM(driver_uuid::text) = '' THEN NULL
+        WHEN TRIM(driver_uuid::text) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN driver_uuid
+        ELSE NULL
+      END,
+      project_uuid = CASE
+        WHEN project_uuid IS NULL THEN NULL
+        WHEN TRIM(project_uuid::text) = '' THEN NULL
+        WHEN TRIM(project_uuid::text) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN project_uuid
+        ELSE NULL
+      END,
+      financial_code_uuid = CASE
+        WHEN financial_code_uuid IS NULL THEN NULL
+        WHEN TRIM(financial_code_uuid::text) = '' THEN NULL
+        WHEN TRIM(financial_code_uuid::text) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN financial_code_uuid
+        ELSE NULL
+      END
+    WHERE
+      (counteragent_uuid IS NOT NULL AND (TRIM(counteragent_uuid::text) = '' OR TRIM(counteragent_uuid::text) !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'))
+      OR (driver_uuid IS NOT NULL AND (TRIM(driver_uuid::text) = '' OR TRIM(driver_uuid::text) !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'))
+      OR (project_uuid IS NOT NULL AND (TRIM(project_uuid::text) = '' OR TRIM(project_uuid::text) !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'))
+      OR (financial_code_uuid IS NOT NULL AND (TRIM(financial_code_uuid::text) = '' OR TRIM(financial_code_uuid::text) !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'))
+  `);
+};
+
 const formatDate = (value: Date) => {
   const day = String(value.getUTCDate()).padStart(2, '0');
   const month = String(value.getUTCMonth() + 1).padStart(2, '0');
@@ -47,6 +88,7 @@ export async function GET(req: NextRequest) {
       );
     }
     const { searchParams } = new URL(req.url);
+    await sanitizeWaybillUuidColumns();
     const limit = Math.min(Number(searchParams.get('limit') || 200), 2000);
     const offset = Math.max(Number(searchParams.get('offset') || 0), 0);
     const search = (searchParams.get('search') || '').trim();
@@ -187,6 +229,18 @@ export async function GET(req: NextRequest) {
         if (key === 'counteragent_name') return;
         const { nonBlank, includeBlank } = value;
 
+        if (UUID_FILTER_FIELDS.has(key)) {
+          const uuidValues = nonBlank.filter((item) => isValidUuid(item));
+          if (uuidValues.length > 0 && includeBlank) {
+            clauses.push({ OR: [{ [key]: { in: uuidValues } }, { [key]: null }] } as Prisma.rs_waybills_inWhereInput);
+          } else if (uuidValues.length > 0) {
+            clauses.push({ [key]: { in: uuidValues } } as Prisma.rs_waybills_inWhereInput);
+          } else if (includeBlank) {
+            clauses.push({ [key]: null } as Prisma.rs_waybills_inWhereInput);
+          }
+          return;
+        }
+
         if (key === 'vat') {
           const boolValues = nonBlank
             .map((value) => value.toLowerCase())
@@ -321,15 +375,13 @@ export async function GET(req: NextRequest) {
             { id: Prisma.SortOrder.desc },
           ];
 
-    const [rows, total, missingCounteragentCount] = await Promise.all([
-      prisma.rs_waybills_in.findMany({
-        where,
-        orderBy,
-        ...(exportAll ? {} : { take: limit, skip: offset }),
-      }),
-      prisma.rs_waybills_in.count({ where }),
-      prisma.rs_waybills_in.count({ where: missingCounteragentWhere }),
-    ]);
+    const rows = await prisma.rs_waybills_in.findMany({
+      where,
+      orderBy,
+      ...(exportAll ? {} : { take: limit, skip: offset }),
+    });
+    const total = await prisma.rs_waybills_in.count({ where });
+    const missingCounteragentCount = await prisma.rs_waybills_in.count({ where: missingCounteragentWhere });
 
     const counteragentUuids = Array.from(
       new Set(rows.map((row: any) => row.counteragent_uuid).filter(Boolean))
@@ -351,54 +403,56 @@ export async function GET(req: NextRequest) {
     let facets: Record<string, any[]> | undefined;
     if (includeFacets) {
       const facetFields = Array.from(allowedFilterFields);
-      const facetResults = await Promise.all(
-        facetFields.map(async (field) => {
-          const facetWhere = await buildWhere(field);
-          if (field === 'counteragent_name') {
-            const uuids = await prisma.rs_waybills_in.findMany({
-              where: facetWhere,
-              distinct: ['counteragent_uuid'],
-              select: { counteragent_uuid: true },
-            });
-            const ids = uuids
-              .map((row: any) => row.counteragent_uuid)
-              .filter((value: any) => value !== null && value !== undefined);
-            if (ids.length === 0) {
-              return [field, []] as const;
-            }
-            const counteragents = await prisma.counteragents.findMany({
-              where: { counteragent_uuid: { in: ids } },
-              select: { counteragent: true, name: true },
-            });
-            const values = counteragents
-              .map((row) => row.counteragent || row.name)
-              .filter((value) => value !== null && value !== undefined && String(value).trim() !== '');
-            const includeBlank = uuids.some((row: any) => row.counteragent_uuid === null);
-            if (includeBlank) values.unshift('');
-            return [field, Array.from(new Set(values))] as const;
+      const facetResults: Array<readonly [string, any[]]> = [];
+      for (const field of facetFields) {
+        const facetWhere = await buildWhere(field);
+        if (field === 'counteragent_name') {
+          const uuids = await prisma.rs_waybills_in.findMany({
+            where: facetWhere,
+            distinct: ['counteragent_uuid'],
+            select: { counteragent_uuid: true },
+          });
+          const ids = uuids
+            .map((row: any) => row.counteragent_uuid)
+            .filter((value: any) => value !== null && value !== undefined);
+          if (ids.length === 0) {
+            facetResults.push([field, []] as const);
+            continue;
           }
-          if (field === 'date') {
-            const rows = await prisma.rs_waybills_in.findMany({
-              where: facetWhere,
-              distinct: ['activation_time'],
-              select: { activation_time: true },
-            });
-            const values = rows
-              .map((row: any) => row.activation_time)
-              .map((value) => (value ? formatDate(new Date(value)) : ''));
-            return [field, Array.from(new Set(values))] as const;
-          }
+          const counteragents = await prisma.counteragents.findMany({
+            where: { counteragent_uuid: { in: ids } },
+            select: { counteragent: true, name: true },
+          });
+          const values = counteragents
+            .map((row) => row.counteragent || row.name)
+            .filter((value) => value !== null && value !== undefined && String(value).trim() !== '');
+          const includeBlank = uuids.some((row: any) => row.counteragent_uuid === null);
+          if (includeBlank) values.unshift('');
+          facetResults.push([field, Array.from(new Set(values))] as const);
+          continue;
+        }
+        if (field === 'date') {
           const rows = await prisma.rs_waybills_in.findMany({
             where: facetWhere,
-            distinct: [field as any],
-            select: { [field]: true } as Prisma.rs_waybills_inSelect,
+            distinct: ['activation_time'],
+            select: { activation_time: true },
           });
           const values = rows
-            .map((row: any) => row[field])
-            .map((value) => (value === null || value === undefined ? '' : value));
-          return [field, Array.from(new Set(values))] as const;
-        })
-      );
+            .map((row: any) => row.activation_time)
+            .map((value) => (value ? formatDate(new Date(value)) : ''));
+          facetResults.push([field, Array.from(new Set(values))] as const);
+          continue;
+        }
+        const rows = await prisma.rs_waybills_in.findMany({
+          where: facetWhere,
+          distinct: [field as any],
+          select: { [field]: true } as Prisma.rs_waybills_inSelect,
+        });
+        const values = rows
+          .map((row: any) => row[field])
+          .map((value) => (value === null || value === undefined ? '' : value));
+        facetResults.push([field, Array.from(new Set(values))] as const);
+      }
       facets = Object.fromEntries(facetResults);
     }
 
@@ -471,7 +525,15 @@ export async function PATCH(req: NextRequest) {
         key === 'counteragent_uuid' ||
         key === 'driver_uuid'
       ) {
-        updates[key] = value ? String(value) : null;
+        if (value === null || value === undefined || value === '') {
+          updates[key] = null;
+          continue;
+        }
+        const normalized = String(value).trim();
+        if (!isValidUuid(normalized)) {
+          return NextResponse.json({ error: `Invalid UUID for ${key}` }, { status: 400 });
+        }
+        updates[key] = normalized;
         continue;
       }
       if (key === 'transportation_cost' || key === 'transportation_sum') {
