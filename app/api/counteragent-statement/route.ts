@@ -109,41 +109,63 @@ export async function GET(request: NextRequest) {
       counteragentUuid
     );
 
-    const normalizePaymentKey = (value: string) => value.trim().toLowerCase();
-    const salaryInfoMap = new Map<string, { financialCode: string | null; currency: string | null }>();
+    const normalizePaymentKey = (value: string) => {
+      const trimmed = value.trim();
+      const base = trimmed.includes(':') ? trimmed.split(':')[0] : trimmed;
+      return base.toLowerCase();
+    };
+
+    type PaymentInfo = {
+      project: string | null;
+      financialCode: string | null;
+      job: string | null;
+      incomeTax: boolean | null;
+      currency: string | null;
+    };
+
+    const paymentInfoMap = new Map<string, PaymentInfo>();
+    const paymentIdSet = new Set<string>();
+
+    const upsertPaymentInfo = (
+      key: string,
+      next: Partial<PaymentInfo>
+    ) => {
+      const prev = paymentInfoMap.get(key) || {
+        project: null,
+        financialCode: null,
+        job: null,
+        incomeTax: null,
+        currency: null,
+      };
+
+      paymentInfoMap.set(key, {
+        project: next.project ?? prev.project,
+        financialCode: next.financialCode ?? prev.financialCode,
+        job: next.job ?? prev.job,
+        incomeTax: next.incomeTax ?? prev.incomeTax,
+        currency: next.currency ?? prev.currency,
+      });
+    };
+
     for (const row of salaryRows) {
       if (!row.payment_id) continue;
       const key = normalizePaymentKey(row.payment_id);
-      salaryInfoMap.set(key, {
+      paymentIdSet.add(row.payment_id);
+      upsertPaymentInfo(key, {
         financialCode: row.financial_code_validation || row.financial_code || null,
         currency: row.currency_code || null,
       });
     }
 
-    const paymentInfoMap = new Map<string, any>();
-    const paymentIdSet = new Set<string>();
     for (const row of paymentRows) {
       if (!row.payment_id) continue;
       const key = normalizePaymentKey(row.payment_id);
       paymentIdSet.add(row.payment_id);
-      const salaryInfo = salaryInfoMap.get(key);
-      paymentInfoMap.set(key, {
-        project: salaryInfo ? null : (row.project_index || row.project_name || null),
-        financialCode: salaryInfo ? salaryInfo.financialCode : (row.financial_code_validation || row.financial_code || null),
-        job: salaryInfo ? null : (row.job_name || null),
-        incomeTax: salaryInfo ? null : (row.income_tax ?? null),
-        currency: salaryInfo ? salaryInfo.currency : (row.currency_code || null),
-      });
-    }
-    for (const row of salaryRows) {
-      if (!row.payment_id) continue;
-      const key = normalizePaymentKey(row.payment_id);
-      paymentIdSet.add(row.payment_id);
-      paymentInfoMap.set(key, {
-        project: null,
+      upsertPaymentInfo(key, {
+        project: row.project_index || row.project_name || null,
         financialCode: row.financial_code_validation || row.financial_code || null,
-        job: null,
-        incomeTax: null,
+        job: row.job_name || null,
+        incomeTax: row.income_tax ?? null,
         currency: row.currency_code || null,
       });
     }
@@ -373,9 +395,11 @@ export async function GET(request: NextRequest) {
         paymentId: tx.payment_id,
         id1: tx.dockey || null,
         id2: tx.entriesid || null,
-        batchId: tx.batch_payment_id_raw && /^BTC_/i.test(tx.batch_payment_id_raw)
-          ? null
-          : null,
+        batchId: tx.raw_payment_id && /^BTC_/i.test(tx.raw_payment_id)
+          ? tx.raw_payment_id
+          : (tx.batch_payment_id_raw && /^BTC_/i.test(tx.batch_payment_id_raw)
+            ? tx.batch_payment_id_raw
+            : (tx.payment_id && /^BTC_/i.test(tx.payment_id) ? tx.payment_id : null)),
         accountCurrencyAmount: displayAccountAmount,
         nominalAmount,
         date: tx.transaction_date,

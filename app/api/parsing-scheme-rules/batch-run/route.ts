@@ -255,17 +255,99 @@ export async function POST(request: NextRequest) {
               continue;
             }
             await prisma.$queryRawUnsafe(`
-              UPDATE "${deconsolidatedTable}"
-              SET 
-                counteragent_uuid = COALESCE($1::uuid, counteragent_uuid),
-                financial_code_uuid = COALESCE($2::uuid, financial_code_uuid),
-                nominal_currency_uuid = COALESCE($3::uuid, nominal_currency_uuid),
-                payment_id = COALESCE($4::text, payment_id),
+              WITH target_rows AS (
+                SELECT
+                  d.raw_record_uuid,
+                  d.account_currency_amount,
+                  d.account_currency_uuid,
+                  COALESCE($3::uuid, d.nominal_currency_uuid) as next_nominal_currency_uuid,
+                  d.transaction_date::date as tx_date,
+                  acc.code as account_code,
+                  nom.code as nominal_code,
+                  rates.usd_rate,
+                  rates.eur_rate,
+                  rates.cny_rate,
+                  rates.gbp_rate,
+                  rates.rub_rate,
+                  rates.try_rate,
+                  rates.aed_rate,
+                  rates.kzt_rate
+                FROM "${deconsolidatedTable}" d
+                LEFT JOIN currencies acc ON acc.uuid = d.account_currency_uuid
+                LEFT JOIN currencies nom ON nom.uuid = COALESCE($3::uuid, d.nominal_currency_uuid)
+                LEFT JOIN nbg_exchange_rates rates ON rates.date = d.transaction_date::date
+                WHERE d.raw_record_uuid = ANY($5::uuid[])
+              )
+              UPDATE "${deconsolidatedTable}" d
+              SET
+                counteragent_uuid = COALESCE($1::uuid, d.counteragent_uuid),
+                financial_code_uuid = COALESCE($2::uuid, d.financial_code_uuid),
+                nominal_currency_uuid = t.next_nominal_currency_uuid,
+                nominal_amount = CASE
+                  WHEN t.account_currency_amount IS NULL THEN d.nominal_amount
+                  WHEN t.account_code IS NULL OR t.nominal_code IS NULL THEN t.account_currency_amount
+                  WHEN t.account_code = t.nominal_code THEN t.account_currency_amount
+                  WHEN t.account_code = 'GEL' THEN
+                    CASE t.nominal_code
+                      WHEN 'USD' THEN CASE WHEN t.usd_rate IS NOT NULL AND t.usd_rate <> 0 THEN t.account_currency_amount / t.usd_rate ELSE t.account_currency_amount END
+                      WHEN 'EUR' THEN CASE WHEN t.eur_rate IS NOT NULL AND t.eur_rate <> 0 THEN t.account_currency_amount / t.eur_rate ELSE t.account_currency_amount END
+                      WHEN 'CNY' THEN CASE WHEN t.cny_rate IS NOT NULL AND t.cny_rate <> 0 THEN t.account_currency_amount / t.cny_rate ELSE t.account_currency_amount END
+                      WHEN 'GBP' THEN CASE WHEN t.gbp_rate IS NOT NULL AND t.gbp_rate <> 0 THEN t.account_currency_amount / t.gbp_rate ELSE t.account_currency_amount END
+                      WHEN 'RUB' THEN CASE WHEN t.rub_rate IS NOT NULL AND t.rub_rate <> 0 THEN t.account_currency_amount / t.rub_rate ELSE t.account_currency_amount END
+                      WHEN 'TRY' THEN CASE WHEN t.try_rate IS NOT NULL AND t.try_rate <> 0 THEN t.account_currency_amount / t.try_rate ELSE t.account_currency_amount END
+                      WHEN 'AED' THEN CASE WHEN t.aed_rate IS NOT NULL AND t.aed_rate <> 0 THEN t.account_currency_amount / t.aed_rate ELSE t.account_currency_amount END
+                      WHEN 'KZT' THEN CASE WHEN t.kzt_rate IS NOT NULL AND t.kzt_rate <> 0 THEN t.account_currency_amount / t.kzt_rate ELSE t.account_currency_amount END
+                      ELSE t.account_currency_amount
+                    END
+                  WHEN t.nominal_code = 'GEL' THEN
+                    CASE t.account_code
+                      WHEN 'USD' THEN CASE WHEN t.usd_rate IS NOT NULL THEN t.account_currency_amount * t.usd_rate ELSE t.account_currency_amount END
+                      WHEN 'EUR' THEN CASE WHEN t.eur_rate IS NOT NULL THEN t.account_currency_amount * t.eur_rate ELSE t.account_currency_amount END
+                      WHEN 'CNY' THEN CASE WHEN t.cny_rate IS NOT NULL THEN t.account_currency_amount * t.cny_rate ELSE t.account_currency_amount END
+                      WHEN 'GBP' THEN CASE WHEN t.gbp_rate IS NOT NULL THEN t.account_currency_amount * t.gbp_rate ELSE t.account_currency_amount END
+                      WHEN 'RUB' THEN CASE WHEN t.rub_rate IS NOT NULL THEN t.account_currency_amount * t.rub_rate ELSE t.account_currency_amount END
+                      WHEN 'TRY' THEN CASE WHEN t.try_rate IS NOT NULL THEN t.account_currency_amount * t.try_rate ELSE t.account_currency_amount END
+                      WHEN 'AED' THEN CASE WHEN t.aed_rate IS NOT NULL THEN t.account_currency_amount * t.aed_rate ELSE t.account_currency_amount END
+                      WHEN 'KZT' THEN CASE WHEN t.kzt_rate IS NOT NULL THEN t.account_currency_amount * t.kzt_rate ELSE t.account_currency_amount END
+                      ELSE t.account_currency_amount
+                    END
+                  ELSE
+                    (
+                      t.account_currency_amount *
+                      CASE t.account_code
+                        WHEN 'USD' THEN COALESCE(t.usd_rate, 0)
+                        WHEN 'EUR' THEN COALESCE(t.eur_rate, 0)
+                        WHEN 'CNY' THEN COALESCE(t.cny_rate, 0)
+                        WHEN 'GBP' THEN COALESCE(t.gbp_rate, 0)
+                        WHEN 'RUB' THEN COALESCE(t.rub_rate, 0)
+                        WHEN 'TRY' THEN COALESCE(t.try_rate, 0)
+                        WHEN 'AED' THEN COALESCE(t.aed_rate, 0)
+                        WHEN 'KZT' THEN COALESCE(t.kzt_rate, 0)
+                        ELSE 0
+                      END
+                    ) /
+                    NULLIF(
+                      CASE t.nominal_code
+                        WHEN 'USD' THEN COALESCE(t.usd_rate, 0)
+                        WHEN 'EUR' THEN COALESCE(t.eur_rate, 0)
+                        WHEN 'CNY' THEN COALESCE(t.cny_rate, 0)
+                        WHEN 'GBP' THEN COALESCE(t.gbp_rate, 0)
+                        WHEN 'RUB' THEN COALESCE(t.rub_rate, 0)
+                        WHEN 'TRY' THEN COALESCE(t.try_rate, 0)
+                        WHEN 'AED' THEN COALESCE(t.aed_rate, 0)
+                        WHEN 'KZT' THEN COALESCE(t.kzt_rate, 0)
+                        ELSE 0
+                      END,
+                      0
+                    )
+                END,
+                payment_id = COALESCE($4::text, d.payment_id),
                 applied_rule_id = $6::bigint,
                 processing_case = $7,
                 updated_at = NOW()
-              WHERE raw_record_uuid = ANY($5::uuid[])
-            `, 
+              FROM target_rows t
+              WHERE d.raw_record_uuid = t.raw_record_uuid
+            `,
               ruleParams.counteragent_uuid,
               ruleParams.financial_code_uuid,
               ruleParams.nominal_currency_uuid,

@@ -115,6 +115,8 @@ export function WaybillsTable() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
+  const [periodFrom, setPeriodFrom] = useState('');
+  const [periodTo, setPeriodTo] = useState('');
   const [selected, setSelected] = useState<Waybill | null>(null);
   const [editing, setEditing] = useState<Waybill | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -200,6 +202,12 @@ export function WaybillsTable() {
         if (typeof parsed.appliedSearch === 'string') {
           setAppliedSearch(parsed.appliedSearch);
         }
+        if (typeof parsed.periodFrom === 'string') {
+          setPeriodFrom(parsed.periodFrom);
+        }
+        if (typeof parsed.periodTo === 'string') {
+          setPeriodTo(parsed.periodTo);
+        }
         if (parsed.sortColumn) setSortColumn(parsed.sortColumn as ColumnKey);
         if (parsed.sortDirection === 'asc' || parsed.sortDirection === 'desc') {
           setSortDirection(parsed.sortDirection);
@@ -226,6 +234,8 @@ export function WaybillsTable() {
     const serialized = {
       search,
       appliedSearch,
+      periodFrom,
+      periodTo,
       sortColumn,
       sortDirection,
       pageSize,
@@ -237,6 +247,8 @@ export function WaybillsTable() {
     filtersInitialized,
     search,
     appliedSearch,
+    periodFrom,
+    periodTo,
     sortColumn,
     sortDirection,
     pageSize,
@@ -259,6 +271,8 @@ export function WaybillsTable() {
   }) => {
     const params = new URLSearchParams();
     if (appliedSearch.trim()) params.set('search', appliedSearch.trim());
+    if (periodFrom) params.set('periodFrom', periodFrom);
+    if (periodTo) params.set('periodTo', periodTo);
     if (options.includePagination !== false) {
       const resolvedPage = options.page ?? currentPage;
       const resolvedSize = options.pageSize ?? pageSize;
@@ -275,7 +289,7 @@ export function WaybillsTable() {
       params.set('filters', JSON.stringify(serialized));
     }
     return params;
-  }, [appliedSearch, currentPage, pageSize, showMissingCounteragents, sortColumn, sortDirection, filters]);
+  }, [appliedSearch, periodFrom, periodTo, currentPage, pageSize, showMissingCounteragents, sortColumn, sortDirection, filters]);
 
   const fetchWaybills = useCallback(async (options?: { page?: number; pageSize?: number }) => {
     setLoading(true);
@@ -818,6 +832,8 @@ export function WaybillsTable() {
     setFilters(new Map());
     setSearch('');
     setAppliedSearch('');
+    setPeriodFrom('');
+    setPeriodTo('');
     setCurrentPage(1);
     setShowMissingCounteragents(false);
   };
@@ -831,6 +847,8 @@ export function WaybillsTable() {
       setIsExporting(true);
       const params = new URLSearchParams();
       if (appliedSearch.trim()) params.set('search', appliedSearch.trim());
+      if (periodFrom) params.set('periodFrom', periodFrom);
+      if (periodTo) params.set('periodTo', periodTo);
       if (showMissingCounteragents) params.set('missingCounteragents', 'true');
       if (sortColumn) params.set('sortColumn', sortColumn);
       if (sortDirection) params.set('sortDirection', sortDirection);
@@ -937,6 +955,34 @@ export function WaybillsTable() {
               }}
             />
           </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2 py-1">
+              <Label htmlFor="waybillPeriodFrom" className="text-xs text-gray-600 whitespace-nowrap">From period</Label>
+              <Input
+                id="waybillPeriodFrom"
+                type="month"
+                value={periodFrom}
+                onChange={(e) => {
+                  setPeriodFrom(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="h-8 w-36"
+              />
+            </div>
+            <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2 py-1">
+              <Label htmlFor="waybillPeriodTo" className="text-xs text-gray-600 whitespace-nowrap">To period</Label>
+              <Input
+                id="waybillPeriodTo"
+                type="month"
+                value={periodTo}
+                onChange={(e) => {
+                  setPeriodTo(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="h-8 w-36"
+              />
+            </div>
+          </div>
           <Button
             variant="outline"
             size="sm"
@@ -985,12 +1031,12 @@ export function WaybillsTable() {
             variant="outline"
             size="sm"
             onClick={handleClearFilters}
-            disabled={filters.size === 0 && !appliedSearch && !showMissingCounteragents}
+            disabled={filters.size === 0 && !appliedSearch && !periodFrom && !periodTo && !showMissingCounteragents}
           >
             Clear Filters
-            {(filters.size > 0 || appliedSearch) && (
+            {(filters.size > 0 || appliedSearch || periodFrom || periodTo) && (
               <Badge variant="secondary" className="ml-2">
-                {filters.size}
+                {filters.size + (appliedSearch ? 1 : 0) + (periodFrom ? 1 : 0) + (periodTo ? 1 : 0)}
               </Badge>
             )}
           </Button>

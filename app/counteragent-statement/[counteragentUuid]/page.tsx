@@ -181,6 +181,47 @@ export default function CounteragentStatementPage() {
   const [bulkPaymentId, setBulkPaymentId] = useState('');
   const [isBulkSaving, setIsBulkSaving] = useState(false);
 
+  const normalizePaymentKey = useCallback((value: string) => {
+    const trimmed = value.trim();
+    const base = trimmed.includes(':') ? trimmed.split(':')[0] : trimmed;
+    return base.toLowerCase();
+  }, []);
+
+  const paymentInfoMap = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        project: string | null;
+        financialCode: string | null;
+        job: string | null;
+        incomeTax: boolean | null;
+        currency: string | null;
+      }
+    >();
+
+    for (const payment of payments) {
+      if (!payment.paymentId) continue;
+      const key = normalizePaymentKey(payment.paymentId);
+      if (!key) continue;
+      const existing = map.get(key) || {
+        project: null,
+        financialCode: null,
+        job: null,
+        incomeTax: null,
+        currency: null,
+      };
+      map.set(key, {
+        project: existing.project ?? payment.projectIndex ?? payment.projectName ?? null,
+        financialCode: existing.financialCode ?? payment.financialCode ?? null,
+        job: existing.job ?? payment.jobName ?? null,
+        incomeTax: existing.incomeTax ?? payment.incomeTax ?? null,
+        currency: existing.currency ?? payment.currencyCode ?? null,
+      });
+    }
+
+    return map;
+  }, [payments, normalizePaymentKey]);
+
   const getPaymentInfo = useCallback(
     (paymentId: string | null) => {
       if (!paymentId) {
@@ -193,7 +234,8 @@ export default function CounteragentStatementPage() {
         };
       }
 
-      const payment = payments.find((p) => p.paymentId === paymentId);
+      const key = normalizePaymentKey(paymentId);
+      const payment = paymentInfoMap.get(key);
       if (!payment) {
         return {
           project: null,
@@ -205,14 +247,14 @@ export default function CounteragentStatementPage() {
       }
 
       return {
-        project: payment.projectIndex || payment.projectName || null,
-        financialCode: payment.financialCode || null,
-        job: payment.jobName || null,
-        incomeTax: payment.incomeTax ?? null,
-        currency: payment.currencyCode || null,
+        project: payment.project,
+        financialCode: payment.financialCode,
+        job: payment.job,
+        incomeTax: payment.incomeTax,
+        currency: payment.currency,
       };
     },
-    [payments]
+    [normalizePaymentKey, paymentInfoMap]
   );
 
   const handleBankTransactionUpdated = useCallback(
@@ -500,57 +542,63 @@ export default function CounteragentStatementPage() {
   const rows: StatementRow[] = useMemo(() => {
     if (!statement) return [];
     return [
-      ...(statement.ledgerEntries || []).map((entry: any) => ({
-        id: `ledger-${entry.id}`,
-        type: 'ledger' as const,
-        paymentId: entry.paymentId,
-        date: formatDate(entry.effectiveDate),
-        dateSort: new Date(entry.effectiveDate).getTime(),
-        ledgerId: entry.id,
-        effectiveDateRaw: entry.effectiveDate,
-        project: entry.project || null,
-        financialCode: entry.financialCode || null,
-        job: entry.job || null,
-        incomeTax: entry.incomeTax ?? null,
-        currency: entry.currency || null,
-        accrual: entry.accrual,
-        order: entry.order,
-        payment: 0,
-        confirmed: entry.confirmed ?? false,
-        ppc: 0,
-        account: '-',
-        comment: entry.comment || '-',
-        id1: null,
-        id2: null,
-        batchId: null,
-      })),
-      ...(statement.bankTransactions || []).map((tx: any) => ({
-        id: `bank-${tx.id}`,
-        type: 'bank' as const,
-        paymentId: tx.paymentId || null,
-        date: formatDate(tx.date),
-        dateSort: new Date(tx.date).getTime(),
-        bankId: tx.id,
-        bankSourceId: tx.sourceId ?? tx.id,
-        bankUuid: tx.uuid,
-        project: tx.project || null,
-        financialCode: tx.financialCode || null,
-        job: tx.job || null,
-        incomeTax: tx.incomeTax ?? null,
-        currency: tx.currency || null,
-        accrual: 0,
-        order: 0,
-        payment: tx.nominalAmount,
-        confirmed: null,
-        ppc: tx.accountCurrencyAmount,
-        account: tx.accountLabel || '-',
-        comment: tx.description || '-',
-        id1: tx.id1 || null,
-        id2: tx.id2 || null,
-        batchId: tx.batchId || null,
-      })),
+      ...(statement.ledgerEntries || []).map((entry: any) => {
+        const info = getPaymentInfo(entry.paymentId || null);
+        return {
+          id: `ledger-${entry.id}`,
+          type: 'ledger' as const,
+          paymentId: entry.paymentId,
+          date: formatDate(entry.effectiveDate),
+          dateSort: new Date(entry.effectiveDate).getTime(),
+          ledgerId: entry.id,
+          effectiveDateRaw: entry.effectiveDate,
+          project: entry.project ?? info.project ?? null,
+          financialCode: entry.financialCode ?? info.financialCode ?? null,
+          job: entry.job ?? info.job ?? null,
+          incomeTax: entry.incomeTax ?? info.incomeTax ?? null,
+          currency: entry.currency ?? info.currency ?? null,
+          accrual: entry.accrual,
+          order: entry.order,
+          payment: 0,
+          confirmed: entry.confirmed ?? false,
+          ppc: 0,
+          account: '-',
+          comment: entry.comment || '-',
+          id1: null,
+          id2: null,
+          batchId: null,
+        };
+      }),
+      ...(statement.bankTransactions || []).map((tx: any) => {
+        const info = getPaymentInfo(tx.paymentId || null);
+        return {
+          id: `bank-${tx.id}`,
+          type: 'bank' as const,
+          paymentId: tx.paymentId || null,
+          date: formatDate(tx.date),
+          dateSort: new Date(tx.date).getTime(),
+          bankId: tx.id,
+          bankSourceId: tx.sourceId ?? tx.id,
+          bankUuid: tx.uuid,
+          project: tx.project ?? info.project ?? null,
+          financialCode: tx.financialCode ?? info.financialCode ?? null,
+          job: tx.job ?? info.job ?? null,
+          incomeTax: tx.incomeTax ?? info.incomeTax ?? null,
+          currency: tx.currency ?? info.currency ?? null,
+          accrual: 0,
+          order: 0,
+          payment: tx.nominalAmount,
+          confirmed: null,
+          ppc: tx.accountCurrencyAmount,
+          account: tx.accountLabel || '-',
+          comment: tx.description || '-',
+          id1: tx.id1 || null,
+          id2: tx.id2 || null,
+          batchId: tx.batchId || null,
+        };
+      }),
     ].sort((a, b) => a.dateSort - b.dateSort);
-  }, [statement]);
+  }, [getPaymentInfo, statement]);
 
   const columnValues = useMemo(() => {
     const valuesMap = new Map<ColumnKey, any[]>();

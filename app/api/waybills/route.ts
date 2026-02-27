@@ -62,6 +62,20 @@ const formatDate = (value: Date) => {
   return `${day}.${month}.${year}`;
 };
 
+const parseMonthBoundary = (value: string | null, mode: 'start' | 'endExclusive') => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}$/.test(trimmed)) return null;
+  const [yearStr, monthStr] = trimmed.split('-');
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return null;
+  if (mode === 'start') {
+    return new Date(Date.UTC(year, month - 1, 1));
+  }
+  return new Date(Date.UTC(year, month, 1));
+};
+
 const serializeWaybill = (row: any) => ({
   ...row,
   id: toNumber(row.id),
@@ -96,8 +110,22 @@ export async function GET(req: NextRequest) {
     const sortColumn = searchParams.get('sortColumn') || '';
     const sortDirection = searchParams.get('sortDirection') === 'asc' ? 'asc' : 'desc';
     const filtersParam = searchParams.get('filters');
+    const periodFromParam = searchParams.get('periodFrom');
+    const periodToParam = searchParams.get('periodTo');
     const missingCounteragents = searchParams.get('missingCounteragents') === 'true';
     const exportAll = searchParams.get('exportAll') === 'true';
+
+    const periodFromDate = parseMonthBoundary(periodFromParam, 'start');
+    const periodToExclusiveDate = parseMonthBoundary(periodToParam, 'endExclusive');
+
+    const periodRangeClause: Prisma.rs_waybills_inWhereInput | null =
+      periodFromDate && periodToExclusiveDate
+        ? { activation_time: { gte: periodFromDate, lt: periodToExclusiveDate } }
+        : periodFromDate
+          ? { activation_time: { gte: periodFromDate } }
+          : periodToExclusiveDate
+            ? { activation_time: { lt: periodToExclusiveDate } }
+            : null;
 
     const allowedFilterFields = new Set([
       'waybill_no',
@@ -336,6 +364,7 @@ export async function GET(req: NextRequest) {
       return {
         AND: [
           baseSearch,
+          ...(periodRangeClause ? [periodRangeClause] : []),
           ...filterClauses,
           ...(missingCounteragents
             ? [
@@ -355,6 +384,7 @@ export async function GET(req: NextRequest) {
     const missingCounteragentWhere: Prisma.rs_waybills_inWhereInput = {
       AND: [
         baseSearch,
+        ...(periodRangeClause ? [periodRangeClause] : []),
         ...filterClauses,
         { counteragent_uuid: null },
         { counteragent_inn: { not: null } },
