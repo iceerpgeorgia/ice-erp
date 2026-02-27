@@ -95,7 +95,7 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 const formatCell = (value: any, format?: ColumnConfig['format']) => {
-  if (value === null || value === undefined || value === '') return '-';
+  if (value === null || value === undefined || value === '') return '';
   if (format === 'boolean') return value ? 'Yes' : 'No';
   if (format === 'datetime') {
     const date = typeof value === 'string' || value instanceof Date ? new Date(value) : null;
@@ -712,19 +712,19 @@ export function WaybillsTable() {
           {visibleColumns.map((col) => (
             <td
               key={col.key}
-              className="px-3 py-2 overflow-visible"
+              className="overflow-hidden px-3 py-2"
               style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
             >
               <div
-                className="whitespace-nowrap"
+                className="truncate"
                 title={String(
                   col.key === 'counteragent_name'
-                    ? row.counteragent_name || row.counteragent || '-'
+                    ? row.counteragent_name || row.counteragent || ''
                     : formatCell(getCellValue(row, col.key), col.format)
                 )}
               >
                 {col.key === 'counteragent_name'
-                  ? row.counteragent_name || row.counteragent || '-'
+                  ? row.counteragent_name || row.counteragent || ''
                   : formatCell(getCellValue(row, col.key), col.format)}
               </div>
             </td>
@@ -1165,10 +1165,10 @@ export function WaybillsTable() {
                   onDrop={(event) => handleDrop(event, col.key)}
                   onDragEnd={handleDragEnd}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 pr-4 overflow-hidden">
                     <button
                       type="button"
-                      className="flex items-center gap-1 whitespace-nowrap"
+                      className="flex items-center gap-1 min-w-0"
                       onClick={() => {
                         if (!col.sortable) return;
                         if (sortColumn === col.key) {
@@ -1179,7 +1179,7 @@ export function WaybillsTable() {
                         }
                       }}
                     >
-                      <span>{col.label}</span>
+                      <span className="truncate font-medium">{col.label}</span>
                       {sortColumn === col.key && (sortDirection === 'asc' ? (
                         <ArrowUp className="h-3 w-3 text-muted-foreground" />
                       ) : (
