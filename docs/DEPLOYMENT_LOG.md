@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-27
+- Summary: Salary accrual paid/statement parity correction.
+- Changes:
+  - Salary accruals paid: revert to sum of absolute transaction amounts (`SUM(ABS(...))`) for parity with counteragent statement totals.
+  - Salary accruals table fallback aggregation: use per-transaction absolute summing to match API totals.
+  - Salary accruals month balance remains derived from paid absolute total (`net - paid - deductions`).
+- Commit: 1159f8d
+- Production: https://ice-5oqopzcbm-iceerp.vercel.app
+
+## 2026-02-27
 - Summary: Salary accrual month filter fix and absolute paid aggregation parity.
 - Changes:
   - Salary accruals filter: fix Month facet values rendering as `[object Object]` by using primitive filter values with formatted labels.
