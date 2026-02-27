@@ -1,6 +1,14 @@
 # Deployment Log
 
 ## 2026-02-27
+- Summary: Salary accrual upload/template actions made always visible in toolbar.
+- Changes:
+  - Salary accruals UI: add direct `Salary Template` and `Upload Salary XLSX` buttons in the table header.
+  - Salary accruals UI: keep dropdown options while exposing primary salary upload actions without extra clicks.
+- Commit: f07a1d6
+- Production: https://ice-ajaod7akn-iceerp.vercel.app
+
+## 2026-02-27
 - Summary: Salaries table period-based XLSX upload API and template.
 - Changes:
   - Salary accruals: add `upload-period` API to upload XLSX for a selected period with upsert behavior.
