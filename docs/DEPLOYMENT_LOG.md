@@ -5,8 +5,8 @@
 - Changes:
   - Waybills edit/bulk edit: keep explicit No options to clear project, financial code, and corresponding account.
   - Waybills bulk API: support explicit null updates so clearing values is applied correctly.
-- Commit: TBD
-- Production: TBD
+- Commit: ecbd3bb
+- Production: https://ice-l0qm4vxv7-iceerp.vercel.app
 
 ## 2026-02-27
 - Summary: Parsing rules scan full raw tables and count correctly.
