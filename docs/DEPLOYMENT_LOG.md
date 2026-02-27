@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-27
+- Summary: Salary accrual paid uses ABS of signed aggregate.
+- Changes:
+  - Salary accruals API: switch paid aggregation from `SUM(ABS(...))` to `ABS(SUM(...))` for bank nominal amounts.
+  - Salary accruals table fallback: accumulate signed paid totals and apply absolute value at final display.
+  - Salary accruals totals: align with requested `abs(aggregate of +/-)` business rule.
+- Commit: de1e339
+- Production: https://ice-gca47fjgw-iceerp.vercel.app
+
+## 2026-02-27
 - Summary: Salary accrual paid aggregation scoped by counteragent.
 - Changes:
   - Salary accruals API: include `counteragent_uuid` in paid aggregation grouping and lookup keys to prevent cross-counteragent leakage on shared payment IDs.
