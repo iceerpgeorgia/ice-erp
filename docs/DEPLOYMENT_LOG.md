@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-27
+- Summary: Salary accrual insurance copy and TBC upload report totals updates.
+- Changes:
+  - Salary accruals copy-latest: when creating next-month rows, copy only `surplus_insurance` and set `deducted_insurance` to null.
+  - TBC insurance upload API: detect insurance cost column aliases and compute deducted insurance as `insurance_cost - surplus_insurance`.
+  - TBC insurance upload report: expose file-level and matched split totals (cost, surplus, deductable) in confirmation summary.
+- Commit: 2a58e59
+- Production: https://ice-6d6jwaa4x-iceerp.vercel.app
+
+## 2026-02-27
 - Summary: Salary accrual paid uses ABS of signed aggregate.
 - Changes:
   - Salary accruals API: switch paid aggregation from `SUM(ABS(...))` to `ABS(SUM(...))` for bank nominal amounts.
