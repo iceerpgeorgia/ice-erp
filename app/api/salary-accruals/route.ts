@@ -16,6 +16,50 @@ const normalizePaymentKey = (value: string) => {
   return base.toLowerCase();
 };
 
+const parseNullableNumber = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const normalizeInsuranceValues = (
+  surplusInsurance: number | null,
+  deductedInsurance: number | null,
+) => {
+  const surplusComparable = surplusInsurance ?? 0;
+  const deductedComparable = deductedInsurance ?? 0;
+  if (surplusComparable > deductedComparable) {
+    return {
+      surplusInsurance: deductedInsurance,
+      deductedInsurance: surplusInsurance,
+    };
+  }
+  return {
+    surplusInsurance,
+    deductedInsurance,
+  };
+};
+
+const serializeInsuranceValues = (accrual: {
+  surplus_insurance: unknown;
+  deducted_insurance: unknown;
+}) => {
+  const normalized = normalizeInsuranceValues(
+    parseNullableNumber(accrual.surplus_insurance),
+    parseNullableNumber(accrual.deducted_insurance),
+  );
+  return {
+    surplus_insurance:
+      normalized.surplusInsurance === null || normalized.surplusInsurance === undefined
+        ? null
+        : normalized.surplusInsurance.toString(),
+    deducted_insurance:
+      normalized.deductedInsurance === null || normalized.deductedInsurance === undefined
+        ? null
+        : normalized.deductedInsurance.toString(),
+  };
+};
+
 async function remapPaymentIdBindings(oldPaymentId: string, newPaymentId: string) {
   if (!oldPaymentId || !newPaymentId) return;
   if (oldPaymentId.trim().toLowerCase() === newPaymentId.trim().toLowerCase()) return;
@@ -101,8 +145,10 @@ export async function GET(request: NextRequest) {
         financial_code: financial_code[0]?.validation || 'Unknown',
         currency_code: currency[0]?.code || 'Unknown',
         net_sum: accrual.net_sum.toString(),
-        surplus_insurance: accrual.surplus_insurance?.toString() || null,
-        deducted_insurance: accrual.deducted_insurance?.toString() || null,
+        ...serializeInsuranceValues({
+          surplus_insurance: accrual.surplus_insurance,
+          deducted_insurance: accrual.deducted_insurance,
+        }),
         deducted_fitness: accrual.deducted_fitness?.toString() || null,
         deducted_fine: accrual.deducted_fine?.toString() || null,
       });
@@ -247,8 +293,10 @@ export async function GET(request: NextRequest) {
         ...accrual,
       id: accrual.id.toString(),
       net_sum: accrual.net_sum.toString(),
-      surplus_insurance: accrual.surplus_insurance?.toString() || null,
-      deducted_insurance: accrual.deducted_insurance?.toString() || null,
+      ...serializeInsuranceValues({
+        surplus_insurance: accrual.surplus_insurance,
+        deducted_insurance: accrual.deducted_insurance,
+      }),
       deducted_fitness: accrual.deducted_fitness?.toString() || null,
       deducted_fine: accrual.deducted_fine?.toString() || null,
       };
@@ -296,7 +344,7 @@ export async function POST(request: NextRequest) {
             salary_month: targetDate,
             net_sum: record.net_sum,
             surplus_insurance: record.surplus_insurance,
-            deducted_insurance: record.deducted_insurance,
+            deducted_insurance: null,
             deducted_fitness: record.deducted_fitness,
             deducted_fine: record.deducted_fine,
             created_by: created_by || 'user',
@@ -341,8 +389,10 @@ export async function POST(request: NextRequest) {
         ...accrual,
         id: accrual.id.toString(),
         net_sum: accrual.net_sum.toString(),
-        surplus_insurance: accrual.surplus_insurance?.toString() || null,
-        deducted_insurance: accrual.deducted_insurance?.toString() || null,
+        ...serializeInsuranceValues({
+          surplus_insurance: accrual.surplus_insurance,
+          deducted_insurance: accrual.deducted_insurance,
+        }),
         deducted_fitness: accrual.deducted_fitness?.toString() || null,
         deducted_fine: accrual.deducted_fine?.toString() || null,
       }));
@@ -370,6 +420,10 @@ export async function POST(request: NextRequest) {
     // Generate payment_id
     const salaryDate = new Date(salary_month);
     const payment_id = generatePaymentId(counteragent_uuid, financial_code_uuid, salaryDate);
+    const normalizedInsurance = normalizeInsuranceValues(
+      parseNullableNumber(surplus_insurance),
+      parseNullableNumber(deducted_insurance),
+    );
 
     // Create the accrual
     const accrual = await prisma.salary_accruals.create({
@@ -380,8 +434,8 @@ export async function POST(request: NextRequest) {
         payment_id,
         salary_month: salaryDate,
         net_sum: parseFloat(net_sum),
-        surplus_insurance: surplus_insurance ? parseFloat(surplus_insurance) : null,
-        deducted_insurance: deducted_insurance ? parseFloat(deducted_insurance) : null,
+        surplus_insurance: normalizedInsurance.surplusInsurance,
+        deducted_insurance: normalizedInsurance.deductedInsurance,
         deducted_fitness: deducted_fitness ? parseFloat(deducted_fitness) : null,
         deducted_fine: deducted_fine ? parseFloat(deducted_fine) : null,
         created_by: created_by || 'system',
@@ -393,6 +447,10 @@ export async function POST(request: NextRequest) {
       ...accrual,
       id: accrual.id.toString(),
       payment_id,
+      ...serializeInsuranceValues({
+        surplus_insurance: accrual.surplus_insurance,
+        deducted_insurance: accrual.deducted_insurance,
+      }),
     });
   } catch (error: any) {
     console.error('Error creating salary accrual:', error);
@@ -429,6 +487,10 @@ export async function PUT(request: NextRequest) {
     // Regenerate payment_id if key fields changed
     const salaryDate = new Date(salary_month);
     const payment_id = generatePaymentId(counteragent_uuid, financial_code_uuid, salaryDate);
+    const normalizedInsurance = normalizeInsuranceValues(
+      parseNullableNumber(surplus_insurance),
+      parseNullableNumber(deducted_insurance),
+    );
 
     const accrual = await prisma.salary_accruals.update({
       where: { id: BigInt(id) },
@@ -439,8 +501,8 @@ export async function PUT(request: NextRequest) {
         payment_id,
         salary_month: salaryDate,
         net_sum: parseFloat(net_sum),
-        surplus_insurance: surplus_insurance ? parseFloat(surplus_insurance) : null,
-        deducted_insurance: deducted_insurance ? parseFloat(deducted_insurance) : null,
+        surplus_insurance: normalizedInsurance.surplusInsurance,
+        deducted_insurance: normalizedInsurance.deductedInsurance,
         deducted_fitness: deducted_fitness ? parseFloat(deducted_fitness) : null,
         deducted_fine: deducted_fine ? parseFloat(deducted_fine) : null,
         updated_at: new Date(),
@@ -456,6 +518,10 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({
       ...accrual,
       id: accrual.id.toString(),
+      ...serializeInsuranceValues({
+        surplus_insurance: accrual.surplus_insurance,
+        deducted_insurance: accrual.deducted_insurance,
+      }),
     });
   } catch (error: any) {
     console.error('Error updating salary accrual:', error);

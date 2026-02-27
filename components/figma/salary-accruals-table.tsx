@@ -342,7 +342,14 @@ export function SalaryAccrualsTable() {
       }
       const result = await response.json();
       if (Array.isArray(result.records)) {
-        setData((prev) => [...result.records, ...prev]);
+        const normalizedRecords = result.records.map((record: SalaryAccrual) => {
+          const normalizedRecord = normalizeAccrualInsurance(record);
+          return {
+            ...normalizedRecord,
+            month_balance: computeBalance(normalizedRecord),
+          };
+        });
+        setData((prev) => [...normalizedRecords, ...prev]);
       }
     } catch (error: any) {
       alert(error.message || 'Failed to copy salary accruals');
@@ -374,7 +381,7 @@ export function SalaryAccrualsTable() {
         throw new Error(result.error || 'Failed to upload insurance data');
       }
 
-      setUploadSummary(result);
+      setUploadSummary(normalizeUploadSummaryInsurance(result));
       setIsSummaryOpen(true);
       if (action === 'apply') {
         const updates = Array.isArray(result.updated_details) ? result.updated_details : [];
@@ -393,10 +400,14 @@ export function SalaryAccrualsTable() {
               if (!matchesMonth) return row;
               const update = updateMap.get(row.counteragent_uuid) as any;
               if (!update) return row;
+              const normalizedInsurance = normalizeInsurancePair(
+                String(update.surplus_insurance ?? row.surplus_insurance ?? '0'),
+                String(update.deducted_insurance ?? row.deducted_insurance ?? '0'),
+              );
               const updatedRow = {
                 ...row,
-                surplus_insurance: String(update.surplus_insurance ?? row.surplus_insurance ?? '0'),
-                deducted_insurance: String(update.deducted_insurance ?? row.deducted_insurance ?? '0'),
+                surplus_insurance: normalizedInsurance.surplus_insurance,
+                deducted_insurance: normalizedInsurance.deducted_insurance,
               } as SalaryAccrual;
               return {
                 ...updatedRow,
@@ -657,9 +668,73 @@ export function SalaryAccrualsTable() {
     return base.toLowerCase();
   };
 
+  const normalizeInsurancePair = (
+    surplusInsurance: string | null | undefined,
+    deductedInsurance: string | null | undefined,
+  ) => {
+    const surplusNumeric = parseFloat(surplusInsurance || '0') || 0;
+    const deductedNumeric = parseFloat(deductedInsurance || '0') || 0;
+    if (surplusNumeric > deductedNumeric) {
+      return {
+        surplus_insurance: deductedInsurance ?? null,
+        deducted_insurance: surplusInsurance ?? null,
+      };
+    }
+    return {
+      surplus_insurance: surplusInsurance ?? null,
+      deducted_insurance: deductedInsurance ?? null,
+    };
+  };
+
+  const getNormalizedInsuranceAmounts = (row: Pick<SalaryAccrual, 'surplus_insurance' | 'deducted_insurance'>) => {
+    const surplusNumeric = parseFloat(row.surplus_insurance || '0') || 0;
+    const deductedNumeric = parseFloat(row.deducted_insurance || '0') || 0;
+    if (surplusNumeric > deductedNumeric) {
+      return { surplus: deductedNumeric, deducted: surplusNumeric };
+    }
+    return { surplus: surplusNumeric, deducted: deductedNumeric };
+  };
+
+  const normalizeAccrualInsurance = (accrual: SalaryAccrual): SalaryAccrual => {
+    const normalized = normalizeInsurancePair(accrual.surplus_insurance, accrual.deducted_insurance);
+    return {
+      ...accrual,
+      surplus_insurance: normalized.surplus_insurance,
+      deducted_insurance: normalized.deducted_insurance,
+    };
+  };
+
+  const normalizeUploadSummaryInsurance = (summary: any) => {
+    if (!summary || typeof summary !== 'object') return summary;
+    const normalizeItem = (item: any) => {
+      if (!item || typeof item !== 'object') return item;
+      const normalized = normalizeInsurancePair(
+        item.surplus_insurance != null ? String(item.surplus_insurance) : null,
+        item.deducted_insurance != null ? String(item.deducted_insurance) : null,
+      );
+      return {
+        ...item,
+        surplus_insurance:
+          normalized.surplus_insurance === null ? item.surplus_insurance : Number(normalized.surplus_insurance),
+        deducted_insurance:
+          normalized.deducted_insurance === null ? item.deducted_insurance : Number(normalized.deducted_insurance),
+      };
+    };
+
+    return {
+      ...summary,
+      updated_details: Array.isArray(summary.updated_details)
+        ? summary.updated_details.map(normalizeItem)
+        : summary.updated_details,
+      negative_results: Array.isArray(summary.negative_results)
+        ? summary.negative_results.map(normalizeItem)
+        : summary.negative_results,
+    };
+  };
+
   const computeBalance = (row: SalaryAccrual) => {
     const netSum = parseFloat(row.net_sum || '0');
-    const deductedInsurance = parseFloat(row.deducted_insurance || '0') || 0;
+    const { deducted: deductedInsurance } = getNormalizedInsuranceAmounts(row);
     const deductedFitness = parseFloat(row.deducted_fitness || '0') || 0;
     const deductedFine = parseFloat(row.deducted_fine || '0') || 0;
     const paid = typeof row.paid === 'number' ? row.paid : parseFloat((row.paid as any) || '0') || 0;
@@ -775,14 +850,15 @@ export function SalaryAccrualsTable() {
 
       // Calculate paid and month_balance for each salary accrual
       const enrichedData = projectedData.map((accrual: SalaryAccrual) => {
-        const paymentIdLower = accrual.payment_id ? normalizePaymentId(accrual.payment_id) : '';
+        const normalizedAccrual = normalizeAccrualInsurance(accrual);
+        const paymentIdLower = normalizedAccrual.payment_id ? normalizePaymentId(normalizedAccrual.payment_id) : '';
         const paid = typeof accrual.paid === 'number'
           ? accrual.paid
           : Math.abs(paidMap.get(paymentIdLower) || 0);
-        const monthBalance = computeBalance({ ...accrual, paid });
+        const monthBalance = computeBalance({ ...normalizedAccrual, paid });
 
         return {
-          ...accrual,
+          ...normalizedAccrual,
           paid,
           month_balance: monthBalance
         };
@@ -892,14 +968,16 @@ export function SalaryAccrualsTable() {
       return;
     }
 
+    const normalizedInsurance = normalizeInsurancePair(surplusInsurance || null, deductedInsurance || null);
+
     const payload = {
       counteragent_uuid: selectedEmployee,
       financial_code_uuid: selectedFinancialCode,
       nominal_currency_uuid: selectedCurrency,
       salary_month: salaryMonth,
       net_sum: netSum,
-      surplus_insurance: surplusInsurance || null,
-      deducted_insurance: deductedInsurance || null,
+      surplus_insurance: normalizedInsurance.surplus_insurance,
+      deducted_insurance: normalizedInsurance.deducted_insurance,
       deducted_fitness: deductedFitness || null,
       deducted_fine: deductedFine || null,
       created_by: 'user',
@@ -953,13 +1031,14 @@ export function SalaryAccrualsTable() {
         month_balance: 0,
       };
 
-      updatedRow.month_balance = computeBalance(updatedRow);
+      const normalizedUpdatedRow = normalizeAccrualInsurance(updatedRow);
+      normalizedUpdatedRow.month_balance = computeBalance(normalizedUpdatedRow);
 
       setData((prev) => {
         if (editingId) {
-          return prev.map((row) => (row.id === editingId ? updatedRow : row));
+          return prev.map((row) => (row.id === editingId ? normalizedUpdatedRow : row));
         }
-        return [updatedRow, ...prev];
+        return [normalizedUpdatedRow, ...prev];
       });
 
       setIsDialogOpen(false);
@@ -1168,18 +1247,19 @@ export function SalaryAccrualsTable() {
 
   // Calculate totals
   const totals = useMemo(() => {
-    return filteredAndSortedData.reduce((acc, row) => ({
-      net_sum: acc.net_sum + (parseFloat(row.net_sum) || 0),
-      paid: acc.paid + (row.paid || 0),
-      month_balance: acc.month_balance + computeBalance(row),
-      surplus_insurance: acc.surplus_insurance + (parseFloat(row.surplus_insurance || '0') || 0),
-      deducted_insurance: acc.deducted_insurance + (parseFloat(row.deducted_insurance || '0') || 0),
-      total_insurance: acc.total_insurance +
-        (parseFloat(row.surplus_insurance || '0') || 0) +
-        (parseFloat(row.deducted_insurance || '0') || 0),
-      deducted_fitness: acc.deducted_fitness + (parseFloat(row.deducted_fitness || '0') || 0),
-      deducted_fine: acc.deducted_fine + (parseFloat(row.deducted_fine || '0') || 0),
-    }), { 
+    return filteredAndSortedData.reduce((acc, row) => {
+      const { surplus, deducted } = getNormalizedInsuranceAmounts(row);
+      return {
+        net_sum: acc.net_sum + (parseFloat(row.net_sum) || 0),
+        paid: acc.paid + (row.paid || 0),
+        month_balance: acc.month_balance + computeBalance(row),
+        surplus_insurance: acc.surplus_insurance + surplus,
+        deducted_insurance: acc.deducted_insurance + deducted,
+        total_insurance: acc.total_insurance + surplus + deducted,
+        deducted_fitness: acc.deducted_fitness + (parseFloat(row.deducted_fitness || '0') || 0),
+        deducted_fine: acc.deducted_fine + (parseFloat(row.deducted_fine || '0') || 0),
+      };
+    }, {
       net_sum: 0,
       paid: 0,
       month_balance: 0,
@@ -1618,6 +1698,10 @@ export function SalaryAccrualsTable() {
                       <div><span className="text-gray-600">Updated records:</span> {uploadSummary.updated_records}</div>
                       <div><span className="text-gray-600">Missing employees:</span> {uploadSummary.missing_employees?.length || 0}</div>
                       <div><span className="text-gray-600">Negative deductions:</span> {uploadSummary.negative_results?.length || 0}</div>
+                      <div><span className="text-gray-600">Total insurance cost (file):</span> {formatValue(uploadSummary.summary_totals?.file_total_insurance_cost || 0, 'currency')}</div>
+                      <div><span className="text-gray-600">Matched cost total:</span> {formatValue(uploadSummary.summary_totals?.matched_total_insurance_cost || 0, 'currency')}</div>
+                      <div><span className="text-gray-600">Matched surplus total:</span> {formatValue(uploadSummary.summary_totals?.matched_total_surplus_insurance || 0, 'currency')}</div>
+                      <div><span className="text-gray-600">Matched deductable total:</span> {formatValue(uploadSummary.summary_totals?.matched_total_deducted_insurance || 0, 'currency')}</div>
                     </div>
                     <div>
                       <div className="font-medium mb-2">Employees</div>

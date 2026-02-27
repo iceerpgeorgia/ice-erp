@@ -21,6 +21,13 @@ const parseAmount = (value: unknown) => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+const normalizeHeaderKey = (value: unknown) =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/[_-]+/g, ' ');
+
 const parseMonth = (value: string) => {
   const trimmed = value.trim();
   if (/^\d{4}-\d{2}$/.test(trimmed)) {
@@ -68,18 +75,50 @@ export async function POST(request: NextRequest) {
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false }) as unknown[][];
 
+    const insuranceCostHeaderAliases = [
+      'დაზღვევის ღირებულება',
+      'დაზღვევის ღირებულება (ლარი)',
+      'insurance cost',
+      'cost of insurance',
+    ];
+
+    const fallbackHeaderAliases = ['გრაფიკის მიხედვით'];
+
     const headerIndex = rows.findIndex((row) => {
-      const headers = row.map(normalizeHeader);
-      return headers.includes('პირადი ნომერი') && headers.includes('გრაფიკის მიხედვით');
+      const normalizedHeaders = row.map(normalizeHeaderKey);
+      const hasPersonalId = normalizedHeaders.includes(normalizeHeaderKey('პირადი ნომერი'));
+      const hasInsuranceCost = insuranceCostHeaderAliases.some((alias) =>
+        normalizedHeaders.includes(normalizeHeaderKey(alias)),
+      );
+      const hasFallback = fallbackHeaderAliases.some((alias) =>
+        normalizedHeaders.includes(normalizeHeaderKey(alias)),
+      );
+      return hasPersonalId && (hasInsuranceCost || hasFallback);
     });
 
     if (headerIndex === -1) {
-      return NextResponse.json({ error: 'Missing required columns: პირადი ნომერი, გრაფიკის მიხედვით' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing required columns: პირადი ნომერი and insurance cost column' }, { status: 400 });
     }
 
     const headers = rows[headerIndex].map(normalizeHeader);
-    const idIndex = headers.indexOf('პირადი ნომერი');
-    const amountIndex = headers.indexOf('გრაფიკის მიხედვით');
+    const normalizedHeaders = headers.map(normalizeHeaderKey);
+    const idIndex = normalizedHeaders.indexOf(normalizeHeaderKey('პირადი ნომერი'));
+
+    const findFirstIndex = (aliases: string[]) => {
+      for (const alias of aliases) {
+        const idx = normalizedHeaders.indexOf(normalizeHeaderKey(alias));
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    };
+
+    const insuranceCostIndex = findFirstIndex(insuranceCostHeaderAliases);
+    const fallbackAmountIndex = findFirstIndex(fallbackHeaderAliases);
+    const amountIndex = insuranceCostIndex >= 0 ? insuranceCostIndex : fallbackAmountIndex;
+
+    if (idIndex < 0 || amountIndex < 0) {
+      return NextResponse.json({ error: 'Missing required columns: პირადი ნომერი and insurance cost value column' }, { status: 400 });
+    }
 
     const idAmountMap = new Map<string, number>();
     for (let i = headerIndex + 1; i < rows.length; i += 1) {
@@ -90,6 +129,7 @@ export async function POST(request: NextRequest) {
       const amount = parseAmount(row[amountIndex]);
       idAmountMap.set(personalId, (idAmountMap.get(personalId) || 0) + amount);
     }
+    const totalInsuranceCostInFile = Array.from(idAmountMap.values()).reduce((sum, value) => sum + value, 0);
 
     const allEmployees = await prisma.counteragents.findMany({
       where: { identification_number: { not: null } },
@@ -139,15 +179,21 @@ export async function POST(request: NextRequest) {
     const negativeResults: Array<{ personal_id: string; counteragent_uuid: string; counteragent_name: string | null; graph_amount: number; surplus_insurance: number; deducted_insurance: number; total_insurance: number }> = [];
     const updatedDetails: Array<{ personal_id: string; counteragent_uuid: string; counteragent_name: string | null; graph_amount: number; surplus_insurance: number; deducted_insurance: number; total_insurance: number }> = [];
     let updatedRecords = 0;
+    let matchedInsuranceCost = 0;
+    let totalSurplusInsurance = 0;
+    let totalDeductedInsurance = 0;
 
     for (const record of accruals) {
       const personalId = uuidToPersonalId.get(record.counteragent_uuid);
       if (!personalId) continue;
-      const graphAmount = idAmountMap.get(personalId) || 0;
+      const insuranceCost = idAmountMap.get(personalId) || 0;
       const surplusInsurance = record.surplus_insurance ? Number(record.surplus_insurance) : 0;
-      const deductedInsurance = graphAmount - surplusInsurance;
+      const deductedInsurance = insuranceCost - surplusInsurance;
 
       const totalInsurance = surplusInsurance + deductedInsurance;
+      matchedInsuranceCost += insuranceCost;
+      totalSurplusInsurance += surplusInsurance;
+      totalDeductedInsurance += deductedInsurance;
 
       if (deductedInsurance < 0) {
         const employee = matchedEmployees.get(personalId);
@@ -155,7 +201,7 @@ export async function POST(request: NextRequest) {
           personal_id: personalId,
           counteragent_uuid: record.counteragent_uuid,
           counteragent_name: employee?.name || null,
-          graph_amount: graphAmount,
+          graph_amount: insuranceCost,
           surplus_insurance: surplusInsurance,
           deducted_insurance: deductedInsurance,
           total_insurance: totalInsurance,
@@ -167,7 +213,7 @@ export async function POST(request: NextRequest) {
         personal_id: personalId,
         counteragent_uuid: record.counteragent_uuid,
         counteragent_name: employee?.name || null,
-        graph_amount: graphAmount,
+        graph_amount: insuranceCost,
         surplus_insurance: surplusInsurance,
         deducted_insurance: deductedInsurance,
         total_insurance: totalInsurance,
@@ -188,6 +234,12 @@ export async function POST(request: NextRequest) {
       matched_employees: matchedEmployees.size,
       missing_employees: missingEmployees,
       updated_records: updatedRecords,
+      summary_totals: {
+        file_total_insurance_cost: totalInsuranceCostInFile,
+        matched_total_insurance_cost: matchedInsuranceCost,
+        matched_total_surplus_insurance: totalSurplusInsurance,
+        matched_total_deducted_insurance: totalDeductedInsurance,
+      },
       negative_results: negativeResults,
       updated_details: updatedDetails,
     });
