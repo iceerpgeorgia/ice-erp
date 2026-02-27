@@ -1,6 +1,14 @@
 # Deployment Log
 
 ## 2026-02-27
+- Summary: Waybills column clipping parity with Payments Report and blank rendering alignment.
+- Changes:
+  - Waybills table: use Payments Report-style overflow clipping/truncation when columns are resized.
+  - Waybills table: render empty values as true blanks (no `-`) to align with blank filtering behavior.
+- Commit: c91c702
+- Production: https://ice-ju7ft7h4t-iceerp.vercel.app
+
+## 2026-02-27
 - Summary: Waybills filter options restored, blank-first filters, refresh control, and header overlap fix.
 - Changes:
   - Waybills filters: restore facet options rendering and include `(Blank)` values at top of filter lists.
