@@ -26,14 +26,6 @@ const normalizeInsuranceValues = (
   surplusInsurance: number | null,
   deductedInsurance: number | null,
 ) => {
-  const surplusComparable = surplusInsurance ?? 0;
-  const deductedComparable = deductedInsurance ?? 0;
-  if (surplusComparable > deductedComparable) {
-    return {
-      surplusInsurance: deductedInsurance,
-      deductedInsurance: surplusInsurance,
-    };
-  }
   return {
     surplusInsurance,
     deductedInsurance,
