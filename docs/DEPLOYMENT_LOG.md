@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-28
+- Summary: Salary accruals table now preserves insurance fields as stored (no client-side swap).
+- Changes:
+  - Salary accruals table UI: remove insurance normalization that swapped `surplus_insurance` and `deducted_insurance` when surplus was greater.
+  - Salary accruals table UI: preserve API/DB insurance values as-is in table rendering and edit normalization helpers.
+  - Scope: fixes remaining inversion seen in Salaries Accrual table after prior API-only patch.
+- Commit: 326c5d2
+- Production: https://ice-c38av2n8z-iceerp.vercel.app
+
+## 2026-02-28
 - Summary: Salary accrual insurance fields now return stored values without auto-swap.
 - Changes:
   - Salary accruals API: remove insurance normalization that swapped `surplus_insurance` and `deducted_insurance` when surplus was greater.
