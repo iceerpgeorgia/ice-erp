@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-28
+- Summary: Salary accruals table now includes cumulative accrual/payment/balance columns.
+- Changes:
+  - Salary accruals table UI: add `Cumulative Accrual`, `Cumulative Payment`, and `Cumulative Balance` columns.
+  - Salary accruals table UI: compute cumulative values by employee and currency across period-ordered rows while preserving month balance logic.
+  - Salary accruals table UI: apply computed-column accessors consistently for rendering, sorting, filtering, facets, and data updates.
+- Commit: b88d0f3
+- Production: https://ice-cyidslwo6-iceerp.vercel.app
+
+## 2026-02-28
 - Summary: Salary accruals table now preserves insurance fields as stored (no client-side swap).
 - Changes:
   - Salary accruals table UI: remove insurance normalization that swapped `surplus_insurance` and `deducted_insurance` when surplus was greater.
