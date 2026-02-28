@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-02-28
+- Summary: Salary accrual insurance fields now return stored values without auto-swap.
+- Changes:
+  - Salary accruals API: remove insurance normalization that swapped `surplus_insurance` and `deducted_insurance` when surplus was greater.
+  - Salary accruals API: preserve DB values as-is so deductible/surplus display matches stored data for all employees.
+  - Verification: confirmed reported case (`0c7f8db5-32e0-420b-b059-ca204377f0f3`, `PRL022026`) returns `deducted_insurance=null`, `surplus_insurance=95.00`.
+- Commit: 4506a03
+- Production: https://ice-lw8d6m904-iceerp.vercel.app
+
 ## 2026-02-27
 - Summary: Salary accrual insurance copy and TBC upload report totals updates.
 - Changes:
