@@ -55,6 +55,9 @@ type SalaryAccrual = {
   updated_at: string;
   paid?: number; // Calculated from bank transactions
   month_balance?: number; // computed month balance
+  cumulative_accrual?: number;
+  cumulative_payment?: number;
+  cumulative_balance?: number;
 };
 
 type ColumnKey = keyof SalaryAccrual;
@@ -94,6 +97,9 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'net_sum', label: 'Net Sum', visible: true, sortable: true, filterable: true, format: 'currency', width: 130 },
   { key: 'paid', label: 'Paid', visible: true, sortable: true, filterable: true, format: 'currency', width: 130 },
   { key: 'month_balance', label: 'Month Balance', visible: true, sortable: true, filterable: true, format: 'currency', width: 150 },
+  { key: 'cumulative_accrual', label: 'Cumulative Accrual', visible: true, sortable: true, filterable: true, format: 'currency', width: 170 },
+  { key: 'cumulative_payment', label: 'Cumulative Payment', visible: true, sortable: true, filterable: true, format: 'currency', width: 170 },
+  { key: 'cumulative_balance', label: 'Cumulative Balance', visible: true, sortable: true, filterable: true, format: 'currency', width: 170 },
   { key: 'currency_code', label: 'Currency', visible: true, sortable: true, filterable: true, width: 100 },
   { key: 'surplus_insurance', label: 'Surplus Insurance', visible: true, sortable: true, filterable: true, format: 'currency', width: 150 },
   { key: 'deducted_insurance', label: 'Ded. Insurance', visible: true, sortable: true, filterable: true, format: 'currency', width: 150 },
@@ -342,14 +348,7 @@ export function SalaryAccrualsTable() {
       }
       const result = await response.json();
       if (Array.isArray(result.records)) {
-        const normalizedRecords = result.records.map((record: SalaryAccrual) => {
-          const normalizedRecord = normalizeAccrualInsurance(record);
-          return {
-            ...normalizedRecord,
-            month_balance: computeBalance(normalizedRecord),
-          };
-        });
-        setData((prev) => [...normalizedRecords, ...prev]);
+        setData((prev) => applyComputedColumns([...(result.records as SalaryAccrual[]), ...prev]));
       }
     } catch (error: any) {
       alert(error.message || 'Failed to copy salary accruals');
@@ -391,7 +390,7 @@ export function SalaryAccrualsTable() {
           );
           const targetMonth = uploadMonth;
           setData((prev) =>
-            prev.map((row) => {
+            applyComputedColumns(prev.map((row) => {
               const rowDate = parseSalaryMonth(row.salary_month);
               const matchesMonth =
                 rowDate &&
@@ -409,11 +408,8 @@ export function SalaryAccrualsTable() {
                 surplus_insurance: normalizedInsurance.surplus_insurance,
                 deducted_insurance: normalizedInsurance.deducted_insurance,
               } as SalaryAccrual;
-              return {
-                ...updatedRow,
-                month_balance: computeBalance(updatedRow),
-              };
-            })
+              return updatedRow;
+            }))
           );
         }
         setIsUploadDialogOpen(false);
@@ -721,14 +717,76 @@ export function SalaryAccrualsTable() {
     };
   };
 
-  const computeBalance = (row: SalaryAccrual) => {
+  const computeAccrualValue = (row: SalaryAccrual) => {
     const netSum = parseFloat(row.net_sum || '0');
     const { deducted: deductedInsurance } = getNormalizedInsuranceAmounts(row);
     const deductedFitness = parseFloat(row.deducted_fitness || '0') || 0;
     const deductedFine = parseFloat(row.deducted_fine || '0') || 0;
-    const paid = typeof row.paid === 'number' ? row.paid : parseFloat((row.paid as any) || '0') || 0;
     const pensionMultiplier = row.pension_scheme ? 0.98 : 1;
-    return netSum * pensionMultiplier - paid - deductedInsurance - deductedFitness - deductedFine;
+    return netSum * pensionMultiplier - deductedInsurance - deductedFitness - deductedFine;
+  };
+
+  const getPaidValue = (row: SalaryAccrual) => {
+    return typeof row.paid === 'number' ? row.paid : parseFloat((row.paid as any) || '0') || 0;
+  };
+
+  const computeBalance = (row: SalaryAccrual) => {
+    return computeAccrualValue(row) - getPaidValue(row);
+  };
+
+  const applyComputedColumns = (rows: SalaryAccrual[]) => {
+    const normalizedRows = rows.map((row) => normalizeAccrualInsurance(row));
+    const sortedForCumulative = [...normalizedRows].sort((a, b) => {
+      const aDate = parseSalaryMonth(a.salary_month)?.getTime() || 0;
+      const bDate = parseSalaryMonth(b.salary_month)?.getTime() || 0;
+      if (aDate !== bDate) return aDate - bDate;
+      const aCreated = new Date(a.created_at || 0).getTime();
+      const bCreated = new Date(b.created_at || 0).getTime();
+      if (aCreated !== bCreated) return aCreated - bCreated;
+      return String(a.id).localeCompare(String(b.id));
+    });
+
+    const cumulativeByRowId = new Map<string, { cumulativeAccrual: number; cumulativePayment: number; cumulativeBalance: number; monthBalance: number }>();
+    const runningTotals = new Map<string, { accrual: number; payment: number }>();
+
+    sortedForCumulative.forEach((row) => {
+      const groupKey = `${row.counteragent_uuid || ''}|${row.nominal_currency_uuid || ''}`;
+      const accrualValue = computeAccrualValue(row);
+      const paidValue = getPaidValue(row);
+      const previous = runningTotals.get(groupKey) || { accrual: 0, payment: 0 };
+      const cumulativeAccrual = previous.accrual + accrualValue;
+      const cumulativePayment = previous.payment + paidValue;
+      const cumulativeBalance = cumulativeAccrual - cumulativePayment;
+      const monthBalance = accrualValue - paidValue;
+
+      runningTotals.set(groupKey, { accrual: cumulativeAccrual, payment: cumulativePayment });
+      cumulativeByRowId.set(String(row.id), {
+        cumulativeAccrual,
+        cumulativePayment,
+        cumulativeBalance,
+        monthBalance,
+      });
+    });
+
+    return normalizedRows.map((row) => {
+      const computed = cumulativeByRowId.get(String(row.id));
+      if (!computed) return row;
+      return {
+        ...row,
+        month_balance: computed.monthBalance,
+        cumulative_accrual: computed.cumulativeAccrual,
+        cumulative_payment: computed.cumulativePayment,
+        cumulative_balance: computed.cumulativeBalance,
+      };
+    });
+  };
+
+  const getRowValue = (row: SalaryAccrual, columnKey: ColumnKey) => {
+    if (columnKey === 'month_balance') return row.month_balance ?? computeBalance(row);
+    if (columnKey === 'cumulative_accrual') return row.cumulative_accrual ?? 0;
+    if (columnKey === 'cumulative_payment') return row.cumulative_payment ?? 0;
+    if (columnKey === 'cumulative_balance') return row.cumulative_balance ?? 0;
+    return row[columnKey];
   };
 
   const fetchData = async (options: { showLoading?: boolean } = {}) => {
@@ -837,23 +895,21 @@ export function SalaryAccrualsTable() {
         }
       }
 
-      // Calculate paid and month_balance for each salary accrual
+      // Calculate paid and computed columns for each salary accrual
       const enrichedData = projectedData.map((accrual: SalaryAccrual) => {
         const normalizedAccrual = normalizeAccrualInsurance(accrual);
         const paymentIdLower = normalizedAccrual.payment_id ? normalizePaymentId(normalizedAccrual.payment_id) : '';
         const paid = typeof accrual.paid === 'number'
           ? accrual.paid
           : Math.abs(paidMap.get(paymentIdLower) || 0);
-        const monthBalance = computeBalance({ ...normalizedAccrual, paid });
 
         return {
           ...normalizedAccrual,
           paid,
-          month_balance: monthBalance
         };
       });
       
-      setData(enrichedData);
+      setData(applyComputedColumns(enrichedData));
     } catch (error) {
       console.error('Error fetching salary accruals:', error);
     } finally {
@@ -1021,13 +1077,12 @@ export function SalaryAccrualsTable() {
       };
 
       const normalizedUpdatedRow = normalizeAccrualInsurance(updatedRow);
-      normalizedUpdatedRow.month_balance = computeBalance(normalizedUpdatedRow);
 
       setData((prev) => {
         if (editingId) {
-          return prev.map((row) => (row.id === editingId ? normalizedUpdatedRow : row));
+          return applyComputedColumns(prev.map((row) => (row.id === editingId ? normalizedUpdatedRow : row)));
         }
-        return [normalizedUpdatedRow, ...prev];
+        return applyComputedColumns([normalizedUpdatedRow, ...prev]);
       });
 
       setIsDialogOpen(false);
@@ -1051,7 +1106,7 @@ export function SalaryAccrualsTable() {
         throw new Error(error.error || 'Failed to delete');
       }
 
-      setData((prev) => prev.filter((row) => row.id !== id));
+      setData((prev) => applyComputedColumns(prev.filter((row) => row.id !== id)));
     } catch (error: any) {
       console.error('Error deleting salary accrual:', error);
       alert(error.message || 'Failed to delete salary accrual');
@@ -1101,9 +1156,7 @@ export function SalaryAccrualsTable() {
     if (filters.size > 0) {
       result = result.filter(row => {
         for (const [columnKey, allowedValues] of filters.entries()) {
-          const rowValue = columnKey === 'month_balance'
-            ? computeBalance(row)
-            : row[columnKey as ColumnKey];
+          const rowValue = getRowValue(row, columnKey as ColumnKey);
           if (!allowedValues.has(rowValue)) {
             return false;
           }
@@ -1114,8 +1167,8 @@ export function SalaryAccrualsTable() {
 
     // Apply sort
     result.sort((a, b) => {
-      const aVal = sortColumn === 'month_balance' ? computeBalance(a) : a[sortColumn];
-      const bVal = sortColumn === 'month_balance' ? computeBalance(b) : b[sortColumn];
+      const aVal = getRowValue(a, sortColumn);
+      const bVal = getRowValue(b, sortColumn);
       
       if (aVal === bVal) return 0;
       
@@ -1169,7 +1222,7 @@ export function SalaryAccrualsTable() {
       result = result.filter(row => {
         for (const [columnKey, allowedValues] of filters.entries()) {
           if (excludeColumn && columnKey === excludeColumn) continue;
-          const rowValue = columnKey === 'month_balance' ? computeBalance(row) : row[columnKey as ColumnKey];
+          const rowValue = getRowValue(row, columnKey as ColumnKey);
           if (!allowedValues.has(rowValue)) {
             return false;
           }
@@ -1188,7 +1241,7 @@ export function SalaryAccrualsTable() {
     
     filterableColumns.forEach(col => {
       const values = new Set(
-        getFacetBaseData(col.key).map(row => col.key === 'month_balance' ? computeBalance(row) : row[col.key])
+        getFacetBaseData(col.key).map(row => getRowValue(row, col.key))
       );
       cache.set(col.key, Array.from(values).sort());
     });
@@ -1939,7 +1992,11 @@ export function SalaryAccrualsTable() {
                           </div>
                         ) : col.key === 'month_balance' ? (
                           <div className="truncate">
-                            {formatValue(computeBalance(accrual), col.format)}
+                            {formatValue(getRowValue(accrual, 'month_balance'), col.format)}
+                          </div>
+                        ) : col.key === 'cumulative_accrual' || col.key === 'cumulative_payment' || col.key === 'cumulative_balance' ? (
+                          <div className="truncate">
+                            {formatValue(getRowValue(accrual, col.key), col.format)}
                           </div>
                         ) : (
                           <div className="truncate">
