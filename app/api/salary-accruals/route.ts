@@ -169,11 +169,18 @@ export async function GET(request: NextRequest) {
         c.pension_scheme,
         c.iban as counteragent_iban,
         fc.validation as financial_code,
-        cur.code as currency_code
+        cur.code as currency_code,
+        COALESCE(pl.confirmed, false) as confirmed
       FROM salary_accruals sa
       LEFT JOIN counteragents c ON sa.counteragent_uuid = c.counteragent_uuid
       LEFT JOIN financial_codes fc ON sa.financial_code_uuid = fc.uuid
       LEFT JOIN currencies cur ON sa.nominal_currency_uuid = cur.uuid
+      LEFT JOIN LATERAL (
+        SELECT BOOL_OR(ledger.confirmed) as confirmed
+        FROM payments_ledger ledger
+        WHERE lower(trim(split_part(ledger.payment_id, ':', 1))) = lower(trim(split_part(sa.payment_id, ':', 1)))
+          AND (ledger.is_deleted = false OR ledger.is_deleted IS NULL)
+      ) pl ON true
       ORDER BY sa.salary_month DESC, sa.created_at DESC
     `;
 
@@ -282,6 +289,7 @@ export async function GET(request: NextRequest) {
       }
       return {
         paid,
+        confirmed: Boolean(accrual.confirmed),
         ...accrual,
       id: accrual.id.toString(),
       net_sum: accrual.net_sum.toString(),

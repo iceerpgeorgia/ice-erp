@@ -51,6 +51,7 @@ type SalaryAccrual = {
   deducted_insurance: string | null;
   deducted_fitness: string | null;
   deducted_fine: string | null;
+  confirmed?: boolean;
   created_at: string;
   updated_at: string;
   paid?: number; // Calculated from bank transactions
@@ -68,7 +69,7 @@ type ColumnConfig = {
   visible: boolean;
   sortable: boolean;
   filterable: boolean;
-  format?: 'currency' | 'date' | 'text';
+  format?: 'currency' | 'date' | 'text' | 'boolean';
   width: number;
 };
 
@@ -92,6 +93,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'sex', label: 'Sex', visible: true, sortable: true, filterable: true, width: 90 },
   { key: 'pension_scheme', label: 'Pension Scheme', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'payment_id', label: 'Payment ID', visible: true, sortable: true, filterable: true, width: 200 },
+  { key: 'confirmed', label: 'Confirmed', visible: true, sortable: true, filterable: true, format: 'boolean', width: 120 },
   { key: 'financial_code', label: 'Financial Code', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'salary_month', label: 'Month', visible: true, sortable: true, filterable: true, format: 'date', width: 120 },
   { key: 'net_sum', label: 'Net Sum', visible: true, sortable: true, filterable: true, format: 'currency', width: 130 },
@@ -141,6 +143,12 @@ export function SalaryAccrualsTable() {
   const [salaryUploadFile, setSalaryUploadFile] = useState<File | null>(null);
   const [isSalaryUploading, setIsSalaryUploading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [isDeconfirmOpen, setIsDeconfirmOpen] = useState(false);
+  const [isDeconfirming, setIsDeconfirming] = useState(false);
+  const [deconfirmError, setDeconfirmError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [uploadSummary, setUploadSummary] = useState<any | null>(null);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
@@ -1313,8 +1321,12 @@ export function SalaryAccrualsTable() {
     return uniqueValuesCache.get(columnKey) || [];
   }, [uniqueValuesCache]);
 
-  const formatValue = (value: any, format?: 'currency' | 'date' | 'text') => {
+  const formatValue = (value: any, format?: 'currency' | 'date' | 'text' | 'boolean') => {
     if (value === null || value === undefined) return '-';
+
+    if (format === 'boolean') {
+      return value ? 'Yes' : 'No';
+    }
     
     if (format === 'date') {
       if (!value) return '-';
@@ -1338,6 +1350,87 @@ export function SalaryAccrualsTable() {
   const activeFilterCount = filters.size;
   const filteredIds = filteredAndSortedData.map((row) => row.id);
   const allFilteredSelected = filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id));
+  const selectedRecords = useMemo(
+    () => filteredAndSortedData.filter((row) => selectedIds.has(row.id)),
+    [filteredAndSortedData, selectedIds]
+  );
+
+  const selectedPaymentIds = useMemo(
+    () => Array.from(new Set(selectedRecords.map((row) => row.payment_id).filter(Boolean))),
+    [selectedRecords]
+  );
+
+  const selectedMaxMonthDate = useMemo(() => {
+    if (selectedRecords.length === 0) return null;
+    const maxSalaryDate = selectedRecords.reduce<Date | null>((maxDate, row) => {
+      const parsed = parseSalaryMonth(String(row.salary_month));
+      if (!parsed) return maxDate;
+      if (!maxDate || parsed.getTime() > maxDate.getTime()) return parsed;
+      return maxDate;
+    }, null);
+    if (!maxSalaryDate) return null;
+    const endOfMonth = new Date(maxSalaryDate.getFullYear(), maxSalaryDate.getMonth() + 1, 0);
+    const year = endOfMonth.getFullYear();
+    const month = String(endOfMonth.getMonth() + 1).padStart(2, '0');
+    const day = String(endOfMonth.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, [selectedRecords]);
+
+  const handleConfirmSelected = async () => {
+    if (selectedPaymentIds.length === 0) return;
+    setIsConfirming(true);
+    setConfirmError(null);
+    try {
+      const response = await fetch('/api/payments-ledger/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentIds: selectedPaymentIds,
+          maxDate: selectedMaxMonthDate,
+        }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || 'Failed to confirm ledger entries.');
+      }
+      setIsConfirmOpen(false);
+      setSelectedIds(new Set());
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error confirming ledger entries:', error);
+      setConfirmError(error.message || 'Failed to confirm ledger entries.');
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  const handleDeconfirmSelected = async () => {
+    if (selectedPaymentIds.length === 0) return;
+    setIsDeconfirming(true);
+    setDeconfirmError(null);
+    try {
+      const response = await fetch('/api/payments-ledger/deconfirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentIds: selectedPaymentIds,
+          maxDate: selectedMaxMonthDate,
+        }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || 'Failed to deconfirm ledger entries.');
+      }
+      setIsDeconfirmOpen(false);
+      setSelectedIds(new Set());
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error deconfirming ledger entries:', error);
+      setDeconfirmError(error.message || 'Failed to deconfirm ledger entries.');
+    } finally {
+      setIsDeconfirming(false);
+    }
+  };
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -1430,6 +1523,118 @@ export function SalaryAccrualsTable() {
               <Button variant="outline" onClick={handleDownloadBankXlsx}>
                 Bank XLSX
               </Button>
+            )}
+            {selectedIds.size > 0 && (
+              <Dialog
+                open={isConfirmOpen}
+                onOpenChange={(open) => {
+                  setIsConfirmOpen(open);
+                  if (!open) setConfirmError(null);
+                }}
+              >
+                <DialogTrigger asChild>
+                  <Button>Confirm</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl">
+                  <DialogHeader>
+                    <DialogTitle>Confirm selected salary accruals</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                      {selectedMaxMonthDate
+                        ? `Only ledger entries with effective date <= ${selectedMaxMonthDate} will be confirmed.`
+                        : 'No date cutoff is applied. All ledger entries for selected payment IDs will be confirmed.'}
+                    </div>
+                    <div className="max-h-64 overflow-y-auto rounded-md border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                          <tr>
+                            <th className="px-3 py-2 text-left">Payment ID</th>
+                            <th className="px-3 py-2 text-left">Employee</th>
+                            <th className="px-3 py-2 text-left">Month</th>
+                            <th className="px-3 py-2 text-right">Balance</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedRecords.map((row) => (
+                            <tr key={row.id} className="border-t">
+                              <td className="px-3 py-2">{row.payment_id}</td>
+                              <td className="px-3 py-2">{row.counteragent_name || '-'}</td>
+                              <td className="px-3 py-2">{formatMonthLabel(row.salary_month)}</td>
+                              <td className="px-3 py-2 text-right">{formatValue(getRowValue(row, 'month_balance'), 'currency')}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {confirmError && <div className="text-sm text-red-600">{confirmError}</div>}
+                    <div className="flex gap-3 pt-2">
+                      <Button onClick={handleConfirmSelected} disabled={isConfirming} className="flex-1">
+                        {isConfirming ? 'Confirming...' : 'Confirm'}
+                      </Button>
+                      <Button variant="outline" onClick={() => setIsConfirmOpen(false)} className="flex-1">
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+            {selectedIds.size > 0 && (
+              <Dialog
+                open={isDeconfirmOpen}
+                onOpenChange={(open) => {
+                  setIsDeconfirmOpen(open);
+                  if (!open) setDeconfirmError(null);
+                }}
+              >
+                <DialogTrigger asChild>
+                  <Button variant="outline">Deconfirm</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl">
+                  <DialogHeader>
+                    <DialogTitle>Deconfirm selected salary accruals</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                      {selectedMaxMonthDate
+                        ? `Only ledger entries with effective date <= ${selectedMaxMonthDate} will be deconfirmed.`
+                        : 'No date cutoff is applied. All ledger entries for selected payment IDs will be deconfirmed.'}
+                    </div>
+                    <div className="max-h-64 overflow-y-auto rounded-md border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                          <tr>
+                            <th className="px-3 py-2 text-left">Payment ID</th>
+                            <th className="px-3 py-2 text-left">Employee</th>
+                            <th className="px-3 py-2 text-left">Month</th>
+                            <th className="px-3 py-2 text-right">Balance</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedRecords.map((row) => (
+                            <tr key={row.id} className="border-t">
+                              <td className="px-3 py-2">{row.payment_id}</td>
+                              <td className="px-3 py-2">{row.counteragent_name || '-'}</td>
+                              <td className="px-3 py-2">{formatMonthLabel(row.salary_month)}</td>
+                              <td className="px-3 py-2 text-right">{formatValue(getRowValue(row, 'month_balance'), 'currency')}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {deconfirmError && <div className="text-sm text-red-600">{deconfirmError}</div>}
+                    <div className="flex gap-3 pt-2">
+                      <Button onClick={handleDeconfirmSelected} disabled={isDeconfirming} className="flex-1" variant="destructive">
+                        {isDeconfirming ? 'Deconfirming...' : 'Deconfirm'}
+                      </Button>
+                      <Button variant="outline" onClick={() => setIsDeconfirmOpen(false)} className="flex-1">
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             )}
             <Button variant="outline" onClick={handleExportXlsx} disabled={isExporting}>
               {isExporting ? 'Exporting...' : 'Export XLSX'}
@@ -2022,7 +2227,10 @@ export function SalaryAccrualsTable() {
                 </tr>
               ) : (
                 paginatedData.map((accrual, idx) => (
-                  <tr key={`${accrual.id}-${idx}`} className="border-b border-gray-200 hover:bg-gray-50">
+                  <tr
+                    key={`${accrual.id}-${idx}`}
+                    className={`border-b border-gray-200 hover:bg-gray-50 ${accrual.confirmed ? 'bg-[#e8f5e9]' : ''}`}
+                  >
                     <td className="px-2 py-2 text-sm" style={{ width: 60, minWidth: 60, maxWidth: 60 }}>
                       <div className="flex items-center justify-center">
                         <Checkbox
@@ -2045,6 +2253,8 @@ export function SalaryAccrualsTable() {
                           <div className="flex items-center justify-center">
                             <Checkbox checked={Boolean(accrual.pension_scheme)} disabled />
                           </div>
+                        ) : col.format === 'boolean' ? (
+                          <div className="truncate">{formatValue(accrual[col.key], 'boolean')}</div>
                         ) : col.key === 'month_balance' ? (
                           <div className="truncate">
                             {formatValue(getRowValue(accrual, 'month_balance'), col.format)}
