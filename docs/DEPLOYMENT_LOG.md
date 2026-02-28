@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-28
+- Summary: Salary accruals page now supports direct XLSX export.
+- Changes:
+  - Salary accruals table UI: add `Export XLSX` action in the toolbar.
+  - Salary accruals export: download current filtered and sorted records (all matching rows, not just current page).
+  - Salary accruals export: include visible columns in current order and preserve computed values for month/cumulative/balance fields.
+- Commit: 05cb93e
+- Production: https://ice-r0rk5byfh-iceerp.vercel.app
+
+## 2026-02-28
 - Summary: Salary accruals table now includes cumulative accrual/payment/balance columns.
 - Changes:
   - Salary accruals table UI: add `Cumulative Accrual`, `Cumulative Payment`, and `Cumulative Balance` columns.
