@@ -672,14 +672,6 @@ export function SalaryAccrualsTable() {
     surplusInsurance: string | null | undefined,
     deductedInsurance: string | null | undefined,
   ) => {
-    const surplusNumeric = parseFloat(surplusInsurance || '0') || 0;
-    const deductedNumeric = parseFloat(deductedInsurance || '0') || 0;
-    if (surplusNumeric > deductedNumeric) {
-      return {
-        surplus_insurance: deductedInsurance ?? null,
-        deducted_insurance: surplusInsurance ?? null,
-      };
-    }
     return {
       surplus_insurance: surplusInsurance ?? null,
       deducted_insurance: deductedInsurance ?? null,
@@ -689,9 +681,6 @@ export function SalaryAccrualsTable() {
   const getNormalizedInsuranceAmounts = (row: Pick<SalaryAccrual, 'surplus_insurance' | 'deducted_insurance'>) => {
     const surplusNumeric = parseFloat(row.surplus_insurance || '0') || 0;
     const deductedNumeric = parseFloat(row.deducted_insurance || '0') || 0;
-    if (surplusNumeric > deductedNumeric) {
-      return { surplus: deductedNumeric, deducted: surplusNumeric };
-    }
     return { surplus: surplusNumeric, deducted: deductedNumeric };
   };
 
