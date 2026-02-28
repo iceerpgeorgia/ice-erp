@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-02-28
+- Summary: Salary accruals table now supports confirm/deconfirm actions with confirmation status.
+- Changes:
+  - Salary accruals API: include `confirmed` field by aggregating matching ledger rows for each payment ID.
+  - Salary accruals table UI: add `Confirmed` column and highlighted row state for confirmed records.
+  - Salary accruals table UI: add Confirm and Deconfirm actions for selected rows, reusing payments-ledger endpoints with month-based max-date cutoff.
+- Commit: 7617975
+- Production: https://ice-8ejkunzz7-iceerp.vercel.app
+
+## 2026-02-28
 - Summary: Salary accruals page now supports direct XLSX export.
 - Changes:
   - Salary accruals table UI: add `Export XLSX` action in the toolbar.
