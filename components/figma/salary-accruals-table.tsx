@@ -140,6 +140,7 @@ export function SalaryAccrualsTable() {
   const [salaryUploadMonth, setSalaryUploadMonth] = useState('');
   const [salaryUploadFile, setSalaryUploadFile] = useState<File | null>(null);
   const [isSalaryUploading, setIsSalaryUploading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [uploadSummary, setUploadSummary] = useState<any | null>(null);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
@@ -575,6 +576,57 @@ export function SalaryAccrualsTable() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
     XLSX.writeFile(workbook, 'Bank XLSX.xlsx');
+  };
+
+  const handleExportXlsx = () => {
+    try {
+      setIsExporting(true);
+
+      const exportColumns = columns.filter((col) => col.visible);
+      const headers = exportColumns.map((col) => col.label);
+
+      const toExportValue = (row: SalaryAccrual, column: ColumnConfig) => {
+        const rawValue = getRowValue(row, column.key);
+
+        if (rawValue === null || rawValue === undefined) return '';
+
+        if (column.key === 'pension_scheme') {
+          return rawValue ? 'Yes' : 'No';
+        }
+
+        if (column.format === 'date') {
+          const parsedDate = parseSalaryMonth(String(rawValue));
+          if (!parsedDate) return String(rawValue);
+          const year = parsedDate.getFullYear();
+          const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+          return `${year}-${month}`;
+        }
+
+        if (column.format === 'currency') {
+          const numValue = typeof rawValue === 'number' ? rawValue : parseFloat(String(rawValue));
+          if (Number.isNaN(numValue)) return '';
+          return Math.round(numValue * 100) / 100;
+        }
+
+        return String(rawValue);
+      };
+
+      const rows = filteredAndSortedData.map((row) =>
+        exportColumns.map((column) => toExportValue(row, column))
+      );
+
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Salary Accruals');
+
+      const dateStamp = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(workbook, `salary-accruals-${dateStamp}.xlsx`, { bookType: 'xlsx' });
+    } catch (error) {
+      console.error('Failed to export salary accruals XLSX:', error);
+      alert('Failed to export XLSX');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // Column resize handlers
@@ -1379,6 +1431,9 @@ export function SalaryAccrualsTable() {
                 Bank XLSX
               </Button>
             )}
+            <Button variant="outline" onClick={handleExportXlsx} disabled={isExporting}>
+              {isExporting ? 'Exporting...' : 'Export XLSX'}
+            </Button>
             <Button variant="outline" onClick={handleDownloadSalaryTemplate}>
               Salary Template
             </Button>
