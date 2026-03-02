@@ -88,6 +88,65 @@ type Currency = {
   label: string;
 };
 
+type SelfGeSummary = {
+  month: string;
+  self_ge_employee_count: number;
+  salary_employee_count: number;
+  missing_counteragents_count: number;
+  not_employee_counteragents_count: number;
+  missing_in_salary_count: number;
+  missing_in_self_ge_count: number;
+  net_differences_count: number;
+  total_self_ge_net_sum: number;
+  total_salary_net_sum_for_self_ge_ids: number;
+  total_net_difference: number;
+};
+
+type SelfGeCounteragentRow = {
+  personal_id: string;
+  employee_name: string;
+  counteragent_uuid?: string | null;
+  counteragent_name?: string | null;
+  self_ge_net_sum: number;
+};
+
+type SelfGeMissingSalaryRow = {
+  personal_id: string;
+  employee_name: string;
+  counteragent_uuid: string | null;
+  counteragent_name: string | null;
+  self_ge_net_sum: number;
+  salary_net_sum: number;
+  net_difference: number;
+};
+
+type SelfGeMissingInFileRow = {
+  accrual_id: string;
+  personal_id: string;
+  counteragent_uuid: string;
+  counteragent_name: string | null;
+  salary_net_sum: number;
+};
+
+type SelfGeNetDiffRow = {
+  personal_id: string;
+  employee_name: string;
+  counteragent_uuid: string | null;
+  counteragent_name: string | null;
+  self_ge_net_sum: number;
+  salary_net_sum: number;
+  net_difference: number;
+};
+
+type SelfGeCompareResult = {
+  summary: SelfGeSummary;
+  missing_counteragents: SelfGeCounteragentRow[];
+  not_employee_counteragents: SelfGeCounteragentRow[];
+  missing_in_salary: SelfGeMissingSalaryRow[];
+  missing_in_self_ge: SelfGeMissingInFileRow[];
+  net_differences: SelfGeNetDiffRow[];
+};
+
 const defaultColumns: ColumnConfig[] = [
   { key: 'counteragent_name', label: 'Employee', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'sex', label: 'Sex', visible: true, sortable: true, filterable: true, width: 90 },
@@ -142,6 +201,13 @@ export function SalaryAccrualsTable() {
   const [salaryUploadMonth, setSalaryUploadMonth] = useState('');
   const [salaryUploadFile, setSalaryUploadFile] = useState<File | null>(null);
   const [isSalaryUploading, setIsSalaryUploading] = useState(false);
+  const [isSelfGeDialogOpen, setIsSelfGeDialogOpen] = useState(false);
+  const [selfGeMonth, setSelfGeMonth] = useState('');
+  const [selfGeFile, setSelfGeFile] = useState<File | null>(null);
+  const [isSelfGeUploading, setIsSelfGeUploading] = useState(false);
+  const [isSelfGeSummaryOpen, setIsSelfGeSummaryOpen] = useState(false);
+  const [selfGeSummary, setSelfGeSummary] = useState<SelfGeCompareResult | null>(null);
+  const [isSelfGeApplying, setIsSelfGeApplying] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -470,6 +536,131 @@ export function SalaryAccrualsTable() {
       alert(error.message || 'Failed to upload salary accrual XLSX');
     } finally {
       setIsSalaryUploading(false);
+    }
+  };
+
+  const handleSelfGePreview = async () => {
+    if (!selfGeMonth || !selfGeFile) {
+      alert('Please select a period and choose a Self.ge XLS/XLSX file.');
+      return;
+    }
+
+    setIsSelfGeUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('month', selfGeMonth);
+      formData.append('action', 'preview');
+      formData.append('file', selfGeFile);
+
+      const response = await fetch('/api/salary-accruals/upload-self-ge', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to compare Self.ge data');
+      }
+
+      setSelfGeSummary(result as SelfGeCompareResult);
+      setIsSelfGeSummaryOpen(true);
+    } catch (error: any) {
+      alert(error.message || 'Failed to compare Self.ge data');
+    } finally {
+      setIsSelfGeUploading(false);
+    }
+  };
+
+  const handleCreateMissingCounteragents = async () => {
+    if (!selfGeSummary || !Array.isArray(selfGeSummary.missing_counteragents) || selfGeSummary.missing_counteragents.length === 0) {
+      return;
+    }
+
+    setIsSelfGeApplying(true);
+    try {
+      const response = await fetch('/api/salary-accruals/upload-self-ge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create-counteragents',
+          rows: selfGeSummary.missing_counteragents,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create missing counteragents');
+      }
+
+      alert(`Created: ${result.created || 0}, Skipped: ${result.skipped || 0}`);
+      await fetchEmployees();
+      await handleSelfGePreview();
+    } catch (error: any) {
+      alert(error.message || 'Failed to create missing counteragents');
+    } finally {
+      setIsSelfGeApplying(false);
+    }
+  };
+
+  const handleMarkSelfGeAsEmployees = async () => {
+    if (!selfGeSummary || !Array.isArray(selfGeSummary.not_employee_counteragents) || selfGeSummary.not_employee_counteragents.length === 0) {
+      return;
+    }
+
+    const personalIds = selfGeSummary.not_employee_counteragents.map((item) => item.personal_id).filter(Boolean);
+    if (personalIds.length === 0) return;
+
+    setIsSelfGeApplying(true);
+    try {
+      const response = await fetch('/api/salary-accruals/upload-self-ge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark-employees', personal_ids: personalIds }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to mark counteragents as employees');
+      }
+
+      alert(`Updated employee flags: ${result.updated || 0}`);
+      await fetchEmployees();
+      await handleSelfGePreview();
+    } catch (error: any) {
+      alert(error.message || 'Failed to mark counteragents as employees');
+    } finally {
+      setIsSelfGeApplying(false);
+    }
+  };
+
+  const handleRemoveMissingInSelfGeAccrual = async (accrualId: string) => {
+    if (!accrualId) return;
+    if (!confirm('Remove this salary accrual row?')) return;
+
+    setIsSelfGeApplying(true);
+    try {
+      const response = await fetch(`/api/salary-accruals?id=${accrualId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to remove salary accrual row');
+      }
+
+      setData((prev) => applyComputedColumns(prev.filter((row) => row.id !== accrualId)));
+      setSelfGeSummary((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          missing_in_self_ge: prev.missing_in_self_ge.filter((row) => row.accrual_id !== accrualId),
+          summary: {
+            ...prev.summary,
+            missing_in_self_ge_count: Math.max(0, prev.summary.missing_in_self_ge_count - 1),
+          },
+        };
+      });
+    } catch (error: any) {
+      alert(error.message || 'Failed to remove salary accrual row');
+    } finally {
+      setIsSelfGeApplying(false);
     }
   };
 
@@ -1645,6 +1836,9 @@ export function SalaryAccrualsTable() {
             <Button variant="outline" onClick={() => setIsSalaryUploadDialogOpen(true)}>
               Upload Salary XLSX
             </Button>
+            <Button variant="outline" onClick={() => setIsSelfGeDialogOpen(true)}>
+              Upload Self.ge
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
@@ -1660,6 +1854,9 @@ export function SalaryAccrualsTable() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setIsUploadDialogOpen(true)}>
                   TBC Insurance
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsSelfGeDialogOpen(true)}>
+                  Self.ge Compare
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -1701,6 +1898,220 @@ export function SalaryAccrualsTable() {
                     </div>
                   </div>
                 </div>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={isSelfGeDialogOpen} onOpenChange={setIsSelfGeDialogOpen}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Upload Self.ge Salary File</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="selfGeMonth">Period</Label>
+                    <Input
+                      id="selfGeMonth"
+                      type="month"
+                      value={selfGeMonth}
+                      onChange={(e) => setSelfGeMonth(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="selfGeFile">Self.ge File</Label>
+                    <Input
+                      id="selfGeFile"
+                      type="file"
+                      accept=".xls,.xlsx"
+                      onChange={(e) => setSelfGeFile(e.target.files?.[0] || null)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsSelfGeDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSelfGePreview} disabled={isSelfGeUploading}>
+                      {isSelfGeUploading ? 'Comparing...' : 'Compare'}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={isSelfGeSummaryOpen} onOpenChange={setIsSelfGeSummaryOpen}>
+              <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Self.ge vs Salary Accruals Comparison</DialogTitle>
+                </DialogHeader>
+                {selfGeSummary ? (
+                  <div className="space-y-4 text-sm">
+                    <div className="grid gap-1">
+                      <div><span className="text-gray-600">Month:</span> {selfGeSummary.summary.month}</div>
+                      <div><span className="text-gray-600">Self.ge employees:</span> {selfGeSummary.summary.self_ge_employee_count}</div>
+                      <div><span className="text-gray-600">Salary employees:</span> {selfGeSummary.summary.salary_employee_count}</div>
+                      <div><span className="text-gray-600">Missing counteragents:</span> {selfGeSummary.summary.missing_counteragents_count}</div>
+                      <div><span className="text-gray-600">Counteragents not marked employee:</span> {selfGeSummary.summary.not_employee_counteragents_count}</div>
+                      <div><span className="text-gray-600">Missing in salary table:</span> {selfGeSummary.summary.missing_in_salary_count}</div>
+                      <div><span className="text-gray-600">Missing in Self.ge:</span> {selfGeSummary.summary.missing_in_self_ge_count}</div>
+                      <div><span className="text-gray-600">Net differences:</span> {selfGeSummary.summary.net_differences_count}</div>
+                      <div><span className="text-gray-600">Self.ge net total:</span> {formatValue(selfGeSummary.summary.total_self_ge_net_sum, 'currency')}</div>
+                      <div><span className="text-gray-600">Salary net total (for Self.ge IDs):</span> {formatValue(selfGeSummary.summary.total_salary_net_sum_for_self_ge_ids, 'currency')}</div>
+                      <div><span className="text-gray-600">Total net difference:</span> {formatValue(selfGeSummary.summary.total_net_difference, 'currency')}</div>
+                    </div>
+
+                    {selfGeSummary.missing_counteragents.length > 0 && (
+                      <div>
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="font-medium text-amber-700">Missing Counteragents (not in counteragents table)</div>
+                          <Button onClick={handleCreateMissingCounteragents} disabled={isSelfGeApplying}>
+                            {isSelfGeApplying ? 'Applying...' : 'Add Missing Counteragents'}
+                          </Button>
+                        </div>
+                        <div className="rounded-md border border-amber-200">
+                          <div className="grid grid-cols-3 gap-2 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                            <div>Employee</div>
+                            <div>Personal ID</div>
+                            <div>Self.ge Net</div>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto">
+                            {selfGeSummary.missing_counteragents.map((item) => (
+                              <div key={`missing-counteragent-${item.personal_id}`} className="grid grid-cols-3 gap-2 border-t border-amber-100 px-3 py-2 text-xs">
+                                <div className="font-medium">{item.employee_name || '-'}</div>
+                                <div>{item.personal_id}</div>
+                                <div>{formatValue(item.self_ge_net_sum, 'currency')}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selfGeSummary.not_employee_counteragents.length > 0 && (
+                      <div>
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="font-medium text-orange-700">Counteragents Found But Not Employee</div>
+                          <Button onClick={handleMarkSelfGeAsEmployees} disabled={isSelfGeApplying} variant="outline">
+                            {isSelfGeApplying ? 'Applying...' : 'Mark as Employee'}
+                          </Button>
+                        </div>
+                        <div className="rounded-md border border-orange-200">
+                          <div className="grid grid-cols-4 gap-2 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-800">
+                            <div>Employee</div>
+                            <div>Counteragent</div>
+                            <div>Personal ID</div>
+                            <div>Self.ge Net</div>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto">
+                            {selfGeSummary.not_employee_counteragents.map((item) => (
+                              <div key={`not-employee-${item.personal_id}`} className="grid grid-cols-4 gap-2 border-t border-orange-100 px-3 py-2 text-xs">
+                                <div className="font-medium">{item.employee_name || '-'}</div>
+                                <div>{item.counteragent_name || '-'}</div>
+                                <div>{item.personal_id}</div>
+                                <div>{formatValue(item.self_ge_net_sum, 'currency')}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selfGeSummary.missing_in_salary.length > 0 && (
+                      <div>
+                        <div className="mb-2 font-medium text-blue-700">Missing In Salary Accruals</div>
+                        <div className="rounded-md border border-blue-200">
+                          <div className="grid grid-cols-5 gap-2 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800">
+                            <div>Employee</div>
+                            <div>Counteragent</div>
+                            <div>Personal ID</div>
+                            <div>Self.ge Net</div>
+                            <div>Difference</div>
+                          </div>
+                          <div className="max-h-56 overflow-y-auto">
+                            {selfGeSummary.missing_in_salary.map((item) => (
+                              <div key={`missing-salary-${item.personal_id}`} className="grid grid-cols-5 gap-2 border-t border-blue-100 px-3 py-2 text-xs">
+                                <div className="font-medium">{item.employee_name || '-'}</div>
+                                <div>{item.counteragent_name || '-'}</div>
+                                <div>{item.personal_id}</div>
+                                <div>{formatValue(item.self_ge_net_sum, 'currency')}</div>
+                                <div className="font-semibold text-blue-700">{formatValue(item.net_difference, 'currency')}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selfGeSummary.net_differences.length > 0 && (
+                      <div>
+                        <div className="mb-2 font-medium text-red-700">Net Sum Differences</div>
+                        <div className="rounded-md border border-red-200">
+                          <div className="grid grid-cols-6 gap-2 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">
+                            <div>Employee</div>
+                            <div>Counteragent</div>
+                            <div>Personal ID</div>
+                            <div>Self.ge Net</div>
+                            <div>Salary Net</div>
+                            <div>Difference</div>
+                          </div>
+                          <div className="max-h-56 overflow-y-auto">
+                            {selfGeSummary.net_differences.map((item) => (
+                              <div key={`net-diff-${item.personal_id}`} className="grid grid-cols-6 gap-2 border-t border-red-100 px-3 py-2 text-xs">
+                                <div className="font-medium">{item.employee_name || '-'}</div>
+                                <div>{item.counteragent_name || '-'}</div>
+                                <div>{item.personal_id}</div>
+                                <div>{formatValue(item.self_ge_net_sum, 'currency')}</div>
+                                <div>{formatValue(item.salary_net_sum, 'currency')}</div>
+                                <div className={Math.abs(item.net_difference) > 0.009 ? 'font-semibold text-red-700' : ''}>
+                                  {formatValue(item.net_difference, 'currency')}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selfGeSummary.missing_in_self_ge.length > 0 && (
+                      <div>
+                        <div className="mb-2 font-medium text-purple-700">In Salary Accruals But Missing In Self.ge</div>
+                        <div className="rounded-md border border-purple-200">
+                          <div className="grid grid-cols-6 gap-2 bg-purple-50 px-3 py-2 text-xs font-semibold text-purple-800">
+                            <div>Counteragent</div>
+                            <div>Personal ID</div>
+                            <div>Salary Net</div>
+                            <div>Accrual ID</div>
+                            <div className="col-span-2">Action</div>
+                          </div>
+                          <div className="max-h-56 overflow-y-auto">
+                            {selfGeSummary.missing_in_self_ge.map((item) => (
+                              <div key={`missing-file-${item.accrual_id}`} className="grid grid-cols-6 gap-2 border-t border-purple-100 px-3 py-2 text-xs items-center">
+                                <div className="font-medium">{item.counteragent_name || '-'}</div>
+                                <div>{item.personal_id || '-'}</div>
+                                <div>{formatValue(item.salary_net_sum, 'currency')}</div>
+                                <div>{item.accrual_id}</div>
+                                <div className="col-span-2">
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleRemoveMissingInSelfGeAccrual(item.accrual_id)}
+                                    disabled={isSelfGeApplying}
+                                  >
+                                    Remove from Salary Table
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setIsSelfGeSummaryOpen(false)}>
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-600">No comparison data available.</div>
+                )}
               </DialogContent>
             </Dialog>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
