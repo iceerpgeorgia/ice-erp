@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
               CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
               p.payment_id
             ) as payment_id,
-            (btb.nominal_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
+            (COALESCE(NULLIF(btb.nominal_amount, 0), btb.partition_amount) * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
             cba.transaction_date
           FROM raw_union_bank cba
           JOIN bank_transaction_batches btb

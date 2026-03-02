@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma, PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { Prisma } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
 export const revalidate = 0;
 
 const DECONSOLIDATED_TABLES = [
   'GE78BG0000000893486000_BOG_GEL',
+  'GE74BG0000000586388146_BOG_USD',
+  'GE78BG0000000893486000_BOG_USD',
+  'GE78BG0000000893486000_BOG_EUR',
+  'GE78BG0000000893486000_BOG_AED',
+  'GE78BG0000000893486000_BOG_GBP',
+  'GE78BG0000000893486000_BOG_KZT',
+  'GE78BG0000000893486000_BOG_CNY',
+  'GE78BG0000000893486000_BOG_TRY',
   'GE65TB7856036050100002_TBC_GEL',
 ] as const;
 
@@ -146,43 +153,47 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Fetch all records with related data
-    const accruals = await prisma.$queryRaw<any[]>`
-      SELECT 
-        sa.id,
-        sa.uuid,
-        sa.counteragent_uuid,
-        sa.financial_code_uuid,
-        sa.nominal_currency_uuid,
-        sa.payment_id,
-        sa.salary_month,
-        sa.net_sum,
-        sa.surplus_insurance,
-        sa.deducted_insurance,
-        sa.deducted_fitness,
-        sa.deducted_fine,
-        sa.created_at,
-        sa.updated_at,
-        c.counteragent as counteragent_name,
-        c.identification_number,
-        c.sex,
-        c.pension_scheme,
-        c.iban as counteragent_iban,
-        fc.validation as financial_code,
-        cur.code as currency_code,
-        COALESCE(pl.confirmed, false) as confirmed
-      FROM salary_accruals sa
-      LEFT JOIN counteragents c ON sa.counteragent_uuid = c.counteragent_uuid
-      LEFT JOIN financial_codes fc ON sa.financial_code_uuid = fc.uuid
-      LEFT JOIN currencies cur ON sa.nominal_currency_uuid = cur.uuid
-      LEFT JOIN LATERAL (
-        SELECT BOOL_OR(ledger.confirmed) as confirmed
-        FROM payments_ledger ledger
-        WHERE lower(trim(split_part(ledger.payment_id, ':', 1))) = lower(trim(split_part(sa.payment_id, ':', 1)))
-          AND (ledger.is_deleted = false OR ledger.is_deleted IS NULL)
-      ) pl ON true
-      ORDER BY sa.salary_month DESC, sa.created_at DESC
-    `;
+    // Fetch all records with related data (no LATERAL JOIN for performance)
+    const [accruals, confirmedRows] = await Promise.all([
+      prisma.$queryRaw<any[]>`
+        SELECT 
+          sa.id,
+          sa.uuid,
+          sa.counteragent_uuid,
+          sa.financial_code_uuid,
+          sa.nominal_currency_uuid,
+          sa.payment_id,
+          sa.salary_month,
+          sa.net_sum,
+          sa.surplus_insurance,
+          sa.deducted_insurance,
+          sa.deducted_fitness,
+          sa.deducted_fine,
+          sa.created_at,
+          sa.updated_at,
+          c.counteragent as counteragent_name,
+          c.identification_number,
+          c.sex,
+          c.pension_scheme,
+          c.iban as counteragent_iban,
+          fc.validation as financial_code,
+          cur.code as currency_code
+        FROM salary_accruals sa
+        LEFT JOIN counteragents c ON sa.counteragent_uuid = c.counteragent_uuid
+        LEFT JOIN financial_codes fc ON sa.financial_code_uuid = fc.uuid
+        LEFT JOIN currencies cur ON sa.nominal_currency_uuid = cur.uuid
+        ORDER BY sa.salary_month DESC, sa.created_at DESC
+      `,
+      prisma.$queryRaw<Array<{ payment_key: string }>>`
+        SELECT DISTINCT lower(trim(split_part(payment_id, ':', 1))) as payment_key
+        FROM payments_ledger
+        WHERE confirmed = true
+          AND (is_deleted = false OR is_deleted IS NULL)
+          AND payment_id IS NOT NULL
+      `,
+    ]);
+
+    const confirmedKeys = new Set(confirmedRows.map((r) => r.payment_key));
 
     const paidRows = await prisma.$queryRaw<any[]>`
       SELECT
@@ -191,30 +202,20 @@ export async function GET(request: NextRequest) {
         nominal_currency_uuid,
         ABS(SUM(nominal_amount))::numeric as paid
       FROM (
+        ${Prisma.raw(DECONSOLIDATED_TABLES.map((tableName) => `
         SELECT
           cba.payment_id,
           cba.counteragent_uuid,
           cba.nominal_currency_uuid,
           cba.nominal_amount
-        FROM "GE78BG0000000893486000_BOG_GEL" cba
+        FROM "${tableName}" cba
         WHERE NOT EXISTS (
           SELECT 1 FROM bank_transaction_batches btb
           WHERE btb.raw_record_uuid::text = cba.raw_record_uuid::text
         )
-        AND cba.payment_id NOT ILIKE 'BTC_%'
+        AND cba.payment_id NOT ILIKE 'BTC_%'`).join(' UNION ALL '))}
         UNION ALL
-        SELECT
-          t.payment_id,
-          t.counteragent_uuid,
-          t.nominal_currency_uuid,
-          t.nominal_amount
-        FROM "GE65TB7856036050100002_TBC_GEL" t
-        WHERE NOT EXISTS (
-          SELECT 1 FROM bank_transaction_batches btb
-          WHERE btb.raw_record_uuid::text = t.raw_record_uuid::text
-        )
-        AND t.payment_id NOT ILIKE 'BTC_%'
-        UNION ALL
+        ${Prisma.raw(DECONSOLIDATED_TABLES.map((tableName) => `
         SELECT
           COALESCE(
             CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
@@ -222,8 +223,8 @@ export async function GET(request: NextRequest) {
           ) as payment_id,
           COALESCE(btb.counteragent_uuid, p.counteragent_uuid, cba.counteragent_uuid) as counteragent_uuid,
           COALESCE(btb.nominal_currency_uuid, p.currency_uuid, cba.nominal_currency_uuid) as nominal_currency_uuid,
-          (COALESCE(btb.nominal_amount, btb.partition_amount) * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount
-        FROM "GE78BG0000000893486000_BOG_GEL" cba
+          (COALESCE(NULLIF(btb.nominal_amount, 0), btb.partition_amount) * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount
+        FROM "${tableName}" cba
         JOIN bank_transaction_batches btb
           ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
         LEFT JOIN payments p
@@ -231,25 +232,7 @@ export async function GET(request: NextRequest) {
             btb.payment_uuid IS NOT NULL AND p.record_uuid = btb.payment_uuid
           ) OR (
             btb.payment_uuid IS NULL AND btb.payment_id IS NOT NULL AND p.payment_id = btb.payment_id
-          )
-        UNION ALL
-        SELECT
-          COALESCE(
-            CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
-            p.payment_id
-          ) as payment_id,
-          COALESCE(btb.counteragent_uuid, p.counteragent_uuid, t.counteragent_uuid) as counteragent_uuid,
-          COALESCE(btb.nominal_currency_uuid, p.currency_uuid, t.nominal_currency_uuid) as nominal_currency_uuid,
-          (COALESCE(btb.nominal_amount, btb.partition_amount) * CASE WHEN t.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount
-        FROM "GE65TB7856036050100002_TBC_GEL" t
-        JOIN bank_transaction_batches btb
-          ON btb.raw_record_uuid::text = t.raw_record_uuid::text
-        LEFT JOIN payments p
-          ON (
-            btb.payment_uuid IS NOT NULL AND p.record_uuid = btb.payment_uuid
-          ) OR (
-            btb.payment_uuid IS NULL AND btb.payment_id IS NOT NULL AND p.payment_id = btb.payment_id
-          )
+          )`).join(' UNION ALL '))}
       ) tx
       WHERE payment_id IS NOT NULL AND payment_id <> ''
       GROUP BY lower(trim(split_part(payment_id, ':', 1))), counteragent_uuid, nominal_currency_uuid

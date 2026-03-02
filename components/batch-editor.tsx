@@ -183,10 +183,13 @@ export function BatchEditor({
 
   const fetchPayments = async () => {
     try {
-      const response = await fetch('/api/payments');
-      const data = await response.json();
-      const normalized: Payment[] = Array.isArray(data)
-        ? data.map((payment: any) => ({
+      const [paymentsRes, salaryRes] = await Promise.all([
+        fetch('/api/payments'),
+        fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36'),
+      ]);
+      const paymentsData = await paymentsRes.json();
+      const normalized: Payment[] = Array.isArray(paymentsData)
+        ? paymentsData.map((payment: any) => ({
             recordUuid: payment.recordUuid || payment.record_uuid || '',
             paymentId: payment.paymentId || payment.payment_id || '',
             label: payment.label ?? payment.payment_label ?? null,
@@ -204,6 +207,35 @@ export function BatchEditor({
             counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || '',
           }))
         : [];
+
+      // Merge salary accrual payment IDs not already in the payments list
+      const salaryData = await salaryRes.json();
+      if (Array.isArray(salaryData)) {
+        const existingIds = new Set(normalized.map((p) => p.paymentId.toLowerCase()));
+        for (const opt of salaryData) {
+          const pid = opt.paymentId || opt.payment_id || '';
+          if (!pid || existingIds.has(pid.toLowerCase())) continue;
+          existingIds.add(pid.toLowerCase());
+          normalized.push({
+            recordUuid: `salary__${pid}`,
+            paymentId: pid,
+            label: null,
+            counteragentName: opt.counteragentName || opt.counteragent_name || '',
+            currencyCode: opt.currencyCode || opt.currency_code || '',
+            currencyUuid: opt.currencyUuid || opt.currency_uuid || '',
+            projectUuid: opt.projectUuid || opt.project_uuid || null,
+            financialCodeUuid: opt.financialCodeUuid || opt.financial_code_uuid || null,
+            projectIndex: opt.projectIndex || opt.project_index || null,
+            projectName: opt.projectName || opt.project_name || null,
+            financialCodeValidation: opt.financialCodeValidation || opt.financial_code_validation || null,
+            jobName: opt.jobName || opt.job_name || null,
+            incomeTax: opt.incomeTax ?? opt.income_tax ?? null,
+            financialCode: opt.financialCode || opt.financial_code || '',
+            counteragentUuid: opt.counteragentUuid || opt.counteragent_uuid || '',
+          });
+        }
+      }
+
       setPayments(normalized);
     } catch (error) {
       console.error('Error fetching payments:', error);
@@ -384,12 +416,13 @@ export function BatchEditor({
   const selectPayment = (partitionId: string, paymentUuid: string) => {
     const payment = payments.find((p) => p.recordUuid === paymentUuid);
     if (payment) {
+      const isSalaryEntry = payment.recordUuid.startsWith('salary__');
       setPartitions((prev) => {
         const updated = prev.map((partition) => {
           if (partition.id !== partitionId) return partition;
           const next = {
             ...partition,
-            paymentUuid: payment.recordUuid,
+            paymentUuid: isSalaryEntry ? null : payment.recordUuid,
             paymentId: payment.paymentId,
             paymentLabel: payment.label ?? null,
             counteragentUuid: payment.counteragentUuid || null,
@@ -486,10 +519,11 @@ export function BatchEditor({
           };
         }
 
+        const isSalary = payment.recordUuid.startsWith('salary__');
         const next = {
           ...partition,
           paymentId: payment.paymentId,
-          paymentUuid: payment.recordUuid,
+          paymentUuid: isSalary ? null : payment.recordUuid,
           paymentLabel: payment.label ?? null,
           counteragentUuid: payment.counteragentUuid || null,
           projectUuid: payment.projectUuid || null,
@@ -515,10 +549,11 @@ export function BatchEditor({
     const next = ids.map((id, idx) => {
       const payment = paymentById.get(normalizePaymentId(id)) || null;
       if (!payment) missing.push(id);
+      const isSalary = payment?.recordUuid?.startsWith('salary__');
       const base: Partition = {
         id: String(idx + 1),
         partitionAmount: 0,
-        paymentUuid: payment?.recordUuid ?? null,
+        paymentUuid: isSalary ? null : (payment?.recordUuid ?? null),
         paymentId: payment?.paymentId ?? id,
         paymentLabel: payment?.label ?? null,
         counteragentUuid: payment?.counteragentUuid ?? null,
@@ -560,9 +595,10 @@ export function BatchEditor({
           (p) => normalizePaymentId(p.paymentId) === normalizePaymentId(partition.paymentId ?? '')
         );
         if (!match) return partition;
+        const isSalary = match.recordUuid.startsWith('salary__');
         return {
           ...partition,
-          paymentUuid: match.recordUuid,
+          paymentUuid: isSalary ? null : match.recordUuid,
           paymentLabel: match.label ?? partition.paymentLabel ?? null,
           counteragentUuid: partition.counteragentUuid || match.counteragentUuid || null,
           projectUuid: partition.projectUuid || match.projectUuid || null,
@@ -824,7 +860,12 @@ export function BatchEditor({
                         value: p.recordUuid,
                         label: buildPaymentOptionLabel(p, counteragentLabel),
                       }))}
-                      value={partition.paymentUuid || ''}
+                      value={
+                        partition.paymentUuid
+                          || (partition.paymentId
+                            ? (payments.find((p) => normalizePaymentId(p.paymentId) === normalizePaymentId(partition.paymentId ?? ''))?.recordUuid || '')
+                            : '')
+                      }
                       onValueChange={(value) => selectPayment(partition.id, value)}
                       placeholder="Select payment..."
                       searchPlaceholder="Search payments..."

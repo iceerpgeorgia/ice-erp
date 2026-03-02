@@ -909,12 +909,6 @@ export function SalaryAccrualsTable() {
     setDragOverColumn(null);
   };
 
-  const normalizePaymentId = (value: any) => {
-    const trimmed = String(value ?? '').trim();
-    const base = trimmed.includes(':') ? trimmed.split(':')[0] : trimmed;
-    return base.toLowerCase();
-  };
-
   const normalizeInsurancePair = (
     surplusInsurance: string | null | undefined,
     deductedInsurance: string | null | undefined,
@@ -1056,33 +1050,6 @@ export function SalaryAccrualsTable() {
         return;
       }
       
-      // Fetch bank transactions to calculate paid amounts
-      const txResponse = await fetch('/api/bank-transactions?limit=0');
-      const txResult = await txResponse.json();
-      const transactions = Array.isArray(txResult.data)
-        ? txResult.data
-        : Array.isArray(txResult)
-          ? txResult
-          : [];
-      
-      // Create a map of payment_id to total paid amount (absolute of signed aggregate)
-      // Use lowercase keys for case-insensitive matching
-      const paidMap = new Map<string, number>();
-      transactions.forEach((tx: any) => {
-        const paymentId = tx.payment_id || tx.paymentId;
-        if (paymentId) {
-          const paymentIdLower = normalizePaymentId(paymentId);
-          const rawAmount =
-            tx.nominal_amount ??
-            tx.nominalAmount ??
-            tx.account_currency_amount ??
-            tx.accountCurrencyAmount ??
-            '0';
-          const amount = parseFloat(rawAmount || '0') || 0;
-          paidMap.set(paymentIdLower, (paidMap.get(paymentIdLower) || 0) + amount);
-        }
-      });
-      
 
       let projectedData: SalaryAccrual[] = salaryData;
       if (projectedMonths > 0 && salaryData.length > 0) {
@@ -1147,12 +1114,10 @@ export function SalaryAccrualsTable() {
       }
 
       // Calculate paid and computed columns for each salary accrual
+      // Server already provides `paid` per row; use it directly
       const enrichedData = projectedData.map((accrual: SalaryAccrual) => {
         const normalizedAccrual = normalizeAccrualInsurance(accrual);
-        const paymentIdLower = normalizedAccrual.payment_id ? normalizePaymentId(normalizedAccrual.payment_id) : '';
-        const paid = typeof accrual.paid === 'number'
-          ? accrual.paid
-          : Math.abs(paidMap.get(paymentIdLower) || 0);
+        const paid = typeof accrual.paid === 'number' ? accrual.paid : 0;
 
         return {
           ...normalizedAccrual,

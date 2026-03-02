@@ -175,7 +175,7 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
       COALESCE(btb.project_uuid, p.project_uuid) as batch_project_uuid,
       COALESCE(btb.financial_code_uuid, p.financial_code_uuid) as batch_financial_code_uuid,
       COALESCE(btb.nominal_currency_uuid, p.currency_uuid) as batch_nominal_currency_uuid,
-      (btb.nominal_amount * CASE WHEN ${baseAlias}.account_currency_amount < 0 THEN -1 ELSE 1 END) as batch_nominal_amount
+      (COALESCE(NULLIF(btb.nominal_amount, 0), btb.partition_amount) * CASE WHEN ${baseAlias}.account_currency_amount < 0 THEN -1 ELSE 1 END) as batch_nominal_amount
     FROM "${table.name}" ${baseAlias}
     JOIN bank_transaction_batches btb
       ON btb.raw_record_uuid::text = ${baseAlias}.raw_record_uuid::text

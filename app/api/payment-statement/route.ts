@@ -247,7 +247,7 @@ export async function GET(request: NextRequest) {
           btb.payment_id as batch_payment_id_raw,
           cba.payment_id::text as raw_payment_id,
           (btb.partition_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as account_currency_amount,
-          (btb.nominal_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
+          (COALESCE(NULLIF(btb.nominal_amount, 0), btb.partition_amount) * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
           cba.transaction_date,
           cba.counteragent_account_number,
           cba.description,

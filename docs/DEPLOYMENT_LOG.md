@@ -1,6 +1,25 @@
 # Deployment Log
 
 ## 2026-03-02
+- Summary: Fix batch partition amounts, salary accruals optimization, and batch editor flow fixes.
+- Changes:
+  - API (8 routes): fix `COALESCE(nominal_amount, partition_amount)` → `COALESCE(NULLIF(nominal_amount, 0), partition_amount)` so zero nominal_amount falls through to partition_amount in salary balance calculations.
+  - API (bank-transactions): expose `account_currency_code` in response for batch partition rows.
+  - API (salary-accruals): compute paid amounts server-side, removing redundant client-side `/api/bank-transactions?limit=0` fetch; expand paidRows query to all 10 `SOURCE_TABLES`.
+  - UI (payment-statement): add missing `batchId` and `accountCurrencyCode` field mappings in `openBankEditDialog` so batch editor loads partitions correctly.
+  - UI (counteragent-statement): add diagnostic debug bar for empty-table troubleshooting.
+  - UI (batch-editor): fix salary payment ID options to use synthetic `salary__<pid>` recordUuid pattern.
+  - UI (salary-accruals-table): remove redundant bank-transactions fetch now that paid amounts come from server.
+
+## 2026-03-02
+- Summary: Optimize counteragent statement bulk edit with single bulk-bind endpoint.
+- Changes:
+  - API: add `/api/bank-transactions/bulk-bind` PATCH endpoint that groups synthetic IDs by source table, batch-fetches rows and NBG rates, and executes single `UPDATE…FROM(VALUES)` per table.
+  - Counteragent statement UI: replace N individual `fetch` calls with a single bulk request.
+  - Performance: reduces ~5N DB queries to ~7 total regardless of selection size.
+- Commit: 2196e0d
+
+## 2026-03-02
 - Summary: Add inventory dictionary tables and waybill items CRUD.
 - Changes:
   - Schema: add dimensions, inventory_groups, inventories, and rs_waybills_in_items Prisma models with relations and indexes.

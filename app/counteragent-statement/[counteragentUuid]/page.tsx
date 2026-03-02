@@ -524,9 +524,15 @@ export default function CounteragentStatementPage() {
         throw new Error(data.error || 'Failed to load counteragent statement');
       }
       const result = await response.json();
+      console.log('[counteragent-statement] received:', {
+        paymentIds: result.paymentIds?.length ?? 0,
+        ledger: result.ledgerEntries?.length ?? 0,
+        bank: result.bankTransactions?.length ?? 0,
+      });
       setStatement(result);
       setError(null);
     } catch (err: any) {
+      console.error('[counteragent-statement] fetchStatement error:', err);
       setError(err.message || 'Failed to load counteragent statement');
     } finally {
       setLoading(false);
@@ -541,6 +547,7 @@ export default function CounteragentStatementPage() {
 
   const rows: StatementRow[] = useMemo(() => {
     if (!statement) return [];
+    try {
     return [
       ...(statement.ledgerEntries || []).map((entry: any) => {
         const info = getPaymentInfo(entry.paymentId || null);
@@ -598,6 +605,10 @@ export default function CounteragentStatementPage() {
         };
       }),
     ].sort((a, b) => a.dateSort - b.dateSort);
+    } catch (e: any) {
+      console.error('[counteragent-statement] rows memo error:', e);
+      return [];
+    }
   }, [getPaymentInfo, statement]);
 
   const columnValues = useMemo(() => {
@@ -1285,6 +1296,13 @@ export default function CounteragentStatementPage() {
   }
 
   const counteragentName = statement.counteragent?.counteragent_name || '-';
+  const debugCounts = {
+    paymentIds: statement.paymentIds?.length ?? 0,
+    ledger: statement.ledgerEntries?.length ?? 0,
+    bank: statement.bankTransactions?.length ?? 0,
+    rows: rows.length,
+    filteredRows: filteredRows.length,
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -1293,6 +1311,9 @@ export default function CounteragentStatementPage() {
           <div>
             <h1 className="text-2xl font-bold">Counteragent Statement</h1>
             <p className="text-gray-600 mt-1">{counteragentName}</p>
+            <p className="text-xs text-orange-600 mt-1">
+              Debug: uuid={counteragentUuid?.substring(0,8)}… | API: {debugCounts.paymentIds} paymentIds, {debugCounts.ledger} ledger, {debugCounts.bank} bank → {debugCounts.rows} rows, {debugCounts.filteredRows} filtered
+            </p>
           </div>
           <div className="flex items-center gap-2">
             {selectedBankIds.size > 0 ? (

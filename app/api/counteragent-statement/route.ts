@@ -32,6 +32,14 @@ const computeAccountAmountFromNominal = (
 
 const SOURCE_TABLES = [
   { name: 'GE78BG0000000893486000_BOG_GEL', offset: 0 },
+  { name: 'GE74BG0000000586388146_BOG_USD', offset: 300000000000 },
+  { name: 'GE78BG0000000893486000_BOG_USD', offset: 500000000000 },
+  { name: 'GE78BG0000000893486000_BOG_EUR', offset: 600000000000 },
+  { name: 'GE78BG0000000893486000_BOG_AED', offset: 700000000000 },
+  { name: 'GE78BG0000000893486000_BOG_GBP', offset: 800000000000 },
+  { name: 'GE78BG0000000893486000_BOG_KZT', offset: 900000000000 },
+  { name: 'GE78BG0000000893486000_BOG_CNY', offset: 950000000000 },
+  { name: 'GE78BG0000000893486000_BOG_TRY', offset: 980000000000 },
   { name: 'GE65TB7856036050100002_TBC_GEL', offset: 1000000000000 },
 ];
 
@@ -311,7 +319,7 @@ export async function GET(request: NextRequest) {
            btb.payment_id as batch_payment_id_raw,
            cba.payment_id::text as raw_payment_id,
            (btb.partition_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as account_currency_amount,
-           (btb.nominal_amount * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
+           (COALESCE(NULLIF(btb.nominal_amount, 0), btb.partition_amount) * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
            cba.exchange_rate,
            cba.transaction_date,
            cba.counteragent_account_number,
@@ -339,6 +347,8 @@ export async function GET(request: NextRequest) {
        ORDER BY result.transaction_date DESC`,
       counteragentUuid
     );
+
+    console.log(`[counteragent-statement] uuid=${counteragentUuid} paymentIds=${paymentIds.length} ledger=${ledgerEntries.length} bank=${bankTransactions.length}`);
 
     return NextResponse.json({
       counteragent,
