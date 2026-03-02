@@ -113,6 +113,26 @@ export default function DictionariesIndex() {
               Salary Accruals
             </Link>
           </li>
+          <li>
+            <Link className="text-blue-600 hover:underline" href="/dictionaries/dimensions">
+              Dimensions
+            </Link>
+          </li>
+          <li>
+            <Link className="text-blue-600 hover:underline" href="/dictionaries/inventory-groups">
+              Inventory Groups
+            </Link>
+          </li>
+          <li>
+            <Link className="text-blue-600 hover:underline" href="/dictionaries/inventories">
+              Inventories
+            </Link>
+          </li>
+          <li>
+            <Link className="text-blue-600 hover:underline" href="/dictionaries/waybill-items">
+              Waybill Items
+            </Link>
+          </li>
         </ul>
       </div>
     </div>

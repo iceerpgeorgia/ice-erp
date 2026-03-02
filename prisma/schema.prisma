@@ -605,3 +605,83 @@ model rs_waybills_in {
   @@unique([rs_id, waybill_no])
   @@map("rs_waybills_in")
 }
+
+model dimensions {
+  id               BigInt             @id @default(autoincrement())
+  uuid             String             @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dimension        String             @unique
+  is_active        Boolean            @default(true)
+  created_at       DateTime           @default(now())
+  updated_at       DateTime           @default(now())
+  inventory_groups inventory_groups[]
+  inventories      inventories[]
+
+  @@map("dimensions")
+}
+
+model inventory_groups {
+  id             BigInt        @id @default(autoincrement())
+  uuid           String        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String        @unique
+  dimension_uuid String        @db.Uuid
+  is_active      Boolean       @default(true)
+  created_at     DateTime      @default(now())
+  updated_at     DateTime      @default(now())
+  dimension      dimensions    @relation(fields: [dimension_uuid], references: [uuid])
+  inventories    inventories[]
+
+  @@index([dimension_uuid])
+  @@map("inventory_groups")
+}
+
+model inventories {
+  id                    BigInt               @id @default(autoincrement())
+  uuid                  String               @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                  String
+  producer_uuid         String?              @db.Uuid
+  inventory_group_uuid  String?              @db.Uuid
+  dimension_uuid        String?              @db.Uuid
+  internal_number       String?
+  is_nonbalance         Boolean              @default(false)
+  is_capex              Boolean              @default(false)
+  is_active             Boolean              @default(true)
+  created_at            DateTime             @default(now())
+  updated_at            DateTime             @default(now())
+  inventory_group       inventory_groups?    @relation(fields: [inventory_group_uuid], references: [uuid])
+  dimension             dimensions?          @relation(fields: [dimension_uuid], references: [uuid])
+  waybill_items         rs_waybills_in_items[]
+
+  @@index([producer_uuid])
+  @@index([inventory_group_uuid])
+  @@index([dimension_uuid])
+  @@index([internal_number])
+  @@map("inventories")
+}
+
+model rs_waybills_in_items {
+  id                    BigInt       @id @default(autoincrement())
+  uuid                  String       @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  waybill_no            String?
+  goods_code            String?
+  goods_name            String?
+  unit                  String?
+  quantity              Decimal?     @db.Decimal(20, 4)
+  unit_price            Decimal?     @db.Decimal(20, 4)
+  total_price           Decimal?     @db.Decimal(20, 2)
+  taxation              String?
+  inventory_uuid        String?      @db.Uuid
+  project_uuid          String?      @db.Uuid
+  financial_code_uuid   String?      @db.Uuid
+  corresponding_account String?
+  import_batch_id       String?
+  created_at            DateTime     @default(now())
+  updated_at            DateTime     @default(now())
+  inventory             inventories? @relation(fields: [inventory_uuid], references: [uuid])
+
+  @@index([waybill_no])
+  @@index([inventory_uuid])
+  @@index([project_uuid])
+  @@index([financial_code_uuid])
+  @@index([goods_code])
+  @@map("rs_waybills_in_items")
+}
