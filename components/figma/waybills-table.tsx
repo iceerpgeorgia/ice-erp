@@ -20,6 +20,7 @@ const CORRESPONDING_ACCOUNTS = [
   '7_4_41','7_4_42','7_4_45','7_4_56','7_4_60','7_4_65','7_4_70','7_4_85','7_4_90','7_4_91'
 ];
 const NONE_OPTION_VALUE = '__none__';
+const NON_BLANK_FILTER_TOKEN = '__NON_BLANK__';
 
 type Waybill = {
   id: number;
@@ -269,6 +270,47 @@ export function WaybillsTable() {
     includeFacets: boolean;
     includePagination?: boolean;
   }) => {
+    const normalizeFilterValue = (value: any) => (value === null || value === undefined ? '' : value);
+    const filterValueKey = (value: any) => String(normalizeFilterValue(value));
+
+    const serializedFilters = Array.from(filters.entries()).reduce<Array<[string, any[]]>>((acc, [key, set]) => {
+      const selectedValues = Array.from(set).map(normalizeFilterValue);
+      if (selectedValues.length === 0) return acc;
+
+      const facetColumnValues = facetValues.get(key as ColumnKey);
+      const allValues = (facetColumnValues && facetColumnValues.length > 0
+        ? facetColumnValues
+        : data.map((row) => {
+            const item = (row as any)[key as ColumnKey];
+            return item === null || item === undefined ? '' : item;
+          })
+      ).map(normalizeFilterValue);
+      const selectedKeys = new Set(selectedValues.map(filterValueKey));
+      const allKeys = new Set(allValues.map(filterValueKey));
+
+      if (allKeys.size > 0) {
+        const isAllSelected = allKeys.size === selectedKeys.size && Array.from(allKeys).every((item) => selectedKeys.has(item));
+        if (isAllSelected) {
+          return acc;
+        }
+
+        const nonBlankKeys = Array.from(allKeys).filter((item) => item !== '');
+        const isAllNonBlankSelected =
+          nonBlankKeys.length > 0 &&
+          !selectedKeys.has('') &&
+          selectedKeys.size === nonBlankKeys.length &&
+          nonBlankKeys.every((item) => selectedKeys.has(item));
+
+        if (isAllNonBlankSelected) {
+          acc.push([key, [NON_BLANK_FILTER_TOKEN]]);
+          return acc;
+        }
+      }
+
+      acc.push([key, selectedValues]);
+      return acc;
+    }, []);
+
     const params = new URLSearchParams();
     if (appliedSearch.trim()) params.set('search', appliedSearch.trim());
     if (periodFrom) params.set('periodFrom', periodFrom);
@@ -284,12 +326,11 @@ export function WaybillsTable() {
     if (showMissingCounteragents) params.set('missingCounteragents', 'true');
     if (sortColumn) params.set('sortColumn', sortColumn);
     if (sortDirection) params.set('sortDirection', sortDirection);
-    if (filters.size > 0) {
-      const serialized = Array.from(filters.entries()).map(([key, set]) => [key, Array.from(set)]);
-      params.set('filters', JSON.stringify(serialized));
+    if (serializedFilters.length > 0) {
+      params.set('filters', JSON.stringify(serializedFilters));
     }
     return params;
-  }, [appliedSearch, periodFrom, periodTo, currentPage, pageSize, showMissingCounteragents, sortColumn, sortDirection, filters]);
+  }, [appliedSearch, periodFrom, periodTo, currentPage, pageSize, showMissingCounteragents, sortColumn, sortDirection, filters, facetValues, data]);
 
   const fetchWaybills = useCallback(async (options?: { page?: number; pageSize?: number }) => {
     setLoading(true);
@@ -854,10 +895,8 @@ export function WaybillsTable() {
       if (sortDirection) params.set('sortDirection', sortDirection);
       params.set('includeFacets', 'false');
       params.set('exportAll', 'true');
-      if (filters.size > 0) {
-        const serialized = Array.from(filters.entries()).map(([key, set]) => [key, Array.from(set)]);
-        params.set('filters', JSON.stringify(serialized));
-      }
+      const exportFilters = buildWaybillsQueryParams({ includeFacets: false, includePagination: false }).get('filters');
+      if (exportFilters) params.set('filters', exportFilters);
 
       const response = await fetch(`/api/waybills?${params.toString()}`);
       const body = await response.json().catch(() => ({}));

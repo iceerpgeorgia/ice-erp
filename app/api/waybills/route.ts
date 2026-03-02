@@ -16,6 +16,7 @@ const toNumber = (value: any) => (typeof value === 'bigint' ? Number(value) : va
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const UUID_FILTER_FIELDS = new Set(['counteragent_uuid', 'driver_uuid', 'project_uuid', 'financial_code_uuid']);
+const NON_BLANK_FILTER_TOKEN = '__NON_BLANK__';
 
 const isValidUuid = (value: string) => UUID_REGEX.test(value.trim());
 
@@ -193,13 +194,13 @@ export async function GET(req: NextRequest) {
         }
       : {};
 
-    let parsedFilterEntries: Array<[string, any[]]> = [];
+    let parsedFilterEntries: Array<[string, unknown]> = [];
     if (filtersParam) {
       try {
         const parsed = JSON.parse(filtersParam);
         parsedFilterEntries = (Array.isArray(parsed)
           ? parsed
-          : Object.entries(parsed || {})) as Array<[string, any[]]>;
+          : Object.entries(parsed || {})) as Array<[string, unknown]>;
       } catch {
         parsedFilterEntries = [];
       }
@@ -217,17 +218,22 @@ export async function GET(req: NextRequest) {
           const normalized = list
             .filter((value) => value !== null && value !== undefined)
             .map((value) => String(value));
+          const requireNonBlank = normalized.some((value) => value === NON_BLANK_FILTER_TOKEN);
           const includeBlank = normalized.some((value) => value === '');
-          const nonBlank = normalized.filter((value) => value !== '');
-          return [key, { nonBlank, includeBlank }] as const;
+          const nonBlank = normalized.filter((value) => value !== '' && value !== NON_BLANK_FILTER_TOKEN);
+          return [key, { nonBlank, includeBlank, requireNonBlank }] as const;
         })
         .filter(
-          ([key, value]) => key !== excludeColumnKey && (value.nonBlank.length > 0 || value.includeBlank)
+          ([key, value]) => key !== excludeColumnKey && (value.nonBlank.length > 0 || value.includeBlank || value.requireNonBlank)
         );
 
       const counteragentFilter = entries.find(([key]) => key === 'counteragent_name');
       if (counteragentFilter) {
-        const { nonBlank, includeBlank } = counteragentFilter[1];
+        const { nonBlank, includeBlank, requireNonBlank } = counteragentFilter[1];
+        if (requireNonBlank && nonBlank.length === 0 && !includeBlank) {
+          clauses.push({ counteragent_uuid: { not: null } });
+          return clauses;
+        }
         let uuids: string[] = [];
         if (nonBlank.length > 0) {
           const counteragents = await prisma.counteragents.findMany({
@@ -255,7 +261,32 @@ export async function GET(req: NextRequest) {
 
       entries.forEach(([key, value]) => {
         if (key === 'counteragent_name') return;
-        const { nonBlank, includeBlank } = value;
+        const { nonBlank, includeBlank, requireNonBlank } = value;
+
+        if (requireNonBlank && nonBlank.length === 0 && !includeBlank) {
+          if (UUID_FILTER_FIELDS.has(key)) {
+            clauses.push({ [key]: { not: null } } as Prisma.rs_waybills_inWhereInput);
+            return;
+          }
+          if (key === 'vat') {
+            return;
+          }
+          if (key === 'date' || key === 'activation_time') {
+            clauses.push({ activation_time: { not: null } });
+            return;
+          }
+          if (['sum', 'transportation_sum', 'transportation_cost'].includes(key)) {
+            clauses.push({ [key]: { not: null } } as Prisma.rs_waybills_inWhereInput);
+            return;
+          }
+          clauses.push({
+            AND: [
+              { [key]: { not: null } } as Prisma.rs_waybills_inWhereInput,
+              { [key]: { not: '' } } as Prisma.rs_waybills_inWhereInput,
+            ],
+          });
+          return;
+        }
 
         if (UUID_FILTER_FIELDS.has(key)) {
           const uuidValues = nonBlank.filter((item) => isValidUuid(item));
