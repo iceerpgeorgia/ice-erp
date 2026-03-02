@@ -10,6 +10,8 @@
   - UI (counteragent-statement): add diagnostic debug bar for empty-table troubleshooting.
   - UI (batch-editor): fix salary payment ID options to use synthetic `salary__<pid>` recordUuid pattern.
   - UI (salary-accruals-table): remove redundant bank-transactions fetch now that paid amounts come from server.
+- Commit: efe5849
+- Production: https://ice-i2ve7hgm1-iceerp.vercel.app
 
 ## 2026-03-02
 - Summary: Optimize counteragent statement bulk edit with single bulk-bind endpoint.
