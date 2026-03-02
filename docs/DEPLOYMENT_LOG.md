@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-03-02
+- Summary: Waybills filters now stay reliable when facet values are not yet loaded.
+- Changes:
+  - Waybills table: only compact filter payloads (`all selected` / `all non-blank`) when trusted server facet values are available.
+  - Waybills table: avoid fallback compaction from current page rows, preventing accidental filter drops.
+  - Waybills filters: preserve selected values in requests until facet data confirms safe compaction.
+- Commit: 7efd996
+- Production: https://ice-68gt3z84y-iceerp.vercel.app
+
+## 2026-03-02
 - Summary: Waybills filter/sort state now uses TanStack Table primitives for more stable behavior.
 - Changes:
   - Waybills table: migrate filter state to `ColumnFiltersState` and sorting state to `SortingState` via `useReactTable`.
