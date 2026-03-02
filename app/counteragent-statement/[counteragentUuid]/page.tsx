@@ -1020,68 +1020,51 @@ export default function CounteragentStatementPage() {
     setIsBulkSaving(true);
     const info = getPaymentInfo(bulkPaymentId);
     try {
-      const results = await Promise.allSettled(
-        targetIds.map(async (id) => {
-          const response = await fetch(`/api/bank-transactions/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ payment_uuid: bulkPaymentId }),
-          });
-
-          if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new Error(error.error || `Failed to update transaction ${id}`);
-          }
-
-          return id;
-        })
-      );
-
-      const successIds: number[] = [];
-      const failedMessages: string[] = [];
-      results.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          successIds.push(result.value);
-        } else {
-          failedMessages.push(result.reason?.message || 'Failed to update transaction');
-        }
+      const response = await fetch('/api/bank-transactions/bulk-bind', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: targetIds, payment_uuid: bulkPaymentId }),
       });
 
-      if (successIds.length) {
-        setStatement((prev: any) => {
-          if (!prev) return prev;
-          const nextBankTransactions = (prev.bankTransactions || []).map((tx: any) => {
-            if (!successIds.includes(Number(tx.id))) return tx;
-            return {
-              ...tx,
-              paymentId: bulkPaymentId,
-              project: info.project,
-              financialCode: info.financialCode,
-              job: info.job,
-              incomeTax: info.incomeTax,
-              currency: info.currency,
-            };
-          });
-          const nextPaymentIds = prev.paymentIds?.includes(bulkPaymentId)
-            ? prev.paymentIds
-            : [...(prev.paymentIds || []), bulkPaymentId];
-          return {
-            ...prev,
-            bankTransactions: nextBankTransactions,
-            paymentIds: nextPaymentIds,
-          };
-        });
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({}));
+        throw new Error(errBody.error || 'Failed to update transactions');
       }
 
-      const failedCount = results.length - successIds.length;
-      if (failedCount) {
-        alert(`Updated ${successIds.length} transactions, ${failedCount} failed. ${failedMessages[0] || ''}`.trim());
-        setSelectedBankIds(new Set(targetIds.filter((id) => !successIds.includes(id))));
-      } else {
-        setSelectedBankIds(new Set());
-        setIsBulkEditOpen(false);
-        setBulkPaymentId('');
+      const result = await response.json();
+      const successIds = targetIds;
+
+      setStatement((prev: any) => {
+        if (!prev) return prev;
+        const nextBankTransactions = (prev.bankTransactions || []).map((tx: any) => {
+          if (!successIds.includes(Number(tx.id))) return tx;
+          return {
+            ...tx,
+            paymentId: bulkPaymentId,
+            project: info.project,
+            financialCode: info.financialCode,
+            job: info.job,
+            incomeTax: info.incomeTax,
+            currency: info.currency,
+          };
+        });
+        const nextPaymentIds = prev.paymentIds?.includes(bulkPaymentId)
+          ? prev.paymentIds
+          : [...(prev.paymentIds || []), bulkPaymentId];
+        return {
+          ...prev,
+          bankTransactions: nextBankTransactions,
+          paymentIds: nextPaymentIds,
+        };
+      });
+
+      if (result.batchSkipped?.length) {
+        alert(`Updated ${result.updatedCount} transactions. ${result.batchSkipped.length} batch partitions were skipped.`);
       }
+
+      setSelectedBankIds(new Set());
+      setIsBulkEditOpen(false);
+      setBulkPaymentId('');
     } catch (error: any) {
       alert(error.message || 'Failed to update selected transactions');
     } finally {
