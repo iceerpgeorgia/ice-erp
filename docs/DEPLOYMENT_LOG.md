@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-03-02
+- Summary: Add inventory dictionary tables and waybill items CRUD.
+- Changes:
+  - Schema: add dimensions, inventory_groups, inventories, and rs_waybills_in_items Prisma models with relations and indexes.
+  - API: add CRUD routes for dimensions, inventory-groups, inventories, and waybill-items with audit logging.
+  - UI: add dictionary pages with forms, tables, dropdowns, and XLSX export for all four entities.
+  - Navigation: add Dimensions, Inventory Groups, Inventories, and Waybill Items links to dictionaries index.
+- Commit: 089b83b
+
+## 2026-03-02
 - Summary: Waybills filters now stay reliable when facet values are not yet loaded.
 - Changes:
   - Waybills table: only compact filter payloads (`all selected` / `all non-blank`) when trusted server facet values are available.
