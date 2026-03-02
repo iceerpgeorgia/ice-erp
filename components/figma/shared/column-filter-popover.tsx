@@ -99,7 +99,7 @@ export function ColumnFilterPopover({
   };
 
   const handleSelectAll = () => {
-    setTempSelected(new Set(visibleValues));
+    setTempSelected(new Set(sortedFilteredValues));
   };
 
   const handleToggle = (value: any) => {
@@ -163,7 +163,7 @@ export function ColumnFilterPopover({
                   onClick={handleSelectAll}
                   className="text-xs text-blue-600 hover:underline"
                 >
-                  Select all {visibleValues.length}
+                  Select all {sortedFilteredValues.length}
                 </button>
                 <span className="text-xs text-muted-foreground">·</span>
                 <button
