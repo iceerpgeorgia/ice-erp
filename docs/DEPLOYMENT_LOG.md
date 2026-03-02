@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-03-02
+- Summary: Waybills filters now avoid oversized query URLs and load reliably for large selections.
+- Changes:
+  - Waybills table: compact filter serialization for large selections, including an `all non-blank` token instead of sending thousands of values.
+  - Waybills API: parse compact non-blank token and apply equivalent server-side filter clauses.
+  - App routing: add `favicon.ico` route handler to eliminate repeated 404 console noise.
+- Commit: 5476fcb
+- Production: https://ice-gzmwcwutd-iceerp.vercel.app
+
+## 2026-03-02
 - Summary: Waybills column filters now correctly support "all except blank" selection.
 - Changes:
   - Shared column filter popover: `Select all` now selects all filtered values, not only the visible capped subset.
