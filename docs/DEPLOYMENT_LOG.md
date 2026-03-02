@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-02
+- Summary: Waybills column filters now correctly support "all except blank" selection.
+- Changes:
+  - Shared column filter popover: `Select all` now selects all filtered values, not only the visible capped subset.
+  - Shared column filter popover: `Select all` count now reflects full filtered value count.
+  - Waybills filters: unchecking `(Blank)` after `Select all` now reliably shows all non-blank rows.
+- Commit: 7b4aadb
+- Production: https://ice-pfoog5333-iceerp.vercel.app
+
 ## 2026-02-28
 - Summary: Salary accruals table now supports confirm/deconfirm actions with confirmation status.
 - Changes:
