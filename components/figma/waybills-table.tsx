@@ -333,33 +333,31 @@ export function WaybillsTable() {
       const selectedValues = filter.value.map(normalizeFilterValue);
       if (selectedValues.length === 0) return acc;
 
-      const facetColumnValues = facetValues.get(key as ColumnKey);
-      const allValues = (facetColumnValues && facetColumnValues.length > 0
-        ? facetColumnValues
-        : data.map((row) => {
-            const item = (row as any)[key as ColumnKey];
-            return item === null || item === undefined ? '' : item;
-          })
-      ).map(normalizeFilterValue);
-      const selectedKeys = new Set(selectedValues.map(filterValueKey));
-      const allKeys = new Set(allValues.map(filterValueKey));
+      const facetColumnValues = facetValues.get(key);
+      const hasFacetValues = Array.isArray(facetColumnValues) && facetColumnValues.length > 0;
 
-      if (allKeys.size > 0) {
-        const isAllSelected = allKeys.size === selectedKeys.size && Array.from(allKeys).every((item) => selectedKeys.has(item));
-        if (isAllSelected) {
-          return acc;
-        }
+      if (hasFacetValues) {
+        const allValues = facetColumnValues.map(normalizeFilterValue);
+        const selectedKeys = new Set(selectedValues.map(filterValueKey));
+        const allKeys = new Set(allValues.map(filterValueKey));
 
-        const nonBlankKeys = Array.from(allKeys).filter((item) => item !== '');
-        const isAllNonBlankSelected =
-          nonBlankKeys.length > 0 &&
-          !selectedKeys.has('') &&
-          selectedKeys.size === nonBlankKeys.length &&
-          nonBlankKeys.every((item) => selectedKeys.has(item));
+        if (allKeys.size > 0) {
+          const isAllSelected = allKeys.size === selectedKeys.size && Array.from(allKeys).every((item) => selectedKeys.has(item));
+          if (isAllSelected) {
+            return acc;
+          }
 
-        if (isAllNonBlankSelected) {
-          acc.push([key, [NON_BLANK_FILTER_TOKEN]]);
-          return acc;
+          const nonBlankKeys = Array.from(allKeys).filter((item) => item !== '');
+          const isAllNonBlankSelected =
+            nonBlankKeys.length > 0 &&
+            !selectedKeys.has('') &&
+            selectedKeys.size === nonBlankKeys.length &&
+            nonBlankKeys.every((item) => selectedKeys.has(item));
+
+          if (isAllNonBlankSelected) {
+            acc.push([key, [NON_BLANK_FILTER_TOKEN]]);
+            return acc;
+          }
         }
       }
 
@@ -386,7 +384,7 @@ export function WaybillsTable() {
       params.set('filters', JSON.stringify(serializedFilters));
     }
     return params;
-  }, [appliedSearch, periodFrom, periodTo, currentPage, pageSize, showMissingCounteragents, sortColumn, sortDirection, columnFilters, facetValues, data]);
+  }, [appliedSearch, periodFrom, periodTo, currentPage, pageSize, showMissingCounteragents, sortColumn, sortDirection, columnFilters, facetValues]);
 
   const fetchWaybills = useCallback(async (options?: { page?: number; pageSize?: number }) => {
     setLoading(true);
