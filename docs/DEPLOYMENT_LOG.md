@@ -1,6 +1,15 @@
 # Deployment Log
 
 ## 2026-03-02
+- Summary: Waybills filter/sort state now uses TanStack Table primitives for more stable behavior.
+- Changes:
+  - Waybills table: migrate filter state to `ColumnFiltersState` and sorting state to `SortingState` via `useReactTable`.
+  - Waybills table: preserve existing filter UI/API behavior, including compact non-blank token serialization and localStorage restore.
+  - Waybills table: fix hook dependency stability by memoizing row selection and cell value helpers.
+- Commit: 586a611
+- Production: https://ice-17xyk8tuf-iceerp.vercel.app
+
+## 2026-03-02
 - Summary: Waybills filters now avoid oversized query URLs and load reliably for large selections.
 - Changes:
   - Waybills table: compact filter serialization for large selections, including an `all non-blank` token instead of sending thousands of values.
