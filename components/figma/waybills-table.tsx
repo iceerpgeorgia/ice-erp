@@ -1,6 +1,13 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  getCoreRowModel,
+  type ColumnDef,
+  type ColumnFiltersState,
+  type SortingState,
+  useReactTable,
+} from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -132,9 +139,8 @@ export function WaybillsTable() {
   const [projects, setProjects] = useState<any[]>([]);
   const [financialCodes, setFinancialCodes] = useState<any[]>([]);
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
-  const [filters, setFilters] = useState<Map<ColumnKey, Set<any>>>(new Map());
-  const [sortColumn, setSortColumn] = useState<ColumnKey>('activation_time');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'activation_time', desc: true }]);
   const [showMissingCounteragents, setShowMissingCounteragents] = useState(false);
   const [missingCounteragentCount, setMissingCounteragentCount] = useState(0);
   const [isResizing, setIsResizing] = useState<{
@@ -153,6 +159,45 @@ export function WaybillsTable() {
   const resizeRafRef = useRef<number | null>(null);
   const resizePendingRef = useRef<{ element: HTMLElement; width: number } | null>(null);
   const facetsRequestIdRef = useRef(0);
+
+  const tableColumns = useMemo<ColumnDef<Waybill>[]>(
+    () => defaultColumns.map((column) => ({
+      id: column.key,
+      accessorKey: column.key,
+    })),
+    []
+  );
+
+  const table = useReactTable({
+    data,
+    columns: tableColumns,
+    state: {
+      columnFilters,
+      sorting,
+    },
+    onColumnFiltersChange: setColumnFilters,
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    manualFiltering: true,
+    manualSorting: true,
+  });
+
+  const filtersMap = useMemo(
+    () =>
+      new Map<ColumnKey, Set<any>>(
+        columnFilters
+          .filter(
+            (filter): filter is { id: string; value: any[] } =>
+              typeof filter.id === 'string' && Array.isArray(filter.value)
+          )
+          .map((filter) => [filter.id as ColumnKey, new Set(filter.value)])
+      ),
+    [columnFilters]
+  );
+
+  const activeSort = sorting[0];
+  const sortColumn = (activeSort?.id as ColumnKey) || 'activation_time';
+  const sortDirection: 'asc' | 'desc' = activeSort?.desc ? 'desc' : 'asc';
 
   useEffect(() => {
     const versionKey = 'waybillsColumnsVersion';
@@ -209,19 +254,26 @@ export function WaybillsTable() {
         if (typeof parsed.periodTo === 'string') {
           setPeriodTo(parsed.periodTo);
         }
-        if (parsed.sortColumn) setSortColumn(parsed.sortColumn as ColumnKey);
-        if (parsed.sortDirection === 'asc' || parsed.sortDirection === 'desc') {
-          setSortDirection(parsed.sortDirection);
+        if (parsed.sortColumn && (parsed.sortDirection === 'asc' || parsed.sortDirection === 'desc')) {
+          setSorting([{ id: parsed.sortColumn as string, desc: parsed.sortDirection === 'desc' }]);
         }
         if (typeof parsed.pageSize === 'number') setPageSize(parsed.pageSize);
         if (typeof parsed.missingCounteragents === 'boolean') {
           setShowMissingCounteragents(parsed.missingCounteragents);
         }
         if (Array.isArray(parsed.filters)) {
-          const restored = new Map<ColumnKey, Set<any>>(
-            parsed.filters.map(([key, values]: [ColumnKey, any[]]) => [key, new Set(values)])
-          );
-          setFilters(restored);
+          const restored: ColumnFiltersState = [];
+          for (const item of parsed.filters as unknown[]) {
+            if (
+              Array.isArray(item) &&
+              item.length === 2 &&
+              typeof item[0] === 'string' &&
+              Array.isArray(item[1])
+            ) {
+              restored.push({ id: item[0], value: item[1] });
+            }
+          }
+          setColumnFilters(restored);
         }
       } catch (error) {
         console.error('Failed to parse saved filters:', error);
@@ -241,7 +293,9 @@ export function WaybillsTable() {
       sortDirection,
       pageSize,
       missingCounteragents: showMissingCounteragents,
-      filters: Array.from(filters.entries()).map(([key, set]) => [key, Array.from(set)]),
+      filters: columnFilters
+        .filter((filter) => typeof filter.id === 'string' && Array.isArray(filter.value))
+        .map((filter) => [filter.id, filter.value]),
     };
     localStorage.setItem(filtersStorageKey, JSON.stringify(serialized));
   }, [
@@ -254,7 +308,7 @@ export function WaybillsTable() {
     sortDirection,
     pageSize,
     showMissingCounteragents,
-    filters,
+    columnFilters,
     filtersStorageKey,
   ]);
 
@@ -273,8 +327,10 @@ export function WaybillsTable() {
     const normalizeFilterValue = (value: any) => (value === null || value === undefined ? '' : value);
     const filterValueKey = (value: any) => String(normalizeFilterValue(value));
 
-    const serializedFilters = Array.from(filters.entries()).reduce<Array<[string, any[]]>>((acc, [key, set]) => {
-      const selectedValues = Array.from(set).map(normalizeFilterValue);
+    const serializedFilters = columnFilters.reduce<Array<[string, any[]]>>((acc, filter) => {
+      if (typeof filter.id !== 'string' || !Array.isArray(filter.value)) return acc;
+      const key = filter.id as ColumnKey;
+      const selectedValues = filter.value.map(normalizeFilterValue);
       if (selectedValues.length === 0) return acc;
 
       const facetColumnValues = facetValues.get(key as ColumnKey);
@@ -330,7 +386,7 @@ export function WaybillsTable() {
       params.set('filters', JSON.stringify(serializedFilters));
     }
     return params;
-  }, [appliedSearch, periodFrom, periodTo, currentPage, pageSize, showMissingCounteragents, sortColumn, sortDirection, filters, facetValues, data]);
+  }, [appliedSearch, periodFrom, periodTo, currentPage, pageSize, showMissingCounteragents, sortColumn, sortDirection, columnFilters, facetValues, data]);
 
   const fetchWaybills = useCallback(async (options?: { page?: number; pageSize?: number }) => {
     setLoading(true);
@@ -587,7 +643,7 @@ export function WaybillsTable() {
     return map;
   }, [financialCodes]);
 
-  const getCellValue = (row: Waybill, columnKey: ColumnKey) => {
+  const getCellValue = useCallback((row: Waybill, columnKey: ColumnKey) => {
     if (columnKey === 'project_uuid') {
       return projectLabelMap.get(row.project_uuid || '') || row.project_uuid || '';
     }
@@ -595,7 +651,7 @@ export function WaybillsTable() {
       return financialCodeLabelMap.get(row.financial_code_uuid || '') || row.financial_code_uuid || '';
     }
     return (row as any)[columnKey];
-  };
+  }, [financialCodeLabelMap, projectLabelMap]);
 
   const visibleColumns = useMemo(() => columns.filter((col) => col.visible), [columns]);
 
@@ -717,7 +773,7 @@ export function WaybillsTable() {
     });
   };
 
-  const toggleSelectRow = (id: number, checked: boolean) => {
+  const toggleSelectRow = useCallback((id: number, checked: boolean) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (checked) {
@@ -727,7 +783,7 @@ export function WaybillsTable() {
       }
       return next;
     });
-  };
+  }, []);
 
   const renderedRows = useMemo(() => {
     if (filteredData.length === 0) {
@@ -870,7 +926,7 @@ export function WaybillsTable() {
   };
 
   const handleClearFilters = () => {
-    setFilters(new Map());
+    setColumnFilters([]);
     setSearch('');
     setAppliedSearch('');
     setPeriodFrom('');
@@ -1070,12 +1126,12 @@ export function WaybillsTable() {
             variant="outline"
             size="sm"
             onClick={handleClearFilters}
-            disabled={filters.size === 0 && !appliedSearch && !periodFrom && !periodTo && !showMissingCounteragents}
+            disabled={columnFilters.length === 0 && !appliedSearch && !periodFrom && !periodTo && !showMissingCounteragents}
           >
             Clear Filters
-            {(filters.size > 0 || appliedSearch || periodFrom || periodTo) && (
+            {(columnFilters.length > 0 || appliedSearch || periodFrom || periodTo) && (
               <Badge variant="secondary" className="ml-2">
-                {filters.size + (appliedSearch ? 1 : 0) + (periodFrom ? 1 : 0) + (periodTo ? 1 : 0)}
+                {columnFilters.length + (appliedSearch ? 1 : 0) + (periodFrom ? 1 : 0) + (periodTo ? 1 : 0)}
               </Badge>
             )}
           </Button>
@@ -1256,12 +1312,13 @@ export function WaybillsTable() {
                       className="flex items-center gap-1 min-w-0"
                       onClick={() => {
                         if (!col.sortable) return;
-                        if (sortColumn === col.key) {
-                          setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-                        } else {
-                          setSortColumn(col.key);
-                          setSortDirection('asc');
-                        }
+                        table.setSorting((prev) => {
+                          const current = prev[0];
+                          if (current?.id === col.key) {
+                            return [{ id: col.key, desc: !current.desc }];
+                          }
+                          return [{ id: col.key, desc: false }];
+                        });
                       }}
                     >
                       <span className="truncate font-medium">{col.label}</span>
@@ -1276,22 +1333,15 @@ export function WaybillsTable() {
                         columnKey={col.key}
                         columnLabel={col.label}
                         values={getUniqueValues(col.key)}
-                        activeFilters={filters.get(col.key) || new Set()}
+                        activeFilters={filtersMap.get(col.key) || new Set()}
                         onFilterChange={(values) => {
-                          setFilters((prev) => {
-                            const next = new Map(prev);
-                            if (values.size === 0) {
-                              next.delete(col.key);
-                            } else {
-                              next.set(col.key, values);
-                            }
-                            return next;
-                          });
+                          table
+                            .getColumn(col.key)
+                            ?.setFilterValue(values.size === 0 ? undefined : Array.from(values));
                           setCurrentPage(1);
                         }}
                         onSort={(direction) => {
-                          setSortColumn(col.key);
-                          setSortDirection(direction);
+                          table.setSorting([{ id: col.key, desc: direction === 'desc' }]);
                           setCurrentPage(1);
                         }}
                         renderValue={(value) => renderFilterValue(col.key, value)}
