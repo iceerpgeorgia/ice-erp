@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-03-05 (2)
+- Summary: Require financial code selection before adding missing records to salary from self.ge dialog.
+- Changes:
+  - Salary accruals table: Added Financial Code combobox to "Missing In Salary Accruals" section; user must select a financial code before clicking "Add to Salary".
+  - upload-self-ge API: `add-to-salary` action now requires `financial_code_uuid` parameter; removed auto-defaulting to first financial code.
+- Commit: f78768f
+- URL: https://ice-d9xq1sfds-iceerp.vercel.app
+
 ## 2026-03-05
 - Summary: Self.ge upload dialog enhancements: IBAN parsing, net=salary×80%, per-row add counteragent/salary buttons, comma-separated salary handling.
 - Changes:
