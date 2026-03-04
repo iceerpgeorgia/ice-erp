@@ -245,7 +245,7 @@ export function SalaryAccrualsTable() {
   const [isSelfGeSummaryOpen, setIsSelfGeSummaryOpen] = useState(false);
   const [selfGeSummary, setSelfGeSummary] = useState<SelfGeCompareResult | null>(null);
   const [isSelfGeApplying, setIsSelfGeApplying] = useState(false);
-  const [selfGeRowFinancialCodes, setSelfGeRowFinancialCodes] = useState<Record<string, string>>({});
+  const [selfGePendingIban, setSelfGePendingIban] = useState<{ counteragent_uuid: string; iban: string; personal_id: string } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -810,70 +810,39 @@ export function SalaryAccrualsTable() {
     }
   };
 
-  const handleAddToSalary = async (item: SelfGeMissingSalaryRow) => {
+  const handleAddToSalary = (item: SelfGeMissingSalaryRow) => {
     if (!item.counteragent_uuid) {
       alert('Counteragent not found. Please add the counteragent first.');
       return;
     }
-    const rowFinancialCode = selfGeRowFinancialCodes[item.personal_id];
-    if (!rowFinancialCode) {
-      alert('Please select a Financial Code for this row first.');
-      return;
-    }
     if (!selfGeSummary) return;
+
+    // Compute last day of the self.ge month (month is YYYY-MM format)
+    const [year, month] = selfGeSummary.summary.month.split('-').map(Number);
+    const lastDay = new Date(year, month, 0).getDate();
+    const salaryMonthStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
     // Find GEL currency UUID
     const gelCurrency = currencies.find((c) => c.label === 'GEL');
-    if (!gelCurrency) {
-      alert('GEL currency not found. Please refresh the page.');
-      return;
-    }
 
-    setIsSelfGeApplying(true);
-    try {
-      // Use the main salary-accruals API (same as Add Accrual button)
-      const response = await fetch('/api/salary-accruals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          counteragent_uuid: item.counteragent_uuid,
-          financial_code_uuid: rowFinancialCode,
-          nominal_currency_uuid: gelCurrency.value,
-          salary_month: selfGeSummary.summary.month,
-          net_sum: item.self_ge_net_sum,
-          created_by: 'self.ge',
-          updated_by: 'self.ge',
-        }),
+    // Store IBAN and personal_id for post-save update
+    if (item.counteragent_uuid) {
+      setSelfGePendingIban({
+        counteragent_uuid: item.counteragent_uuid,
+        iban: item.iban || '',
+        personal_id: item.personal_id,
       });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to add to salary');
-      }
-
-      // Update counteragent IBAN if provided
-      if (item.iban && item.counteragent_uuid) {
-        try {
-          await fetch('/api/counteragents', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              counteragent_uuid: item.counteragent_uuid,
-              counteragent_iban: item.iban,
-            }),
-          });
-        } catch (_) {
-          // Non-critical: IBAN update failure shouldn't block the flow
-        }
-      }
-
-      alert(`Added to salary: ${item.employee_name || item.counteragent_name}`);
-      await fetchData();
-      await handleSelfGePreview();
-    } catch (error: any) {
-      alert(error.message || 'Failed to add to salary');
-    } finally {
-      setIsSelfGeApplying(false);
+    } else {
+      setSelfGePendingIban(null);
     }
+
+    // Open the Add Accrual dialog pre-filled
+    resetForm();
+    setSelectedEmployee(item.counteragent_uuid);
+    setSalaryMonth(salaryMonthStr);
+    setNetSum(String(item.self_ge_net_sum));
+    if (gelCurrency) setSelectedCurrency(gelCurrency.value);
+    setIsDialogOpen(true);
   };
 
   const handleToggleSelect = (id: string) => {
@@ -1511,6 +1480,45 @@ export function SalaryAccrualsTable() {
 
       setIsDialogOpen(false);
       resetForm();
+
+      // If opened from self.ge context, update IBAN, remove from missing list, and refresh preview
+      if (selfGePendingIban) {
+        // Remove the added item from missing_in_salary locally
+        setSelfGeSummary((prev) => {
+          if (!prev) return prev;
+          const updatedMissing = prev.missing_in_salary.filter(
+            (row) => row.personal_id !== selfGePendingIban.personal_id
+          );
+          return {
+            ...prev,
+            missing_in_salary: updatedMissing,
+            summary: {
+              ...prev.summary,
+              missing_in_salary_count: updatedMissing.length,
+            },
+          };
+        });
+
+        // Update counteragent IBAN if provided
+        if (selfGePendingIban.iban) {
+          try {
+            await fetch('/api/counteragents', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                counteragent_uuid: selfGePendingIban.counteragent_uuid,
+                counteragent_iban: selfGePendingIban.iban,
+              }),
+            });
+          } catch (_) {
+            // Non-critical
+          }
+        }
+        setSelfGePendingIban(null);
+        if (selfGeFile && selfGeMonth) {
+          await handleSelfGePreview();
+        }
+      }
     } catch (error: any) {
       console.error('Error saving salary accrual:', error);
       alert(error.message || 'Failed to save salary accrual');
@@ -1575,7 +1583,7 @@ export function SalaryAccrualsTable() {
 
         switch (condition) {
           case 'Confirmed & Balance>0': {
-            const balance = Number(getRowValue(row, 'cumulative_balance')) || 0;
+            const balance = Math.round((Number(getRowValue(row, 'cumulative_balance')) || 0) * 100) / 100;
             matches = Boolean(row.confirmed) && balance > 0;
             break;
           }
@@ -2230,39 +2238,29 @@ export function SalaryAccrualsTable() {
                       <div>
                         <div className="mb-2 font-medium text-blue-700">Missing In Salary Accruals</div>
                         <div className="rounded-md border border-blue-200">
-                          <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_minmax(160px,1fr)_auto] gap-2 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800">
+                          <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_auto] gap-2 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800">
                             <div>Employee</div>
                             <div>Counteragent</div>
                             <div>Personal ID</div>
                             <div>IBAN</div>
                             <div>Self.ge Net</div>
-                            <div>Financial Code</div>
                             <div>Action</div>
                           </div>
                           <div className="max-h-56 overflow-y-auto">
                             {selfGeSummary.missing_in_salary.map((item) => (
-                              <div key={`missing-salary-${item.personal_id}`} className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_minmax(160px,1fr)_auto] gap-2 border-t border-blue-100 px-3 py-2 text-xs items-center">
+                              <div key={`missing-salary-${item.personal_id}`} className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_auto] gap-2 border-t border-blue-100 px-3 py-2 text-xs items-center">
                                 <div className="font-medium">{item.employee_name || '-'}</div>
                                 <div>{item.counteragent_name || '-'}</div>
                                 <div>{item.personal_id}</div>
                                 <div className="truncate" title={item.iban || ''}>{item.iban || '-'}</div>
                                 <div>{formatValue(item.self_ge_net_sum, 'currency')}</div>
                                 <div>
-                                  <Combobox
-                                    options={financialCodes}
-                                    value={selfGeRowFinancialCodes[item.personal_id] || ''}
-                                    onValueChange={(val) => setSelfGeRowFinancialCodes((prev) => ({ ...prev, [item.personal_id]: val }))}
-                                    placeholder="Select..."
-                                    searchPlaceholder="Search..."
-                                  />
-                                </div>
-                                <div>
                                   {item.counteragent_uuid ? (
                                     <Button
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleAddToSalary(item)}
-                                      disabled={isSelfGeApplying || !selfGeRowFinancialCodes[item.personal_id]}
+                                      disabled={isSelfGeApplying}
                                     >
                                       Add to Salary
                                     </Button>
