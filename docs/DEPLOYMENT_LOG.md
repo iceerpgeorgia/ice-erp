@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-03-05 (2)
+- Summary: Extended shared filter engine to counteragent statement and payment statement pages.
+- Changes:
+  - Counteragent statement: Replaced local FilterPopover (~190 lines) with shared `ColumnFilterPopover`; migrated `Map<ColumnKey, Set<any>>` to `FilterState`; added cross-filter facet data via `buildFacetBaseData`/`buildUniqueValuesCache`; added numeric/text/date condition filter support.
+  - Payment statement: Added filters from scratch (previously had none); added `FilterState`, sort state, `filteredTransactions` memo (filters applied after cumulative calculation to preserve paidPercent/due/balance integrity); added `ColumnFilterPopover` to all 17 column headers; updated entry count, empty check, A/O eligibility, table body, and totals row to use filtered data.
+- Commit: afffdd6
+- URL: https://ice-dsb4bv6fp-iceerp.vercel.app
+
 ## 2026-03-05
 - Summary: Unified shared filter engine across all 13 table components with industry-standard numeric/text/date condition operators.
 - Changes:
