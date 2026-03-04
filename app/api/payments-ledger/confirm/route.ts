@@ -50,6 +50,17 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, updated });
   } catch (error: any) {
+    // DB check-constraint: due (total_order) exceeds balance (total_accrual)
+    if (error?.code === 'P2010' && error?.meta?.code === '23514') {
+      const dbMsg: string = error.meta.message ?? '';
+      // Extract the human-readable part from the trigger message
+      const match = dbMsg.match(/Cannot confirm payment_id=([^:]+): (.+)/);
+      const userMessage = match
+        ? `Cannot confirm payment ${match[1]}: ${match[2]}`
+        : 'Cannot confirm: ordered amount exceeds accrued amount for one or more payment IDs.';
+      return NextResponse.json({ error: userMessage }, { status: 422 });
+    }
+
     console.error('Error confirming payment ledger entries:', error);
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
