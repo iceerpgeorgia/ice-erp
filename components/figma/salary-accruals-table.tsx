@@ -245,7 +245,7 @@ export function SalaryAccrualsTable() {
   const [isSelfGeSummaryOpen, setIsSelfGeSummaryOpen] = useState(false);
   const [selfGeSummary, setSelfGeSummary] = useState<SelfGeCompareResult | null>(null);
   const [isSelfGeApplying, setIsSelfGeApplying] = useState(false);
-  const [selfGeFinancialCode, setSelfGeFinancialCode] = useState('');
+  const [selfGeRowFinancialCodes, setSelfGeRowFinancialCodes] = useState<Record<string, string>>({});
   const [isExporting, setIsExporting] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -815,29 +815,55 @@ export function SalaryAccrualsTable() {
       alert('Counteragent not found. Please add the counteragent first.');
       return;
     }
-    if (!selfGeFinancialCode) {
-      alert('Please select a Financial Code first.');
+    const rowFinancialCode = selfGeRowFinancialCodes[item.personal_id];
+    if (!rowFinancialCode) {
+      alert('Please select a Financial Code for this row first.');
       return;
     }
     if (!selfGeSummary) return;
 
+    // Find GEL currency UUID
+    const gelCurrency = currencies.find((c) => c.label === 'GEL');
+    if (!gelCurrency) {
+      alert('GEL currency not found. Please refresh the page.');
+      return;
+    }
+
     setIsSelfGeApplying(true);
     try {
-      const response = await fetch('/api/salary-accruals/upload-self-ge', {
+      // Use the main salary-accruals API (same as Add Accrual button)
+      const response = await fetch('/api/salary-accruals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'add-to-salary',
           counteragent_uuid: item.counteragent_uuid,
-          financial_code_uuid: selfGeFinancialCode,
-          month: selfGeSummary.summary.month,
+          financial_code_uuid: rowFinancialCode,
+          nominal_currency_uuid: gelCurrency.value,
+          salary_month: selfGeSummary.summary.month,
           net_sum: item.self_ge_net_sum,
-          iban: item.iban || null,
+          created_by: 'self.ge',
+          updated_by: 'self.ge',
         }),
       });
       const result = await response.json();
       if (!response.ok) {
         throw new Error(result.error || 'Failed to add to salary');
+      }
+
+      // Update counteragent IBAN if provided
+      if (item.iban && item.counteragent_uuid) {
+        try {
+          await fetch('/api/counteragents', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              counteragent_uuid: item.counteragent_uuid,
+              counteragent_iban: item.iban,
+            }),
+          });
+        } catch (_) {
+          // Non-critical: IBAN update failure shouldn't block the flow
+        }
       }
 
       alert(`Added to salary: ${item.employee_name || item.counteragent_name}`);
@@ -941,9 +967,9 @@ export function SalaryAccrualsTable() {
 
     const rows = await Promise.all(selectedRecords.map(async (record) => [
       'GE78BG0000000893486000',
+      '',
+      '',
       record.counteragent_iban || '',
-      '',
-      '',
       sanitizeRecipientName(record.counteragent_name || ''),
       record.identification_number || '',
       'ხელფასი',
@@ -2202,45 +2228,41 @@ export function SalaryAccrualsTable() {
 
                     {selfGeSummary.missing_in_salary.length > 0 && (
                       <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <div className="font-medium text-blue-700">Missing In Salary Accruals</div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-600">Financial Code:</span>
-                            <div className="w-56">
-                              <Combobox
-                                options={financialCodes}
-                                value={selfGeFinancialCode}
-                                onValueChange={setSelfGeFinancialCode}
-                                placeholder="Select financial code..."
-                                searchPlaceholder="Search..."
-                              />
-                            </div>
-                          </div>
-                        </div>
+                        <div className="mb-2 font-medium text-blue-700">Missing In Salary Accruals</div>
                         <div className="rounded-md border border-blue-200">
-                          <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_auto] gap-2 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800">
+                          <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_minmax(160px,1fr)_auto] gap-2 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800">
                             <div>Employee</div>
                             <div>Counteragent</div>
                             <div>Personal ID</div>
                             <div>IBAN</div>
                             <div>Self.ge Net</div>
+                            <div>Financial Code</div>
                             <div>Action</div>
                           </div>
                           <div className="max-h-56 overflow-y-auto">
                             {selfGeSummary.missing_in_salary.map((item) => (
-                              <div key={`missing-salary-${item.personal_id}`} className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_auto] gap-2 border-t border-blue-100 px-3 py-2 text-xs items-center">
+                              <div key={`missing-salary-${item.personal_id}`} className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_minmax(160px,1fr)_auto] gap-2 border-t border-blue-100 px-3 py-2 text-xs items-center">
                                 <div className="font-medium">{item.employee_name || '-'}</div>
                                 <div>{item.counteragent_name || '-'}</div>
                                 <div>{item.personal_id}</div>
                                 <div className="truncate" title={item.iban || ''}>{item.iban || '-'}</div>
                                 <div>{formatValue(item.self_ge_net_sum, 'currency')}</div>
                                 <div>
+                                  <Combobox
+                                    options={financialCodes}
+                                    value={selfGeRowFinancialCodes[item.personal_id] || ''}
+                                    onValueChange={(val) => setSelfGeRowFinancialCodes((prev) => ({ ...prev, [item.personal_id]: val }))}
+                                    placeholder="Select..."
+                                    searchPlaceholder="Search..."
+                                  />
+                                </div>
+                                <div>
                                   {item.counteragent_uuid ? (
                                     <Button
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleAddToSalary(item)}
-                                      disabled={isSelfGeApplying}
+                                      disabled={isSelfGeApplying || !selfGeRowFinancialCodes[item.personal_id]}
                                     >
                                       Add to Salary
                                     </Button>

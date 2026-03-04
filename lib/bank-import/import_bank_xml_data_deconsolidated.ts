@@ -650,6 +650,8 @@ export async function processBOGGELDeconsolidated(
   let skippedDuplicates = 0;
   let skippedMissingKeys = 0;
   let skippedInvalidDates = 0;
+  let updatedPendingToCompleted = 0;
+  let deletedCanceled = 0;
   const detailMeta: Array<{
     detail: any;
     DocKey: string;
@@ -694,6 +696,152 @@ export async function processBOGGELDeconsolidated(
   }
 
   console.log(`  ✅ Found ${existingUuids.size} existing records in table`);
+
+  // --- Pending→Completed detection ---
+  // Build maps from XML: DocKey → { EntriesId, uuid, date, amount }
+  const xmlDocKeys = new Set<string>(detailMeta.map((m) => m.DocKey));
+  const xmlDocKeyToEntriesId = new Map<string, string>();
+  const xmlDocKeyToUuid = new Map<string, string>();
+  // Store date + amount + counteragent per DocKey for strict matching
+  const xmlDocKeyInfo = new Map<string, { date: string | null; amount: number; counteragent: string }>();
+
+  for (const m of detailMeta) {
+    const getText = (tagName: string) => m.detail[tagName]?.[0] || null;
+    // For each DocKey, keep the highest EntriesId (most recent / completed)
+    const existing = xmlDocKeyToEntriesId.get(m.DocKey);
+    if (!existing || m.EntriesId > existing) {
+      xmlDocKeyToEntriesId.set(m.DocKey, m.EntriesId);
+      xmlDocKeyToUuid.set(m.DocKey, m.recordUuid);
+      // Parse date, amount, and counteragent for comparison
+      const dateStr = getText('DocValueDate') || getText('DocActualDate') || getText('DocRecDate');
+      const parsedDate = parseBOGDate(dateStr);
+      const entryCrAmt = getText('EntryCrAmt');
+      const entryDbAmt = getText('EntryDbAmt');
+      const credit = entryCrAmt ? parseFloat(entryCrAmt) : 0;
+      const debit = entryDbAmt ? parseFloat(entryDbAmt) : 0;
+      const counteragent = getText('DocBenefName') || getText('DocSenderName') || '';
+      xmlDocKeyInfo.set(m.DocKey, {
+        date: parsedDate ? parsedDate.toISOString().split('T')[0] : null,
+        amount: credit - debit,
+        counteragent,
+      });
+    }
+  }
+
+  // Find existing records with same DocKey but different EntriesId (pending→completed)
+  // Strict: must also have same date and same amount
+  const pendingToDelete: string[] = []; // uuids of old pending records to delete
+  const allXmlDocKeysArr = Array.from(xmlDocKeys);
+  const docKeyBatchSize = 200;
+
+  for (let i = 0; i < allXmlDocKeysArr.length; i += docKeyBatchSize) {
+    const batch = allXmlDocKeysArr.slice(i, i + docKeyBatchSize);
+    const { data, error } = await supabase
+      .from(deconsolidatedTableName)
+      .select('uuid, dockey, entriesid, transaction_date, account_currency_amount, docbenefname, docsendername')
+      .in('dockey', batch);
+
+    if (error) throw error;
+    for (const row of data ?? []) {
+      const xmlEntriesId = xmlDocKeyToEntriesId.get(row.dockey);
+      const xmlUuid = xmlDocKeyToUuid.get(row.dockey);
+      if (xmlEntriesId && row.entriesid !== xmlEntriesId && row.uuid !== xmlUuid) {
+        // Same DocKey, different EntriesId — check date and amount match
+        const xmlInfo = xmlDocKeyInfo.get(row.dockey);
+        if (!xmlInfo) continue;
+        const dbDate = row.transaction_date ? String(row.transaction_date).split('T')[0] : null;
+        const sameDate = dbDate === xmlInfo.date;
+        const sameAmount = Number(row.account_currency_amount) === xmlInfo.amount;
+        if (sameDate && sameAmount) {
+          // Confirmed pending→completed: same DocKey, date, amount, diff EntriesId
+          pendingToDelete.push(row.uuid);
+          existingUuids.delete(xmlUuid!);
+          const dbCounteragent = row.docbenefname || row.docsendername || '';
+          console.log(`  🔄 Pending→Completed: DocKey=${row.dockey}`);
+          console.log(`     OLD (pending):    ID1=${row.dockey} | ID2=${row.entriesid} | UUID=${row.uuid}`);
+          console.log(`                       Date=${dbDate} | Amount=${row.account_currency_amount} | Counteragent=${dbCounteragent}`);
+          console.log(`     NEW (completed):  ID1=${row.dockey} | ID2=${xmlEntriesId} | UUID=${xmlUuid}`);
+          console.log(`                       Date=${xmlInfo.date} | Amount=${xmlInfo.amount} | Counteragent=${xmlInfo.counteragent}`);
+        }
+      }
+    }
+  }
+
+  if (pendingToDelete.length > 0) {
+    console.log(`  🔄 Total: ${pendingToDelete.length} pending→completed records to replace`);
+    // Delete old pending records in batches
+    for (let i = 0; i < pendingToDelete.length; i += docKeyBatchSize) {
+      const batch = pendingToDelete.slice(i, i + docKeyBatchSize);
+      const { error: delError } = await supabase
+        .from(deconsolidatedTableName)
+        .delete()
+        .in('uuid', batch);
+      if (delError) throw delError;
+    }
+    updatedPendingToCompleted = pendingToDelete.length;
+    console.log(`  ✅ Deleted ${updatedPendingToCompleted} old pending records (will be replaced by completed versions)`);
+  }
+
+  // --- Canceled record detection ---
+  // Determine the date range covered by this XML upload
+  const xmlDates: Date[] = [];
+  for (const m of detailMeta) {
+    const getText = (tagName: string) => m.detail[tagName]?.[0] || null;
+    const dateStr = getText('DocValueDate') || getText('DocActualDate') || getText('DocRecDate');
+    const parsed = parseBOGDate(dateStr);
+    if (parsed) xmlDates.push(parsed);
+  }
+
+  if (xmlDates.length > 0) {
+    const minDate = new Date(Math.min(...xmlDates.map((d) => d.getTime())));
+    const maxDate = new Date(Math.max(...xmlDates.map((d) => d.getTime())));
+    const minDateStr = minDate.toISOString().split('T')[0];
+    const maxDateStr = maxDate.toISOString().split('T')[0];
+    console.log(`  📅 XML date range: ${minDateStr} to ${maxDateStr}`);
+
+    // Find DB records in that date range that are NOT in the XML → canceled
+    const { data: dbRecordsInRange, error: rangeError } = await supabase
+      .from(deconsolidatedTableName)
+      .select('uuid, dockey, entriesid, transaction_date, account_currency_amount, docbenefname, docsendername, parsing_lock, conversion_id')
+      .gte('transaction_date', minDateStr)
+      .lte('transaction_date', maxDateStr);
+
+    if (rangeError) throw rangeError;
+
+    const canceledUuids: string[] = [];
+    for (const dbRow of dbRecordsInRange ?? []) {
+      // Skip records with parsing_lock (manually edited) or conversion_id (linked to conversion)
+      if (dbRow.parsing_lock || dbRow.conversion_id) continue;
+      // If this DocKey is NOT in the XML, the transaction was canceled
+      if (!xmlDocKeys.has(dbRow.dockey)) {
+        canceledUuids.push(dbRow.uuid);
+        const counteragentName = dbRow.docbenefname || dbRow.docsendername || '';
+        if (canceledUuids.length <= 10) {
+          console.log(`  ❌ Canceled: DocKey=${dbRow.dockey} | Date=${dbRow.transaction_date} | Amount=${dbRow.account_currency_amount} | ${counteragentName}`);
+        }
+      }
+    }
+
+    if (canceledUuids.length > 10) {
+      console.log(`  ... and ${canceledUuids.length - 10} more canceled records`);
+    }
+
+    if (canceledUuids.length > 0) {
+      console.log(`  🗑️  Deleting ${canceledUuids.length} canceled records...`);
+      for (let i = 0; i < canceledUuids.length; i += docKeyBatchSize) {
+        const batch = canceledUuids.slice(i, i + docKeyBatchSize);
+        const { error: delError } = await supabase
+          .from(deconsolidatedTableName)
+          .delete()
+          .in('uuid', batch);
+        if (delError) throw delError;
+      }
+      deletedCanceled = canceledUuids.length;
+      console.log(`  ✅ Deleted ${deletedCanceled} canceled records`);
+    } else {
+      console.log(`  ✅ No canceled records found in date range`);
+    }
+  }
   const { data: maxIdData, error: maxIdError } = await supabase
     .from(deconsolidatedTableName)
     .select('id')
@@ -907,7 +1055,9 @@ export async function processBOGGELDeconsolidated(
   console.log(`📊 Raw Data Import Results:`);
   console.log(`  ✅ New records to insert: ${insertRecords.length}`);
   console.log(`  🔄 Skipped duplicates: ${skippedDuplicates}`);
-  console.log(`  ⚠️  Skipped missing keys: ${skippedMissingKeys}\n`);
+  console.log(`  🔄 Pending→Completed updates: ${updatedPendingToCompleted}`);
+  console.log(`  🗑️  Canceled records deleted: ${deletedCanceled}`);
+  console.log(`  ⚠️  Skipped missing keys: ${skippedMissingKeys}`);
   console.log(`  ⚠️  Skipped invalid dates: ${skippedInvalidDates}\n`);
 
   if (insertRecords.length > 0) {
@@ -1221,7 +1371,9 @@ export async function processBOGGELDeconsolidated(
   console.log(`  ✅ Payment matched: ${stats.case4_payment_id_match}`);
   console.log(`  ⚠️  Conflicts (kept Phase 1/2): ${stats.case5_payment_id_counteragent_mismatch}\n`);
   console.log('📊 Overall:');
-  console.log(`  📦 Total records: ${insertRecords.length}\n`);
+  console.log(`  📦 Total new records: ${insertRecords.length}`);
+  console.log(`  🔄 Pending→Completed: ${updatedPendingToCompleted}`);
+  console.log(`  🗑️  Canceled deleted: ${deletedCanceled}\n`);
 
   if (missingCounteragents.size > 0) {
     console.log(`⚠️  CASE 3 REPORT - INNs needing counteragents (${missingCounteragents.size}):`);
