@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-06 (2)
+- Summary: Red unbound icon in salary accruals, UUID-based counteragent filter, job/counteragent skip buttons with URL param handling.
+- Changes:
+  - Salary accruals API: Added unbound counteragent transaction query; each row now includes `hasUnboundCounteragentTransactions` flag.
+  - Salary accruals table: User icon turns red when counteragent has unbound transactions; added ArrowUpRight + Filter buttons to counteragent_name column; added `?counteragentUuid=` URL param handling on load.
+  - Payments report table: Filter button now uses `counteragentUuid` (UUID) instead of counteragent name; URL param updated to `?counteragentUuid=`; path corrected to `/dictionaries/payments-report`; added ArrowUpRight skip button on job column linking to `/dictionaries/jobs?jobUuid=`.
+  - Jobs table: Added `?jobUuid=` URL param handling on load to apply facet filter.
+- Commit: 026b0c2
+- URL: https://ice-eb02frngv-iceerp.vercel.app
+
 ## 2026-03-06
 - Summary: Payments report counteragent buttons + URL param filter support.
 - Changes:
