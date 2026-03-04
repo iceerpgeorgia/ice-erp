@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-03-04
+- Summary: Fix audit log Prisma binary protocol error (22P03) on bulk-bind.
+- Changes:
+  - lib/audit.ts: replace `prisma.auditLog.create()` with raw SQL INSERT to avoid `incorrect binary data format in bind parameter 3` error caused by BigInt id + Json? column combination in Prisma 6.x binary protocol.
+- Commit: 3f1f296
+- Production: https://ice-chvwj50ts-iceerp.vercel.app
+
 ## 2026-03-02
 - Summary: Fix batch partition amounts, salary accruals optimization, and batch editor flow fixes.
 - Changes:
