@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-03-05 (3)
+- Summary: Strict pending-to-completed detection in bank XML import; per-row financial code in self.ge dialog using main accruals API.
+- Changes:
+  - Bank XML import (deconsolidated): Pending-to-completed detection now requires same DocKey + same date + same amount + different EntriesId (previously only checked DocKey/EntriesId).
+  - Bank XML import: Detailed log output for each pending-to-completed match showing old/new IDs, counteragent, date, amount.
+  - Self.ge dialog: Per-row financial code selector replaces shared header-level combobox; each row requires its own financial code selection.
+  - Self.ge dialog: Now uses main `/api/salary-accruals` POST endpoint (auto-generates payment_id via `generatePaymentId()`) instead of self.ge-specific `add-to-salary` action.
+  - Self.ge dialog: IBAN update preserved via separate counteragent PUT call after accrual creation.
+- Commit: f0f5653
+- URL: https://ice-d9xq1sfds-iceerp.vercel.app
+
 ## 2026-03-05 (2)
 - Summary: Require financial code selection before adding missing records to salary from self.ge dialog.
 - Changes:
