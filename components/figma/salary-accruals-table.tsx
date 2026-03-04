@@ -245,6 +245,7 @@ export function SalaryAccrualsTable() {
   const [isSelfGeSummaryOpen, setIsSelfGeSummaryOpen] = useState(false);
   const [selfGeSummary, setSelfGeSummary] = useState<SelfGeCompareResult | null>(null);
   const [isSelfGeApplying, setIsSelfGeApplying] = useState(false);
+  const [selfGeFinancialCode, setSelfGeFinancialCode] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -814,6 +815,10 @@ export function SalaryAccrualsTable() {
       alert('Counteragent not found. Please add the counteragent first.');
       return;
     }
+    if (!selfGeFinancialCode) {
+      alert('Please select a Financial Code first.');
+      return;
+    }
     if (!selfGeSummary) return;
 
     setIsSelfGeApplying(true);
@@ -824,6 +829,7 @@ export function SalaryAccrualsTable() {
         body: JSON.stringify({
           action: 'add-to-salary',
           counteragent_uuid: item.counteragent_uuid,
+          financial_code_uuid: selfGeFinancialCode,
           month: selfGeSummary.summary.month,
           net_sum: item.self_ge_net_sum,
           iban: item.iban || null,
@@ -2196,7 +2202,21 @@ export function SalaryAccrualsTable() {
 
                     {selfGeSummary.missing_in_salary.length > 0 && (
                       <div>
-                        <div className="mb-2 font-medium text-blue-700">Missing In Salary Accruals</div>
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="font-medium text-blue-700">Missing In Salary Accruals</div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-600">Financial Code:</span>
+                            <div className="w-56">
+                              <Combobox
+                                options={financialCodes}
+                                value={selfGeFinancialCode}
+                                onValueChange={setSelfGeFinancialCode}
+                                placeholder="Select financial code..."
+                                searchPlaceholder="Search..."
+                              />
+                            </div>
+                          </div>
+                        </div>
                         <div className="rounded-md border border-blue-200">
                           <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_auto] gap-2 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800">
                             <div>Employee</div>

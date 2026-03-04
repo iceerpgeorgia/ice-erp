@@ -461,12 +461,13 @@ const handleCreateSingleCounteragent = async (body: any) => {
 
 const handleAddToSalary = async (body: any) => {
   const counteragentUuid = body?.counteragent_uuid;
+  const financialCodeUuid = body?.financial_code_uuid;
   const month = body?.month;
   const netSum = body?.net_sum;
   const iban = body?.iban ? String(body.iban).trim() : null;
 
-  if (!counteragentUuid || !month || netSum === undefined) {
-    return NextResponse.json({ error: 'Missing required fields: counteragent_uuid, month, net_sum' }, { status: 400 });
+  if (!counteragentUuid || !month || netSum === undefined || !financialCodeUuid) {
+    return NextResponse.json({ error: 'Missing required fields: counteragent_uuid, financial_code_uuid, month, net_sum' }, { status: 400 });
   }
 
   // Look up the counteragent and potentially update IBAN
@@ -487,11 +488,7 @@ const handleAddToSalary = async (body: any) => {
     });
   }
 
-  // Find default financial code and currency for salary
-  const defaultFinancialCode = await prisma.financial_codes.findFirst({
-    orderBy: { id: 'asc' },
-    select: { uuid: true },
-  });
+  // Find default currency for salary
   const defaultCurrency = await prisma.currencies.findFirst({
     where: { code: { equals: 'GEL', mode: 'insensitive' } },
     select: { uuid: true },
@@ -508,7 +505,7 @@ const handleAddToSalary = async (body: any) => {
   const accrual = await prisma.salary_accruals.create({
     data: {
       counteragent_uuid: counteragentUuid,
-      financial_code_uuid: defaultFinancialCode?.uuid || '',
+      financial_code_uuid: financialCodeUuid,
       nominal_currency_uuid: currencyUuid,
       salary_month: monthDate,
       net_sum: netSum,
