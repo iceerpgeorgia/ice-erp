@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-05 (3)
+- Summary: Add columnFormat to statement pages for full shared filter parity (numeric/date/text/boolean condition tabs).
+- Changes:
+  - Both pages: Added `format?: ColumnFormat` to `ColumnConfig` type.
+  - Counteragent statement: `date` → `'date'`, `incomeTax`/`confirmed` → `'boolean'`, `accrual`/`order`/`payment`/`ppc` → `'currency'`, `comment` → `'text'`; pass `columnFormat={col.format}` to `ColumnFilterPopover`.
+  - Payment statement: `date`/`createdAt` → `'date'`, `confirmed` → `'boolean'`, `accrual`/`payment`/`order`/`ppc`/`due`/`balance` → `'currency'`, `paidPercent` → `'percent'`, `comment` → `'text'`; pass `columnFormat={column.format}` to `ColumnFilterPopover`.
+- Commit: 6b958a9
+- URL: https://ice-8jznxcbwj-iceerp.vercel.app
+
 ## 2026-03-05 (2)
 - Summary: Extended shared filter engine to counteragent statement and payment statement pages.
 - Changes:
