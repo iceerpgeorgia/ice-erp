@@ -31,7 +31,7 @@ export async function logAudit(params: {
       changes: params.changes ?? undefined,
     });
     const safeChanges = params.changes === undefined
-      ? undefined
+      ? null
       : JSON.parse(JSON.stringify(params.changes, (_key, value) => {
         if (typeof value === 'bigint') return value.toString();
         if (value && typeof value === 'object' && value.constructor?.name === 'Decimal') {
@@ -40,18 +40,19 @@ export async function logAudit(params: {
         if (value instanceof Date) return value.toISOString();
         return value;
       }));
-    const result = await prisma.auditLog.create({
-      data: {
-        table: params.table,
-        record_id: recordIdStr,
-        action: params.action,
-        user_email: email ?? undefined,
-        user_id: userId ?? undefined,
-        changes: safeChanges ?? undefined,
-      },
-      select: { id: true },
-    });
-    console.log('[AUDIT] Audit log created successfully with id:', result.id);
+    // Use raw SQL to avoid Prisma binary protocol issues with BigInt id + Json? column (22P03)
+    const result = await prisma.$queryRawUnsafe<Array<{ id: bigint }>>(
+      `INSERT INTO "AuditLog" ("table", "record_id", "action", "user_email", "user_id", "changes")
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+       RETURNING id`,
+      params.table,
+      recordIdStr,
+      params.action,
+      email,
+      userId,
+      safeChanges ? JSON.stringify(safeChanges) : null
+    );
+    console.log('[AUDIT] Audit log created successfully with id:', result[0]?.id);
   } catch (err) {
     console.error("[audit] failed to write audit log", err);
   }
