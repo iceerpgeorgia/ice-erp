@@ -1,6 +1,13 @@
 # Deployment Log
 
 ## 2026-03-04
+- Summary: Fix salary accruals confirmed status always showing false.
+- Changes:
+  - API (salary-accruals): replace `Boolean(accrual.confirmed)` (nonexistent column, always false) with `confirmedKeys.has(paymentKey)` which correctly derives confirmed status from `payments_ledger` entries.
+- Commit: 6158a2a
+- Production: https://ice-prtbfjfg0-iceerp.vercel.app
+
+## 2026-03-04
 - Summary: Fix audit log Prisma binary protocol error (22P03) on bulk-bind.
 - Changes:
   - lib/audit.ts: replace `prisma.auditLog.create()` with raw SQL INSERT to avoid `incorrect binary data format in bind parameter 3` error caused by BigInt id + Json? column combination in Prisma 6.x binary protocol.
