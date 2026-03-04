@@ -1,6 +1,17 @@
 # Deployment Log
 
 ## 2026-03-04
+- Summary: Add confirmed column to salary_accruals table + conditional row formatting.
+- Changes:
+  - Schema: Added `confirmed Boolean @default(false)` column to `salary_accruals` model + DB migration.
+  - API (payments-ledger/confirm): Also updates `salary_accruals.confirmed = true` for matching payment_ids.
+  - API (payments-ledger/deconfirm): Also updates `salary_accruals.confirmed = false` for matching payment_ids.
+  - API (salary-accruals): Reads `confirmed` directly from `salary_accruals` table instead of deriving from `payments_ledger`.
+  - UI (salary-accruals-table): Conditional row colors: confirmed + month_balance < 0 → slight red (#ffebee), > 0 → slight green (#e8f5e9), = 0 → slight gray (#f3f4f6). Bold red counteragent name when cumulative_balance < 0.
+- Commit: 4d81b5f
+- Production: https://ice-g1r5lpyvj-iceerp.vercel.app
+
+## 2026-03-04
 - Summary: Fix salary accruals confirmed status always showing false.
 - Changes:
   - API (salary-accruals): replace `Boolean(accrual.confirmed)` (nonexistent column, always false) with `confirmedKeys.has(paymentKey)` which correctly derives confirmed status from `payments_ledger` entries.
