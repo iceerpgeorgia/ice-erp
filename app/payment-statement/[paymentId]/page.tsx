@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Edit2, Plus, X, Eye, Info } from 'lucide-react';
 import { ColumnFilterPopover } from '@/components/figma/shared/column-filter-popover';
-import type { FilterState, ColumnFilter } from '@/components/figma/shared/table-filters';
+import type { FilterState, ColumnFilter, ColumnFormat } from '@/components/figma/shared/table-filters';
 import { matchesFilter, buildFacetBaseData, buildUniqueValuesCache } from '@/components/figma/shared/table-filters';
 import { Button } from '@/components/ui/button';
 import { Combobox } from '@/components/ui/combobox';
@@ -80,26 +80,27 @@ type ColumnConfig = {
   sortable?: boolean;
   width: number;
   align?: 'left' | 'right';
+  format?: ColumnFormat;
 };
 
 const defaultColumns: ColumnConfig[] = [
-  { key: 'date', label: 'Date', visible: true, filterable: true, sortable: true, width: 120, align: 'left' },
-  { key: 'accrual', label: 'Accrual', visible: true, filterable: true, sortable: true, width: 120, align: 'right' },
-  { key: 'payment', label: 'Payment', visible: true, filterable: true, sortable: true, width: 120, align: 'right' },
-  { key: 'order', label: 'Order', visible: true, filterable: true, sortable: true, width: 120, align: 'right' },
-  { key: 'confirmed', label: 'Confirmed', visible: true, filterable: true, sortable: true, width: 120, align: 'left' },
-  { key: 'ppc', label: 'PPC', visible: true, filterable: true, sortable: true, width: 120, align: 'right' },
-  { key: 'paidPercent', label: 'Paid %', visible: true, filterable: true, sortable: true, width: 100, align: 'right' },
-  { key: 'due', label: 'Due', visible: true, filterable: true, sortable: true, width: 120, align: 'right' },
-  { key: 'balance', label: 'Balance', visible: true, filterable: true, sortable: true, width: 120, align: 'right' },
-  { key: 'comment', label: 'Comment', visible: true, filterable: true, sortable: true, width: 300, align: 'left' },
+  { key: 'date', label: 'Date', visible: true, filterable: true, sortable: true, width: 120, align: 'left', format: 'date' },
+  { key: 'accrual', label: 'Accrual', visible: true, filterable: true, sortable: true, width: 120, align: 'right', format: 'currency' },
+  { key: 'payment', label: 'Payment', visible: true, filterable: true, sortable: true, width: 120, align: 'right', format: 'currency' },
+  { key: 'order', label: 'Order', visible: true, filterable: true, sortable: true, width: 120, align: 'right', format: 'currency' },
+  { key: 'confirmed', label: 'Confirmed', visible: true, filterable: true, sortable: true, width: 120, align: 'left', format: 'boolean' },
+  { key: 'ppc', label: 'PPC', visible: true, filterable: true, sortable: true, width: 120, align: 'right', format: 'currency' },
+  { key: 'paidPercent', label: 'Paid %', visible: true, filterable: true, sortable: true, width: 100, align: 'right', format: 'percent' },
+  { key: 'due', label: 'Due', visible: true, filterable: true, sortable: true, width: 120, align: 'right', format: 'currency' },
+  { key: 'balance', label: 'Balance', visible: true, filterable: true, sortable: true, width: 120, align: 'right', format: 'currency' },
+  { key: 'comment', label: 'Comment', visible: true, filterable: true, sortable: true, width: 300, align: 'left', format: 'text' },
   { key: 'user', label: 'User', visible: true, filterable: true, sortable: true, width: 180, align: 'left' },
   { key: 'caAccount', label: 'CA Account', visible: true, filterable: true, sortable: true, width: 180, align: 'left' },
   { key: 'account', label: 'Account', visible: true, filterable: true, sortable: true, width: 200, align: 'left' },
   { key: 'batchId', label: 'Batch ID', visible: false, filterable: true, sortable: true, width: 160, align: 'left' },
   { key: 'id1', label: 'ID1', visible: false, filterable: true, sortable: true, width: 140, align: 'left' },
   { key: 'id2', label: 'ID2', visible: false, filterable: true, sortable: true, width: 140, align: 'left' },
-  { key: 'createdAt', label: 'Created At', visible: true, filterable: true, sortable: true, width: 180, align: 'left' },
+  { key: 'createdAt', label: 'Created At', visible: true, filterable: true, sortable: true, width: 180, align: 'left', format: 'date' },
 ];
 
 export default function PaymentStatementPage() {
@@ -1297,6 +1298,7 @@ export default function PaymentStatementPage() {
                                     setSortColumn(column.key);
                                     setSortDirection(direction);
                                   }}
+                                  columnFormat={column.format}
                                   renderValue={renderFilterValue}
                                 />
                               )}

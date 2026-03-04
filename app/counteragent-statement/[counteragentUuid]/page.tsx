@@ -22,7 +22,7 @@ import type { BankTransaction } from '../../../components/figma/bank-transaction
 import { Combobox } from '../../../components/ui/combobox';
 import { Label } from '../../../components/ui/label';
 import { ColumnFilterPopover } from '../../../components/figma/shared/column-filter-popover';
-import type { FilterState, ColumnFilter } from '../../../components/figma/shared/table-filters';
+import type { FilterState, ColumnFilter, ColumnFormat } from '../../../components/figma/shared/table-filters';
 import { matchesFilter, buildFacetBaseData, buildUniqueValuesCache } from '../../../components/figma/shared/table-filters';
 
 const formatDate = (date: string | Date): string => {
@@ -85,27 +85,28 @@ type ColumnConfig = {
   filterable: boolean;
   width: number;
   align?: 'left' | 'right';
+  format?: ColumnFormat;
 };
 
 const defaultColumns: ColumnConfig[] = [
-  { key: 'date', label: 'Date', visible: true, sortable: true, filterable: true, width: 120, align: 'left' },
+  { key: 'date', label: 'Date', visible: true, sortable: true, filterable: true, width: 120, align: 'left', format: 'date' },
   { key: 'type', label: 'Type', visible: true, sortable: true, filterable: true, width: 100, align: 'left' },
   { key: 'paymentId', label: 'Payment ID', visible: true, sortable: true, filterable: true, width: 160, align: 'left' },
   { key: 'project', label: 'Project', visible: true, sortable: true, filterable: true, width: 200, align: 'left' },
   { key: 'financialCode', label: 'Fin. Code', visible: true, sortable: true, filterable: true, width: 180, align: 'left' },
   { key: 'job', label: 'Job', visible: true, sortable: true, filterable: true, width: 160, align: 'left' },
-  { key: 'incomeTax', label: 'Income Tax', visible: true, sortable: true, filterable: true, width: 120, align: 'left' },
+  { key: 'incomeTax', label: 'Income Tax', visible: true, sortable: true, filterable: true, width: 120, align: 'left', format: 'boolean' },
   { key: 'currency', label: 'Currency', visible: true, sortable: true, filterable: true, width: 110, align: 'left' },
-  { key: 'accrual', label: 'Accrual', visible: true, sortable: true, filterable: true, width: 120, align: 'right' },
-  { key: 'order', label: 'Order', visible: true, sortable: true, filterable: true, width: 120, align: 'right' },
-  { key: 'payment', label: 'Payment', visible: true, sortable: true, filterable: true, width: 120, align: 'right' },
-  { key: 'confirmed', label: 'Confirmed', visible: true, sortable: true, filterable: true, width: 120, align: 'left' },
-  { key: 'ppc', label: 'PPC', visible: true, sortable: true, filterable: true, width: 120, align: 'right' },
+  { key: 'accrual', label: 'Accrual', visible: true, sortable: true, filterable: true, width: 120, align: 'right', format: 'currency' },
+  { key: 'order', label: 'Order', visible: true, sortable: true, filterable: true, width: 120, align: 'right', format: 'currency' },
+  { key: 'payment', label: 'Payment', visible: true, sortable: true, filterable: true, width: 120, align: 'right', format: 'currency' },
+  { key: 'confirmed', label: 'Confirmed', visible: true, sortable: true, filterable: true, width: 120, align: 'left', format: 'boolean' },
+  { key: 'ppc', label: 'PPC', visible: true, sortable: true, filterable: true, width: 120, align: 'right', format: 'currency' },
   { key: 'batchId', label: 'Batch ID', visible: false, sortable: true, filterable: true, width: 160, align: 'left' },
   { key: 'id1', label: 'ID1', visible: false, sortable: true, filterable: true, width: 140, align: 'left' },
   { key: 'id2', label: 'ID2', visible: false, sortable: true, filterable: true, width: 140, align: 'left' },
   { key: 'account', label: 'Account', visible: true, sortable: true, filterable: true, width: 220, align: 'left' },
-  { key: 'comment', label: 'Comment', visible: true, sortable: true, filterable: true, width: 320, align: 'left' },
+  { key: 'comment', label: 'Comment', visible: true, sortable: true, filterable: true, width: 320, align: 'left', format: 'text' },
 ];
 
 export default function CounteragentStatementPage() {
@@ -1846,6 +1847,7 @@ export default function CounteragentStatementPage() {
                               setSortColumn(col.key);
                               setSortDirection(direction);
                             }}
+                            columnFormat={col.format}
                             renderValue={renderFilterValue}
                           />
                         ) : null}
