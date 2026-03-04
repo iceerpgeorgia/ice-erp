@@ -272,7 +272,7 @@ export async function GET(request: NextRequest) {
       }
       return {
         paid,
-        confirmed: Boolean(accrual.confirmed),
+        confirmed: confirmedKeys.has(paymentKey),
         ...accrual,
       id: accrual.id.toString(),
       net_sum: accrual.net_sum.toString(),
