@@ -388,6 +388,7 @@ export function PaymentsReportTable() {
     }
 
     const savedFilters = localStorage.getItem(filtersStorageKey);
+    let restoredFilters: FilterState = new Map();
     if (savedFilters) {
       try {
         const parsed = JSON.parse(savedFilters);
@@ -398,18 +399,25 @@ export function PaymentsReportTable() {
         }
         if (typeof parsed.pageSize === 'number') setPageSize(parsed.pageSize);
         if (Array.isArray(parsed.filters)) {
-          const restored: FilterState = new Map();
           parsed.filters.forEach(([key, values]: [string, any[]]) => {
             if (Array.isArray(values) && values.length > 0) {
-              restored.set(key, { mode: 'facet', values: new Set(values) });
+              restoredFilters.set(key, { mode: 'facet', values: new Set(values) });
             }
           });
-          setFilters(restored);
         }
       } catch (e) {
         console.error('Failed to parse saved filters:', e);
       }
     }
+
+    // Override filters from URL query parameters (e.g. ?counteragent=SomeName)
+    const urlParams = new URLSearchParams(window.location.search);
+    const counteragentParam = urlParams.get('counteragent');
+    if (counteragentParam) {
+      restoredFilters.set('counteragent', { mode: 'facet', values: new Set([counteragentParam]) });
+    }
+
+    setFilters(restoredFilters);
     
     setIsInitialized(true);
     setFiltersInitialized(true);
@@ -3118,6 +3126,50 @@ export function PaymentsReportTable() {
                             }}
                           >
                             <ArrowUpRight className="h-3.5 w-3.5" />
+                          </a>
+                        </div>
+                      ) : col.key === 'counteragent' ? (
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`truncate ${isFlaggedCounteragent ? 'font-bold text-red-600' : ''}`}>
+                            {formatValue(row[col.key], col.format, col.key)}
+                          </span>
+                          <a
+                            href={row.counteragentUuid ? `/counteragent-statement/${row.counteragentUuid}` : '#'}
+                            target={row.counteragentUuid ? '_blank' : undefined}
+                            rel={row.counteragentUuid ? 'noopener noreferrer' : undefined}
+                            className={`inline-flex items-center justify-center rounded p-1 transition-colors flex-shrink-0 ${
+                              row.counteragentUuid
+                                ? 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                                : 'text-gray-300 cursor-not-allowed'
+                            }`}
+                            title="Open counteragent statement"
+                            aria-disabled={!row.counteragentUuid}
+                            onClick={(event) => {
+                              if (!row.counteragentUuid) {
+                                event.preventDefault();
+                              }
+                            }}
+                          >
+                            <ArrowUpRight className="h-3.5 w-3.5" />
+                          </a>
+                          <a
+                            href={row.counteragent ? `/admin/payments-report?counteragent=${encodeURIComponent(row.counteragent)}` : '#'}
+                            target={row.counteragent ? '_blank' : undefined}
+                            rel={row.counteragent ? 'noopener noreferrer' : undefined}
+                            className={`inline-flex items-center justify-center rounded p-1 transition-colors flex-shrink-0 ${
+                              row.counteragent
+                                ? 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                                : 'text-gray-300 cursor-not-allowed'
+                            }`}
+                            title="Filter payments report by this counteragent"
+                            aria-disabled={!row.counteragent}
+                            onClick={(event) => {
+                              if (!row.counteragent) {
+                                event.preventDefault();
+                              }
+                            }}
+                          >
+                            <Filter className="h-3.5 w-3.5" />
                           </a>
                         </div>
                       ) : (
