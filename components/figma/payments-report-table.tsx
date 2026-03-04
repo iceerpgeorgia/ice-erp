@@ -30,6 +30,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from './ui/label';
 import { Combobox } from '../ui/combobox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
+import { matchesFilter } from './shared/table-filters';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -130,7 +132,7 @@ export function PaymentsReportTable() {
   const [sortColumn, setSortColumn] = useState<ColumnKey>('latestDate');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
-  const [filters, setFilters] = useState<Map<string, Set<any>>>(new Map());
+  const [filters, setFilters] = useState<FilterState>(new Map());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number; element: HTMLElement } | null>(null);
@@ -396,9 +398,12 @@ export function PaymentsReportTable() {
         }
         if (typeof parsed.pageSize === 'number') setPageSize(parsed.pageSize);
         if (Array.isArray(parsed.filters)) {
-          const restored = new Map<string, Set<any>>(
-            parsed.filters.map(([key, values]: [string, any[]]) => [key, new Set(values)])
-          );
+          const restored: FilterState = new Map();
+          parsed.filters.forEach(([key, values]: [string, any[]]) => {
+            if (Array.isArray(values) && values.length > 0) {
+              restored.set(key, { mode: 'facet', values: new Set(values) });
+            }
+          });
           setFilters(restored);
         }
       } catch (e) {
@@ -417,7 +422,10 @@ export function PaymentsReportTable() {
       sortColumn,
       sortDirection,
       pageSize,
-      filters: Array.from(filters.entries()).map(([key, set]) => [key, Array.from(set)]),
+      filters: Array.from(filters.entries()).map(([key, filter]) => {
+        if (filter.mode === 'facet') return [key, Array.from(filter.values)];
+        return [key, []]; // Non-facet filters not persisted yet
+      }),
     };
     localStorage.setItem(filtersStorageKey, JSON.stringify(serialized));
   }, [filtersInitialized, searchTerm, sortColumn, sortDirection, pageSize, filters]);
@@ -1080,14 +1088,12 @@ export function PaymentsReportTable() {
     }
   };
 
-  const handleFilterChange = (columnKey: string, values: Set<any>) => {
-    const newFilters = new Map(filters);
-    if (values.size === 0) {
-      newFilters.delete(columnKey);
-    } else {
-      newFilters.set(columnKey, values);
-    }
-    setFilters(newFilters);
+  const handleFilterChange = (columnKey: string, filter: ColumnFilter | null) => {
+    setFilters(prev => {
+      const next = new Map(prev);
+      if (filter) { next.set(columnKey, filter); } else { next.delete(columnKey); }
+      return next;
+    });
   };
 
   const normalizeFilterValue = (value: any) => {
@@ -1133,17 +1139,16 @@ export function PaymentsReportTable() {
   const applyColumnFilters = useCallback((rows: PaymentReport[], excludeColumn?: ColumnKey) => {
     if (filters.size === 0) return rows;
     return rows.filter(row => {
-      for (const [columnKey, allowedValues] of filters.entries()) {
+      for (const [columnKey, filter] of filters.entries()) {
         if (excludeColumn && columnKey === excludeColumn) continue;
-        if (columnKey === 'users') {
-          if (!matchesUsersFilter(row.users, allowedValues)) {
+        if (columnKey === 'users' && filter.mode === 'facet') {
+          if (!matchesUsersFilter(row.users, filter.values)) {
             return false;
           }
           continue;
         }
         const rowValue = row[columnKey as ColumnKey];
-        const normalizedRowValue = normalizeFilterValue(rowValue);
-        if (!allowedValues.has(normalizedRowValue)) {
+        if (!matchesFilter(rowValue, filter)) {
           return false;
         }
       }
@@ -2963,8 +2968,11 @@ export function PaymentsReportTable() {
                           columnKey={col.key}
                           columnLabel={col.label}
                           values={getUniqueValues(col.key)}
-                          activeFilters={filters.get(col.key) || new Set()}
-                          onFilterChange={(values) => handleFilterChange(col.key, values)}
+                          activeFilter={filters.get(col.key)}
+                          activeFilters={filters.get(col.key)?.mode === 'facet' ? (filters.get(col.key) as any).values : new Set()}
+                          columnFormat={col.format as ColumnFormat | undefined}
+                          onFilterChange={(values) => handleFilterChange(col.key, values.size > 0 ? { mode: 'facet', values } : null)}
+                          onAdvancedFilterChange={(filter) => handleFilterChange(col.key, filter)}
                           onSort={(direction) => {
                             setSortColumn(col.key);
                             setSortDirection(direction);

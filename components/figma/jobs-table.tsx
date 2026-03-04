@@ -34,6 +34,8 @@ import { Combobox } from '@/components/ui/combobox';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
+import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
+import { matchesFilter } from './shared/table-filters';
 import { 
   Table, 
   TableBody, 
@@ -128,7 +130,7 @@ export function JobsTable() {
   });
   const [sortField, setSortField] = useState<ColumnKey | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [columnFilters, setColumnFilters] = useState<FilterState>(new Map());
   const filtersStorageKey = 'jobs-table:column-filters';
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
@@ -152,13 +154,12 @@ export function JobsTable() {
       );
     }
 
-    if (Object.keys(columnFilters).length > 0) {
+    if (columnFilters.size > 0) {
       result = result.filter(row => {
-        for (const [columnKey, values] of Object.entries(columnFilters)) {
+        for (const [columnKey, filter] of columnFilters.entries()) {
           if (excludeColumn && columnKey === excludeColumn) continue;
-          if (!values || values.length === 0) continue;
           const rowValue = row[columnKey as ColumnKey];
-          if (!values.includes(String(rowValue ?? ''))) {
+          if (!matchesFilter(rowValue, filter)) {
             return false;
           }
         }
@@ -170,11 +171,18 @@ export function JobsTable() {
   };
 
   useEffect(() => {
-    setColumnFilters(loadColumnFilters(filtersStorageKey));
+    const legacy = loadColumnFilters(filtersStorageKey) as Record<string, string[]>;
+    const fs: FilterState = new Map();
+    Object.entries(legacy).forEach(([k, v]) => { if (v.length > 0) fs.set(k, { mode: 'facet', values: new Set(v) }); });
+    setColumnFilters(fs);
   }, [filtersStorageKey]);
 
   useEffect(() => {
-    saveColumnFilters(filtersStorageKey, columnFilters);
+    const legacy: Record<string, string[]> = {};
+    columnFilters.forEach((filter, key) => {
+      if (filter.mode === 'facet') legacy[key] = Array.from(filter.values).map(String);
+    });
+    saveColumnFilters(filtersStorageKey, legacy);
   }, [filtersStorageKey, columnFilters]);
 
   const [formData, setFormData] = useState({
@@ -401,14 +409,15 @@ export function JobsTable() {
       );
     }
 
-    Object.entries(columnFilters).forEach(([column, values]) => {
-      if (values.length > 0) {
-        filtered = filtered.filter(job => {
-          const cellValue = String(job[column as ColumnKey]);
-          return values.includes(cellValue);
-        });
-      }
-    });
+    if (columnFilters.size > 0) {
+      filtered = filtered.filter(job => {
+        for (const [column, filter] of columnFilters.entries()) {
+          const cellValue = job[column as ColumnKey];
+          if (!matchesFilter(cellValue, filter)) return false;
+        }
+        return true;
+      });
+    }
 
     return filtered;
   }, [jobs, searchTerm, columnFilters]);
@@ -580,13 +589,13 @@ export function JobsTable() {
           />
         </div>
 
-        {Object.values(columnFilters).some(filters => filters.length > 0) && (
+        {columnFilters.size > 0 && (
           <Button
             variant="outline"
             size="sm"
             onClick={() => {
               clearColumnFilters(filtersStorageKey);
-              setColumnFilters({});
+              setColumnFilters(new Map());
             }}
             className="gap-2"
           >
@@ -684,13 +693,22 @@ export function JobsTable() {
                           columnKey={column.key}
                           columnLabel={column.label}
                           values={getUniqueValues(column.key)}
-                          activeFilters={new Set(columnFilters[column.key] || [])}
-                          onFilterChange={(values) =>
-                            setColumnFilters({
-                              ...columnFilters,
-                              [column.key]: Array.from(values)
-                            })
-                          }
+                          activeFilters={columnFilters.get(column.key)?.mode === 'facet' ? (columnFilters.get(column.key) as any).values : new Set()}
+                          activeFilter={columnFilters.get(column.key)}
+                          onAdvancedFilterChange={(filter) => {
+                            setColumnFilters(prev => {
+                              const next = new Map(prev);
+                              if (filter) { next.set(column.key, filter); } else { next.delete(column.key); }
+                              return next;
+                            });
+                          }}
+                          onFilterChange={(values) => {
+                            setColumnFilters(prev => {
+                              const next = new Map(prev);
+                              if (values.size > 0) { next.set(column.key, { mode: 'facet', values }); } else { next.delete(column.key); }
+                              return next;
+                            });
+                          }}
                           onSort={(direction) => {
                             setSortField(column.key);
                             setSortDirection(direction);

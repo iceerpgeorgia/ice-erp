@@ -36,6 +36,8 @@ import { Combobox } from '@/components/ui/combobox';
 import { MultiCombobox } from '@/components/ui/multi-combobox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
+import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
+import { matchesFilter } from './shared/table-filters';
 import { 
   Table, 
   TableBody, 
@@ -171,7 +173,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   const [isSaving, setIsSaving] = useState(false);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
-  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [columnFilters, setColumnFilters] = useState<FilterState>(new Map());
   const filtersStorageKey = 'projects-table:column-filters';
   const [isExporting, setIsExporting] = useState(false);
   
@@ -207,13 +209,12 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       );
     }
 
-    if (Object.keys(columnFilters).length > 0) {
+    if (columnFilters.size > 0) {
       result = result.filter(row => {
-        for (const [columnKey, values] of Object.entries(columnFilters)) {
+        for (const [columnKey, filter] of columnFilters.entries()) {
           if (excludeColumn && columnKey === excludeColumn) continue;
-          if (!values || values.length === 0) continue;
           const rowValue = row[columnKey as ColumnKey];
-          if (!values.includes(String(rowValue ?? ''))) {
+          if (!matchesFilter(rowValue, filter)) {
             return false;
           }
         }
@@ -225,31 +226,34 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   };
 
   useEffect(() => {
-    const savedFilters = loadColumnFilters(filtersStorageKey);
-    if (typeof window === 'undefined') {
-      setColumnFilters(savedFilters);
-      return;
+    const legacy = loadColumnFilters(filtersStorageKey) as Record<string, string[]>;
+    const fs: FilterState = new Map();
+    Object.entries(legacy).forEach(([k, v]) => { if (v.length > 0) fs.set(k, { mode: 'facet', values: new Set(v) }); });
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const projectUuid = params.get('projectUuid');
+      const projectName = params.get('projectName');
+      const projectIndex = params.get('projectIndex');
+
+      if (projectUuid) {
+        fs.set('projectUuid', { mode: 'facet', values: new Set([projectUuid]) });
+      } else if (projectIndex) {
+        fs.set('projectIndex', { mode: 'facet', values: new Set([projectIndex]) });
+      } else if (projectName) {
+        fs.set('projectName', { mode: 'facet', values: new Set([projectName]) });
+      }
     }
 
-    const params = new URLSearchParams(window.location.search);
-    const projectUuid = params.get('projectUuid');
-    const projectName = params.get('projectName');
-    const projectIndex = params.get('projectIndex');
-    const nextFilters = { ...savedFilters };
-
-    if (projectUuid) {
-      nextFilters.projectUuid = [projectUuid];
-    } else if (projectIndex) {
-      nextFilters.projectIndex = [projectIndex];
-    } else if (projectName) {
-      nextFilters.projectName = [projectName];
-    }
-
-    setColumnFilters(nextFilters);
+    setColumnFilters(fs);
   }, [filtersStorageKey]);
 
   useEffect(() => {
-    saveColumnFilters(filtersStorageKey, columnFilters);
+    const legacy: Record<string, string[]> = {};
+    columnFilters.forEach((filter, key) => {
+      if (filter.mode === 'facet') legacy[key] = Array.from(filter.values).map(String);
+    });
+    saveColumnFilters(filtersStorageKey, legacy);
   }, [filtersStorageKey, columnFilters]);
   
   // Form state with validation
@@ -608,19 +612,24 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
     }
 
     // Apply column filters
-    Object.entries(columnFilters).forEach(([column, values]) => {
-      if (values.length > 0) {
-        filtered = filtered.filter(project => {
+    if (columnFilters.size > 0) {
+      filtered = filtered.filter(project => {
+        for (const [column, filter] of columnFilters.entries()) {
           if (column === 'employees') {
-            // For employees, check if any employee name matches the selected values
-            const employeeNames = project.employees?.map(e => e.employeeName) || [];
-            return values.some(selectedName => employeeNames.includes(selectedName));
+            // For employees, check if any employee name matches the selected facet values
+            if (filter.mode === 'facet') {
+              const employeeNames = project.employees?.map(e => e.employeeName) || [];
+              const hasMatch = Array.from(filter.values).some((selectedName: string) => employeeNames.includes(selectedName));
+              if (!hasMatch) return false;
+            }
+            continue;
           }
-          const cellValue = String(project[column as ColumnKey]);
-          return values.includes(cellValue);
-        });
-      }
-    });
+          const cellValue = project[column as ColumnKey];
+          if (!matchesFilter(cellValue, filter)) return false;
+        }
+        return true;
+      });
+    }
 
     return filtered;
   }, [projects, searchTerm, columnFilters]);
@@ -1500,13 +1509,22 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                             columnKey={column.key}
                             columnLabel={column.label}
                             values={getUniqueValues(column.key)}
-                            activeFilters={new Set(columnFilters[column.key] || [])}
-                            onFilterChange={(values) =>
-                              setColumnFilters({
-                                ...columnFilters,
-                                [column.key]: Array.from(values)
-                              })
-                            }
+                            activeFilters={columnFilters.get(column.key)?.mode === 'facet' ? (columnFilters.get(column.key) as any).values : new Set()}
+                            activeFilter={columnFilters.get(column.key)}
+                            onAdvancedFilterChange={(filter) => {
+                              setColumnFilters(prev => {
+                                const next = new Map(prev);
+                                if (filter) { next.set(column.key, filter); } else { next.delete(column.key); }
+                                return next;
+                              });
+                            }}
+                            onFilterChange={(values) => {
+                              setColumnFilters(prev => {
+                                const next = new Map(prev);
+                                if (values.size > 0) { next.set(column.key, { mode: 'facet', values }); } else { next.delete(column.key); }
+                                return next;
+                              });
+                            }}
                             onSort={(direction) => {
                               setSortField(column.key);
                               setSortDirection(direction);
@@ -1651,7 +1669,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       {sortedProjects.length === 0 && (
         <div className="text-center py-12">
           <div className="text-muted-foreground">
-            {searchTerm || Object.values(columnFilters).some(f => f.length > 0) ? (
+            {searchTerm || columnFilters.size > 0 ? (
               <>
                 <p className="text-lg font-medium mb-2">No projects found</p>
                 <p className="text-sm">Try adjusting your search or filters</p>
@@ -1667,22 +1685,20 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       )}
 
       {/* Active filters indicator */}
-      {Object.values(columnFilters).some(filters => filters.length > 0) && (
+      {columnFilters.size > 0 && (
         <div className="flex items-center space-x-2 text-sm">
           <span className="text-muted-foreground">Active filters:</span>
-          {Object.entries(columnFilters).map(([column, values]) =>
-            values.length > 0 ? (
+          {Array.from(columnFilters.entries()).map(([column, filter]) => (
               <Badge key={column} variant="secondary" className="text-xs">
-                {columns.find(c => c.key === column)?.label}: {values.length}
+                {columns.find(c => c.key === column)?.label}: {filter.mode === 'facet' ? filter.values.size : 1}
               </Badge>
-            ) : null
-          )}
+          ))}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
               clearColumnFilters(filtersStorageKey);
-              setColumnFilters({});
+              setColumnFilters(new Map());
             }}
             className="h-6 px-2 text-xs"
           >

@@ -18,6 +18,8 @@ import { Checkbox } from './ui/checkbox';
 import { Combobox } from '../ui/combobox';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
+import { matchesFilter } from './shared/table-filters';
 
 export type PaymentLedgerEntry = {
   id: number;
@@ -94,7 +96,7 @@ export function PaymentsLedgerTable() {
   const [sortColumn, setSortColumn] = useState<ColumnKey>('effectiveDate');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(defaultColumns);
-  const [filters, setFilters] = useState<Map<string, Set<any>>>(new Map());
+  const [filters, setFilters] = useState<FilterState>(new Map());
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(50);
 
@@ -332,9 +334,9 @@ export function PaymentsLedgerTable() {
     // Apply filters
     if (filters.size > 0) {
       result = result.filter(entry => {
-        for (const [columnKey, allowedValues] of filters.entries()) {
+        for (const [columnKey, filter] of filters.entries()) {
           const entryValue = entry[columnKey as ColumnKey];
-          if (!allowedValues.has(entryValue)) {
+          if (!matchesFilter(entryValue, filter)) {
             return false;
           }
         }
@@ -464,10 +466,10 @@ export function PaymentsLedgerTable() {
 
     if (filters.size > 0) {
       result = result.filter(row => {
-        for (const [columnKey, allowedValues] of filters.entries()) {
+        for (const [columnKey, filter] of filters.entries()) {
           if (excludeColumn && columnKey === excludeColumn) continue;
           const rowValue = row[columnKey as ColumnKey];
-          if (!allowedValues.has(rowValue)) {
+          if (!matchesFilter(rowValue, filter)) {
             return false;
           }
         }
@@ -495,12 +497,12 @@ export function PaymentsLedgerTable() {
     return uniqueValuesCache.get(columnKey) || [];
   }, [uniqueValuesCache]);
 
-  const handleFilterChange = (columnKey: string, values: Set<any>) => {
+  const handleFilterChange = (columnKey: string, filter: ColumnFilter | null) => {
     const newFilters = new Map(filters);
-    if (values.size === 0) {
-      newFilters.delete(columnKey);
+    if (filter) {
+      newFilters.set(columnKey, filter);
     } else {
-      newFilters.set(columnKey, values);
+      newFilters.delete(columnKey);
     }
     setFilters(newFilters);
   };
@@ -693,8 +695,11 @@ export function PaymentsLedgerTable() {
                             columnKey={col.key}
                             columnLabel={col.label}
                             values={getUniqueValues(col.key)}
-                            activeFilters={filters.get(col.key) || new Set()}
-                            onFilterChange={(values) => handleFilterChange(col.key, values)}
+                            activeFilters={filters.get(col.key)?.mode === 'facet' ? (filters.get(col.key) as any).values : new Set()}
+                            activeFilter={filters.get(col.key)}
+                            columnFormat={col.format as ColumnFormat | undefined}
+                            onAdvancedFilterChange={(filter) => handleFilterChange(col.key, filter)}
+                            onFilterChange={(values) => handleFilterChange(col.key, values.size > 0 ? { mode: 'facet', values } : null)}
                             onSort={(direction) => {
                               setSortColumn(col.key);
                               setSortDirection(direction);

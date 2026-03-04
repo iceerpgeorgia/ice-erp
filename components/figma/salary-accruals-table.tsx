@@ -24,6 +24,8 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import * as XLSX from 'xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
+import { matchesFilter, serializeFilterState, deserializeFilterState, fromMapFilters } from './shared/table-filters';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -180,7 +182,7 @@ export function SalaryAccrualsTable() {
   const [sortColumn, setSortColumn] = useState<ColumnKey>('salary_month');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
-  const [filters, setFilters] = useState<Map<string, Set<any>>>(new Map());
+  const [filters, setFilters] = useState<FilterState>(new Map());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number; element: HTMLElement } | null>(null);
@@ -287,10 +289,13 @@ export function SalaryAccrualsTable() {
         }
         if (typeof parsed.pageSize === 'number') setPageSize(parsed.pageSize);
         if (Array.isArray(parsed.filters)) {
+          // Legacy format: array of [key, values[]] pairs
           const restored = new Map<string, Set<any>>(
             parsed.filters.map(([key, values]: [string, any[]]) => [key, new Set(values)])
           );
-          setFilters(restored);
+          setFilters(fromMapFilters(restored));
+        } else if (parsed.filtersV2) {
+          setFilters(deserializeFilterState(parsed.filtersV2));
         }
       } catch (e) {
         console.error('Failed to parse saved filters:', e);
@@ -336,7 +341,7 @@ export function SalaryAccrualsTable() {
       sortColumn,
       sortDirection,
       pageSize,
-      filters: Array.from(filters.entries()).map(([key, set]) => [key, Array.from(set)]),
+      filtersV2: serializeFilterState(filters),
     };
     localStorage.setItem(filtersStorageKey, JSON.stringify(serialized));
   }, [filtersInitialized, isInitialized, searchTerm, sortColumn, sortDirection, pageSize, filters]);
@@ -1346,15 +1351,17 @@ export function SalaryAccrualsTable() {
     }
   };
 
-  const handleFilterChange = (columnKey: string, values: Set<any>) => {
-    const newFilters = new Map(filters);
-    if (values.size === 0) {
-      newFilters.delete(columnKey);
-    } else {
-      newFilters.set(columnKey, values);
-    }
-    setFilters(newFilters);
-  };
+  const handleFilterChange = useCallback((columnKey: string, filter: ColumnFilter | null) => {
+    setFilters(prev => {
+      const next = new Map(prev);
+      if (filter) {
+        next.set(columnKey, filter);
+      } else {
+        next.delete(columnKey);
+      }
+      return next;
+    });
+  }, []);
 
   const filteredAndSortedData = useMemo(() => {
     let result = [...data];
@@ -1371,9 +1378,9 @@ export function SalaryAccrualsTable() {
     // Apply filters
     if (filters.size > 0) {
       result = result.filter(row => {
-        for (const [columnKey, allowedValues] of filters.entries()) {
+        for (const [columnKey, filter] of filters.entries()) {
           const rowValue = getRowValue(row, columnKey as ColumnKey);
-          if (!allowedValues.has(rowValue)) {
+          if (!matchesFilter(rowValue, filter)) {
             return false;
           }
         }
@@ -1436,10 +1443,10 @@ export function SalaryAccrualsTable() {
 
     if (filters.size > 0) {
       result = result.filter(row => {
-        for (const [columnKey, allowedValues] of filters.entries()) {
+        for (const [columnKey, filter] of filters.entries()) {
           if (excludeColumn && columnKey === excludeColumn) continue;
           const rowValue = getRowValue(row, columnKey as ColumnKey);
-          if (!allowedValues.has(rowValue)) {
+          if (!matchesFilter(rowValue, filter)) {
             return false;
           }
         }
@@ -2544,8 +2551,11 @@ export function SalaryAccrualsTable() {
                           columnKey={col.key}
                           columnLabel={col.label}
                           values={getUniqueValues(col.key)}
-                          activeFilters={filters.get(col.key) || new Set()}
-                          onFilterChange={(values) => handleFilterChange(col.key, values)}
+                          activeFilters={filters.get(col.key)?.mode === 'facet' ? (filters.get(col.key) as any).values : new Set()}
+                          activeFilter={filters.get(col.key)}
+                          columnFormat={col.format as ColumnFormat | undefined}
+                          onFilterChange={(values) => handleFilterChange(col.key, values.size > 0 ? { mode: 'facet', values } : null)}
+                          onAdvancedFilterChange={(filter) => handleFilterChange(col.key, filter)}
                           onSort={(direction) => {
                             setSortColumn(col.key);
                             setSortDirection(direction);

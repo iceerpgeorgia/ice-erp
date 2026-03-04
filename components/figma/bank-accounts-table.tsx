@@ -19,6 +19,8 @@ import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
+import { matchesFilter } from './shared/table-filters';
 import { loadFilterMap, saveFilterMap, clearColumnFilters } from './shared/column-filter-storage';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from './ui/dialog';
 import { Label } from './ui/label';
@@ -95,7 +97,13 @@ export function BankAccountsTable() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
   const filtersStorageKey = 'filters:bank-accounts';
-  const [filters, setFilters] = useState<Map<string, Set<any>>>(() => loadFilterMap(filtersStorageKey));
+  const [filters, setFilters] = useState<FilterState>(() => {
+    const legacy = loadFilterMap(filtersStorageKey);
+    // Convert legacy Map<string, Set<any>> to FilterState
+    const fs: FilterState = new Map();
+    legacy.forEach((values, key) => { if (values.size > 0) fs.set(key, { mode: 'facet', values }); });
+    return fs;
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number; element: HTMLElement } | null>(null);
@@ -166,7 +174,12 @@ export function BankAccountsTable() {
   }, [columns, isInitialized]);
 
   useEffect(() => {
-    saveFilterMap(filtersStorageKey, filters);
+    // Convert FilterState back to legacy format for persistence
+    const legacyMap = new Map<string, Set<any>>();
+    filters.forEach((filter, key) => {
+      if (filter.mode === 'facet') legacyMap.set(key, filter.values);
+    });
+    saveFilterMap(filtersStorageKey, legacyMap);
   }, [filters]);
 
   // Column resize handlers
@@ -339,11 +352,9 @@ export function BankAccountsTable() {
       );
     }
 
-    filters.forEach((filterValues, columnKey) => {
+    filters.forEach((filter, columnKey) => {
       if (excludeColumn && columnKey === excludeColumn) return;
-      if (filterValues.size > 0) {
-        result = result.filter(row => filterValues.has(row[columnKey as ColumnKey]));
-      }
+      result = result.filter(row => matchesFilter(row[columnKey as ColumnKey], filter));
     });
 
     return result;
@@ -354,13 +365,13 @@ export function BankAccountsTable() {
     return Array.from(values).filter(v => v !== null && v !== undefined);
   };
 
-  const handleFilterChange = (columnKey: string, values: Set<any>) => {
+  const handleFilterChange = (columnKey: string, filter: ColumnFilter | null) => {
     setFilters(prev => {
       const newFilters = new Map(prev);
-      if (values.size === 0) {
-        newFilters.delete(columnKey);
+      if (filter) {
+        newFilters.set(columnKey, filter);
       } else {
-        newFilters.set(columnKey, values);
+        newFilters.delete(columnKey);
       }
       return newFilters;
     });
@@ -381,10 +392,8 @@ export function BankAccountsTable() {
     }
 
     // Apply filters
-    filters.forEach((filterValues, columnKey) => {
-      if (filterValues.size > 0) {
-        result = result.filter(row => filterValues.has(row[columnKey as ColumnKey]));
-      }
+    filters.forEach((filter, columnKey) => {
+      result = result.filter(row => matchesFilter(row[columnKey as ColumnKey], filter));
     });
 
     // Apply sort
@@ -745,8 +754,11 @@ export function BankAccountsTable() {
                           columnKey={col.key}
                           columnLabel={col.label}
                           values={getUniqueValues(col.key)}
-                          activeFilters={filters.get(col.key) || new Set()}
-                          onFilterChange={(values) => handleFilterChange(col.key, values)}
+                          activeFilters={filters.get(col.key)?.mode === 'facet' ? (filters.get(col.key) as any).values : new Set()}
+                          activeFilter={filters.get(col.key)}
+                          columnFormat={col.format as ColumnFormat | undefined}
+                          onAdvancedFilterChange={(filter) => handleFilterChange(col.key, filter)}
+                          onFilterChange={(values) => handleFilterChange(col.key, values.size > 0 ? { mode: 'facet', values } : null)}
                           onSort={(direction) => {
                             setSortColumn(col.key);
                             setSortDirection(direction);

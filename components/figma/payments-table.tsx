@@ -18,6 +18,8 @@ import {
   Download,
 } from 'lucide-react';
   import { ColumnFilterPopover } from './shared/column-filter-popover';
+import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
+import { matchesFilter } from './shared/table-filters';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -100,7 +102,7 @@ export function PaymentsTable() {
   const [sortColumn, setSortColumn] = useState<ColumnKey>('createdAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(defaultColumns);
-  const [filters, setFilters] = useState<Map<string, Set<any>>>(new Map());
+  const [filters, setFilters] = useState<FilterState>(new Map());
   const [isInitialized, setIsInitialized] = useState(false);
   
   // Pagination state
@@ -802,15 +804,17 @@ export function PaymentsTable() {
     );
   };
 
-  const handleFilterChange = (columnKey: string, values: Set<any>) => {
-    const newFilters = new Map(filters);
-    if (values.size === 0) {
-      newFilters.delete(columnKey);
-    } else {
-      newFilters.set(columnKey, values);
-    }
-    setFilters(newFilters);
-  };
+  const handleFilterChange = useCallback((columnKey: string, filter: ColumnFilter | null) => {
+    setFilters(prev => {
+      const next = new Map(prev);
+      if (filter) {
+        next.set(columnKey, filter);
+      } else {
+        next.delete(columnKey);
+      }
+      return next;
+    });
+  }, []);
 
   const getFacetBaseData = useCallback((excludeColumn?: ColumnKey) => {
     let result = [...payments];
@@ -826,10 +830,10 @@ export function PaymentsTable() {
 
     if (filters.size > 0) {
       result = result.filter(row => {
-        for (const [columnKey, allowedValues] of filters.entries()) {
+        for (const [columnKey, filter] of filters.entries()) {
           if (excludeColumn && columnKey === excludeColumn) continue;
           const rowValue = row[columnKey as ColumnKey];
-          if (!allowedValues.has(rowValue)) {
+          if (!matchesFilter(rowValue, filter)) {
             return false;
           }
         }
@@ -872,9 +876,9 @@ export function PaymentsTable() {
     // Apply column filters
     if (filters.size > 0) {
       filtered = filtered.filter(row => {
-        for (const [columnKey, allowedValues] of filters.entries()) {
+        for (const [columnKey, filter] of filters.entries()) {
           const rowValue = row[columnKey as ColumnKey];
-          if (!allowedValues.has(rowValue)) {
+          if (!matchesFilter(rowValue, filter)) {
             return false;
           }
         }
@@ -1348,8 +1352,10 @@ export function PaymentsTable() {
                           columnKey={col.key}
                           columnLabel={col.label}
                           values={getUniqueValues(col.key)}
-                          activeFilters={filters.get(col.key) || new Set()}
-                          onFilterChange={(values) => handleFilterChange(col.key, values)}
+                          activeFilters={filters.get(col.key)?.mode === 'facet' ? (filters.get(col.key) as any).values : new Set()}
+                          activeFilter={filters.get(col.key)}
+                          onAdvancedFilterChange={(filter) => handleFilterChange(col.key, filter)}
+                          onFilterChange={(values) => handleFilterChange(col.key, values.size > 0 ? { mode: 'facet', values } : null)}
                           onSort={(direction) => {
                             setSortColumn(col.key);
                             setSortDirection(direction);

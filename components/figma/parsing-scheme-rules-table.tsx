@@ -17,6 +17,8 @@ import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
+import { matchesFilter } from './shared/table-filters';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from './ui/dialog';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -109,7 +111,7 @@ export function ParsingSchemeRulesTable() {
   const [sortColumn, setSortColumn] = useState<ColumnKey>('scheme');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
-  const [filters, setFilters] = useState<Map<string, Set<any>>>(new Map());
+  const [filters, setFilters] = useState<FilterState>(new Map());
   const [isExporting, setIsExporting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
@@ -544,11 +546,9 @@ export function ParsingSchemeRulesTable() {
       );
     }
 
-    filters.forEach((filterValues, columnKey) => {
+    filters.forEach((filter, columnKey) => {
       if (excludeColumn && columnKey === excludeColumn) return;
-      if (filterValues.size > 0) {
-        result = result.filter(row => filterValues.has(row[columnKey as ColumnKey]));
-      }
+      result = result.filter(row => matchesFilter(row[columnKey as ColumnKey], filter));
     });
 
     return result;
@@ -559,13 +559,13 @@ export function ParsingSchemeRulesTable() {
     return Array.from(values).filter(v => v !== null && v !== undefined);
   };
 
-  const handleFilterChange = (columnKey: string, values: Set<any>) => {
+  const handleFilterChange = (columnKey: string, filter: ColumnFilter | null) => {
     setFilters(prev => {
       const newFilters = new Map(prev);
-      if (values.size === 0) {
-        newFilters.delete(columnKey);
+      if (filter) {
+        newFilters.set(columnKey, filter);
       } else {
-        newFilters.set(columnKey, values);
+        newFilters.delete(columnKey);
       }
       return newFilters;
     });
@@ -591,10 +591,8 @@ export function ParsingSchemeRulesTable() {
     }
 
     // Apply filters
-    filters.forEach((filterValues, columnKey) => {
-      if (filterValues.size > 0) {
-        result = result.filter(row => filterValues.has(row[columnKey as ColumnKey]));
-      }
+    filters.forEach((filter, columnKey) => {
+      result = result.filter(row => matchesFilter(row[columnKey as ColumnKey], filter));
     });
 
     // Apply sort
@@ -1300,8 +1298,10 @@ export function ParsingSchemeRulesTable() {
                           columnKey={col.key}
                           columnLabel={col.label}
                           values={getUniqueValues(col.key)}
-                          activeFilters={filters.get(col.key) || new Set()}
-                          onFilterChange={(values) => handleFilterChange(col.key, values)}
+                          activeFilters={filters.get(col.key)?.mode === 'facet' ? (filters.get(col.key) as any).values : new Set()}
+                          activeFilter={filters.get(col.key)}
+                          onAdvancedFilterChange={(filter) => handleFilterChange(col.key, filter)}
+                          onFilterChange={(values) => handleFilterChange(col.key, values.size > 0 ? { mode: 'facet', values } : null)}
                           onSort={(direction) => {
                             setSortColumn(col.key);
                             setSortDirection(direction);

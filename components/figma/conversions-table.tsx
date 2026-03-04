@@ -7,6 +7,8 @@ import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
+import { matchesFilter } from './shared/table-filters';
 
 const columnsStorageKey = 'conversionsTableColumnsV1';
 const filtersStorageKey = 'conversionsTableFiltersV1';
@@ -74,7 +76,7 @@ export function ConversionsTable() {
   const [sortColumn, setSortColumn] = useState<ColumnKey>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
-  const [filters, setFilters] = useState<Map<string, Set<any>>>(new Map());
+  const [filters, setFilters] = useState<FilterState>(new Map());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(100);
   const [isResizing, setIsResizing] = useState<{
@@ -103,9 +105,11 @@ export function ConversionsTable() {
     if (savedFilters) {
       try {
         const parsed = JSON.parse(savedFilters) as Record<string, any[]>;
-        const restored = new Map<string, Set<any>>();
+        const restored: FilterState = new Map();
         Object.entries(parsed).forEach(([key, values]) => {
-          restored.set(key, new Set(values));
+          if (Array.isArray(values) && values.length > 0) {
+            restored.set(key, { mode: 'facet', values: new Set(values) });
+          }
         });
         setFilters(restored);
       } catch {
@@ -120,8 +124,10 @@ export function ConversionsTable() {
 
   useEffect(() => {
     const serializable: Record<string, any[]> = {};
-    filters.forEach((value, key) => {
-      serializable[key] = Array.from(value);
+    filters.forEach((filter, key) => {
+      if (filter.mode === 'facet') {
+        serializable[key] = Array.from(filter.values);
+      }
     });
     localStorage.setItem(filtersStorageKey, JSON.stringify(serializable));
   }, [filters]);
@@ -191,10 +197,9 @@ export function ConversionsTable() {
   const applyFilters = useCallback(
     (rows: ConversionRow[]) => {
       return rows.filter((row) => {
-        for (const [key, selected] of filters.entries()) {
-          if (selected.size === 0) continue;
+        for (const [key, filter] of filters.entries()) {
           const value = (row as any)[key];
-          if (!selected.has(value)) return false;
+          if (!matchesFilter(value, filter)) return false;
         }
         return true;
       });
@@ -263,10 +268,14 @@ export function ConversionsTable() {
     }
   };
 
-  const handleFilterChange = (key: ColumnKey, values: Set<any>) => {
+  const handleFilterChange = (key: ColumnKey, filter: ColumnFilter | null) => {
     setFilters((prev) => {
       const next = new Map(prev);
-      next.set(String(key), values);
+      if (filter) {
+        next.set(String(key), filter);
+      } else {
+        next.delete(String(key));
+      }
       return next;
     });
   };
@@ -395,8 +404,11 @@ export function ConversionsTable() {
                             columnKey={String(col.key)}
                             columnLabel={col.label}
                             values={values}
-                            activeFilters={activeFilters}
-                            onFilterChange={(value) => handleFilterChange(col.key, value)}
+                            activeFilters={filters.get(String(col.key))?.mode === 'facet' ? (filters.get(String(col.key)) as any).values : new Set()}
+                            activeFilter={filters.get(String(col.key))}
+                            columnFormat={col.format as ColumnFormat | undefined}
+                            onAdvancedFilterChange={(filter) => handleFilterChange(col.key, filter)}
+                            onFilterChange={(value) => handleFilterChange(col.key, value.size > 0 ? { mode: 'facet', values: value } : null)}
                             onSort={(direction) => {
                               setSortColumn(col.key);
                               setSortDirection(direction);

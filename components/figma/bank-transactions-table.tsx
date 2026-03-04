@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
+import { matchesFilter } from './shared/table-filters';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -245,7 +247,7 @@ export function BankTransactionsTable({
   const [sortField, setSortField] = useState<ColumnKey>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [columnFilters, setColumnFilters] = useState<FilterState>(new Map());
   const [filtersInitialized, setFiltersInitialized] = useState(false);
   const [pageSize, setPageSize] = useState(100);
   const [isUploading, setIsUploading] = useState(false);
@@ -502,7 +504,11 @@ export function BankTransactionsTable({
         }
         if (typeof parsed.pageSize === 'number') setPageSize(parsed.pageSize);
         if (parsed.columnFilters && typeof parsed.columnFilters === 'object') {
-          setColumnFilters(parsed.columnFilters);
+          const fs: FilterState = new Map();
+          Object.entries(parsed.columnFilters as Record<string, string[]>).forEach(([k, v]) => {
+            if (Array.isArray(v) && v.length > 0) fs.set(k, { mode: 'facet', values: new Set(v) });
+          });
+          setColumnFilters(fs);
         }
       } catch (error) {
         console.warn('Failed to parse saved bank transaction filters:', error);
@@ -513,12 +519,16 @@ export function BankTransactionsTable({
 
   useEffect(() => {
     if (!filtersInitialized || typeof window === 'undefined') return;
+    const legacy: Record<string, string[]> = {};
+    columnFilters.forEach((filter, key) => {
+      if (filter.mode === 'facet') legacy[key] = Array.from(filter.values).map(String);
+    });
     const serialized = {
       searchTerm,
       sortField,
       sortDirection,
       pageSize,
-      columnFilters,
+      columnFilters: legacy,
     };
     localStorage.setItem(resolvedFiltersStorageKey, JSON.stringify(serialized));
   }, [filtersInitialized, resolvedFiltersStorageKey, searchTerm, sortField, sortDirection, pageSize, columnFilters]);
@@ -786,13 +796,12 @@ export function BankTransactionsTable({
       });
     }
 
-    if (Object.keys(columnFilters).length > 0) {
+    if (columnFilters.size > 0) {
       result = result.filter(row => {
-        for (const [columnKey, allowedValues] of Object.entries(columnFilters)) {
+        for (const [columnKey, filter] of columnFilters.entries()) {
           if (excludeColumnKey && columnKey === excludeColumnKey) continue;
-          if (allowedValues.length === 0) continue;
           const rowValue = row[columnKey as ColumnKey];
-          if (!allowedValues.includes(String(rowValue ?? ''))) {
+          if (!matchesFilter(rowValue, filter)) {
             return false;
           }
         }
@@ -2233,11 +2242,11 @@ export function BankTransactionsTable({
         </div>
         
         <div className="flex items-center gap-2">
-          {Object.keys(columnFilters).length > 0 && (
+          {columnFilters.size > 0 && (
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setColumnFilters({})}
+              onClick={() => setColumnFilters(new Map())}
               className="gap-2"
             >
               <X className="h-4 w-4" />
@@ -2410,13 +2419,22 @@ export function BankTransactionsTable({
                           columnKey={col.key}
                           columnLabel={col.label}
                           values={getColumnUniqueValues(col.key)}
-                          activeFilters={new Set(columnFilters[col.key] || [])}
-                          onFilterChange={(values) =>
-                            setColumnFilters((prev) => ({
-                              ...prev,
-                              [col.key]: Array.from(values)
-                            }))
-                          }
+                          activeFilters={columnFilters.get(col.key)?.mode === 'facet' ? (columnFilters.get(col.key) as any).values : new Set()}
+                          activeFilter={columnFilters.get(col.key)}
+                          onAdvancedFilterChange={(filter) => {
+                            setColumnFilters(prev => {
+                              const next = new Map(prev);
+                              if (filter) { next.set(col.key, filter); } else { next.delete(col.key); }
+                              return next;
+                            });
+                          }}
+                          onFilterChange={(values) => {
+                            setColumnFilters(prev => {
+                              const next = new Map(prev);
+                              if (values.size > 0) { next.set(col.key, { mode: 'facet', values }); } else { next.delete(col.key); }
+                              return next;
+                            });
+                          }}
                           onSort={(direction) => {
                             setSortField(col.key);
                             setSortDirection(direction);

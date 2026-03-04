@@ -31,6 +31,8 @@ import {
 } from './ui/table';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
+import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
+import { matchesFilter } from './shared/table-filters';
 
 // Sample data matching your exact database schema
 const initialCountries = [
@@ -190,7 +192,7 @@ export function CountriesTable({ data }: { data?: Country[] }) {
   const [editingCountry, setEditingCountry] = useState<Country | null>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
-  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [columnFilters, setColumnFilters] = useState<FilterState>(new Map());
   const filtersStorageKey = 'countries-table:column-filters';
   
   // Initialize columns from localStorage or use defaults
@@ -213,11 +215,18 @@ export function CountriesTable({ data }: { data?: Country[] }) {
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
 
   useEffect(() => {
-    setColumnFilters(loadColumnFilters(filtersStorageKey));
+    const legacy = loadColumnFilters(filtersStorageKey) as Record<string, string[]>;
+    const fs: FilterState = new Map();
+    Object.entries(legacy).forEach(([k, v]) => { if (v.length > 0) fs.set(k, { mode: 'facet', values: new Set(v) }); });
+    setColumnFilters(fs);
   }, [filtersStorageKey]);
 
   useEffect(() => {
-    saveColumnFilters(filtersStorageKey, columnFilters);
+    const legacy: Record<string, string[]> = {};
+    columnFilters.forEach((filter, key) => {
+      if (filter.mode === 'facet') legacy[key] = Array.from(filter.values).map(String);
+    });
+    saveColumnFilters(filtersStorageKey, legacy);
   }, [filtersStorageKey, columnFilters]);
   
   // Form state with validation
@@ -252,15 +261,12 @@ export function CountriesTable({ data }: { data?: Country[] }) {
       );
     }
 
-    if (Object.keys(columnFilters).length > 0) {
+    if (columnFilters.size > 0) {
       result = result.filter(row => {
-        for (const [columnKey, values] of Object.entries(columnFilters)) {
-          if (excludeColumn && columnKey === excludeColumn) continue;
-          if (!values || values.length === 0) continue;
-          const rowValue = row[columnKey as ColumnKey];
-          if (!values.includes(String(rowValue ?? ''))) {
-            return false;
-          }
+        for (const [column, filter] of columnFilters.entries()) {
+          if (excludeColumn && column === excludeColumn) continue;
+          const cellValue = row[column as ColumnKey];
+          if (!matchesFilter(cellValue, filter)) return false;
         }
         return true;
       });
@@ -492,14 +498,15 @@ export function CountriesTable({ data }: { data?: Country[] }) {
     }
 
     // Apply column filters
-    Object.entries(columnFilters).forEach(([column, values]) => {
-      if (values.length > 0) {
-        filtered = filtered.filter(country => {
-          const cellValue = String(country[column as ColumnKey]);
-          return values.includes(cellValue);
-        });
-      }
-    });
+    if (columnFilters.size > 0) {
+      filtered = filtered.filter(row => {
+        for (const [column, filter] of columnFilters.entries()) {
+          const cellValue = row[column as ColumnKey];
+          if (!matchesFilter(cellValue, filter)) return false;
+        }
+        return true;
+      });
+    }
 
     return filtered;
   }, [countries, searchTerm, columnFilters]);
@@ -1239,13 +1246,21 @@ export function CountriesTable({ data }: { data?: Country[] }) {
                             columnKey={column.key}
                             columnLabel={column.label}
                             values={getUniqueValues(column.key)}
-                            activeFilters={new Set(columnFilters[column.key] || [])}
-                            onFilterChange={(values) =>
-                              setColumnFilters({
-                                ...columnFilters,
-                                [column.key]: Array.from(values)
-                              })
-                            }
+                            activeFilter={columnFilters.get(column.key)}
+                            activeFilters={columnFilters.get(column.key)?.mode === 'facet' ? (columnFilters.get(column.key) as any).values : new Set()}
+                            onFilterChange={(values) => {
+                              const next = new Map(columnFilters);
+                              if (values.size === 0) next.delete(column.key);
+                              else next.set(column.key, { mode: 'facet', values });
+                              setColumnFilters(next);
+                            }}
+                            onAdvancedFilterChange={(filter) => {
+                              const next = new Map(columnFilters);
+                              if (!filter) next.delete(column.key);
+                              else next.set(column.key, filter);
+                              setColumnFilters(next);
+                            }}
+                            columnFormat={(column as any).format as ColumnFormat | undefined}
                             onSort={(direction) => {
                               setSortField(column.key);
                               setSortDirection(direction);
@@ -1362,7 +1377,7 @@ export function CountriesTable({ data }: { data?: Country[] }) {
       {sortedCountries.length === 0 && (
         <div className="text-center py-12">
           <div className="text-muted-foreground">
-            {searchTerm || Object.values(columnFilters).some(f => f.length > 0) ? (
+            {searchTerm || columnFilters.size > 0 ? (
               <>
                 <p className="text-lg font-medium mb-2">No countries found</p>
                 <p className="text-sm">Try adjusting your search or filters</p>
@@ -1378,22 +1393,20 @@ export function CountriesTable({ data }: { data?: Country[] }) {
       )}
 
       {/* Active filters indicator */}
-      {Object.values(columnFilters).some(filters => filters.length > 0) && (
+      {columnFilters.size > 0 && (
         <div className="flex items-center space-x-2 text-sm">
           <span className="text-muted-foreground">Active filters:</span>
-          {Object.entries(columnFilters).map(([column, values]) =>
-            values.length > 0 ? (
-              <Badge key={column} variant="secondary" className="text-xs">
-                {columns.find(c => c.key === column)?.label}: {values.length}
-              </Badge>
-            ) : null
-          )}
+          {Array.from(columnFilters.entries()).map(([column, filter]) => (
+            <Badge key={column} variant="secondary" className="text-xs">
+              {columns.find(c => c.key === column)?.label}: {filter.mode === 'facet' ? filter.values.size : filter.mode}
+            </Badge>
+          ))}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
               clearColumnFilters(filtersStorageKey);
-              setColumnFilters({});
+              setColumnFilters(new Map());
             }}
             className="h-6 px-2 text-xs"
           >
