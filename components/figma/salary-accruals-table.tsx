@@ -12,7 +12,8 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  User
+  User,
+  Filter
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -190,6 +191,36 @@ export function SalaryAccrualsTable() {
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
+
+  // Conditions filter state
+  const allConditions = [
+    'ALL',
+    'Confirmed & Balance>0',
+  ] as const;
+  const sanitizeConditions = useCallback((values: string[]) => {
+    const allowed = values.filter((value) => allConditions.includes(value as (typeof allConditions)[number]));
+    if (allowed.length === 0) {
+      return new Set(allConditions);
+    }
+    return new Set(allowed);
+  }, [allConditions]);
+  const [selectedConditions, setSelectedConditions] = useState<Set<string>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('salaryAccrualsConditions');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return sanitizeConditions(parsed);
+          }
+          return new Set(allConditions);
+        } catch {
+          return new Set(allConditions);
+        }
+      }
+    }
+    return new Set(allConditions);
+  });
   const [projectedMonths, setProjectedMonths] = useState(0);
   const [latestBaseMonthLabel, setLatestBaseMonthLabel] = useState<string | null>(null);
   const [latestBaseMonthDate, setLatestBaseMonthDate] = useState<Date | null>(null);
@@ -345,6 +376,13 @@ export function SalaryAccrualsTable() {
     };
     localStorage.setItem(filtersStorageKey, JSON.stringify(serialized));
   }, [filtersInitialized, isInitialized, searchTerm, sortColumn, sortDirection, pageSize, filters]);
+
+  // Save conditions filter to localStorage
+  useEffect(() => {
+    if (isInitialized && typeof window !== 'undefined') {
+      localStorage.setItem('salaryAccrualsConditions', JSON.stringify(Array.from(selectedConditions)));
+    }
+  }, [selectedConditions, isInitialized]);
 
   const parseSalaryMonth = (value: string): Date | null => {
     if (!value) return null;
@@ -1363,6 +1401,27 @@ export function SalaryAccrualsTable() {
     });
   }, []);
 
+  const applyConditionsFilter = useCallback((rows: SalaryAccrual[]) => {
+    if (selectedConditions.size === 0 || selectedConditions.has('ALL')) return rows;
+
+    return rows.filter(row => {
+      for (const condition of selectedConditions) {
+        let matches = false;
+
+        switch (condition) {
+          case 'Confirmed & Balance>0': {
+            const balance = Number(getRowValue(row, 'cumulative_balance')) || 0;
+            matches = Boolean(row.confirmed) && balance > 0;
+            break;
+          }
+        }
+
+        if (matches) return true;
+      }
+      return false;
+    });
+  }, [selectedConditions]);
+
   const filteredAndSortedData = useMemo(() => {
     let result = [...data];
 
@@ -1387,6 +1446,9 @@ export function SalaryAccrualsTable() {
         return true;
       });
     }
+
+    // Apply conditions filter
+    result = applyConditionsFilter(result);
 
     // Apply sort
     result.sort((a, b) => {
@@ -1413,7 +1475,7 @@ export function SalaryAccrualsTable() {
     });
 
     return result;
-  }, [data, searchTerm, sortColumn, sortDirection, filters, columns]);
+  }, [data, searchTerm, sortColumn, sortDirection, filters, columns, applyConditionsFilter]);
 
   // Paginate data
   const paginatedData = useMemo(() => {
@@ -1454,8 +1516,10 @@ export function SalaryAccrualsTable() {
       });
     }
 
+    result = applyConditionsFilter(result);
+
     return result;
-  }, [data, searchTerm, filters]);
+  }, [data, searchTerm, filters, applyConditionsFilter]);
 
   // Memoize unique values
   const uniqueValuesCache = useMemo(() => {
@@ -2237,6 +2301,62 @@ export function SalaryAccrualsTable() {
               {isRefreshing ? 'Refreshing...' : 'Refresh'}
             </Button>
             
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Filter className="w-4 h-4" />
+                  Conditions
+                  {!selectedConditions.has('ALL') && (
+                    <Badge variant="secondary" className="ml-1 h-4 px-1 text-xs">
+                      {selectedConditions.size}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 max-h-[500px] overflow-y-auto">
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm">Filter by Conditions</h4>
+                  
+                  <div className="space-y-2">
+                    {allConditions.map(condition => (
+                      <div key={condition} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`sa-condition-${condition}`}
+                          checked={selectedConditions.has(condition)}
+                          onCheckedChange={(checked) => {
+                            setSelectedConditions(prev => {
+                              const next = new Set(prev);
+                              if (checked) {
+                                next.add(condition);
+                                if (condition === 'ALL') {
+                                  allConditions.forEach(c => next.add(c));
+                                }
+                              } else {
+                                next.delete(condition);
+                                if (condition !== 'ALL') {
+                                  next.delete('ALL');
+                                } else {
+                                  next.clear();
+                                }
+                              }
+                              return next;
+                            });
+                            setCurrentPage(1);
+                          }}
+                        />
+                        <label 
+                          htmlFor={`sa-condition-${condition}`} 
+                          className="text-sm cursor-pointer flex-1"
+                        >
+                          {condition}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
             {activeFilterCount > 0 && (
               <Button
                 variant="outline"
