@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-05
+- Summary: Self.ge upload dialog enhancements: IBAN parsing, net=salary×80%, per-row add counteragent/salary buttons, comma-separated salary handling.
+- Changes:
+  - upload-self-ge API: Parse IBAN from `ანგარიშის ნომერი` column; net sum calculated as `ხელფასი × 0.8`; comma-separated salary values (e.g. "2000,5000") use rightmost number; IBAN included in all comparison result categories.
+  - New API actions: `create-single-counteragent` (with IBAN), `add-to-salary` (creates accrual + syncs IBAN on counteragent if different). Bulk create also saves IBAN.
+  - Salary accruals table: Missing Counteragents section shows IBAN column and per-row "Add" button; after adding, row moves locally to Missing In Salary section. Missing In Salary section shows IBAN column and per-row "Add to Salary" button. Bulk "Add All" also moves rows locally.
+  - Types updated: `SelfGeCounteragentRow` and `SelfGeMissingSalaryRow` include optional `iban` field.
+- Commit: e8e1fba
+- URL: https://ice-ngge7zqdp-iceerp.vercel.app
+
 ## 2026-03-06 (2)
 - Summary: Red unbound icon in salary accruals, UUID-based counteragent filter, job/counteragent skip buttons with URL param handling.
 - Changes:
