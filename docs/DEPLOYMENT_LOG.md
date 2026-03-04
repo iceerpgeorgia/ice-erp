@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-03-05
+- Summary: Unified shared filter engine across all 13 table components with industry-standard numeric/text/date condition operators.
+- Changes:
+  - New: `components/figma/shared/table-filters.ts` — shared filter engine with `FilterState` type, `matchesFilter()`, and predicates for facet/numeric/text/date modes.
+  - Updated: `components/figma/shared/column-filter-popover.tsx` — added tabbed UI (Values + Condition) with numeric operators (>, <, between, =, ≠, blank, not blank), text operators (contains, starts with, ends with, equals, blank), and date operators (=, >, <, between, blank).
+  - Migrated 13 tables to shared `FilterState`: salary-accruals, payments, payments-ledger, bank-accounts, conversions, parsing-scheme-rules, counteragents, countries, entity-types, projects, jobs, bank-transactions, payments-report.
+  - Backward-compatible: existing facet/checkbox filters work identically; numeric/text/date condition filters are additive.
+  - All localStorage persistence auto-converts between legacy and new format.
+- Commit: cab54c7
+- URL: https://ice-by6528ffv-iceerp.vercel.app
+
 ## 2026-03-04
 - Summary: Add confirmed column to salary_accruals table + conditional row formatting.
 - Changes:
