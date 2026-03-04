@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-06
+- Summary: Payments report counteragent buttons + URL param filter support.
+- Changes:
+  - Counteragent column: Added ArrowUpRight button linking to `/counteragent-statement/{uuid}` and Filter button linking to `/admin/payments-report?counteragent={name}` (new tab).
+  - Actions column: Added User icon button linking to counteragent statement.
+  - URL param handling: On load, reads `?counteragent=X` from URL and applies it as a facet filter on the counteragent column, overriding any saved localStorage filter for that column.
+- Commit: cc3077f
+- URL: https://ice-r8kqjo353-iceerp.vercel.app
+
 ## 2026-03-05 (3)
 - Summary: Add columnFormat to statement pages for full shared filter parity (numeric/date/text/boolean condition tabs).
 - Changes:
