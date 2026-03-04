@@ -47,6 +47,7 @@ type ParsedSelfGeEmployee = {
   personal_id: string;
   employee_name: string;
   net_sum: number;
+  iban: string | null;
 };
 
 const findHeaderIndex = (rows: unknown[][]) =>
@@ -87,6 +88,8 @@ const parseSelfGeRows = (rows: unknown[][]) => {
 
   const idIndex = findColumnIndex(header, maybeSubHeader, ['პირადი ნომერი']);
   const nameIndex = findColumnIndex(header, maybeSubHeader, ['თანამშრომელი']);
+  const ibanIndex = findColumnIndex(header, maybeSubHeader, ['ანგარიშის ნომერი', 'IBAN']);
+  const salaryIndex = findColumnIndex(header, maybeSubHeader, ['ხელფასი']);
   const earnedSalaryAmountIndex = header.findIndex((cell, idx) => {
     const parent = normalizeHeader(cell);
     const child = normalizeHeader(maybeSubHeader[idx]);
@@ -118,13 +121,32 @@ const parseSelfGeRows = (rows: unknown[][]) => {
     if (!personalId) continue;
 
     const employeeName = String(row[nameIndex] ?? '').trim();
-    const netSum = parseAmount(row[netIndex]);
+    const rawIban = ibanIndex >= 0 ? String(row[ibanIndex] ?? '').trim() : '';
+    const iban = rawIban || null;
+    // Net sum = ხელფასი * 80% (salary * 0.8)
+    // ხელფასი may contain comma-separated values like "2000,5000" — use the rightmost value
+    const rawSalary = salaryIndex >= 0 ? row[salaryIndex] : undefined;
+    let salaryAmount = 0;
+    if (rawSalary !== null && rawSalary !== undefined && rawSalary !== '') {
+      const salaryStr = String(rawSalary).trim();
+      const parts = salaryStr.split(',').map((p) => p.trim()).filter(Boolean);
+      if (parts.length > 1 && parts.every((p) => /^\d+(?:\.\d+)?$/.test(p))) {
+        // Multiple comma-separated numbers like "2000,5000" → use rightmost
+        salaryAmount = parseAmount(parts[parts.length - 1]);
+      } else {
+        salaryAmount = parseAmount(rawSalary);
+      }
+    }
+    const netSum = salaryAmount > 0 ? round2(salaryAmount * 0.8) : parseAmount(row[netIndex]);
 
     const existing = aggregated.get(personalId);
     if (existing) {
       existing.net_sum += netSum;
       if (!existing.employee_name && employeeName) {
         existing.employee_name = employeeName;
+      }
+      if (!existing.iban && iban) {
+        existing.iban = iban;
       }
       continue;
     }
@@ -133,6 +155,7 @@ const parseSelfGeRows = (rows: unknown[][]) => {
       personal_id: personalId,
       employee_name: employeeName,
       net_sum: netSum,
+      iban,
     });
   }
 
@@ -261,6 +284,7 @@ const handlePreview = async (formData: FormData) => {
         personal_id: item.personal_id,
         employee_name: item.employee_name,
         self_ge_net_sum: round2(item.net_sum),
+        iban: item.iban,
       });
     } else if (!counteragent.is_emploee) {
       notEmployeeCounteragents.push({
@@ -269,6 +293,7 @@ const handlePreview = async (formData: FormData) => {
         counteragent_uuid: counteragent.counteragent_uuid,
         counteragent_name: counteragent.counteragent_name,
         self_ge_net_sum: round2(item.net_sum),
+        iban: item.iban,
       });
     }
 
@@ -281,6 +306,7 @@ const handlePreview = async (formData: FormData) => {
         self_ge_net_sum: round2(item.net_sum),
         salary_net_sum: 0,
         net_difference: round2(item.net_sum),
+        iban: item.iban,
       });
       continue;
     }
@@ -373,6 +399,8 @@ const handleCreateCounteragents = async (body: any) => {
       continue;
     }
 
+    const rowIban = row.iban ? String(row.iban).trim() : null;
+
     try {
       await prisma.counteragents.create({
         data: {
@@ -380,6 +408,7 @@ const handleCreateCounteragents = async (body: any) => {
           name: employeeName || personalId,
           counteragent: employeeName || personalId,
           identification_number: personalId,
+          iban: rowIban || null,
           is_emploee: true,
           was_emploee: true,
           is_active: true,
@@ -394,6 +423,104 @@ const handleCreateCounteragents = async (body: any) => {
   }
 
   return NextResponse.json({ created, skipped, errors });
+};
+
+const handleCreateSingleCounteragent = async (body: any) => {
+  const personalId = normalizeId(body?.personal_id);
+  const employeeName = String(body?.employee_name || '').trim();
+  const iban = body?.iban ? String(body.iban).trim() : null;
+
+  if (!personalId) {
+    return NextResponse.json({ error: 'Missing personal_id' }, { status: 400 });
+  }
+
+  const existing = await prisma.counteragents.findFirst({
+    where: { identification_number: personalId },
+    select: { counteragent_uuid: true },
+  });
+  if (existing) {
+    return NextResponse.json({ error: 'Counteragent already exists', counteragent_uuid: existing.counteragent_uuid }, { status: 409 });
+  }
+
+  const created = await prisma.counteragents.create({
+    data: {
+      counteragent_uuid: crypto.randomUUID(),
+      name: employeeName || personalId,
+      counteragent: employeeName || personalId,
+      identification_number: personalId,
+      iban: iban || null,
+      is_emploee: true,
+      was_emploee: true,
+      is_active: true,
+      updated_at: new Date(),
+    },
+  });
+
+  return NextResponse.json({ created: true, counteragent_uuid: created.counteragent_uuid });
+};
+
+const handleAddToSalary = async (body: any) => {
+  const counteragentUuid = body?.counteragent_uuid;
+  const month = body?.month;
+  const netSum = body?.net_sum;
+  const iban = body?.iban ? String(body.iban).trim() : null;
+
+  if (!counteragentUuid || !month || netSum === undefined) {
+    return NextResponse.json({ error: 'Missing required fields: counteragent_uuid, month, net_sum' }, { status: 400 });
+  }
+
+  // Look up the counteragent and potentially update IBAN
+  const counteragent = await prisma.counteragents.findUnique({
+    where: { counteragent_uuid: counteragentUuid },
+    select: { counteragent_uuid: true, iban: true },
+  });
+
+  if (!counteragent) {
+    return NextResponse.json({ error: 'Counteragent not found' }, { status: 404 });
+  }
+
+  // Update IBAN if self.ge has one and it differs
+  if (iban && iban !== counteragent.iban) {
+    await prisma.counteragents.update({
+      where: { counteragent_uuid: counteragentUuid },
+      data: { iban, updated_at: new Date() },
+    });
+  }
+
+  // Find default financial code and currency for salary
+  const defaultFinancialCode = await prisma.financial_codes.findFirst({
+    orderBy: { id: 'asc' },
+    select: { uuid: true },
+  });
+  const defaultCurrency = await prisma.currencies.findFirst({
+    where: { code: { equals: 'GEL', mode: 'insensitive' } },
+    select: { uuid: true },
+  });
+  const currencyUuid = defaultCurrency?.uuid ||
+    (await prisma.currencies.findFirst({ orderBy: { id: 'asc' }, select: { uuid: true } }))?.uuid;
+
+  if (!currencyUuid) {
+    return NextResponse.json({ error: 'No currencies found' }, { status: 500 });
+  }
+
+  const monthDate = parseMonth(month);
+
+  const accrual = await prisma.salary_accruals.create({
+    data: {
+      counteragent_uuid: counteragentUuid,
+      financial_code_uuid: defaultFinancialCode?.uuid || '',
+      nominal_currency_uuid: currencyUuid,
+      salary_month: monthDate,
+      net_sum: netSum,
+      payment_id: '',
+      created_by: 'self.ge',
+      updated_by: 'self.ge',
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+  });
+
+  return NextResponse.json({ created: true, accrual_id: accrual.id?.toString() });
 };
 
 const handleMarkEmployees = async (body: any) => {
@@ -439,6 +566,12 @@ export async function POST(request: NextRequest) {
 
       if (action === 'create-counteragents') {
         return handleCreateCounteragents(body);
+      }
+      if (action === 'create-single-counteragent') {
+        return handleCreateSingleCounteragent(body);
+      }
+      if (action === 'add-to-salary') {
+        return handleAddToSalary(body);
       }
       if (action === 'mark-employees') {
         return handleMarkEmployees(body);
