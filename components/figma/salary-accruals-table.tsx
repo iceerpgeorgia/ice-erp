@@ -2602,10 +2602,26 @@ export function SalaryAccrualsTable() {
                   </td>
                 </tr>
               ) : (
-                paginatedData.map((accrual, idx) => (
+                paginatedData.map((accrual, idx) => {
+                  const monthBalance = getRowValue(accrual, 'month_balance') as number | undefined;
+                  const mb = typeof monthBalance === 'number' ? monthBalance : computeBalance(accrual);
+                  const cumulBal = typeof accrual.cumulative_balance === 'number' ? accrual.cumulative_balance : 0;
+                  const isConfirmed = Boolean(accrual.confirmed);
+
+                  // Row background: confirmed + month_balance sign
+                  let rowBg = '';
+                  if (isConfirmed && mb < 0) rowBg = '#ffebee'; // slight red
+                  else if (isConfirmed && mb > 0) rowBg = '#e8f5e9'; // slight green
+                  else if (isConfirmed && mb === 0) rowBg = '#f3f4f6'; // slight gray
+
+                  // Counteragent bold red when cumulative_balance < 0
+                  const isNegativeCumulBalance = cumulBal < 0;
+
+                  return (
                   <tr
                     key={`${accrual.id}-${idx}`}
-                    className={`border-b border-gray-200 hover:bg-gray-50 ${accrual.confirmed ? 'bg-[#e8f5e9]' : ''}`}
+                    className="border-b border-gray-200 hover:bg-gray-50"
+                    style={rowBg ? { backgroundColor: rowBg } : undefined}
                   >
                     <td className="px-2 py-2 text-sm" style={{ width: 60, minWidth: 60, maxWidth: 60 }}>
                       <div className="flex items-center justify-center">
@@ -2638,6 +2654,10 @@ export function SalaryAccrualsTable() {
                         ) : col.key === 'cumulative_accrual' || col.key === 'cumulative_payment' || col.key === 'cumulative_balance' ? (
                           <div className="truncate">
                             {formatValue(getRowValue(accrual, col.key), col.format)}
+                          </div>
+                        ) : col.key === 'counteragent_name' ? (
+                          <div className={`truncate ${isNegativeCumulBalance ? 'font-bold text-red-600' : ''}`}>
+                            {formatValue(accrual[col.key], col.format)}
                           </div>
                         ) : (
                           <div className="truncate">
@@ -2694,7 +2714,7 @@ export function SalaryAccrualsTable() {
                       </div>
                     </td>
                   </tr>
-                ))
+                );})
               )}
             </tbody>
           </table>

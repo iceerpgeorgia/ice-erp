@@ -154,8 +154,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all records with related data (no LATERAL JOIN for performance)
-    const [accruals, confirmedRows] = await Promise.all([
-      prisma.$queryRaw<any[]>`
+    const accruals = await prisma.$queryRaw<any[]>`
         SELECT 
           sa.id,
           sa.uuid,
@@ -169,6 +168,7 @@ export async function GET(request: NextRequest) {
           sa.deducted_insurance,
           sa.deducted_fitness,
           sa.deducted_fine,
+          sa.confirmed,
           sa.created_at,
           sa.updated_at,
           c.counteragent as counteragent_name,
@@ -183,17 +183,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN financial_codes fc ON sa.financial_code_uuid = fc.uuid
         LEFT JOIN currencies cur ON sa.nominal_currency_uuid = cur.uuid
         ORDER BY sa.salary_month DESC, sa.created_at DESC
-      `,
-      prisma.$queryRaw<Array<{ payment_key: string }>>`
-        SELECT DISTINCT lower(trim(split_part(payment_id, ':', 1))) as payment_key
-        FROM payments_ledger
-        WHERE confirmed = true
-          AND (is_deleted = false OR is_deleted IS NULL)
-          AND payment_id IS NOT NULL
-      `,
-    ]);
-
-    const confirmedKeys = new Set(confirmedRows.map((r) => r.payment_key));
+      `;
 
     const paidRows = await prisma.$queryRaw<any[]>`
       SELECT
@@ -272,7 +262,7 @@ export async function GET(request: NextRequest) {
       }
       return {
         paid,
-        confirmed: confirmedKeys.has(paymentKey),
+        confirmed: Boolean(accrual.confirmed),
         ...accrual,
       id: accrual.id.toString(),
       net_sum: accrual.net_sum.toString(),

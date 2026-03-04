@@ -43,6 +43,14 @@ export async function POST(request: NextRequest) {
       ),
     ]);
 
+    // Also update salary_accruals confirmed flag for matching payment_ids
+    await prisma.$executeRawUnsafe(
+      `UPDATE salary_accruals
+       SET confirmed = false
+       WHERE payment_id = ANY($1::text[])`,
+      paymentIds
+    );
+
     return NextResponse.json({ success: true, updated });
   } catch (error: any) {
     console.error('Error deconfirming payment ledger entries:', error);

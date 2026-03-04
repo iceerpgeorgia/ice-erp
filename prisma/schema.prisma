@@ -543,6 +543,7 @@ model salary_accruals {
   deducted_insurance    Decimal? @db.Decimal(15, 2)
   deducted_fitness      Decimal? @db.Decimal(15, 2)
   deducted_fine         Decimal? @db.Decimal(15, 2)
+  confirmed             Boolean  @default(false)
   created_at            DateTime @default(now())
   updated_at            DateTime @default(now())
   created_by            String   @db.VarChar(255)

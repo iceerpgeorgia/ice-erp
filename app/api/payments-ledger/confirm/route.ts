@@ -40,6 +40,14 @@ export async function POST(request: NextRequest) {
       maxDate
     );
 
+    // Also update salary_accruals confirmed flag for matching payment_ids
+    await prisma.$executeRawUnsafe(
+      `UPDATE salary_accruals
+       SET confirmed = true
+       WHERE payment_id = ANY($1::text[])`,
+      paymentIds
+    );
+
     return NextResponse.json({ success: true, updated });
   } catch (error: any) {
     console.error('Error confirming payment ledger entries:', error);
