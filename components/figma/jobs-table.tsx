@@ -174,6 +174,14 @@ export function JobsTable() {
     const legacy = loadColumnFilters(filtersStorageKey) as Record<string, string[]>;
     const fs: FilterState = new Map();
     Object.entries(legacy).forEach(([k, v]) => { if (v.length > 0) fs.set(k, { mode: 'facet', values: new Set(v) }); });
+
+    // Override filters from URL query parameters (e.g. ?jobUuid=UUID)
+    const urlParams = new URLSearchParams(window.location.search);
+    const jobUuidParam = urlParams.get('jobUuid');
+    if (jobUuidParam) {
+      fs.set('jobUuid', { mode: 'facet', values: new Set([jobUuidParam]) });
+    }
+
     setColumnFilters(fs);
   }, [filtersStorageKey]);
 

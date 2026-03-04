@@ -13,7 +13,8 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
-  Filter
+  Filter,
+  ArrowUpRight
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -55,6 +56,7 @@ type SalaryAccrual = {
   deducted_fitness: string | null;
   deducted_fine: string | null;
   confirmed?: boolean;
+  hasUnboundCounteragentTransactions?: boolean;
   created_at: string;
   updated_at: string;
   paid?: number; // Calculated from bank transactions
@@ -310,6 +312,7 @@ export function SalaryAccrualsTable() {
     }
 
     const savedFilters = localStorage.getItem(filtersStorageKey);
+    let restoredFilters: FilterState | null = null;
     if (savedFilters) {
       try {
         const parsed = JSON.parse(savedFilters);
@@ -324,13 +327,25 @@ export function SalaryAccrualsTable() {
           const restored = new Map<string, Set<any>>(
             parsed.filters.map(([key, values]: [string, any[]]) => [key, new Set(values)])
           );
-          setFilters(fromMapFilters(restored));
+          restoredFilters = fromMapFilters(restored);
         } else if (parsed.filtersV2) {
-          setFilters(deserializeFilterState(parsed.filtersV2));
+          restoredFilters = deserializeFilterState(parsed.filtersV2);
         }
       } catch (e) {
         console.error('Failed to parse saved filters:', e);
       }
+    }
+
+    // Override filters from URL query parameters (e.g. ?counteragentUuid=UUID)
+    const urlParams = new URLSearchParams(window.location.search);
+    const counteragentUuidParam = urlParams.get('counteragentUuid');
+    if (counteragentUuidParam) {
+      if (!restoredFilters) restoredFilters = new Map();
+      restoredFilters.set('counteragent_uuid', { mode: 'facet', values: new Set([counteragentUuidParam]) });
+    }
+
+    if (restoredFilters) {
+      setFilters(restoredFilters);
     }
     
     setIsInitialized(true);
@@ -2786,8 +2801,48 @@ export function SalaryAccrualsTable() {
                             {formatValue(getRowValue(accrual, col.key), col.format)}
                           </div>
                         ) : col.key === 'counteragent_name' ? (
-                          <div className={`truncate ${isNegativeCumulBalance ? 'font-bold text-red-600' : ''}`}>
-                            {formatValue(accrual[col.key], col.format)}
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={`truncate ${isNegativeCumulBalance ? 'font-bold text-red-600' : ''}`}>
+                              {formatValue(accrual[col.key], col.format)}
+                            </span>
+                            <a
+                              href={accrual.counteragent_uuid ? `/counteragent-statement/${accrual.counteragent_uuid}` : '#'}
+                              target={accrual.counteragent_uuid ? '_blank' : undefined}
+                              rel={accrual.counteragent_uuid ? 'noopener noreferrer' : undefined}
+                              className={`inline-flex items-center justify-center rounded p-1 transition-colors flex-shrink-0 ${
+                                accrual.counteragent_uuid
+                                  ? 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                                  : 'text-gray-300 cursor-not-allowed'
+                              }`}
+                              title="Open counteragent statement"
+                              aria-disabled={!accrual.counteragent_uuid}
+                              onClick={(event) => {
+                                if (!accrual.counteragent_uuid) {
+                                  event.preventDefault();
+                                }
+                              }}
+                            >
+                              <ArrowUpRight className="h-3.5 w-3.5" />
+                            </a>
+                            <a
+                              href={accrual.counteragent_uuid ? `/dictionaries/salary-accruals?counteragentUuid=${encodeURIComponent(accrual.counteragent_uuid)}` : '#'}
+                              target={accrual.counteragent_uuid ? '_blank' : undefined}
+                              rel={accrual.counteragent_uuid ? 'noopener noreferrer' : undefined}
+                              className={`inline-flex items-center justify-center rounded p-1 transition-colors flex-shrink-0 ${
+                                accrual.counteragent_uuid
+                                  ? 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                                  : 'text-gray-300 cursor-not-allowed'
+                              }`}
+                              title="Filter salary accruals by this counteragent"
+                              aria-disabled={!accrual.counteragent_uuid}
+                              onClick={(event) => {
+                                if (!accrual.counteragent_uuid) {
+                                  event.preventDefault();
+                                }
+                              }}
+                            >
+                              <Filter className="h-3.5 w-3.5" />
+                            </a>
                           </div>
                         ) : (
                           <div className="truncate">
@@ -2823,9 +2878,19 @@ export function SalaryAccrualsTable() {
                           href={accrual.counteragent_uuid ? `/counteragent-statement/${accrual.counteragent_uuid}` : '#'}
                           target={accrual.counteragent_uuid ? '_blank' : undefined}
                           rel={accrual.counteragent_uuid ? 'noopener noreferrer' : undefined}
-                          className="inline-flex items-center justify-center rounded p-1 text-blue-600 hover:bg-blue-50 hover:text-blue-800"
+                          className={`inline-flex items-center justify-center rounded p-1 transition-colors ${
+                            accrual.counteragent_uuid
+                              ? accrual.hasUnboundCounteragentTransactions
+                                ? 'text-red-600 hover:text-red-800 hover:bg-red-50'
+                                : 'text-blue-600 hover:bg-blue-50 hover:text-blue-800'
+                              : 'text-gray-400'
+                          }`}
                           aria-disabled={!accrual.counteragent_uuid}
-                          title="View counteragent statement (opens in new tab)"
+                          title={
+                            accrual.hasUnboundCounteragentTransactions
+                              ? 'Counteragent has transactions without payment ID'
+                              : 'View counteragent statement (opens in new tab)'
+                          }
                           onClick={(event) => {
                             if (!accrual.counteragent_uuid) {
                               event.preventDefault();

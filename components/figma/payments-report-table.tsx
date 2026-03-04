@@ -410,11 +410,11 @@ export function PaymentsReportTable() {
       }
     }
 
-    // Override filters from URL query parameters (e.g. ?counteragent=SomeName)
+    // Override filters from URL query parameters (e.g. ?counteragentUuid=UUID)
     const urlParams = new URLSearchParams(window.location.search);
-    const counteragentParam = urlParams.get('counteragent');
-    if (counteragentParam) {
-      restoredFilters.set('counteragent', { mode: 'facet', values: new Set([counteragentParam]) });
+    const counteragentUuidParam = urlParams.get('counteragentUuid');
+    if (counteragentUuidParam) {
+      restoredFilters.set('counteragentUuid', { mode: 'facet', values: new Set([counteragentUuidParam]) });
     }
 
     setFilters(restoredFilters);
@@ -3153,23 +3153,48 @@ export function PaymentsReportTable() {
                             <ArrowUpRight className="h-3.5 w-3.5" />
                           </a>
                           <a
-                            href={row.counteragent ? `/admin/payments-report?counteragent=${encodeURIComponent(row.counteragent)}` : '#'}
-                            target={row.counteragent ? '_blank' : undefined}
-                            rel={row.counteragent ? 'noopener noreferrer' : undefined}
+                            href={row.counteragentUuid ? `/dictionaries/payments-report?counteragentUuid=${encodeURIComponent(row.counteragentUuid)}` : '#'}
+                            target={row.counteragentUuid ? '_blank' : undefined}
+                            rel={row.counteragentUuid ? 'noopener noreferrer' : undefined}
                             className={`inline-flex items-center justify-center rounded p-1 transition-colors flex-shrink-0 ${
-                              row.counteragent
+                              row.counteragentUuid
                                 ? 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
                                 : 'text-gray-300 cursor-not-allowed'
                             }`}
                             title="Filter payments report by this counteragent"
-                            aria-disabled={!row.counteragent}
+                            aria-disabled={!row.counteragentUuid}
                             onClick={(event) => {
-                              if (!row.counteragent) {
+                              if (!row.counteragentUuid) {
                                 event.preventDefault();
                               }
                             }}
                           >
                             <Filter className="h-3.5 w-3.5" />
+                          </a>
+                        </div>
+                      ) : col.key === 'job' ? (
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`truncate ${isJobConflict ? 'font-bold text-red-600' : ''}`}>
+                            {formatValue(row[col.key], col.format, col.key)}
+                          </span>
+                          <a
+                            href={row.jobUuid ? `/dictionaries/jobs?jobUuid=${encodeURIComponent(row.jobUuid)}` : '#'}
+                            target={row.jobUuid ? '_blank' : undefined}
+                            rel={row.jobUuid ? 'noopener noreferrer' : undefined}
+                            className={`inline-flex items-center justify-center rounded p-1 transition-colors flex-shrink-0 ${
+                              row.jobUuid
+                                ? 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                                : 'text-gray-300 cursor-not-allowed'
+                            }`}
+                            title="Open job in Jobs table"
+                            aria-disabled={!row.jobUuid}
+                            onClick={(event) => {
+                              if (!row.jobUuid) {
+                                event.preventDefault();
+                              }
+                            }}
+                          >
+                            <ArrowUpRight className="h-3.5 w-3.5" />
                           </a>
                         </div>
                       ) : (

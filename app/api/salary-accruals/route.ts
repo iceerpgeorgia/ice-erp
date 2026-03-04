@@ -185,6 +185,30 @@ export async function GET(request: NextRequest) {
         ORDER BY sa.salary_month DESC, sa.created_at DESC
       `;
 
+    // Fetch unbound counteragent transactions (no payment_id, not in batch)
+    const unboundRows = await prisma.$queryRaw<any[]>`
+      SELECT counteragent_uuid, COUNT(*) as unbound_count
+      FROM (
+        ${Prisma.raw(DECONSOLIDATED_TABLES.map((tableName) => `
+        SELECT ru.counteragent_uuid
+        FROM "${tableName}" ru
+        WHERE ru.counteragent_uuid IS NOT NULL
+          AND (ru.payment_id IS NULL OR ru.payment_id = '')
+          AND NOT EXISTS (
+            SELECT 1 FROM bank_transaction_batches btb
+            WHERE btb.raw_record_uuid::text = ru.raw_record_uuid::text
+          )`).join(' UNION ALL '))}
+      ) unbound
+      GROUP BY counteragent_uuid
+    `;
+
+    const unboundSet = new Set<string>();
+    for (const row of unboundRows) {
+      if (row.counteragent_uuid && Number(row.unbound_count) > 0) {
+        unboundSet.add(String(row.counteragent_uuid));
+      }
+    }
+
     const paidRows = await prisma.$queryRaw<any[]>`
       SELECT
         lower(trim(split_part(payment_id, ':', 1))) as payment_id_key,
@@ -263,6 +287,7 @@ export async function GET(request: NextRequest) {
       return {
         paid,
         confirmed: Boolean(accrual.confirmed),
+        hasUnboundCounteragentTransactions: unboundSet.has(String(accrual.counteragent_uuid)),
         ...accrual,
       id: accrual.id.toString(),
       net_sum: accrual.net_sum.toString(),
