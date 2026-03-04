@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Edit2, Plus, X, Eye, Info } from 'lucide-react';
+import { ColumnFilterPopover } from '@/components/figma/shared/column-filter-popover';
+import type { FilterState, ColumnFilter } from '@/components/figma/shared/table-filters';
+import { matchesFilter, buildFacetBaseData, buildUniqueValuesCache } from '@/components/figma/shared/table-filters';
 import { Button } from '@/components/ui/button';
 import { Combobox } from '@/components/ui/combobox';
 import { Label } from '@/components/ui/label';
@@ -73,28 +76,30 @@ type ColumnConfig = {
   key: keyof TransactionRow;
   label: string;
   visible: boolean;
+  filterable?: boolean;
+  sortable?: boolean;
   width: number;
   align?: 'left' | 'right';
 };
 
 const defaultColumns: ColumnConfig[] = [
-  { key: 'date', label: 'Date', visible: true, width: 120, align: 'left' },
-  { key: 'accrual', label: 'Accrual', visible: true, width: 120, align: 'right' },
-  { key: 'payment', label: 'Payment', visible: true, width: 120, align: 'right' },
-  { key: 'order', label: 'Order', visible: true, width: 120, align: 'right' },
-  { key: 'confirmed', label: 'Confirmed', visible: true, width: 120, align: 'left' },
-  { key: 'ppc', label: 'PPC', visible: true, width: 120, align: 'right' },
-  { key: 'paidPercent', label: 'Paid %', visible: true, width: 100, align: 'right' },
-  { key: 'due', label: 'Due', visible: true, width: 120, align: 'right' },
-  { key: 'balance', label: 'Balance', visible: true, width: 120, align: 'right' },
-  { key: 'comment', label: 'Comment', visible: true, width: 300, align: 'left' },
-  { key: 'user', label: 'User', visible: true, width: 180, align: 'left' },
-  { key: 'caAccount', label: 'CA Account', visible: true, width: 180, align: 'left' },
-  { key: 'account', label: 'Account', visible: true, width: 200, align: 'left' },
-  { key: 'batchId', label: 'Batch ID', visible: false, width: 160, align: 'left' },
-  { key: 'id1', label: 'ID1', visible: false, width: 140, align: 'left' },
-  { key: 'id2', label: 'ID2', visible: false, width: 140, align: 'left' },
-  { key: 'createdAt', label: 'Created At', visible: true, width: 180, align: 'left' },
+  { key: 'date', label: 'Date', visible: true, filterable: true, sortable: true, width: 120, align: 'left' },
+  { key: 'accrual', label: 'Accrual', visible: true, filterable: true, sortable: true, width: 120, align: 'right' },
+  { key: 'payment', label: 'Payment', visible: true, filterable: true, sortable: true, width: 120, align: 'right' },
+  { key: 'order', label: 'Order', visible: true, filterable: true, sortable: true, width: 120, align: 'right' },
+  { key: 'confirmed', label: 'Confirmed', visible: true, filterable: true, sortable: true, width: 120, align: 'left' },
+  { key: 'ppc', label: 'PPC', visible: true, filterable: true, sortable: true, width: 120, align: 'right' },
+  { key: 'paidPercent', label: 'Paid %', visible: true, filterable: true, sortable: true, width: 100, align: 'right' },
+  { key: 'due', label: 'Due', visible: true, filterable: true, sortable: true, width: 120, align: 'right' },
+  { key: 'balance', label: 'Balance', visible: true, filterable: true, sortable: true, width: 120, align: 'right' },
+  { key: 'comment', label: 'Comment', visible: true, filterable: true, sortable: true, width: 300, align: 'left' },
+  { key: 'user', label: 'User', visible: true, filterable: true, sortable: true, width: 180, align: 'left' },
+  { key: 'caAccount', label: 'CA Account', visible: true, filterable: true, sortable: true, width: 180, align: 'left' },
+  { key: 'account', label: 'Account', visible: true, filterable: true, sortable: true, width: 200, align: 'left' },
+  { key: 'batchId', label: 'Batch ID', visible: false, filterable: true, sortable: true, width: 160, align: 'left' },
+  { key: 'id1', label: 'ID1', visible: false, filterable: true, sortable: true, width: 140, align: 'left' },
+  { key: 'id2', label: 'ID2', visible: false, filterable: true, sortable: true, width: 140, align: 'left' },
+  { key: 'createdAt', label: 'Created At', visible: true, filterable: true, sortable: true, width: 180, align: 'left' },
 ];
 
 export default function PaymentStatementPage() {
@@ -109,6 +114,9 @@ export default function PaymentStatementPage() {
   const [draggedColumn, setDraggedColumn] = useState<keyof TransactionRow | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<keyof TransactionRow | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [filters, setFilters] = useState<FilterState>(new Map());
+  const [sortColumn, setSortColumn] = useState<keyof TransactionRow | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Edit dialog state
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -449,6 +457,74 @@ export default function PaymentStatementPage() {
     // Now reverse to show newest first in the table
     mergedTransactions.reverse();
   }
+
+  // --- Shared filter engine ---
+  const renderFilterValue = useCallback((value: any) => {
+    if (value === null || value === undefined || value === '-') return '';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    return String(value);
+  }, []);
+
+  const getFacetBaseData = useMemo(() => {
+    return buildFacetBaseData(mergedTransactions, '', filters, (row: any, key: string) => row[key] ?? '-');
+  }, [mergedTransactions, filters]);
+
+  const columnValues = useMemo(() => {
+    const filterableKeys = columns.filter(c => c.filterable).map(c => c.key as string);
+    return buildUniqueValuesCache(filterableKeys, getFacetBaseData, (row: any, key: string) => row[key] ?? '-');
+  }, [columns, getFacetBaseData]);
+
+  const filteredTransactions = useMemo(() => {
+    let filtered = [...mergedTransactions];
+
+    // Apply column filters
+    filters.forEach((filter, columnKey) => {
+      filtered = filtered.filter((row) => {
+        const value = (row as any)[columnKey] ?? '-';
+        return matchesFilter(value, filter);
+      });
+    });
+
+    // Apply sort
+    if (sortColumn) {
+      filtered.sort((a, b) => {
+        const aVal = a[sortColumn];
+        const bVal = b[sortColumn];
+        if (typeof aVal === 'number' && typeof bVal === 'number') {
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        }
+        const aStr = String(aVal ?? '').toLowerCase();
+        const bStr = String(bVal ?? '').toLowerCase();
+        return sortDirection === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+      });
+    }
+
+    return filtered;
+  }, [mergedTransactions, filters, sortColumn, sortDirection]);
+
+  const handleFilterChange = useCallback((columnKey: keyof TransactionRow, selectedValues: Set<any>) => {
+    setFilters((prev) => {
+      const updated = new Map(prev);
+      if (selectedValues.size === 0) {
+        updated.delete(columnKey as string);
+      } else {
+        updated.set(columnKey as string, { mode: 'facet', values: selectedValues });
+      }
+      return updated;
+    });
+  }, []);
+
+  const handleAdvancedFilterChange = useCallback((columnKey: keyof TransactionRow, filter: ColumnFilter | null) => {
+    setFilters((prev) => {
+      const updated = new Map(prev);
+      if (!filter) {
+        updated.delete(columnKey as string);
+      } else {
+        updated.set(columnKey as string, filter);
+      }
+      return updated;
+    });
+  }, []);
 
   const resetAddLedgerForm = () => {
     setAddEffectiveDate('');
@@ -1083,7 +1159,7 @@ export default function PaymentStatementPage() {
               <h3 className="font-semibold text-lg">
                 Payment Transactions 
                 <span className="ml-2 text-sm font-normal text-gray-600">
-                  ({mergedTransactions.length} {mergedTransactions.length === 1 ? 'entry' : 'entries'})
+                  ({filteredTransactions.length}{filters.size > 0 ? ` of ${mergedTransactions.length}` : ''} {filteredTransactions.length === 1 ? 'entry' : 'entries'})
                 </span>
               </h3>
               <div className="flex items-center gap-2">
@@ -1136,14 +1212,14 @@ export default function PaymentStatementPage() {
                 </PopoverContent>
               </Popover>
             </div>
-            {mergedTransactions.length > 0 ? (
+            {filteredTransactions.length > 0 ? (
               <div className="border rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
                     <thead className="bg-gray-100">
                       <tr>
                         {(() => {
-                          const eligibleIds = mergedTransactions
+                          const eligibleIds = filteredTransactions
                             .filter((row) => row.type === 'bank' && row.payment !== 0)
                             .map((row) => row.id);
                           const allAccrualSelected =
@@ -1207,8 +1283,23 @@ export default function PaymentStatementPage() {
                               maxWidth: `${column.width}px`,
                             }}
                           >
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1">
                               <span className={column.align === 'right' ? 'ml-auto' : ''}>{column.label}</span>
+                              {column.filterable && (
+                                <ColumnFilterPopover
+                                  columnKey={column.key as string}
+                                  columnLabel={column.label}
+                                  values={columnValues.get(column.key as string) || []}
+                                  activeFilter={filters.get(column.key as string)}
+                                  onAdvancedFilterChange={(filter) => handleAdvancedFilterChange(column.key, filter)}
+                                  onFilterChange={(values) => handleFilterChange(column.key, values)}
+                                  onSort={(direction) => {
+                                    setSortColumn(column.key);
+                                    setSortDirection(direction);
+                                  }}
+                                  renderValue={renderFilterValue}
+                                />
+                              )}
                               <div
                                 className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 z-10"
                                 onMouseDown={(e) => handleResizeStart(e, column.key)}
@@ -1229,7 +1320,7 @@ export default function PaymentStatementPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {mergedTransactions.map((row, index) => (
+                      {filteredTransactions.map((row, index) => (
                         <tr key={row.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                           {(() => {
                             const canSelect = row.type === 'bank' && row.payment !== 0;
@@ -1382,16 +1473,16 @@ export default function PaymentStatementPage() {
                           if (column.key === 'date') {
                             totalValue = 'TOTAL';
                           } else if (column.key === 'accrual') {
-                            const total = mergedTransactions.reduce((sum, row) => sum + row.accrual, 0);
+                            const total = filteredTransactions.reduce((sum, row) => sum + row.accrual, 0);
                             totalValue = total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                           } else if (column.key === 'order') {
-                            const total = mergedTransactions.reduce((sum, row) => sum + row.order, 0);
+                            const total = filteredTransactions.reduce((sum, row) => sum + row.order, 0);
                             totalValue = total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                           } else if (column.key === 'payment') {
-                            const total = mergedTransactions.reduce((sum, row) => sum + row.payment, 0);
+                            const total = filteredTransactions.reduce((sum, row) => sum + row.payment, 0);
                             totalValue = total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                           } else if (column.key === 'ppc') {
-                            const total = mergedTransactions.reduce((sum, row) => sum + row.ppc, 0);
+                            const total = filteredTransactions.reduce((sum, row) => sum + row.ppc, 0);
                             totalValue = total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                           }
                           
