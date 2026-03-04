@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-05 (4)
+- Summary: Self.ge "Add to Salary" opens prefilled Add Accrual dialog; row removed from missing list on save; balance>0 filter fix.
+- Changes:
+  - Self.ge dialog: "Add to Salary" button now opens the standard Add Accrual dialog prefilled with counteragent, salary month (last day of month), net sum, and GEL currency.
+  - Self.ge dialog: After saving, the row is immediately removed from the "Missing In Salary Accruals" list.
+  - Self.ge dialog: Counteragent IBAN update preserved after save.
+  - Salary accruals: "Confirmed & Balance>0" condition filter now rounds cumulative balance to 2 decimal places to exclude floating-point near-zero values.
+- Commit: a38b000
+- URL: https://ice-d9xq1sfds-iceerp.vercel.app
+
 ## 2026-03-05 (3)
 - Summary: Strict pending-to-completed detection in bank XML import; per-row financial code in self.ge dialog using main accruals API.
 - Changes:
