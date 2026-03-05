@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-05 (6)
+- Summary: Batch editor two-way nominal/account amount calculation for salary entries; projected salary IDs now generated for all 153 counteragents (was only 5).
+- Changes:
+  - Batch editor: Two-way calculation between partition amount (GEL) and nominal amount (e.g. USD) now works for salary accrual payment IDs (previously blocked because salary entries have no paymentUuid).
+  - Batch editor: Nominal input enabled for salary payment IDs (was disabled).
+  - Batch editor: Exchange rate recalculation on load also applies to salary payment ID partitions.
+  - Payment ID options API: Projected salary IDs now generated per-counteragent from each one's latest salary_month, instead of only from the global MAX(salary_month). Fixed 148/153 counteragents missing from projections.
+- Commit: 0b0828d
+
 ## 2026-03-05 (5)
 - Summary: Fix self.ge "Add to Salary" using counteragent's existing currency instead of hardcoded GEL; fix balance>0 filter floating-point threshold.
 - Changes:
