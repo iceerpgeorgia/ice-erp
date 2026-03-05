@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-03-05 (5)
+- Summary: Fix self.ge "Add to Salary" using counteragent's existing currency instead of hardcoded GEL; fix balance>0 filter floating-point threshold.
+- Changes:
+  - Self.ge dialog: "Add to Salary" now looks up the counteragent's existing salary accruals currency (e.g. USD) instead of always defaulting to GEL.
+  - Salary accruals: "Confirmed & Balance>0" filter uses `>= 0.01` threshold to properly exclude near-zero floating-point values that display as `0.00`.
+  - DB fix: Updated 2 payment records for counteragent აბდულ ჰამეედ სიჩკენდერ from GEL to USD (payment IDs: 63810f_23_9be30c, 6f15fe_50_864951).
+- Commit: e29367b
+
 ## 2026-03-05 (4)
 - Summary: Self.ge "Add to Salary" opens prefilled Add Accrual dialog; row removed from missing list on save; balance>0 filter fix.
 - Changes:
