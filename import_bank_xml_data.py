@@ -654,6 +654,7 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
     raw_records_to_insert = []
     skipped_raw_duplicates = 0
     skipped_missing_keys = 0
+    updated_pending_to_completed = 0
     
     for detail in details:
         def get_text(tag_name):
@@ -667,7 +668,7 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
             skipped_missing_keys += 1
             continue
         
-        # Check for duplicates
+        # Check for exact duplicate (same DocKey + same EntriesId)
         remote_cursor.execute(f"""
             SELECT uuid FROM {raw_table_name} 
             WHERE DocKey = %s AND EntriesId = %s
@@ -675,6 +676,38 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
         
         if remote_cursor.fetchone():
             skipped_raw_duplicates += 1
+            continue
+        
+        # Check for pending→completed transition:
+        # Same DocKey but different EntriesId, same date, same amount
+        # This means a pending transaction was completed (ID2 changed)
+        DocValueDate = get_text('DocValueDate')
+        EntryDbAmt = get_text('EntryDbAmt')
+        EntryCrAmt = get_text('EntryCrAmt')
+        
+        remote_cursor.execute(f"""
+            SELECT uuid, EntriesId FROM {raw_table_name}
+            WHERE DocKey = %s AND EntriesId != %s
+              AND DocValueDate = %s
+              AND COALESCE(EntryDbAmt, '') = %s
+              AND COALESCE(EntryCrAmt, '') = %s
+            LIMIT 1
+        """, (DocKey, EntriesId, DocValueDate or '', EntryDbAmt or '', EntryCrAmt or ''))
+        
+        pending_match = remote_cursor.fetchone()
+        if pending_match:
+            old_uuid = pending_match[0]
+            old_entries_id = pending_match[1]
+            # Update existing record: pending→completed (update EntriesId and uuid)
+            new_record_uuid_str = f"{DocKey}_{EntriesId}"
+            new_record_uuid = str(uuid_lib.uuid5(uuid_lib.NAMESPACE_DNS, new_record_uuid_str))
+            remote_cursor.execute(f"""
+                UPDATE {raw_table_name}
+                SET EntriesId = %s, uuid = %s
+                WHERE uuid = %s
+            """, (EntriesId, new_record_uuid, old_uuid))
+            updated_pending_to_completed += 1
+            print(f"  🔄 [PENDING→COMPLETED] DocKey={DocKey}: EntriesId {old_entries_id} → {EntriesId}")
             continue
         
         # Generate UUID for raw record
@@ -742,6 +775,7 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
     print(f"📊 Raw Data Import Results:")
     print(f"  ✅ New records to insert: {len(raw_records_to_insert)}")
     print(f"  🔄 Skipped duplicates: {skipped_raw_duplicates}")
+    print(f"  🔄 Pending→Completed updates (ID2 changed): {updated_pending_to_completed}")
     print(f"  ⚠️  Skipped missing keys: {skipped_missing_keys}\n")
     
     # Insert raw records
@@ -2145,11 +2179,13 @@ def main():
         print("\nUsage:")
         print("  Import mode:    python import_bank_xml_data.py import <xml_file_path>")
         print("  Backparse mode: python import_bank_xml_data.py backparse [--account-uuid UUID] [--batch-id ID] [--clear]")
+        print("  Cleanup mode:   python import_bank_xml_data.py cleanup-pending-duplicates <raw_table_name>")
         print("\nExamples:")
         print("  python import_bank_xml_data.py import Statement_206598021.xml")
         print("  python import_bank_xml_data.py backparse")
         print("  python import_bank_xml_data.py backparse --account-uuid 60582948-8c5b-4715-b75c-ca03e3d36a4e")
         print("  python import_bank_xml_data.py backparse --batch-id abc-123 --clear")
+        print("  python import_bank_xml_data.py cleanup-pending-duplicates bog_gel_raw_893486000")
         sys.exit(1)
 
     mode = sys.argv[1].lower()
@@ -2277,9 +2313,86 @@ def main():
         
         backparse_existing_data(account_uuid, batch_id, clear_consolidated)
     
+    elif mode == 'cleanup-pending-duplicates':
+        # CLEANUP MODE: Find and merge pending→completed duplicates in existing data
+        if len(sys.argv) < 3:
+            print("❌ Error: raw table name required")
+            print("Usage: python import_bank_xml_data.py cleanup-pending-duplicates <raw_table_name>")
+            sys.exit(1)
+        
+        raw_table_name = sys.argv[2]
+        dry_run = '--dry-run' in sys.argv
+        
+        print(f"\n{'='*80}")
+        print(f"🧹 CLEANUP PENDING DUPLICATES - Table: {raw_table_name}")
+        print(f"   Mode: {'DRY RUN (no changes)' if dry_run else 'LIVE (will update/delete)'}")
+        print(f"{'='*80}\n")
+        
+        supabase_conn, _ = get_db_connections()
+        cursor = supabase_conn.cursor()
+        
+        try:
+            # Find records with same DocKey, same DocValueDate, same amounts, but different EntriesId
+            cursor.execute(f"""
+                SELECT a.uuid as uuid_a, a.DocKey, a.EntriesId as entries_id_a,
+                       b.uuid as uuid_b, b.EntriesId as entries_id_b,
+                       a.DocValueDate, a.EntryDbAmt, a.EntryCrAmt,
+                       COALESCE(a.DocBenefName, a.DocSenderName, '') as counteragent_name
+                FROM {raw_table_name} a
+                JOIN {raw_table_name} b ON a.DocKey = b.DocKey
+                  AND a.EntriesId < b.EntriesId
+                  AND COALESCE(a.DocValueDate, '') = COALESCE(b.DocValueDate, '')
+                  AND COALESCE(a.EntryDbAmt, '') = COALESCE(b.EntryDbAmt, '')
+                  AND COALESCE(a.EntryCrAmt, '') = COALESCE(b.EntryCrAmt, '')
+                ORDER BY a.DocKey
+            """)
+            
+            duplicates = cursor.fetchall()
+            
+            if not duplicates:
+                print("✅ No pending→completed duplicates found!")
+            else:
+                print(f"⚠️  Found {len(duplicates)} duplicate pair(s):\n")
+                deleted_count = 0
+                
+                for row in duplicates:
+                    uuid_a, doc_key, eid_a, uuid_b, eid_b, date, db_amt, cr_amt, ca_name = row
+                    print(f"  DocKey={doc_key} | Date={date} | Db={db_amt} Cr={cr_amt} | Counteragent: {ca_name}")
+                    print(f"    EntriesId A: {eid_a} (uuid: {uuid_a})")
+                    print(f"    EntriesId B: {eid_b} (uuid: {uuid_b})")
+                    
+                    # Keep the higher EntriesId (completed), delete the lower one (pending)
+                    # Higher EntriesId = more recent = completed state
+                    if not dry_run:
+                        cursor.execute(f"""
+                            DELETE FROM {raw_table_name} WHERE uuid = %s
+                        """, (uuid_a,))
+                        deleted_count += 1
+                        print(f"    ❌ Deleted older record (EntriesId={eid_a})")
+                    else:
+                        print(f"    [DRY RUN] Would delete older record (EntriesId={eid_a})")
+                    print()
+                
+                if not dry_run:
+                    supabase_conn.commit()
+                    print(f"\n✅ Cleanup complete! Deleted {deleted_count} duplicate pending records.")
+                else:
+                    print(f"\n📋 DRY RUN complete. Would delete {len(duplicates)} duplicate pending records.")
+                    print("   Run without --dry-run to apply changes.")
+        
+        except Exception as e:
+            print(f"\n❌ Error: {e}")
+            import traceback
+            traceback.print_exc()
+            supabase_conn.rollback()
+            sys.exit(1)
+        finally:
+            cursor.close()
+            supabase_conn.close()
+    
     else:
         print(f"❌ Unknown mode: {mode}")
-        print("Valid modes: import, backparse")
+        print("Valid modes: import, backparse, cleanup-pending-duplicates")
         sys.exit(1)
 
 if __name__ == "__main__":

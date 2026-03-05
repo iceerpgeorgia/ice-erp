@@ -97,7 +97,8 @@ export function calculateNominalAmount(
   nominalCurrencyUuid: string | null,
   transactionDate: Date,
   nbgRatesMap: Map<string, NBGRates>,
-  currencyCache: Map<string, string>
+  currencyCache: Map<string, string>,
+  missingRateDates?: Set<string>
 ): number {
   if (!nominalCurrencyUuid) return accountCurrencyAmount;
 
@@ -110,7 +111,10 @@ export function calculateNominalAmount(
 
   const dateKey = transactionDate.toISOString().split('T')[0];
   const rates = nbgRatesMap.get(dateKey);
-  if (!rates) return accountCurrencyAmount;
+  if (!rates) {
+    if (missingRateDates) missingRateDates.add(dateKey);
+    return accountCurrencyAmount;
+  }
 
   // Case 1: GEL → Foreign (divide by rate)
   if (accountCurrencyCode === 'GEL' && nominalCurrencyCode in rates) {
@@ -137,6 +141,7 @@ export function calculateNominalAmount(
     }
   }
 
+  if (missingRateDates) missingRateDates.add(dateKey);
   return accountCurrencyAmount;
 }
 

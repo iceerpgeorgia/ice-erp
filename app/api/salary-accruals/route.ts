@@ -397,6 +397,95 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ inserted: createdIds.length, base_count: baseRecords.length, records: formatted });
     }
+
+    if (body?.action === 'copy-accrual') {
+      const { source_id, target_months, created_by } = body;
+      if (!source_id || !Array.isArray(target_months) || target_months.length === 0) {
+        return NextResponse.json({ error: 'Missing source_id or target_months' }, { status: 400 });
+      }
+
+      const sourceRecord = await prisma.salary_accruals.findUnique({
+        where: { id: BigInt(source_id) },
+      });
+
+      if (!sourceRecord) {
+        return NextResponse.json({ error: 'Source accrual not found' }, { status: 404 });
+      }
+
+      const createdIds: bigint[] = [];
+      for (const month of target_months) {
+        // month is expected as YYYY-MM — use the last day of that month
+        const [yearStr, monthStr] = month.split('-');
+        const year = parseInt(yearStr, 10);
+        const mon = parseInt(monthStr, 10);
+        // Last day of month: day 0 of next month
+        const lastDay = new Date(year, mon, 0);
+
+        const created = await prisma.salary_accruals.create({
+          data: {
+            counteragent_uuid: sourceRecord.counteragent_uuid,
+            financial_code_uuid: sourceRecord.financial_code_uuid,
+            nominal_currency_uuid: sourceRecord.nominal_currency_uuid,
+            payment_id: generatePaymentId(sourceRecord.counteragent_uuid, sourceRecord.financial_code_uuid, lastDay),
+            salary_month: lastDay,
+            net_sum: sourceRecord.net_sum,
+            surplus_insurance: sourceRecord.surplus_insurance,
+            deducted_insurance: null,
+            deducted_fitness: sourceRecord.deducted_fitness,
+            deducted_fine: sourceRecord.deducted_fine,
+            created_by: created_by || 'user',
+            updated_by: created_by || 'user',
+          },
+        });
+        createdIds.push(created.id);
+      }
+
+      const createdRecords = createdIds.length
+        ? await prisma.$queryRaw<any[]>`
+            SELECT 
+              sa.id,
+              sa.uuid,
+              sa.counteragent_uuid,
+              sa.financial_code_uuid,
+              sa.nominal_currency_uuid,
+              sa.payment_id,
+              sa.salary_month,
+              sa.net_sum,
+              sa.surplus_insurance,
+              sa.deducted_insurance,
+              sa.deducted_fitness,
+              sa.deducted_fine,
+              sa.created_at,
+              sa.updated_at,
+              c.counteragent as counteragent_name,
+              c.identification_number,
+              c.sex,
+              c.pension_scheme,
+              fc.validation as financial_code,
+              cur.code as currency_code
+            FROM salary_accruals sa
+            LEFT JOIN counteragents c ON sa.counteragent_uuid = c.counteragent_uuid
+            LEFT JOIN financial_codes fc ON sa.financial_code_uuid = fc.uuid
+            LEFT JOIN currencies cur ON sa.nominal_currency_uuid = cur.uuid
+            WHERE sa.id IN (${Prisma.join(createdIds)})
+          `
+        : [];
+
+      const formatted = createdRecords.map((accrual) => ({
+        ...accrual,
+        id: accrual.id.toString(),
+        net_sum: accrual.net_sum.toString(),
+        ...serializeInsuranceValues({
+          surplus_insurance: accrual.surplus_insurance,
+          deducted_insurance: accrual.deducted_insurance,
+        }),
+        deducted_fitness: accrual.deducted_fitness?.toString() || null,
+        deducted_fine: accrual.deducted_fine?.toString() || null,
+      }));
+
+      return NextResponse.json({ inserted: createdIds.length, records: formatted });
+    }
+
     const {
       counteragent_uuid,
       financial_code_uuid,

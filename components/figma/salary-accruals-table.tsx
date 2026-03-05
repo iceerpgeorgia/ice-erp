@@ -14,7 +14,8 @@ import {
   ChevronRight,
   User,
   Filter,
-  ArrowUpRight
+  ArrowUpRight,
+  Copy
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -257,6 +258,10 @@ export function SalaryAccrualsTable() {
   const [uploadSummary, setUploadSummary] = useState<any | null>(null);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
+  const [copySourceAccrual, setCopySourceAccrual] = useState<SalaryAccrual | null>(null);
+  const [copySelectedMonths, setCopySelectedMonths] = useState<Set<string>>(new Set());
+  const [isCopying, setIsCopying] = useState(false);
 
   // Form states
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -1524,6 +1529,88 @@ export function SalaryAccrualsTable() {
     } catch (error: any) {
       console.error('Error saving salary accrual:', error);
       alert(error.message || 'Failed to save salary accrual');
+    }
+  };
+
+  const handleOpenCopyDialog = (accrual: SalaryAccrual) => {
+    setCopySourceAccrual(accrual);
+    setCopySelectedMonths(new Set());
+    setIsCopyDialogOpen(true);
+  };
+
+  const getCopyMonthOptions = useMemo(() => {
+    if (!copySourceAccrual) return [];
+    // Gather all months already in the table
+    const existingMonths = new Set<string>();
+    for (const row of data) {
+      const d = parseSalaryMonth(row.salary_month);
+      if (d) {
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        existingMonths.add(key);
+      }
+    }
+
+    // Find min/max months
+    let minDate: Date | null = null;
+    let maxDate: Date | null = null;
+    for (const row of data) {
+      const d = parseSalaryMonth(row.salary_month);
+      if (d) {
+        if (!minDate || d < minDate) minDate = d;
+        if (!maxDate || d > maxDate) maxDate = d;
+      }
+    }
+
+    if (!minDate || !maxDate) return [];
+
+    // -36 months from min, +36 months from max
+    const rangeStart = new Date(minDate.getFullYear(), minDate.getMonth() - 36, 1);
+    const rangeEnd = new Date(maxDate.getFullYear(), maxDate.getMonth() + 36, 1);
+
+    const months: { key: string; label: string; exists: boolean }[] = [];
+    const cursor = new Date(rangeStart);
+    while (cursor <= rangeEnd) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+      const label = cursor.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+      months.push({ key, label, exists: existingMonths.has(key) });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    return months;
+  }, [copySourceAccrual, data]);
+
+  const handleCopyAccrual = async () => {
+    if (!copySourceAccrual || copySelectedMonths.size === 0) return;
+
+    setIsCopying(true);
+    try {
+      const response = await fetch('/api/salary-accruals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'copy-accrual',
+          source_id: copySourceAccrual.id,
+          target_months: Array.from(copySelectedMonths).sort(),
+          created_by: 'user',
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to copy salary accrual');
+      }
+
+      const result = await response.json();
+      if (Array.isArray(result.records)) {
+        setData((prev) => applyComputedColumns([...(result.records as SalaryAccrual[]), ...prev]));
+      }
+      setIsCopyDialogOpen(false);
+      setCopySourceAccrual(null);
+      setCopySelectedMonths(new Set());
+    } catch (error: any) {
+      alert(error.message || 'Failed to copy salary accrual');
+    } finally {
+      setIsCopying(false);
     }
   };
 
@@ -3040,7 +3127,7 @@ export function SalaryAccrualsTable() {
                         )}
                       </td>
                     ))}
-                    <td className="px-4 py-2 text-sm" style={{ width: 120, minWidth: 120, maxWidth: 120 }}>
+                    <td className="px-4 py-2 text-sm" style={{ width: 150, minWidth: 150, maxWidth: 150 }}>
                       <div className="flex items-center justify-center gap-2">
                         <Button
                           variant="ghost"
@@ -3091,6 +3178,14 @@ export function SalaryAccrualsTable() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() => handleOpenCopyDialog(accrual)}
+                          title="Copy to other months"
+                        >
+                          <Copy className="h-4 w-4 text-green-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleDelete(accrual.id)}
                         >
                           <Trash2 className="h-4 w-4 text-red-600" />
@@ -3105,6 +3200,90 @@ export function SalaryAccrualsTable() {
         </div>
       </div>
     </div>
+
+    {/* Copy Accrual Dialog */}
+    <Dialog open={isCopyDialogOpen} onOpenChange={(open) => { setIsCopyDialogOpen(open); if (!open) { setCopySourceAccrual(null); setCopySelectedMonths(new Set()); } }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Copy Salary Accrual</DialogTitle>
+        </DialogHeader>
+        {copySourceAccrual && (
+          <div className="space-y-4">
+            <div className="rounded-md border border-gray-200 bg-gray-50 p-3 text-sm space-y-1">
+              <div><span className="text-gray-500">Employee:</span> <span className="font-medium">{copySourceAccrual.counteragent_name}</span></div>
+              <div><span className="text-gray-500">Financial Code:</span> <span className="font-medium">{copySourceAccrual.financial_code}</span></div>
+              <div><span className="text-gray-500">Net Sum:</span> <span className="font-medium">{Number(copySourceAccrual.net_sum).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span></div>
+              <div><span className="text-gray-500">Source Month:</span> <span className="font-medium">{(() => { const d = parseSalaryMonth(copySourceAccrual.salary_month); return d ? d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : copySourceAccrual.salary_month; })()}</span></div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-sm font-medium">Select target months</Label>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => {
+                      const nonExisting = getCopyMonthOptions.filter(m => !m.exists).map(m => m.key);
+                      setCopySelectedMonths(new Set(nonExisting));
+                    }}
+                  >
+                    Select all new
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => setCopySelectedMonths(new Set())}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+              <div className="max-h-[400px] overflow-y-auto rounded-md border p-2 space-y-1">
+                {getCopyMonthOptions.map((month) => (
+                  <div key={month.key} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`copy-month-${month.key}`}
+                      checked={copySelectedMonths.has(month.key)}
+                      disabled={month.exists}
+                      onCheckedChange={(checked) => {
+                        setCopySelectedMonths(prev => {
+                          const next = new Set(prev);
+                          if (checked) next.add(month.key);
+                          else next.delete(month.key);
+                          return next;
+                        });
+                      }}
+                    />
+                    <label
+                      htmlFor={`copy-month-${month.key}`}
+                      className={`text-sm cursor-pointer select-none ${month.exists ? 'text-gray-400 line-through' : ''}`}
+                    >
+                      {month.label}
+                      {month.exists && <span className="ml-1 text-xs text-gray-400">(exists)</span>}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsCopyDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCopyAccrual}
+                disabled={copySelectedMonths.size === 0 || isCopying}
+              >
+                {isCopying ? 'Copying...' : `Copy to ${copySelectedMonths.size} month(s)`}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
 
     </>
   );

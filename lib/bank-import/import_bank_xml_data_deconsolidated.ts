@@ -61,7 +61,8 @@ export function calculateNominalAmount(
   nominalCurrencyUuid: string | null,
   transactionDate: Date,
   nbgRatesMap: Map<string, NBGRates>,
-  currencyCache: Map<string, string>
+  currencyCache: Map<string, string>,
+  missingRateDates?: Set<string>
 ): number {
   if (!nominalCurrencyUuid) return accountCurrencyAmount;
 
@@ -74,7 +75,10 @@ export function calculateNominalAmount(
 
   const dateKey = transactionDate.toISOString().split('T')[0];
   const rates = nbgRatesMap.get(dateKey);
-  if (!rates) return accountCurrencyAmount;
+  if (!rates) {
+    if (missingRateDates) missingRateDates.add(dateKey);
+    return accountCurrencyAmount;
+  }
 
   if (accountCurrencyCode === 'GEL' && nominalCurrencyCode in rates) {
     const rate = rates[nominalCurrencyCode as keyof NBGRates];
@@ -98,6 +102,7 @@ export function calculateNominalAmount(
     }
   }
 
+  if (missingRateDates) missingRateDates.add(dateKey);
   return accountCurrencyAmount;
 }
 
@@ -652,6 +657,7 @@ export async function processBOGGELDeconsolidated(
   let skippedInvalidDates = 0;
   let updatedPendingToCompleted = 0;
   let deletedCanceled = 0;
+  const missingNbgRateDates = new Set<string>();
   const detailMeta: Array<{
     detail: any;
     DocKey: string;
@@ -698,38 +704,38 @@ export async function processBOGGELDeconsolidated(
   console.log(`  ✅ Found ${existingUuids.size} existing records in table`);
 
   // --- Pending→Completed detection ---
-  // Build maps from XML: DocKey → { EntriesId, uuid, date, amount }
+  // Build maps from XML: DocKey → Array of entries (handles multiple entries per DocKey, e.g. TRN + COM)
   const xmlDocKeys = new Set<string>(detailMeta.map((m) => m.DocKey));
-  const xmlDocKeyToEntriesId = new Map<string, string>();
-  const xmlDocKeyToUuid = new Map<string, string>();
-  // Store date + amount + counteragent per DocKey for strict matching
-  const xmlDocKeyInfo = new Map<string, { date: string | null; amount: number; counteragent: string }>();
+  // Store ALL entries per DocKey (not just max EntriesId) for proper pending→completed matching
+  const xmlDocKeyEntries = new Map<string, Array<{ entriesId: string; uuid: string; date: string | null; amount: number; counteragent: string }>>();
 
   for (const m of detailMeta) {
     const getText = (tagName: string) => m.detail[tagName]?.[0] || null;
-    // For each DocKey, keep the highest EntriesId (most recent / completed)
-    const existing = xmlDocKeyToEntriesId.get(m.DocKey);
-    if (!existing || m.EntriesId > existing) {
-      xmlDocKeyToEntriesId.set(m.DocKey, m.EntriesId);
-      xmlDocKeyToUuid.set(m.DocKey, m.recordUuid);
-      // Parse date, amount, and counteragent for comparison
-      const dateStr = getText('DocValueDate') || getText('DocActualDate') || getText('DocRecDate');
-      const parsedDate = parseBOGDate(dateStr);
-      const entryCrAmt = getText('EntryCrAmt');
-      const entryDbAmt = getText('EntryDbAmt');
-      const credit = entryCrAmt ? parseFloat(entryCrAmt) : 0;
-      const debit = entryDbAmt ? parseFloat(entryDbAmt) : 0;
-      const counteragent = getText('DocBenefName') || getText('DocSenderName') || '';
-      xmlDocKeyInfo.set(m.DocKey, {
-        date: parsedDate ? parsedDate.toISOString().split('T')[0] : null,
-        amount: credit - debit,
-        counteragent,
-      });
+    // Parse date, amount, and counteragent for comparison
+    const dateStr = getText('DocValueDate') || getText('DocActualDate') || getText('DocRecDate');
+    const parsedDate = parseBOGDate(dateStr);
+    const entryCrAmt = getText('EntryCrAmt');
+    const entryDbAmt = getText('EntryDbAmt');
+    const credit = entryCrAmt ? parseFloat(entryCrAmt) : 0;
+    const debit = entryDbAmt ? parseFloat(entryDbAmt) : 0;
+    const counteragent = getText('DocBenefName') || getText('DocSenderName') || '';
+    const entry = {
+      entriesId: m.EntriesId,
+      uuid: m.recordUuid,
+      date: parsedDate ? parsedDate.toISOString().split('T')[0] : null,
+      amount: credit - debit,
+      counteragent,
+    };
+    if (!xmlDocKeyEntries.has(m.DocKey)) {
+      xmlDocKeyEntries.set(m.DocKey, []);
     }
+    xmlDocKeyEntries.get(m.DocKey)!.push(entry);
   }
 
   // Find existing records with same DocKey but different EntriesId (pending→completed)
   // Strict: must also have same date and same amount
+  // Handles multiple entries per DocKey (e.g. TRN + COM) by matching each DB record
+  // against the XML entry with the same date+amount and highest EntriesId
   const pendingToDelete: string[] = []; // uuids of old pending records to delete
   const allXmlDocKeysArr = Array.from(xmlDocKeys);
   const docKeyBatchSize = 200;
@@ -743,26 +749,32 @@ export async function processBOGGELDeconsolidated(
 
     if (error) throw error;
     for (const row of data ?? []) {
-      const xmlEntriesId = xmlDocKeyToEntriesId.get(row.dockey);
-      const xmlUuid = xmlDocKeyToUuid.get(row.dockey);
-      if (xmlEntriesId && row.entriesid !== xmlEntriesId && row.uuid !== xmlUuid) {
-        // Same DocKey, different EntriesId — check date and amount match
-        const xmlInfo = xmlDocKeyInfo.get(row.dockey);
-        if (!xmlInfo) continue;
-        const dbDate = row.transaction_date ? String(row.transaction_date).split('T')[0] : null;
-        const sameDate = dbDate === xmlInfo.date;
-        const sameAmount = Number(row.account_currency_amount) === xmlInfo.amount;
-        if (sameDate && sameAmount) {
-          // Confirmed pending→completed: same DocKey, date, amount, diff EntriesId
-          pendingToDelete.push(row.uuid);
-          existingUuids.delete(xmlUuid!);
-          const dbCounteragent = row.docbenefname || row.docsendername || '';
-          console.log(`  🔄 Pending→Completed: DocKey=${row.dockey}`);
-          console.log(`     OLD (pending):    ID1=${row.dockey} | ID2=${row.entriesid} | UUID=${row.uuid}`);
-          console.log(`                       Date=${dbDate} | Amount=${row.account_currency_amount} | Counteragent=${dbCounteragent}`);
-          console.log(`     NEW (completed):  ID1=${row.dockey} | ID2=${xmlEntriesId} | UUID=${xmlUuid}`);
-          console.log(`                       Date=${xmlInfo.date} | Amount=${xmlInfo.amount} | Counteragent=${xmlInfo.counteragent}`);
-        }
+      const xmlEntries = xmlDocKeyEntries.get(row.dockey);
+      if (!xmlEntries) continue;
+      
+      const dbDate = row.transaction_date ? String(row.transaction_date).split('T')[0] : null;
+      const dbAmount = Number(row.account_currency_amount);
+      
+      // Find XML entry with same date+amount but different (higher) EntriesId
+      // This properly handles DocKeys with multiple entries (TRN + COM)
+      const matchingXmlEntry = xmlEntries.find((xmlEntry) =>
+        xmlEntry.entriesId !== row.entriesid &&
+        xmlEntry.uuid !== row.uuid &&
+        xmlEntry.date === dbDate &&
+        xmlEntry.amount === dbAmount &&
+        xmlEntry.entriesId > row.entriesid // completed version has higher EntriesId
+      );
+      
+      if (matchingXmlEntry) {
+        // Confirmed pending→completed: same DocKey, date, amount, diff EntriesId
+        pendingToDelete.push(row.uuid);
+        existingUuids.delete(matchingXmlEntry.uuid);
+        const dbCounteragent = row.docbenefname || row.docsendername || '';
+        console.log(`  🔄 Pending→Completed: DocKey=${row.dockey}`);
+        console.log(`     OLD (pending):    ID1=${row.dockey} | ID2=${row.entriesid} | UUID=${row.uuid}`);
+        console.log(`                       Date=${dbDate} | Amount=${row.account_currency_amount} | Counteragent=${dbCounteragent}`);
+        console.log(`     NEW (completed):  ID1=${row.dockey} | ID2=${matchingXmlEntry.entriesId} | UUID=${matchingXmlEntry.uuid}`);
+        console.log(`                       Date=${matchingXmlEntry.date} | Amount=${matchingXmlEntry.amount} | Counteragent=${matchingXmlEntry.counteragent}`);
       }
     }
   }
@@ -941,7 +953,8 @@ export async function processBOGGELDeconsolidated(
       nominalCurrencyUuid,
       transactionDate,
       nbgRatesMap,
-      currencyCache
+      currencyCache,
+      missingNbgRateDates
     );
 
     const caseDescription = computeCaseDescription(
@@ -1374,6 +1387,18 @@ export async function processBOGGELDeconsolidated(
   console.log(`  📦 Total new records: ${insertRecords.length}`);
   console.log(`  🔄 Pending→Completed: ${updatedPendingToCompleted}`);
   console.log(`  🗑️  Canceled deleted: ${deletedCanceled}\n`);
+
+  if (missingNbgRateDates.size > 0) {
+    console.log(`\n⚠️  WARNING: NBG exchange rates missing for ${missingNbgRateDates.size} date(s)!`);
+    console.log('━'.repeat(80));
+    console.log('  Nominal amounts for these dates are INCORRECT (set equal to account amount).');
+    console.log('  Please update the NBG exchange rates table and re-import or manually fix affected records.');
+    const sortedDates = Array.from(missingNbgRateDates).sort();
+    for (const d of sortedDates) {
+      console.log(`  ❌ Missing rate: ${d}`);
+    }
+    console.log('━'.repeat(80));
+  }
 
   if (missingCounteragents.size > 0) {
     console.log(`⚠️  CASE 3 REPORT - INNs needing counteragents (${missingCounteragents.size}):`);
