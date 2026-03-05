@@ -1,5 +1,17 @@
 # Deployment Log
 
+## 2026-03-06 (1)
+- Summary: Copy salary accrual to months feature; NBG rate missing warning; pending→completed multi-entry detection fix.
+- Changes:
+  - Salary accruals: New per-row "Copy to months" action (green Copy icon). Opens dialog showing source details and checkboxes for ±36-month range. Existing months shown disabled/strikethrough. Records created on last day of selected month with new payment_id. deducted_insurance set to null on copy.
+  - Bank import (deconsolidated): NBG exchange rate missing dates now tracked and reported in FINAL SUMMARY warning.
+  - Bank import (deconsolidated): Pending→completed detection rewritten to handle multi-entry DocKeys (e.g. TRN+COM). Now stores all entries per DocKey and matches by date+amount per entry instead of keeping only max EntriesId.
+  - Bank import (consolidated, bog-gel-processor): calculateNominalAmount updated with optional missingRateDates parameter for rate tracking.
+  - Python import script: Added pending→completed detection and cleanup-pending-duplicates mode.
+  - Added check-duplicates.js and cleanup-duplicates.js utility scripts.
+- Commit: d3fd1d5
+- URL: https://ice-2lws621br-iceerp.vercel.app
+
 ## 2026-03-05 (6)
 - Summary: Batch editor two-way nominal/account amount calculation for salary entries; projected salary IDs now generated for all 153 counteragents (was only 5).
 - Changes:
