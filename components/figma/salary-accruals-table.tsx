@@ -822,8 +822,10 @@ export function SalaryAccrualsTable() {
     const lastDay = new Date(year, month, 0).getDate();
     const salaryMonthStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-    // Find GEL currency UUID
-    const gelCurrency = currencies.find((c) => c.label === 'GEL');
+    // Determine currency from counteragent's existing salary accruals, fallback to GEL
+    const existingAccrual = data.find((a) => a.counteragent_uuid === item.counteragent_uuid);
+    const currencyUuid = existingAccrual?.nominal_currency_uuid
+      || currencies.find((c) => c.label === 'GEL')?.value;
 
     // Store IBAN and personal_id for post-save update
     if (item.counteragent_uuid) {
@@ -841,7 +843,7 @@ export function SalaryAccrualsTable() {
     setSelectedEmployee(item.counteragent_uuid);
     setSalaryMonth(salaryMonthStr);
     setNetSum(String(item.self_ge_net_sum));
-    if (gelCurrency) setSelectedCurrency(gelCurrency.value);
+    if (currencyUuid) setSelectedCurrency(currencyUuid);
     setIsDialogOpen(true);
   };
 
@@ -1583,8 +1585,9 @@ export function SalaryAccrualsTable() {
 
         switch (condition) {
           case 'Confirmed & Balance>0': {
-            const balance = Math.round((Number(getRowValue(row, 'cumulative_balance')) || 0) * 100) / 100;
-            matches = Boolean(row.confirmed) && balance > 0;
+            const rawBalance = Number(getRowValue(row, 'cumulative_balance')) || 0;
+            // Use threshold matching display rounding: values < 0.01 display as 0.00
+            matches = Boolean(row.confirmed) && rawBalance >= 0.01;
             break;
           }
         }
