@@ -143,6 +143,18 @@ export function BatchEditor({
     ? (filteredPayments[0]?.counteragentName || null)
     : null;
 
+  const findPaymentForPartition = (partition: Partition): Payment | null => {
+    if (partition.paymentUuid) {
+      return payments.find((p) => p.recordUuid === partition.paymentUuid) || null;
+    }
+    if (partition.paymentId) {
+      return payments.find(
+        (p) => normalizePaymentId(p.paymentId) === normalizePaymentId(partition.paymentId!)
+      ) || null;
+    }
+    return null;
+  };
+
   const resolvedAccountCurrencyCode =
     accountCurrencyCode || (accountCurrencyUuid ? currencyMap[accountCurrencyUuid] : undefined) || 'GEL';
 
@@ -404,9 +416,9 @@ export function BatchEditor({
     });
 
     const recalculated = updated.map((partition) => {
-      if (!partition.paymentUuid) return partition;
       if (field !== 'partitionAmount') return partition;
-      const payment = payments.find((p) => p.recordUuid === partition.paymentUuid) || null;
+      const payment = findPaymentForPartition(partition);
+      if (!payment) return partition;
       return applyNominalForPartition(partition, payment);
     });
 
@@ -442,8 +454,7 @@ export function BatchEditor({
     setPartitions((prev) => {
       const updated = prev.map((partition) => {
         if (partition.id !== partitionId) return partition;
-        if (!partition.paymentUuid) return partition;
-        const payment = payments.find((p) => p.recordUuid === partition.paymentUuid) || null;
+        const payment = findPaymentForPartition(partition);
         if (!payment) return partition;
         const accountAmount = Number.isNaN(nominal)
           ? null
@@ -577,9 +588,8 @@ export function BatchEditor({
     if (payments.length === 0) return;
     setPartitions((prev) =>
       prev.map((partition) => {
-        if (!partition.paymentUuid) return partition;
         if (partition.nominalAmount !== null && partition.nominalAmount !== undefined) return partition;
-        const payment = payments.find((p) => p.recordUuid === partition.paymentUuid) || null;
+        const payment = findPaymentForPartition(partition);
         if (!payment) return partition;
         return applyNominalForPartition(partition, payment);
       })
@@ -837,7 +847,7 @@ export function BatchEditor({
                     step="0.01"
                     value={partition.nominalAmount !== null ? partition.nominalAmount : ''}
                     onChange={(e) => handleNominalChange(partition.id, e.target.value)}
-                    disabled={!partition.paymentUuid}
+                    disabled={!partition.paymentUuid && !partition.paymentId}
                   />
                   <p className="text-xs text-muted-foreground">
                     {partition.nominalCurrencyUuid

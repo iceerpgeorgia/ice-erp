@@ -108,13 +108,6 @@ export async function GET(request: NextRequest) {
       ORDER BY sa.salary_month DESC, sa.created_at DESC
     `) as any[];
 
-    const latestMonthResult = await prisma.$queryRawUnsafe(`
-      SELECT MAX(salary_month) as latest_month
-      FROM salary_accruals
-    `) as any[];
-
-    const latestMonthValue = latestMonthResult?.[0]?.latest_month as string | null;
-
     const salaryOptionsById = new Map<string, PaymentOption>();
     salaryRows.forEach((row) => {
       const paymentId = row.payment_id as string;
@@ -139,34 +132,49 @@ export async function GET(request: NextRequest) {
       });
     });
 
+    // Build projection base: for each counteragent, use their latest salary_month rows
     const projectionOptions: PaymentOption[] = [];
-    if (latestMonthValue && projectionMonths > 0) {
-      const latestMonthDate = new Date(latestMonthValue);
-      const baseRows = salaryRows.filter((row) => String(row.salary_month) === String(latestMonthValue));
-      for (let i = 1; i <= projectionMonths; i += 1) {
-        const futureDate = new Date(latestMonthDate.getFullYear(), latestMonthDate.getMonth() + i, 1);
-        baseRows.forEach((row) => {
-          const basePaymentId = row.payment_id as string;
-          if (!basePaymentId) return;
-          const projectedPaymentId = updatePaymentIdForMonth(basePaymentId, futureDate);
-          projectionOptions.push({
-            paymentId: projectedPaymentId,
-            counteragentUuid: row.counteragent_uuid,
-            projectUuid: null,
-            jobUuid: null,
-            financialCodeUuid: row.financial_code_uuid,
-            currencyUuid: row.nominal_currency_uuid,
-            projectIndex: null,
-            projectName: null,
-            counteragentName: row.counteragent_name || null,
-            financialCodeValidation: row.financial_code_validation || null,
-            financialCode: row.financial_code || null,
-            jobName: null,
-            currencyCode: row.currency_code || null,
-            incomeTax: null,
-            source: 'salary_projection',
+    if (projectionMonths > 0 && salaryRows.length > 0) {
+      // Group rows by counteragent, keeping only the latest salary_month per counteragent
+      const latestPerCA = new Map<string, { salaryMonth: Date; rows: any[] }>();
+      for (const row of salaryRows) {
+        const caUuid = row.counteragent_uuid as string;
+        if (!caUuid) continue;
+        const rowMonth = new Date(row.salary_month);
+        const existing = latestPerCA.get(caUuid);
+        if (!existing || rowMonth.getTime() > existing.salaryMonth.getTime()) {
+          latestPerCA.set(caUuid, { salaryMonth: rowMonth, rows: [row] });
+        } else if (rowMonth.getTime() === existing.salaryMonth.getTime()) {
+          existing.rows.push(row);
+        }
+      }
+
+      for (const [, { salaryMonth, rows }] of latestPerCA) {
+        for (let i = 1; i <= projectionMonths; i += 1) {
+          const futureDate = new Date(salaryMonth.getFullYear(), salaryMonth.getMonth() + i, 1);
+          rows.forEach((row) => {
+            const basePaymentId = row.payment_id as string;
+            if (!basePaymentId) return;
+            const projectedPaymentId = updatePaymentIdForMonth(basePaymentId, futureDate);
+            projectionOptions.push({
+              paymentId: projectedPaymentId,
+              counteragentUuid: row.counteragent_uuid,
+              projectUuid: null,
+              jobUuid: null,
+              financialCodeUuid: row.financial_code_uuid,
+              currencyUuid: row.nominal_currency_uuid,
+              projectIndex: null,
+              projectName: null,
+              counteragentName: row.counteragent_name || null,
+              financialCodeValidation: row.financial_code_validation || null,
+              financialCode: row.financial_code || null,
+              jobName: null,
+              currencyCode: row.currency_code || null,
+              incomeTax: null,
+              source: 'salary_projection',
+            });
           });
-        });
+        }
       }
     }
 
