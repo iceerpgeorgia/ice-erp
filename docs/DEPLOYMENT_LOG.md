@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-03-06 (12)
+- Summary: Added Services Report, tightened confirmation semantics, and restricted salary Bank XLSX export to confirmed selections.
+- Changes:
+  - New Services Report (`/dictionaries/services-report`) with financial-code-based settings, category summary, totals, and project-level accrual/order/payment/due/balance details.
+  - New API (`/api/services-report`) aggregating service-scope data from payments, payments_ledger, projects/jobs, and bank transactions (including batch partition resolution).
+  - Payments Report confirmation logic now requires all non-deleted ledger entries to be confirmed (`BOOL_AND`) instead of any entry (`BOOL_OR`).
+  - New ledger inserts (single and bulk) now explicitly set `confirmed=false` by default.
+  - Salary Accruals `Bank XLSX` export is blocked/disabled when selected rows include unconfirmed payments.
+- Commit: c03511e
+- URL: https://ice-h4to9d938-iceerp.vercel.app
+
 ## 2026-03-06 (11)
 - Summary: Added Job Count to Payments Report and fixed Counteragent Statement to show CA account.
 - Changes:
