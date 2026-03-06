@@ -1,5 +1,17 @@
 # Deployment Log
 
+## 2026-03-06 (4)
+- Summary: Salary report/UI date normalization and full-width layout; auto-projected salary accrual periods from paid bank transactions.
+- Changes:
+  - Salary report (All Payments): Date display normalized to `MMM YYYY` in table and XLSX export.
+  - Salary report layout: Removed max-width container so report stretches full screen width.
+  - Salary report API (`/api/salary-report`): Added missing-period detection from paid PRL payment IDs and auto-generated projected accrual rows by cloning latest accrual for periods with payments but no accrual record.
+  - Salary report API: Preserved projected row metadata in both `mode=total` and `mode=all` outputs.
+  - Salary accruals API (`/api/salary-accruals`): Added same projected accrual generation logic per counteragent for paid-but-missing periods.
+  - Salary accruals table: Added projected row styling (amber + italic) and `projected` field support.
+- Commit: 19368e5
+- URL: https://ice-82gxc711s-iceerp.vercel.app
+
 ## 2026-03-06 (3)
 - Summary: Salary report dual-mode: Total Payments (by period) and All Payments (by actual transaction date).
 - Changes:
