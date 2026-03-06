@@ -61,17 +61,23 @@ const parseEffectiveDate = (effectiveDate?: string | number | Date | null) => {
 };
 
 export async function POST(request: NextRequest) {
+  const logs: string[] = [];
   try {
+    logs.push('[START] Payments ledger bulk upload request received');
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
+      logs.push('[ERROR] Unauthorized request');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    logs.push(`[INFO] User: ${session.user.email}`);
 
     const body = await request.json();
     const entries = Array.isArray(body?.entries) ? body.entries : [];
+    logs.push(`[INFO] Raw entries: ${entries.length}`);
 
     if (entries.length === 0) {
-      return NextResponse.json({ error: 'No entries provided' }, { status: 400 });
+      logs.push('[ERROR] No entries provided');
+      return NextResponse.json({ error: 'No entries provided', logs: logs.join('\n') }, { status: 400 });
     }
 
     const normalized = entries.map((entry: any) => ({
@@ -84,25 +90,33 @@ export async function POST(request: NextRequest) {
 
     for (const entry of normalized) {
       if (!entry.paymentId) {
-        return NextResponse.json({ error: 'Payment ID is required' }, { status: 400 });
+        logs.push('[ERROR] Payment ID is required');
+        return NextResponse.json({ error: 'Payment ID is required', logs: logs.join('\n') }, { status: 400 });
       }
 
       if (!entry.effectiveDate) {
+        logs.push(`[ERROR] Effective date is required (payment ${entry.paymentId})`);
         return NextResponse.json(
-          { error: `Effective date is required (payment ${entry.paymentId})` },
+          { error: `Effective date is required (payment ${entry.paymentId})`, logs: logs.join('\n') },
           { status: 400 }
         );
       }
 
       if ((!entry.accrual || entry.accrual === 0) && (!entry.order || entry.order === 0)) {
+        logs.push(`[ERROR] Accrual/Order missing (payment ${entry.paymentId})`);
         return NextResponse.json(
-          { error: `Either accrual or order must be provided and cannot be zero (payment ${entry.paymentId})` },
+          {
+            error: `Either accrual or order must be provided and cannot be zero (payment ${entry.paymentId})`,
+            logs: logs.join('\n'),
+          },
           { status: 400 }
         );
       }
     }
+    logs.push('[INFO] Row-level validation passed');
 
     const paymentIds = Array.from(new Set(normalized.map((entry: { paymentId: string }) => entry.paymentId)));
+    logs.push(`[INFO] Distinct payment IDs: ${paymentIds.length}`);
     const totals = await prisma.$queryRawUnsafe<
       Array<{ payment_id: string; accrual_total: any; order_total: any }>
     >(
@@ -148,14 +162,17 @@ export async function POST(request: NextRequest) {
       );
 
       if (nextExcessCents > currentExcessCents) {
+        logs.push(`[ERROR] Order exceeds accrual for payment ${paymentId}`);
         return NextResponse.json(
           {
             error: `Total order cannot exceed total accrual for payment ${paymentId}`,
+            logs: logs.join('\n'),
           },
           { status: 400 }
         );
       }
     }
+    logs.push('[INFO] Totals consistency check passed');
 
     await prisma.$transaction(
       normalized.map((entry: { paymentId: string; effectiveDate: string; accrual: number; order: number; comment: string | null }) =>
@@ -177,12 +194,22 @@ export async function POST(request: NextRequest) {
         )
       )
     );
+    logs.push(`[SUCCESS] Inserted ledger rows: ${normalized.length}`);
 
-    return NextResponse.json({ success: true, inserted: normalized.length });
+    return NextResponse.json({
+      success: true,
+      inserted: normalized.length,
+      message: `Uploaded ${normalized.length} ledger row(s) successfully`,
+      logs: logs.join('\n'),
+    });
   } catch (error: any) {
     console.error('Error creating bulk payment ledger entries:', error);
+    logs.push(`[ERROR] ${error.message || 'Internal server error'}`);
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      {
+        error: error.message || 'Internal server error',
+        logs: logs.join('\n'),
+      },
       { status: 500 }
     );
   }

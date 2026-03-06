@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-03-06 (8)
+- Summary: Improve filter UX (blank normalization + bank-priority options) and add detailed ledger XLSX upload processing logs in Payments Report.
+- Changes:
+  - Shared filters: normalized blank facet option into one canonical selectable value so null/empty variants behave consistently in filtering.
+  - Shared filter sorting: bank-like options (e.g. Bank, BOG, TBC, Bank of Georgia) are prioritized near the top of value lists.
+  - Payments Report ledger XLSX upload: added separate detailed processing log window (popup) during upload/apply, with in-app dialog fallback when popup is blocked.
+  - Payments ledger bulk API (`/api/payments-ledger/bulk`): now returns detailed server-side processing logs and success message for log window rendering.
+  - Prisma initialization: datasource override is now applied only when DB URL is defined, preventing build-time Prisma initialization crashes.
+- Commit: PENDING
+- URL: PENDING
+
 ## 2026-03-06 (7)
 - Summary: Fix missing salary period payment in All Payments report and prevent invisible active filters in Projects table.
 - Changes:

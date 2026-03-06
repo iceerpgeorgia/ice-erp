@@ -13,14 +13,71 @@ import type {
   TextOperator,
   DateOperator,
 } from './table-filters';
+import { BLANK_FACET_TOKEN } from './table-filters';
 import { inferFilterMode, hasActiveFilter } from './table-filters';
 
 // ─── Value helpers ──────────────────────────────────────────────────────────
 
 const isBlankValue = (value: any, renderValue?: (value: any) => string) => {
+  if (value === BLANK_FACET_TOKEN) return true;
   if (value === null || value === undefined) return true;
   const text = (renderValue ? renderValue(value) : String(value)).trim().toLowerCase();
   return text === '' || text === 'blank' || text === '(blank)';
+};
+
+const getFacetLabel = (value: any, renderValue?: (value: any) => string) => {
+  if (value === BLANK_FACET_TOKEN) return '(Blank)';
+  return renderValue ? renderValue(value) : String(value);
+};
+
+const isBankPriorityLabel = (label: string) => {
+  const normalized = label.trim().toLowerCase();
+  if (!normalized) return false;
+
+  return (
+    /(^|\s)bank(\s|$)/.test(normalized) ||
+    normalized.startsWith('bog') ||
+    normalized.startsWith('tbc') ||
+    normalized.includes('bank of georgia')
+  );
+};
+
+const normalizeFacetValues = (rawValues: any[], renderValue?: (value: any) => string) => {
+  const normalized: any[] = [];
+  let hasBlank = false;
+
+  rawValues.forEach((value) => {
+    if (isBlankValue(value, renderValue)) {
+      hasBlank = true;
+      return;
+    }
+    normalized.push(value);
+  });
+
+  if (hasBlank) {
+    normalized.push(BLANK_FACET_TOKEN);
+  }
+
+  return normalized;
+};
+
+const normalizeFacetSelection = (selection: Set<any>, renderValue?: (value: any) => string) => {
+  const normalized = new Set<any>();
+  let hasBlank = false;
+
+  selection.forEach((value) => {
+    if (isBlankValue(value, renderValue)) {
+      hasBlank = true;
+      return;
+    }
+    normalized.add(value);
+  });
+
+  if (hasBlank) {
+    normalized.add(BLANK_FACET_TOKEN);
+  }
+
+  return normalized;
 };
 
 const defaultSortValues = (values: any[], renderValue?: (value: any) => string) =>
@@ -30,8 +87,13 @@ const defaultSortValues = (values: any[], renderValue?: (value: any) => string) 
     if (aBlank && !bBlank) return -1;
     if (!aBlank && bBlank) return 1;
 
-    const aLabel = renderValue ? renderValue(a) : String(a);
-    const bLabel = renderValue ? renderValue(b) : String(b);
+    const aLabel = getFacetLabel(a, renderValue);
+    const bLabel = getFacetLabel(b, renderValue);
+    const aBankPriority = isBankPriorityLabel(aLabel);
+    const bBankPriority = isBankPriorityLabel(bLabel);
+    if (aBankPriority && !bBankPriority) return -1;
+    if (!aBankPriority && bBankPriority) return 1;
+
     const aIsNum = !Number.isNaN(Number(aLabel));
     const bIsNum = !Number.isNaN(Number(bLabel));
 
@@ -125,7 +187,9 @@ export function ColumnFilterPopover({
     ? activeFilter.values
     : (activeFilters ?? new Set<any>());
 
-  const [tempSelected, setTempSelected] = useState<Set<any>>(new Set(resolvedActiveFilters));
+  const [tempSelected, setTempSelected] = useState<Set<any>>(
+    normalizeFacetSelection(new Set(resolvedActiveFilters), renderValue)
+  );
   const [filterSearchTerm, setFilterSearchTerm] = useState('');
 
   // ── Mode switching ────────────────────────────────────────────────────────
@@ -163,14 +227,19 @@ export function ColumnFilterPopover({
   );
 
   // ── Facet filtering ───────────────────────────────────────────────────────
+  const normalizedValues = useMemo(
+    () => normalizeFacetValues(values, renderValue),
+    [values, renderValue]
+  );
+
   const filteredValues = useMemo(() => {
-    if (!filterSearchTerm) return values;
-    return values.filter((value) =>
-      (renderValue ? renderValue(value) : String(value))
+    if (!filterSearchTerm) return normalizedValues;
+    return normalizedValues.filter((value) =>
+      getFacetLabel(value, renderValue)
         .toLowerCase()
         .includes(filterSearchTerm.toLowerCase())
     );
-  }, [values, filterSearchTerm, renderValue]);
+  }, [normalizedValues, filterSearchTerm, renderValue]);
 
   const sortedFilteredValues = useMemo(() => {
     if (sortValues) {
@@ -191,7 +260,7 @@ export function ColumnFilterPopover({
       const resolved = activeFilter?.mode === 'facet'
         ? activeFilter.values
         : (activeFilters ?? new Set<any>());
-      setTempSelected(new Set(resolved));
+      setTempSelected(normalizeFacetSelection(new Set(resolved), renderValue));
       setFilterSearchTerm('');
       setTab(activeFilter && activeFilter.mode !== 'facet' ? 'condition' : 'facet');
       // Reset condition state from activeFilter
@@ -417,18 +486,22 @@ export function ColumnFilterPopover({
                           Showing first {maxOptions}. Refine search to see more.
                         </div>
                       )}
-                      {visibleValues.map((value) => (
-                        <div key={`${columnKey}-${String(value)}`} className="flex items-center space-x-2 py-1">
-                          <Checkbox
-                            id={`${columnKey}-${value}`}
-                            checked={tempSelected.has(value)}
-                            onCheckedChange={() => handleToggle(value)}
-                          />
-                          <label htmlFor={`${columnKey}-${value}`} className="text-sm flex-1 cursor-pointer">
-                            {renderValue ? renderValue(value) : String(value)}
-                          </label>
-                        </div>
-                      ))}
+                      {visibleValues.map((value) => {
+                        const valueLabel = getFacetLabel(value, renderValue);
+                        const valueKey = value === BLANK_FACET_TOKEN ? '__blank__' : String(value);
+                        return (
+                          <div key={`${columnKey}-${valueKey}`} className="flex items-center space-x-2 py-1">
+                            <Checkbox
+                              id={`${columnKey}-${valueKey}`}
+                              checked={tempSelected.has(value)}
+                              onCheckedChange={() => handleToggle(value)}
+                            />
+                            <label htmlFor={`${columnKey}-${valueKey}`} className="text-sm flex-1 cursor-pointer">
+                              {valueLabel}
+                            </label>
+                          </div>
+                        );
+                      })}
                     </>
                   )}
                 </div>

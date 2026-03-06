@@ -168,6 +168,9 @@ export function PaymentsReportTable() {
   const [ledgerPreviewRows, setLedgerPreviewRows] = useState<LedgerUploadRow[]>([]);
   const [isLedgerUploading, setIsLedgerUploading] = useState(false);
   const [isLedgerApplying, setIsLedgerApplying] = useState(false);
+  const [uploadLogOpen, setUploadLogOpen] = useState(false);
+  const [uploadLogTitle, setUploadLogTitle] = useState('');
+  const [uploadLogText, setUploadLogText] = useState('');
   const counteragentsWithNegativeBalance = useMemo(() => {
     const flagged = new Set<string>();
     data.forEach((row) => {
@@ -1772,7 +1775,54 @@ export function PaymentsReportTable() {
     if (hasErrors) return;
 
     setIsLedgerApplying(true);
+    let logWindow: Window | null = null;
+    let logBuffer = '';
+    let useDialogFallback = false;
+
+    const writeLog = (message: string) => {
+      logBuffer += `${message}\n`;
+      if (logWindow) {
+        logWindow.document.body.innerHTML = `
+          <h2 class="info">Processing...</h2>
+          <pre>${logBuffer.replace(/</g, '&lt;')}</pre>
+        `;
+      } else if (useDialogFallback) {
+        setUploadLogText(logBuffer);
+      }
+    };
+
     try {
+      logWindow = window.open('', 'Ledger Upload Logs', 'width=900,height=700');
+      if (logWindow) {
+        logWindow.document.write(`
+          <html>
+            <head>
+              <title>Ledger Upload Logs</title>
+              <style>
+                body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+                pre { white-space: pre-wrap; word-wrap: break-word; }
+                h2 { color: #4ec9b0; }
+                .info { color: #9cdcfe; }
+                .success { color: #4ec9b0; }
+                .error { color: #f48771; }
+              </style>
+            </head>
+            <body>
+              <h2 class="info">Preparing ledger upload...</h2>
+              <pre>Initializing...</pre>
+            </body>
+          </html>
+        `);
+        logWindow.document.close();
+      } else {
+        useDialogFallback = true;
+        setUploadLogOpen(true);
+        setUploadLogTitle('Preparing upload...');
+        setUploadLogText('Popup blocked. Showing logs here...');
+      }
+
+      writeLog(`Uploading ${ledgerPreviewRows.length} ledger row(s) from ${ledgerUploadFileName || 'selected file'}`);
+
       const entries = ledgerPreviewRows.map((row) => ({
         paymentId: row.paymentId,
         effectiveDate: row.effectiveDate,
@@ -1780,6 +1830,10 @@ export function PaymentsReportTable() {
         order: row.order ?? 0,
         comment: row.comment,
       }));
+
+      const paymentIdPreview = Array.from(new Set(entries.map((entry) => entry.paymentId))).slice(0, 20);
+      writeLog(`Distinct payment IDs: ${paymentIdPreview.length}${entries.length > 20 ? ' (showing first 20)' : ''}`);
+      paymentIdPreview.forEach((paymentId) => writeLog(`→ ${paymentId}`));
 
       const response = await fetch('/api/payments-ledger/bulk', {
         method: 'POST',
@@ -1789,7 +1843,46 @@ export function PaymentsReportTable() {
 
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
+        writeLog(`✗ Upload failed: ${result?.error || 'Failed to upload ledger entries'}`);
+        if (result?.logs) {
+          writeLog('');
+          writeLog('Server logs:');
+          writeLog(String(result.logs));
+        }
         throw new Error(result?.error || 'Failed to upload ledger entries');
+      }
+
+      if (result?.logs) {
+        writeLog('');
+        writeLog('Server logs:');
+        writeLog(String(result.logs));
+      }
+      writeLog(`✓ Upload complete. Inserted rows: ${result?.inserted ?? entries.length}`);
+
+      if (logWindow) {
+        logWindow.document.write(`
+          <html>
+            <head>
+              <title>Ledger Upload Logs</title>
+              <style>
+                body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+                pre { white-space: pre-wrap; word-wrap: break-word; }
+                h2 { color: #4ec9b0; }
+                .success { color: #4ec9b0; }
+                .error { color: #f48771; }
+              </style>
+            </head>
+            <body>
+              <h2 class="success">${(result?.message || 'Ledger upload completed').replace(/</g, '&lt;')}</h2>
+              <pre>${(result?.logs || logBuffer || 'No logs available').replace(/</g, '&lt;')}</pre>
+              <p><button onclick="window.close(); if (window.opener) window.opener.location.reload();">Close and Reload Page</button></p>
+            </body>
+          </html>
+        `);
+        logWindow.document.close();
+      } else if (useDialogFallback) {
+        setUploadLogTitle(result?.message || 'Upload complete');
+        setUploadLogText(result?.logs || logBuffer || 'No logs available');
       }
 
       setIsLedgerUploadOpen(false);
@@ -1799,6 +1892,9 @@ export function PaymentsReportTable() {
       await fetchData();
     } catch (error: any) {
       setLedgerUploadError(error.message || 'Failed to upload ledger entries');
+      if (useDialogFallback) {
+        setUploadLogTitle('Upload failed');
+      }
     } finally {
       setIsLedgerApplying(false);
     }
@@ -2895,6 +2991,34 @@ export function PaymentsReportTable() {
             >
               {isLedgerApplying ? 'Uploading...' : 'Confirm Upload'}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={uploadLogOpen} onOpenChange={setUploadLogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{uploadLogTitle || 'Upload Logs'}</DialogTitle>
+            <DialogDescription>Detailed upload and import output.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md border bg-black text-green-200 p-3 text-xs overflow-auto whitespace-pre-wrap">
+              {uploadLogText || 'No logs available.'}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setUploadLogOpen(false)}
+              >
+                Close
+              </Button>
+              <Button
+                onClick={() => window.location.reload()}
+                disabled={!uploadLogTitle || uploadLogTitle === 'Preparing upload...'}
+              >
+                Close and Reload
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

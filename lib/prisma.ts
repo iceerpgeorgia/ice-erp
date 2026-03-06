@@ -29,14 +29,20 @@ const withPoolParams = (url?: string) => {
 };
 
 // Configure for Supabase pooler with pgbouncer
-const prismaClientOptions = {
+// Important: do not pass datasources.db.url when it's undefined,
+// otherwise Prisma throws during module evaluation in build environments.
+const prismaClientOptions: any = {
   log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-  datasources: {
+};
+
+const pooledUrl = withPoolParams(databaseUrl);
+if (pooledUrl) {
+  prismaClientOptions.datasources = {
     db: {
-      url: withPoolParams(databaseUrl),
+      url: pooledUrl,
     },
-  },
-} as any;
+  };
+}
 
 export const prisma =
   globalForPrisma.prisma ??

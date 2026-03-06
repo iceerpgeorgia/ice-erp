@@ -96,6 +96,8 @@ export type FilterState = Map<string, ColumnFilter>;
 const isBlank = (v: any): boolean =>
   v === null || v === undefined || v === '' || (typeof v === 'number' && Number.isNaN(v));
 
+export const BLANK_FACET_TOKEN = '__BLANK__';
+
 /** Coerce any value to a number; returns NaN when not numeric. */
 const toNum = (v: any): number => {
   if (typeof v === 'number') return v;
@@ -125,6 +127,16 @@ const toDateStr = (v: any): string | null => {
 
 function matchesFacet(rowValue: any, filter: FacetFilter): boolean {
   if (filter.values.size === 0) return true; // no selection ⇒ show all
+  if (isBlank(rowValue)) {
+    return (
+      filter.values.has(BLANK_FACET_TOKEN) ||
+      filter.values.has(null) ||
+      filter.values.has(undefined) ||
+      filter.values.has('') ||
+      filter.values.has('blank') ||
+      filter.values.has('(blank)')
+    );
+  }
   return filter.values.has(rowValue);
 }
 
