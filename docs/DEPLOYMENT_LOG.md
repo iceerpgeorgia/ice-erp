@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-06 (6)
+- Summary: Salary report All Payments PDF export now fits all columns (including cumulative columns) using compact print layout and auto width.
+- Changes:
+  - Salary report page (`/salary-report/[counteragentUuid]`): Added print-specific CSS for All Payments table.
+  - PDF print page set to landscape with reduced margins for wider usable area.
+  - All Payments print table now uses `table-layout: auto` with compact font and reduced cell padding.
+  - Print cell sizing now minimizes column widths to content length to keep cumulative columns visible in exported PDF.
+- Commit: 442f8c9
+- URL: https://ice-hpgb82980-iceerp.vercel.app
+
 ## 2026-03-06 (5)
 - Summary: Salary report projected rows now keep only payment-side effect on balances (no copied accrual amounts).
 - Changes:
