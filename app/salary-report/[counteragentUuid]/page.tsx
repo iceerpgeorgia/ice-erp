@@ -353,6 +353,35 @@ export default function SalaryReportPage() {
           ) : null}
         </div>
       </div>
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 landscape;
+            margin: 6mm;
+          }
+
+          .salary-report-all-payments-wrapper {
+            overflow: visible !important;
+            border: 0 !important;
+          }
+
+          .salary-report-all-payments-table {
+            width: auto !important;
+            min-width: 100% !important;
+            table-layout: auto !important;
+            font-size: 9px !important;
+          }
+
+          .salary-report-all-payments-table th,
+          .salary-report-all-payments-table td {
+            min-width: 0 !important;
+            max-width: none !important;
+            width: auto !important;
+            white-space: nowrap !important;
+            padding: 2px 4px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -369,8 +398,8 @@ function TotalPaymentsTable({ data }: { data: TotalReportData }) {
           ({data.rows.length} {data.rows.length === 1 ? 'period' : 'periods'})
         </span>
       </h3>
-      <div className="overflow-x-auto border rounded-lg">
-        <table className="w-full text-sm border-collapse">
+      <div className="overflow-x-auto border rounded-lg salary-report-all-payments-wrapper">
+        <table className="w-full text-sm border-collapse salary-report-all-payments-table">
           <thead>
             <tr className="bg-gray-100 print:bg-gray-200">
               <th className="px-3 py-2 text-left border-b font-semibold w-10">#</th>
