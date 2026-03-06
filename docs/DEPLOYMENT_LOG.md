@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-06 (5)
+- Summary: Salary report projected rows now keep only payment-side effect on balances (no copied accrual amounts).
+- Changes:
+  - Salary report API (`/api/salary-report`): projected rows for missing paid periods now clear copied accrual data and keep payment linkage only.
+  - For projected rows, set `net_sum = 0` and clear insurance/deduction fields (`surplus_insurance`, `deducted_insurance`, `deducted_fitness`, `deducted_fine`).
+  - Result: employee advances are visible in cumulative balance without artificial projected accrual amounts.
+- Commit: 25acf28
+- URL: https://ice-jdsrpaqb9-iceerp.vercel.app
+
 ## 2026-03-06 (4)
 - Summary: Salary report/UI date normalization and full-width layout; auto-projected salary accrual periods from paid bank transactions.
 - Changes:
