@@ -28,6 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import * as XLSX from 'xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import { ClearFiltersButton } from './shared/clear-filters-button';
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter, serializeFilterState, deserializeFilterState, fromMapFilters } from './shared/table-filters';
 import {
@@ -2650,17 +2651,13 @@ export function SalaryAccrualsTable() {
               </PopoverContent>
             </Popover>
 
-            {activeFilterCount > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setFilters(new Map())}
-                className="gap-2"
-              >
-                <X className="w-4 h-4" />
-                Clear Filters
-              </Button>
-            )}
+            <ClearFiltersButton
+              activeCount={activeFilterCount + (searchTerm.trim() ? 1 : 0)}
+              onClear={() => {
+                setFilters(new Map());
+                setSearchTerm('');
+              }}
+            />
 
             {/* Pagination Controls */}
             {filteredAndSortedData.length > 0 && (

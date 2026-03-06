@@ -25,6 +25,7 @@ import { Switch } from './ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import { ClearFiltersButton } from './shared/clear-filters-button';
 import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter, hasActiveFilter } from './shared/table-filters';
@@ -2296,27 +2297,28 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
       )}
 
       {/* Active filters indicator */}
-      {columnFilters.size > 0 && (
-        <div className="flex items-center space-x-2 text-sm">
-          <span className="text-muted-foreground">Active filters:</span>
-          {Array.from(columnFilters.entries()).map(([column, filter]) => (
-              <Badge key={column} variant="secondary" className="text-xs">
-                {columns.find(c => c.key === column)?.label}: {filter.mode === 'facet' ? filter.values.size : 1}
-              </Badge>
-          ))}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              clearColumnFilters(filtersStorageKey);
-              setColumnFilters(new Map());
-            }}
-            className="h-6 px-2 text-xs"
-          >
-            Clear all
-          </Button>
-        </div>
-      )}
+      <div className="flex items-center space-x-2 text-sm">
+        {columnFilters.size > 0 && (
+          <>
+            <span className="text-muted-foreground">Active filters:</span>
+            {Array.from(columnFilters.entries()).map(([column, filter]) => (
+                <Badge key={column} variant="secondary" className="text-xs">
+                  {columns.find(c => c.key === column)?.label}: {filter.mode === 'facet' ? filter.values.size : 1}
+                </Badge>
+            ))}
+          </>
+        )}
+        <ClearFiltersButton
+          activeCount={columnFilters.size + (searchTerm.trim() ? 1 : 0)}
+          label="Clear All"
+          onClear={() => {
+            clearColumnFilters(filtersStorageKey);
+            setColumnFilters(new Map());
+            setSearchTerm('');
+          }}
+          className="h-6 px-2 text-xs"
+        />
+      </div>
     </div>
   );
 }

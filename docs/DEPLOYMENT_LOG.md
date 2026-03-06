@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-06 (9)
+- Summary: Added a shared always-visible "Clear Filters" action across all filter-enabled pages.
+- Changes:
+  - New shared UI component: `components/figma/shared/clear-filters-button.tsx`.
+  - Replaced page-specific clear-filter controls with the shared button across filter-enabled table pages and statement pages.
+  - Button is now always visible (disabled when no active filters/search), and clears both column filters and search inputs where applicable.
+  - Applied to dictionary bank-transactions pages so date-range clear action remains visible even when inactive.
+- Commit: PENDING
+- URL: PENDING
+
 ## 2026-03-06 (8)
 - Summary: Improve filter UX (blank normalization + bank-priority options) and add detailed ledger XLSX upload processing logs in Payments Report.
 - Changes:

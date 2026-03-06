@@ -7,6 +7,7 @@ import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import { ClearFiltersButton } from './shared/clear-filters-button';
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter } from './shared/table-filters';
 
@@ -359,6 +360,14 @@ export function ConversionsTable() {
             </div>
           </PopoverContent>
         </Popover>
+
+        <ClearFiltersButton
+          activeCount={filters.size + (searchTerm.trim() ? 1 : 0)}
+          onClear={() => {
+            setFilters(new Map());
+            setSearchTerm('');
+          }}
+        />
       </div>
 
       <div className="rounded-md border overflow-hidden">

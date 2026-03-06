@@ -33,6 +33,7 @@ import {
 import { Combobox } from '@/components/ui/combobox';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import { ClearFiltersButton } from './shared/clear-filters-button';
 import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter } from './shared/table-filters';
@@ -597,20 +598,14 @@ export function JobsTable() {
           />
         </div>
 
-        {columnFilters.size > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              clearColumnFilters(filtersStorageKey);
-              setColumnFilters(new Map());
-            }}
-            className="gap-2"
-          >
-            <X className="h-4 w-4" />
-            Clear Filters
-          </Button>
-        )}
+        <ClearFiltersButton
+          activeCount={columnFilters.size + (searchTerm.trim() ? 1 : 0)}
+          onClear={() => {
+            clearColumnFilters(filtersStorageKey);
+            setColumnFilters(new Map());
+            setSearchTerm('');
+          }}
+        />
 
         {/* Column Visibility */}
         <Popover>

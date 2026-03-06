@@ -30,6 +30,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from './ui/label';
 import { Combobox } from '../ui/combobox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import { ClearFiltersButton } from './shared/clear-filters-button';
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter } from './shared/table-filters';
 import {
@@ -2697,17 +2698,10 @@ export function PaymentsReportTable() {
               />
             </div>
             
-            {hasActiveFilters && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={resetAllFilters}
-                className="gap-2"
-              >
-                <X className="w-4 h-4" />
-                Clear Filters
-              </Button>
-            )}
+            <ClearFiltersButton
+              activeCount={(hasActiveFilters ? 1 : 0) + activeFilterCount}
+              onClear={resetAllFilters}
+            />
 
             {/* Pagination Controls */}
             {filteredAndSortedData.length > 0 && (

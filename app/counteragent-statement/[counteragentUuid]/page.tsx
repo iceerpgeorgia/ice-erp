@@ -22,6 +22,7 @@ import type { BankTransaction } from '../../../components/figma/bank-transaction
 import { Combobox } from '../../../components/ui/combobox';
 import { Label } from '../../../components/ui/label';
 import { ColumnFilterPopover } from '../../../components/figma/shared/column-filter-popover';
+import { ClearFiltersButton } from '../../../components/figma/shared/clear-filters-button';
 import type { FilterState, ColumnFilter, ColumnFormat } from '../../../components/figma/shared/table-filters';
 import { matchesFilter, buildFacetBaseData, buildUniqueValuesCache } from '../../../components/figma/shared/table-filters';
 
@@ -1756,6 +1757,11 @@ export default function CounteragentStatementPage() {
                 </div>
               </PopoverContent>
             </Popover>
+
+            <ClearFiltersButton
+              activeCount={filters.size}
+              onClear={() => setFilters(new Map())}
+            />
           </div>
         </div>
 

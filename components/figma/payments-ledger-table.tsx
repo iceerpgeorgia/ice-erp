@@ -8,6 +8,7 @@ import {
   Settings,
   Download,
 } from 'lucide-react';
+import { ClearFiltersButton } from './shared/clear-filters-button';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -649,11 +650,13 @@ export function PaymentsLedgerTable() {
           </PopoverContent>
         </Popover>
 
-        {activeFilterCount > 0 && (
-          <Button variant="outline" onClick={clearFilters}>
-            Clear Filters ({activeFilterCount})
-          </Button>
-        )}
+          <ClearFiltersButton
+            activeCount={activeFilterCount + (searchTerm.trim() ? 1 : 0)}
+            onClear={() => {
+              clearFilters();
+              setSearchTerm('');
+            }}
+          />
       </div>
 
       <div className="border rounded-lg overflow-hidden">

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Edit2, Plus, X, Eye, Info } from 'lucide-react';
 import { ColumnFilterPopover } from '@/components/figma/shared/column-filter-popover';
+import { ClearFiltersButton } from '@/components/figma/shared/clear-filters-button';
 import type { FilterState, ColumnFilter, ColumnFormat } from '@/components/figma/shared/table-filters';
 import { matchesFilter, buildFacetBaseData, buildUniqueValuesCache } from '@/components/figma/shared/table-filters';
 import { Button } from '@/components/ui/button';
@@ -1184,34 +1185,40 @@ export default function PaymentStatementPage() {
               </div>
             </div>
             <div className="flex items-center justify-between mb-3">
-              <div></div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    Columns
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-56">
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-sm">Toggle Columns</h4>
-                    {columns.map((col) => (
-                      <div key={col.key} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`payment-statement-column-${col.key}`}
-                          checked={col.visible}
-                          onCheckedChange={() => handleToggleColumn(col.key)}
-                        />
-                        <label
-                          htmlFor={`payment-statement-column-${col.key}`}
-                          className="text-sm cursor-pointer"
-                        >
-                          {col.label}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <div />
+              <div className="flex items-center gap-2">
+                <ClearFiltersButton
+                  activeCount={filters.size}
+                  onClear={() => setFilters(new Map())}
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      Columns
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56">
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-sm">Toggle Columns</h4>
+                      {columns.map((col) => (
+                        <div key={col.key} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`payment-statement-column-${col.key}`}
+                            checked={col.visible}
+                            onCheckedChange={() => handleToggleColumn(col.key)}
+                          />
+                          <label
+                            htmlFor={`payment-statement-column-${col.key}`}
+                            className="text-sm cursor-pointer"
+                          >
+                            {col.label}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
             {filteredTransactions.length > 0 ? (
               <div className="border rounded-lg overflow-hidden">

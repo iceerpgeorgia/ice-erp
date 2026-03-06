@@ -19,6 +19,7 @@ import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import { ClearFiltersButton } from './shared/clear-filters-button';
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter } from './shared/table-filters';
 import { loadFilterMap, saveFilterMap, clearColumnFilters } from './shared/column-filter-storage';
@@ -707,16 +708,14 @@ export function BankAccountsTable() {
               </PopoverContent>
             </Popover>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
+            <ClearFiltersButton
+              activeCount={filters.size + (searchTerm.trim() ? 1 : 0)}
+              onClear={() => {
                 setFilters(new Map());
                 clearColumnFilters(filtersStorageKey);
+                setSearchTerm('');
               }}
-            >
-              Clear Filters
-            </Button>
+            />
           </div>
         </div>
       </div>

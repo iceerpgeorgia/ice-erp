@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import { ClearFiltersButton } from './shared/clear-filters-button';
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter } from './shared/table-filters';
 import { Button } from './ui/button';
@@ -2242,17 +2243,13 @@ export function BankTransactionsTable({
         </div>
         
         <div className="flex items-center gap-2">
-          {columnFilters.size > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setColumnFilters(new Map())}
-              className="gap-2"
-            >
-              <X className="h-4 w-4" />
-              Clear Filters
-            </Button>
-          )}
+          <ClearFiltersButton
+            activeCount={columnFilters.size + (debouncedSearchTerm.trim() ? 1 : 0)}
+            onClear={() => {
+              setColumnFilters(new Map());
+              setSearchTerm('');
+            }}
+          />
           {/* Upload XML Button */}
           <input
             ref={fileInputRef}

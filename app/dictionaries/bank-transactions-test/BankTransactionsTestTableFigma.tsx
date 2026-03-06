@@ -435,14 +435,13 @@ export default function BankTransactionsTestTableFigma() {
         >
           Apply Filter
         </button>
-        {(appliedFromDate || appliedToDate) && (
-          <button
-            onClick={handleClearFilters}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            Clear Filters
-          </button>
-        )}
+        <button
+          onClick={handleClearFilters}
+          disabled={!appliedFromDate && !appliedToDate}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Clear Filters
+        </button>
         <div className="ml-auto text-sm text-gray-600">
           Showing {transactions.length.toLocaleString()} transactions
         </div>

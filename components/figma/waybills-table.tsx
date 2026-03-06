@@ -19,6 +19,7 @@ import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
 import { Search, Upload, Eye, Edit2, Settings, ArrowUp, ArrowDown } from 'lucide-react';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
+import { ClearFiltersButton } from './shared/clear-filters-button';
 import * as XLSX from 'xlsx';
 
 const CORRESPONDING_ACCOUNTS = [
@@ -1120,19 +1121,16 @@ export function WaybillsTable() {
               </div>
             </PopoverContent>
           </Popover>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleClearFilters}
-            disabled={columnFilters.length === 0 && !appliedSearch && !periodFrom && !periodTo && !showMissingCounteragents}
-          >
-            Clear Filters
-            {(columnFilters.length > 0 || appliedSearch || periodFrom || periodTo) && (
-              <Badge variant="secondary" className="ml-2">
-                {columnFilters.length + (appliedSearch ? 1 : 0) + (periodFrom ? 1 : 0) + (periodTo ? 1 : 0)}
-              </Badge>
-            )}
-          </Button>
+          <ClearFiltersButton
+            activeCount={
+              columnFilters.length +
+              (appliedSearch ? 1 : 0) +
+              (periodFrom ? 1 : 0) +
+              (periodTo ? 1 : 0) +
+              (showMissingCounteragents ? 1 : 0)
+            }
+            onClear={handleClearFilters}
+          />
           {(missingCounteragentCount > 0 || showMissingCounteragents) && (
             <Button
               variant={showMissingCounteragents ? 'default' : 'outline'}
