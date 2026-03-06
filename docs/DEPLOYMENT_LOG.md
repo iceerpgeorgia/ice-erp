@@ -15,6 +15,7 @@
   - DB cleanup: Deleted orphan bank account GE43BG0000000609494201 (no raw table, no parsing scheme).
   - DB fix: 20 nominal amount records fixed for counteragent სიჩკენდერ (GEL→USD conversion using NBG rates).
 - Commit: 3bdfe1d
+- URL: https://ice-e5wxehilg-iceerp.vercel.app
 
 ## 2026-03-06 (1)
 - Summary: Copy salary accrual to months feature; NBG rate missing warning; pending→completed multi-entry detection fix.
