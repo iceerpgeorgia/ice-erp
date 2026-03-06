@@ -468,12 +468,12 @@ export default function PaymentStatementPage() {
   }, []);
 
   const getFacetBaseData = useMemo(() => {
-    return buildFacetBaseData(mergedTransactions, '', filters, (row: any, key: string) => row[key] ?? '-');
+    return buildFacetBaseData(mergedTransactions, '', filters, (row: any, key: string) => row[key]);
   }, [mergedTransactions, filters]);
 
   const columnValues = useMemo(() => {
     const filterableKeys = columns.filter(c => c.filterable).map(c => c.key as string);
-    return buildUniqueValuesCache(filterableKeys, getFacetBaseData, (row: any, key: string) => row[key] ?? '-');
+    return buildUniqueValuesCache(filterableKeys, getFacetBaseData, (row: any, key: string) => row[key]);
   }, [columns, getFacetBaseData]);
 
   const filteredTransactions = useMemo(() => {
@@ -482,7 +482,7 @@ export default function PaymentStatementPage() {
     // Apply column filters
     filters.forEach((filter, columnKey) => {
       filtered = filtered.filter((row) => {
-        const value = (row as any)[columnKey] ?? '-';
+        const value = (row as any)[columnKey];
         return matchesFilter(value, filter);
       });
     });

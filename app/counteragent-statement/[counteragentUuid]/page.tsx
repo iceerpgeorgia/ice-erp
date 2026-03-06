@@ -617,19 +617,19 @@ export default function CounteragentStatementPage() {
   }, [getPaymentInfo, statement]);
 
   const getFacetBaseData = useMemo(() => {
-    return buildFacetBaseData(rows, '', filters, (row: any, key: string) => row[key] ?? '-');
+    return buildFacetBaseData(rows, '', filters, (row: any, key: string) => row[key]);
   }, [rows, filters]);
 
   const columnValues = useMemo(() => {
     const filterableKeys = columns.filter(c => c.filterable).map(c => c.key as string);
-    return buildUniqueValuesCache(filterableKeys, getFacetBaseData, (row: any, key: string) => row[key] ?? '-');
+    return buildUniqueValuesCache(filterableKeys, getFacetBaseData, (row: any, key: string) => row[key]);
   }, [columns, getFacetBaseData]);
 
   const filteredRows = useMemo(() => {
     let filtered = [...rows];
     filters.forEach((filter, columnKey) => {
       filtered = filtered.filter((row) => {
-        const value = (row as any)[columnKey] ?? '-';
+        const value = (row as any)[columnKey];
         return matchesFilter(value, filter);
       });
     });
