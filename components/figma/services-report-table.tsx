@@ -21,6 +21,7 @@ type ServicesRow = {
   status: string;
   project: string;
   projectName: string;
+  sum: number;
   counteragent: string;
   currency: string;
   paymentCount: number;
@@ -64,7 +65,6 @@ type ServicesReportResponse = {
 type SectionColumnKey =
   | 'status'
   | 'financialCodeValidation'
-  | 'project'
   | 'projectName'
   | 'currency'
   | 'sum'
@@ -106,8 +106,7 @@ const DEFAULT_TOTALS = {
 const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'status', label: 'Status', visible: true, width: 120, align: 'left' },
   { key: 'financialCodeValidation', label: 'Financial Code', visible: true, width: 220, align: 'left' },
-  { key: 'project', label: 'Project', visible: true, width: 140, align: 'left' },
-  { key: 'projectName', label: 'Project Name', visible: true, width: 240, align: 'left' },
+  { key: 'projectName', label: 'Project', visible: true, width: 260, align: 'left' },
   { key: 'currency', label: 'Currency', visible: true, width: 110, align: 'left' },
   { key: 'sum', label: 'Sum', visible: true, width: 130, align: 'right' },
   { key: 'counteragent', label: 'Counteragent', visible: true, width: 220, align: 'left' },
@@ -137,7 +136,7 @@ const formatDate = (value: string | null) => {
 const getColumnValue = (row: ServicesRow, key: SectionColumnKey) => {
   switch (key) {
     case 'sum':
-      return row.accrual;
+      return row.sum;
     case 'latestDate':
       return formatDate(row.latestDate);
     case 'confirmed':
@@ -490,6 +489,9 @@ export function ServicesReportTable() {
         sections.map((section) => {
           const columns = getColumnsForSection(section.financialCodeUuid);
           const visibleColumns = columns.filter((column) => column.visible);
+          const selectorColumns = columns.filter((column) =>
+            !['financialCodeValidation', 'paymentCount'].includes(column.key)
+          );
           return (
             <div key={section.financialCodeUuid} className="rounded-lg border overflow-x-auto">
               <div className="px-3 py-2 border-b bg-gray-50 flex items-center justify-between">
@@ -503,7 +505,7 @@ export function ServicesReportTable() {
                   </PopoverTrigger>
                   <PopoverContent className="w-[280px] p-2" align="end">
                     <div className="space-y-1 max-h-72 overflow-y-auto">
-                      {columns.map((column) => (
+                      {selectorColumns.map((column) => (
                         <label key={column.key} className="flex items-center gap-2 px-2 py-1 text-sm">
                           <Checkbox
                             checked={column.visible}

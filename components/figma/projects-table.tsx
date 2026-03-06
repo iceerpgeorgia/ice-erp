@@ -70,6 +70,8 @@ export type Project = {
   currency: string | null;
   state: string | null;
   contractNo: string | null;
+  department: string | null;
+  serviceState: string | null;
   projectIndex: string | null;
   employees?: Array<{
     employeeUuid: string;
@@ -105,6 +107,8 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'currency', label: 'Currency', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'state', label: 'State', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'contractNo', label: 'Contract No', width: 150, visible: true, sortable: true, filterable: true },
+  { key: 'department', label: 'Department', width: 140, visible: true, sortable: true, filterable: true },
+  { key: 'serviceState', label: 'Service State', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'projectIndex', label: 'Project Index', width: 250, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'counteragentUuid', label: 'Counteragent UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'financialCodeUuid', label: 'Financial Code UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
@@ -145,9 +149,13 @@ const mapProjectData = (row: any): Project => ({
   currency: row.currency || row.CURRENCY || null,
   state: row.state || row.STATE || null,
   contractNo: row.contract_no || row.contractNo || null,
+  department: row.department || row.DEPARTMENT || null,
+  serviceState: row.service_state || row.serviceState || null,
   projectIndex: row.project_index || row.projectIndex || null,
   employees: row.employees || []
 });
+
+const SERVICE_STATE_OPTIONS = ['Active', 'Conversion', 'Others', 'Free', 'Recovery'];
 
 export function ProjectsTable({ data }: { data?: Project[] }) {
   const [projects, setProjects] = useState<Project[]>(data ?? []);
@@ -274,6 +282,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
     date: '',
     value: '',
     oris1630: '',
+    department: '',
+    serviceState: '',
     counteragentUuid: '',
     financialCodeUuid: '',
     currencyUuid: '',
@@ -618,6 +628,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
         (project.financialCode || '').toLowerCase().includes(search) ||
         (project.currency || '').toLowerCase().includes(search) ||
         (project.state || '').toLowerCase().includes(search) ||
+        (project.department || '').toLowerCase().includes(search) ||
+        (project.serviceState || '').toLowerCase().includes(search) ||
         (project.contractNo || '').toLowerCase().includes(search) ||
         (project.employees?.some(e => e.employeeName?.toLowerCase().includes(search)))
       );
@@ -727,6 +739,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
             date: formData.date,
             value: parseFloat(formData.value),
             oris_1630: formData.oris1630 || null,
+            department: formData.department || null,
+            service_state: formData.serviceState || null,
             counteragent_uuid: formData.counteragentUuid,
             financial_code_uuid: formData.financialCodeUuid,
             currency_uuid: formData.currencyUuid,
@@ -760,6 +774,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
             date: formData.date,
             value: parseFloat(formData.value),
             oris1630: formData.oris1630 || null,
+            department: formData.department || null,
+            serviceState: formData.serviceState || null,
             counteragentUuid: formData.counteragentUuid,
             financialCodeUuid: formData.financialCodeUuid,
             currencyUuid: formData.currencyUuid,
@@ -800,6 +816,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       date: '',
       value: '',
       oris1630: '',
+      department: '',
+      serviceState: '',
       counteragentUuid: '',
       financialCodeUuid: '',
       currencyUuid: '',
@@ -826,6 +844,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       date: formatDateForInput(project.date),
       value: String(project.value || ''),
       oris1630: project.oris1630 || '',
+      department: project.department || '',
+      serviceState: project.serviceState || '',
       counteragentUuid: project.counteragentUuid || '',
       financialCodeUuid: project.financialCodeUuid || '',
       currencyUuid: project.currencyUuid || '',
@@ -1051,6 +1071,44 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="add-department" className="text-right">Department</Label>
+                  <div className="col-span-3">
+                    <Select
+                      value={formData.department || undefined}
+                      onValueChange={(value) => setFormData({ ...formData, department: value })}
+                    >
+                      <SelectTrigger id="add-department">
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SERVICE_STATE_OPTIONS.map((option) => (
+                          <SelectItem key={option} value={option}>{option}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="add-serviceState" className="text-right">Service State</Label>
+                  <div className="col-span-3">
+                    <Select
+                      value={formData.serviceState || undefined}
+                      onValueChange={(value) => setFormData({ ...formData, serviceState: value })}
+                    >
+                      <SelectTrigger id="add-serviceState">
+                        <SelectValue placeholder="Select service state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SERVICE_STATE_OPTIONS.map((option) => (
+                          <SelectItem key={option} value={option}>{option}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
                 {/* Counteragent - mandatory */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="add-counteragent" className="text-right">Counteragent *</Label>
@@ -1232,6 +1290,44 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                       value={formData.oris1630}
                       onChange={(e) => setFormData({...formData, oris1630: e.target.value})}
                     />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-department" className="text-right">Department</Label>
+                  <div className="col-span-3">
+                    <Select
+                      value={formData.department || undefined}
+                      onValueChange={(value) => setFormData({ ...formData, department: value })}
+                    >
+                      <SelectTrigger id="edit-department">
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SERVICE_STATE_OPTIONS.map((option) => (
+                          <SelectItem key={option} value={option}>{option}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-serviceState" className="text-right">Service State</Label>
+                  <div className="col-span-3">
+                    <Select
+                      value={formData.serviceState || undefined}
+                      onValueChange={(value) => setFormData({ ...formData, serviceState: value })}
+                    >
+                      <SelectTrigger id="edit-serviceState">
+                        <SelectValue placeholder="Select service state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SERVICE_STATE_OPTIONS.map((option) => (
+                          <SelectItem key={option} value={option}>{option}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 

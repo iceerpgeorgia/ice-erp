@@ -1,0 +1,3 @@
+ALTER TABLE projects
+ADD COLUMN IF NOT EXISTS department TEXT,
+ADD COLUMN IF NOT EXISTS service_state TEXT;

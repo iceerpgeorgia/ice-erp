@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { Combobox } from '@/components/ui/combobox';
+import { MultiCombobox } from '@/components/ui/multi-combobox';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
@@ -196,6 +196,7 @@ export function JobsTable() {
 
   const [formData, setFormData] = useState({
     projectUuid: '',
+    projectUuids: [] as string[],
     jobName: '',
     floors: '' as string | number,
     weight: '' as string | number,
@@ -312,6 +313,7 @@ export function JobsTable() {
     try {
       const payload = {
         ...formData,
+        projectUuids: formData.projectUuids.length > 0 ? formData.projectUuids : (formData.projectUuid ? [formData.projectUuid] : []),
         floors: formData.floors === '' ? null : Number(formData.floors),
         weight: formData.weight === '' ? null : Number(formData.weight),
       };
@@ -338,6 +340,7 @@ export function JobsTable() {
       const payload = {
         id: editingJob.id,
         ...formData,
+        projectUuids: formData.projectUuids && formData.projectUuids.length > 0 ? formData.projectUuids : (formData.projectUuid ? [formData.projectUuid] : []),
         floors: formData.floors === '' ? null : Number(formData.floors),
         weight: formData.weight === '' ? null : Number(formData.weight),
       };
@@ -378,6 +381,7 @@ export function JobsTable() {
     setEditingJob(job);
     setFormData({
       projectUuid: job.projectUuid,
+      projectUuids: [job.projectUuid],
       jobName: job.jobName,
       floors: job.floors ?? '',
       weight: job.weight ?? '',
@@ -390,6 +394,7 @@ export function JobsTable() {
   const resetForm = () => {
     setFormData({
       projectUuid: '',
+      projectUuids: [],
       jobName: '',
       floors: '',
       weight: '',
@@ -872,15 +877,17 @@ function JobForm({
       {/* Project Selection */}
       <div>
         <Label htmlFor="project">Project *</Label>
-        <Combobox
+        <MultiCombobox
           options={projects.map(p => ({
             value: p.projectUuid,
-            label: `${p.projectIndex} - ${p.projectName}`
+            label: `${p.projectIndex} - ${p.projectName}`,
+            keywords: `${p.projectIndex} ${p.projectName}`
           }))}
-          value={formData.projectUuid}
-          onValueChange={(value) => setFormData({ ...formData, projectUuid: value })}
-          placeholder="Select project..."
+          value={formData.projectUuids || []}
+          onValueChange={(values) => setFormData({ ...formData, projectUuids: values, projectUuid: values[0] || '' })}
+          placeholder="Select one or more projects..."
           searchPlaceholder="Search projects..."
+          emptyText="No project found."
         />
       </div>
 

@@ -123,44 +123,55 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { projectUuid, jobName, floors, weight, isFf, brandUuid } = body;
+    const { projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid } = body;
+    const targetProjectUuids: string[] = Array.isArray(projectUuids)
+      ? projectUuids.filter((item) => typeof item === 'string' && item.trim().length > 0)
+      : (projectUuid ? [projectUuid] : []);
 
     // Validation
-    if (!projectUuid || !jobName || isFf === undefined) {
+    if (targetProjectUuids.length === 0 || !jobName || isFf === undefined) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    const existing = await prisma.$queryRaw`
-      SELECT id, job_uuid
-      FROM jobs
-      WHERE project_uuid = ${projectUuid}::uuid
-        AND lower(job_name) = lower(${jobName})
-        AND is_active = true
-      LIMIT 1
-    ` as any[];
+    const created: Array<{ id: number | null; job_uuid: string | null }> = [];
+    const skipped: string[] = [];
 
-    if (existing.length > 0) {
-      const found = existing[0];
-      return NextResponse.json({
-        id: found?.id !== undefined && found?.id !== null ? Number(found.id) : null,
-        job_uuid: found?.job_uuid ?? null,
-        alreadyExists: true,
+    for (const projectUuidItem of targetProjectUuids) {
+      const existing = await prisma.$queryRaw`
+        SELECT id, job_uuid
+        FROM jobs
+        WHERE project_uuid = ${projectUuidItem}::uuid
+          AND lower(job_name) = lower(${jobName})
+          AND is_active = true
+        LIMIT 1
+      ` as any[];
+
+      if (existing.length > 0) {
+        skipped.push(projectUuidItem);
+        continue;
+      }
+
+      const result = await prisma.$queryRaw`
+        INSERT INTO jobs (project_uuid, job_name, floors, weight, is_ff, brand_uuid)
+        VALUES (${projectUuidItem}::uuid, ${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${brandUuid}::uuid)
+        RETURNING id, job_uuid
+      ` as any[];
+
+      const row = result[0];
+      created.push({
+        id: row?.id !== undefined && row?.id !== null ? Number(row.id) : null,
+        job_uuid: row?.job_uuid ?? null,
       });
     }
 
-    const result = await prisma.$queryRaw`
-      INSERT INTO jobs (project_uuid, job_name, floors, weight, is_ff, brand_uuid)
-      VALUES (${projectUuid}::uuid, ${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${brandUuid}::uuid)
-      RETURNING id, job_uuid
-    ` as any[];
-
-    const created = result[0];
     return NextResponse.json({
-      id: created?.id !== undefined && created?.id !== null ? Number(created.id) : null,
-      job_uuid: created?.job_uuid ?? null,
+      created,
+      skippedProjectUuids: skipped,
+      createdCount: created.length,
+      skippedCount: skipped.length,
     });
   } catch (error: any) {
     console.error('POST /api/jobs error:', error);
@@ -175,7 +186,10 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, projectUuid, jobName, floors, weight, isFf, brandUuid } = body;
+    const { id, projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid } = body;
+    const targetProjectUuids: string[] = Array.isArray(projectUuids)
+      ? projectUuids.filter((item) => typeof item === 'string' && item.trim().length > 0)
+      : (projectUuid ? [projectUuid] : []);
 
     if (!id) {
       return NextResponse.json(
@@ -184,10 +198,19 @@ export async function PUT(req: NextRequest) {
       );
     }
 
+    if (targetProjectUuids.length === 0) {
+      return NextResponse.json(
+        { error: 'At least one project is required' },
+        { status: 400 }
+      );
+    }
+
+    const primaryProjectUuid = targetProjectUuids[0];
+
     await prisma.$queryRaw`
       UPDATE jobs
       SET 
-        project_uuid = ${projectUuid}::uuid,
+        project_uuid = ${primaryProjectUuid}::uuid,
         job_name = ${jobName},
         floors = ${floors ?? null},
         weight = ${weight ?? null},
@@ -196,6 +219,25 @@ export async function PUT(req: NextRequest) {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
+
+    const additionalProjects = targetProjectUuids.slice(1);
+    for (const projectUuidItem of additionalProjects) {
+      const existing = await prisma.$queryRaw`
+        SELECT id
+        FROM jobs
+        WHERE project_uuid = ${projectUuidItem}::uuid
+          AND lower(job_name) = lower(${jobName})
+          AND is_active = true
+        LIMIT 1
+      ` as any[];
+
+      if (existing.length > 0) continue;
+
+      await prisma.$queryRaw`
+        INSERT INTO jobs (project_uuid, job_name, floors, weight, is_ff, brand_uuid)
+        VALUES (${projectUuidItem}::uuid, ${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${brandUuid}::uuid)
+      `;
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

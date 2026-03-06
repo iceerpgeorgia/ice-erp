@@ -501,6 +501,8 @@ model projects {
   currency            String?
   state               String?
   contract_no         String?
+  department          String?
+  service_state       String?
   project_index       String?
   project_employees   project_employees[]
 

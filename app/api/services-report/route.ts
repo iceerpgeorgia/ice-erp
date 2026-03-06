@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
           COALESCE(fc.validation, fc.code, '-') as financial_code_validation,
           proj.project_index,
           proj.project_name,
+          proj.value as project_amount,
           COALESCE(ps.name, proj.state, 'Unknown') as status_name,
           COALESCE(ca.counteragent, ca.name, '-') as counteragent_name,
           curr.code as currency_code
@@ -171,6 +172,7 @@ export async function GET(request: NextRequest) {
         COALESCE(MAX(sp.status_name), 'Unknown') as status_name,
         COALESCE(MAX(sp.project_index), '-') as project_index,
         COALESCE(MAX(sp.project_name), '-') as project_name,
+        COALESCE(MAX(sp.project_amount), 0) as project_amount,
         COALESCE(MAX(sp.counteragent_name), '-') as counteragent_name,
         COALESCE(MAX(sp.currency_code), '-') as currency_code,
         COUNT(DISTINCT sp.payment_id) as payment_count,
@@ -212,6 +214,7 @@ export async function GET(request: NextRequest) {
         status: row.status_name,
         project: row.project_index,
         projectName: row.project_name,
+        sum: Number(row.project_amount || 0),
         counteragent: row.counteragent_name,
         currency: row.currency_code,
         paymentCount: Number(row.payment_count || 0),
