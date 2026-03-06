@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-03-06 (3)
+- Summary: Salary report dual-mode: Total Payments (by period) and All Payments (by actual transaction date).
+- Changes:
+  - Salary report now has two tabs: "Total Payments" (aggregated by salary period) and "All Payments" (chronological ledger with individual bank transactions).
+  - All Payments mode: interleaves accrual entries (blue badges) and individual payment transactions (green badges) sorted by actual transaction_date from bank records.
+  - API /api/salary-report supports `mode=total` (default) and `mode=all` query param. All mode fetches individual payment rows from all 10 deconsolidated tables with actual dates.
+  - Running cumulative accrual/payment/balance in both views.
+  - XLSX export adapted per mode (separate sheet names and column layouts).
+- Commit: 0479163
+- URL: https://ice-n3uzxv9mw-iceerp.vercel.app
+
 ## 2026-03-06 (2)
 - Summary: Salary report per counteragent with XLSX/PDF export; bank import PGRST205 error handling fix.
 - Changes:
