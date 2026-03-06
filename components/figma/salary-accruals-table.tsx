@@ -59,6 +59,7 @@ type SalaryAccrual = {
   deducted_fine: string | null;
   confirmed?: boolean;
   hasUnboundCounteragentTransactions?: boolean;
+  projected?: boolean;
   created_at: string;
   updated_at: string;
   paid?: number; // Calculated from bank transactions
@@ -3029,10 +3030,12 @@ export function SalaryAccrualsTable() {
                   const mb = typeof monthBalance === 'number' ? monthBalance : computeBalance(accrual);
                   const cumulBal = typeof accrual.cumulative_balance === 'number' ? accrual.cumulative_balance : 0;
                   const isConfirmed = Boolean(accrual.confirmed);
+                  const isProjected = Boolean(accrual.projected) || String(accrual.id).startsWith('projected-');
 
-                  // Row background: confirmed + month_balance sign
+                  // Row background: projected → amber, confirmed + month_balance sign
                   let rowBg = '';
-                  if (isConfirmed && mb < 0) rowBg = '#ffebee'; // slight red
+                  if (isProjected) rowBg = '#fef3c7'; // amber-100
+                  else if (isConfirmed && mb < 0) rowBg = '#ffebee'; // slight red
                   else if (isConfirmed && mb > 0) rowBg = '#e8f5e9'; // slight green
                   else if (isConfirmed && mb === 0) rowBg = '#f3f4f6'; // slight gray
 
@@ -3042,7 +3045,7 @@ export function SalaryAccrualsTable() {
                   return (
                   <tr
                     key={`${accrual.id}-${idx}`}
-                    className="border-b border-gray-200 hover:bg-gray-50"
+                    className={`border-b border-gray-200 hover:bg-gray-50 ${isProjected ? 'italic' : ''}`}
                     style={rowBg ? { backgroundColor: rowBg } : undefined}
                   >
                     <td className="px-2 py-2 text-sm" style={{ width: 60, minWidth: 60, maxWidth: 60 }}>

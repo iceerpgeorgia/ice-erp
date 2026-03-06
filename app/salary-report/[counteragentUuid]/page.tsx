@@ -24,6 +24,7 @@ type SalaryRow = {
   currency_code: string;
   confirmed: boolean;
   pension_scheme: boolean;
+  projected?: boolean;
 };
 
 type LedgerRow = {
@@ -41,6 +42,7 @@ type LedgerRow = {
   cumulative_payment: number;
   cumulative_balance: number;
   currency_code: string | null;
+  projected?: boolean;
 };
 
 type CounterInfo = {
@@ -94,16 +96,20 @@ const formatPeriod = (dateStr: string): string => {
   return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
 };
 
-const formatDate = (dateStr: string): string => {
+const formatDateToMonthYear = (dateStr: string): string => {
   if (!dateStr) return '-';
   // Handle DD.MM.YYYY
-  if (dateStr.includes('.')) return dateStr;
+  if (dateStr.includes('.')) {
+    const parts = dateStr.split('.');
+    if (parts.length === 3 && parts[2].length === 4) {
+      const d = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+      if (!isNaN(d.getTime())) return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+    }
+    return dateStr;
+  }
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}.${month}.${year}`;
+  return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
 };
 
 export default function SalaryReportPage() {
@@ -196,7 +202,7 @@ export default function SalaryReportPage() {
         'Cumul. Accrual', 'Cumul. Payment', 'Cumul. Balance',
       ];
       const tableRows = allData.ledgerRows.map((row, idx) => [
-        idx + 1, formatDate(row.date), row.type === 'accrual' ? 'Accrual' : 'Payment',
+        idx + 1, formatDateToMonthYear(row.date), row.type === 'accrual' ? 'Accrual' : 'Payment',
         row.payment_id || '-', row.accrual || '', row.surplus_insurance ?? '',
         row.deducted_insurance ?? '', row.deducted_fitness ?? '', row.deducted_fine ?? '',
         row.payment || '', row.cumulative_accrual, row.cumulative_payment, row.cumulative_balance,
@@ -253,7 +259,7 @@ export default function SalaryReportPage() {
 
   return (
     <div className="min-h-screen bg-white print:bg-white">
-      <div className="w-full max-w-[1500px] mx-auto px-4 py-6 print:px-2 print:py-2">
+      <div className="w-full px-4 py-6 print:px-2 print:py-2">
         <div className="space-y-6">
           {/* Header */}
           <div className="border-b pb-4 flex items-center justify-between print:border-b-0">
@@ -386,10 +392,13 @@ function TotalPaymentsTable({ data }: { data: TotalReportData }) {
             {data.rows.map((row, idx) => (
               <tr
                 key={row.id}
-                className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors print:hover:bg-transparent`}
+                className={`${row.projected ? 'bg-amber-50 italic' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors print:hover:bg-transparent`}
               >
                 <td className="px-3 py-2 border-b text-gray-500">{idx + 1}</td>
-                <td className="px-3 py-2 border-b font-medium">{formatPeriod(row.salary_month)}</td>
+                <td className="px-3 py-2 border-b font-medium">
+                  {formatPeriod(row.salary_month)}
+                  {row.projected && <span className="ml-1 text-xs not-italic text-amber-600">(projected)</span>}
+                </td>
                 <td className="px-3 py-2 border-b text-gray-700">{row.payment_id || '-'}</td>
                 <td className="px-3 py-2 border-b text-right">{formatCurrency(row.net_sum)}</td>
                 <td className="px-3 py-2 border-b text-right">{formatCurrency(row.surplus_insurance)}</td>
@@ -467,22 +476,25 @@ function AllPaymentsTable({ data }: { data: AllReportData }) {
           <tbody>
             {data.ledgerRows.map((row, idx) => {
               const isAccrual = row.type === 'accrual';
+              const isProjected = !!(row as any).projected;
               return (
                 <tr
                   key={row.id}
                   className={`${
-                    isAccrual ? 'bg-blue-50/50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                    isProjected ? 'bg-amber-50/50 italic' : isAccrual ? 'bg-blue-50/50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                   } hover:bg-blue-50 transition-colors print:hover:bg-transparent`}
                 >
                   <td className="px-3 py-2 border-b text-gray-500">{idx + 1}</td>
                   <td className="px-3 py-2 border-b font-medium">
-                    {isAccrual ? formatPeriod(row.date) : formatDate(row.date)}
+                    {formatDateToMonthYear(row.date)}
                   </td>
                   <td className="px-3 py-2 border-b text-center">
                     <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-                      isAccrual ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                      isAccrual
+                        ? (row as any).projected ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                        : 'bg-green-100 text-green-700'
                     }`}>
-                      {isAccrual ? 'Accrual' : 'Payment'}
+                      {isAccrual ? ((row as any).projected ? 'Projected' : 'Accrual') : 'Payment'}
                     </span>
                   </td>
                   <td className="px-3 py-2 border-b text-gray-700">{row.payment_id || '-'}</td>

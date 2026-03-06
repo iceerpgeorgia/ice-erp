@@ -108,6 +108,20 @@ function generatePaymentId(counteragentUuid: string, financial_code_uuid: string
   return `NP_${counteragentPart}_NJ_${financialPart}_PRL${monthStr}${year}`;
 }
 
+// Extract YYYY-MM period from a salary payment_id (format: ...PRL{MM}{YYYY})
+const extractPeriodFromPaymentId = (paymentId: string): string | null => {
+  const match = paymentId.match(/prl(\d{2})(\d{4})$/i);
+  if (!match) return null;
+  return `${match[2]}-${match[1]}`;
+};
+
+// Build a last-day-of-month date string for a YYYY-MM period
+const periodToDate = (period: string): string => {
+  const [year, month] = period.split('-').map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+};
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -270,6 +284,82 @@ export async function GET(request: NextRequest) {
       currencySetMap.get(compositeKey)!.add(currencyKey);
     }
 
+    // ===================== PROJECTED ACCRUALS =====================
+    // Detect periods with bank payments but no accrual records
+    // Build map of existing accrual periods per counteragent
+    const existingPeriodsByCA = new Map<string, Set<string>>();
+    for (const accrual of accruals) {
+      const caUuid = String(accrual.counteragent_uuid || '');
+      if (!caUuid) continue;
+      if (!existingPeriodsByCA.has(caUuid)) existingPeriodsByCA.set(caUuid, new Set());
+      if (accrual.salary_month) {
+        const d = new Date(accrual.salary_month);
+        if (!isNaN(d.getTime())) {
+          existingPeriodsByCA.get(caUuid)!.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+        }
+      }
+    }
+
+    // Find paid periods per counteragent from paidRows (PRL pattern)
+    const paidPeriodsByCA = new Map<string, Set<string>>();
+    for (const row of paidRows) {
+      const pid = String(row.payment_id_key || '');
+      const caUuid = String(row.counteragent_uuid || '');
+      if (!caUuid || !pid) continue;
+      const period = extractPeriodFromPaymentId(pid);
+      if (period) {
+        if (!paidPeriodsByCA.has(caUuid)) paidPeriodsByCA.set(caUuid, new Set());
+        paidPeriodsByCA.get(caUuid)!.add(period);
+      }
+    }
+
+    // Find the latest accrual per counteragent (accruals sorted DESC → first match is latest)
+    const lastAccrualByCA = new Map<string, any>();
+    for (const accrual of accruals) {
+      const caUuid = String(accrual.counteragent_uuid || '');
+      if (caUuid && !lastAccrualByCA.has(caUuid)) {
+        lastAccrualByCA.set(caUuid, accrual);
+      }
+    }
+
+    // Generate projected accruals for missing periods
+    for (const [caUuid, paidPeriods] of paidPeriodsByCA) {
+      const existingPeriods = existingPeriodsByCA.get(caUuid) || new Set();
+      const lastAccrual = lastAccrualByCA.get(caUuid);
+      if (!lastAccrual) continue;
+
+      for (const period of Array.from(paidPeriods).sort()) {
+        if (existingPeriods.has(period)) continue;
+
+        const projectedDate = periodToDate(period);
+        const [yearStr, monthStr] = period.split('-');
+        const projectedPaymentId = generatePaymentId(
+          String(lastAccrual.counteragent_uuid),
+          String(lastAccrual.financial_code_uuid),
+          new Date(Number(yearStr), Number(monthStr) - 1, 1)
+        );
+
+        accruals.push({
+          ...lastAccrual,
+          id: `projected-${caUuid}-${period}`,
+          uuid: `projected-${caUuid}-${period}`,
+          salary_month: projectedDate,
+          payment_id: projectedPaymentId,
+          confirmed: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          _projected: true,
+        });
+      }
+    }
+
+    // Re-sort (DESC by salary_month, same as original query)
+    accruals.sort((a: any, b: any) => {
+      const da = a.salary_month ? new Date(a.salary_month).getTime() : 0;
+      const db = b.salary_month ? new Date(b.salary_month).getTime() : 0;
+      return db - da;
+    });
+
     const formattedAccruals = accruals.map((accrual) => {
       const paymentKey = normalizePaymentKey(String(accrual.payment_id || ''));
       const counteragentKey = accrual.counteragent_uuid ? String(accrual.counteragent_uuid) : '';
@@ -288,6 +378,7 @@ export async function GET(request: NextRequest) {
         paid,
         confirmed: Boolean(accrual.confirmed),
         hasUnboundCounteragentTransactions: unboundSet.has(String(accrual.counteragent_uuid)),
+        projected: Boolean((accrual as any)._projected),
         ...accrual,
       id: accrual.id.toString(),
       net_sum: accrual.net_sum.toString(),

@@ -23,6 +23,33 @@ const normalizePaymentKey = (value: string) => {
   return base.toLowerCase();
 };
 
+// Extract YYYY-MM period from a salary payment_id (format: ...PRL{MM}{YYYY})
+const extractPeriodFromPaymentId = (paymentId: string): string | null => {
+  const match = paymentId.match(/prl(\d{2})(\d{4})$/i);
+  if (!match) return null;
+  const month = match[1];
+  const year = match[2];
+  return `${year}-${month}`;
+};
+
+// Build a last-day-of-month date string for a YYYY-MM period
+const periodToDate = (period: string): string => {
+  const [year, month] = period.split('-').map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+};
+
+// Generate payment_id matching salary accruals pattern
+const generatePaymentId = (counteragentUuid: string, financialCodeUuid: string, salaryMonth: Date): string => {
+  const extractChars = (uuid: string) => uuid[1] + uuid[3] + uuid[5] + uuid[7] + uuid[9] + uuid[11];
+  const counteragentPart = extractChars(counteragentUuid);
+  const financialPart = extractChars(financialCodeUuid);
+  const month = salaryMonth.getMonth() + 1;
+  const year = salaryMonth.getFullYear();
+  const monthStr = month < 10 ? `0${month}` : `${month}`;
+  return `NP_${counteragentPart}_NJ_${financialPart}_PRL${monthStr}${year}`;
+};
+
 const parseTxDate = (raw: string): string => {
   if (!raw) return '';
   // Handle DD.MM.YYYY format
@@ -95,6 +122,93 @@ export async function GET(request: NextRequest) {
       WHERE sa.counteragent_uuid = ${counteragentUuid}::uuid
       ORDER BY sa.salary_month ASC, sa.created_at ASC
     `;
+
+    // ===================== Detect paid periods with no accrual record =====================
+    // Fetch all payment_ids from bank for this counteragent
+    const allPaymentIds = await prisma.$queryRaw<any[]>`
+      SELECT DISTINCT lower(trim(split_part(payment_id, ':', 1))) as payment_id_key
+      FROM (
+        ${Prisma.raw(DECONSOLIDATED_TABLES.map((tableName) => `
+        SELECT cba.payment_id
+        FROM "${tableName}" cba
+        WHERE cba.counteragent_uuid = '${counteragentUuid}'
+        AND cba.payment_id IS NOT NULL AND cba.payment_id <> ''
+        AND cba.payment_id NOT ILIKE 'BTC_%'
+        AND NOT EXISTS (
+          SELECT 1 FROM bank_transaction_batches btb
+          WHERE btb.raw_record_uuid::text = cba.raw_record_uuid::text
+        )`).join(' UNION ALL '))}
+        UNION ALL
+        ${Prisma.raw(DECONSOLIDATED_TABLES.map((tableName) => `
+        SELECT COALESCE(
+          CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
+          p.payment_id
+        ) as payment_id
+        FROM "${tableName}" cba
+        JOIN bank_transaction_batches btb ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
+        LEFT JOIN payments p ON (
+          btb.payment_uuid IS NOT NULL AND p.record_uuid = btb.payment_uuid
+        ) OR (
+          btb.payment_uuid IS NULL AND btb.payment_id IS NOT NULL AND p.payment_id = btb.payment_id
+        )
+        WHERE cba.counteragent_uuid = '${counteragentUuid}'`).join(' UNION ALL '))}
+      ) tx
+      WHERE payment_id IS NOT NULL AND payment_id <> ''
+    `;
+
+    // Build set of existing accrual periods (YYYY-MM)
+    const existingPeriods = new Set<string>();
+    for (const accrual of accruals) {
+      if (accrual.salary_month) {
+        const d = new Date(accrual.salary_month);
+        if (!isNaN(d.getTime())) {
+          existingPeriods.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+        }
+      }
+    }
+
+    // Find paid periods that don't have accrual records
+    const missingPeriods = new Set<string>();
+    for (const row of allPaymentIds) {
+      const pid = String(row.payment_id_key || '');
+      const period = extractPeriodFromPaymentId(pid);
+      if (period && !existingPeriods.has(period)) {
+        missingPeriods.add(period);
+      }
+    }
+
+    // Generate projected accruals by copying last actual record
+    if (missingPeriods.size > 0 && accruals.length > 0) {
+      const lastAccrual = accruals[accruals.length - 1];
+      const sortedMissing = Array.from(missingPeriods).sort();
+      for (const period of sortedMissing) {
+        const projectedDate = periodToDate(period);
+        const [yearStr, monthStr] = period.split('-');
+        // Generate the payment_id for this projected period
+        const projectedPaymentId = generatePaymentId(
+          String(lastAccrual.counteragent_uuid),
+          String(lastAccrual.financial_code_uuid),
+          new Date(Number(yearStr), Number(monthStr) - 1, 1)
+        );
+        accruals.push({
+          ...lastAccrual,
+          id: `projected-${period}`,
+          uuid: `projected-${period}`,
+          salary_month: projectedDate,
+          payment_id: projectedPaymentId,
+          confirmed: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          _projected: true,
+        });
+      }
+      // Re-sort by salary_month
+      accruals.sort((a: any, b: any) => {
+        const da = a.salary_month ? new Date(a.salary_month).getTime() : 0;
+        const db = b.salary_month ? new Date(b.salary_month).getTime() : 0;
+        return da - db;
+      });
+    }
 
     // ===================== MODE: ALL =====================
     if (mode === 'all') {
@@ -169,6 +283,7 @@ export async function GET(request: NextRequest) {
           deducted_fitness: accrual.deducted_fitness !== null ? Number(accrual.deducted_fitness) : null,
           deducted_fine: accrual.deducted_fine !== null ? Number(accrual.deducted_fine) : null,
           currency_code: accrual.currency_code,
+          projected: Boolean((accrual as any)._projected),
         };
       });
 
@@ -189,6 +304,7 @@ export async function GET(request: NextRequest) {
           deducted_fitness: null as number | null,
           deducted_fine: null as number | null,
           currency_code: null as string | null,
+          projected: false,
         }));
 
       // Merge and sort chronologically
@@ -215,6 +331,7 @@ export async function GET(request: NextRequest) {
           cumulative_accrual: cumulativeAccrual,
           cumulative_payment: cumulativePayment,
           cumulative_balance: cumulativeAccrual - cumulativePayment,
+          projected: entry.projected || false,
         };
       });
 
@@ -347,6 +464,7 @@ export async function GET(request: NextRequest) {
         currency_code: accrual.currency_code,
         confirmed: Boolean(accrual.confirmed),
         pension_scheme: pensionScheme,
+        projected: Boolean((accrual as any)._projected),
       };
     });
 
