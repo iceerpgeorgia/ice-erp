@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-03-06 (13)
+- Summary: Refined Services Report UX to section by financial code and moved financial code selection into Settings.
+- Changes:
+  - Services report settings now live under a `Settings` button (financial codes no longer permanently visible on-screen).
+  - Report details are split into separate sections per selected financial code.
+  - Added financial code validation column in section tables.
+  - Reworked project presentation into separate columns (`Project`, `Project Name`, `Currency`, `Sum`) instead of combined label.
+  - Added per-section table controls similar to Payments Report: column visibility button, column drag-reorder, and column resize.
+- Commit: f0e8542
+- URL: https://ice-8byydmf3h-iceerp.vercel.app
+
 ## 2026-03-06 (12)
 - Summary: Added Services Report, tightened confirmation semantics, and restricted salary Bank XLSX export to confirmed selections.
 - Changes:
