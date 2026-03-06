@@ -8,8 +8,8 @@
   - Payments Report ledger XLSX upload: added separate detailed processing log window (popup) during upload/apply, with in-app dialog fallback when popup is blocked.
   - Payments ledger bulk API (`/api/payments-ledger/bulk`): now returns detailed server-side processing logs and success message for log window rendering.
   - Prisma initialization: datasource override is now applied only when DB URL is defined, preventing build-time Prisma initialization crashes.
-- Commit: PENDING
-- URL: PENDING
+- Commit: 594ebc4
+- URL: https://ice-kchn0crtq-iceerp.vercel.app
 
 ## 2026-03-06 (7)
 - Summary: Fix missing salary period payment in All Payments report and prevent invisible active filters in Projects table.
