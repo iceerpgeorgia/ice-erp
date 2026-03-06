@@ -1,5 +1,21 @@
 # Deployment Log
 
+## 2026-03-06 (2)
+- Summary: Salary report per counteragent with XLSX/PDF export; bank import PGRST205 error handling fix.
+- Changes:
+  - New salary report page (/salary-report/[counteragentUuid]): Opens in new tab per counteragent with header showing counteragent details (name, ID, sex, pension scheme, IBAN, currency).
+  - Report table columns: Period, Payment ID, Net Sum (adjusted by pension_scheme ×0.98), Surplus Insurance, Ded. Insurance, Ded. Fitness, Ded. Fine, Payment, Month Balance, Cumulative Accrual, Cumulative Payment, Cumulative Balance.
+  - Totals row with color-coded balances (red=unpaid, green=overpaid).
+  - Export XLSX button (full report with header info + data table using xlsx library).
+  - Export PDF button (via window.print() with print-friendly CSS).
+  - New API endpoint /api/salary-report: Calculates paid amounts across all 10 deconsolidated tables including batch resolution, pension scheme adjustment, and cumulatives.
+  - New BarChart3 (purple) icon in salary accruals row actions to open salary report in new tab. Actions column widened to 180px.
+  - Page title registered for /salary-report route.
+  - Bank XML import (deconsolidated): Added PGRST205 error handling — gracefully skips missing Supabase tables instead of failing.
+  - DB cleanup: Deleted orphan bank account GE43BG0000000609494201 (no raw table, no parsing scheme).
+  - DB fix: 20 nominal amount records fixed for counteragent სიჩკენდერ (GEL→USD conversion using NBG rates).
+- Commit: 3bdfe1d
+
 ## 2026-03-06 (1)
 - Summary: Copy salary accrual to months feature; NBG rate missing warning; pending→completed multi-entry detection fix.
 - Changes:
