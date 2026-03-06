@@ -23,10 +23,25 @@ const normalizePaymentKey = (value: string) => {
   return base.toLowerCase();
 };
 
+const parseTxDate = (raw: string): string => {
+  if (!raw) return '';
+  // Handle DD.MM.YYYY format
+  if (raw.includes('.')) {
+    const parts = raw.split('.');
+    if (parts.length === 3 && parts[2].length === 4) {
+      return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    }
+  }
+  // Already ISO
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+  return raw;
+};
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const counteragentUuid = searchParams.get('counteragentUuid');
+    const mode = searchParams.get('mode') || 'total'; // 'total' | 'all'
 
     if (!counteragentUuid) {
       return NextResponse.json({ error: 'Missing counteragentUuid parameter' }, { status: 400 });
@@ -81,7 +96,152 @@ export async function GET(request: NextRequest) {
       ORDER BY sa.salary_month ASC, sa.created_at ASC
     `;
 
-    // Fetch paid amounts per payment_id for this counteragent
+    // ===================== MODE: ALL =====================
+    if (mode === 'all') {
+      // Fetch individual payment transactions with actual transaction dates
+      const individualPayments = await prisma.$queryRaw<any[]>`
+        SELECT
+          transaction_date,
+          payment_id,
+          ABS(nominal_amount)::numeric as amount,
+          nominal_currency_uuid
+        FROM (
+          ${Prisma.raw(DECONSOLIDATED_TABLES.map((tableName) => `
+          SELECT
+            cba.transaction_date,
+            cba.payment_id,
+            cba.nominal_amount,
+            cba.nominal_currency_uuid
+          FROM "${tableName}" cba
+          WHERE cba.counteragent_uuid = '${counteragentUuid}'
+          AND NOT EXISTS (
+            SELECT 1 FROM bank_transaction_batches btb
+            WHERE btb.raw_record_uuid::text = cba.raw_record_uuid::text
+          )
+          AND cba.payment_id NOT ILIKE 'BTC_%'
+          AND cba.payment_id IS NOT NULL AND cba.payment_id <> ''`).join(' UNION ALL '))}
+          UNION ALL
+          ${Prisma.raw(DECONSOLIDATED_TABLES.map((tableName) => `
+          SELECT
+            cba.transaction_date,
+            COALESCE(
+              CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
+              p.payment_id
+            ) as payment_id,
+            (COALESCE(NULLIF(btb.nominal_amount, 0), btb.partition_amount) * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
+            COALESCE(btb.nominal_currency_uuid, p.currency_uuid, cba.nominal_currency_uuid) as nominal_currency_uuid
+          FROM "${tableName}" cba
+          JOIN bank_transaction_batches btb
+            ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
+          LEFT JOIN payments p
+            ON (
+              btb.payment_uuid IS NOT NULL AND p.record_uuid = btb.payment_uuid
+            ) OR (
+              btb.payment_uuid IS NULL AND btb.payment_id IS NOT NULL AND p.payment_id = btb.payment_id
+            )
+          WHERE cba.counteragent_uuid = '${counteragentUuid}'`).join(' UNION ALL '))}
+        ) tx
+        WHERE payment_id IS NOT NULL AND payment_id <> ''
+        ORDER BY transaction_date ASC
+      `;
+
+      // Build set of salary payment_ids for filtering
+      const salaryPaymentKeys = new Set<string>();
+      for (const accrual of accruals) {
+        if (accrual.payment_id) {
+          salaryPaymentKeys.add(normalizePaymentKey(String(accrual.payment_id)));
+        }
+      }
+
+      // Build accrual entries (type=accrual) sorted by salary_month
+      const pensionScheme = Boolean(ca.pension_scheme);
+      const accrualEntries = accruals.map((accrual) => {
+        const netSum = Number(accrual.net_sum) || 0;
+        const adjustedNetSum = netSum * (pensionScheme ? 0.98 : 1);
+        return {
+          type: 'accrual' as const,
+          date: accrual.salary_month ? (typeof accrual.salary_month === 'string' ? accrual.salary_month : new Date(accrual.salary_month).toISOString().slice(0, 10)) : '',
+          payment_id: accrual.payment_id || '',
+          accrual: adjustedNetSum,
+          payment: 0,
+          surplus_insurance: accrual.surplus_insurance !== null ? Number(accrual.surplus_insurance) : null,
+          deducted_insurance: accrual.deducted_insurance !== null ? Number(accrual.deducted_insurance) : null,
+          deducted_fitness: accrual.deducted_fitness !== null ? Number(accrual.deducted_fitness) : null,
+          deducted_fine: accrual.deducted_fine !== null ? Number(accrual.deducted_fine) : null,
+          currency_code: accrual.currency_code,
+        };
+      });
+
+      // Build payment entries (type=payment), only for salary payment_ids
+      const paymentEntries = individualPayments
+        .filter(tx => {
+          const pid = tx.payment_id ? normalizePaymentKey(String(tx.payment_id)) : '';
+          return pid && salaryPaymentKeys.has(pid);
+        })
+        .map(tx => ({
+          type: 'payment' as const,
+          date: parseTxDate(String(tx.transaction_date || '')),
+          payment_id: tx.payment_id || '',
+          accrual: 0,
+          payment: tx.amount ? Math.abs(Number(tx.amount)) : 0,
+          surplus_insurance: null as number | null,
+          deducted_insurance: null as number | null,
+          deducted_fitness: null as number | null,
+          deducted_fine: null as number | null,
+          currency_code: null as string | null,
+        }));
+
+      // Merge and sort chronologically
+      const allEntries = [...accrualEntries, ...paymentEntries].sort((a, b) => {
+        const da = a.date || '';
+        const db = b.date || '';
+        if (da < db) return -1;
+        if (da > db) return 1;
+        // Accruals before payments on the same date
+        if (a.type === 'accrual' && b.type === 'payment') return -1;
+        if (a.type === 'payment' && b.type === 'accrual') return 1;
+        return 0;
+      });
+
+      // Compute running cumulatives
+      let cumulativeAccrual = 0;
+      let cumulativePayment = 0;
+      const ledgerRows = allEntries.map((entry, idx) => {
+        cumulativeAccrual += entry.accrual;
+        cumulativePayment += entry.payment;
+        return {
+          ...entry,
+          id: `${entry.type}-${idx}`,
+          cumulative_accrual: cumulativeAccrual,
+          cumulative_payment: cumulativePayment,
+          cumulative_balance: cumulativeAccrual - cumulativePayment,
+        };
+      });
+
+      const totalAccrual = accrualEntries.reduce((s, e) => s + e.accrual, 0);
+      const totalPayment = paymentEntries.reduce((s, e) => s + e.payment, 0);
+
+      return NextResponse.json({
+        counteragent: {
+          uuid: ca.counteragent_uuid,
+          name: ca.name,
+          identification_number: ca.identification_number,
+          sex: ca.sex,
+          pension_scheme: ca.pension_scheme,
+          iban: ca.iban,
+        },
+        ledgerRows,
+        totals: {
+          accrual: totalAccrual,
+          payment: totalPayment,
+          balance: totalAccrual - totalPayment,
+        },
+        currency: accruals.length > 0 ? accruals[0].currency_code : null,
+        mode: 'all',
+      });
+    }
+
+    // ===================== MODE: TOTAL (default) =====================
     const paidRows = await prisma.$queryRaw<any[]>`
       SELECT
         lower(trim(split_part(payment_id, ':', 1))) as payment_id_key,
@@ -224,6 +384,7 @@ export async function GET(request: NextRequest) {
       rows,
       totals,
       currency: rows.length > 0 ? rows[0].currency_code : null,
+      mode: 'total',
     });
   } catch (error: any) {
     console.error('Salary report error:', error);
