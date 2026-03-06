@@ -7,8 +7,8 @@
   - Replaced page-specific clear-filter controls with the shared button across filter-enabled table pages and statement pages.
   - Button is now always visible (disabled when no active filters/search), and clears both column filters and search inputs where applicable.
   - Applied to dictionary bank-transactions pages so date-range clear action remains visible even when inactive.
-- Commit: PENDING
-- URL: PENDING
+- Commit: 7a6c338
+- URL: https://ice-gmpqidiku-iceerp.vercel.app
 
 ## 2026-03-06 (8)
 - Summary: Improve filter UX (blank normalization + bank-priority options) and add detailed ledger XLSX upload processing logs in Payments Report.
