@@ -43,6 +43,10 @@ const resolveTitle = (pathname: string) => {
     return 'Counteragent Statement';
   }
 
+  if (pathname.startsWith('/salary-report')) {
+    return 'Salary Report';
+  }
+
   if (pathname.startsWith('/dictionaries/counteragents/')) {
     return 'Counteragents';
   }

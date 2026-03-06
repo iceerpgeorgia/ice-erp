@@ -1149,19 +1149,37 @@ export async function processBOGGELDeconsolidated(
       const tableOut = resolveDeconsolidatedTableName(outAccount.account_number, defaultSchemeByCurrency(outAccount.currency_code));
       const tableIn = resolveDeconsolidatedTableName(inAccount.account_number, defaultSchemeByCurrency(inAccount.currency_code));
 
-      const { data: outRow } = await supabase
+      const { data: outRow, error: outError } = await supabase
         .from(tableOut)
         .select('*')
         .eq('dockey', candidate.dockey)
         .limit(1)
         .maybeSingle();
 
-      const { data: inRow } = await supabase
+      if (outError) {
+        if (outError.code === 'PGRST205' || outError.message?.includes('Could not find the table')) {
+          console.log(`  ⚠️  Skipping conversion DocKey=${candidate.dockey}: table ${tableOut} does not exist`);
+        } else {
+          console.error(`  ❌ Supabase HTTP error:`, JSON.stringify(outError, null, 2));
+        }
+        continue;
+      }
+
+      const { data: inRow, error: inError } = await supabase
         .from(tableIn)
         .select('*')
         .eq('dockey', candidate.dockey)
         .limit(1)
         .maybeSingle();
+
+      if (inError) {
+        if (inError.code === 'PGRST205' || inError.message?.includes('Could not find the table')) {
+          console.log(`  ⚠️  Skipping conversion DocKey=${candidate.dockey}: table ${tableIn} does not exist`);
+        } else {
+          console.error(`  ❌ Supabase HTTP error:`, JSON.stringify(inError, null, 2));
+        }
+        continue;
+      }
 
       if (!outRow || !inRow) continue;
       if (outRow.conversion_id || inRow.conversion_id) continue;

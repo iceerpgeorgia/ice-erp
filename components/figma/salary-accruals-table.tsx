@@ -15,7 +15,8 @@ import {
   User,
   Filter,
   ArrowUpRight,
-  Copy
+  Copy,
+  BarChart3
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -3003,7 +3004,7 @@ export function SalaryAccrualsTable() {
                 ))}
                 <th 
                   className="sticky top-0 bg-white px-4 py-3 text-center text-sm font-semibold border-b-2 border-gray-200"
-                  style={{ width: 120, minWidth: 120, maxWidth: 120 }}
+                  style={{ width: 180, minWidth: 180, maxWidth: 180 }}
                 >
                   Actions
                 </th>
@@ -3127,8 +3128,8 @@ export function SalaryAccrualsTable() {
                         )}
                       </td>
                     ))}
-                    <td className="px-4 py-2 text-sm" style={{ width: 150, minWidth: 150, maxWidth: 150 }}>
-                      <div className="flex items-center justify-center gap-2">
+                    <td className="px-4 py-2 text-sm" style={{ width: 180, minWidth: 180, maxWidth: 180 }}>
+                      <div className="flex items-center justify-center gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -3175,6 +3176,23 @@ export function SalaryAccrualsTable() {
                         >
                           <User className="h-4 w-4" />
                         </a>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (accrual.counteragent_uuid) {
+                              window.open(`/salary-report/${accrual.counteragent_uuid}`, '_blank', 'noopener,noreferrer');
+                            }
+                          }}
+                          className={`inline-flex items-center justify-center rounded p-1 transition-colors ${
+                            accrual.counteragent_uuid
+                              ? 'text-purple-600 hover:bg-purple-50 hover:text-purple-800'
+                              : 'text-gray-400 cursor-default'
+                          }`}
+                          title="Salary report (opens in new tab)"
+                          disabled={!accrual.counteragent_uuid}
+                        >
+                          <BarChart3 className="h-4 w-4" />
+                        </button>
                         <Button
                           variant="ghost"
                           size="sm"
