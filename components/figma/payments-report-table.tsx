@@ -60,6 +60,7 @@ type PaymentReport = {
   project: string;
   projectName?: string | null;
   job: string;
+  jobCount: number;
   jobWeight?: number | null;
   floors: number;
   financialCode: string;
@@ -112,6 +113,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'incomeTax', label: 'Income Tax', visible: true, sortable: true, filterable: true, format: 'boolean', width: 100 },
   { key: 'project', label: 'Project', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'job', label: 'Job', visible: true, sortable: true, filterable: true, width: 150 },
+  { key: 'jobCount', label: 'Job Count', visible: true, sortable: true, filterable: true, format: 'number', width: 110 },
   { key: 'jobWeight', label: 'Job Weight', visible: false, sortable: true, filterable: true, format: 'number', width: 120 },
   { key: 'floors', label: 'Floors', visible: true, sortable: true, filterable: true, format: 'number', width: 100 },
   { key: 'accrual', label: 'Accrual', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },

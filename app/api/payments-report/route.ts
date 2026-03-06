@@ -45,6 +45,14 @@ export async function GET(request: NextRequest) {
       raw_union_bank AS (
         ${rawUnionBankQuery}
       ),
+      jobs_per_project AS (
+        SELECT
+          j.project_uuid,
+          COUNT(*) as job_count
+        FROM jobs j
+        WHERE j.is_active = true
+        GROUP BY j.project_uuid
+      ),
       unbound_counteragent AS (
         SELECT
           counteragent_uuid,
@@ -84,6 +92,7 @@ export async function GET(request: NextRequest) {
         j.weight as job_weight,
         j.floors,
         curr.code as currency_code,
+        COALESCE(jpp.job_count, 0) as job_count,
         COALESCE(uc.unbound_count, 0) as unbound_count,
         COALESCE(ledger_agg.total_accrual, 0) as total_accrual,
         COALESCE(ledger_agg.total_order, 0) as total_order,
@@ -96,6 +105,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
       LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
       LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
+      LEFT JOIN jobs_per_project jpp ON p.project_uuid = jpp.project_uuid
       LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
       LEFT JOIN entity_types et ON ca.entity_type_uuid = et.entity_type_uuid
       LEFT JOIN unbound_counteragent uc ON p.counteragent_uuid = uc.counteragent_uuid
@@ -180,6 +190,7 @@ export async function GET(request: NextRequest) {
       project: row.project_index,
       projectName: row.project_name,
       job: row.job_name,
+      jobCount: row.job_count ? Number(row.job_count) : 0,
       jobWeight: row.job_weight !== null && row.job_weight !== undefined ? Number(row.job_weight) : null,
       floors: row.floors ? Number(row.floors) : 0,
       financialCode: row.financial_code_validation || row.financial_code,

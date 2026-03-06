@@ -106,7 +106,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'batchId', label: 'Batch ID', visible: false, sortable: true, filterable: true, width: 160, align: 'left' },
   { key: 'id1', label: 'ID1', visible: false, sortable: true, filterable: true, width: 140, align: 'left' },
   { key: 'id2', label: 'ID2', visible: false, sortable: true, filterable: true, width: 140, align: 'left' },
-  { key: 'account', label: 'Account', visible: true, sortable: true, filterable: true, width: 220, align: 'left' },
+  { key: 'account', label: 'CA Account', visible: true, sortable: true, filterable: true, width: 220, align: 'left' },
   { key: 'comment', label: 'Comment', visible: true, sortable: true, filterable: true, width: 320, align: 'left', format: 'text' },
 ];
 
@@ -602,7 +602,7 @@ export default function CounteragentStatementPage() {
           payment: tx.nominalAmount,
           confirmed: null,
           ppc: tx.accountCurrencyAmount,
-          account: tx.accountLabel || '-',
+          account: tx.counteragentAccountNumber || tx.accountLabel || '-',
           comment: tx.description || '-',
           id1: tx.id1 || null,
           id2: tx.id2 || null,
