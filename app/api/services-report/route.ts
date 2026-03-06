@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
           p.counteragent_uuid,
           p.currency_uuid,
           p.financial_code_uuid,
+          COALESCE(fc.validation, fc.code, '-') as financial_code_validation,
           proj.project_index,
           proj.project_name,
           COALESCE(ps.name, proj.state, 'Unknown') as status_name,
@@ -97,6 +98,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
         LEFT JOIN project_states ps ON proj.state_uuid = ps.uuid
         LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
+        LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
         LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
         WHERE p.is_active = true
           AND p.financial_code_uuid IN (${financialCodePlaceholders})
@@ -163,6 +165,8 @@ export async function GET(request: NextRequest) {
         GROUP BY payment_id
       )
       SELECT
+        sp.financial_code_uuid,
+        COALESCE(MAX(sp.financial_code_validation), '-') as financial_code_validation,
         sp.project_uuid,
         COALESCE(MAX(sp.status_name), 'Unknown') as status_name,
         COALESCE(MAX(sp.project_index), '-') as project_index,
@@ -189,8 +193,8 @@ export async function GET(request: NextRequest) {
       LEFT JOIN ledger_agg la ON sp.payment_id = la.payment_id
       LEFT JOIN bank_agg ba ON sp.payment_id = ba.payment_id
       LEFT JOIN jobs_per_project jpp ON sp.project_uuid = jpp.project_uuid
-      GROUP BY sp.project_uuid
-      ORDER BY status_name ASC, project_index ASC
+      GROUP BY sp.financial_code_uuid, sp.project_uuid
+      ORDER BY financial_code_validation ASC, status_name ASC, project_index ASC
     `;
 
     const rows = await prisma.$queryRawUnsafe<any[]>(query, ...financialCodeUuids);
@@ -202,6 +206,8 @@ export async function GET(request: NextRequest) {
       const due = Number((order - Math.abs(payment)).toFixed(2));
       const balance = Number((accrual - Math.abs(payment)).toFixed(2));
       return {
+        financialCodeUuid: row.financial_code_uuid,
+        financialCodeValidation: row.financial_code_validation,
         projectUuid: row.project_uuid,
         status: row.status_name,
         project: row.project_index,
