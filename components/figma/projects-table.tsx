@@ -245,6 +245,17 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       }
     }
 
+    const filteredColumns = new Set(Array.from(fs.keys()) as ColumnKey[]);
+    if (filteredColumns.size > 0) {
+      setColumns((prev) =>
+        prev.map((col) =>
+          filteredColumns.has(col.key) && !col.visible
+            ? { ...col, visible: true }
+            : col
+        )
+      );
+    }
+
     setColumnFilters(fs);
   }, [filtersStorageKey]);
 

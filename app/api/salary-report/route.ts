@@ -167,12 +167,22 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Find paid periods that don't have accrual records
-    const missingPeriods = new Set<string>();
+    // Build period -> payment_ids map (salary PRL only)
+    const salaryPaymentIdsByPeriod = new Map<string, Set<string>>();
     for (const row of allPaymentIds) {
       const pid = String(row.payment_id_key || '');
       const period = extractPeriodFromPaymentId(pid);
-      if (period && !existingPeriods.has(period)) {
+      if (!period) continue;
+      if (!salaryPaymentIdsByPeriod.has(period)) {
+        salaryPaymentIdsByPeriod.set(period, new Set());
+      }
+      salaryPaymentIdsByPeriod.get(period)!.add(pid);
+    }
+
+    // Find paid periods that don't have accrual records
+    const missingPeriods = new Set<string>();
+    for (const period of salaryPaymentIdsByPeriod.keys()) {
+      if (!existingPeriods.has(period)) {
         missingPeriods.add(period);
       }
     }
@@ -184,8 +194,9 @@ export async function GET(request: NextRequest) {
       for (const period of sortedMissing) {
         const projectedDate = periodToDate(period);
         const [yearStr, monthStr] = period.split('-');
-        // Generate the payment_id for this projected period
-        const projectedPaymentId = generatePaymentId(
+        const paymentIdsForPeriod = Array.from(salaryPaymentIdsByPeriod.get(period) || []).sort();
+        // Prefer the real payment_id from bank for this period; fallback to generated format
+        const projectedPaymentId = paymentIdsForPeriod[0] || generatePaymentId(
           String(lastAccrual.counteragent_uuid),
           String(lastAccrual.financial_code_uuid),
           new Date(Number(yearStr), Number(monthStr) - 1, 1)
@@ -272,6 +283,15 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      // Include all PRL-style salary payment_ids found in bank, even if accrual payment_id differs
+      const salaryLikePaymentKeys = new Set<string>();
+      for (const row of allPaymentIds) {
+        const pid = String(row.payment_id_key || '');
+        if (pid && extractPeriodFromPaymentId(pid)) {
+          salaryLikePaymentKeys.add(pid);
+        }
+      }
+
       // Build accrual entries (type=accrual) sorted by salary_month
       const pensionScheme = Boolean(ca.pension_scheme);
       const accrualEntries = accruals.map((accrual) => {
@@ -296,7 +316,7 @@ export async function GET(request: NextRequest) {
       const paymentEntries = individualPayments
         .filter(tx => {
           const pid = tx.payment_id ? normalizePaymentKey(String(tx.payment_id)) : '';
-          return pid && salaryPaymentKeys.has(pid);
+          return pid && (salaryPaymentKeys.has(pid) || salaryLikePaymentKeys.has(pid));
         })
         .map(tx => ({
           type: 'payment' as const,
