@@ -206,8 +206,9 @@ export async function POST(request: NextRequest) {
         accrual,
         "order",
         comment,
-        user_email
-      ) VALUES ($1, $2::timestamp, $3, $4, $5, $6)
+        user_email,
+        confirmed
+      ) VALUES ($1, $2::timestamp, $3, $4, $5, $6, false)
       RETURNING *
     `;
 

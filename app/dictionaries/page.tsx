@@ -94,6 +94,11 @@ export default function DictionariesIndex() {
             </Link>
           </li>
           <li>
+            <Link className="text-blue-600 hover:underline" href="/dictionaries/services-report">
+              Services Report
+            </Link>
+          </li>
+          <li>
             <Link className="text-blue-600 hover:underline" href="/dictionaries/conversions">
               Conversions
             </Link>

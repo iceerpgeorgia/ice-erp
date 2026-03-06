@@ -26,6 +26,7 @@ const routeTitles: Record<string, string> = {
   '/dictionaries/payments': 'Payments',
   '/dictionaries/payments-ledger': 'Payments Ledger',
   '/dictionaries/payments-report': 'Payments Report',
+  '/dictionaries/services-report': 'Services Report',
   '/dictionaries/waybills': 'Waybills In',
   '/dictionaries/projects': 'Projects',
   '/dictionaries/salary-accruals': 'Salary Accruals',

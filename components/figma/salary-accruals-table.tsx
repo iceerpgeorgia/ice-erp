@@ -895,6 +895,12 @@ export function SalaryAccrualsTable() {
       return;
     }
 
+    const hasUnconfirmed = selectedRecords.some((row) => !Boolean(row.confirmed));
+    if (hasUnconfirmed) {
+      alert('Bank XLSX export is allowed only for confirmed payments. Please confirm all selected records first.');
+      return;
+    }
+
     const headers = [
       'გამგზავნის ანგარიშის ნომერი',
       'დოკუმენტის ნომერი',
@@ -1848,6 +1854,11 @@ export function SalaryAccrualsTable() {
     [filteredAndSortedData, selectedIds]
   );
 
+  const hasUnconfirmedSelected = useMemo(
+    () => data.some((row) => selectedIds.has(row.id) && !Boolean(row.confirmed)),
+    [data, selectedIds]
+  );
+
   const selectedPaymentIds = useMemo(
     () => Array.from(new Set(selectedRecords.map((row) => row.payment_id).filter(Boolean))),
     [selectedRecords]
@@ -2013,7 +2024,7 @@ export function SalaryAccrualsTable() {
               />
             </div>
             {selectedIds.size > 0 && (
-              <Button variant="outline" onClick={handleDownloadBankXlsx}>
+              <Button variant="outline" onClick={handleDownloadBankXlsx} disabled={hasUnconfirmedSelected}>
                 Bank XLSX
               </Button>
             )}

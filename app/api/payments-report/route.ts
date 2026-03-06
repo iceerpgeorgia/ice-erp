@@ -119,11 +119,11 @@ export async function GET(request: NextRequest) {
             ', '
             ORDER BY COALESCE(NULLIF(u.email, ''), pl.user_email)
           ) as ledger_users,
-          BOOL_OR(confirmed) as confirmed,
+          BOOL_AND(COALESCE(confirmed, false)) as confirmed,
           MAX(effective_date) as latest_ledger_date
         FROM payments_ledger pl
         LEFT JOIN "User" u ON u.email = pl.user_email
-        ${ledgerDateFilter}
+        ${ledgerDateFilter ? `${ledgerDateFilter} AND` : 'WHERE'} (pl.is_deleted = false OR pl.is_deleted IS NULL)
         GROUP BY payment_id
       ) ledger_agg ON p.payment_id = ledger_agg.payment_id
       LEFT JOIN (
