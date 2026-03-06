@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-06 (11)
+- Summary: Added Job Count to Payments Report and fixed Counteragent Statement to show CA account.
+- Changes:
+  - Payments report API (`/api/payments-report`): added project-level active jobs aggregation (`job_count`) from `jobs` table and returned it as `jobCount`.
+  - Payments report table: added visible sortable/filterable `Job Count` numeric column.
+  - Counteragent statement page: `CA Account` column now uses counteragent account number as primary source (with safe fallback).
+- Commit: f14fc4d
+- URL: https://ice-acgmt6moh-iceerp.vercel.app
+
 ## 2026-03-06 (10)
 - Summary: Fix blank filtering in statement pages so selecting blank values returns matching rows.
 - Changes:
