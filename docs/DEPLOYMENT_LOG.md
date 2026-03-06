@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-06 (10)
+- Summary: Fix blank filtering in statement pages so selecting blank values returns matching rows.
+- Changes:
+  - Counteragent statement page: removed `'-'` fallback coercion in filter input/accessors so null/empty values remain truly blank for matching.
+  - Payment statement page: applied the same fix to facet base data, unique values cache, and filter predicate value extraction.
+  - Result: blank facet filter now correctly includes rows with null/empty values (e.g. missing `payment_id`) instead of returning no records.
+- Commit: 173cff5
+- URL: https://ice-h1e5yvlxi-iceerp.vercel.app
+
 ## 2026-03-06 (9)
 - Summary: Added a shared always-visible "Clear Filters" action across all filter-enabled pages.
 - Changes:
