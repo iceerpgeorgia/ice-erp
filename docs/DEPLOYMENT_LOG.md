@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-06 (7)
+- Summary: Fix missing salary period payment in All Payments report and prevent invisible active filters in Projects table.
+- Changes:
+  - Salary report API (`/api/salary-report`): missing-period projected rows now prefer real bank `payment_id` values per period instead of only generated IDs.
+  - Salary report API (All Payments mode): payment inclusion now also accepts PRL salary-like payment IDs from bank data when accrual and bank IDs differ.
+  - Projects table: when any filter is active on a hidden column (e.g. `projectUuid`), that column is auto-shown so filters are visible and removable.
+  - Result: March salary payments (e.g. for ლაშა ვერულიძე) appear in All Payments view; Projects page no longer looks unfiltered while silently filtered.
+- Commit: f2139f5
+- URL: https://ice-ksn8qn14z-iceerp.vercel.app
+
 ## 2026-03-06 (6)
 - Summary: Salary report All Payments PDF export now fits all columns (including cumulative columns) using compact print layout and auto width.
 - Changes:
