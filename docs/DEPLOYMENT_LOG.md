@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-03-06 (14)
+- Summary: Expanded services/projects/jobs features and fixed project mapper typing for successful production build.
+- Changes:
+  - Services report: removed `payments count`, `financial code`, and `project` from column selector; renamed `Project Name` label to `Project`.
+  - Services report: `Sum` now uses project amount from `projects.value` (project table source).
+  - Projects: added `department` and `service_state` fields end-to-end (Prisma schema, SQL migration, API, table columns, add/edit dialogs).
+  - Jobs: add/edit flows now support binding one job to multiple projects via `projectUuids[]` (API + UI multi-select).
+  - Build fix: updated project data mappers in admin and dictionary project pages to include required `department` and `serviceState` fields.
+- Commit: 4ac9785
+- URL: https://ice-97xhm8g2s-iceerp.vercel.app
+
 ## 2026-03-06 (13)
 - Summary: Refined Services Report UX to section by financial code and moved financial code selection into Settings.
 - Changes:
