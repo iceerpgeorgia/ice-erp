@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-09 (17)
+- Summary: Added Waybills unidentified-counteragent visual cue and quick add-counteragent flow.
+- Changes:
+  - Waybills table now highlights rows in light red when `counteragent_uuid` is missing (unidentified counteragent).
+  - Added `Add Counteragent` action button in Waybills actions column for unidentified rows.
+  - Action opens New Counteragent page with prefilled `name` and `identification_number` from Waybills row data.
+  - New Counteragent form now reads query params and auto-prefills Name and ID fields.
+- Commit: ff9bd45
+- URL: https://ice-l8s7wd8li-iceerp.vercel.app
+
 ## 2026-03-09 (16)
 - Summary: Improved Waybills filter apply latency.
 - Changes:
