@@ -419,8 +419,16 @@ export function PaymentsReportTable() {
     // Override filters from URL query parameters (e.g. ?counteragentUuid=UUID)
     const urlParams = new URLSearchParams(window.location.search);
     const counteragentUuidParam = urlParams.get('counteragentUuid');
+    const projectUuidParam = urlParams.get('projectUuid');
+    const jobUuidParam = urlParams.get('jobUuid');
     if (counteragentUuidParam) {
       restoredFilters.set('counteragentUuid', { mode: 'facet', values: new Set([counteragentUuidParam]) });
+    }
+    if (projectUuidParam) {
+      restoredFilters.set('projectUuid', { mode: 'facet', values: new Set([projectUuidParam]) });
+    }
+    if (jobUuidParam) {
+      restoredFilters.set('jobUuid', { mode: 'facet', values: new Set([jobUuidParam]) });
     }
 
     setFilters(restoredFilters);
@@ -3247,6 +3255,25 @@ export function PaymentsReportTable() {
                           >
                             <ArrowUpRight className="h-3.5 w-3.5" />
                           </a>
+                          <a
+                            href={row.projectUuid ? `/dictionaries/payments-report?projectUuid=${encodeURIComponent(row.projectUuid)}` : '#'}
+                            target={row.projectUuid ? '_blank' : undefined}
+                            rel={row.projectUuid ? 'noopener noreferrer' : undefined}
+                            className={`inline-flex items-center justify-center rounded p-1 transition-colors flex-shrink-0 ${
+                              row.projectUuid
+                                ? 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                                : 'text-gray-300 cursor-not-allowed'
+                            }`}
+                            title="Filter payments report by this project"
+                            aria-disabled={!row.projectUuid}
+                            onClick={(event) => {
+                              if (!row.projectUuid) {
+                                event.preventDefault();
+                              }
+                            }}
+                          >
+                            <Filter className="h-3.5 w-3.5" />
+                          </a>
                         </div>
                       ) : col.key === 'counteragent' ? (
                         <div className="flex items-center gap-2 min-w-0">
@@ -3315,6 +3342,25 @@ export function PaymentsReportTable() {
                             }}
                           >
                             <ArrowUpRight className="h-3.5 w-3.5" />
+                          </a>
+                          <a
+                            href={row.jobUuid ? `/dictionaries/payments-report?jobUuid=${encodeURIComponent(row.jobUuid)}` : '#'}
+                            target={row.jobUuid ? '_blank' : undefined}
+                            rel={row.jobUuid ? 'noopener noreferrer' : undefined}
+                            className={`inline-flex items-center justify-center rounded p-1 transition-colors flex-shrink-0 ${
+                              row.jobUuid
+                                ? 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                                : 'text-gray-300 cursor-not-allowed'
+                            }`}
+                            title="Filter payments report by this job"
+                            aria-disabled={!row.jobUuid}
+                            onClick={(event) => {
+                              if (!row.jobUuid) {
+                                event.preventDefault();
+                              }
+                            }}
+                          >
+                            <Filter className="h-3.5 w-3.5" />
                           </a>
                         </div>
                       ) : (
