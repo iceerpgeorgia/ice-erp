@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-09 (19)
+- Summary: Deployed latest payments fixes for A&O+ validation flow and Add Ledger dialog layout.
+- Changes:
+  - Payment Statement `+A&O` now submits selected rows via `/api/payments-ledger/bulk` instead of sequential single inserts.
+  - Eliminated false intermediate validation failures (`Total order cannot exceed total accrual`) caused by per-row insertion order.
+  - Payment Statement now refreshes statement data after successful bulk A&O insert.
+  - Payments Report Add Ledger form: moved `Create Entry` button above `Comment` field.
+- Commit: 90bb0f5
+- URL: https://ice-r5qqx73gh-iceerp.vercel.app
+
 ## 2026-03-09 (18)
 - Summary: Fixed misleading Payments Report confirm error behavior.
 - Changes:
