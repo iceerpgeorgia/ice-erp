@@ -45,6 +45,7 @@ import * as XLSX from 'xlsx';
 type PaymentReport = {
   paymentId: string;
   paymentRowId?: number | null;
+  counteragentRowId?: number | null;
   label?: string | null;
   projectUuid?: string | null;
   counteragentUuid?: string | null;
@@ -79,6 +80,7 @@ type PaymentReport = {
   unboundCount?: number;
   hasUnboundCounteragentTransactions?: boolean;
   latestDate: string | null;
+  latestLedgerCreatedAt?: string | null;
 };
 
 type ColumnKey = keyof PaymentReport;
@@ -1287,6 +1289,24 @@ export function PaymentsReportTable() {
     result.sort((a, b) => {
       const aVal = a[sortColumn];
       const bVal = b[sortColumn];
+
+      if (sortColumn === 'latestDate' && sortDirection === 'desc') {
+        const aLatestDate = a.latestDate ? new Date(a.latestDate).getTime() : 0;
+        const bLatestDate = b.latestDate ? new Date(b.latestDate).getTime() : 0;
+
+        if (aLatestDate !== bLatestDate) {
+          return bLatestDate - aLatestDate;
+        }
+
+        const aCreatedAt = a.latestLedgerCreatedAt ? new Date(a.latestLedgerCreatedAt).getTime() : 0;
+        const bCreatedAt = b.latestLedgerCreatedAt ? new Date(b.latestLedgerCreatedAt).getTime() : 0;
+
+        if (aCreatedAt !== bCreatedAt) {
+          return bCreatedAt - aCreatedAt;
+        }
+
+        return (b.paymentId || '').localeCompare(a.paymentId || '');
+      }
       
       if (aVal === bVal) return 0;
       
@@ -1552,6 +1572,88 @@ export function PaymentsReportTable() {
     return confirm(message);
   };
 
+  const splitIbans = (value: string | null | undefined) => {
+    if (!value) return [] as string[];
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+
+  const saveCounteragentIban = async (record: PaymentReport, iban: string) => {
+    if (!record.counteragentRowId) {
+      throw new Error(`Cannot save IBAN for ${record.paymentId}: counteragent row id is missing.`);
+    }
+
+    const response = await fetch(`/api/counteragents?id=${record.counteragentRowId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ iban }),
+    });
+
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      throw new Error(result?.error || `Failed to save IBAN for ${record.paymentId}`);
+    }
+  };
+
+  const resolveIbansForExport = async (records: PaymentReport[]) => {
+    const resolvedByPaymentId = new Map<string, string>();
+    const resolvedByCounteragent = new Map<string, string>();
+
+    for (const record of records) {
+      const counteragentKey = record.counteragentUuid || `payment:${record.paymentId}`;
+
+      if (resolvedByCounteragent.has(counteragentKey)) {
+        resolvedByPaymentId.set(record.paymentId, resolvedByCounteragent.get(counteragentKey) || '');
+        continue;
+      }
+
+      const existingIbans = splitIbans(record.counteragentIban);
+      let selectedIban = '';
+
+      if (existingIbans.length === 0) {
+        const entered = prompt(
+          `Counteragent "${record.counteragent}" has no IBAN.\n` +
+          `Enter IBAN for payment ${record.paymentId}:`
+        );
+
+        if (!entered || !entered.trim()) {
+          throw new Error(`IBAN is required for ${record.paymentId}. Export cancelled.`);
+        }
+
+        selectedIban = entered.trim();
+        await saveCounteragentIban(record, selectedIban);
+      } else if (existingIbans.length === 1) {
+        selectedIban = existingIbans[0];
+      } else {
+        const options = existingIbans
+          .map((iban, index) => `${index + 1}. ${iban}`)
+          .join('\n');
+        const choice = prompt(
+          `Counteragent "${record.counteragent}" has multiple IBANs.\n` +
+          `Select IBAN number for payment ${record.paymentId}:\n\n${options}`
+        );
+
+        if (!choice) {
+          throw new Error(`IBAN selection is required for ${record.paymentId}. Export cancelled.`);
+        }
+
+        const selectedIndex = Number(choice);
+        if (!Number.isInteger(selectedIndex) || selectedIndex < 1 || selectedIndex > existingIbans.length) {
+          throw new Error(`Invalid IBAN selection for ${record.paymentId}. Export cancelled.`);
+        }
+
+        selectedIban = existingIbans[selectedIndex - 1];
+      }
+
+      resolvedByCounteragent.set(counteragentKey, selectedIban);
+      resolvedByPaymentId.set(record.paymentId, selectedIban);
+    }
+
+    return resolvedByPaymentId;
+  };
+
   const handleDownloadBankXlsx = async () => {
     const selectedRecords = filteredAndSortedData.filter((row) => selectedPaymentIds.has(row.paymentId));
     if (selectedRecords.length === 0) {
@@ -1585,6 +1687,8 @@ export function PaymentsReportTable() {
     ];
 
     try {
+      const resolvedIbans = await resolveIbansForExport(eligible);
+
       const rows = await Promise.all(
         eligible.map(async (record) => {
           const description = buildPaymentDescription(record.financialCodeDescription, record);
@@ -1593,7 +1697,7 @@ export function PaymentsReportTable() {
             'GE78BG0000000893486000',
             '',
             '',
-            record.counteragentIban || '',
+            resolvedIbans.get(record.paymentId) || '',
             sanitizeRecipientName(buildCounteragentExportName(record)),
             record.counteragentId || '',
             description || 'გადახდა',
@@ -1605,7 +1709,7 @@ export function PaymentsReportTable() {
         })
       );
 
-      const worksheet = XLSX.utils.aoa_to_sheet([[], headers, ...rows]);
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
       XLSX.writeFile(workbook, 'Bank_of_Georgia.xlsx');
@@ -1954,13 +2058,15 @@ export function PaymentsReportTable() {
     ];
 
     try {
+      const resolvedIbans = await resolveIbansForExport(eligible);
+
       const rows = await Promise.all(
         eligible.map(async (record) => {
           const description = buildPaymentDescription(record.financialCodeDescription, record);
           const amount = await calculateExportAmount(record);
           const paymentId = record.paymentId ? record.paymentId.replace(/_/g, ' ').toUpperCase() : '';
           return [
-            record.counteragentIban || '',
+            resolvedIbans.get(record.paymentId) || '',
             sanitizeRecipientName(buildCounteragentExportName(record)),
             amount,
             description || 'Payment',

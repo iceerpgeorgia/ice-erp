@@ -72,6 +72,7 @@ export async function GET(request: NextRequest) {
         to_jsonb(p)->>'label' as label,
         p.project_uuid,
         p.counteragent_uuid,
+        ca.id as counteragent_row_id,
         p.financial_code_uuid,
         p.job_uuid,
         p.income_tax,
@@ -98,6 +99,7 @@ export async function GET(request: NextRequest) {
         COALESCE(ledger_agg.total_order, 0) as total_order,
         COALESCE(ledger_agg.ledger_users, '') as ledger_users,
         COALESCE(ledger_agg.confirmed, false) as confirmed,
+        ledger_agg.latest_ledger_created_at,
         COALESCE(bank_agg.total_payment, 0) as total_payment,
         COALESCE(GREATEST(ledger_agg.latest_ledger_date, bank_agg.latest_bank_date), ledger_agg.latest_ledger_date, bank_agg.latest_bank_date) as latest_date
       FROM payments p
@@ -120,7 +122,8 @@ export async function GET(request: NextRequest) {
             ORDER BY COALESCE(NULLIF(u.email, ''), pl.user_email)
           ) as ledger_users,
           BOOL_AND(COALESCE(confirmed, false)) as confirmed,
-          MAX(effective_date) as latest_ledger_date
+          MAX(effective_date) as latest_ledger_date,
+          MAX(created_at) as latest_ledger_created_at
         FROM payments_ledger pl
         LEFT JOIN "User" u ON u.email = pl.user_email
         ${ledgerDateFilter ? `${ledgerDateFilter} AND` : 'WHERE'} (pl.is_deleted = false OR pl.is_deleted IS NULL)
@@ -177,6 +180,7 @@ export async function GET(request: NextRequest) {
       paymentRowId: row.payment_row_id ? Number(row.payment_row_id) : null,
       label: row.label ?? null,
       counteragentUuid: row.counteragent_uuid,
+      counteragentRowId: row.counteragent_row_id ? Number(row.counteragent_row_id) : null,
       projectUuid: row.project_uuid,
       financialCodeUuid: row.financial_code_uuid,
       jobUuid: row.job_uuid,
@@ -205,6 +209,7 @@ export async function GET(request: NextRequest) {
       unboundCount: row.unbound_count ? Number(row.unbound_count) : 0,
       hasUnboundCounteragentTransactions: Boolean(row.unbound_count && Number(row.unbound_count) > 0),
       latestDate: row.latest_date || null,
+      latestLedgerCreatedAt: row.latest_ledger_created_at || null,
       // Calculated fields
       accrualPerFloor: row.floors && row.total_accrual 
         ? parseFloat((parseFloat(row.total_accrual) / Number(row.floors)).toFixed(2))
