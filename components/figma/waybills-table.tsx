@@ -20,6 +20,7 @@ import { Badge } from './ui/badge';
 import { Search, Upload, Eye, Edit2, Settings, ArrowUp, ArrowDown } from 'lucide-react';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
+import { BLANK_FACET_TOKEN } from './shared/table-filters';
 import * as XLSX from 'xlsx';
 
 const CORRESPONDING_ACCOUNTS = [
@@ -325,7 +326,10 @@ export function WaybillsTable() {
     includeFacets: boolean;
     includePagination?: boolean;
   }) => {
-    const normalizeFilterValue = (value: any) => (value === null || value === undefined ? '' : value);
+    const normalizeFilterValue = (value: any) => {
+      if (value === BLANK_FACET_TOKEN) return '';
+      return value === null || value === undefined ? '' : value;
+    };
     const filterValueKey = (value: any) => String(normalizeFilterValue(value));
 
     const serializedFilters = columnFilters.reduce<Array<[string, any[]]>>((acc, filter) => {
