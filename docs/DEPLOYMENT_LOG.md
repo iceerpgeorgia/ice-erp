@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-10 (24)
+- Summary: Enforced payment deactivation guard when ledger activity exists and excluded inactive payments from report formatting logic.
+- Changes:
+  - Payments API now blocks active→inactive updates when non-deleted ledger rows contain non-zero `accrual` or `order` values.
+  - API returns explicit `409` conflict with `PAYMENT_HAS_LEDGER_ACTIVITY` for blocked deactivation attempts.
+  - Payments table and Payments Report edit flow now show a clear business-rule prompt when deactivation is blocked.
+  - Payments Report conditional-format calculations and row highlighting now ignore inactive payments.
+- Commit: 89bd297
+- URL: https://ice-d00se6jnm-iceerp.vercel.app
+
 ## 2026-03-10 (23)
 - Summary: Payments Report bank exports now enforce IBAN resolution and BOG export starts from A1.
 - Changes:
