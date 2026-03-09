@@ -1019,16 +1019,24 @@ export function PaymentsReportTable() {
     }
   };
 
+  const getLocalTodayIso = useCallback(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
   const getMaxDateFilter = useCallback(() => {
     if (dateFilterMode === 'today') {
-      return new Date().toISOString().split('T')[0];
+      return getLocalTodayIso();
     }
     if (dateFilterMode === 'custom' && customDate) {
       const isValidDateString = /^\d{4}-\d{2}-\d{2}$/.test(customDate);
       return isValidDateString ? customDate : null;
     }
     return null;
-  }, [dateFilterMode, customDate]);
+  }, [dateFilterMode, customDate, getLocalTodayIso]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -1037,7 +1045,7 @@ export function PaymentsReportTable() {
       // Build query params for date filter
       const params = new URLSearchParams();
       if (dateFilterMode === 'today') {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalTodayIso();
         params.set('maxDate', today);
         console.log('[Payments Report] Filtering by today:', today);
       } else if (dateFilterMode === 'custom' && customDate) {
@@ -1073,7 +1081,7 @@ export function PaymentsReportTable() {
     } finally {
       setLoading(false);
     }
-  }, [dateFilterMode, customDate]);
+  }, [dateFilterMode, customDate, getLocalTodayIso]);
 
   // Listen for ledger updates from other tabs
   useEffect(() => {

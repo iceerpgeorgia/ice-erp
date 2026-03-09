@@ -379,12 +379,126 @@ export async function DELETE(request: Request) {
     const paymentUuid = searchParams.get('paymentUuid');
     const rawRecordUuid = searchParams.get('rawRecordUuid');
 
+    const getAffectedRawRecordUuids = async (): Promise<string[]> => {
+      if (batchUuid) {
+        const rows = await prisma.$queryRawUnsafe<Array<{ raw_record_uuid: string | null }>>(
+          `SELECT DISTINCT raw_record_uuid::text as raw_record_uuid FROM bank_transaction_batches WHERE batch_uuid = $1`,
+          batchUuid
+        );
+        return rows.map((row) => row.raw_record_uuid).filter((value): value is string => Boolean(value));
+      }
+
+      if (partitionUuid) {
+        const rows = await prisma.$queryRawUnsafe<Array<{ raw_record_uuid: string | null }>>(
+          `SELECT DISTINCT raw_record_uuid::text as raw_record_uuid FROM bank_transaction_batches WHERE uuid = $1`,
+          partitionUuid
+        );
+        return rows.map((row) => row.raw_record_uuid).filter((value): value is string => Boolean(value));
+      }
+
+      if (paymentId) {
+        const rows = await prisma.$queryRaw<Array<{ raw_record_uuid: string | null }>`
+          SELECT DISTINCT raw_record_uuid::text as raw_record_uuid
+          FROM bank_transaction_batches
+          WHERE payment_id = ${paymentId}
+        `;
+        return rows.map((row) => row.raw_record_uuid).filter((value): value is string => Boolean(value));
+      }
+
+      if (paymentUuid) {
+        const rows = await prisma.$queryRaw<Array<{ raw_record_uuid: string | null }>`
+          SELECT DISTINCT raw_record_uuid::text as raw_record_uuid
+          FROM bank_transaction_batches
+          WHERE payment_uuid = ${paymentUuid}::uuid
+        `;
+        return rows.map((row) => row.raw_record_uuid).filter((value): value is string => Boolean(value));
+      }
+
+      if (rawRecordUuid) {
+        return [rawRecordUuid];
+      }
+
+      return [];
+    };
+
+    const getFallbackCounteragentMap = async (affectedRawRecordUuids: string[]) => {
+      if (affectedRawRecordUuids.length === 0) return new Map<string, string>();
+
+      const rows = await prisma.$queryRawUnsafe<
+        Array<{ raw_record_uuid: string; counteragent_uuid: string | null }>
+      >(
+        `SELECT
+           btb.raw_record_uuid::text as raw_record_uuid,
+           COALESCE(MAX(btb.counteragent_uuid)::text, MAX(p.counteragent_uuid)::text) as counteragent_uuid
+         FROM bank_transaction_batches btb
+         LEFT JOIN payments p ON p.record_uuid = btb.payment_uuid
+         WHERE btb.raw_record_uuid::text = ANY($1::text[])
+         GROUP BY btb.raw_record_uuid::text`,
+        affectedRawRecordUuids
+      );
+
+      const map = new Map<string, string>();
+      rows.forEach((row) => {
+        if (row.raw_record_uuid && row.counteragent_uuid) {
+          map.set(row.raw_record_uuid, row.counteragent_uuid);
+        }
+      });
+      return map;
+    };
+
+    const cleanupRawBatchMarkers = async (
+      affectedRawRecordUuids: string[],
+      fallbackCounteragentByRawUuid: Map<string, string>
+    ) => {
+      for (const uuid of affectedRawRecordUuids) {
+        const remaining = await prisma.$queryRaw<Array<{ cnt: bigint }>`
+          SELECT COUNT(*)::bigint as cnt
+          FROM bank_transaction_batches
+          WHERE raw_record_uuid::text = ${uuid}::text
+        `;
+        const remainingCount = Number(remaining[0]?.cnt ?? 0n);
+        if (remainingCount > 0) continue;
+
+        const fallbackCounteragentUuid = fallbackCounteragentByRawUuid.get(uuid) ?? null;
+
+        await Promise.all(
+          SOURCE_TABLES.map((table) =>
+            fallbackCounteragentUuid
+              ? prisma.$executeRawUnsafe(
+                  `UPDATE "${table}"
+                   SET payment_id = NULL,
+                       parsing_lock = false,
+                       counteragent_uuid = COALESCE(counteragent_uuid, $2::uuid),
+                       updated_at = NOW()
+                   WHERE raw_record_uuid::text = $1::text
+                     AND payment_id ILIKE 'BTC_%'`,
+                  uuid,
+                  fallbackCounteragentUuid
+                )
+              : prisma.$executeRawUnsafe(
+                  `UPDATE "${table}"
+                   SET payment_id = NULL,
+                       parsing_lock = false,
+                       updated_at = NOW()
+                   WHERE raw_record_uuid::text = $1::text
+                     AND payment_id ILIKE 'BTC_%'`,
+                  uuid
+                )
+          )
+        );
+      }
+    };
+
+    const affectedRawRecordUuids = await getAffectedRawRecordUuids();
+    const fallbackCounteragentByRawUuid = await getFallbackCounteragentMap(affectedRawRecordUuids);
+
     if (batchUuid) {
       // Delete entire batch
       await prisma.$executeRawUnsafe(`
         DELETE FROM bank_transaction_batches 
         WHERE batch_uuid = '${batchUuid}'
       `);
+      await cleanupRawBatchMarkers(affectedRawRecordUuids, fallbackCounteragentByRawUuid);
       return NextResponse.json({ success: true });
     }
     
@@ -394,6 +508,7 @@ export async function DELETE(request: Request) {
         DELETE FROM bank_transaction_batches 
         WHERE uuid = '${partitionUuid}'
       `);
+      await cleanupRawBatchMarkers(affectedRawRecordUuids, fallbackCounteragentByRawUuid);
       return NextResponse.json({ success: true });
     }
 
@@ -402,6 +517,7 @@ export async function DELETE(request: Request) {
         DELETE FROM bank_transaction_batches
         WHERE payment_id = ${paymentId}
       `;
+      await cleanupRawBatchMarkers(affectedRawRecordUuids, fallbackCounteragentByRawUuid);
       return NextResponse.json({ success: true });
     }
 
@@ -410,6 +526,7 @@ export async function DELETE(request: Request) {
         DELETE FROM bank_transaction_batches
         WHERE payment_uuid = ${paymentUuid}::uuid
       `;
+      await cleanupRawBatchMarkers(affectedRawRecordUuids, fallbackCounteragentByRawUuid);
       return NextResponse.json({ success: true });
     }
 
@@ -418,6 +535,7 @@ export async function DELETE(request: Request) {
         DELETE FROM bank_transaction_batches
         WHERE raw_record_uuid::text = ${rawRecordUuid}::text
       `;
+      await cleanupRawBatchMarkers(affectedRawRecordUuids, fallbackCounteragentByRawUuid);
       return NextResponse.json({ success: true });
     }
 
