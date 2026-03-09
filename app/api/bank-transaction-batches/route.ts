@@ -453,11 +453,12 @@ export async function DELETE(request: Request) {
       fallbackCounteragentByRawUuid: Map<string, string>
     ) => {
       for (const uuid of affectedRawRecordUuids) {
-        const remaining = await prisma.$queryRaw<Array<{ cnt: bigint }>`
-          SELECT COUNT(*)::bigint as cnt
-          FROM bank_transaction_batches
-          WHERE raw_record_uuid::text = ${uuid}::text
-        `;
+        const remaining = await prisma.$queryRawUnsafe<Array<{ cnt: bigint }>>(
+          `SELECT COUNT(*)::bigint as cnt
+           FROM bank_transaction_batches
+           WHERE raw_record_uuid::text = $1::text`,
+          uuid
+        );
         const remainingCount = Number(remaining[0]?.cnt ?? 0n);
         if (remainingCount > 0) continue;
 
