@@ -421,6 +421,13 @@ export function PaymentsReportTable() {
     const counteragentUuidParam = urlParams.get('counteragentUuid');
     const projectUuidParam = urlParams.get('projectUuid');
     const jobUuidParam = urlParams.get('jobUuid');
+    const hasUrlQuickFilter = Boolean(counteragentUuidParam || projectUuidParam || jobUuidParam);
+
+    if (hasUrlQuickFilter) {
+      restoredFilters = new Map();
+      setSearchTerm('');
+    }
+
     if (counteragentUuidParam) {
       restoredFilters.set('counteragentUuid', { mode: 'facet', values: new Set([counteragentUuidParam]) });
     }
