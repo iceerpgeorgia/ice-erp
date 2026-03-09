@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-03-09 (15)
+- Summary: Fixed Waybills Project blank-only filter behavior.
+- Changes:
+  - Waybills table filter serialization now converts shared blank facet token to actual blank value for API filters.
+  - Project column filter in Waybills now correctly returns only null/empty `project_uuid` rows when only `(Blank)` is selected.
+- Commit: 84b9d7d
+- URL: https://ice-l1hrirqoi-iceerp.vercel.app
+
 ## 2026-03-06 (14)
 - Summary: Expanded services/projects/jobs features and fixed project mapper typing for successful production build.
 - Changes:
