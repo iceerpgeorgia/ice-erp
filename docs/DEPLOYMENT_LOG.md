@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-09 (16)
+- Summary: Improved Waybills filter apply latency.
+- Changes:
+  - API: Waybills UUID sanitation is now one-time per runtime via guarded execution instead of running on every GET request.
+  - UI: Waybills query serialization no longer depends on facet-value state for filter payload generation, avoiding redundant refetch cycles after facet updates.
+  - Result: filter apply in Waybills is significantly faster and more immediate.
+- Commit: b5be892
+- URL: https://ice-go01ou9ya-iceerp.vercel.app
+
 ## 2026-03-09 (15)
 - Summary: Fixed Waybills Project blank-only filter behavior.
 - Changes:
