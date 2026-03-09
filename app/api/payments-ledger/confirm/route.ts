@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
       `UPDATE payments_ledger
        SET confirmed = true
        WHERE payment_id = ANY($1::text[])
+         AND COALESCE(confirmed, false) = false
          AND (is_deleted = false OR is_deleted IS NULL)
          AND ($2::date IS NULL OR effective_date::date <= $2::date)`,
       paymentIds,
@@ -55,9 +56,14 @@ export async function POST(request: NextRequest) {
       const dbMsg: string = error.meta.message ?? '';
       // Extract the human-readable part from the trigger message
       const match = dbMsg.match(/Cannot confirm payment_id=([^:]+): (.+)/);
+      const cannotModifyMatch = dbMsg.match(/Confirmed entry can not be modified \(id=(\d+)\)/i);
       const userMessage = match
         ? `Cannot confirm payment ${match[1]}: ${match[2]}`
-        : 'Cannot confirm: ordered amount exceeds accrued amount for one or more payment IDs.';
+        : cannotModifyMatch
+          ? `Cannot confirm: entry ${cannotModifyMatch[1]} is already confirmed.`
+          : dbMsg
+            ? `Cannot confirm: ${dbMsg}`
+            : 'Cannot confirm due to a ledger validation rule.';
       return NextResponse.json({ error: userMessage }, { status: 422 });
     }
 
