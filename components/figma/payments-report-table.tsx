@@ -2666,6 +2666,14 @@ export function PaymentsReportTable() {
                     <p className="text-xs text-gray-500">Enter at least one amount (Accrual or Order).</p>
                   </div>
 
+                  <Button 
+                    onClick={handleAddEntry} 
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Creating...' : 'Create Entry'}
+                  </Button>
+
                   <div className="space-y-2">
                     <Label>Comment</Label>
                     <textarea
@@ -2676,14 +2684,6 @@ export function PaymentsReportTable() {
                       rows={10}
                     />
                   </div>
-
-                  <Button 
-                    onClick={handleAddEntry} 
-                    className="w-full"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? 'Creating...' : 'Create Entry'}
-                  </Button>
                 </>
                   )}
                 </div>

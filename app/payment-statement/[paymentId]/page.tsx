@@ -659,61 +659,53 @@ export default function PaymentStatementPage() {
 
     setIsAoSubmitting(true);
     try {
-      const createdEntries: any[] = [];
+      const entries: Array<{
+        paymentId: string;
+        effectiveDate?: string;
+        accrual: number | null;
+        order: number | null;
+      }> = [];
 
       for (const row of selectedRows) {
         const accrual = selectedAccrualIds.has(row.id) ? Math.abs(row.payment) : null;
         const order = selectedOrderIds.has(row.id) ? Math.abs(row.payment) : null;
-
         if (!accrual && !order) continue;
-
-        const response = await fetch('/api/payments-ledger', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            paymentId: statementData.payment.paymentId,
-            effectiveDate: toIsoDateFromDisplay(row.date) || undefined,
-            accrual,
-            order,
-          }),
+        entries.push({
+          paymentId: statementData.payment.paymentId,
+          effectiveDate: toIsoDateFromDisplay(row.date) || undefined,
+          accrual,
+          order,
         });
-
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(error.error || 'Failed to add accrual/order entry');
-        }
-
-        const result = await response.json();
-        const created = Array.isArray(result) ? result[0] : result;
-        if (created) {
-          createdEntries.push(created);
-        }
       }
 
-      if (createdEntries.length && statementData) {
-        const mapped = createdEntries.map((created) => ({
-          id: Number(created.id),
-          effectiveDate: created.effective_date || created.effectiveDate,
-          accrual: created.accrual ? Number(created.accrual) : 0,
-          order: created.order ? Number(created.order) : 0,
-          comment: created.comment,
-          userEmail: created.user_email || created.userEmail,
-          createdAt: created.created_at || created.createdAt,
-        }));
+      if (entries.length === 0) {
+        alert('No valid A/O rows selected');
+        return;
+      }
 
-        setStatementData({
-          ...statementData,
-          ledgerEntries: [...(statementData.ledgerEntries || []), ...mapped],
+      const response = await fetch('/api/payments-ledger/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries }),
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to add accrual/order entries');
+      }
+
+      const refreshed = await fetch(`/api/payment-statement?paymentId=${statementData.payment.paymentId}`);
+      if (refreshed.ok) {
+        const refreshedData = await refreshed.json();
+        setStatementData(refreshedData);
+      }
+
+      if (broadcastChannel) {
+        broadcastChannel.postMessage({
+          type: 'ledger-updated',
+          paymentId: statementData.payment.paymentId,
+          timestamp: Date.now(),
         });
-
-        if (broadcastChannel) {
-          broadcastChannel.postMessage({
-            type: 'ledger-updated',
-            paymentId: statementData.payment.paymentId,
-            ledgerId: mapped[mapped.length - 1]?.id,
-            timestamp: Date.now(),
-          });
-        }
       }
 
       setSelectedAccrualIds(new Set());
