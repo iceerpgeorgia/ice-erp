@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-03-09 (21)
+- Summary: Payments Report quick-filter links now override saved local filter state.
+- Changes:
+  - When opening Payments Report with `counteragentUuid`, `projectUuid`, or `jobUuid` URL params, saved filters are cleared first.
+  - Quick-filter URL params now produce clean exact filtered views without inheriting previous user-saved filters.
+- Commit: 86fa10c
+- URL: https://ice-k4oif8jx5-iceerp.vercel.app
+
 ## 2026-03-09 (20)
 - Summary: Added Payments Report quick filter icons for Project and Job.
 - Changes:
