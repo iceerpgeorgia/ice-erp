@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-10 (22)
+- Summary: Released batch deassign integrity fixes and local-time Today filter in Payments Report.
+- Changes:
+  - Batch deassign/delete API now clears stale BTC raw markers only when no partitions remain for the raw record.
+  - On deassign cleanup, raw rows now preserve counteragent binding by restoring fallback `counteragent_uuid` when available.
+  - Payments Report `Today` date filter now uses local PC timezone date (not UTC) for `maxDate` filtering and confirm/deconfirm max-date operations.
+  - Deployment blocker fixes: replaced malformed `prisma.$queryRaw<...>` template usages with typed `prisma.$queryRawUnsafe(...)` in batch delete helpers.
+- Commit: a229abf
+- URL: https://ice-66te12d1j-iceerp.vercel.app
+
 ## 2026-03-09 (21)
 - Summary: Payments Report quick-filter links now override saved local filter state.
 - Changes:
