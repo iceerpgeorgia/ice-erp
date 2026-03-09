@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-09 (20)
+- Summary: Added Payments Report quick filter icons for Project and Job.
+- Changes:
+  - Added `Filter` icon action next to `Project` value in Payments Report rows.
+  - Added `Filter` icon action next to `Job` value in Payments Report rows.
+  - Added URL param overrides on load for exact in-view filtering: `projectUuid` and `jobUuid` (matching existing `counteragentUuid` behavior).
+- Commit: 89e4ec6
+- URL: https://ice-mcl0q8jvg-iceerp.vercel.app
+
 ## 2026-03-09 (19)
 - Summary: Deployed latest payments fixes for A&O+ validation flow and Add Ledger dialog layout.
 - Changes:
