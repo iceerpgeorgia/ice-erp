@@ -17,7 +17,7 @@ import { Combobox } from '@/components/ui/combobox';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
-import { Search, Upload, Eye, Edit2, Settings, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, Upload, Eye, Edit2, Settings, ArrowUp, ArrowDown, UserPlus } from 'lucide-react';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { BLANK_FACET_TOKEN } from './shared/table-filters';
@@ -774,12 +774,25 @@ export function WaybillsTable() {
     return virtualRows.map((virtualRow) => {
       const row = filteredData[virtualRow.index];
       if (!row) return null;
+      const hasIdentifiedCounteragent = Boolean(row.counteragent_uuid);
+      const canPrefillCounteragent = Boolean(
+        (row.counteragent_name && String(row.counteragent_name).trim()) ||
+        (row.counteragent && String(row.counteragent).trim()) ||
+        (row.counteragent_inn && String(row.counteragent_inn).trim())
+      );
+      const addCounteragentParams = new URLSearchParams();
+      const prefillName = (row.counteragent_name || row.counteragent || '').trim();
+      const prefillId = (row.counteragent_inn || '').trim();
+      if (prefillName) addCounteragentParams.set('name', prefillName);
+      if (prefillId) addCounteragentParams.set('identification_number', prefillId);
+      addCounteragentParams.set('source', 'waybills');
+      const addCounteragentUrl = `/dictionaries/counteragents/new?${addCounteragentParams.toString()}`;
       return (
         <tr
           key={row.id}
           data-index={virtualRow.index}
           ref={rowVirtualizer.measureElement}
-          className="border-t"
+          className={`border-t ${!hasIdentifiedCounteragent ? 'bg-red-50/50' : ''}`}
           style={{
             position: 'absolute',
             top: 0,
@@ -817,6 +830,16 @@ export function WaybillsTable() {
           ))}
           <td className="px-3 py-2" style={{ width: 96, minWidth: 96, maxWidth: 96 }}>
             <div className="flex items-center gap-2">
+              {!hasIdentifiedCounteragent && canPrefillCounteragent && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title="Add Counteragent"
+                  onClick={() => window.open(addCounteragentUrl, '_blank', 'noopener,noreferrer')}
+                >
+                  <UserPlus className="h-4 w-4" />
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={() => setSelected(row)}>
                 <Eye className="h-4 w-4" />
               </Button>

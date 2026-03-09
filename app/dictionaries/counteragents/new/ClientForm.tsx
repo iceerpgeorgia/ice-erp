@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Opt = { id: string; label: string; isNaturalPerson?: boolean; isIdExempt?: boolean };
 type ClientProps = { entityOptions: Opt[]; countryOptions: Opt[] };
@@ -19,6 +19,9 @@ type OptState = { id: string | null; label: string | null };
 
 export default function ClientForm({ entityOptions, countryOptions }: ClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefilledName = searchParams.get("name") ?? "";
+  const prefilledIdentificationNumber = searchParams.get("identification_number") ?? "";
   const [saving, setSaving] = React.useState<"idle" | "saving">("idle");
   const [msg, setMsg] = React.useState<string | null>(null);
 
@@ -220,12 +223,20 @@ export default function ClientForm({ entityOptions, countryOptions }: ClientProp
   }
 
   const FieldRow = (f: Field) => {
+    const defaultValue =
+      f.name === "name"
+        ? prefilledName
+        : f.name === "identification_number"
+          ? prefilledIdentificationNumber
+          : undefined;
+
     const commonProps: any = {
       name: f.name,
       required: !!f.required,
       disabled: !!f.disabled,
       className: "w-full border rounded px-3 py-2 disabled:bg-gray-100",
       type: f.type ?? "text",
+      defaultValue,
     };
     return (
       <label key={f.name} className="block mb-4">
