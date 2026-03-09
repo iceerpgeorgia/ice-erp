@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-09 (18)
+- Summary: Fixed misleading Payments Report confirm error behavior.
+- Changes:
+  - Payments confirm API now updates only unconfirmed ledger rows (`confirmed=false`) to avoid re-updating already confirmed entries.
+  - Improved constraint error mapping to surface actual DB trigger messages instead of a generic ordered-vs-accrued fallback.
+  - Result: confirmation errors now reflect the real validation failure.
+- Commit: 865cb72
+- URL: https://ice-gh0gqzz5l-iceerp.vercel.app
+
 ## 2026-03-09 (17)
 - Summary: Added Waybills unidentified-counteragent visual cue and quick add-counteragent flow.
 - Changes:
