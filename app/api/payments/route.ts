@@ -302,6 +302,41 @@ export async function PATCH(request: Request) {
     const normalizedAccrualSource = accrualSource === '' ? null : accrualSource;
     const normalizedLabel = label === '' ? null : label;
 
+    const nextIsActive = isActive === undefined ? existing.is_active : Boolean(isActive);
+
+    if (existing.is_active && !nextIsActive) {
+      const paymentIdsToCheck = new Set<string>();
+      if (existing.payment_id) paymentIdsToCheck.add(String(existing.payment_id));
+      if (normalizedPaymentId) paymentIdsToCheck.add(String(normalizedPaymentId));
+
+      for (const paymentIdToCheck of paymentIdsToCheck) {
+        const ledgerActivityRows = await prisma.$queryRawUnsafe<Array<{ has_activity: boolean }>>(
+          `SELECT EXISTS (
+             SELECT 1
+             FROM payments_ledger pl
+             WHERE pl.payment_id = $1
+               AND (pl.is_deleted = false OR pl.is_deleted IS NULL)
+               AND (
+                 COALESCE(pl.accrual, 0) <> 0
+                 OR COALESCE(pl."order", 0) <> 0
+               )
+           ) as has_activity`,
+          paymentIdToCheck
+        );
+
+        if (ledgerActivityRows[0]?.has_activity) {
+          return NextResponse.json(
+            {
+              error: 'This payment cannot be set inactive because it has accrual/order entries in Payments Ledger.',
+              code: 'PAYMENT_HAS_LEDGER_ACTIVITY',
+              paymentId: paymentIdToCheck,
+            },
+            { status: 409 }
+          );
+        }
+      }
+    }
+
     const nextCounteragentUuid = counteragentUuid ?? existing.counteragent_uuid;
     const nextFinancialCodeUuid = financialCodeUuid ?? existing.financial_code_uuid;
     const nextCurrencyUuid = currencyUuid ?? existing.currency_uuid;

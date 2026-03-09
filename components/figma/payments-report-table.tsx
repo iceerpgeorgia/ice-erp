@@ -179,6 +179,7 @@ export function PaymentsReportTable() {
   const counteragentsWithNegativeBalance = useMemo(() => {
     const flagged = new Set<string>();
     data.forEach((row) => {
+      if (row.isActive === false) return;
       if (row.counteragent && (row.due < 0 || row.balance < 0)) {
         flagged.add(row.counteragent);
       }
@@ -193,6 +194,7 @@ export function PaymentsReportTable() {
   const jobDuplicateKeys = useMemo(() => {
     const counts = new Map<string, number>();
     data.forEach((row) => {
+      if (row.isActive === false) return;
       const key = buildJobMatchKey(row);
       counts.set(key, (counts.get(key) || 0) + 1);
     });
@@ -997,6 +999,9 @@ export function PaymentsReportTable() {
 
       if (!response.ok) {
         const errorPayload = await response.json().catch(() => ({}));
+        if (response.status === 409 && errorPayload?.code === 'PAYMENT_HAS_LEDGER_ACTIVITY') {
+          alert(errorPayload.error || 'This payment cannot be set inactive because it has accrual/order entries in Payments Ledger.');
+        }
         setEditPaymentError(errorPayload.error || 'Failed to update payment.');
         return;
       }
@@ -3283,8 +3288,9 @@ export function PaymentsReportTable() {
               </tr>
             ) : (
               paginatedData.map((row, idx) => {
-                const isConfirmedDue = Boolean(row.confirmed && row.due > 0);
-                const isConfirmedPaid = Boolean(row.confirmed && row.due === 0);
+                const isConditionalFormattingEligible = row.isActive !== false;
+                const isConfirmedDue = Boolean(isConditionalFormattingEligible && row.confirmed && row.due > 0);
+                const isConfirmedPaid = Boolean(isConditionalFormattingEligible && row.confirmed && row.due === 0);
 
                 return (
                 <tr
@@ -3317,9 +3323,11 @@ export function PaymentsReportTable() {
                     if (col.key === 'payment') bgColor = '#e8f5e9'; // Light green
                     if (col.key === 'order') bgColor = '#fff9e6'; // Light yellow
                     const isFlaggedCounteragent =
+                      isConditionalFormattingEligible &&
                       col.key === 'counteragent' &&
                       counteragentsWithNegativeBalance.has(row.counteragent);
                     const isJobConflict =
+                      isConditionalFormattingEligible &&
                       col.key === 'job' &&
                       jobDuplicateKeys.has(buildJobMatchKey(row));
                     

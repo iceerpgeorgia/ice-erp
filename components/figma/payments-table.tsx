@@ -675,6 +675,10 @@ export function PaymentsTable() {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
+        if (response.status === 409 && error?.code === 'PAYMENT_HAS_LEDGER_ACTIVITY') {
+          alert(error?.error || 'This payment cannot be set inactive because it has accrual/order entries in Payments Ledger.');
+          return;
+        }
         throw new Error(error?.error || 'Failed to update payment');
       }
       await fetchPayments();
