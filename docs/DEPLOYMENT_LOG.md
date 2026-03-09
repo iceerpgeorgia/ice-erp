@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-03-10 (23)
+- Summary: Payments Report bank exports now enforce IBAN resolution and BOG export starts from A1.
+- Changes:
+  - BOG format export removed leading blank row; header/data now begin at `A1`.
+  - Added export-time IBAN resolution for both BOG and TBC formats.
+  - If counteragent has no IBAN, user is prompted to enter one; value is saved to `counteragents` and used in export.
+  - If counteragent has multiple comma-separated IBANs, user is prompted to select which IBAN to export.
+  - Payments report API now returns `counteragentRowId` for targeted IBAN persistence during export flow.
+- Commit: dfd411d
+- URL: https://ice-hwjtng9lz-iceerp.vercel.app
+
 ## 2026-03-10 (22)
 - Summary: Released batch deassign integrity fixes and local-time Today filter in Payments Report.
 - Changes:
