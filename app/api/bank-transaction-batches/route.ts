@@ -397,20 +397,22 @@ export async function DELETE(request: Request) {
       }
 
       if (paymentId) {
-        const rows = await prisma.$queryRaw<Array<{ raw_record_uuid: string | null }>`
-          SELECT DISTINCT raw_record_uuid::text as raw_record_uuid
-          FROM bank_transaction_batches
-          WHERE payment_id = ${paymentId}
-        `;
+        const rows = await prisma.$queryRawUnsafe<Array<{ raw_record_uuid: string | null }>>(
+          `SELECT DISTINCT raw_record_uuid::text as raw_record_uuid
+           FROM bank_transaction_batches
+           WHERE payment_id = $1`,
+          paymentId
+        );
         return rows.map((row) => row.raw_record_uuid).filter((value): value is string => Boolean(value));
       }
 
       if (paymentUuid) {
-        const rows = await prisma.$queryRaw<Array<{ raw_record_uuid: string | null }>`
-          SELECT DISTINCT raw_record_uuid::text as raw_record_uuid
-          FROM bank_transaction_batches
-          WHERE payment_uuid = ${paymentUuid}::uuid
-        `;
+        const rows = await prisma.$queryRawUnsafe<Array<{ raw_record_uuid: string | null }>>(
+          `SELECT DISTINCT raw_record_uuid::text as raw_record_uuid
+           FROM bank_transaction_batches
+           WHERE payment_uuid = $1::uuid`,
+          paymentUuid
+        );
         return rows.map((row) => row.raw_record_uuid).filter((value): value is string => Boolean(value));
       }
 
