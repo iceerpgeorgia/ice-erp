@@ -572,7 +572,7 @@ export function PaymentsReportTable() {
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await fetchData();
+      await fetchData({ silent: true });
       await fetchPayments();
     } finally {
       setTimeout(() => setIsRefreshing(false), 500); // Keep spinning for visual feedback
@@ -762,7 +762,7 @@ export function PaymentsReportTable() {
 
       setIsDialogOpen(false);
       resetForm();
-      fetchData(); // Refresh the report data to show updated values
+      fetchData({ silent: true }); // Refresh the report data to show updated values
     } catch (error: any) {
       console.error('Error adding ledger entry:', error);
       alert(error.message || 'Failed to add ledger entry');
@@ -858,7 +858,7 @@ export function PaymentsReportTable() {
       setIsAOOpen(false);
       resetAOForm();
       setSelectedPaymentIds(new Set());
-      fetchData();
+      fetchData({ silent: true });
     } catch (error: any) {
       console.error('Error adding bulk accrual/order:', error);
       alert(error.message || 'Failed to add accruals/orders');
@@ -1007,7 +1007,7 @@ export function PaymentsReportTable() {
       }
 
       setIsEditPaymentOpen(false);
-      await fetchData();
+      await fetchData({ silent: true });
       await fetchPayments();
     } catch (error) {
       console.error('Error updating payment:', error);
@@ -1045,9 +1045,12 @@ export function PaymentsReportTable() {
     return null;
   }, [dateFilterMode, customDate, getLocalTodayIso]);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (options?: { silent?: boolean }) => {
+    const isSilentRefresh = options?.silent === true;
     try {
-      setLoading(true);
+      if (!isSilentRefresh) {
+        setLoading(true);
+      }
       
       // Build query params for date filter
       const params = new URLSearchParams();
@@ -1086,7 +1089,9 @@ export function PaymentsReportTable() {
     } catch (error) {
       console.error('Error fetching report:', error);
     } finally {
-      setLoading(false);
+      if (!isSilentRefresh) {
+        setLoading(false);
+      }
     }
   }, [dateFilterMode, customDate, getLocalTodayIso]);
 
@@ -1097,7 +1102,7 @@ export function PaymentsReportTable() {
         if (event.data.type === 'ledger-updated') {
           console.log('[Payments Report] Ledger updated in another tab, refreshing data...');
           // Refresh the report to show updated values
-          fetchData();
+          fetchData({ silent: true });
         }
       };
 
@@ -2024,7 +2029,7 @@ export function PaymentsReportTable() {
       setLedgerPreviewRows([]);
       setLedgerUploadFileName('');
       broadcastChannel?.postMessage({ type: 'ledger-updated' });
-      await fetchData();
+      await fetchData({ silent: true });
     } catch (error: any) {
       setLedgerUploadError(error.message || 'Failed to upload ledger entries');
       if (useDialogFallback) {
@@ -2174,7 +2179,7 @@ export function PaymentsReportTable() {
       setIsConfirmOpen(false);
       setSelectedPaymentIds(new Set());
       broadcastChannel?.postMessage({ type: 'ledger-updated' });
-      await fetchData();
+      await fetchData({ silent: true });
     } catch (error: any) {
       console.error('Error confirming ledger entries:', error);
       setConfirmError(error.message || 'Failed to confirm ledger entries.');
@@ -2208,7 +2213,7 @@ export function PaymentsReportTable() {
       setIsDeconfirmOpen(false);
       setSelectedPaymentIds(new Set());
       broadcastChannel?.postMessage({ type: 'ledger-updated' });
-      await fetchData();
+      await fetchData({ silent: true });
     } catch (error: any) {
       console.error('Error deconfirming ledger entries:', error);
       setDeconfirmError(error.message || 'Failed to deconfirm ledger entries.');
