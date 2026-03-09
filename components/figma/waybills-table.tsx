@@ -338,34 +338,6 @@ export function WaybillsTable() {
       const selectedValues = filter.value.map(normalizeFilterValue);
       if (selectedValues.length === 0) return acc;
 
-      const facetColumnValues = facetValues.get(key);
-      const hasFacetValues = Array.isArray(facetColumnValues) && facetColumnValues.length > 0;
-
-      if (hasFacetValues) {
-        const allValues = facetColumnValues.map(normalizeFilterValue);
-        const selectedKeys = new Set(selectedValues.map(filterValueKey));
-        const allKeys = new Set(allValues.map(filterValueKey));
-
-        if (allKeys.size > 0) {
-          const isAllSelected = allKeys.size === selectedKeys.size && Array.from(allKeys).every((item) => selectedKeys.has(item));
-          if (isAllSelected) {
-            return acc;
-          }
-
-          const nonBlankKeys = Array.from(allKeys).filter((item) => item !== '');
-          const isAllNonBlankSelected =
-            nonBlankKeys.length > 0 &&
-            !selectedKeys.has('') &&
-            selectedKeys.size === nonBlankKeys.length &&
-            nonBlankKeys.every((item) => selectedKeys.has(item));
-
-          if (isAllNonBlankSelected) {
-            acc.push([key, [NON_BLANK_FILTER_TOKEN]]);
-            return acc;
-          }
-        }
-      }
-
       acc.push([key, selectedValues]);
       return acc;
     }, []);
@@ -389,7 +361,7 @@ export function WaybillsTable() {
       params.set('filters', JSON.stringify(serializedFilters));
     }
     return params;
-  }, [appliedSearch, periodFrom, periodTo, currentPage, pageSize, showMissingCounteragents, sortColumn, sortDirection, columnFilters, facetValues]);
+  }, [appliedSearch, periodFrom, periodTo, currentPage, pageSize, showMissingCounteragents, sortColumn, sortDirection, columnFilters]);
 
   const fetchWaybills = useCallback(async (options?: { page?: number; pageSize?: number }) => {
     setLoading(true);

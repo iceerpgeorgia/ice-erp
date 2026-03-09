@@ -17,6 +17,8 @@ const toNumber = (value: any) => (typeof value === 'bigint' ? Number(value) : va
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const UUID_FILTER_FIELDS = new Set(['counteragent_uuid', 'driver_uuid', 'project_uuid', 'financial_code_uuid']);
 const NON_BLANK_FILTER_TOKEN = '__NON_BLANK__';
+let waybillUuidSanitized = false;
+let waybillUuidSanitizePromise: Promise<void> | null = null;
 
 const isValidUuid = (value: string) => UUID_REGEX.test(value.trim());
 
@@ -54,6 +56,20 @@ const sanitizeWaybillUuidColumns = async () => {
       OR (project_uuid IS NOT NULL AND (TRIM(project_uuid::text) = '' OR TRIM(project_uuid::text) !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'))
       OR (financial_code_uuid IS NOT NULL AND (TRIM(financial_code_uuid::text) = '' OR TRIM(financial_code_uuid::text) !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'))
   `);
+};
+
+const ensureWaybillUuidColumnsSanitized = async () => {
+  if (waybillUuidSanitized) return;
+  if (!waybillUuidSanitizePromise) {
+    waybillUuidSanitizePromise = sanitizeWaybillUuidColumns()
+      .then(() => {
+        waybillUuidSanitized = true;
+      })
+      .finally(() => {
+        waybillUuidSanitizePromise = null;
+      });
+  }
+  await waybillUuidSanitizePromise;
 };
 
 const formatDate = (value: Date) => {
@@ -103,7 +119,7 @@ export async function GET(req: NextRequest) {
       );
     }
     const { searchParams } = new URL(req.url);
-    await sanitizeWaybillUuidColumns();
+    await ensureWaybillUuidColumnsSanitized();
     const limit = Math.min(Number(searchParams.get('limit') || 200), 2000);
     const offset = Math.max(Number(searchParams.get('offset') || 0), 0);
     const search = (searchParams.get('search') || '').trim();
