@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { getRequiredInsider } from "@/lib/required-insider";
 
 const prisma = new PrismaClient();
 
@@ -8,6 +9,7 @@ export async function PUT(
   { params }: { params: { uuid: string } }
 ) {
   try {
+    const insider = await getRequiredInsider();
     const body = await request.json();
     const { accountNumber, currencyUuid, bankUuid, balance, balanceDate, parsingSchemeUuid, rawTableName } = body;
 
@@ -28,6 +30,7 @@ export async function PUT(
         balance_date = ${balanceDate || null}::date,
         parsing_scheme_uuid = ${parsingSchemeUuid || null}::uuid,
         raw_table_name = ${rawTableName || null},
+        insider_uuid = ${insider.insiderUuid}::uuid,
         updated_at = NOW()
       WHERE uuid = ${params.uuid}::uuid
     `;

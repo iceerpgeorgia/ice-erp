@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { getRequiredInsider } from "@/lib/required-insider";
 
 const prisma = new PrismaClient();
 
 export async function GET() {
   try {
+    const insider = await getRequiredInsider();
     const bankAccounts = await prisma.$queryRaw<any[]>`
       SELECT 
         ba.id,
@@ -47,6 +49,8 @@ export async function GET() {
       isActive: account.is_active,
       createdAt: account.created_at,
       updatedAt: account.updated_at,
+      insiderUuid: insider.insiderUuid,
+      insiderName: insider.insiderName,
     }));
 
     return NextResponse.json(formattedAccounts);
@@ -61,6 +65,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const insider = await getRequiredInsider();
     const body = await request.json();
     const { accountNumber, currencyUuid, bankUuid, balance, balanceDate, parsingSchemeUuid, rawTableName } = body;
 
@@ -80,6 +85,7 @@ export async function POST(request: Request) {
         balance_date, 
         parsing_scheme_uuid,
         raw_table_name,
+        insider_uuid,
         created_at,
         updated_at
       )
@@ -91,6 +97,7 @@ export async function POST(request: Request) {
         ${balanceDate || null}::date, 
         ${parsingSchemeUuid || null}::uuid,
         ${rawTableName || null},
+        ${insider.insiderUuid}::uuid,
         NOW(),
         NOW()
       )

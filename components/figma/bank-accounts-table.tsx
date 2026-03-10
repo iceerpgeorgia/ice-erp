@@ -27,6 +27,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
+import { RequiredInsiderBadge } from './shared/required-insider-badge';
 
 type BankAccount = {
   id: number;
@@ -529,7 +530,10 @@ export function BankAccountsTable() {
       {/* Header */}
       <div className="sticky top-0 z-30 flex-shrink-0 bg-white border-b shadow-sm">
         <div className="flex items-center justify-between px-4 py-3">
-          <h1 className="text-2xl font-bold text-gray-900">Bank Accounts</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-gray-900">Bank Accounts</h1>
+            <RequiredInsiderBadge />
+          </div>
           
           <div className="flex items-center gap-3">
             <Button

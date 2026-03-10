@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getRequiredInsider } from '@/lib/required-insider';
 
 // GET all jobs with project and brand info
 export async function GET(req: NextRequest) {
   try {
+    const insider = await getRequiredInsider();
     // Get query parameters
     const { searchParams } = new URL(req.url);
     const projectUuid = searchParams.get('projectUuid');
@@ -47,6 +49,8 @@ export async function GET(req: NextRequest) {
         brandUuid: job.brand_uuid,
         brandName: job.brand_name,
         jobDisplay: job.job_display,
+        insiderUuid: insider.insiderUuid,
+        insiderName: insider.insiderName,
       }));
 
       return NextResponse.json(serialized);
@@ -107,6 +111,8 @@ export async function GET(req: NextRequest) {
       is_active: job.is_active,
       createdAt: job.created_at,
       updatedAt: job.updated_at,
+      insider_uuid: insider.insiderUuid,
+      insider_name: insider.insiderName,
     }));
 
     return NextResponse.json(serialized);
@@ -122,6 +128,7 @@ export async function GET(req: NextRequest) {
 // POST - Create new job
 export async function POST(req: NextRequest) {
   try {
+    const insider = await getRequiredInsider();
     const body = await req.json();
     const { projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid } = body;
     const targetProjectUuids: string[] = Array.isArray(projectUuids)
@@ -155,8 +162,8 @@ export async function POST(req: NextRequest) {
       }
 
       const result = await prisma.$queryRaw`
-        INSERT INTO jobs (project_uuid, job_name, floors, weight, is_ff, brand_uuid)
-        VALUES (${projectUuidItem}::uuid, ${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${brandUuid}::uuid)
+        INSERT INTO jobs (project_uuid, job_name, floors, weight, is_ff, brand_uuid, insider_uuid)
+        VALUES (${projectUuidItem}::uuid, ${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${brandUuid}::uuid, ${insider.insiderUuid}::uuid)
         RETURNING id, job_uuid
       ` as any[];
 
@@ -185,6 +192,7 @@ export async function POST(req: NextRequest) {
 // PUT - Update job
 export async function PUT(req: NextRequest) {
   try {
+    const insider = await getRequiredInsider();
     const body = await req.json();
     const { id, projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid } = body;
     const targetProjectUuids: string[] = Array.isArray(projectUuids)
@@ -216,6 +224,7 @@ export async function PUT(req: NextRequest) {
         weight = ${weight ?? null},
         is_ff = ${isFf},
         brand_uuid = ${brandUuid}::uuid,
+        insider_uuid = ${insider.insiderUuid}::uuid,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
@@ -234,8 +243,8 @@ export async function PUT(req: NextRequest) {
       if (existing.length > 0) continue;
 
       await prisma.$queryRaw`
-        INSERT INTO jobs (project_uuid, job_name, floors, weight, is_ff, brand_uuid)
-        VALUES (${projectUuidItem}::uuid, ${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${brandUuid}::uuid)
+        INSERT INTO jobs (project_uuid, job_name, floors, weight, is_ff, brand_uuid, insider_uuid)
+        VALUES (${projectUuidItem}::uuid, ${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${brandUuid}::uuid, ${insider.insiderUuid}::uuid)
       `;
     }
 

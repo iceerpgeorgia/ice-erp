@@ -39,6 +39,7 @@ import { ClearFiltersButton } from './shared/clear-filters-button';
 import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter } from './shared/table-filters';
+import { RequiredInsiderBadge } from './shared/required-insider-badge';
 import { 
   Table, 
   TableBody, 
@@ -976,6 +977,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-medium text-foreground">Projects</h1>
+          <RequiredInsiderBadge className="mt-2" />
         </div>
         <div className="flex items-center gap-2">
           <Button

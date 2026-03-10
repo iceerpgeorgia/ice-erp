@@ -21,6 +21,7 @@ import {
   import { ClearFiltersButton } from './shared/clear-filters-button';
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter } from './shared/table-filters';
+import { RequiredInsiderBadge } from './shared/required-insider-badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -974,6 +975,7 @@ export function PaymentsTable() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-semibold">Payments</h1>
+            <RequiredInsiderBadge />
             <Badge variant="secondary">
               {filteredAndSortedPayments.length} records
             </Badge>

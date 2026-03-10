@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { getRequiredInsider } from '@/lib/required-insider';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -112,6 +113,7 @@ const serializeWaybill = (row: any) => ({
 
 export async function GET(req: NextRequest) {
   try {
+    const insider = await getRequiredInsider();
     if (!(await tableExists('rs_waybills_in'))) {
       return NextResponse.json(
         { error: 'Waybills table is not available yet. Please run migrations.' },
@@ -539,6 +541,8 @@ export async function GET(req: NextRequest) {
         return serializeWaybill({
           ...row,
           counteragent_name: resolved,
+          insider_uuid: row.insider_uuid ?? insider.insiderUuid,
+          insider_name: insider.insiderName,
         });
       }),
       total,
@@ -578,6 +582,7 @@ const allowedUpdateFields = new Set([
 
 export async function PATCH(req: NextRequest) {
   try {
+    const insider = await getRequiredInsider();
     if (!(await tableExists('rs_waybills_in'))) {
       return NextResponse.json(
         { error: 'Waybills table is not available yet. Please run migrations.' },
@@ -631,7 +636,13 @@ export async function PATCH(req: NextRequest) {
       data: updates,
     });
 
-    return NextResponse.json({ data: serializeWaybill(updated) });
+    return NextResponse.json({
+      data: serializeWaybill({
+        ...updated,
+        insider_uuid: (updated as any).insider_uuid ?? insider.insiderUuid,
+        insider_name: insider.insiderName,
+      }),
+    });
   } catch (error: any) {
     console.error('[PATCH /api/waybills] Error:', error);
     return NextResponse.json(

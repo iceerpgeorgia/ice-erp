@@ -8,6 +8,7 @@ import {
   Settings,
   Download,
 } from 'lucide-react';
+import { RequiredInsiderBadge } from './shared/required-insider-badge';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -512,7 +513,10 @@ export function PaymentsLedgerTable() {
   return (
     <div className="space-y-4 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Payments Ledger</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold">Payments Ledger</h1>
+          <RequiredInsiderBadge />
+        </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"

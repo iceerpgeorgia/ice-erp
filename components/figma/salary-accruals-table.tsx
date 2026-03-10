@@ -29,6 +29,7 @@ import { Checkbox } from './ui/checkbox';
 import * as XLSX from 'xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
+import { RequiredInsiderBadge } from './shared/required-insider-badge';
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter, serializeFilterState, deserializeFilterState, fromMapFilters } from './shared/table-filters';
 import {
@@ -1978,6 +1979,7 @@ export function SalaryAccrualsTable() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-semibold">Salary Accruals</h1>
+            <RequiredInsiderBadge />
             <Badge variant="secondary">
               {filteredAndSortedData.length} records
             </Badge>

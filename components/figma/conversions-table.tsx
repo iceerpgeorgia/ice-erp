@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
+import { RequiredInsiderBadge } from './shared/required-insider-badge';
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter } from './shared/table-filters';
 
@@ -324,6 +325,7 @@ export function ConversionsTable() {
     <div className="w-full">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
+          <RequiredInsiderBadge />
           <Search className="h-4 w-4 text-muted-foreground" />
           <Input
             value={searchTerm}

@@ -32,6 +32,7 @@ import {
 } from './ui/select';
 import { MultiCombobox } from '@/components/ui/multi-combobox';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
+import { RequiredInsiderBadge } from './shared/required-insider-badge';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
@@ -552,6 +553,7 @@ export function JobsTable() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Jobs</h1>
+          <RequiredInsiderBadge className="mt-2" />
           <p className="text-sm text-muted-foreground">
             {totalRecords} total jobs
           </p>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
+import { getRequiredInsider } from "@/lib/required-insider";
 
 function formatDate(date: string | Date | undefined): string {
   if (!date) return "";
@@ -30,6 +31,7 @@ function validatePayload(body: any) {
 
 export async function GET() {
   try {
+    const insider = await getRequiredInsider();
     const rows = await prisma.inventories.findMany({
       orderBy: { name: "asc" },
       include: {
@@ -53,6 +55,8 @@ export async function GET() {
       dimension_name: row.dimension?.dimension ?? "",
       createdAt: formatDate(row.created_at),
       updatedAt: formatDate(row.updated_at),
+      insider_uuid: (row as any).insider_uuid ?? insider.insiderUuid,
+      insider_name: insider.insiderName,
     }));
 
     return NextResponse.json({ data });
@@ -64,6 +68,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const insider = await getRequiredInsider();
     const body = await req.json().catch(() => ({}));
     const { errors, payload } = validatePayload(body);
 
@@ -108,6 +113,8 @@ export async function POST(req: NextRequest) {
         dimension_name: created.dimension?.dimension ?? "",
         createdAt: formatDate(created.created_at),
         updatedAt: formatDate(created.updated_at),
+        insider_uuid: (created as any).insider_uuid ?? insider.insiderUuid,
+        insider_name: insider.insiderName,
       },
       { status: 201 }
     );
@@ -119,6 +126,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const insider = await getRequiredInsider();
     const idParam = new URL(req.url).searchParams.get("id");
     if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });
     const pk = BigInt(Number(idParam));
@@ -177,6 +185,8 @@ export async function PATCH(req: NextRequest) {
       dimension_name: updated.dimension?.dimension ?? "",
       createdAt: formatDate(updated.created_at),
       updatedAt: formatDate(updated.updated_at),
+      insider_uuid: (updated as any).insider_uuid ?? insider.insiderUuid,
+      insider_name: insider.insiderName,
     });
   } catch (e: any) {
     console.error("[inventories] PATCH error", e);

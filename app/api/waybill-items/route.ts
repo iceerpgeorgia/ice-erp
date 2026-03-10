@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
+import { getRequiredInsider } from "@/lib/required-insider";
 
 function formatDate(date: string | Date | undefined): string {
   if (!date) return "";
@@ -40,6 +41,7 @@ function validatePayload(body: any) {
 
 export async function GET(req: NextRequest) {
   try {
+    const insider = await getRequiredInsider();
     const url = new URL(req.url);
     const waybillNo = url.searchParams.get("waybill_no");
     const batchId = url.searchParams.get("import_batch_id");
@@ -75,6 +77,8 @@ export async function GET(req: NextRequest) {
       import_batch_id: row.import_batch_id,
       createdAt: formatDate(row.created_at),
       updatedAt: formatDate(row.updated_at),
+      insider_uuid: (row as any).insider_uuid ?? insider.insiderUuid,
+      insider_name: insider.insiderName,
     }));
 
     return NextResponse.json({ data });
@@ -86,6 +90,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const insider = await getRequiredInsider();
     const body = await req.json().catch(() => ({}));
     const { errors, payload } = validatePayload(body);
 
@@ -136,6 +141,8 @@ export async function POST(req: NextRequest) {
         import_batch_id: created.import_batch_id,
         createdAt: formatDate(created.created_at),
         updatedAt: formatDate(created.updated_at),
+        insider_uuid: (created as any).insider_uuid ?? insider.insiderUuid,
+        insider_name: insider.insiderName,
       },
       { status: 201 }
     );
@@ -147,6 +154,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const insider = await getRequiredInsider();
     const idParam = new URL(req.url).searchParams.get("id");
     if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });
     const pk = BigInt(Number(idParam));
@@ -202,6 +210,8 @@ export async function PATCH(req: NextRequest) {
       import_batch_id: updated.import_batch_id,
       createdAt: formatDate(updated.created_at),
       updatedAt: formatDate(updated.updated_at),
+      insider_uuid: (updated as any).insider_uuid ?? insider.insiderUuid,
+      insider_name: insider.insiderName,
     });
   } catch (e: any) {
     console.error("[waybill-items] PATCH error", e);

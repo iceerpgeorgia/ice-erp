@@ -588,6 +588,7 @@ model rs_waybills_in {
   counteragent_inn            String?
   counteragent_name           String?
   counteragent_uuid           String?  @db.Uuid
+  insider_uuid                String?  @db.Uuid
   vat                         Boolean  @default(false)
   sum                         Decimal? @db.Decimal(20, 2)
   driver                      String?
@@ -619,6 +620,7 @@ model rs_waybills_in {
   @@index([counteragent_inn])
   @@index([activation_time])
   @@index([counteragent_uuid])
+  @@index([insider_uuid])
   @@index([driver_uuid])
   @@index([project_uuid])
   @@index([financial_code_uuid])
@@ -660,6 +662,7 @@ model inventories {
   uuid                  String               @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name                  String
   producer_uuid         String?              @db.Uuid
+  insider_uuid          String?              @db.Uuid
   inventory_group_uuid  String?              @db.Uuid
   dimension_uuid        String?              @db.Uuid
   internal_number       String?
@@ -673,6 +676,7 @@ model inventories {
   waybill_items         rs_waybills_in_items[]
 
   @@index([producer_uuid])
+  @@index([insider_uuid])
   @@index([inventory_group_uuid])
   @@index([dimension_uuid])
   @@index([internal_number])
@@ -691,6 +695,7 @@ model rs_waybills_in_items {
   total_price           Decimal?     @db.Decimal(20, 2)
   taxation              String?
   inventory_uuid        String?      @db.Uuid
+  insider_uuid          String?      @db.Uuid
   project_uuid          String?      @db.Uuid
   financial_code_uuid   String?      @db.Uuid
   corresponding_account String?
@@ -701,6 +706,7 @@ model rs_waybills_in_items {
 
   @@index([waybill_no])
   @@index([inventory_uuid])
+  @@index([insider_uuid])
   @@index([project_uuid])
   @@index([financial_code_uuid])
   @@index([goods_code])

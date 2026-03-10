@@ -20,6 +20,7 @@ import { Badge } from './ui/badge';
 import { Search, Upload, Eye, Edit2, Settings, ArrowUp, ArrowDown, UserPlus } from 'lucide-react';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
+import { RequiredInsiderBadge } from './shared/required-insider-badge';
 import { BLANK_FACET_TOKEN } from './shared/table-filters';
 import * as XLSX from 'xlsx';
 
@@ -1036,6 +1037,7 @@ export function WaybillsTable() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex items-center gap-2 w-full sm:w-auto">
+          <RequiredInsiderBadge />
           <div className="relative w-full sm:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
