@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-03-10 (26)
+- Summary: Released insider foundation for counteragents/core tables and added Signify e-signature trigger integration.
+- Changes:
+  - Added insider foundation fields in schema and migration: `counteragents.insider`, `counteragents.insider_uuid`, plus `insider_uuid` columns/indexes for core business tables.
+  - Extended counteragents API to read/write insider fields end-to-end (create, update, select, and API mapping).
+  - Updated Counteragents UI new form flow to manage insider values (toggle + insider owner selector), fetch insider options, and render insider columns.
+  - Added Signify integration: reusable client (`lib/signify.ts`) and trigger endpoint (`/api/integrations/signify/send`) for email/mobile document signing flows.
+  - Added integration documentation and environment setup guidance for Signify.
+- Commit: ae48e7f
+- URL: https://ice-2ev9p9o02-iceerp.vercel.app
+
 ## 2026-03-10 (25)
 - Summary: Payments Report now refreshes in-place without table flicker across all non-initial refresh actions.
 - Changes:
