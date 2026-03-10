@@ -31,6 +31,8 @@ interface FormData {
   isActive: boolean;
   isEmploye: boolean;
   wasEmploye: boolean;
+  insider: boolean;
+  insiderUuid: string;
 }
 
 interface FormErrors {
@@ -56,6 +58,7 @@ interface CounteragentFormDialogProps {
   editData?: any;
   entityTypes: EntityType[];
   countries: Country[];
+  insiders: Array<{ counteragentUuid: string; label: string }>;
 }
 
 export function CounteragentFormDialog({
@@ -64,7 +67,8 @@ export function CounteragentFormDialog({
   onSave,
   editData,
   entityTypes,
-  countries
+  countries,
+  insiders
 }: CounteragentFormDialogProps) {
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -87,6 +91,8 @@ export function CounteragentFormDialog({
     isActive: true,
     isEmploye: false,
     wasEmploye: false,
+    insider: false,
+    insiderUuid: '',
   });
 
   const [formErrors, setFormErrors] = useState<FormErrors>({});
@@ -126,6 +132,8 @@ export function CounteragentFormDialog({
         isActive: editData.isActive ?? true,
         isEmploye: editData.isEmploye ?? false,
         wasEmploye: editData.wasEmploye ?? false,
+        insider: editData.insider ?? false,
+        insiderUuid: editData.insiderUuid || '',
       });
     } else if (!editData && isOpen) {
       // Reset for add
@@ -150,6 +158,8 @@ export function CounteragentFormDialog({
         isActive: true,
         isEmploye: false,
         wasEmploye: false,
+        insider: false,
+        insiderUuid: '',
       });
     }
     setFormErrors({});
@@ -168,6 +178,15 @@ export function CounteragentFormDialog({
       }));
     }
   }, [isNaturalPerson, formData.sex, formData.pensionScheme]);
+
+  useEffect(() => {
+    if (!formData.insider && formData.insiderUuid) {
+      setFormData(prev => ({
+        ...prev,
+        insiderUuid: '',
+      }));
+    }
+  }, [formData.insider, formData.insiderUuid]);
 
   const validateForm = () => {
     const errors: FormErrors = {};
@@ -239,6 +258,8 @@ export function CounteragentFormDialog({
         is_active: formData.isActive,
         is_emploee: formData.isEmploye,
         was_emploee: formData.wasEmploye,
+        insider: formData.insider,
+        insider_uuid: formData.insider ? (formData.insiderUuid || null) : null,
       };
 
       await onSave(payload);
@@ -514,6 +535,37 @@ export function CounteragentFormDialog({
           </div>
 
           {/* Status */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="insider" className="text-right">Insider</Label>
+            <div className="col-span-3">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="insider"
+                  checked={formData.insider}
+                  onCheckedChange={(checked) => updateField('insider', checked)}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {formData.insider ? 'Yes' : 'No'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="insiderUuid" className="text-right">Insider Owner</Label>
+            <div className="col-span-3">
+              <Combobox
+                options={insiders.map((i) => ({ value: i.counteragentUuid, label: i.label, keywords: i.label }))}
+                value={formData.insiderUuid}
+                onValueChange={(value) => updateField('insiderUuid', value)}
+                placeholder="Select insider"
+                searchPlaceholder="Search insiders..."
+                emptyText="No insider found."
+                disabled={!formData.insider}
+              />
+            </div>
+          </div>
+
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="isActive" className="text-right">Status</Label>
             <div className="col-span-3">

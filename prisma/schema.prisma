@@ -94,6 +94,7 @@ model BankAccount {
   bankUuid                   String?                      @map("bank_uuid") @db.Uuid
   balance                    Decimal?                     @db.Decimal(18, 2)
   balanceDate                DateTime?                    @map("balance_date") @db.Date
+  insiderUuid                String?                      @map("insider_uuid") @db.Uuid
   parsingSchemeUuid          String?                      @map("parsing_scheme_uuid") @db.Uuid
   rawTableName               String?                      @map("raw_table_name") @db.VarChar(255)
   parsingSchemeId            BigInt?                      @map("parsing_scheme_id")
@@ -104,6 +105,7 @@ model BankAccount {
   @@unique([accountNumber, currencyUuid])
   @@index([bankUuid])
   @@index([currencyUuid])
+  @@index([insiderUuid])
   @@index([parsingSchemeId])
   @@map("bank_accounts")
 }
@@ -228,6 +230,7 @@ model ConsolidatedBankAccount {
   processingCase            String?       @map("processing_case")
   counteragentAccountNumber String?       @map("counteragent_account_number")
   paymentId                 String?       @map("payment_id") @db.VarChar(255)
+  insiderUuid               String?       @map("insider_uuid") @db.Uuid
   correctionDate            DateTime?     @map("correction_date") @db.Date
   exchangeRate              Decimal?      @map("exchange_rate") @db.Decimal(20, 10)
   bankAccount               BankAccount   @relation(fields: [bankAccountUuid], references: [uuid])
@@ -235,6 +238,7 @@ model ConsolidatedBankAccount {
   @@index([bankAccountUuid], map: "idx_consolidated_bank_account_uuid")
   @@index([correctionDate], map: "idx_consolidated_correction_date")
   @@index([counteragentUuid], map: "idx_consolidated_counteragent_uuid")
+  @@index([insiderUuid], map: "idx_consolidated_insider_uuid")
   @@index([paymentId], map: "idx_consolidated_payment_id")
   @@index([processingCase], map: "idx_consolidated_processing_case")
   @@index([projectUuid], map: "idx_consolidated_project_uuid")
@@ -274,7 +278,12 @@ model counteragents {
   is_emploee                  Boolean        @default(false)
   is_active                   Boolean        @default(true)
   was_emploee                 Boolean        @default(false)
+  insider                     Boolean        @default(false)
+  insider_uuid                String?        @db.Uuid
   transactions                transactions[]
+
+  @@index([insider])
+  @@index([insider_uuid])
 }
 
 model countries {
@@ -365,9 +374,11 @@ model jobs {
   created_at   DateTime @default(now())
   updated_at   DateTime @default(now())
   brand_uuid   String?  @db.Uuid
+  insider_uuid String?  @db.Uuid
   brands       brands?  @relation(fields: [brand_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "fk_jobs_brand_uuid")
 
   @@index([job_uuid], map: "idx_jobs_job_uuid")
+  @@index([insider_uuid], map: "idx_jobs_insider_uuid")
   @@index([project_uuid], map: "idx_jobs_project_uuid")
 }
 
@@ -432,12 +443,14 @@ model payments {
   currency_uuid       String            @db.Uuid
   accrual_source      String?           @db.VarChar(50)
   label               String?           @db.Text
+  insider_uuid        String?           @db.Uuid
   payments_ledger     payments_ledger[]
 
   @@unique([project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid], map: "payments_project_uuid_counteragent_uuid_financial_code_uu_key")
   @@index([counteragent_uuid])
   @@index([currency_uuid])
   @@index([financial_code_uuid])
+  @@index([insider_uuid])
   @@index([job_uuid])
   @@index([project_uuid])
 }
@@ -455,9 +468,11 @@ model payments_ledger {
   updated_at     DateTime @default(now())
   comment        String?
   is_deleted     Boolean  @default(false)
+  insider_uuid   String?  @db.Uuid
   payments       payments @relation(fields: [payment_id], references: [payment_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_ledger_payment")
 
   @@index([effective_date])
+  @@index([insider_uuid])
   @@index([payment_id])
 }
 
@@ -504,12 +519,14 @@ model projects {
   department          String?
   service_state       String?
   project_index       String?
+  insider_uuid        String?             @db.Uuid
   project_employees   project_employees[]
 
   @@index([counteragent_uuid])
   @@index([currency_uuid])
   @@index([date])
   @@index([financial_code_uuid])
+  @@index([insider_uuid])
   @@index([state_uuid])
 }
 
@@ -546,6 +563,7 @@ model salary_accruals {
   deducted_fitness      Decimal? @db.Decimal(15, 2)
   deducted_fine         Decimal? @db.Decimal(15, 2)
   confirmed             Boolean  @default(false)
+  insider_uuid          String?  @db.Uuid
   created_at            DateTime @default(now())
   updated_at            DateTime @default(now())
   created_by            String   @db.VarChar(255)
@@ -555,6 +573,7 @@ model salary_accruals {
   @@index([financial_code_uuid])
   @@index([salary_month])
   @@index([payment_id])
+  @@index([insider_uuid])
   @@index([nominal_currency_uuid])
   @@index([salary_month, counteragent_uuid])
 }

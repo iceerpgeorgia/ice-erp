@@ -83,6 +83,8 @@ export type Counteragent = {
   isActive: boolean;
   isEmploye: boolean | null;
   wasEmploye: boolean | null;
+  insider: boolean;
+  insiderUuid: string | null;
 };
 
 type ColumnKey = keyof Counteragent;
@@ -126,7 +128,9 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'internalNumber', label: 'Internal #', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'isEmploye', label: 'Is Employee', width: 120, visible: true, sortable: true, filterable: true },
-  { key: 'wasEmploye', label: 'Was Employee', width: 130, visible: false, sortable: true, filterable: true }
+  { key: 'wasEmploye', label: 'Was Employee', width: 130, visible: false, sortable: true, filterable: true },
+  { key: 'insider', label: 'Insider', width: 110, visible: true, sortable: true, filterable: true },
+  { key: 'insiderUuid', label: 'Insider UUID', width: 200, visible: false, sortable: true, filterable: true }
 ];
 
 // Helper function to get responsive classes
@@ -171,6 +175,8 @@ const mapCounteragentData = (row: any): Counteragent => ({
   isActive: row.is_active ?? row.isActive ?? true,
   isEmploye: row.is_emploee ?? row.isEmploye ?? null,
   wasEmploye: row.was_emploee ?? row.wasEmploye ?? null,
+  insider: row.insider ?? false,
+  insiderUuid: row.insider_uuid ?? row.insiderUuid ?? null,
 });
 
 // Normalization helpers to handle snake_case API responses
@@ -193,6 +199,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   // Dropdown data - API returns snake_case field names
   const [entityTypesList, setEntityTypesList] = useState<Array<{id: number, name_ka: string, entity_type_uuid: string, is_natural_person?: boolean, is_id_exempt?: boolean}>>([]);
   const [countriesList, setCountriesList] = useState<Array<{id: number, country: string, country_uuid: string}>>([]);
+  const [insidersList, setInsidersList] = useState<Array<{ counteragent_uuid: string; counteragent?: string | null; name?: string | null }>>([]);
   
   // Horizontal scroll synchronization between the table and a sticky bottom scroller
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -315,6 +322,15 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
         if (countriesRes.ok) {
           const countriesData = await countriesRes.json();
           setCountriesList(countriesData);
+        }
+
+        const insidersRes = await fetch('/api/counteragents');
+        if (insidersRes.ok) {
+          const insidersData = await insidersRes.json();
+          const insiderOptions = (Array.isArray(insidersData) ? insidersData : []).filter(
+            (counteragent: any) => counteragent.insider === true
+          );
+          setInsidersList(insiderOptions);
         }
       } catch (error) {
         console.error('Failed to fetch dropdown data:', error);
@@ -779,39 +795,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
         }
         
         const updated = await response.json();
-        
-        // Transform API response (snake_case) to component format (camelCase)
-        const transformedUpdate: Counteragent = {
-          id: updated.id,
-          createdAt: updated.created_at,
-          updatedAt: updated.updated_at,
-          ts: updated.ts,
-          counteragentUuid: updated.counteragent_uuid,
-          name: updated.name,
-          identificationNumber: updated.identification_number,
-          birthOrIncorporationDate: updated.birth_or_incorporation_date,
-          entityType: updated.entity_type,
-          sex: updated.sex,
-          pensionScheme: updated.pension_scheme,
-          country: updated.country,
-          addressLine1: updated.address_line_1,
-          addressLine2: updated.address_line_2,
-          zipCode: updated.zip_code,
-          iban: updated.iban,
-          swift: updated.swift,
-          director: updated.director,
-          directorId: updated.director_id,
-          email: updated.email,
-          phone: updated.phone,
-          orisId: updated.oris_id,
-          counteragent: updated.counteragent,
-          countryUuid: updated.country_uuid,
-          entityTypeUuid: updated.entity_type_uuid,
-          internalNumber: updated.internal_number,
-          isActive: updated.is_active,
-          isEmploye: updated.is_emploee || false,
-          wasEmploye: updated.was_emploee || false,
-        };
+        const transformedUpdate: Counteragent = mapCounteragentData(updated);
         
         // Update local state with transformed response
         setEntityTypes(entityTypes.map(counteragent =>
@@ -1147,6 +1131,10 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 editData={null}
                 entityTypes={entityTypesList.map(normalizeEntityType)}
                 countries={countriesList.map(normalizeCountry)}
+                insiders={insidersList.map((i) => ({
+                  counteragentUuid: i.counteragent_uuid,
+                  label: i.counteragent || i.name || i.counteragent_uuid,
+                }))}
               />
               
               <CounteragentFormDialog
@@ -1165,37 +1153,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   }
                   
                   const updated = await response.json();
-                  const transformedUpdate: Counteragent = {
-                    id: updated.id,
-                    createdAt: updated.created_at,
-                    updatedAt: updated.updated_at,
-                    ts: updated.ts,
-                    counteragentUuid: updated.counteragent_uuid,
-                    name: updated.name,
-                    identificationNumber: updated.identification_number,
-                    birthOrIncorporationDate: updated.birth_or_incorporation_date,
-                    entityType: updated.entity_type,
-                    sex: updated.sex,
-                    pensionScheme: updated.pension_scheme,
-                    country: updated.country,
-                    addressLine1: updated.address_line_1,
-                    addressLine2: updated.address_line_2,
-                    zipCode: updated.zip_code,
-                    iban: updated.iban,
-                    swift: updated.swift,
-                    director: updated.director,
-                    directorId: updated.director_id,
-                    email: updated.email,
-                    phone: updated.phone,
-                    orisId: updated.oris_id,
-                    counteragent: updated.counteragent,
-                    countryUuid: updated.country_uuid,
-                    entityTypeUuid: updated.entity_type_uuid,
-                    internalNumber: updated.internal_number,
-                    isActive: updated.is_active,
-                    isEmploye: updated.is_emploee || false,
-                    wasEmploye: updated.was_emploee || false,
-                  };
+                  const transformedUpdate: Counteragent = mapCounteragentData(updated);
                   
                   setEntityTypes(entityTypes.map(counteragent =>
                     counteragent.id === editingEntityType?.id ? transformedUpdate : counteragent
@@ -1204,6 +1162,10 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                 editData={editingEntityType}
                 entityTypes={entityTypesList.map(normalizeEntityType)}
                 countries={countriesList.map(normalizeCountry)}
+                insiders={insidersList.map((i) => ({
+                  counteragentUuid: i.counteragent_uuid,
+                  label: i.counteragent || i.name || i.counteragent_uuid,
+                }))}
               />
             </>
           ) : (
@@ -2242,6 +2204,12 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                           <Badge variant={counteragent.wasEmploye ? "default" : "secondary"} className="text-xs">
                             {counteragent.wasEmploye ? 'Yes' : 'No'}
                           </Badge>
+                        ) : column.key === 'insider' ? (
+                          <Badge variant={counteragent.insider ? "default" : "secondary"} className="text-xs">
+                            {counteragent.insider ? 'Yes' : 'No'}
+                          </Badge>
+                        ) : column.key === 'insiderUuid' ? (
+                          <span className="text-sm">{counteragent.insiderUuid || '-'}</span>
                         ) : (
                           <span className="text-sm">-</span>
                         )}

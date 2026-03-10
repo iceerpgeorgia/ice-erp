@@ -49,6 +49,8 @@ function toApi(row: any) {
     is_active: row.is_active ?? true,
     is_emploee: row.is_emploee ?? null,
     was_emploee: row.was_emploee ?? null,
+    insider: row.insider ?? false,
+    insider_uuid: row.insider_uuid ?? null,
   };
 }
 
@@ -97,6 +99,8 @@ export async function GET(req: NextRequest) {
         is_active: true,
         is_emploee: true,
         was_emploee: true,
+        insider: true,
+        insider_uuid: true,
       },
     });
     return NextResponse.json(rows.map(toApi), { status: 200 });
@@ -155,6 +159,8 @@ export async function POST(req: NextRequest) {
         is_active: body.is_active ?? true,
         is_emploee: body.is_emploee ?? null,
         was_emploee: body.was_emploee ?? null,
+        insider: body.insider ?? false,
+        insider_uuid: body.insider_uuid ?? null,
         updated_at: new Date(),
       },
       select: {
@@ -202,6 +208,8 @@ export async function POST(req: NextRequest) {
         internal_number: true,
         is_emploee: true,
         was_emploee: true,
+        insider: true,
+        insider_uuid: true,
       },
     });
 
@@ -295,6 +303,8 @@ export async function PATCH(req: NextRequest) {
       is_active: 'is_active',
       is_emploee: 'is_emploee',
       was_emploee: 'was_emploee',
+      insider: 'insider',
+      insider_uuid: 'insider_uuid',
     };
 
     Object.entries(fieldMap).forEach(([dbField, bodyField]) => {
@@ -355,6 +365,8 @@ export async function PATCH(req: NextRequest) {
         is_active: body.is_active !== undefined ? body.is_active : undefined,
         is_emploee: body.is_emploee !== undefined ? body.is_emploee : undefined,
         was_emploee: body.was_emploee !== undefined ? body.was_emploee : undefined,
+        insider: body.insider !== undefined ? body.insider : undefined,
+        insider_uuid: body.insider_uuid !== undefined ? body.insider_uuid : undefined,
       },
       select: {
         id: true,
@@ -386,6 +398,8 @@ export async function PATCH(req: NextRequest) {
         is_active: true,
         is_emploee: true,
         was_emploee: true,
+        insider: true,
+        insider_uuid: true,
       },
     });
 
