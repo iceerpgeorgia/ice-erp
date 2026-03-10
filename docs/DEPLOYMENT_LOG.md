@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-10 (25)
+- Summary: Payments Report now refreshes in-place without table flicker across all non-initial refresh actions.
+- Changes:
+  - Added silent refresh mode for report data reloads to keep current rows visible while updated data is fetched.
+  - Applied silent refresh to confirm/deconfirm, manual refresh, add-ledger, bulk A/O add, payment edit save, ledger XLSX apply, and cross-tab BroadcastChannel refresh.
+  - Initial page load still uses normal loading UX.
+- Commit: bb7c105
+- URL: https://ice-ffuq204l9-iceerp.vercel.app
+
 ## 2026-03-10 (24)
 - Summary: Enforced payment deactivation guard when ledger activity exists and excluded inactive payments from report formatting logic.
 - Changes:
