@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-10 (27)
+- Summary: Hotfix for Counteragents table loading failure after insider rollout.
+- Changes:
+  - Added defensive fallback logic in `/api/counteragents` for environments where DB insider columns are not yet applied.
+  - `GET` now retries with legacy field selection if insider columns are missing.
+  - `POST` and `PATCH` now gracefully retry without insider fields on the same schema-mismatch condition.
+  - API responses keep stable insider defaults (`insider=false`, `insider_uuid=null`) in fallback mode so UI remains functional.
+- Commit: 798cea3
+- URL: https://ice-flag8i6u6-iceerp.vercel.app
+
 ## 2026-03-10 (26)
 - Summary: Released insider foundation for counteragents/core tables and added Signify e-signature trigger integration.
 - Changes:
