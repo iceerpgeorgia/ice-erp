@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-10 (31)
+- Summary: Added `insider_name` display label while keeping `insider_uuid` as the relation key.
+- Changes:
+  - `/api/counteragents` now enriches responses with derived `insider_name` by resolving `insider_uuid` against counteragents.
+  - Counteragents table now includes an `Insider Name` column for interpretation, with UUID still available as the underlying key.
+  - Counteragent form wording updated to use `Insider Name` (label) while persisting `insider_uuid` in payload.
+- Commit: f89d467
+- URL: https://ice-knkle5pwh-iceerp.vercel.app
+
 ## 2026-03-10 (30)
 - Summary: Fixed mixed-schema audit insert and bank-transactions runtime failures after insider restoration.
 - Changes:
