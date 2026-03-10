@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-10 (30)
+- Summary: Fixed mixed-schema audit insert and bank-transactions runtime failures after insider restoration.
+- Changes:
+  - `lib/audit.ts`: hardened `logAudit` raw insert to support environments where `AuditLog.record_id` is still `bigint` by retrying with `::bigint` cast on `42804` type mismatch.
+  - `app/api/bank-transactions/route.ts` and `app/api/bank-transactions-test/route.ts`: replaced broad `include` on `bankAccount.findMany` with explicit `select` to avoid implicit reads of missing columns.
+  - Added migration `prisma/migrations/20260310195000_ensure_bank_accounts_insider_uuid/migration.sql` to ensure `bank_accounts.insider_uuid` column/index exist.
+  - Applied migration via direct connection (`DIRECT_DATABASE_URL`) before release.
+- Commit: a0d2e84
+- URL: https://ice-54xh32mu6-iceerp.vercel.app
+
 ## 2026-03-10 (29)
 - Summary: Restored Counteragents insider support end-to-end and reapplied DB migration via direct connection.
 - Changes:
