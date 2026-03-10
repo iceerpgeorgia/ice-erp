@@ -85,6 +85,7 @@ export type Counteragent = {
   wasEmploye: boolean | null;
   insider: boolean;
   insiderUuid: string | null;
+  insiderName: string | null;
 };
 
 type ColumnKey = keyof Counteragent;
@@ -130,6 +131,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'isEmploye', label: 'Is Employee', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'wasEmploye', label: 'Was Employee', width: 130, visible: false, sortable: true, filterable: true },
   { key: 'insider', label: 'Insider', width: 110, visible: true, sortable: true, filterable: true },
+  { key: 'insiderName', label: 'Insider Name', width: 180, visible: true, sortable: true, filterable: true },
   { key: 'insiderUuid', label: 'Insider UUID', width: 200, visible: false, sortable: true, filterable: true }
 ];
 
@@ -176,6 +178,7 @@ const mapCounteragentData = (row: any): Counteragent => ({
   isEmploye: row.is_emploee ?? row.isEmploye ?? null,
   wasEmploye: row.was_emploee ?? row.wasEmploye ?? null,
   insider: row.insider ?? false,
+  insiderName: row.insider_name || row.insiderName || null,
   insiderUuid: row.insider_uuid ?? row.insiderUuid ?? null,
 });
 
@@ -2219,6 +2222,8 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                           <Badge variant={counteragent.insider ? "default" : "secondary"} className="text-xs">
                             {counteragent.insider ? 'Yes' : 'No'}
                           </Badge>
+                        ) : column.key === 'insiderName' ? (
+                          <span className="text-sm">{counteragent.insiderName || '-'}</span>
                         ) : column.key === 'insiderUuid' ? (
                           <span className="text-sm">{counteragent.insiderUuid || '-'}</span>
                         ) : (

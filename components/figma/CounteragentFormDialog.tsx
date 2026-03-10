@@ -601,13 +601,13 @@ export function CounteragentFormDialog({
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="insiderUuid" className="text-right">Insider Owner</Label>
+            <Label htmlFor="insiderUuid" className="text-right">Insider Name</Label>
             <div className="col-span-3">
               <Combobox
                 options={insiders.map((i) => ({ value: i.counteragentUuid, label: i.label, keywords: i.label }))}
                 value={formData.insiderUuid}
                 onValueChange={(value) => updateField('insiderUuid', value)}
-                placeholder="Select insider"
+                placeholder="Select insider name"
                 searchPlaceholder="Search insiders..."
                 emptyText="No insider found."
                 disabled={!formData.insider}

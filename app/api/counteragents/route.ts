@@ -51,7 +51,37 @@ function toApi(row: any) {
     was_emploee: row.was_emploee ?? null,
     insider: row.insider ?? false,
     insider_uuid: row.insider_uuid ?? null,
+    insider_name: row.insider_name ?? null,
   };
+}
+
+async function enrichWithInsiderName<T extends { insider_uuid?: string | null }>(rows: T[]): Promise<Array<T & { insider_name: string | null }>> {
+  const insiderUuids = Array.from(
+    new Set(rows.map((r) => r.insider_uuid).filter((v): v is string => Boolean(v)))
+  );
+
+  if (insiderUuids.length === 0) {
+    return rows.map((row) => ({ ...row, insider_name: null }));
+  }
+
+  const insiderRows = await prisma.counteragents.findMany({
+    where: { counteragent_uuid: { in: insiderUuids } },
+    select: {
+      counteragent_uuid: true,
+      counteragent: true,
+      name: true,
+    },
+  });
+
+  const insiderMap = new Map<string, string>();
+  insiderRows.forEach((row) => {
+    insiderMap.set(row.counteragent_uuid, row.counteragent || row.name || row.counteragent_uuid);
+  });
+
+  return rows.map((row) => ({
+    ...row,
+    insider_name: row.insider_uuid ? insiderMap.get(row.insider_uuid) ?? row.insider_uuid : null,
+  }));
 }
 
 export async function GET(req: NextRequest) {
@@ -103,7 +133,8 @@ export async function GET(req: NextRequest) {
         insider_uuid: true,
       },
     });
-    return NextResponse.json(rows.map(toApi), { status: 200 });
+    const rowsWithInsiderName = await enrichWithInsiderName(rows);
+    return NextResponse.json(rowsWithInsiderName.map(toApi), { status: 200 });
   } catch (err: any) {
     console.error("GET /counteragents/api failed:", err);
     return NextResponse.json({ error: err.message ?? "Server error" }, { status: 500 });
@@ -220,7 +251,8 @@ export async function POST(req: NextRequest) {
       action: "create",
     });
 
-    return NextResponse.json(toApi(updated), { status: 201 });
+    const updatedWithInsiderName = await enrichWithInsiderName([updated]);
+    return NextResponse.json(toApi(updatedWithInsiderName[0]), { status: 201 });
   } catch (err: any) {
     console.error("POST /counteragents/api failed:", err);
     
@@ -448,7 +480,8 @@ export async function PATCH(req: NextRequest) {
       console.log('[AUDIT DEBUG] No changes detected, skipping audit log');
     }
 
-    return NextResponse.json(toApi(updated), { status: 200 });
+    const updatedWithInsiderName = await enrichWithInsiderName([updated]);
+    return NextResponse.json(toApi(updatedWithInsiderName[0]), { status: 200 });
   } catch (err: any) {
     console.error("PATCH /counteragents failed:", err);
     
