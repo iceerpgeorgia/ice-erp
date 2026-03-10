@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-10 (28)
+- Summary: Removed insider fields from Counteragents end-to-end and fixed production `P2022` on PATCH.
+- Changes:
+  - Removed `counteragents.insider` and `counteragents.insider_uuid` from Prisma schema and aligned migration scope to keep insider fields only on required core tables.
+  - Updated `/api/counteragents` GET/POST/PATCH to stop reading/writing insider fields and removed legacy insider fallback branches.
+  - Updated Counteragents UI (table + form + missing-counteragents flow) to remove insider controls/columns and payload fields.
+  - Fixed PATCH audit prefetch to use explicit non-insider select (including `entity_type`) so production no longer references removed columns.
+- Commits: 9be7312, cc7f99c
+- URL: https://ice-qtm4r76yu-iceerp.vercel.app
+
 ## 2026-03-10 (27)
 - Summary: Hotfix for Counteragents table loading failure after insider rollout.
 - Changes:
