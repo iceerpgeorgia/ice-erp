@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-10 (29)
+- Summary: Restored Counteragents insider support end-to-end and reapplied DB migration via direct connection.
+- Changes:
+  - Restored `counteragents.insider` and `counteragents.insider_uuid` in Prisma schema and added deployable migration `prisma/migrations/20260310193000_restore_counteragents_insider/migration.sql`.
+  - Re-enabled `/api/counteragents` GET/POST/PATCH insider field mapping, select, write, and audit change tracking while preserving explicit PATCH prefetch select safety.
+  - Re-enabled Counteragents UI insider controls (toggle + insider owner selector), payload wiring, table columns, and insider option loading.
+  - Applied migration using direct DB connection (`DIRECT_DATABASE_URL`) to avoid pooler advisory lock timeouts.
+- Commit: 30d7043
+- URL: https://ice-nqk25k5mq-iceerp.vercel.app
+
 ## 2026-03-10 (28)
 - Summary: Removed insider fields from Counteragents end-to-end and fixed production `P2022` on PATCH.
 - Changes:
