@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-10 (32)
+- Summary: Enforced strict required-insider binding end-to-end with direct-connection migration deploy.
+- Changes:
+  - Added and applied migration `prisma/migrations/20260310233000_enforce_required_insider_binding/migration.sql` via `DIRECT_DATABASE_URL`; backfilled required tables, enforced `NOT NULL`, installed single-insider binding triggers, and added uniqueness guard for `counteragents.insider=true`.
+  - Added required-insider resolver endpoint `/api/required-insider` and shared helper `lib/required-insider.ts`.
+  - Added shared UI component `components/figma/shared/required-insider-badge.tsx` and surfaced required insider label across required table pages.
+  - Updated required APIs/routes to honor strict insider binding fields for required entities.
+- Commit: 92ca169
+- URL: https://ice-m9bbaz97m-iceerp.vercel.app
+
 ## 2026-03-10 (31)
 - Summary: Added `insider_name` display label while keeping `insider_uuid` as the relation key.
 - Changes:
