@@ -646,9 +646,23 @@ export async function GET(req: NextRequest) {
         balanceDate: { not: null },
         isActive: true
       },
-      include: {
-        bank: true,
-        currency: true
+      select: {
+        id: true,
+        uuid: true,
+        accountNumber: true,
+        currencyUuid: true,
+        balance: true,
+        balanceDate: true,
+        bank: {
+          select: {
+            bankName: true,
+          },
+        },
+        currency: {
+          select: {
+            code: true,
+          },
+        },
       }
     });
     console.log('[API] Step 4 complete: Got', balanceRecords.length, 'balance records');
