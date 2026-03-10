@@ -267,6 +267,7 @@ export async function PATCH(req: NextRequest) {
         name: true,
         identification_number: true,
         birth_or_incorporation_date: true,
+        entity_type: true,
         sex: true,
         pension_scheme: true,
         country: true,
