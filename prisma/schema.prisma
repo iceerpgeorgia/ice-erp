@@ -278,12 +278,7 @@ model counteragents {
   is_emploee                  Boolean        @default(false)
   is_active                   Boolean        @default(true)
   was_emploee                 Boolean        @default(false)
-  insider                     Boolean        @default(false)
-  insider_uuid                String?        @db.Uuid
   transactions                transactions[]
-
-  @@index([insider])
-  @@index([insider_uuid])
 }
 
 model countries {

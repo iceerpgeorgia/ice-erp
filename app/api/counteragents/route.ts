@@ -5,16 +5,6 @@ import { logAudit } from "@/lib/audit";
 
 export const revalidate = 0;
 
-const isMissingInsiderColumnsError = (err: any) => {
-  const message = String(err?.message ?? '').toLowerCase();
-  return (
-    message.includes('insider') &&
-    (message.includes('does not exist') ||
-      message.includes('unknown arg') ||
-      message.includes('unknown field'))
-  );
-};
-
 const normalizeIdentificationNumber = (value: string | null | undefined) => {
   if (!value) return null;
   const digits = String(value).replace(/\D/g, "");
@@ -59,8 +49,6 @@ function toApi(row: any) {
     is_active: row.is_active ?? true,
     is_emploee: row.is_emploee ?? null,
     was_emploee: row.was_emploee ?? null,
-    insider: row.insider ?? false,
-    insider_uuid: row.insider_uuid ?? null,
   };
 }
 
@@ -74,93 +62,44 @@ export async function GET(req: NextRequest) {
       where.is_emploee = true;
     }
     
-    try {
-      const rows = await prisma.counteragents.findMany({
-        where,
-        orderBy: { id: "asc" },
-        select: {
-          id: true,
-          created_at: true,
-          updated_at: true,
-          ts: true,
+    const rows = await prisma.counteragents.findMany({
+      where,
+      orderBy: { id: "asc" },
+      select: {
+        id: true,
+        created_at: true,
+        updated_at: true,
+        ts: true,
 
-          name: true,
-          identification_number: true,
-          birth_or_incorporation_date: true,
-          entity_type: true,
-          sex: true,
-          pension_scheme: true,
-          country: true,
-          address_line_1: true,
-          address_line_2: true,
-          zip_code: true,
-          iban: true,
-          swift: true,
-          director: true,
-          director_id: true,
-          email: true,
-          phone: true,
-          oris_id: true,
+        name: true,
+        identification_number: true,
+        birth_or_incorporation_date: true,
+        entity_type: true,
+        sex: true,
+        pension_scheme: true,
+        country: true,
+        address_line_1: true,
+        address_line_2: true,
+        zip_code: true,
+        iban: true,
+        swift: true,
+        director: true,
+        director_id: true,
+        email: true,
+        phone: true,
+        oris_id: true,
 
-          counteragent: true,
-          country_uuid: true,
-          entity_type_uuid: true,
-          counteragent_uuid: true,
-          internal_number: true,
-          is_active: true,
-          is_emploee: true,
-          was_emploee: true,
-          insider: true,
-          insider_uuid: true,
-        },
-      });
-      return NextResponse.json(rows.map(toApi), { status: 200 });
-    } catch (innerErr: any) {
-      if (!isMissingInsiderColumnsError(innerErr)) throw innerErr;
-
-      console.warn("GET /counteragents: insider columns missing in DB, using fallback select");
-      const legacyRows = await prisma.counteragents.findMany({
-        where,
-        orderBy: { id: "asc" },
-        select: {
-          id: true,
-          created_at: true,
-          updated_at: true,
-          ts: true,
-
-          name: true,
-          identification_number: true,
-          birth_or_incorporation_date: true,
-          entity_type: true,
-          sex: true,
-          pension_scheme: true,
-          country: true,
-          address_line_1: true,
-          address_line_2: true,
-          zip_code: true,
-          iban: true,
-          swift: true,
-          director: true,
-          director_id: true,
-          email: true,
-          phone: true,
-          oris_id: true,
-
-          counteragent: true,
-          country_uuid: true,
-          entity_type_uuid: true,
-          counteragent_uuid: true,
-          internal_number: true,
-          is_active: true,
-          is_emploee: true,
-          was_emploee: true,
-        },
-      });
-      return NextResponse.json(
-        legacyRows.map((row) => toApi({ ...row, insider: false, insider_uuid: null })),
-        { status: 200 }
-      );
-    }
+        counteragent: true,
+        country_uuid: true,
+        entity_type_uuid: true,
+        counteragent_uuid: true,
+        internal_number: true,
+        is_active: true,
+        is_emploee: true,
+        was_emploee: true,
+      },
+    });
+    return NextResponse.json(rows.map(toApi), { status: 200 });
   } catch (err: any) {
     console.error("GET /counteragents/api failed:", err);
     return NextResponse.json({ error: err.message ?? "Server error" }, { status: 500 });
@@ -188,80 +127,40 @@ export async function POST(req: NextRequest) {
     // Generate UUID for counteragent_uuid using crypto
     const counteragent_uuid = crypto.randomUUID();
 
-    let created;
-    try {
-      created = await prisma.counteragents.create({
-        data: {
-          counteragent_uuid,
-          name: body.name?.trim(),
-          identification_number: normalizedIdentificationNumber,
-          birth_or_incorporation_date: body.birth_or_incorporation_date
-            ? new Date(body.birth_or_incorporation_date)
-            : null,
-          sex: body.sex ?? null,
-          pension_scheme: body.pension_scheme ?? null,
-          // Don't set entity_type or country - they are auto-populated by trigger from UUIDs
-          address_line_1: body.address_line_1 ?? null,
-          address_line_2: body.address_line_2 ?? null,
-          zip_code: body.zip_code ?? null,
-          iban: body.iban ?? null,
-          swift: body.swift ?? null,
-          director: body.director ?? null,
-          director_id: body.director_id ?? null,
-          email: body.email ?? null,
-          phone: body.phone ?? null,
-          oris_id: body.oris_id ?? null,
+    const created = await prisma.counteragents.create({
+      data: {
+        counteragent_uuid,
+        name: body.name?.trim(),
+        identification_number: normalizedIdentificationNumber,
+        birth_or_incorporation_date: body.birth_or_incorporation_date
+          ? new Date(body.birth_or_incorporation_date)
+          : null,
+        sex: body.sex ?? null,
+        pension_scheme: body.pension_scheme ?? null,
+        // Don't set entity_type or country - they are auto-populated by trigger from UUIDs
+        address_line_1: body.address_line_1 ?? null,
+        address_line_2: body.address_line_2 ?? null,
+        zip_code: body.zip_code ?? null,
+        iban: body.iban ?? null,
+        swift: body.swift ?? null,
+        director: body.director ?? null,
+        director_id: body.director_id ?? null,
+        email: body.email ?? null,
+        phone: body.phone ?? null,
+        oris_id: body.oris_id ?? null,
 
-          // Only set UUIDs - triggers will populate the name fields
-          country_uuid: body.country_uuid ?? null,
-          entity_type_uuid: body.entity_type_uuid ?? null,
-          is_active: body.is_active ?? true,
-          is_emploee: body.is_emploee ?? null,
-          was_emploee: body.was_emploee ?? null,
-          insider: body.insider ?? false,
-          insider_uuid: body.insider_uuid ?? null,
-          updated_at: new Date(),
-        },
-        select: {
-          id: true,
-        },
-      });
-    } catch (createErr: any) {
-      if (!isMissingInsiderColumnsError(createErr)) throw createErr;
-
-      console.warn("POST /counteragents: insider columns missing in DB, creating without insider fields");
-      created = await prisma.counteragents.create({
-        data: {
-          counteragent_uuid,
-          name: body.name?.trim(),
-          identification_number: normalizedIdentificationNumber,
-          birth_or_incorporation_date: body.birth_or_incorporation_date
-            ? new Date(body.birth_or_incorporation_date)
-            : null,
-          sex: body.sex ?? null,
-          pension_scheme: body.pension_scheme ?? null,
-          address_line_1: body.address_line_1 ?? null,
-          address_line_2: body.address_line_2 ?? null,
-          zip_code: body.zip_code ?? null,
-          iban: body.iban ?? null,
-          swift: body.swift ?? null,
-          director: body.director ?? null,
-          director_id: body.director_id ?? null,
-          email: body.email ?? null,
-          phone: body.phone ?? null,
-          oris_id: body.oris_id ?? null,
-          country_uuid: body.country_uuid ?? null,
-          entity_type_uuid: body.entity_type_uuid ?? null,
-          is_active: body.is_active ?? true,
-          is_emploee: body.is_emploee ?? null,
-          was_emploee: body.was_emploee ?? null,
-          updated_at: new Date(),
-        },
-        select: {
-          id: true,
-        },
-      });
-    }
+        // Only set UUIDs - triggers will populate the name fields
+        country_uuid: body.country_uuid ?? null,
+        entity_type_uuid: body.entity_type_uuid ?? null,
+        is_active: body.is_active ?? true,
+        is_emploee: body.is_emploee ?? null,
+        was_emploee: body.was_emploee ?? null,
+        updated_at: new Date(),
+      },
+      select: {
+        id: true,
+      },
+    });
 
     // Auto-generate internal_number based on ID (format: ICE000001, ICE000002, etc.)
     const idStr = created.id.toString();
@@ -269,88 +168,42 @@ export async function POST(req: NextRequest) {
     const internalNumber = `ICE${zeros}${idStr}`;
 
     // Update the record with internal_number and fetch complete data
-    let updated;
-    try {
-      updated = await prisma.counteragents.update({
-        where: { id: created.id },
-        data: { internal_number: internalNumber },
-        select: {
-          id: true,
-          created_at: true,
-          updated_at: true,
-          ts: true,
+    const updated = await prisma.counteragents.update({
+      where: { id: created.id },
+      data: { internal_number: internalNumber },
+      select: {
+        id: true,
+        created_at: true,
+        updated_at: true,
+        ts: true,
 
-          name: true,
-          identification_number: true,
-          birth_or_incorporation_date: true,
-          entity_type: true,
-          sex: true,
-          pension_scheme: true,
-          country: true,
-          address_line_1: true,
-          address_line_2: true,
-          zip_code: true,
-          iban: true,
-          swift: true,
-          director: true,
-          director_id: true,
-          email: true,
-          phone: true,
-          oris_id: true,
+        name: true,
+        identification_number: true,
+        birth_or_incorporation_date: true,
+        entity_type: true,
+        sex: true,
+        pension_scheme: true,
+        country: true,
+        address_line_1: true,
+        address_line_2: true,
+        zip_code: true,
+        iban: true,
+        swift: true,
+        director: true,
+        director_id: true,
+        email: true,
+        phone: true,
+        oris_id: true,
 
-          counteragent: true,
-          country_uuid: true,
-          entity_type_uuid: true,
-          counteragent_uuid: true,
-          internal_number: true,
-          is_emploee: true,
-          was_emploee: true,
-          insider: true,
-          insider_uuid: true,
-        },
-      });
-    } catch (selectErr: any) {
-      if (!isMissingInsiderColumnsError(selectErr)) throw selectErr;
-
-      console.warn("POST /counteragents: insider columns missing in DB, using fallback return select");
-      const legacyUpdated = await prisma.counteragents.update({
-        where: { id: created.id },
-        data: { internal_number: internalNumber },
-        select: {
-          id: true,
-          created_at: true,
-          updated_at: true,
-          ts: true,
-
-          name: true,
-          identification_number: true,
-          birth_or_incorporation_date: true,
-          entity_type: true,
-          sex: true,
-          pension_scheme: true,
-          country: true,
-          address_line_1: true,
-          address_line_2: true,
-          zip_code: true,
-          iban: true,
-          swift: true,
-          director: true,
-          director_id: true,
-          email: true,
-          phone: true,
-          oris_id: true,
-
-          counteragent: true,
-          country_uuid: true,
-          entity_type_uuid: true,
-          counteragent_uuid: true,
-          internal_number: true,
-          is_emploee: true,
-          was_emploee: true,
-        },
-      });
-      updated = { ...legacyUpdated, insider: false, insider_uuid: null };
-    }
+        counteragent: true,
+        country_uuid: true,
+        entity_type_uuid: true,
+        counteragent_uuid: true,
+        internal_number: true,
+        is_emploee: true,
+        was_emploee: true,
+      },
+    });
 
     // Log audit for the creation
     await logAudit({
@@ -409,6 +262,31 @@ export async function PATCH(req: NextRequest) {
     // Fetch existing record for change tracking
     const existing = await prisma.counteragents.findUnique({
       where: { id: BigInt(id) },
+      select: {
+        id: true,
+        name: true,
+        identification_number: true,
+        birth_or_incorporation_date: true,
+        sex: true,
+        pension_scheme: true,
+        country: true,
+        address_line_1: true,
+        address_line_2: true,
+        zip_code: true,
+        iban: true,
+        swift: true,
+        director: true,
+        director_id: true,
+        email: true,
+        phone: true,
+        oris_id: true,
+        country_uuid: true,
+        entity_type_uuid: true,
+        internal_number: true,
+        is_active: true,
+        is_emploee: true,
+        was_emploee: true,
+      },
     });
 
     if (!existing) {
@@ -442,8 +320,6 @@ export async function PATCH(req: NextRequest) {
       is_active: 'is_active',
       is_emploee: 'is_emploee',
       was_emploee: 'was_emploee',
-      insider: 'insider',
-      insider_uuid: 'insider_uuid',
     };
 
     Object.entries(fieldMap).forEach(([dbField, bodyField]) => {
@@ -476,9 +352,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Update the record
-    let updated;
-    try {
-      updated = await prisma.counteragents.update({
+    const updated = await prisma.counteragents.update({
         where: { id: BigInt(id) },
         data: {
           name: body.name !== undefined ? body.name?.trim() : undefined,
@@ -506,73 +380,6 @@ export async function PATCH(req: NextRequest) {
           is_active: body.is_active !== undefined ? body.is_active : undefined,
           is_emploee: body.is_emploee !== undefined ? body.is_emploee : undefined,
           was_emploee: body.was_emploee !== undefined ? body.was_emploee : undefined,
-          insider: body.insider !== undefined ? body.insider : undefined,
-          insider_uuid: body.insider_uuid !== undefined ? body.insider_uuid : undefined,
-        },
-        select: {
-          id: true,
-          created_at: true,
-          updated_at: true,
-          ts: true,
-          name: true,
-          identification_number: true,
-          birth_or_incorporation_date: true,
-          entity_type: true,
-          sex: true,
-          pension_scheme: true,
-          country: true,
-          address_line_1: true,
-          address_line_2: true,
-          zip_code: true,
-          iban: true,
-          swift: true,
-          director: true,
-          director_id: true,
-          email: true,
-          phone: true,
-          oris_id: true,
-          counteragent: true,
-          country_uuid: true,
-          entity_type_uuid: true,
-          counteragent_uuid: true,
-          internal_number: true,
-          is_active: true,
-          is_emploee: true,
-          was_emploee: true,
-          insider: true,
-          insider_uuid: true,
-        },
-      });
-    } catch (updateErr: any) {
-      if (!isMissingInsiderColumnsError(updateErr)) throw updateErr;
-
-      console.warn("PATCH /counteragents: insider columns missing in DB, updating without insider fields");
-      updated = await prisma.counteragents.update({
-        where: { id: BigInt(id) },
-        data: {
-          name: body.name !== undefined ? body.name?.trim() : undefined,
-          identification_number: body.identification_number !== undefined ? body.identification_number : undefined,
-          birth_or_incorporation_date: body.birth_or_incorporation_date !== undefined
-            ? (body.birth_or_incorporation_date ? new Date(body.birth_or_incorporation_date) : null)
-            : undefined,
-          sex: body.sex !== undefined ? body.sex : undefined,
-          pension_scheme: body.pension_scheme !== undefined ? body.pension_scheme : undefined,
-          address_line_1: body.address_line_1 !== undefined ? body.address_line_1 : undefined,
-          address_line_2: body.address_line_2 !== undefined ? body.address_line_2 : undefined,
-          zip_code: body.zip_code !== undefined ? body.zip_code : undefined,
-          iban: body.iban !== undefined ? body.iban : undefined,
-          swift: body.swift !== undefined ? body.swift : undefined,
-          director: body.director !== undefined ? body.director : undefined,
-          director_id: body.director_id !== undefined ? body.director_id : undefined,
-          email: body.email !== undefined ? body.email : undefined,
-          phone: body.phone !== undefined ? body.phone : undefined,
-          oris_id: body.oris_id !== undefined ? body.oris_id : undefined,
-          country_uuid: body.country_uuid !== undefined ? body.country_uuid : undefined,
-          entity_type_uuid: body.entity_type_uuid !== undefined ? body.entity_type_uuid : undefined,
-          internal_number: body.internal_number !== undefined ? body.internal_number : undefined,
-          is_active: body.is_active !== undefined ? body.is_active : undefined,
-          is_emploee: body.is_emploee !== undefined ? body.is_emploee : undefined,
-          was_emploee: body.was_emploee !== undefined ? body.was_emploee : undefined,
         },
         select: {
           id: true,
@@ -606,8 +413,6 @@ export async function PATCH(req: NextRequest) {
           was_emploee: true,
         },
       });
-      updated = { ...updated, insider: false, insider_uuid: null };
-    }
 
     console.log('[AUDIT DEBUG] Changes detected:', Object.keys(changes).length, changes);
 

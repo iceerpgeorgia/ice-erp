@@ -144,7 +144,6 @@ export default function MissingCounteragentsPage() {
           }}
           entityTypes={entityTypes}
           countries={countries}
-          insiders={[]}
         />
       )}
     </div>
