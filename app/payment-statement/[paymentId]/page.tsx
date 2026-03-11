@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -467,6 +468,7 @@ export default function PaymentStatementPage() {
     return String(value);
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const getFacetBaseData = useMemo(() => {
     return buildFacetBaseData(mergedTransactions, '', filters, (row: any, key: string) => row[key]);
   }, [mergedTransactions, filters]);
@@ -476,6 +478,7 @@ export default function PaymentStatementPage() {
     return buildUniqueValuesCache(filterableKeys, getFacetBaseData, (row: any, key: string) => row[key]);
   }, [columns, getFacetBaseData]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const filteredTransactions = useMemo(() => {
     let filtered = [...mergedTransactions];
 

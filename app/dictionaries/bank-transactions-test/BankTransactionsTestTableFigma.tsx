@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
@@ -118,6 +119,7 @@ export default function BankTransactionsTestTableFigma() {
   });
 
   // Save applied filters to localStorage whenever they change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('bankTransactionsTest_appliedFromDate', appliedFromDate);

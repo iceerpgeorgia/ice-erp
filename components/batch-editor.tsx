@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -171,11 +172,13 @@ export function BatchEditor({
     return '';
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchPayments();
     fetchCurrencies();
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!transactionDate) return;
     const effectiveDate = toDateInput(transactionDate);

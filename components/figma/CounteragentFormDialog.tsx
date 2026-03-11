@@ -33,6 +33,7 @@ interface FormData {
   wasEmploye: boolean;
   insider: boolean;
   insiderUuid: string;
+  insiderName: string;
 }
 
 interface FormErrors {
@@ -93,6 +94,7 @@ export function CounteragentFormDialog({
     wasEmploye: false,
     insider: false,
     insiderUuid: '',
+    insiderName: '',
   });
 
   const [formErrors, setFormErrors] = useState<FormErrors>({});
@@ -134,6 +136,10 @@ export function CounteragentFormDialog({
         wasEmploye: editData.wasEmploye ?? false,
         insider: editData.insider ?? false,
         insiderUuid: editData.insiderUuid || '',
+        insiderName:
+          editData.insiderName ||
+          insiders.find((i) => i.counteragentUuid === (editData.insiderUuid || ''))?.label ||
+          '',
       });
     } else if (!editData && isOpen) {
       // Reset for add
@@ -160,19 +166,21 @@ export function CounteragentFormDialog({
         wasEmploye: false,
         insider: false,
         insiderUuid: '',
+        insiderName: '',
       });
     }
     setFormErrors({});
-  }, [editData, isOpen]);
+  }, [editData, insiders, isOpen]);
 
   useEffect(() => {
-    if (!formData.insider && formData.insiderUuid) {
+    if (!formData.insider && (formData.insiderUuid || formData.insiderName)) {
       setFormData(prev => ({
         ...prev,
         insiderUuid: '',
+        insiderName: '',
       }));
     }
-  }, [formData.insider, formData.insiderUuid]);
+  }, [formData.insider, formData.insiderName, formData.insiderUuid]);
 
   const selectedEntityType = entityTypes.find(et => et.entityTypeUuid === formData.entityTypeUuid);
   const isNaturalPerson = !!selectedEntityType?.isNaturalPerson;
@@ -601,17 +609,17 @@ export function CounteragentFormDialog({
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="insiderUuid" className="text-right">Insider Name</Label>
+            <Label htmlFor="insiderName" className="text-right">Insider Name</Label>
             <div className="col-span-3">
-              <Combobox
-                options={insiders.map((i) => ({ value: i.counteragentUuid, label: i.label, keywords: i.label }))}
-                value={formData.insiderUuid}
-                onValueChange={(value) => updateField('insiderUuid', value)}
-                placeholder="Select insider name"
-                searchPlaceholder="Search insiders..."
-                emptyText="No insider found."
+              <Input
+                id="insiderName"
+                value={formData.insiderName}
+                onChange={(e) => updateField('insiderName', e.target.value)}
+                placeholder="Type insider name"
                 disabled={!formData.insider}
+                className={formErrors.insiderName ? 'border-red-500' : ''}
               />
+              {formErrors.insiderName && <p className="text-xs text-red-500 mt-1">{formErrors.insiderName}</p>}
             </div>
           </div>
         </div>

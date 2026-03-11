@@ -21,6 +21,7 @@ import { Search, Upload, Eye, Edit2, Settings, ArrowUp, ArrowDown, UserPlus } fr
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
+import { useRequiredInsiderName } from './shared/use-required-insider';
 import { BLANK_FACET_TOKEN } from './shared/table-filters';
 import * as XLSX from 'xlsx';
 
@@ -66,6 +67,7 @@ type Waybill = {
   corresponding_account?: string | null;
   date?: string | null;
   period?: string | null;
+  insiderName?: string | null;
 };
 
 type ColumnKey = keyof Waybill;
@@ -87,6 +89,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'category', label: 'Category', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'type', label: 'Type', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'counteragent_name', label: 'Counteragent', visible: true, sortable: true, filterable: true, width: 240 },
+  { key: 'insiderName', label: 'Insider', visible: true, sortable: false, filterable: false, width: 180 },
   { key: 'counteragent_inn', label: 'INN', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'vat', label: 'VAT', visible: true, sortable: true, filterable: true, format: 'boolean', width: 80 },
   { key: 'sum', label: 'Sum', visible: true, sortable: true, filterable: true, format: 'number', width: 120 },
@@ -120,6 +123,7 @@ const formatCell = (value: any, format?: ColumnConfig['format']) => {
 };
 
 export function WaybillsTable() {
+  const requiredInsiderName = useRequiredInsiderName();
   const filtersStorageKey = 'waybillsFiltersV1';
   const [data, setData] = useState<Waybill[]>([]);
   const [total, setTotal] = useState(0);
@@ -204,7 +208,7 @@ export function WaybillsTable() {
 
   useEffect(() => {
     const versionKey = 'waybillsColumnsVersion';
-    const currentVersion = '1';
+    const currentVersion = '2';
     const savedVersion = localStorage.getItem(versionKey);
     const shouldLoadSavedColumns = savedVersion === currentVersion;
     if (!shouldLoadSavedColumns) {
@@ -620,6 +624,9 @@ export function WaybillsTable() {
   }, [financialCodes]);
 
   const getCellValue = useCallback((row: Waybill, columnKey: ColumnKey) => {
+    if (columnKey === 'insiderName') {
+      return requiredInsiderName;
+    }
     if (columnKey === 'project_uuid') {
       return projectLabelMap.get(row.project_uuid || '') || row.project_uuid || '';
     }
@@ -627,7 +634,7 @@ export function WaybillsTable() {
       return financialCodeLabelMap.get(row.financial_code_uuid || '') || row.financial_code_uuid || '';
     }
     return (row as any)[columnKey];
-  }, [financialCodeLabelMap, projectLabelMap]);
+  }, [financialCodeLabelMap, projectLabelMap, requiredInsiderName]);
 
   const visibleColumns = useMemo(() => columns.filter((col) => col.visible), [columns]);
 

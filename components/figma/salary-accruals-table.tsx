@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
@@ -30,6 +31,7 @@ import * as XLSX from 'xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
+import { useRequiredInsiderName } from './shared/use-required-insider';
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter, serializeFilterState, deserializeFilterState, fromMapFilters } from './shared/table-filters';
 import {
@@ -69,6 +71,7 @@ type SalaryAccrual = {
   cumulative_accrual?: number;
   cumulative_payment?: number;
   cumulative_balance?: number;
+  insiderName?: string | null;
 };
 
 type ColumnKey = keyof SalaryAccrual;
@@ -161,6 +164,7 @@ type SelfGeCompareResult = {
 
 const defaultColumns: ColumnConfig[] = [
   { key: 'counteragent_name', label: 'Employee', visible: true, sortable: true, filterable: true, width: 200 },
+  { key: 'insiderName', label: 'Insider', visible: true, sortable: false, filterable: false, width: 180 },
   { key: 'sex', label: 'Sex', visible: true, sortable: true, filterable: true, width: 90 },
   { key: 'pension_scheme', label: 'Pension Scheme', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'payment_id', label: 'Payment ID', visible: true, sortable: true, filterable: true, width: 200 },
@@ -181,6 +185,7 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 export function SalaryAccrualsTable() {
+  const requiredInsiderName = useRequiredInsiderName();
   const filtersStorageKey = 'salaryAccrualsFiltersV1';
   const [data, setData] = useState<SalaryAccrual[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2949,7 +2954,7 @@ export function SalaryAccrualsTable() {
                 {visibleColumns.map(col => (
                   <th 
                     key={col.key} 
-                    className={`font-semibold relative cursor-move overflow-hidden text-left px-4 py-3 text-sm sticky top-0 z-10 ${
+                    className={`font-semibold cursor-move overflow-hidden text-left px-4 py-3 text-sm sticky top-0 z-10 ${
                       draggedColumn === col.key ? 'opacity-50' : ''
                     } ${
                       dragOverColumn === col.key ? 'border-l-4 border-blue-500' : ''
@@ -3134,6 +3139,8 @@ export function SalaryAccrualsTable() {
                               <Filter className="h-3.5 w-3.5" />
                             </a>
                           </div>
+                        ) : col.key === 'insiderName' ? (
+                          <div className="truncate">{requiredInsiderName || '-'}</div>
                         ) : (
                           <div className="truncate">
                             {formatValue(accrual[col.key], col.format)}

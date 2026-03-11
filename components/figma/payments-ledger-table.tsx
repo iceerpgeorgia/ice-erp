@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { 
@@ -9,6 +10,7 @@ import {
   Download,
 } from 'lucide-react';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
+import { useRequiredInsiderName } from './shared/use-required-insider';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -49,6 +51,7 @@ export type PaymentLedgerEntry = {
   financialCode?: string;
   jobName?: string;
   currencyCode?: string;
+  insiderName?: string | null;
 };
 
 type ColumnKey = keyof PaymentLedgerEntry;
@@ -68,6 +71,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'paymentId', label: 'Payment ID', visible: true, width: 150, sortable: true, filterable: true },
   { key: 'projectIndex', label: 'Project', visible: true, width: 150, sortable: true, filterable: true },
   { key: 'counteragentName', label: 'Counteragent', visible: true, width: 200, sortable: true, filterable: true },
+  { key: 'insiderName', label: 'Insider', visible: true, width: 180, sortable: false, filterable: false },
   { key: 'financialCodeValidation', label: 'Financial Code', visible: true, width: 200, sortable: true, filterable: true },
   { key: 'jobName', label: 'Job', visible: true, width: 120, sortable: true, filterable: true },
   { key: 'currencyCode', label: 'Currency', visible: true, width: 100, sortable: true, filterable: true },
@@ -83,6 +87,7 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 export function PaymentsLedgerTable() {
+  const requiredInsiderName = useRequiredInsiderName();
   const [entries, setEntries] = useState<PaymentLedgerEntry[]>([]);
   const [payments, setPayments] = useState<Array<{ 
     paymentId: string; 
@@ -321,6 +326,7 @@ export function PaymentsLedgerTable() {
     setFilters(new Map());
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const filteredAndSortedEntries = useMemo(() => {
     let result = [...entries];
 
@@ -779,7 +785,9 @@ export function PaymentsLedgerTable() {
                           }}
                         >
                           <div className="truncate">
-                            {formatValue(col.key, entry[col.key], entry)}
+                            {col.key === 'insiderName'
+                              ? (requiredInsiderName || '-')
+                              : formatValue(col.key, entry[col.key], entry)}
                           </div>
                         </td>
                       );

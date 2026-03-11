@@ -28,6 +28,7 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
+import { useRequiredInsiderName } from './shared/use-required-insider';
 
 type BankAccount = {
   id: number;
@@ -46,6 +47,7 @@ type BankAccount = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  insiderName?: string | null;
 };
 
 type ColumnKey = keyof BankAccount;
@@ -64,6 +66,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'accountNumber', label: 'Account Number', visible: true, sortable: true, filterable: true, width: 180 },
   { key: 'bankName', label: 'Bank', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'currencyCode', label: 'Currency', visible: true, sortable: true, filterable: true, width: 100 },
+  { key: 'insiderName', label: 'Insider', visible: true, sortable: false, filterable: false, width: 180 },
   { key: 'balance', label: 'Balance', visible: true, sortable: true, filterable: false, format: 'currency', width: 150 },
   { key: 'balanceDate', label: 'Balance Date', visible: true, sortable: true, filterable: false, format: 'date', width: 130 },
   { key: 'parsingSchemeName', label: 'Parsing Scheme', visible: true, sortable: true, filterable: true, width: 150 },
@@ -89,6 +92,7 @@ interface ParsingScheme {
 }
 
 export function BankAccountsTable() {
+  const requiredInsiderName = useRequiredInsiderName();
   const [data, setData] = useState<BankAccount[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
@@ -830,7 +834,9 @@ export function BankAccountsTable() {
                           </div>
                         ) : (
                           <div className="truncate">
-                            {formatValue(row[col.key], col.format)}
+                            {col.key === 'insiderName'
+                              ? (requiredInsiderName || '-')
+                              : formatValue(row[col.key], col.format)}
                           </div>
                         )}
                       </td>

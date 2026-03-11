@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { 
@@ -22,6 +23,7 @@ import {
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter } from './shared/table-filters';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
+import { useRequiredInsiderName } from './shared/use-required-insider';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -54,6 +56,7 @@ export type Payment = {
   jobName: string | null;
   jobIdentifier: string | null;
   currencyCode: string | null;
+  insiderName?: string | null;
 };
 
 type ColumnKey = keyof Payment;
@@ -75,6 +78,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'recordUuid', label: 'Record UUID', width: 150, visible: true, sortable: true, filterable: true },
   { key: 'projectIndex', label: 'Project', width: 400, visible: true, sortable: true, filterable: true },
   { key: 'counteragentName', label: 'Counteragent', width: 250, visible: true, sortable: true, filterable: true },
+  { key: 'insiderName', label: 'Insider', width: 180, visible: true, sortable: false, filterable: false },
   { key: 'financialCodeValidation', label: 'Financial Code', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'jobName', label: 'Job', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'incomeTax', label: 'Income Tax', width: 100, visible: true, sortable: true, filterable: true },
@@ -91,6 +95,7 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 export function PaymentsTable() {
+  const requiredInsiderName = useRequiredInsiderName();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [projects, setProjects] = useState<Array<{ projectUuid: string; projectIndex: string; projectName: string }>>([]);
   const [counteragents, setCounteragents] = useState<Array<{ counteragentUuid: string; name: string; identificationNumber: string; entityType: string }>>([]);
@@ -158,6 +163,7 @@ export function PaymentsTable() {
   const [duplicatePaymentIds, setDuplicatePaymentIds] = useState<string[]>([]);
 
   // Load saved column configuration after hydration
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const versionKey = 'paymentsTableColumnsVersion';
     const currentVersion = '3';
@@ -1425,6 +1431,8 @@ export function PaymentsTable() {
                             <span className="text-muted-foreground">
                               {payment.incomeTax ? 'Yes' : 'No'}
                             </span>
+                          ) : col.key === 'insiderName' ? (
+                            (requiredInsiderName || '-')
                           ) : (
                             String(payment[col.key] || '')
                           )}

@@ -9,11 +9,12 @@ import { Checkbox } from './ui/checkbox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
+import { useRequiredInsiderName } from './shared/use-required-insider';
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter } from './shared/table-filters';
 
-const columnsStorageKey = 'conversionsTableColumnsV1';
-const filtersStorageKey = 'conversionsTableFiltersV1';
+const columnsStorageKey = 'conversionsTableColumnsV2';
+const filtersStorageKey = 'conversionsTableFiltersV2';
 
 export type ConversionRow = {
   id: number;
@@ -35,6 +36,7 @@ export type ConversionRow = {
   fee: number | null;
   createdAt: string | null;
   updatedAt: string | null;
+  insiderName?: string | null;
 };
 
 type ColumnKey = keyof ConversionRow;
@@ -54,6 +56,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'date', label: 'Date', visible: true, sortable: true, filterable: true, format: 'date', width: 120 },
   { key: 'keyValue', label: 'DocKey', visible: true, sortable: true, filterable: true, width: 180 },
   { key: 'bankName', label: 'Bank', visible: true, sortable: true, filterable: true, width: 160 },
+  { key: 'insiderName', label: 'Insider', visible: true, sortable: false, filterable: false, width: 180 },
   { key: 'uuid', label: 'UUID', visible: false, sortable: true, filterable: true, width: 260 },
   { key: 'bankUuid', label: 'Bank UUID', visible: false, sortable: true, filterable: true, width: 260 },
   { key: 'accountOutNumber', label: 'Account Out', visible: true, sortable: true, filterable: true, width: 200 },
@@ -72,6 +75,7 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 export function ConversionsTable() {
+  const requiredInsiderName = useRequiredInsiderName();
   const [data, setData] = useState<ConversionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -461,7 +465,9 @@ export function ConversionsTable() {
                   <tr key={row.uuid} className="border-t">
                     {visibleColumns.map((col) => (
                       <td key={`${row.uuid}-${col.key}`} className="px-3 py-2 border-r last:border-r-0">
-                        {formatValue((row as any)[col.key], col.format)}
+                        {col.key === 'insiderName'
+                          ? (requiredInsiderName || '-')
+                          : formatValue((row as any)[col.key], col.format)}
                       </td>
                     ))}
                   </tr>

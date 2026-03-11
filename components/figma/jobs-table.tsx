@@ -33,6 +33,7 @@ import {
 import { MultiCombobox } from '@/components/ui/multi-combobox';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
+import { useRequiredInsiderName } from './shared/use-required-insider';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
@@ -67,6 +68,7 @@ export type Job = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  insiderName?: string | null;
 };
 
 type ColumnKey = keyof Job;
@@ -90,6 +92,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'projectIndex', label: 'Project', width: 150, visible: true, sortable: true, filterable: true },
   { key: 'projectName', label: 'Project Name', width: 200, visible: false, sortable: true, filterable: true },
   { key: 'jobName', label: 'Job Name', width: 200, visible: true, sortable: true, filterable: true },
+  { key: 'insiderName', label: 'Insider', width: 180, visible: true, sortable: false, filterable: false },
   { key: 'brandName', label: 'Brand', width: 150, visible: true, sortable: true, filterable: true },
   { key: 'floors', label: 'Floors', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'weight', label: 'Weight (kg)', width: 120, visible: true, sortable: true, filterable: true },
@@ -100,6 +103,7 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 export function JobsTable() {
+  const requiredInsiderName = useRequiredInsiderName();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [projects, setProjects] = useState<Array<{ projectUuid: string; projectIndex: string; projectName: string }>>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -113,7 +117,7 @@ export function JobsTable() {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('jobs-table-columns');
       const version = localStorage.getItem('jobs-table-columns-version');
-      const currentVersion = '2'; // Increment this when changing default column visibility
+      const currentVersion = '3'; // Increment this when changing default column visibility
       
       if (saved && version === currentVersion) {
         try {
@@ -771,6 +775,8 @@ export function JobsTable() {
                         <span>{job.floors == null ? '-' : `${job.floors} Floors`}</span>
                       ) : column.key === 'weight' ? (
                         <span>{job.weight == null ? '-' : `${job.weight} kg`}</span>
+                      ) : column.key === 'insiderName' ? (
+                        <span className="text-sm">{requiredInsiderName || '-'}</span>
                       ) : (
                         <span className="text-sm">{String(job[column.key] ?? '-')}</span>
                       )}

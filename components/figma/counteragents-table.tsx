@@ -130,8 +130,8 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'isEmploye', label: 'Is Employee', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'wasEmploye', label: 'Was Employee', width: 130, visible: false, sortable: true, filterable: true },
-  { key: 'insider', label: 'Insider', width: 110, visible: true, sortable: true, filterable: true },
-  { key: 'insiderName', label: 'Insider Name', width: 180, visible: true, sortable: true, filterable: true },
+  { key: 'insider', label: 'Is Insider', width: 110, visible: true, sortable: true, filterable: true },
+  { key: 'insiderName', label: 'Insider', width: 180, visible: true, sortable: true, filterable: true },
   { key: 'insiderUuid', label: 'Insider UUID', width: 200, visible: false, sortable: true, filterable: true }
 ];
 

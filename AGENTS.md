@@ -165,7 +165,7 @@ Favor tests on public contracts: API handlers, Prisma services, and UI state red
 Use Conventional Commits (for example `feat(auth): add oauth screen` or `fix(orders): correct pagination`) and mention migration identifiers in commit bodies when schema changes occur. Pull requests need a concise summary, linked Jira issue, updated tests, and UI screenshots whenever the webapp shifts. Call out manual steps (migrations, env vars, or backfills) so reviewers can reproduce outcomes.
 
 ## Deployment Logging Policy
-Only commit, push, and deploy when explicitly instructed with the command "deploy". Every deployment must be logged in [docs/DEPLOYMENT_LOG.md](docs/DEPLOYMENT_LOG.md) using the same format as existing entries.
+Only commit, push, and deploy when explicitly instructed with the command "deploy". For every deployment, follow this order strictly: run a local production build first, then commit and push, then deploy. Every deployment must be logged in [docs/DEPLOYMENT_LOG.md](docs/DEPLOYMENT_LOG.md) using the same format as existing entries.
 
 ## Security & Configuration Tips
 Never commit secrets; `.env.local` should hold placeholders only. Regenerate the Prisma client after each migration, and cast BigInt identifiers as `BigInt(Number(id))` in server responses to avoid JSON serialization issues. Surface any new configuration or operational follow-ups in PR descriptions to keep deploys predictable.

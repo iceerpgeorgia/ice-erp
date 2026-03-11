@@ -40,6 +40,7 @@ import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shar
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter } from './shared/table-filters';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
+import { useRequiredInsiderName } from './shared/use-required-insider';
 import { 
   Table, 
   TableBody, 
@@ -78,6 +79,7 @@ export type Project = {
     employeeUuid: string;
     employeeName: string;
   }>;
+  insiderName?: string | null;
 };
 
 type ColumnKey = keyof Project;
@@ -104,6 +106,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'balance', label: 'Balance', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'oris1630', label: 'ORIS 1630', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'counteragent', label: 'Counteragent', width: 200, visible: true, sortable: true, filterable: true },
+  { key: 'insiderName', label: 'Insider', width: 180, visible: true, sortable: false, filterable: false },
   { key: 'financialCode', label: 'Financial Code', width: 150, visible: true, sortable: true, filterable: true },
   { key: 'currency', label: 'Currency', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'state', label: 'State', width: 120, visible: true, sortable: true, filterable: true },
@@ -159,6 +162,7 @@ const mapProjectData = (row: any): Project => ({
 const SERVICE_STATE_OPTIONS = ['Active', 'Conversion', 'Others', 'Free', 'Recovery'];
 
 export function ProjectsTable({ data }: { data?: Project[] }) {
+  const requiredInsiderName = useRequiredInsiderName();
   const [projects, setProjects] = useState<Project[]>(data ?? []);
   // Dropdown data
   const [counteragentsList, setCounteragentsList] = useState<Array<{id: number, name: string, counteragentUuid: string}>>([]);
@@ -1716,6 +1720,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                           <span className="text-sm">{project.oris1630 || '-'}</span>
                         ) : column.key === 'counteragent' ? (
                           <span className="text-sm">{project.counteragent || '-'}</span>
+                        ) : column.key === 'insiderName' ? (
+                          <span className="text-sm">{requiredInsiderName || '-'}</span>
                         ) : column.key === 'financialCode' ? (
                           <span className="text-sm">{project.financialCode || '-'}</span>
                         ) : column.key === 'currency' ? (
