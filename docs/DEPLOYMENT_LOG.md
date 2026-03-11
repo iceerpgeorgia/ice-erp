@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-11 (33)
+- Summary: Persisted `insider_name` physically in `counteragents` and wired API writes to keep it in sync.
+- Changes:
+  - Added migration `prisma/migrations/20260311103000_add_counteragents_insider_name/migration.sql` to add `counteragents.insider_name` and backfill values from linked insider rows and insider self-labels.
+  - Updated Prisma model `counteragents` with nullable `insider_name` field.
+  - Updated `/api/counteragents` GET/POST/PATCH to select and persist `insider_name` via centralized resolution logic.
+- Commit: c33aa82
+- URL: https://ice-q5w9xmq24-iceerp.vercel.app
+
 ## 2026-03-10 (32)
 - Summary: Enforced strict required-insider binding end-to-end with direct-connection migration deploy.
 - Changes:
