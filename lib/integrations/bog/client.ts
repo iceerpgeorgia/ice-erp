@@ -11,6 +11,22 @@ type CachedToken = {
   expiresAtMs: number;
 };
 
+type BogCredentialEntry = {
+  insiderUuid: string;
+  clientId?: string;
+  clientSecret?: string;
+  accessToken?: string;
+  scope?: string;
+};
+
+type ResolvedBogCredentials = {
+  cacheKey: string;
+  staticToken: string;
+  clientId?: string;
+  clientSecret?: string;
+  scope: string;
+};
+
 export type BogRequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   path: string;
@@ -18,6 +34,7 @@ export type BogRequestOptions = {
   headers?: Record<string, string>;
   token?: string;
   retryOn401?: boolean;
+  insiderUuid?: string;
 };
 
 export type BogApiResponse<T = unknown> = {
@@ -27,7 +44,7 @@ export type BogApiResponse<T = unknown> = {
   data: T;
 };
 
-let cachedToken: CachedToken | null = null;
+const cachedTokens = new Map<string, CachedToken>();
 
 const DEFAULT_BOG_BASE_URL = 'https://api.businessonline.ge/api';
 const DEFAULT_BOG_TOKEN_URL =
@@ -49,11 +66,42 @@ function getBogScope() {
   return process.env.BOG_SCOPE || 'corp';
 }
 
+function normalizeInsiderUuid(value: string | undefined): string | null {
+  const clean = String(value || '').trim();
+  return clean || null;
+}
+
+function parseCredentialsMap(): BogCredentialEntry[] {
+  const raw = process.env.BOG_CREDENTIALS_MAP;
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((entry) => entry && typeof entry === 'object')
+      .map((entry) => {
+        const record = entry as Record<string, unknown>;
+        return {
+          insiderUuid: String(record.insiderUuid || record.INSIDER_UUID || '').trim(),
+          clientId: String(record.clientId || record.BOG_CLIENT_ID || '').trim() || undefined,
+          clientSecret: String(record.clientSecret || record.BOG_CLIENT_SECRET || '').trim() || undefined,
+          accessToken: String(record.accessToken || record.BOG_ACCESS_TOKEN || '').trim() || undefined,
+          scope: String(record.scope || record.BOG_SCOPE || '').trim() || undefined,
+        };
+      })
+      .filter((entry) => entry.insiderUuid.length > 0);
+  } catch {
+    return [];
+  }
+}
+
 function getStaticAccessToken() {
   return process.env.BOG_ACCESS_TOKEN || '';
 }
 
-function getCredentials() {
+function getLegacyCredentials() {
   const clientId = process.env.BOG_CLIENT_ID;
   const clientSecret = process.env.BOG_CLIENT_SECRET;
 
@@ -64,8 +112,39 @@ function getCredentials() {
   return { clientId, clientSecret };
 }
 
-function hasDynamicCredentials() {
-  return Boolean(process.env.BOG_CLIENT_ID && process.env.BOG_CLIENT_SECRET);
+function resolveCredentials(insiderUuid?: string): ResolvedBogCredentials {
+  const normalizedInsiderUuid = normalizeInsiderUuid(insiderUuid);
+  const mapped = parseCredentialsMap();
+
+  if (normalizedInsiderUuid && mapped.length > 0) {
+    const match = mapped.find(
+      (entry) => entry.insiderUuid.toLowerCase() === normalizedInsiderUuid.toLowerCase()
+    );
+
+    if (match) {
+      return {
+        cacheKey: `insider:${match.insiderUuid.toLowerCase()}`,
+        staticToken: match.accessToken || '',
+        clientId: match.clientId,
+        clientSecret: match.clientSecret,
+        scope: match.scope || getBogScope(),
+      };
+    }
+  }
+
+  const legacy = getLegacyCredentials();
+  return {
+    cacheKey: 'default',
+    staticToken: getStaticAccessToken(),
+    clientId: legacy?.clientId,
+    clientSecret: legacy?.clientSecret,
+    scope: getBogScope(),
+  };
+}
+
+function hasDynamicCredentials(insiderUuid?: string) {
+  const resolved = resolveCredentials(insiderUuid);
+  return Boolean(resolved.clientId && resolved.clientSecret);
 }
 
 function buildBasicAuth(clientId: string, clientSecret: string) {
@@ -99,27 +178,34 @@ export function getTokenPreview(token: string) {
   };
 }
 
-export async function getBogAccessToken(options?: { forceRefresh?: boolean }) {
-  const staticToken = getStaticAccessToken();
+export async function getBogAccessToken(options?: { forceRefresh?: boolean; insiderUuid?: string }) {
+  const resolved = resolveCredentials(options?.insiderUuid);
+  const staticToken = resolved.staticToken;
   if (staticToken && !options?.forceRefresh) {
     return staticToken;
   }
 
+  const cachedToken = cachedTokens.get(resolved.cacheKey);
   if (!options?.forceRefresh && cachedToken && Date.now() < cachedToken.expiresAtMs) {
     return cachedToken.accessToken;
   }
 
-  const credentials = getCredentials();
+  const credentials = resolved.clientId && resolved.clientSecret
+    ? { clientId: resolved.clientId, clientSecret: resolved.clientSecret }
+    : null;
+
   if (!credentials) {
     if (staticToken) return staticToken;
-    throw new Error('BOG credentials are missing. Set BOG_CLIENT_ID and BOG_CLIENT_SECRET, or provide BOG_ACCESS_TOKEN.');
+    throw new Error(
+      'BOG credentials are missing. Set BOG_CREDENTIALS_MAP for insider-based credentials, or fallback BOG_CLIENT_ID/BOG_CLIENT_SECRET, or provide BOG_ACCESS_TOKEN.'
+    );
   }
 
   const form = new URLSearchParams();
   form.set('grant_type', 'client_credentials');
   form.set('client_id', credentials.clientId);
   form.set('client_secret', credentials.clientSecret);
-  form.set('scope', getBogScope());
+  form.set('scope', resolved.scope);
 
   const response = await fetch(getBogTokenUrl(), {
     method: 'POST',
@@ -138,10 +224,10 @@ export async function getBogAccessToken(options?: { forceRefresh?: boolean }) {
   }
 
   const expiresIn = Number(json.expires_in || 300);
-  cachedToken = {
+  cachedTokens.set(resolved.cacheKey, {
     accessToken: json.access_token,
     expiresAtMs: Date.now() + Math.max(30, expiresIn - 30) * 1000,
-  };
+  });
 
   return json.access_token;
 }
@@ -176,16 +262,16 @@ export async function bogApiRequest<T = unknown>(options: BogRequestOptions): Pr
     };
   };
 
-  const initialToken = options.token || (await getBogAccessToken());
+  const initialToken = options.token || (await getBogAccessToken({ insiderUuid: options.insiderUuid }));
   const firstResult = await execute(initialToken);
 
   if (
     firstResult.status === 401 &&
     retryOn401 &&
     !options.token &&
-    hasDynamicCredentials()
+    hasDynamicCredentials(options.insiderUuid)
   ) {
-    const refreshedToken = await getBogAccessToken({ forceRefresh: true });
+    const refreshedToken = await getBogAccessToken({ forceRefresh: true, insiderUuid: options.insiderUuid });
     return execute(refreshedToken);
   }
 
@@ -193,7 +279,11 @@ export async function bogApiRequest<T = unknown>(options: BogRequestOptions): Pr
 }
 
 export function getBogConfigStatus() {
+  const credentialsMap = parseCredentialsMap();
+
   return {
+    hasCredentialsMap: credentialsMap.length > 0,
+    mappedInsiderCount: credentialsMap.length,
     hasClientId: Boolean(process.env.BOG_CLIENT_ID),
     hasClientSecret: Boolean(process.env.BOG_CLIENT_SECRET),
     hasStaticAccessToken: Boolean(process.env.BOG_ACCESS_TOKEN),

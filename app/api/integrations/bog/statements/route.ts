@@ -50,7 +50,7 @@ async function resolveAccountContext(accountUuid: string) {
   const supabase = getSupabaseClient();
   const { data: account, error: accountError } = await supabase
     .from('bank_accounts')
-    .select('uuid, account_number, currency_uuid')
+    .select('uuid, account_number, currency_uuid, insider_uuid')
     .eq('uuid', accountUuid)
     .single();
 
@@ -72,6 +72,7 @@ async function resolveAccountContext(accountUuid: string) {
     accountUuid: account.uuid,
     accountNumber: String(account.account_number).trim().toUpperCase(),
     currencyCode: String(currency.code).trim().toUpperCase(),
+    insiderUuid: account.insider_uuid ? String(account.insider_uuid) : null,
   };
 }
 
@@ -81,8 +82,14 @@ export async function GET(request: NextRequest) {
     const path = sanitizePath(searchParams.get('path'));
     const importToDb = parseBoolean(searchParams.get('import'));
     const accountUuid = searchParams.get('accountUuid');
+    const insiderUuid = searchParams.get('insiderUuid') || undefined;
     const accountNoWithCurrency = searchParams.get('accountNoWithCurrency') || undefined;
     const currencyCode = searchParams.get('currency') || undefined;
+
+    const accountContext = importToDb && accountUuid
+      ? await resolveAccountContext(accountUuid)
+      : null;
+    const effectiveInsiderUuid = accountContext?.insiderUuid || insiderUuid;
 
     if (!path) {
       return NextResponse.json(
@@ -95,12 +102,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const token = await getBogAccessToken();
+    const token = await getBogAccessToken({ insiderUuid: effectiveInsiderUuid || undefined });
     const tokenPreview = getTokenPreview(token);
 
     const bogResponse = await bogApiRequest<unknown>({
       method: 'GET',
       path,
+      insiderUuid: effectiveInsiderUuid || undefined,
     });
 
     if (!bogResponse.ok) {
@@ -152,15 +160,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const accountContext = await resolveAccountContext(accountUuid);
+    const importAccountContext = accountContext || (await resolveAccountContext(accountUuid));
+    if (!importAccountContext) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Failed to resolve account context',
+        },
+        { status: 500 }
+      );
+    }
     const headerParts = normalizeAccountNumber(mapped.header.AcctNo);
 
     // Use account context from DB for write safety; mapped header is used for XML compatibility only.
     await processBOGGELDeconsolidated(
       mapped.xmlContent,
-      accountContext.accountUuid,
-      accountContext.accountNumber,
-      accountContext.currencyCode || headerParts.currencyCode,
+      importAccountContext.accountUuid,
+      importAccountContext.accountNumber,
+      importAccountContext.currencyCode || headerParts.currencyCode,
       uuidv4()
     );
 
@@ -172,7 +189,7 @@ export async function GET(request: NextRequest) {
       correlationId: bogResponse.correlationId,
       detailsCount: mapped.detailsCount,
       header: mapped.header,
-      accountContext,
+      accountContext: importAccountContext,
       token: tokenPreview,
       message: 'BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.',
     });

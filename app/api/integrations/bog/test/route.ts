@@ -19,9 +19,10 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const pingPath = sanitizePath(searchParams.get('path'));
+    const insiderUuid = searchParams.get('insiderUuid') || undefined;
 
     const config = getBogConfigStatus();
-    const token = await getBogAccessToken();
+    const token = await getBogAccessToken({ insiderUuid });
     const tokenPreview = getTokenPreview(token);
 
     if (!pingPath) {
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
     const ping = await bogApiRequest({
       method: 'GET',
       path: pingPath,
+      insiderUuid,
     });
 
     return NextResponse.json({
