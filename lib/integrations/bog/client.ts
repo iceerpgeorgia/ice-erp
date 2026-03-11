@@ -71,30 +71,59 @@ function normalizeInsiderUuid(value: string | undefined): string | null {
   return clean || null;
 }
 
+function normalizeJsonEnvValue(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+
+  // Some platforms store JSON env values wrapped in quotes.
+  const first = trimmed[0];
+  const last = trimmed[trimmed.length - 1];
+  if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+    return trimmed.slice(1, -1);
+  }
+
+  return trimmed;
+}
+
+function parseJsonEnvArray(raw: string): unknown[] {
+  const normalized = normalizeJsonEnvValue(raw);
+  if (!normalized) return [];
+
+  try {
+    const parsed = JSON.parse(normalized);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    // Some providers escape quotes in dashboard values.
+    const unescaped = normalized.replace(/\\"/g, '"');
+    try {
+      const parsed = JSON.parse(unescaped);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+}
+
 function parseCredentialsMap(): BogCredentialEntry[] {
   const raw = process.env.BOG_CREDENTIALS_MAP;
   if (!raw) return [];
 
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+  const parsed = parseJsonEnvArray(raw);
+  if (!Array.isArray(parsed)) return [];
 
-    return parsed
-      .filter((entry) => entry && typeof entry === 'object')
-      .map((entry) => {
-        const record = entry as Record<string, unknown>;
-        return {
-          insiderUuid: String(record.insiderUuid || record.INSIDER_UUID || '').trim(),
-          clientId: String(record.clientId || record.BOG_CLIENT_ID || '').trim() || undefined,
-          clientSecret: String(record.clientSecret || record.BOG_CLIENT_SECRET || '').trim() || undefined,
-          accessToken: String(record.accessToken || record.BOG_ACCESS_TOKEN || '').trim() || undefined,
-          scope: String(record.scope || record.BOG_SCOPE || '').trim() || undefined,
-        };
-      })
-      .filter((entry) => entry.insiderUuid.length > 0);
-  } catch {
-    return [];
-  }
+  return parsed
+    .filter((entry) => entry && typeof entry === 'object')
+    .map((entry) => {
+      const record = entry as Record<string, unknown>;
+      return {
+        insiderUuid: String(record.insiderUuid || record.INSIDER_UUID || '').trim(),
+        clientId: String(record.clientId || record.BOG_CLIENT_ID || '').trim() || undefined,
+        clientSecret: String(record.clientSecret || record.BOG_CLIENT_SECRET || '').trim() || undefined,
+        accessToken: String(record.accessToken || record.BOG_ACCESS_TOKEN || '').trim() || undefined,
+        scope: String(record.scope || record.BOG_SCOPE || '').trim() || undefined,
+      };
+    })
+    .filter((entry) => entry.insiderUuid.length > 0);
 }
 
 function getStaticAccessToken() {
