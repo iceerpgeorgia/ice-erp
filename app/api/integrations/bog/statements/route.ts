@@ -194,13 +194,15 @@ export async function GET(request: NextRequest) {
       message: 'BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.',
     });
   } catch (error: any) {
+    const message = error?.message || 'Failed to process BOG statement endpoint';
+    const status = message.includes('missing required DocKey/EntriesId') ? 422 : 500;
     return NextResponse.json(
       {
         ok: false,
-        error: error?.message || 'Failed to process BOG statement endpoint',
+        error: message,
         config: getBogConfigStatus(),
       },
-      { status: 500 }
+      { status }
     );
   }
 }

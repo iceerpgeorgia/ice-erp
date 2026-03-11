@@ -181,8 +181,13 @@ function deriveHeader(payload: unknown, options?: StatementMapOptions): BogMappe
 }
 
 function mapDetail(tx: AnyRecord, index: number): BogMappedDetail {
-  const explicitDocKey = pickFirst(tx, ['DocKey', 'docKey', 'transactionId', 'id', 'operationId']);
-  const explicitEntriesId = pickFirst(tx, ['EntriesId', 'entriesId', 'entryId', 'sequence', 'lineNo']);
+  const explicitDocKey = pickFirst(tx, ['DocKey', 'docKey']);
+  const explicitEntriesId = pickFirst(tx, ['EntriesId', 'entriesId']);
+  if (!explicitDocKey || !explicitEntriesId) {
+    throw new Error(
+      `Transaction at index ${index} is missing required DocKey/EntriesId. Synthetic API keys are not allowed.`
+    );
+  }
   const sender = (tx.SenderDetails as AnyRecord | undefined) || {};
   const beneficiary = (tx.BeneficiaryDetails as AnyRecord | undefined) || {};
 
@@ -214,8 +219,8 @@ function mapDetail(tx: AnyRecord, index: number): BogMappedDetail {
   );
 
   return {
-    DocKey: explicitDocKey || `API_DOC_${index + 1}`,
-    EntriesId: explicitEntriesId || String(index + 1),
+    DocKey: explicitDocKey,
+    EntriesId: explicitEntriesId,
     DocRecDate: recDate,
     DocBranch: pickFirst(tx, ['DocumentBranch', 'documentBranch', 'DocBranch', 'docBranch']),
     DocDepartment: pickFirst(tx, ['DocumentDepartment', 'documentDepartment', 'DocDepartment', 'docDepartment']),
@@ -312,7 +317,7 @@ export function mapBogStatementPayloadToXml(payload: unknown, options?: Statemen
     throw new Error('Mapped HEADER.AcctNo is invalid. Provide accountNoWithCurrency in request.');
   }
 
-  const details = items.map((tx, index) => mapDetail(tx, index));
+  const details = items.map((tx, index) => mapDetail(tx, index + 1));
   const xmlContent = buildXml(header, details);
 
   return {
