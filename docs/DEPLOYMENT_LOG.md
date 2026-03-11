@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-11 (35)
+- Summary: Deployed combined insider-selection rollout across forms/APIs and Bank of Georgia integration endpoints/libs, including latest parallel-session updates.
+- Changes:
+  - Added insider-selection API and shared selection resolver utilities with cookie-backed selection handling (`/api/insider-selection`, `lib/insider-selection.ts`).
+  - Enforced single-insider lock and multi-insider selection behavior across Projects, Jobs, Payments, Bank Accounts, and Salary Accruals UI/API flows.
+  - Added BOG integration endpoints for smoke test and statement import pipeline mapping (`/api/integrations/bog/test`, `/api/integrations/bog/statements`).
+  - Added BOG integration client + statement mapper libraries (`lib/integrations/bog/client.ts`, `lib/integrations/bog/statement-mapper.ts`) and associated supporting artifacts included in this deployment commit.
+- Commit: 28eb878
+- URL: https://ice-xg629zw1b-iceerp.vercel.app
+
 ## 2026-03-11 (34)
 - Summary: Added Insider name columns across required table UIs, introduced shared required-insider name hook, and stabilized build lint warnings for deployment.
 - Changes:
