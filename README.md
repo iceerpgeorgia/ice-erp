@@ -20,6 +20,27 @@ NEXTAUTH_URL=http://localhost:3000
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mydb?schema=public
 ```
 
+### Optional: Bank of Georgia Business Online integration
+If you want to test BOG API connectivity, also set:
+```
+BOG_BASE_URL=https://api.businessonline.ge/api
+BOG_TOKEN_URL=https://account.bog.ge/auth/realms/bog/protocol/openid-connect/token
+BOG_CLIENT_ID=...
+BOG_CLIENT_SECRET=...
+BOG_SCOPE=corp
+```
+
+Smoke test endpoint:
+- `GET /api/integrations/bog/test` -> validates token acquisition/config.
+- `GET /api/integrations/bog/test?path=/...` -> performs a bearer-authenticated GET ping to a BOG endpoint path.
+
+Statement mapping/import endpoint:
+- `GET /api/integrations/bog/statements?path=/...` -> fetches BOG API statement payload and maps it to BOG XML-compatible `HEADER` + `DETAIL` structure (preview mode).
+- `GET /api/integrations/bog/statements?path=/...&import=1&accountUuid=<uuid>&accountNoWithCurrency=<acct+ccy>` -> maps API payload to XML headers/details, then imports through existing deconsolidated XML pipeline.
+
+Mapping guarantee:
+- Integration payload is normalized into the same XML tags used by current importer (for example `HEADER.AcctNo`, `DETAIL.DocKey`, `DETAIL.EntriesId`, `DETAIL.DocValueDate`, `DETAIL.EntryDbAmt`, `DETAIL.EntryCrAmt`, and counteragent fields). This keeps processing logic consistent between uploaded XML and API-derived statements.
+
 ## 3) Install & migrate
 ```
 npm install

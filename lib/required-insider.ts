@@ -7,7 +7,9 @@ export type RequiredInsider = {
 
 export async function getRequiredInsider(): Promise<RequiredInsider> {
   const rows = await prisma.$queryRaw<Array<{ insider_uuid: string; insider_name: string | null }>>`
-    SELECT c.counteragent_uuid AS insider_uuid, c.counteragent AS insider_name
+    SELECT
+      c.counteragent_uuid AS insider_uuid,
+      COALESCE(c.insider_name, c.counteragent, c.name) AS insider_name
     FROM counteragents c
     WHERE c.insider = true
     ORDER BY c.id ASC

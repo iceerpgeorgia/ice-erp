@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { getRequiredInsider } from '@/lib/required-insider';
+import { resolveInsiderSelection } from '@/lib/insider-selection';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -113,7 +113,8 @@ const serializeWaybill = (row: any) => ({
 
 export async function GET(req: NextRequest) {
   try {
-    const insider = await getRequiredInsider();
+    const selection = await resolveInsiderSelection(req);
+    const insider = selection.primaryInsider;
     if (!(await tableExists('rs_waybills_in'))) {
       return NextResponse.json(
         { error: 'Waybills table is not available yet. Please run migrations.' },
@@ -413,6 +414,7 @@ export async function GET(req: NextRequest) {
       return {
         AND: [
           baseSearch,
+          { insider_uuid: { in: selection.selectedUuids } },
           ...(periodRangeClause ? [periodRangeClause] : []),
           ...filterClauses,
           ...(missingCounteragents
@@ -435,6 +437,7 @@ export async function GET(req: NextRequest) {
         baseSearch,
         ...(periodRangeClause ? [periodRangeClause] : []),
         ...filterClauses,
+          { insider_uuid: { in: selection.selectedUuids } },
         { counteragent_uuid: null },
         { counteragent_inn: { not: null } },
         { counteragent_inn: { not: '' } },
@@ -541,8 +544,8 @@ export async function GET(req: NextRequest) {
         return serializeWaybill({
           ...row,
           counteragent_name: resolved,
-          insider_uuid: row.insider_uuid ?? insider.insiderUuid,
-          insider_name: insider.insiderName,
+          insider_uuid: row.insider_uuid ?? insider?.insiderUuid ?? null,
+          insider_name: insider?.insiderName ?? null,
         });
       }),
       total,
@@ -582,7 +585,8 @@ const allowedUpdateFields = new Set([
 
 export async function PATCH(req: NextRequest) {
   try {
-    const insider = await getRequiredInsider();
+    const selection = await resolveInsiderSelection(req);
+    const insider = selection.primaryInsider;
     if (!(await tableExists('rs_waybills_in'))) {
       return NextResponse.json(
         { error: 'Waybills table is not available yet. Please run migrations.' },
@@ -639,8 +643,8 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({
       data: serializeWaybill({
         ...updated,
-        insider_uuid: (updated as any).insider_uuid ?? insider.insiderUuid,
-        insider_name: insider.insiderName,
+        insider_uuid: insider?.insiderUuid ?? null,
+        insider_name: insider?.insiderName ?? null,
       }),
     });
   } catch (error: any) {

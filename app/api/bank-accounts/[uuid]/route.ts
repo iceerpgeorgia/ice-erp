@@ -1,17 +1,28 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { getRequiredInsider } from "@/lib/required-insider";
+import { getInsiderOptions, resolveInsiderSelection } from "@/lib/insider-selection";
 
 const prisma = new PrismaClient();
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { uuid: string } }
 ) {
   try {
-    const insider = await getRequiredInsider();
+    const selection = await resolveInsiderSelection(request);
     const body = await request.json();
-    const { accountNumber, currencyUuid, bankUuid, balance, balanceDate, parsingSchemeUuid, rawTableName } = body;
+    const { accountNumber, currencyUuid, bankUuid, balance, balanceDate, parsingSchemeUuid, rawTableName, insiderUuid, insider_uuid } = body;
+
+    const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
+    const insiderOptions = await getInsiderOptions();
+    const insiderOptionSet = new Set(insiderOptions.map((option) => option.insiderUuid.toLowerCase()));
+    if (requestedInsiderUuid && !insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
+      return NextResponse.json({ error: 'Invalid insider selection' }, { status: 400 });
+    }
+    const effectiveInsiderUuid = requestedInsiderUuid || selection.primaryInsider?.insiderUuid || null;
+    if (!effectiveInsiderUuid) {
+      return NextResponse.json({ error: "No insider configured" }, { status: 400 });
+    }
 
     if (!accountNumber || !currencyUuid) {
       return NextResponse.json(
@@ -30,7 +41,7 @@ export async function PUT(
         balance_date = ${balanceDate || null}::date,
         parsing_scheme_uuid = ${parsingSchemeUuid || null}::uuid,
         raw_table_name = ${rawTableName || null},
-        insider_uuid = ${insider.insiderUuid}::uuid,
+        insider_uuid = ${effectiveInsiderUuid}::uuid,
         updated_at = NOW()
       WHERE uuid = ${params.uuid}::uuid
     `;

@@ -268,6 +268,7 @@ export function CounteragentFormDialog({
         was_emploee: formData.wasEmploye,
         insider: formData.insider,
         insider_uuid: formData.insider ? (formData.insiderUuid || null) : null,
+        insider_name: formData.insider ? (formData.insiderName.trim() || null) : null,
       };
 
       await onSave(payload);

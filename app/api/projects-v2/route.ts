@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,9 @@ const UNION_SQL = SOURCE_TABLES.map(
 
 // GET all projects - FIXED VERSION with project_uuid join
 export async function GET(req: NextRequest) {
+  const selection = await resolveInsiderSelection(req);
+  const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
+
   const mainQuery = `
       SELECT 
         p.id,
@@ -36,10 +40,14 @@ export async function GET(req: NextRequest) {
         p.currency,
         p.state,
         p.counteragent,
+        COALESCE(ca.insider, false) as is_insider,
+        COALESCE(ca.insider_name, insider_ca.counteragent, insider_ca.name) as insider_name,
         '[]'::json as employees,
         COALESCE(pp.total_payment, 0) as total_payments,
         (p.value - COALESCE(pp.total_payment, 0)) as balance
       FROM projects p
+      LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
+      LEFT JOIN counteragents insider_ca ON ca.insider_uuid = insider_ca.counteragent_uuid
       LEFT JOIN (
         SELECT
           p.project_uuid,
@@ -83,6 +91,7 @@ export async function GET(req: NextRequest) {
         WHERE p.is_active = true
         GROUP BY p.project_uuid, p.counteragent_uuid
       ) pp ON p.project_uuid = pp.project_uuid AND p.counteragent_uuid = pp.counteragent_uuid
+      WHERE p.insider_uuid IN (${insiderUuidListSql})
       ORDER BY p.created_at DESC
     `;
 
@@ -106,10 +115,15 @@ export async function GET(req: NextRequest) {
         p.currency,
         p.state,
         p.counteragent,
+        COALESCE(ca.insider, false) as is_insider,
+        COALESCE(ca.insider_name, insider_ca.counteragent, insider_ca.name) as insider_name,
         '[]'::json as employees,
         0 as total_payments,
         p.value as balance
       FROM projects p
+      LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
+      LEFT JOIN counteragents insider_ca ON ca.insider_uuid = insider_ca.counteragent_uuid
+      WHERE p.insider_uuid IN (${insiderUuidListSql})
       ORDER BY p.created_at DESC
     `;
 
@@ -120,6 +134,8 @@ export async function GET(req: NextRequest) {
     const serialized = (projects as any[]).map((project: any) => ({
       ...project,
       id: Number(project.id),
+      is_insider: project.is_insider ?? false,
+      insider_name: project.insider_name ?? null,
     }));
 
     return NextResponse.json(serialized);
@@ -130,6 +146,8 @@ export async function GET(req: NextRequest) {
       const serialized = (projects as any[]).map((project: any) => ({
         ...project,
         id: Number(project.id),
+        is_insider: project.is_insider ?? false,
+        insider_name: project.insider_name ?? null,
       }));
       return NextResponse.json(serialized);
     } catch (fallbackError: any) {

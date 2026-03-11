@@ -44,6 +44,7 @@ import {
 type SalaryAccrual = {
   id: string;
   uuid: string;
+  insider_uuid?: string | null;
   counteragent_uuid: string;
   counteragent_name: string;
   identification_number?: string | null;
@@ -280,12 +281,22 @@ export function SalaryAccrualsTable() {
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedFinancialCode, setSelectedFinancialCode] = useState('');
   const [selectedCurrency, setSelectedCurrency] = useState('');
+  const [selectedInsiderUuid, setSelectedInsiderUuid] = useState('');
   const [salaryMonth, setSalaryMonth] = useState('');
   const [netSum, setNetSum] = useState('');
   const [surplusInsurance, setSurplusInsurance] = useState('');
   const [deductedInsurance, setDeductedInsurance] = useState('');
   const [deductedFitness, setDeductedFitness] = useState('');
   const [deductedFine, setDeductedFine] = useState('');
+  const [insidersList, setInsidersList] = useState<Array<{ value: string; label: string }>>([]);
+  const [selectedInsiderUuids, setSelectedInsiderUuids] = useState<string[]>([]);
+
+  const isInsiderFixed = selectedInsiderUuids.length === 1;
+  const fixedInsider = useMemo(() => {
+    if (!isInsiderFixed) return null;
+    const fixedUuid = selectedInsiderUuids[0];
+    return insidersList.find((insider) => insider.value === fixedUuid) ?? null;
+  }, [isInsiderFixed, insidersList, selectedInsiderUuids]);
 
 
 
@@ -375,8 +386,14 @@ export function SalaryAccrualsTable() {
       fetchEmployees();
       fetchFinancialCodes();
       fetchCurrencies();
+      fetchInsiderSelection();
     }
   }, [isInitialized]);
+
+  useEffect(() => {
+    if (!isInsiderFixed || !fixedInsider?.value) return;
+    setSelectedInsiderUuid(fixedInsider.value);
+  }, [isInsiderFixed, fixedInsider?.value]);
 
   useEffect(() => {
     if (isInitialized) {
@@ -1391,10 +1408,41 @@ export function SalaryAccrualsTable() {
     }
   };
 
+  const fetchInsiderSelection = async () => {
+    try {
+      const response = await fetch('/api/insider-selection', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Failed to fetch insider selection');
+      const data = await response.json();
+
+      const selectedUuids = Array.isArray(data?.selectedUuids) ? data.selectedUuids : [];
+      const selectedInsiders = Array.isArray(data?.selectedInsiders) ? data.selectedInsiders : [];
+      const options = Array.isArray(data?.options) ? data.options : [];
+      const availableInsidersRaw = selectedInsiders.length > 0 ? selectedInsiders : options;
+      const availableInsiders = availableInsidersRaw.map((option: any) => ({
+        value: option.insiderUuid,
+        label: option.insiderName,
+      }));
+
+      setSelectedInsiderUuids(selectedUuids);
+      setInsidersList(availableInsiders);
+
+      if (selectedUuids.length === 1) {
+        setSelectedInsiderUuid(selectedUuids[0]);
+      } else if (selectedUuids.length > 1) {
+        setSelectedInsiderUuid((prev) => prev || selectedUuids[0]);
+      } else if (availableInsiders.length > 0) {
+        setSelectedInsiderUuid((prev) => prev || availableInsiders[0].value);
+      }
+    } catch (error) {
+      console.error('Error fetching insider selection:', error);
+    }
+  };
+
   const resetForm = () => {
     setSelectedEmployee('');
     setSelectedFinancialCode('');
     setSelectedCurrency('');
+    setSelectedInsiderUuid(fixedInsider?.value || insidersList[0]?.value || '');
     setSalaryMonth('');
     setNetSum('');
     setSurplusInsurance('');
@@ -1410,6 +1458,11 @@ export function SalaryAccrualsTable() {
       setSelectedEmployee(accrual.counteragent_uuid);
       setSelectedFinancialCode(accrual.financial_code_uuid);
       setSelectedCurrency(accrual.nominal_currency_uuid);
+      setSelectedInsiderUuid(
+        isInsiderFixed
+          ? (fixedInsider?.value || '')
+          : (accrual.insider_uuid || fixedInsider?.value || insidersList[0]?.value || '')
+      );
       setSalaryMonth(accrual.salary_month.split('T')[0]);
       setNetSum(accrual.net_sum);
       setSurplusInsurance(accrual.surplus_insurance || '');
@@ -1434,6 +1487,8 @@ export function SalaryAccrualsTable() {
       counteragent_uuid: selectedEmployee,
       financial_code_uuid: selectedFinancialCode,
       nominal_currency_uuid: selectedCurrency,
+      insider_uuid: selectedInsiderUuid || null,
+      insiderUuid: selectedInsiderUuid || null,
       salary_month: salaryMonth,
       net_sum: netSum,
       surplus_insurance: normalizedInsurance.surplus_insurance,
@@ -2474,6 +2529,22 @@ export function SalaryAccrualsTable() {
                   <DialogTitle>{editingId ? 'Edit' : 'Add'} Salary Accrual</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="insider">Insider *</Label>
+                    <Combobox
+                      options={insidersList}
+                      value={selectedInsiderUuid}
+                      onValueChange={setSelectedInsiderUuid}
+                      placeholder="Select insider..."
+                      searchPlaceholder="Search insiders..."
+                      disabled={isInsiderFixed}
+                      triggerClassName={isInsiderFixed ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}
+                    />
+                    {isInsiderFixed && fixedInsider?.label && (
+                      <p className="text-xs text-muted-foreground">Fixed by homepage selection: {fixedInsider.label}</p>
+                    )}
+                  </div>
+
                   <div className="grid gap-2">
                     <Label htmlFor="employee">Employee *</Label>
                     <Combobox

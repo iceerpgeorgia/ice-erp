@@ -40,7 +40,6 @@ import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shar
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter } from './shared/table-filters';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
-import { useRequiredInsiderName } from './shared/use-required-insider';
 import { 
   Table, 
   TableBody, 
@@ -74,6 +73,8 @@ export type Project = {
   contractNo: string | null;
   department: string | null;
   serviceState: string | null;
+  isInsider: boolean;
+  insiderUuid?: string | null;
   projectIndex: string | null;
   employees?: Array<{
     employeeUuid: string;
@@ -106,7 +107,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'balance', label: 'Balance', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'oris1630', label: 'ORIS 1630', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'counteragent', label: 'Counteragent', width: 200, visible: true, sortable: true, filterable: true },
-  { key: 'insiderName', label: 'Insider', width: 180, visible: true, sortable: false, filterable: false },
+  { key: 'insiderName', label: 'Insider Name', width: 180, visible: true, sortable: false, filterable: true },
   { key: 'financialCode', label: 'Financial Code', width: 150, visible: true, sortable: true, filterable: true },
   { key: 'currency', label: 'Currency', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'state', label: 'State', width: 120, visible: true, sortable: true, filterable: true },
@@ -120,6 +121,8 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'stateUuid', label: 'State UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'employees', label: 'Employees', width: 200, visible: true, sortable: true, filterable: true, responsive: 'lg' }
 ];
+
+const COLUMNS_STORAGE_KEY = 'projects-table-columns-v2';
 
 // Helper function to get responsive classes
 const getResponsiveClass = (responsive?: string) => {
@@ -149,6 +152,8 @@ const mapProjectData = (row: any): Project => ({
   currencyUuid: row.currency_uuid || row.currencyUuid || '',
   stateUuid: row.state_uuid || row.stateUuid || '',
   counteragent: row.counteragent || row.COUNTERAGENT || null,
+  isInsider: Boolean(row.is_insider ?? row.isInsider ?? row.insider ?? false),
+  insiderUuid: row.insider_uuid || row.insiderUuid || null,
   financialCode: row.financial_code || row.financialCode || null,
   currency: row.currency || row.CURRENCY || null,
   state: row.state || row.STATE || null,
@@ -156,13 +161,18 @@ const mapProjectData = (row: any): Project => ({
   department: row.department || row.DEPARTMENT || null,
   serviceState: row.service_state || row.serviceState || null,
   projectIndex: row.project_index || row.projectIndex || null,
-  employees: row.employees || []
+  employees: row.employees || [],
+  insiderName:
+    (() => {
+      const v = row.insider_name ?? row.insiderName ?? null;
+      if (v === '-' || v === '') return null;
+      return v;
+    })(),
 });
 
 const SERVICE_STATE_OPTIONS = ['Active', 'Conversion', 'Others', 'Free', 'Recovery'];
 
 export function ProjectsTable({ data }: { data?: Project[] }) {
-  const requiredInsiderName = useRequiredInsiderName();
   const [projects, setProjects] = useState<Project[]>(data ?? []);
   // Dropdown data
   const [counteragentsList, setCounteragentsList] = useState<Array<{id: number, name: string, counteragentUuid: string}>>([]);
@@ -170,6 +180,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   const [currenciesList, setCurrenciesList] = useState<Array<{id: number, code: string, uuid: string}>>([]);
   const [statesList, setStatesList] = useState<Array<{id: number, name: string, uuid: string}>>([]);
   const [employeesList, setEmployeesList] = useState<Array<{id: number, name: string, counteragentUuid: string}>>([]);
+  const [insidersList, setInsidersList] = useState<Array<{ insiderUuid: string; insiderName: string }>>([]);
+  const [selectedInsiderUuids, setSelectedInsiderUuids] = useState<string[]>([]);
   
   // Horizontal scroll synchronization between the table and a sticky bottom scroller
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -194,13 +206,27 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
     if (typeof window !== 'undefined') {
-      const savedColumns = localStorage.getItem('projects-table-columns');
+      const savedColumns = localStorage.getItem(COLUMNS_STORAGE_KEY);
       if (savedColumns) {
         try {
           const parsed = JSON.parse(savedColumns) as ColumnConfig[];
-          const byKey = new Map(parsed.map((col) => [col.key, col]));
-          const merged = defaultColumns.map((col) => byKey.get(col.key) ?? col);
-          return merged;
+          const defaultsByKey = new Map(defaultColumns.map((col) => [col.key, col]));
+          const validSaved = parsed.filter((savedCol) => defaultsByKey.has(savedCol.key));
+
+          // Keep user preferences (visible/width) but always take latest column metadata
+          // (e.g. filterable/sortable/labels) from defaults.
+          const updatedSaved = validSaved.map((savedCol) => {
+            const defaultCol = defaultsByKey.get(savedCol.key)!;
+            return {
+              ...defaultCol,
+              visible: savedCol.visible,
+              width: savedCol.width,
+            };
+          });
+
+          const savedKeys = new Set(validSaved.map((col) => col.key));
+          const newColumns = defaultColumns.filter((col) => !savedKeys.has(col.key));
+          return [...updatedSaved, ...newColumns];
         } catch (error) {
           console.warn('Failed to parse saved column settings:', error);
         }
@@ -212,6 +238,19 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number } | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
+
+  const isInsiderFixed = selectedInsiderUuids.length === 1;
+
+  const fixedInsider = useMemo(() => {
+    if (!isInsiderFixed) return null;
+    const fixedUuid = selectedInsiderUuids[0];
+    return insidersList.find((insider) => insider.insiderUuid === fixedUuid) ?? null;
+  }, [isInsiderFixed, insidersList, selectedInsiderUuids]);
+
+  const insiderOptions = useMemo(
+    () => insidersList.map((i) => ({ value: i.insiderUuid, label: i.insiderName, keywords: i.insiderName })),
+    [insidersList]
+  );
 
   const getFacetBaseData = (excludeColumn?: ColumnKey) => {
     let result = [...projects];
@@ -289,6 +328,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
     oris1630: '',
     department: '',
     serviceState: '',
+    insiderUuid: '',
     counteragentUuid: '',
     financialCodeUuid: '',
     currencyUuid: '',
@@ -394,6 +434,37 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
         } else {
           console.error('[ProjectsTable] Failed to load employees:', employeesRes.status);
         }
+
+        // Fetch insider options for explicit project assignment
+        const insiderSelectionRes = await fetch('/api/insider-selection');
+        if (insiderSelectionRes.ok) {
+          const insiderSelectionData = await insiderSelectionRes.json();
+          const options = Array.isArray(insiderSelectionData?.options) ? insiderSelectionData.options : [];
+          const selectedInsiders = Array.isArray(insiderSelectionData?.selectedInsiders)
+            ? insiderSelectionData.selectedInsiders
+            : [];
+          const selectedUuids = Array.isArray(insiderSelectionData?.selectedUuids)
+            ? insiderSelectionData.selectedUuids
+            : [];
+          const availableInsidersRaw = selectedInsiders.length > 0 ? selectedInsiders : options;
+          const availableInsiders = availableInsidersRaw.map((option: any) => ({
+            insiderUuid: option.insiderUuid,
+            insiderName: option.insiderName,
+          }));
+          setInsidersList(availableInsiders);
+          setSelectedInsiderUuids(selectedUuids);
+
+          // If homepage has exactly one selected insider, keep it fixed in forms.
+          if (selectedUuids.length === 1) {
+            setFormData((prev) => ({ ...prev, insiderUuid: selectedUuids[0] }));
+          } else if (selectedUuids.length > 1) {
+            setFormData((prev) => ({ ...prev, insiderUuid: prev.insiderUuid || selectedUuids[0] }));
+          } else if (availableInsiders.length > 0) {
+            setFormData((prev) => ({ ...prev, insiderUuid: prev.insiderUuid || availableInsiders[0].insiderUuid }));
+          }
+        } else {
+          console.error('[ProjectsTable] Failed to load insider selection:', insiderSelectionRes.status);
+        }
       } catch (error) {
         console.error('Failed to fetch dropdown data:', error);
       }
@@ -479,8 +550,17 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
 
   // Save column settings to localStorage
   useEffect(() => {
-    localStorage.setItem('projects-table-columns', JSON.stringify(columns));
+    localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(columns));
   }, [columns]);
+
+  useEffect(() => {
+    if (!isInsiderFixed || !fixedInsider?.insiderUuid) return;
+    setFormData((prev) =>
+      prev.insiderUuid === fixedInsider.insiderUuid
+        ? prev
+        : { ...prev, insiderUuid: fixedInsider.insiderUuid }
+    );
+  }, [isInsiderFixed, fixedInsider?.insiderUuid]);
 
   // Mouse events for column resizing
   useEffect(() => {
@@ -610,6 +690,10 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
     // State - mandatory
     if (!formData.stateUuid) {
       errors.stateUuid = 'State is required';
+    }
+
+    if (!formData.insiderUuid) {
+      errors.insiderUuid = 'Insider is required';
     }
     
     setFormErrors(errors);
@@ -746,6 +830,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
             oris_1630: formData.oris1630 || null,
             department: formData.department || null,
             service_state: formData.serviceState || null,
+            insider_uuid: formData.insiderUuid || null,
+            insiderUuid: formData.insiderUuid || null,
             counteragent_uuid: formData.counteragentUuid,
             financial_code_uuid: formData.financialCodeUuid,
             currency_uuid: formData.currencyUuid,
@@ -785,6 +871,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
             financialCodeUuid: formData.financialCodeUuid,
             currencyUuid: formData.currencyUuid,
             stateUuid: formData.stateUuid,
+            insider_uuid: formData.insiderUuid || null,
+            insiderUuid: formData.insiderUuid || null,
             employees: formData.employees
           })
         });
@@ -823,6 +911,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       oris1630: '',
       department: '',
       serviceState: '',
+      insiderUuid: fixedInsider?.insiderUuid || insidersList[0]?.insiderUuid || '',
       counteragentUuid: '',
       financialCodeUuid: '',
       currencyUuid: '',
@@ -851,6 +940,9 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       oris1630: project.oris1630 || '',
       department: project.department || '',
       serviceState: project.serviceState || '',
+      insiderUuid: isInsiderFixed
+        ? (fixedInsider?.insiderUuid || project.insiderUuid || insidersList[0]?.insiderUuid || '')
+        : (project.insiderUuid || insidersList[0]?.insiderUuid || ''),
       counteragentUuid: project.counteragentUuid || '',
       financialCodeUuid: project.financialCodeUuid || '',
       currencyUuid: project.currencyUuid || '',
@@ -1009,6 +1101,33 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
+                {/* Insider - mandatory */}
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="add-insider" className="text-right">Insider *</Label>
+                  <div className="col-span-3">
+                    <Combobox
+                      options={insiderOptions}
+                      value={formData.insiderUuid}
+                      onValueChange={(value: string) => {
+                        setFormData({ ...formData, insiderUuid: value });
+                        if (formErrors.insiderUuid) setFormErrors({ ...formErrors, insiderUuid: '' });
+                      }}
+                      disabled={isInsiderFixed}
+                      placeholder="Select insider"
+                      searchPlaceholder="Search insiders..."
+                      emptyText="No insider found."
+                      triggerClassName={[
+                        formErrors.insiderUuid ? 'border-red-500' : '',
+                        isInsiderFixed ? 'bg-muted text-muted-foreground cursor-not-allowed' : '',
+                      ].filter(Boolean).join(' ')}
+                    />
+                    {isInsiderFixed && fixedInsider?.insiderName && (
+                      <p className="text-xs text-muted-foreground mt-1">Fixed by homepage selection: {fixedInsider.insiderName}</p>
+                    )}
+                    {formErrors.insiderUuid && <p className="text-xs text-red-500 mt-1">{formErrors.insiderUuid}</p>}
+                  </div>
+                </div>
+
                 {/* Project Name - mandatory */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="add-projectName" className="text-right">Project Name *</Label>
@@ -1231,6 +1350,33 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
+                {/* Insider - mandatory */}
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-insider" className="text-right">Insider *</Label>
+                  <div className="col-span-3">
+                    <Combobox
+                      options={insiderOptions}
+                      value={formData.insiderUuid}
+                      onValueChange={(value: string) => {
+                        setFormData({ ...formData, insiderUuid: value });
+                        if (formErrors.insiderUuid) setFormErrors({ ...formErrors, insiderUuid: '' });
+                      }}
+                      disabled={isInsiderFixed}
+                      placeholder="Select insider"
+                      searchPlaceholder="Search insiders..."
+                      emptyText="No insider found."
+                      triggerClassName={[
+                        formErrors.insiderUuid ? 'border-red-500' : '',
+                        isInsiderFixed ? 'bg-muted text-muted-foreground cursor-not-allowed' : '',
+                      ].filter(Boolean).join(' ')}
+                    />
+                    {isInsiderFixed && fixedInsider?.insiderName && (
+                      <p className="text-xs text-muted-foreground mt-1">Fixed by homepage selection: {fixedInsider.insiderName}</p>
+                    )}
+                    {formErrors.insiderUuid && <p className="text-xs text-red-500 mt-1">{formErrors.insiderUuid}</p>}
+                  </div>
+                </div>
+
                 {/* Project Name - mandatory */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="edit-projectName" className="text-right">Project Name *</Label>
@@ -1721,7 +1867,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                         ) : column.key === 'counteragent' ? (
                           <span className="text-sm">{project.counteragent || '-'}</span>
                         ) : column.key === 'insiderName' ? (
-                          <span className="text-sm">{requiredInsiderName || '-'}</span>
+                          <span className="text-sm">{project.insiderName || ''}</span>
                         ) : column.key === 'financialCode' ? (
                           <span className="text-sm">{project.financialCode || '-'}</span>
                         ) : column.key === 'currency' ? (

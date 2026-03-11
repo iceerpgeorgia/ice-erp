@@ -1,11 +1,14 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { reparseByPaymentId } from '@/lib/bank-import/reparse';
+import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
+    const selection = await resolveInsiderSelection(request);
+    const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get('limit');
     const sort = searchParams.get('sort');
@@ -27,6 +30,7 @@ export async function GET(request: NextRequest) {
         to_jsonb(p)->>'label' as label,
         p.payment_id,
         p.record_uuid,
+        p.insider_uuid,
         p.is_active,
         p.created_at,
         p.updated_at,
@@ -44,6 +48,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
       LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
       LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
+      WHERE p.insider_uuid IN (${insiderUuidListSql})
       ORDER BY p.created_at ${orderClause}
       ${limitClause}
     `) as any[];
@@ -60,6 +65,7 @@ export async function GET(request: NextRequest) {
       label: payment.label ?? null,
       paymentId: payment.payment_id,
       recordUuid: payment.record_uuid,
+      insider_uuid: payment.insider_uuid,
       is_active: payment.is_active,
       createdAt: payment.created_at,
       updatedAt: payment.updated_at,
@@ -83,10 +89,22 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const selection = await resolveInsiderSelection(request);
     const body = await request.json();
-    const { projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid, paymentId, accrualSource, label } = body;
+    const { projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid, paymentId, accrualSource, label, insiderUuid, insider_uuid } = body;
+
+    const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
+    const insiderOptions = await getInsiderOptions();
+    const insiderOptionSet = new Set(insiderOptions.map((option) => option.insiderUuid.toLowerCase()));
+    if (requestedInsiderUuid && !insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
+      return NextResponse.json({ error: 'Invalid insider selection' }, { status: 400 });
+    }
+    const effectiveInsiderUuid = requestedInsiderUuid || selection.primaryInsider?.insiderUuid || null;
+    if (!effectiveInsiderUuid) {
+      return NextResponse.json({ error: 'No insider configured' }, { status: 400 });
+    }
 
     const paymentIdPattern = /^[0-9a-f]{6}_[0-9a-f]{2}_[0-9a-f]{6}$/i;
 
@@ -164,6 +182,7 @@ export async function POST(request: Request) {
             label,
             payment_id,
             record_uuid,
+            insider_uuid,
             updated_at
           ) VALUES (
             ${projectUuid || null}::uuid,
@@ -176,6 +195,7 @@ export async function POST(request: Request) {
             ${label || null},
             ${paymentId || ''},
             '',
+            ${effectiveInsiderUuid}::uuid,
             NOW()
           )
           RETURNING *
@@ -193,6 +213,7 @@ export async function POST(request: Request) {
           accrual_source,
           payment_id,
           record_uuid,
+          insider_uuid,
           updated_at
         ) VALUES (
           ${projectUuid || null}::uuid,
@@ -204,6 +225,7 @@ export async function POST(request: Request) {
           ${accrualSource || null},
           ${paymentId || ''},
           '',
+          ${effectiveInsiderUuid}::uuid,
           NOW()
         )
         RETURNING *
@@ -239,8 +261,9 @@ export async function POST(request: Request) {
   }
 }
 
-export async function PATCH(request: Request) {
+export async function PATCH(request: NextRequest) {
   try {
+    const selection = await resolveInsiderSelection(request);
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const body = await request.json();
@@ -255,7 +278,20 @@ export async function PATCH(request: Request) {
       accrualSource,
       label,
       isActive,
+      insiderUuid,
+      insider_uuid,
     } = body;
+
+    const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
+    const insiderOptions = await getInsiderOptions();
+    const insiderOptionSet = new Set(insiderOptions.map((option) => option.insiderUuid.toLowerCase()));
+    if (requestedInsiderUuid && !insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
+      return NextResponse.json({ error: 'Invalid insider selection' }, { status: 400 });
+    }
+    const normalizedInsiderUuid = requestedInsiderUuid || selection.primaryInsider?.insiderUuid || null;
+    if (!normalizedInsiderUuid) {
+      return NextResponse.json({ error: 'No insider configured' }, { status: 400 });
+    }
 
     if (!id) {
       return NextResponse.json(
@@ -288,7 +324,9 @@ export async function PATCH(request: Request) {
       paymentId === undefined &&
       accrualSource === undefined &&
       label === undefined &&
-      isActive === undefined
+      isActive === undefined &&
+      insiderUuid === undefined &&
+      insider_uuid === undefined
     ) {
       return NextResponse.json(
         { error: 'At least one field to update is required' },
@@ -425,6 +463,9 @@ export async function PATCH(request: Request) {
       }
       if (currencyUuid !== undefined && currencyUuid !== existing.currency_uuid) {
         pushUpdate('currency_uuid', currencyUuid, '::uuid');
+      }
+      if (normalizedInsiderUuid !== undefined && normalizedInsiderUuid !== existing.insider_uuid) {
+        pushUpdate('insider_uuid', normalizedInsiderUuid, '::uuid');
       }
       if (normalizedPaymentId !== undefined && normalizedPaymentId !== existing.payment_id) {
         pushUpdate('payment_id', normalizedPaymentId);

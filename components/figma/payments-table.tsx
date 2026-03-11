@@ -56,6 +56,7 @@ export type Payment = {
   jobName: string | null;
   jobIdentifier: string | null;
   currencyCode: string | null;
+  insiderUuid?: string | null;
   insiderName?: string | null;
 };
 
@@ -131,6 +132,7 @@ export function PaymentsTable() {
   const [selectedIncomeTax, setSelectedIncomeTax] = useState(false);
   const [selectedCurrencyUuid, setSelectedCurrencyUuid] = useState('');
   const [selectedLabel, setSelectedLabel] = useState('');
+  const [selectedInsiderUuid, setSelectedInsiderUuid] = useState('');
 
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -145,7 +147,23 @@ export function PaymentsTable() {
   const [editAccrualSource, setEditAccrualSource] = useState('');
   const [editIsActive, setEditIsActive] = useState(true);
   const [editLabel, setEditLabel] = useState('');
+  const [editInsiderUuid, setEditInsiderUuid] = useState('');
   const [editFilteredJobs, setEditFilteredJobs] = useState<Array<{ jobUuid: string; jobIndex: string; jobName: string; jobDisplay?: string }>>([]);
+  const [insidersList, setInsidersList] = useState<Array<{ insiderUuid: string; insiderName: string }>>([]);
+  const [selectedInsiderUuids, setSelectedInsiderUuids] = useState<string[]>([]);
+
+  const isInsiderFixed = selectedInsiderUuids.length === 1;
+
+  const fixedInsider = useMemo(() => {
+    if (!isInsiderFixed) return null;
+    const fixedUuid = selectedInsiderUuids[0];
+    return insidersList.find((insider) => insider.insiderUuid === fixedUuid) ?? null;
+  }, [isInsiderFixed, insidersList, selectedInsiderUuids]);
+
+  const insiderOptions = useMemo(
+    () => insidersList.map((i) => ({ value: i.insiderUuid, label: i.insiderName, keywords: i.insiderName })),
+    [insidersList]
+  );
 
   // Payment options state (for matching existing payments)
   const [paymentOptions, setPaymentOptions] = useState<Array<{ paymentId: string; projectUuid: string; jobUuid: string; financialCodeUuid: string; currencyUuid: string; projectName: string; jobName: string; jobDisplay: string; currencyCode: string; financialCodeValidation: string }>>([]);
@@ -214,7 +232,14 @@ export function PaymentsTable() {
     fetchFinancialCodes();
     fetchJobs();
     fetchCurrencies();
+    fetchInsiderSelection();
   }, []);
+
+  useEffect(() => {
+    if (!isInsiderFixed || !fixedInsider?.insiderUuid) return;
+    setSelectedInsiderUuid(fixedInsider.insiderUuid);
+    setEditInsiderUuid(fixedInsider.insiderUuid);
+  }, [isInsiderFixed, fixedInsider?.insiderUuid]);
 
   // Fetch jobs when project changes
   useEffect(() => {
@@ -354,7 +379,41 @@ export function PaymentsTable() {
     jobName: payment.jobName || payment.job_name || null,
     jobIdentifier: payment.jobIdentifier || payment.job_identifier || null,
     currencyCode: payment.currencyCode || payment.currency_code || null,
+    insiderUuid: payment.insider_uuid || payment.insiderUuid || null,
   });
+
+  const fetchInsiderSelection = async () => {
+    try {
+      const response = await fetch('/api/insider-selection', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Failed to fetch insider selection');
+      const data = await response.json();
+
+      const selectedUuids = Array.isArray(data?.selectedUuids) ? data.selectedUuids : [];
+      const selectedInsiders = Array.isArray(data?.selectedInsiders) ? data.selectedInsiders : [];
+      const options = Array.isArray(data?.options) ? data.options : [];
+      const availableInsidersRaw = selectedInsiders.length > 0 ? selectedInsiders : options;
+      const availableInsiders = availableInsidersRaw.map((option: any) => ({
+        insiderUuid: option.insiderUuid,
+        insiderName: option.insiderName,
+      }));
+
+      setSelectedInsiderUuids(selectedUuids);
+      setInsidersList(availableInsiders);
+
+      if (selectedUuids.length === 1) {
+        setSelectedInsiderUuid(selectedUuids[0]);
+        setEditInsiderUuid(selectedUuids[0]);
+      } else if (selectedUuids.length > 1) {
+        setSelectedInsiderUuid((prev) => prev || selectedUuids[0]);
+        setEditInsiderUuid((prev) => prev || selectedUuids[0]);
+      } else if (availableInsiders.length > 0) {
+        setSelectedInsiderUuid((prev) => prev || availableInsiders[0].insiderUuid);
+        setEditInsiderUuid((prev) => prev || availableInsiders[0].insiderUuid);
+      }
+    } catch (error) {
+      console.error('Error fetching insider selection:', error);
+    }
+  };
 
   const fetchPayments = async () => {
     try {
@@ -551,6 +610,8 @@ export function PaymentsTable() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          insiderUuid: selectedInsiderUuid || null,
+          insider_uuid: selectedInsiderUuid || null,
           projectUuid: selectedProjectUuid,
           counteragentUuid: selectedCounteragentUuid,
           financialCodeUuid: selectedFinancialCodeUuid,
@@ -617,6 +678,11 @@ export function PaymentsTable() {
     setEditPaymentId(payment.paymentId || '');
     setEditLabel(payment.label || '');
     setEditAccrualSource(payment.accrualSource || '');
+    setEditInsiderUuid(
+      isInsiderFixed
+        ? (fixedInsider?.insiderUuid || '')
+        : (payment.insiderUuid || fixedInsider?.insiderUuid || insidersList[0]?.insiderUuid || '')
+    );
     setEditIsActive(Boolean(payment.isActive));
     
     setEditDialogOpen(true);
@@ -640,6 +706,8 @@ export function PaymentsTable() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          insiderUuid: editInsiderUuid || null,
+          insider_uuid: editInsiderUuid || null,
           projectUuid: editProjectUuid || null,
           counteragentUuid: editCounteragentUuid,
           financialCodeUuid: editFinancialCodeUuid,
@@ -704,6 +772,7 @@ export function PaymentsTable() {
     setSelectedIncomeTax(false);
     setSelectedCurrencyUuid('');
     setSelectedLabel('');
+    setSelectedInsiderUuid(fixedInsider?.insiderUuid || insidersList[0]?.insiderUuid || '');
     setSelectedPaymentId('');
     setPaymentOptions([]);
     setPaymentDisplayValues({ projectLabel: '', jobLabel: '', financialCodeLabel: '', currencyLabel: '' });
@@ -1022,6 +1091,22 @@ export function PaymentsTable() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Insider <span className="text-red-500">*</span></Label>
+                <Combobox
+                  value={selectedInsiderUuid}
+                  onValueChange={setSelectedInsiderUuid}
+                  options={insiderOptions}
+                  placeholder="Select insider..."
+                  searchPlaceholder="Search insiders..."
+                  disabled={isInsiderFixed}
+                  triggerClassName={isInsiderFixed ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}
+                />
+                {isInsiderFixed && fixedInsider?.insiderName && (
+                  <p className="text-xs text-muted-foreground">Fixed by homepage selection: {fixedInsider.insiderName}</p>
+                )}
+              </div>
+
               {/* 1. Counteragent - Always active */}
               <div className="space-y-2">
                 <Label>Counteragent <span className="text-red-500">*</span></Label>
@@ -1468,6 +1553,22 @@ export function PaymentsTable() {
           <div className="space-y-4">
             {editingPayment && (
               <>
+                <div className="space-y-2">
+                  <Label>Insider <span className="text-red-500">*</span></Label>
+                  <Combobox
+                    value={editInsiderUuid}
+                    onValueChange={setEditInsiderUuid}
+                    options={insiderOptions}
+                    placeholder="Select insider..."
+                    searchPlaceholder="Search insiders..."
+                    disabled={isInsiderFixed}
+                    triggerClassName={isInsiderFixed ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}
+                  />
+                  {isInsiderFixed && fixedInsider?.insiderName && (
+                    <p className="text-xs text-muted-foreground">Fixed by homepage selection: {fixedInsider.insiderName}</p>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label>Counteragent <span className="text-red-500">*</span></Label>
                   <Combobox

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 
 export const revalidate = 0;
 
@@ -29,6 +30,8 @@ const logAudit = async (params: {
 
 export async function GET(request: NextRequest) {
   try {
+    const selection = await resolveInsiderSelection(request);
+    const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -76,8 +79,10 @@ export async function GET(request: NextRequest) {
     const params: any[] = [];
     
     if (paymentId) {
-      query += ' WHERE pl.payment_id = $1';
+      query += ` WHERE pl.payment_id = $1 AND p.insider_uuid IN (${insiderUuidListSql})`;
       params.push(paymentId);
+    } else {
+      query += ` WHERE p.insider_uuid IN (${insiderUuidListSql})`;
     }
 
     query += ' ORDER BY pl.effective_date DESC, pl.created_at DESC';

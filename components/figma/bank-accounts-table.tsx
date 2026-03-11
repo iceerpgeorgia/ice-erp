@@ -26,6 +26,7 @@ import { loadFilterMap, saveFilterMap, clearColumnFilters } from './shared/colum
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from './ui/dialog';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
 import { useRequiredInsiderName } from './shared/use-required-insider';
@@ -47,6 +48,7 @@ type BankAccount = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  insiderUuid?: string | null;
   insiderName?: string | null;
 };
 
@@ -97,6 +99,8 @@ export function BankAccountsTable() {
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
   const [parsingSchemes, setParsingSchemes] = useState<ParsingScheme[]>([]);
+  const [insidersList, setInsidersList] = useState<Array<{ insiderUuid: string; insiderName: string }>>([]);
+  const [selectedInsiderUuids, setSelectedInsiderUuids] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<ColumnKey>('accountNumber');
@@ -126,11 +130,25 @@ export function BankAccountsTable() {
     accountNumber: '',
     currencyUuid: '',
     bankUuid: '',
+    insiderUuid: '',
     balance: '',
     balanceDate: '',
     rawTableName: '',
     parsingSchemeUuid: '',
   });
+
+  const isInsiderFixed = selectedInsiderUuids.length === 1;
+
+  const fixedInsider = useMemo(() => {
+    if (!isInsiderFixed) return null;
+    const fixedUuid = selectedInsiderUuids[0];
+    return insidersList.find((insider) => insider.insiderUuid === fixedUuid) ?? null;
+  }, [isInsiderFixed, insidersList, selectedInsiderUuids]);
+
+  const insiderOptions = useMemo(
+    () => insidersList.map((i) => ({ value: i.insiderUuid, label: i.insiderName, keywords: i.insiderName })),
+    [insidersList]
+  );
 
   // Load saved column configuration after hydration
   useEffect(() => {
@@ -169,8 +187,18 @@ export function BankAccountsTable() {
       fetchCurrencies();
       fetchBanks();
       fetchParsingSchemes();
+      fetchInsiderSelection();
     }
   }, [isInitialized]);
+
+  useEffect(() => {
+    if (!isInsiderFixed || !fixedInsider?.insiderUuid) return;
+    setFormData((prev) =>
+      prev.insiderUuid === fixedInsider.insiderUuid
+        ? prev
+        : { ...prev, insiderUuid: fixedInsider.insiderUuid }
+    );
+  }, [isInsiderFixed, fixedInsider?.insiderUuid]);
 
   // Save column configuration to localStorage
   useEffect(() => {
@@ -272,6 +300,36 @@ export function BankAccountsTable() {
       setParsingSchemes(result);
     } catch (error) {
       console.error('Error fetching parsing schemes:', error);
+    }
+  };
+
+  const fetchInsiderSelection = async () => {
+    try {
+      const response = await fetch('/api/insider-selection', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Failed to fetch insider selection');
+      const data = await response.json();
+
+      const selectedUuids = Array.isArray(data?.selectedUuids) ? data.selectedUuids : [];
+      const selectedInsiders = Array.isArray(data?.selectedInsiders) ? data.selectedInsiders : [];
+      const options = Array.isArray(data?.options) ? data.options : [];
+      const availableInsidersRaw = selectedInsiders.length > 0 ? selectedInsiders : options;
+      const availableInsiders = availableInsidersRaw.map((option: any) => ({
+        insiderUuid: option.insiderUuid,
+        insiderName: option.insiderName,
+      }));
+
+      setSelectedInsiderUuids(selectedUuids);
+      setInsidersList(availableInsiders);
+
+      if (selectedUuids.length === 1) {
+        setFormData((prev) => ({ ...prev, insiderUuid: selectedUuids[0] }));
+      } else if (selectedUuids.length > 1) {
+        setFormData((prev) => ({ ...prev, insiderUuid: prev.insiderUuid || selectedUuids[0] }));
+      } else if (availableInsiders.length > 0) {
+        setFormData((prev) => ({ ...prev, insiderUuid: prev.insiderUuid || availableInsiders[0].insiderUuid }));
+      }
+    } catch (error) {
+      console.error('Error fetching insider selection:', error);
     }
   };
 
@@ -456,6 +514,7 @@ export function BankAccountsTable() {
       accountNumber: '',
       currencyUuid: '',
       bankUuid: '',
+      insiderUuid: fixedInsider?.insiderUuid || insidersList[0]?.insiderUuid || '',
       balance: '',
       balanceDate: '',
       rawTableName: '',
@@ -471,6 +530,9 @@ export function BankAccountsTable() {
       accountNumber: account.accountNumber,
       currencyUuid: account.currencyUuid,
       bankUuid: account.bankUuid,
+      insiderUuid: isInsiderFixed
+        ? (fixedInsider?.insiderUuid || '')
+        : (account.insiderUuid || fixedInsider?.insiderUuid || insidersList[0]?.insiderUuid || ''),
       balance: account.balance?.toString() || '',
       balanceDate: account.balanceDate || '',
       parsingSchemeUuid: account.parsingSchemeUuid || '',
@@ -486,6 +548,8 @@ export function BankAccountsTable() {
       accountNumber: formData.accountNumber,
       currencyUuid: formData.currencyUuid,
       bankUuid: formData.bankUuid,
+      insiderUuid: formData.insiderUuid || null,
+      insider_uuid: formData.insiderUuid || null,
       rawTableName: formData.rawTableName || null,
       balance: formData.balance ? parseFloat(formData.balance) : null,
       balanceDate: formData.balanceDate || null,
@@ -565,6 +629,23 @@ export function BankAccountsTable() {
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Insider <span className="text-red-500">*</span></Label>
+                    <Combobox
+                      options={insiderOptions}
+                      value={formData.insiderUuid}
+                      onValueChange={(value: string) => setFormData({ ...formData, insiderUuid: value })}
+                      placeholder="Select insider"
+                      searchPlaceholder="Search insiders..."
+                      emptyText="No insider found."
+                      disabled={isInsiderFixed}
+                      triggerClassName={isInsiderFixed ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}
+                    />
+                    {isInsiderFixed && fixedInsider?.insiderName && (
+                      <p className="text-xs text-muted-foreground">Fixed by homepage selection: {fixedInsider.insiderName}</p>
+                    )}
+                  </div>
+
                   <div className="space-y-2">
                     <Label>Account Number <span className="text-red-500">*</span></Label>
                     <Input

@@ -55,13 +55,16 @@ function toApi(row: any) {
   };
 }
 
-async function enrichWithInsiderName<T extends { insider_uuid?: string | null }>(rows: T[]): Promise<Array<T & { insider_name: string | null }>> {
+async function enrichWithInsiderName<T extends { insider_uuid?: string | null; insider_name?: string | null; insider?: boolean | null; name?: string | null }>(rows: T[]): Promise<Array<T & { insider_name: string | null }>> {
   const insiderUuids = Array.from(
     new Set(rows.map((r) => r.insider_uuid).filter((v): v is string => Boolean(v)))
   );
 
   if (insiderUuids.length === 0) {
-    return rows.map((row) => ({ ...row, insider_name: null }));
+    return rows.map((row) => ({
+      ...row,
+      insider_name: row.insider_name ?? (row.insider ? (row.name ?? null) : null),
+    }));
   }
 
   const insiderRows = await prisma.counteragents.findMany({
@@ -80,19 +83,25 @@ async function enrichWithInsiderName<T extends { insider_uuid?: string | null }>
 
   return rows.map((row) => ({
     ...row,
-    insider_name: row.insider_uuid ? insiderMap.get(row.insider_uuid) ?? row.insider_uuid : null,
+    insider_name:
+      row.insider_uuid
+        ? insiderMap.get(row.insider_uuid) ?? row.insider_name ?? row.insider_uuid
+        : row.insider_name ?? (row.insider ? (row.name ?? null) : null),
   }));
 }
 
 async function resolveStoredInsiderName(params: {
   insider?: boolean | null;
   insider_uuid?: string | null;
+  insider_name?: string | null;
   fallbackName?: string | null;
 }): Promise<string | null> {
   const insiderFlag = Boolean(params.insider);
   const insiderUuid = params.insider_uuid ?? null;
 
   if (insiderFlag) {
+    const explicit = (params.insider_name ?? '').trim();
+    if (explicit) return explicit;
     const own = (params.fallbackName ?? '').trim();
     return own || null;
   }
@@ -189,6 +198,7 @@ export async function POST(req: NextRequest) {
     const insiderName = await resolveStoredInsiderName({
       insider: body.insider,
       insider_uuid: body.insider_uuid,
+      insider_name: body.insider_name,
       fallbackName: body.name,
     });
 
@@ -375,6 +385,7 @@ export async function PATCH(req: NextRequest) {
     const insiderName = await resolveStoredInsiderName({
       insider: body.insider !== undefined ? body.insider : existing.insider,
       insider_uuid: body.insider_uuid !== undefined ? body.insider_uuid : existing.insider_uuid,
+      insider_name: body.insider_name !== undefined ? body.insider_name : existing.insider_name,
       fallbackName: body.name !== undefined ? body.name : existing.name,
     });
     

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 
 export const revalidate = 0;
 
@@ -124,6 +125,8 @@ const periodToDate = (period: string): string => {
 
 export async function GET(request: NextRequest) {
   try {
+    const selection = await resolveInsiderSelection(request);
+    const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -134,6 +137,10 @@ export async function GET(request: NextRequest) {
       });
 
       if (!accrual) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      }
+
+      if (!selection.selectedUuids.includes(String(accrual.insider_uuid || ''))) {
         return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
 
@@ -168,11 +175,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all records with related data (no LATERAL JOIN for performance)
-    const accruals = await prisma.$queryRaw<any[]>`
+    const accruals = await prisma.$queryRawUnsafe<any[]>(`
         SELECT 
           sa.id,
           sa.uuid,
           sa.counteragent_uuid,
+          sa.insider_uuid,
           sa.financial_code_uuid,
           sa.nominal_currency_uuid,
           sa.payment_id,
@@ -196,8 +204,9 @@ export async function GET(request: NextRequest) {
         LEFT JOIN counteragents c ON sa.counteragent_uuid = c.counteragent_uuid
         LEFT JOIN financial_codes fc ON sa.financial_code_uuid = fc.uuid
         LEFT JOIN currencies cur ON sa.nominal_currency_uuid = cur.uuid
+        WHERE sa.insider_uuid IN (${insiderUuidListSql})
         ORDER BY sa.salary_month DESC, sa.created_at DESC
-      `;
+      `);
 
     // Fetch unbound counteragent transactions (no payment_id, not in batch)
     const unboundRows = await prisma.$queryRaw<any[]>`
@@ -380,14 +389,15 @@ export async function GET(request: NextRequest) {
         hasUnboundCounteragentTransactions: unboundSet.has(String(accrual.counteragent_uuid)),
         projected: Boolean((accrual as any)._projected),
         ...accrual,
-      id: accrual.id.toString(),
-      net_sum: accrual.net_sum.toString(),
-      ...serializeInsuranceValues({
-        surplus_insurance: accrual.surplus_insurance,
-        deducted_insurance: accrual.deducted_insurance,
-      }),
-      deducted_fitness: accrual.deducted_fitness?.toString() || null,
-      deducted_fine: accrual.deducted_fine?.toString() || null,
+        id: accrual.id.toString(),
+        net_sum: accrual.net_sum.toString(),
+        insider_uuid: accrual.insider_uuid ?? null,
+        ...serializeInsuranceValues({
+          surplus_insurance: accrual.surplus_insurance,
+          deducted_insurance: accrual.deducted_insurance,
+        }),
+        deducted_fitness: accrual.deducted_fitness?.toString() || null,
+        deducted_fine: accrual.deducted_fine?.toString() || null,
       };
     });
 
@@ -400,6 +410,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const selection = await resolveInsiderSelection(request);
     const body = await request.json();
     if (body?.action === 'copy-latest') {
       const { base_month, target_month, created_by } = body;
@@ -427,6 +438,7 @@ export async function POST(request: NextRequest) {
         const created = await prisma.salary_accruals.create({
           data: {
             counteragent_uuid: record.counteragent_uuid,
+            insider_uuid: record.insider_uuid,
             financial_code_uuid: record.financial_code_uuid,
             nominal_currency_uuid: record.nominal_currency_uuid,
             payment_id: generatePaymentId(record.counteragent_uuid, record.financial_code_uuid, targetDate),
@@ -515,6 +527,7 @@ export async function POST(request: NextRequest) {
         const created = await prisma.salary_accruals.create({
           data: {
             counteragent_uuid: sourceRecord.counteragent_uuid,
+            insider_uuid: sourceRecord.insider_uuid,
             financial_code_uuid: sourceRecord.financial_code_uuid,
             nominal_currency_uuid: sourceRecord.nominal_currency_uuid,
             payment_id: generatePaymentId(sourceRecord.counteragent_uuid, sourceRecord.financial_code_uuid, lastDay),
@@ -581,6 +594,8 @@ export async function POST(request: NextRequest) {
       counteragent_uuid,
       financial_code_uuid,
       nominal_currency_uuid,
+      insider_uuid,
+      insiderUuid,
       salary_month,
       net_sum,
       surplus_insurance,
@@ -595,6 +610,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
+    const insiderOptions = await getInsiderOptions();
+    const insiderOptionSet = new Set(insiderOptions.map((option) => option.insiderUuid.toLowerCase()));
+    if (requestedInsiderUuid && !insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
+      return NextResponse.json({ error: 'Invalid insider selection' }, { status: 400 });
+    }
+    const effectiveInsiderUuid = requestedInsiderUuid || selection.primaryInsider?.insiderUuid || null;
+    if (!effectiveInsiderUuid) {
+      return NextResponse.json({ error: 'No insider configured' }, { status: 400 });
+    }
+
     // Generate payment_id
     const salaryDate = new Date(salary_month);
     const payment_id = generatePaymentId(counteragent_uuid, financial_code_uuid, salaryDate);
@@ -607,6 +633,7 @@ export async function POST(request: NextRequest) {
     const accrual = await prisma.salary_accruals.create({
       data: {
         counteragent_uuid,
+        insider_uuid: effectiveInsiderUuid,
         financial_code_uuid,
         nominal_currency_uuid,
         payment_id,
@@ -638,12 +665,15 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const selection = await resolveInsiderSelection(request);
     const body = await request.json();
     const {
       id,
       counteragent_uuid,
       financial_code_uuid,
       nominal_currency_uuid,
+      insider_uuid,
+      insiderUuid,
       salary_month,
       net_sum,
       surplus_insurance,
@@ -655,6 +685,17 @@ export async function PUT(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    }
+
+    const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
+    const insiderOptions = await getInsiderOptions();
+    const insiderOptionSet = new Set(insiderOptions.map((option) => option.insiderUuid.toLowerCase()));
+    if (requestedInsiderUuid && !insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
+      return NextResponse.json({ error: 'Invalid insider selection' }, { status: 400 });
+    }
+    const effectiveInsiderUuid = requestedInsiderUuid || selection.primaryInsider?.insiderUuid || null;
+    if (!effectiveInsiderUuid) {
+      return NextResponse.json({ error: 'No insider configured' }, { status: 400 });
     }
 
     const existing = await prisma.salary_accruals.findUnique({
@@ -674,6 +715,7 @@ export async function PUT(request: NextRequest) {
       where: { id: BigInt(id) },
       data: {
         counteragent_uuid,
+        insider_uuid: effectiveInsiderUuid,
         financial_code_uuid,
         nominal_currency_uuid,
         payment_id,

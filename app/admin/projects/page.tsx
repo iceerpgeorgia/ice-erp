@@ -26,6 +26,7 @@ const mapProjectData = (row: any): Project => {
     currencyUuid: row.currency_uuid || row.currencyUuid || '',
     stateUuid: row.state_uuid || row.stateUuid || '',
     counteragent: row.counteragent || null,
+    isInsider: Boolean(row.is_insider ?? row.isInsider ?? row.insider ?? false),
     financialCode: row.financial_code || row.financialCode || null,
     currency: row.currency || null,
     state: row.state || null,
@@ -33,7 +34,8 @@ const mapProjectData = (row: any): Project => {
     department: row.department || null,
     serviceState: row.service_state || row.serviceState || null,
     projectIndex: row.project_index || row.projectIndex || null,
-    employees: row.employees || []
+    employees: row.employees || [],
+    insiderName: row.insider_name || row.insiderName || null,
   };
 };
 

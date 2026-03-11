@@ -71,6 +71,9 @@ export default function CounteragentsTableFigma() {
           isActive: row.is_active ?? row.isActive ?? true,
           isEmploye: row.is_emploee ?? row.isEmploye ?? null,
           wasEmploye: row.was_emploee ?? row.wasEmploye ?? null,
+          insider: row.insider ?? false,
+          insiderUuid: row.insider_uuid ?? row.insiderUuid ?? null,
+          insiderName: row.insider_name || row.insiderName || null,
         }));
 
         setCounteragents(mapped);

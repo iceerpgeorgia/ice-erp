@@ -135,6 +135,8 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'insiderUuid', label: 'Insider UUID', width: 200, visible: false, sortable: true, filterable: true }
 ];
 
+const COLUMNS_STORAGE_KEY = 'counteragents-table-columns-v2';
+
 // Helper function to get responsive classes
 const getResponsiveClass = (responsive?: string) => {
   switch (responsive) {
@@ -226,10 +228,12 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
     if (typeof window !== 'undefined') {
-      const savedColumns = localStorage.getItem('counteragents-table-columns');
+      const savedColumns = localStorage.getItem(COLUMNS_STORAGE_KEY);
       if (savedColumns) {
         try {
-          return JSON.parse(savedColumns);
+          const parsed = JSON.parse(savedColumns) as ColumnConfig[];
+          const byKey = new Map(parsed.map((col) => [col.key, col]));
+          return defaultColumns.map((col) => byKey.get(col.key) ?? col);
         } catch (error) {
           console.warn('Failed to parse saved column settings:', error);
         }
@@ -423,7 +427,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
 
   // Save column settings to localStorage
   useEffect(() => {
-    localStorage.setItem('counteragents-table-columns', JSON.stringify(columns));
+    localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(columns));
   }, [columns]);
 
   // Mouse events for column resizing

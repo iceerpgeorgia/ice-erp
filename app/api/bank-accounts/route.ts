@@ -1,13 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { getRequiredInsider } from "@/lib/required-insider";
+import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from "@/lib/insider-selection";
 
 const prisma = new PrismaClient();
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const insider = await getRequiredInsider();
-    const bankAccounts = await prisma.$queryRaw<any[]>`
+    const selection = await resolveInsiderSelection(request);
+    const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
+    const bankAccounts = await prisma.$queryRawUnsafe<any[]>(`
       SELECT 
         ba.id,
         ba.uuid,
@@ -18,6 +19,7 @@ export async function GET() {
         ba.balance_date,
         ba.parsing_scheme_uuid,
         ba.raw_table_name,
+        ba.insider_uuid,
         ba.is_active,
         ba.created_at,
         ba.updated_at,
@@ -29,8 +31,9 @@ export async function GET() {
       LEFT JOIN currencies c ON ba.currency_uuid = c.uuid
       LEFT JOIN banks b ON ba.bank_uuid = b.uuid
       LEFT JOIN parsing_schemes ps ON ba.parsing_scheme_uuid = ps.uuid
+      WHERE ba.insider_uuid IN (${insiderUuidListSql})
       ORDER BY ba.created_at DESC
-    `;
+    `);
 
     const formattedAccounts = bankAccounts.map((account) => ({
       id: Number(account.id),
@@ -49,8 +52,8 @@ export async function GET() {
       isActive: account.is_active,
       createdAt: account.created_at,
       updatedAt: account.updated_at,
-      insiderUuid: insider.insiderUuid,
-      insiderName: insider.insiderName,
+      insiderUuid: account.insider_uuid,
+      insiderName: selection.selectedInsiders.find((i) => i.insiderUuid === account.insider_uuid)?.insiderName || null,
     }));
 
     return NextResponse.json(formattedAccounts);
@@ -63,11 +66,22 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const insider = await getRequiredInsider();
+    const selection = await resolveInsiderSelection(request);
     const body = await request.json();
-    const { accountNumber, currencyUuid, bankUuid, balance, balanceDate, parsingSchemeUuid, rawTableName } = body;
+    const { accountNumber, currencyUuid, bankUuid, balance, balanceDate, parsingSchemeUuid, rawTableName, insiderUuid, insider_uuid } = body;
+
+    const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
+    const insiderOptions = await getInsiderOptions();
+    const insiderOptionSet = new Set(insiderOptions.map((option) => option.insiderUuid.toLowerCase()));
+    if (requestedInsiderUuid && !insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
+      return NextResponse.json({ error: 'Invalid insider selection' }, { status: 400 });
+    }
+    const effectiveInsiderUuid = requestedInsiderUuid || selection.primaryInsider?.insiderUuid || null;
+    if (!effectiveInsiderUuid) {
+      return NextResponse.json({ error: "No insider configured" }, { status: 400 });
+    }
 
     if (!accountNumber || !currencyUuid) {
       return NextResponse.json(
@@ -97,7 +111,7 @@ export async function POST(request: Request) {
         ${balanceDate || null}::date, 
         ${parsingSchemeUuid || null}::uuid,
         ${rawTableName || null},
-        ${insider.insiderUuid}::uuid,
+        ${effectiveInsiderUuid}::uuid,
         NOW(),
         NOW()
       )

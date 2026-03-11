@@ -137,7 +137,16 @@ function matchesFacet(rowValue: any, filter: FacetFilter): boolean {
       filter.values.has('(blank)')
     );
   }
-  return filter.values.has(rowValue);
+  if (filter.values.has(rowValue)) return true;
+
+  // Facet values are commonly serialized as strings in UI/localStorage,
+  // while row values may be boolean/number/date objects at runtime.
+  // Fall back to string comparison to keep select-all and boolean facets stable.
+  const rowAsString = String(rowValue);
+  for (const candidate of filter.values) {
+    if (String(candidate) === rowAsString) return true;
+  }
+  return false;
 }
 
 function matchesNumeric(rowValue: any, filter: NumericFilter): boolean {

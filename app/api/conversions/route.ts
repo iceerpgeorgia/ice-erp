@@ -1,14 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getRequiredInsider } from '@/lib/required-insider';
+import { resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const insider = await getRequiredInsider();
+    const selection = await resolveInsiderSelection(request);
+    const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
+    const insiderNameMap = new Map(selection.selectedInsiders.map((s) => [s.insiderUuid, s.insiderName]));
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -41,6 +43,7 @@ export async function GET() {
       LEFT JOIN banks b ON c.bank_uuid = b.uuid
       LEFT JOIN currencies co ON c.currency_out_uuid = co.uuid
       LEFT JOIN currencies ci ON c.currency_in_uuid = ci.uuid
+      WHERE c.insider_uuid IN (${insiderUuidListSql})
       ORDER BY c.date DESC, c.id DESC
     `;
     let rows: any[] = [];
@@ -72,6 +75,7 @@ export async function GET() {
         LEFT JOIN bank_accounts ai ON c.account_in_uuid = ai.uuid
         LEFT JOIN currencies co ON c.currency_out_uuid = co.uuid
         LEFT JOIN currencies ci ON c.currency_in_uuid = ci.uuid
+        WHERE c.insider_uuid IN (${insiderUuidListSql})
         ORDER BY c.date DESC, c.id DESC
       `;
       rows = await prisma.$queryRawUnsafe(fallbackQuery);
@@ -97,8 +101,8 @@ export async function GET() {
       fee: row.fee !== null && row.fee !== undefined ? Number(row.fee) : null,
       createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
       updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
-      insiderUuid: row.insider_uuid || insider.insiderUuid,
-      insiderName: insider.insiderName,
+      insiderUuid: row.insider_uuid || null,
+      insiderName: insiderNameMap.get(row.insider_uuid) || null,
     }));
 
     return NextResponse.json(formatted);

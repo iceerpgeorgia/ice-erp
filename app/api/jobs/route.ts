@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getRequiredInsider } from '@/lib/required-insider';
+import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 
 // GET all jobs with project and brand info
 export async function GET(req: NextRequest) {
   try {
-    const insider = await getRequiredInsider();
+    const selection = await resolveInsiderSelection(req);
+    const insider = selection.primaryInsider;
+    const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
     // Get query parameters
     const { searchParams } = new URL(req.url);
     const projectUuid = searchParams.get('projectUuid');
@@ -13,7 +15,7 @@ export async function GET(req: NextRequest) {
     // Simple approach: if projectUuid provided, use raw query with brand info
     if (projectUuid) {
       console.log('[GET /api/jobs] Fetching jobs for project:', projectUuid);
-      const jobs = await prisma.$queryRaw`
+      const jobs = await prisma.$queryRawUnsafe(`
         SELECT 
           j.job_uuid,
           j.job_name,
@@ -35,10 +37,11 @@ export async function GET(req: NextRequest) {
           ) as job_display
         FROM jobs j
         LEFT JOIN brands b ON j.brand_uuid = b.uuid
-        WHERE j.project_uuid = ${projectUuid}::uuid
+        WHERE j.project_uuid = $1::uuid
+          AND j.insider_uuid IN (${insiderUuidListSql})
           AND j.is_active = true
         ORDER BY j.job_name ASC
-      `;
+      `, projectUuid);
 
       const serialized = (jobs as any[]).map((job: any) => ({
         jobUuid: job.job_uuid,
@@ -49,15 +52,15 @@ export async function GET(req: NextRequest) {
         brandUuid: job.brand_uuid,
         brandName: job.brand_name,
         jobDisplay: job.job_display,
-        insiderUuid: insider.insiderUuid,
-        insiderName: insider.insiderName,
+        insiderUuid: job.insider_uuid || insider?.insiderUuid || null,
+        insiderName: insider?.insiderName || null,
       }));
 
       return NextResponse.json(serialized);
     }
 
     // Otherwise, use the full query with all fields
-    const jobs = await prisma.$queryRaw`
+    const jobs = await prisma.$queryRawUnsafe(`
       SELECT 
         j.id,
         j.job_uuid,
@@ -92,8 +95,9 @@ export async function GET(req: NextRequest) {
       FROM jobs j
       LEFT JOIN projects p ON j.project_uuid = p.project_uuid
       LEFT JOIN brands b ON j.brand_uuid = b.uuid
+      WHERE j.insider_uuid IN (${insiderUuidListSql})
       ORDER BY j.created_at DESC
-    `;
+    `);
 
     const serialized = (jobs as any[]).map((job: any) => ({
       id: Number(job.id),
@@ -111,8 +115,8 @@ export async function GET(req: NextRequest) {
       is_active: job.is_active,
       createdAt: job.created_at,
       updatedAt: job.updated_at,
-      insider_uuid: insider.insiderUuid,
-      insider_name: insider.insiderName,
+      insider_uuid: job.insider_uuid ?? insider?.insiderUuid ?? null,
+      insider_name: insider?.insiderName ?? null,
     }));
 
     return NextResponse.json(serialized);
@@ -128,9 +132,21 @@ export async function GET(req: NextRequest) {
 // POST - Create new job
 export async function POST(req: NextRequest) {
   try {
-    const insider = await getRequiredInsider();
+    const selection = await resolveInsiderSelection(req);
     const body = await req.json();
-    const { projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid } = body;
+    const { projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid, insider_uuid, insiderUuid } = body;
+
+    const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
+    const insiderOptions = await getInsiderOptions();
+    const insiderOptionSet = new Set(insiderOptions.map((option) => option.insiderUuid.toLowerCase()));
+    if (requestedInsiderUuid && !insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
+      return NextResponse.json({ error: 'Invalid insider selection' }, { status: 400 });
+    }
+    const effectiveInsiderUuid = requestedInsiderUuid || selection.primaryInsider?.insiderUuid || null;
+    if (!effectiveInsiderUuid) {
+      return NextResponse.json({ error: 'No insider configured' }, { status: 400 });
+    }
+
     const targetProjectUuids: string[] = Array.isArray(projectUuids)
       ? projectUuids.filter((item) => typeof item === 'string' && item.trim().length > 0)
       : (projectUuid ? [projectUuid] : []);
@@ -163,7 +179,7 @@ export async function POST(req: NextRequest) {
 
       const result = await prisma.$queryRaw`
         INSERT INTO jobs (project_uuid, job_name, floors, weight, is_ff, brand_uuid, insider_uuid)
-        VALUES (${projectUuidItem}::uuid, ${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${brandUuid}::uuid, ${insider.insiderUuid}::uuid)
+        VALUES (${projectUuidItem}::uuid, ${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${brandUuid}::uuid, ${effectiveInsiderUuid}::uuid)
         RETURNING id, job_uuid
       ` as any[];
 
@@ -192,9 +208,21 @@ export async function POST(req: NextRequest) {
 // PUT - Update job
 export async function PUT(req: NextRequest) {
   try {
-    const insider = await getRequiredInsider();
+    const selection = await resolveInsiderSelection(req);
     const body = await req.json();
-    const { id, projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid } = body;
+    const { id, projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid, insider_uuid, insiderUuid } = body;
+
+    const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
+    const insiderOptions = await getInsiderOptions();
+    const insiderOptionSet = new Set(insiderOptions.map((option) => option.insiderUuid.toLowerCase()));
+    if (requestedInsiderUuid && !insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
+      return NextResponse.json({ error: 'Invalid insider selection' }, { status: 400 });
+    }
+    const effectiveInsiderUuid = requestedInsiderUuid || selection.primaryInsider?.insiderUuid || null;
+    if (!effectiveInsiderUuid) {
+      return NextResponse.json({ error: 'No insider configured' }, { status: 400 });
+    }
+
     const targetProjectUuids: string[] = Array.isArray(projectUuids)
       ? projectUuids.filter((item) => typeof item === 'string' && item.trim().length > 0)
       : (projectUuid ? [projectUuid] : []);
@@ -224,7 +252,7 @@ export async function PUT(req: NextRequest) {
         weight = ${weight ?? null},
         is_ff = ${isFf},
         brand_uuid = ${brandUuid}::uuid,
-        insider_uuid = ${insider.insiderUuid}::uuid,
+        insider_uuid = ${effectiveInsiderUuid}::uuid,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
@@ -244,7 +272,7 @@ export async function PUT(req: NextRequest) {
 
       await prisma.$queryRaw`
         INSERT INTO jobs (project_uuid, job_name, floors, weight, is_ff, brand_uuid, insider_uuid)
-        VALUES (${projectUuidItem}::uuid, ${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${brandUuid}::uuid, ${insider.insiderUuid}::uuid)
+        VALUES (${projectUuidItem}::uuid, ${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${brandUuid}::uuid, ${effectiveInsiderUuid}::uuid)
       `;
     }
 

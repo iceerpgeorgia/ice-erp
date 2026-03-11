@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
+import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 
 const SOURCE_TABLES = [
   "GE78BG0000000893486000_BOG_GEL",
@@ -27,14 +28,20 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const projectUuid = searchParams.get('uuid');
+    const selection = await resolveInsiderSelection(req);
+    const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
 
     if (projectUuid) {
       const project = await prisma.$queryRawUnsafe(
         `SELECT 
           p.*,
+          COALESCE(ca.insider, false) as is_insider,
+          COALESCE(ca.insider_name, insider_ca.counteragent, insider_ca.name) as insider_name,
           COALESCE(pp.total_payment, 0) as total_payments,
           (p.value - COALESCE(pp.total_payment, 0)) as balance
         FROM projects p
+        LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
+        LEFT JOIN counteragents insider_ca ON ca.insider_uuid = insider_ca.counteragent_uuid
         LEFT JOIN (
           SELECT
             p.project_uuid,
@@ -79,12 +86,15 @@ export async function GET(req: NextRequest) {
           GROUP BY p.project_uuid, p.counteragent_uuid
         ) pp ON p.project_uuid = pp.project_uuid AND p.counteragent_uuid = pp.counteragent_uuid
         WHERE p.project_uuid = $1::uuid
+          AND p.insider_uuid IN (${insiderUuidListSql})
         `,
         projectUuid
       );
       const serialized = (project as any[]).map((p: any) => ({
         ...p,
         id: Number(p.id),
+        is_insider: p.is_insider ?? false,
+        insider_name: p.insider_name ?? null,
       }));
       return NextResponse.json(serialized, {
         headers: {
@@ -99,6 +109,8 @@ export async function GET(req: NextRequest) {
     const projects = await prisma.$queryRawUnsafe(`
       SELECT 
         p.*,
+        MAX(COALESCE(ca.insider, false)::int)::boolean as is_insider,
+        MAX(COALESCE(ca.insider_name, insider_ca.counteragent, insider_ca.name)) as insider_name,
         ARRAY_AGG(
           JSON_BUILD_OBJECT(
             'employeeUuid', pe.employee_uuid,
@@ -108,6 +120,8 @@ export async function GET(req: NextRequest) {
         ,COALESCE(MAX(pp.total_payment), 0) as total_payments
         ,(p.value - COALESCE(MAX(pp.total_payment), 0)) as balance
       FROM projects p
+      LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
+      LEFT JOIN counteragents insider_ca ON ca.insider_uuid = insider_ca.counteragent_uuid
       LEFT JOIN project_employees pe ON p.project_uuid = pe.project_uuid
       LEFT JOIN counteragents c ON pe.employee_uuid = c.counteragent_uuid
       LEFT JOIN (
@@ -153,6 +167,7 @@ export async function GET(req: NextRequest) {
         WHERE p.is_active = true
         GROUP BY p.project_uuid, p.counteragent_uuid
       ) pp ON p.project_uuid = pp.project_uuid AND p.counteragent_uuid = pp.counteragent_uuid
+      WHERE p.insider_uuid IN (${insiderUuidListSql})
       GROUP BY p.id
       ORDER BY p.created_at DESC
     `);
@@ -161,6 +176,8 @@ export async function GET(req: NextRequest) {
     const serialized = (projects as any[]).map((project: any) => ({
       ...project,
       id: Number(project.id),
+      is_insider: project.is_insider ?? false,
+      insider_name: project.insider_name ?? null,
     }));
 
     return NextResponse.json(serialized, {
@@ -194,8 +211,29 @@ export async function POST(req: NextRequest) {
       financialCodeUuid,
       currencyUuid,
       stateUuid,
+      insiderUuid,
       employees // Array of employee UUIDs
     } = body;
+    const selection = await resolveInsiderSelection(req);
+    const insiderOptions = await getInsiderOptions();
+    const insiderOptionSet = new Set(insiderOptions.map((option) => option.insiderUuid.toLowerCase()));
+
+    const requestedInsiderUuid = insiderUuid ? String(insiderUuid).trim() : null;
+    if (requestedInsiderUuid && !insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
+      return NextResponse.json(
+        { error: 'Selected insider is invalid' },
+        { status: 400 }
+      );
+    }
+
+    const effectiveInsiderUuid = requestedInsiderUuid || selection.primaryInsider?.insiderUuid || null;
+
+    if (!effectiveInsiderUuid) {
+      return NextResponse.json(
+        { error: 'Insider is required' },
+        { status: 400 }
+      );
+    }
 
     // Validation
     if (!projectName || !/^[a-zA-Z0-9\s]+$/.test(projectName)) {
@@ -238,7 +276,8 @@ export async function POST(req: NextRequest) {
         counteragent_uuid,
         financial_code_uuid,
         currency_uuid,
-        state_uuid
+        state_uuid,
+        insider_uuid
       ) VALUES (
         ${projectName},
         ${new Date(date)}::date,
@@ -249,7 +288,8 @@ export async function POST(req: NextRequest) {
         ${counteragentUuid}::uuid,
         ${financialCodeUuid}::uuid,
         ${currencyUuid}::uuid,
-        ${stateUuid}::uuid
+        ${stateUuid}::uuid,
+        ${effectiveInsiderUuid}::uuid
       )
       RETURNING *
     `;
@@ -313,8 +353,22 @@ export async function PATCH(req: NextRequest) {
       financial_code_uuid,
       currency_uuid,
       state_uuid,
+      insider_uuid,
       employees
     } = body;
+    const selection = await resolveInsiderSelection(req);
+    const insiderOptions = await getInsiderOptions();
+    const insiderOptionSet = new Set(insiderOptions.map((option) => option.insiderUuid.toLowerCase()));
+
+    const requestedInsiderUuid = insider_uuid ? String(insider_uuid).trim() : null;
+    if (requestedInsiderUuid && !insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
+      return NextResponse.json(
+        { error: 'Selected insider is invalid' },
+        { status: 400 }
+      );
+    }
+
+    const effectiveInsiderUuid = requestedInsiderUuid || selection.primaryInsider?.insiderUuid || null;
 
     // Validation
     if (project_name && !/^[a-zA-Z0-9\s]+$/.test(project_name)) {
@@ -352,6 +406,7 @@ export async function PATCH(req: NextRequest) {
         financial_code_uuid = COALESCE(${financial_code_uuid}::uuid, financial_code_uuid),
         currency_uuid = COALESCE(${currency_uuid}::uuid, currency_uuid),
         state_uuid = COALESCE(${state_uuid}::uuid, state_uuid),
+        insider_uuid = COALESCE(${effectiveInsiderUuid}::uuid, insider_uuid),
         updated_at = NOW()
       WHERE id = ${parseInt(id)}
       RETURNING *

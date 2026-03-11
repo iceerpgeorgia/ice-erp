@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { MultiCombobox } from '@/components/ui/multi-combobox';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
@@ -206,8 +207,24 @@ export function JobsTable() {
     floors: '' as string | number,
     weight: '' as string | number,
     isFf: false,
-    brandUuid: ''
+    brandUuid: '',
+    insiderUuid: '',
   });
+  const [insidersList, setInsidersList] = useState<Array<{ insiderUuid: string; insiderName: string }>>([]);
+  const [selectedInsiderUuids, setSelectedInsiderUuids] = useState<string[]>([]);
+
+  const isInsiderFixed = selectedInsiderUuids.length === 1;
+
+  const fixedInsider = useMemo(() => {
+    if (!isInsiderFixed) return null;
+    const fixedUuid = selectedInsiderUuids[0];
+    return insidersList.find((insider) => insider.insiderUuid === fixedUuid) ?? null;
+  }, [isInsiderFixed, insidersList, selectedInsiderUuids]);
+
+  const insiderOptions = useMemo(
+    () => insidersList.map((i) => ({ value: i.insiderUuid, label: i.insiderName, keywords: i.insiderName })),
+    [insidersList]
+  );
 
   // Save columns to localStorage
   useEffect(() => {
@@ -250,7 +267,17 @@ export function JobsTable() {
     fetchJobs();
     fetchProjects();
     fetchBrands();
+    fetchInsiderSelection();
   }, []);
+
+  useEffect(() => {
+    if (!isInsiderFixed || !fixedInsider?.insiderUuid) return;
+    setFormData((prev) =>
+      prev.insiderUuid === fixedInsider.insiderUuid
+        ? prev
+        : { ...prev, insiderUuid: fixedInsider.insiderUuid }
+    );
+  }, [isInsiderFixed, fixedInsider?.insiderUuid]);
 
   const fetchJobs = async () => {
     try {
@@ -311,6 +338,37 @@ export function JobsTable() {
       }
     } catch (error) {
       console.error('Failed to fetch brands:', error);
+    }
+  };
+
+  const fetchInsiderSelection = async () => {
+    try {
+      const res = await fetch('/api/insider-selection', { cache: 'no-store' });
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const selectedUuids = Array.isArray(data?.selectedUuids) ? data.selectedUuids : [];
+      const selectedInsiders = Array.isArray(data?.selectedInsiders) ? data.selectedInsiders : [];
+      const options = Array.isArray(data?.options) ? data.options : [];
+
+      const availableInsidersRaw = selectedInsiders.length > 0 ? selectedInsiders : options;
+      const availableInsiders = availableInsidersRaw.map((option: any) => ({
+        insiderUuid: option.insiderUuid,
+        insiderName: option.insiderName,
+      }));
+
+      setSelectedInsiderUuids(selectedUuids);
+      setInsidersList(availableInsiders);
+
+      if (selectedUuids.length === 1) {
+        setFormData((prev) => ({ ...prev, insiderUuid: selectedUuids[0] }));
+      } else if (selectedUuids.length > 1) {
+        setFormData((prev) => ({ ...prev, insiderUuid: prev.insiderUuid || selectedUuids[0] }));
+      } else if (availableInsiders.length > 0) {
+        setFormData((prev) => ({ ...prev, insiderUuid: prev.insiderUuid || availableInsiders[0].insiderUuid }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch insider selection for jobs:', error);
     }
   };
 
@@ -391,7 +449,8 @@ export function JobsTable() {
       floors: job.floors ?? '',
       weight: job.weight ?? '',
       isFf: job.isFf,
-      brandUuid: job.brandUuid || ''
+      brandUuid: job.brandUuid || '',
+      insiderUuid: isInsiderFixed ? (fixedInsider?.insiderUuid || '') : '',
     });
     setIsEditDialogOpen(true);
   };
@@ -404,7 +463,8 @@ export function JobsTable() {
       floors: '',
       weight: '',
       isFf: false,
-      brandUuid: ''
+      brandUuid: '',
+      insiderUuid: fixedInsider?.insiderUuid || insidersList[0]?.insiderUuid || '',
     });
   };
 
@@ -589,6 +649,9 @@ export function JobsTable() {
               setFormData={setFormData}
               projects={projects}
               brands={brands}
+              insiderOptions={insiderOptions}
+              isInsiderFixed={isInsiderFixed}
+              fixedInsiderName={fixedInsider?.insiderName || null}
               onSubmit={handleAdd}
               onCancel={() => setIsAddDialogOpen(false)}
             />
@@ -849,6 +912,9 @@ export function JobsTable() {
             setFormData={setFormData}
             projects={projects}
             brands={brands}
+            insiderOptions={insiderOptions}
+            isInsiderFixed={isInsiderFixed}
+            fixedInsiderName={fixedInsider?.insiderName || null}
             onSubmit={handleEdit}
             onCancel={() => { setIsEditDialogOpen(false); setEditingJob(null); }}
           />
@@ -864,6 +930,9 @@ function JobForm({
   setFormData,
   projects,
   brands,
+  insiderOptions,
+  isInsiderFixed,
+  fixedInsiderName,
   onSubmit,
   onCancel
 }: {
@@ -871,6 +940,9 @@ function JobForm({
   setFormData: (data: any) => void;
   projects: Array<{ projectUuid: string; projectIndex: string; projectName: string }>;
   brands: Array<{ id: number; name: string }>;
+  insiderOptions: Array<{ value: string; label: string; keywords?: string }>;
+  isInsiderFixed: boolean;
+  fixedInsiderName: string | null;
   onSubmit: () => void;
   onCancel: () => void;
 }) {
@@ -882,6 +954,24 @@ function JobForm({
         onSubmit();
       }}
     >
+      {/* Insider Selection */}
+      <div>
+        <Label htmlFor="insider">Insider *</Label>
+        <Combobox
+          options={insiderOptions}
+          value={formData.insiderUuid}
+          onValueChange={(value: string) => setFormData({ ...formData, insiderUuid: value })}
+          disabled={isInsiderFixed}
+          placeholder="Select insider"
+          searchPlaceholder="Search insiders..."
+          emptyText="No insider found."
+          triggerClassName={isInsiderFixed ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''}
+        />
+        {isInsiderFixed && fixedInsiderName && (
+          <p className="text-xs text-muted-foreground mt-1">Fixed by homepage selection: {fixedInsiderName}</p>
+        )}
+      </div>
+
       {/* Project Selection */}
       <div>
         <Label htmlFor="project">Project *</Label>
@@ -892,7 +982,7 @@ function JobForm({
             keywords: `${p.projectIndex} ${p.projectName}`
           }))}
           value={formData.projectUuids || []}
-          onValueChange={(values) => setFormData({ ...formData, projectUuids: values, projectUuid: values[0] || '' })}
+          onValueChange={(values: string[]) => setFormData({ ...formData, projectUuids: values, projectUuid: values[0] || '' })}
           placeholder="Select one or more projects..."
           searchPlaceholder="Search projects..."
           emptyText="No project found."
