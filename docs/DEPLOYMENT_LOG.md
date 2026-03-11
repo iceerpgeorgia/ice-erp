@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-12 (38)
+- Summary: Hardened `BOG_CREDENTIALS_MAP` environment parsing for deployment-platform formatting differences.
+- Changes:
+  - Updated `lib/integrations/bog/client.ts` to normalize quoted JSON env values before parsing.
+  - Added fallback parsing for escaped-quote JSON strings used by some environment dashboards.
+  - Preserved existing uppercase/camelCase credential key support and insider-scoped credential selection behavior.
+- Commit: 291eb34
+- URL: https://ice-621s6eeqv-iceerp.vercel.app
+
 ## 2026-03-11 (37)
 - Summary: Enforced strict BOG statement key integrity so imports accept only real `DocKey` and `EntriesId` values.
 - Changes:
