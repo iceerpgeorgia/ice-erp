@@ -280,6 +280,7 @@ model counteragents {
   was_emploee                 Boolean        @default(false)
   insider                     Boolean        @default(false)
   insider_uuid                String?        @db.Uuid
+  insider_name                String?
   transactions                transactions[]
 
   @@index([insider_uuid])

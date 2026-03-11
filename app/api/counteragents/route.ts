@@ -84,6 +84,30 @@ async function enrichWithInsiderName<T extends { insider_uuid?: string | null }>
   }));
 }
 
+async function resolveStoredInsiderName(params: {
+  insider?: boolean | null;
+  insider_uuid?: string | null;
+  fallbackName?: string | null;
+}): Promise<string | null> {
+  const insiderFlag = Boolean(params.insider);
+  const insiderUuid = params.insider_uuid ?? null;
+
+  if (insiderFlag) {
+    const own = (params.fallbackName ?? '').trim();
+    return own || null;
+  }
+
+  if (!insiderUuid) return null;
+
+  const linked = await prisma.counteragents.findFirst({
+    where: { counteragent_uuid: insiderUuid },
+    select: { counteragent: true, name: true },
+  });
+
+  const label = (linked?.counteragent ?? linked?.name ?? '').trim();
+  return label || null;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -131,6 +155,7 @@ export async function GET(req: NextRequest) {
         was_emploee: true,
         insider: true,
         insider_uuid: true,
+        insider_name: true,
       },
     });
     const rowsWithInsiderName = await enrichWithInsiderName(rows);
@@ -161,6 +186,11 @@ export async function POST(req: NextRequest) {
 
     // Generate UUID for counteragent_uuid using crypto
     const counteragent_uuid = crypto.randomUUID();
+    const insiderName = await resolveStoredInsiderName({
+      insider: body.insider,
+      insider_uuid: body.insider_uuid,
+      fallbackName: body.name,
+    });
 
     const created = await prisma.counteragents.create({
       data: {
@@ -192,6 +222,7 @@ export async function POST(req: NextRequest) {
         was_emploee: body.was_emploee ?? null,
         insider: body.insider ?? false,
         insider_uuid: body.insider_uuid ?? null,
+        insider_name: insiderName,
         updated_at: new Date(),
       },
       select: {
@@ -239,6 +270,7 @@ export async function POST(req: NextRequest) {
         internal_number: true,
         insider: true,
         insider_uuid: true,
+        insider_name: true,
         is_emploee: true,
         was_emploee: true,
       },
@@ -329,6 +361,7 @@ export async function PATCH(req: NextRequest) {
         was_emploee: true,
         insider: true,
         insider_uuid: true,
+        insider_name: true,
       },
     });
 
@@ -338,6 +371,12 @@ export async function PATCH(req: NextRequest) {
 
     // Build changes object for audit
     const changes: Record<string, { from: any; to: any }> = {};
+
+    const insiderName = await resolveStoredInsiderName({
+      insider: body.insider !== undefined ? body.insider : existing.insider,
+      insider_uuid: body.insider_uuid !== undefined ? body.insider_uuid : existing.insider_uuid,
+      fallbackName: body.name !== undefined ? body.name : existing.name,
+    });
     
     // Track changes only for fields we actually update
     // Note: entity_type, country, counteragent are auto-populated by triggers from UUIDs
@@ -365,7 +404,12 @@ export async function PATCH(req: NextRequest) {
       was_emploee: 'was_emploee',
       insider: 'insider',
       insider_uuid: 'insider_uuid',
+      insider_name: 'insider_name',
     };
+
+    if ((existing as any).insider_name !== insiderName) {
+      changes.insider_name = { from: (existing as any).insider_name ?? null, to: insiderName };
+    }
 
     Object.entries(fieldMap).forEach(([dbField, bodyField]) => {
       if (bodyField in body) {
@@ -427,6 +471,7 @@ export async function PATCH(req: NextRequest) {
           was_emploee: body.was_emploee !== undefined ? body.was_emploee : undefined,
           insider: body.insider !== undefined ? body.insider : undefined,
           insider_uuid: body.insider_uuid !== undefined ? body.insider_uuid : undefined,
+          insider_name: insiderName,
         },
         select: {
           id: true,
@@ -460,6 +505,7 @@ export async function PATCH(req: NextRequest) {
           was_emploee: true,
           insider: true,
           insider_uuid: true,
+          insider_name: true,
         },
       });
 
