@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-11 (37)
+- Summary: Enforced strict BOG statement key integrity so imports accept only real `DocKey` and `EntriesId` values.
+- Changes:
+  - Updated `lib/integrations/bog/statement-mapper.ts` to remove synthetic key fallbacks (`API_DOC_*` and index-based `EntriesId`) and require explicit source keys.
+  - Mapper now throws validation errors when either `DocKey` or `EntriesId` is missing in any transaction row.
+  - Updated `/api/integrations/bog/statements` to return `422` for missing-key validation failures instead of silently generating synthetic IDs.
+- Commit: 33a90d6
+- URL: https://ice-mbilxpfco-iceerp.vercel.app
+
 ## 2026-03-11 (36)
 - Summary: Deployed BOG integration credential-map support for insider-specific authentication using JSON env mapping.
 - Changes:
