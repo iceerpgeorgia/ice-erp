@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-11 (34)
+- Summary: Added Insider name columns across required table UIs, introduced shared required-insider name hook, and stabilized build lint warnings for deployment.
+- Changes:
+  - Added shared hook `components/figma/shared/use-required-insider.ts` and wired insider-name display into required table UIs (bank accounts, jobs, projects, payments, payments ledger, salary accruals, waybills, conversions).
+  - Updated counteragents table insider labeling (`Is Insider` + `Insider`) and refreshed related table column configs/keys where needed.
+  - Updated deployment policy in `AGENTS.md` to require strict order: local production build, then commit/push, then deploy.
+  - Applied targeted lint-warning suppressions in hook-heavy table components and image fallback components to keep production build clean.
+- Commit: 0460c10
+- URL: https://ice-lalj72rj5-iceerp.vercel.app
+
 ## 2026-03-11 (33)
 - Summary: Persisted `insider_name` physically in `counteragents` and wired API writes to keep it in sync.
 - Changes:
