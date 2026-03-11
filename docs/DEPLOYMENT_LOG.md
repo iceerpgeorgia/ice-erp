@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-11 (36)
+- Summary: Deployed BOG integration credential-map support for insider-specific authentication using JSON env mapping.
+- Changes:
+  - Updated BOG client to parse `BOG_CREDENTIALS_MAP` and support both uppercase (`INSIDER_UUID`, `BOG_CLIENT_ID`, `BOG_CLIENT_SECRET`) and camelCase key variants.
+  - Added insider-scoped token caching and insider-aware token/request execution (`insiderUuid`) with legacy single-credential fallback preserved.
+  - Updated BOG statement/test API routes to accept/use `insiderUuid` and derive insider context from `bank_accounts.insider_uuid` during import flow.
+  - Updated `.env.example` to document preferred multi-insider `BOG_CREDENTIALS_MAP` format.
+- Commit: a71da0e
+- URL: https://ice-59aohujkg-iceerp.vercel.app
+
 ## 2026-03-11 (35)
 - Summary: Deployed combined insider-selection rollout across forms/APIs and Bank of Georgia integration endpoints/libs, including latest parallel-session updates.
 - Changes:
