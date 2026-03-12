@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
+import { reparseByCounteragentInn } from "@/lib/bank-import/reparse";
 
 export const revalidate = 0;
 
@@ -293,8 +294,23 @@ export async function POST(req: NextRequest) {
       action: "create",
     });
 
+    let reparseSummary: { updated: number; byTable: Record<string, number> } | null = null;
+    if (normalizedIdentificationNumber) {
+      try {
+        reparseSummary = await reparseByCounteragentInn([normalizedIdentificationNumber]);
+      } catch (reparseError) {
+        console.error('[POST /counteragents] Auto-reparse by INN failed:', reparseError);
+      }
+    }
+
     const updatedWithInsiderName = await enrichWithInsiderName([updated]);
-    return NextResponse.json(toApi(updatedWithInsiderName[0]), { status: 201 });
+    return NextResponse.json(
+      {
+        ...toApi(updatedWithInsiderName[0]),
+        reparse: reparseSummary,
+      },
+      { status: 201 }
+    );
   } catch (err: any) {
     console.error("POST /counteragents/api failed:", err);
     
@@ -537,8 +553,32 @@ export async function PATCH(req: NextRequest) {
       console.log('[AUDIT DEBUG] No changes detected, skipping audit log');
     }
 
+    const reparseInns = Array.from(
+      new Set(
+        [
+          normalizeIdentificationNumber(existing.identification_number as string | null | undefined),
+          normalizeIdentificationNumber(body.identification_number as string | null | undefined),
+        ].filter((value): value is string => Boolean(value))
+      )
+    );
+
+    let reparseSummary: { updated: number; byTable: Record<string, number> } | null = null;
+    if (reparseInns.length > 0) {
+      try {
+        reparseSummary = await reparseByCounteragentInn(reparseInns);
+      } catch (reparseError) {
+        console.error('[PATCH /counteragents] Auto-reparse by INN failed:', reparseError);
+      }
+    }
+
     const updatedWithInsiderName = await enrichWithInsiderName([updated]);
-    return NextResponse.json(toApi(updatedWithInsiderName[0]), { status: 200 });
+    return NextResponse.json(
+      {
+        ...toApi(updatedWithInsiderName[0]),
+        reparse: reparseSummary,
+      },
+      { status: 200 }
+    );
   } catch (err: any) {
     console.error("PATCH /counteragents failed:", err);
     

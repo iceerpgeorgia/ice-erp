@@ -6,6 +6,7 @@ import {
   loadNBGRates,
   loadCurrencyCache,
 } from './db-utils';
+import { prisma } from '@/lib/prisma';
 import {
   calculateNominalAmount,
   computeCaseDescription,
@@ -13,10 +14,49 @@ import {
 } from './import_bank_xml_data_deconsolidated';
 import type { ProcessingStats } from './types';
 
-export const DECONSOLIDATED_TABLES = [
+const FALLBACK_DECONSOLIDATED_TABLES = [
   'GE78BG0000000893486000_BOG_GEL',
   'GE65TB7856036050100002_TBC_GEL',
 ] as const;
+
+type TableNameRow = { table_name: string };
+
+async function getDeconsolidatedTables(): Promise<string[]> {
+  try {
+    const rows = (await prisma.$queryRawUnsafe(`
+      SELECT t.table_name
+      FROM information_schema.tables t
+      WHERE t.table_schema = 'public'
+        AND (
+          t.table_name LIKE '%\\_BOG\\_%' ESCAPE '\\'
+          OR t.table_name LIKE '%\\_TBC\\_%' ESCAPE '\\'
+        )
+        AND EXISTS (
+          SELECT 1
+          FROM information_schema.columns c
+          WHERE c.table_schema = t.table_schema
+            AND c.table_name = t.table_name
+            AND c.column_name = 'counteragent_inn'
+        )
+        AND EXISTS (
+          SELECT 1
+          FROM information_schema.columns c
+          WHERE c.table_schema = t.table_schema
+            AND c.table_name = t.table_name
+            AND c.column_name = 'counteragent_processed'
+        )
+      ORDER BY t.table_name
+    `)) as TableNameRow[];
+
+    const discovered = rows
+      .map((row) => String(row.table_name || '').trim())
+      .filter((name) => name.length > 0);
+
+    return discovered.length > 0 ? discovered : [...FALLBACK_DECONSOLIDATED_TABLES];
+  } catch {
+    return [...FALLBACK_DECONSOLIDATED_TABLES];
+  }
+}
 
 const SELECT_COLUMNS =
   'id,uuid,dockey,docsenderinn,docbenefinn,doccoracct,docsenderacctno,docbenefacctno,docprodgroup,docnomination,docinformation,entrydbamt,entrycramt,account_currency_amount,account_currency_uuid,transaction_date,parsing_lock';
@@ -175,7 +215,8 @@ export async function reparseBySourceId(
   tableName: string,
   sourceId: number
 ): Promise<number> {
-  if (!DECONSOLIDATED_TABLES.includes(tableName as any)) {
+  const supportedTables = await getDeconsolidatedTables();
+  if (!supportedTables.includes(tableName)) {
     throw new Error('Unsupported source table');
   }
 
@@ -195,15 +236,56 @@ export async function reparseByPaymentId(paymentId: string): Promise<{ updated: 
   const supabase = getSupabaseClient();
   const context = await loadContext();
   const escaped = escapeLike(paymentId.trim());
+  const tables = await getDeconsolidatedTables();
 
   const byTable: Record<string, number> = {};
   let total = 0;
 
-  for (const tableName of DECONSOLIDATED_TABLES) {
+  for (const tableName of tables) {
     const { data: rows, error } = await supabase
       .from(tableName)
       .select(SELECT_COLUMNS)
       .ilike('payment_id', escaped);
+
+    if (error) throw error;
+
+    const updated = await reparseRows(tableName, rows || [], context);
+    byTable[tableName] = updated;
+    total += updated;
+  }
+
+  return { updated: total, byTable };
+}
+
+export async function reparseByCounteragentInn(
+  inns: string[]
+): Promise<{ updated: number; byTable: Record<string, number> }> {
+  const normalizedInns = Array.from(
+    new Set(
+      inns
+        .map((value) => String(value || '').replace(/\D/g, ''))
+        .filter((value) => value.length > 0)
+        .flatMap((value) => (value.length === 10 ? [value, `0${value}`] : [value]))
+    )
+  );
+
+  if (normalizedInns.length === 0) {
+    return { updated: 0, byTable: {} };
+  }
+
+  const supabase = getSupabaseClient();
+  const context = await loadContext();
+  const tables = await getDeconsolidatedTables();
+
+  const byTable: Record<string, number> = {};
+  let total = 0;
+
+  for (const tableName of tables) {
+    const { data: rows, error } = await supabase
+      .from(tableName)
+      .select(SELECT_COLUMNS)
+      .in('counteragent_inn', normalizedInns)
+      .eq('counteragent_processed', false);
 
     if (error) throw error;
 
