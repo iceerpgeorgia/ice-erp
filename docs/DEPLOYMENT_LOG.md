@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-12 (39)
+- Summary: Added stable automatic rebinding of deconsolidated rows when counteragents are created or updated.
+- Changes:
+  - Updated `app/api/counteragents/route.ts` to trigger automatic reparse-by-INN after `POST` and `PATCH` so matching deconsolidated rows bind to newly available counteragents.
+  - Added `reparseByCounteragentInn` in `lib/bank-import/reparse.ts` and wired INN normalization (`10-digit` and `0`-prefixed variants).
+  - Reparse table selection is now dynamic via `information_schema` discovery of BOG/TBC deconsolidated tables, with fallback defaults for safety.
+- Commit: 1562e2d
+- URL: https://ice-p58qvec2n-iceerp.vercel.app
+
 ## 2026-03-12 (38)
 - Summary: Hardened `BOG_CREDENTIALS_MAP` environment parsing for deployment-platform formatting differences.
 - Changes:
