@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-03-13 (48)
+- Summary: Restored Projects insider-name rendering and multi-insider header context.
+- Changes:
+  - Updated `app/api/projects/route.ts` to strengthen insider-name fallback (`insider_name` now falls back to effective insider UUID text when label rows are missing) and to expose fallback `insider_uuid` from effective insider context.
+  - Updated `components/figma/projects-table.tsx` header badge to display all currently selected insiders from `/api/insider-selection` (plural-aware), replacing the legacy single-insider required badge in Projects.
+- Commit: 8103334
+- URL: https://ice-kcjxym4hm-iceerp.vercel.app
+
 ## 2026-03-13 (47)
 - Summary: Fixed Projects insider visibility fallback and corrected date sorting behavior.
 - Changes:
