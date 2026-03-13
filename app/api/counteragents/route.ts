@@ -14,6 +14,10 @@ const normalizeIdentificationNumber = (value: string | null | undefined) => {
   return digits;
 };
 
+const normalizeInsiderFlag = (value: unknown): boolean => {
+  return value === true;
+};
+
 // Map Prisma (snake_case) to API JSON
 function toApi(row: any) {
   return {
@@ -196,8 +200,24 @@ export async function POST(req: NextRequest) {
 
     // Generate UUID for counteragent_uuid using crypto
     const counteragent_uuid = crypto.randomUUID();
+    const normalizedInsider = normalizeInsiderFlag(body.insider);
+
+    if (normalizedInsider) {
+      const existingInsider = await prisma.counteragents.findFirst({
+        where: { insider: true },
+        select: { id: true, name: true },
+      });
+
+      if (existingInsider) {
+        return NextResponse.json(
+          { error: `Only one insider counteragent is allowed. Existing insider: ${existingInsider.name || existingInsider.id}` },
+          { status: 409 }
+        );
+      }
+    }
+
     const insiderName = await resolveStoredInsiderName({
-      insider: body.insider,
+      insider: normalizedInsider,
       insider_uuid: body.insider_uuid,
       insider_name: body.insider_name,
       fallbackName: body.name,
@@ -231,7 +251,7 @@ export async function POST(req: NextRequest) {
         is_active: body.is_active ?? true,
         is_emploee: body.is_emploee ?? null,
         was_emploee: body.was_emploee ?? null,
-        insider: body.insider ?? false,
+        insider: normalizedInsider,
         insider_uuid: body.insider_uuid ?? null,
         insider_name: insiderName,
         updated_at: new Date(),
@@ -398,8 +418,29 @@ export async function PATCH(req: NextRequest) {
     // Build changes object for audit
     const changes: Record<string, { from: any; to: any }> = {};
 
+    const normalizedInsider = body.insider !== undefined
+      ? normalizeInsiderFlag(body.insider)
+      : existing.insider;
+
+    if (body.insider !== undefined && normalizedInsider) {
+      const existingInsider = await prisma.counteragents.findFirst({
+        where: {
+          insider: true,
+          id: { not: BigInt(id) },
+        },
+        select: { id: true, name: true },
+      });
+
+      if (existingInsider) {
+        return NextResponse.json(
+          { error: `Only one insider counteragent is allowed. Existing insider: ${existingInsider.name || existingInsider.id}` },
+          { status: 409 }
+        );
+      }
+    }
+
     const insiderName = await resolveStoredInsiderName({
-      insider: body.insider !== undefined ? body.insider : existing.insider,
+      insider: normalizedInsider,
       insider_uuid: body.insider_uuid !== undefined ? body.insider_uuid : existing.insider_uuid,
       insider_name: body.insider_name !== undefined ? body.insider_name : existing.insider_name,
       fallbackName: body.name !== undefined ? body.name : existing.name,
@@ -496,7 +537,7 @@ export async function PATCH(req: NextRequest) {
           is_active: body.is_active !== undefined ? body.is_active : undefined,
           is_emploee: body.is_emploee !== undefined ? body.is_emploee : undefined,
           was_emploee: body.was_emploee !== undefined ? body.was_emploee : undefined,
-          insider: body.insider !== undefined ? body.insider : undefined,
+          insider: body.insider !== undefined ? normalizedInsider : undefined,
           insider_uuid: body.insider_uuid !== undefined ? body.insider_uuid : undefined,
           insider_name: insiderName,
         },

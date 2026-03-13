@@ -69,21 +69,36 @@ export async function logAudit(params: {
         insertErr?.meta?.code === '42804' &&
         String(insertErr?.meta?.message || '').includes('record_id');
 
-      if (!isBigintTypeMismatch || numericRecordId === null) {
+      if (!isBigintTypeMismatch) {
         throw insertErr;
       }
 
-      result = await prisma.$queryRawUnsafe<Array<{ id: bigint }>>(
-        `INSERT INTO "AuditLog" ("table", "record_id", "action", "user_email", "user_id", "changes")
-         VALUES ($1, $2::bigint, $3, $4, $5, $6::jsonb)
-         RETURNING id`,
-        params.table,
-        numericRecordId.toString(),
-        params.action,
-        email,
-        userId,
-        safeChanges ? JSON.stringify(safeChanges) : null
-      );
+      if (numericRecordId === null) {
+        // Mixed-schema deployments may keep AuditLog.record_id as bigint while some
+        // audit events naturally use composite/text IDs (for example bulk updates).
+        result = await prisma.$queryRawUnsafe<Array<{ id: bigint }>>(
+          `INSERT INTO "AuditLog" ("table", "record_id", "action", "user_email", "user_id", "changes")
+           VALUES ($1, NULL, $2, $3, $4, $5::jsonb)
+           RETURNING id`,
+          params.table,
+          params.action,
+          email,
+          userId,
+          safeChanges ? JSON.stringify(safeChanges) : null
+        );
+      } else {
+        result = await prisma.$queryRawUnsafe<Array<{ id: bigint }>>(
+          `INSERT INTO "AuditLog" ("table", "record_id", "action", "user_email", "user_id", "changes")
+           VALUES ($1, $2::bigint, $3, $4, $5, $6::jsonb)
+           RETURNING id`,
+          params.table,
+          numericRecordId.toString(),
+          params.action,
+          email,
+          userId,
+          safeChanges ? JSON.stringify(safeChanges) : null
+        );
+      }
     }
 
     console.log('[AUDIT] Audit log created successfully with id:', result[0]?.id);
