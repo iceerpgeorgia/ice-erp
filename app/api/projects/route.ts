@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
         `SELECT 
           p.*,
           COALESCE(insider_ca.insider, false) as is_insider,
-          COALESCE(insider_ca.insider_name, insider_ca.counteragent, insider_ca.name) as insider_name,
+          COALESCE(insider_ca.insider_name, insider_ca.counteragent, insider_ca.name, COALESCE(p.insider_uuid, ca.insider_uuid)::text) as insider_name,
           COALESCE(p.insider_uuid, ca.insider_uuid) as effective_insider_uuid,
           COALESCE(pp.total_payment, 0) as total_payments,
           (p.value - COALESCE(pp.total_payment, 0)) as balance
@@ -94,6 +94,7 @@ export async function GET(req: NextRequest) {
       const serialized = (project as any[]).map((p: any) => ({
         ...p,
         id: Number(p.id),
+        insider_uuid: p.insider_uuid ?? p.effective_insider_uuid ?? null,
         is_insider: p.is_insider ?? false,
         insider_name: p.insider_name ?? null,
       }));
@@ -111,7 +112,7 @@ export async function GET(req: NextRequest) {
       SELECT 
         p.*,
         MAX(COALESCE(insider_ca.insider, false)::int)::boolean as is_insider,
-        MAX(COALESCE(insider_ca.insider_name, insider_ca.counteragent, insider_ca.name)) as insider_name,
+        MAX(COALESCE(insider_ca.insider_name, insider_ca.counteragent, insider_ca.name, COALESCE(p.insider_uuid, ca.insider_uuid)::text)) as insider_name,
         MAX(COALESCE(p.insider_uuid, ca.insider_uuid)::text) as effective_insider_uuid,
         ARRAY_AGG(
           JSON_BUILD_OBJECT(
@@ -178,6 +179,7 @@ export async function GET(req: NextRequest) {
     const serialized = (projects as any[]).map((project: any) => ({
       ...project,
       id: Number(project.id),
+      insider_uuid: project.insider_uuid ?? project.effective_insider_uuid ?? null,
       is_insider: project.is_insider ?? false,
       insider_name: project.insider_name ?? null,
     }));

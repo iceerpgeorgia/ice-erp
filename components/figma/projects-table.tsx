@@ -39,7 +39,6 @@ import { ClearFiltersButton } from './shared/clear-filters-button';
 import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
 import { matchesFilter } from './shared/table-filters';
-import { RequiredInsiderBadge } from './shared/required-insider-badge';
 import { 
   Table, 
   TableBody, 
@@ -253,6 +252,15 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
     () => insidersList.map((i) => ({ value: i.insiderUuid, label: i.insiderName, keywords: i.insiderName })),
     [insidersList]
   );
+
+  const selectedInsiderNames = useMemo(() => {
+    if (insidersList.length === 0) return [] as string[];
+    const selected = new Set(selectedInsiderUuids.map((uuid) => uuid.toLowerCase()));
+    const source = selected.size > 0
+      ? insidersList.filter((item) => selected.has(item.insiderUuid.toLowerCase()))
+      : insidersList;
+    return source.map((item) => item.insiderName).filter(Boolean);
+  }, [insidersList, selectedInsiderUuids]);
 
   const getFacetBaseData = (excludeColumn?: ColumnKey) => {
     let result = [...projects];
@@ -1089,7 +1097,11 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-medium text-foreground">Projects</h1>
-          <RequiredInsiderBadge className="mt-2" />
+          {selectedInsiderNames.length > 0 && (
+            <Badge variant="outline" className="mt-2">
+              {selectedInsiderNames.length === 1 ? 'Insider' : 'Insiders'}: {selectedInsiderNames.join(', ')}
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button
