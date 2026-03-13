@@ -16,6 +16,7 @@ import {
   EyeOff,
   Info,
   Download,
+  ArrowUpRight,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -1139,10 +1140,10 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   // Visible columns only
   const visibleColumns = columns.filter(col => col.visible);
   
-  // Calculate total table width based on column widths + Actions column (96px)
+  // Calculate total table width based on column widths + Actions column (128px)
   const tableWidth = useMemo(() => {
     const columnsWidth = visibleColumns.reduce((sum, col) => sum + col.width, 0);
-    return columnsWidth + 96; // 96px for Actions column (w-24)
+    return columnsWidth + 128; // 128px for Actions column (w-32)
   }, [visibleColumns]);
 
   return (
@@ -1905,7 +1906,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                     </div>
                   </TableHead>
                 ))}
-                <TableHead className="w-24 bg-white">Actions</TableHead>
+                <TableHead className="w-32 bg-white">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1980,8 +1981,21 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                       </div>
                     </TableCell>
                   ))}
-                  <TableCell className="w-24">
+                  <TableCell className="w-32">
                     <div className="flex items-center space-x-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          if (!project.counteragentUuid) return;
+                          window.open(`/counteragent-statement/${project.counteragentUuid}`, '_blank', 'noopener,noreferrer');
+                        }}
+                        className="h-7 w-7 p-0"
+                        title={project.counteragentUuid ? 'Open counteragent statement' : 'Counteragent statement unavailable'}
+                        disabled={!project.counteragentUuid}
+                      >
+                        <ArrowUpRight className="h-3 w-3" />
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"
