@@ -408,6 +408,16 @@ export default function PaymentStatementPage() {
     ...statementData.bankTransactions.map((tx: any) => {
       const nominalAmount = Number(tx.nominalAmount ?? 0);
       const accountAmount = Number(tx.accountCurrencyAmount ?? 0);
+      const amountMagnitude = Math.abs(
+        Number.isFinite(nominalAmount) && nominalAmount !== 0
+          ? nominalAmount
+          : accountAmount
+      );
+      const signedPayment = accountAmount < 0
+        ? -amountMagnitude
+        : accountAmount > 0
+          ? amountMagnitude
+          : (Number.isFinite(nominalAmount) ? nominalAmount : 0);
       return {
       id: `bank-${tx.id}`,
       bankUuid: tx.uuid,
@@ -416,10 +426,11 @@ export default function PaymentStatementPage() {
       date: formatDate(tx.date),
       dateSort: new Date(tx.date).getTime(),
       accrual: 0,
-      payment: Number.isFinite(nominalAmount) ? -nominalAmount : 0,
+      // Keep bank transaction sign in Payment column (outgoing: negative, incoming: positive).
+      payment: signedPayment,
       order: 0,
         confirmed: null,
-      ppc: Number.isFinite(accountAmount) ? -accountAmount : 0,
+      ppc: Number.isFinite(accountAmount) ? accountAmount : 0,
       paidPercent: 0,
       due: 0,
       balance: 0,
@@ -437,24 +448,25 @@ export default function PaymentStatementPage() {
   // Calculate cumulative values for each row (from oldest to newest)
   if (mergedTransactions.length > 0) {
     let cumulativeAccrual = 0;
-    let cumulativePayment = 0;
+    let cumulativePaymentSigned = 0;
     let cumulativeOrder = 0;
 
     mergedTransactions.forEach(row => {
       cumulativeAccrual += row.accrual;
-      cumulativePayment += row.payment; // Already absolute value
+      cumulativePaymentSigned += row.payment;
       cumulativeOrder += row.order;
 
-      // Calculate Paid % = (cumulative payment / cumulative accrual) * 100
+      const cumulativePaid = -cumulativePaymentSigned;
+
+      // Paid percent uses paid magnitude, while row.payment remains bank-signed for display.
       row.paidPercent = cumulativeAccrual !== 0 
-        ? parseFloat(((cumulativePayment / cumulativeAccrual) * 100).toFixed(2))
+        ? parseFloat(((cumulativePaid / cumulativeAccrual) * 100).toFixed(2))
         : 0;
 
-      // Calculate Due = cumulative order - cumulative payment
-      row.due = parseFloat((cumulativeOrder - cumulativePayment).toFixed(2));
+      // With signed payment rows, due/balance should move by adding signed payment total.
+      row.due = parseFloat((cumulativeOrder + cumulativePaymentSigned).toFixed(2));
 
-      // Calculate Balance = cumulative accrual - cumulative payment
-      row.balance = parseFloat((cumulativeAccrual - cumulativePayment).toFixed(2));
+      row.balance = parseFloat((cumulativeAccrual + cumulativePaymentSigned).toFixed(2));
     });
 
     // Now reverse to show newest first in the table
