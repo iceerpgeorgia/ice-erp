@@ -16,7 +16,7 @@ const mapProjectData = (row: any): Project => {
     updatedAt: row.updated_at || row.updatedAt || '',
     projectUuid: row.project_uuid || row.projectUuid || '',
     projectName: row.project_name || row.projectName || '',
-    date: row.date || '', // Already formatted as dd.mm.yyyy by API
+    date: row.date || '',
     value: row.value || 0,
     totalPayments: row.total_payments ?? row.totalPayments ?? null,
     balance: row.balance ?? null,

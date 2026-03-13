@@ -124,6 +124,76 @@ const defaultColumns: ColumnConfig[] = [
 const COLUMNS_STORAGE_KEY = 'projects-table-columns-v2';
 const DATE_SORT_FIELDS = new Set<ColumnKey>(['date', 'createdAt', 'updatedAt']);
 
+function parseDateToSortMs(value: unknown): number {
+  if (value instanceof Date) return value.getTime();
+  if (value === null || value === undefined) return Number.NEGATIVE_INFINITY;
+
+  const raw = String(value).trim();
+  if (!raw) return Number.NEGATIVE_INFINITY;
+
+  // DD.MM.YYYY
+  const dmy = raw.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (dmy) {
+    const day = Number(dmy[1]);
+    const month = Number(dmy[2]);
+    const year = Number(dmy[3]);
+    return Date.UTC(year, month - 1, day);
+  }
+
+  // YYYY-MM-DD (or date-time starting with that)
+  const ymd = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymd) {
+    const year = Number(ymd[1]);
+    const month = Number(ymd[2]);
+    const day = Number(ymd[3]);
+    return Date.UTC(year, month - 1, day);
+  }
+
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? Number.NEGATIVE_INFINITY : parsed.getTime();
+}
+
+function formatDateDisplay(value: unknown): string {
+  if (value === null || value === undefined) return '';
+
+  const raw = String(value).trim();
+  if (!raw) return '';
+
+  const dmy = raw.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (dmy) return `${dmy[1]}.${dmy[2]}.${dmy[3]}`;
+
+  const ymd = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymd) return `${ymd[3]}.${ymd[2]}.${ymd[1]}`;
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+
+  const day = String(parsed.getUTCDate()).padStart(2, '0');
+  const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+  const year = parsed.getUTCFullYear();
+  return `${day}.${month}.${year}`;
+}
+
+function formatDateForInputValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+
+  const raw = String(value).trim();
+  if (!raw) return '';
+
+  const dmy = raw.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+
+  const ymd = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymd) return `${ymd[1]}-${ymd[2]}-${ymd[3]}`;
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const year = parsed.getUTCFullYear();
+  const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // Helper function to get responsive classes
 const getResponsiveClass = (responsive?: string) => {
   switch (responsive) {
@@ -761,12 +831,6 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   const sortedProjects = useMemo(() => {
     if (!sortField) return filteredProjects;
 
-    const toDateMs = (value: unknown): number => {
-      if (value instanceof Date) return value.getTime();
-      const parsed = new Date(String(value));
-      return Number.isNaN(parsed.getTime()) ? Number.NEGATIVE_INFINITY : parsed.getTime();
-    };
-
     return [...filteredProjects].sort((a, b) => {
       const aVal = a[sortField];
       const bVal = b[sortField];
@@ -776,8 +840,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       if (bVal === null || bVal === undefined) return -1;
 
       if (DATE_SORT_FIELDS.has(sortField)) {
-        const aTime = toDateMs(aVal);
-        const bTime = toDateMs(bVal);
+        const aTime = parseDateToSortMs(aVal);
+        const bTime = parseDateToSortMs(bVal);
         if (aTime < bTime) return sortDirection === 'asc' ? -1 : 1;
         if (aTime > bTime) return sortDirection === 'asc' ? 1 : -1;
         return 0;
@@ -947,19 +1011,9 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
 
   const startEdit = (project: Project) => {
     setEditingProject(project);
-    // Format date to YYYY-MM-DD for input[type="date"]
-    const formatDateForInput = (dateStr: string | null) => {
-      if (!dateStr) return '';
-      try {
-        const date = new Date(dateStr);
-        return date.toISOString().split('T')[0];
-      } catch {
-        return '';
-      }
-    };
     setFormData({
       projectName: project.projectName || '',
-      date: formatDateForInput(project.date),
+      date: formatDateForInputValue(project.date),
       value: String(project.value || ''),
       oris1630: project.oris1630 || '',
       department: project.department || '',
@@ -1867,15 +1921,15 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                         {column.key === 'id' ? (
                           <span className="text-sm">{project.id}</span>
                         ) : column.key === 'createdAt' ? (
-                          <span className="text-sm">{new Date(project.createdAt).toLocaleDateString()}</span>
+                          <span className="text-sm">{formatDateDisplay(project.createdAt)}</span>
                         ) : column.key === 'updatedAt' ? (
-                          <span className="text-sm">{new Date(project.updatedAt).toLocaleDateString()}</span>
+                          <span className="text-sm">{formatDateDisplay(project.updatedAt)}</span>
                         ) : column.key === 'projectUuid' ? (
                           <span className="text-sm">{project.projectUuid}</span>
                         ) : column.key === 'projectName' ? (
                           <span className="text-sm font-medium">{project.projectName}</span>
                         ) : column.key === 'date' ? (
-                          <span className="text-sm">{project.date}</span>
+                          <span className="text-sm">{formatDateDisplay(project.date)}</span>
                         ) : column.key === 'value' ? (
                           <span className="text-sm">{Number(project.value).toLocaleString()}</span>
                         ) : column.key === 'totalPayments' ? (
