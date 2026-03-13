@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-03-13 (45)
+- Summary: Updated Projects form Department selector to fixed city options.
+- Changes:
+  - Updated `components/figma/projects-table.tsx` to use dedicated department options (`Batumi`, `Tbilisi`) in both Add and Edit project dialogs.
+  - Corrected department dropdown source so it no longer reuses service-state values.
+- Commit: cdae426
+- URL: https://ice-apzq87iom-iceerp.vercel.app
+
 ## 2026-03-13 (44)
 - Summary: Fixed production migration path so insider-constraint changes are actually applied during Vercel deploys.
 - Changes:
