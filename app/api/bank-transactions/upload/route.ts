@@ -234,8 +234,8 @@ export async function POST(req: NextRequest) {
             importBatchId
           );
         } else {
-          const accountDigits = accountData.account_number.replace(/\D/g, '').slice(-10);
-          rawTableName = accountData.raw_table_name || `tbc_gel_raw_${accountDigits}`;
+          rawTableName =
+            accountData.raw_table_name || `${accountData.account_number}_TBC_${currencyCode}`;
           console.log(`📋 Raw Table: ${rawTableName}\n`);
           if (!rawTableName) {
             throw new Error('Unable to resolve raw table name for TBC import');

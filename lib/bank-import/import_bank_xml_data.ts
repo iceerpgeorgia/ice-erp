@@ -87,6 +87,36 @@ function formatTBCDate(dateStr: string | undefined): string | null {
   return parsed.toISOString().split('T')[0];
 }
 
+async function resolveExistingTbcTableName(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  candidates: string[]
+): Promise<string | null> {
+  const tried = new Set<string>();
+
+  for (const candidate of candidates) {
+    const tableName = String(candidate || '').trim();
+    if (!tableName || tried.has(tableName)) {
+      continue;
+    }
+    tried.add(tableName);
+
+    const { error } = await supabase
+      .from(tableName)
+      .select('uuid', { head: true, count: 'exact' })
+      .limit(1);
+
+    if (!error) {
+      return tableName;
+    }
+
+    if ((error as any)?.code !== 'PGRST205') {
+      throw error;
+    }
+  }
+
+  return null;
+}
+
 /**
  * Calculate nominal amount using NBG exchange rates
  * Matches Python implementation exactly
@@ -1156,7 +1186,20 @@ export async function processTBC(
   const bankAccountUuid = accountData.uuid;
   const accountCurrencyUuid = accountData.currency_uuid;
   const normalizedCurrencyCode = String(currencyCode || 'GEL').trim().toUpperCase();
-  const deconsolidatedTableName = `${accountNumber}_TBC_${normalizedCurrencyCode}`;
+  const tbcTableCandidates = [
+    rawTableName,
+    `${accountNumber}_TBC_${normalizedCurrencyCode}`,
+    `${accountNumber}_TBC_GEL`,
+  ];
+  const resolvedTableName = await resolveExistingTbcTableName(supabase, tbcTableCandidates);
+
+  if (!resolvedTableName) {
+    throw new Error(
+      `Could not resolve an existing TBC table for account ${accountNumber}. Tried: ${tbcTableCandidates.filter(Boolean).join(', ')}`
+    );
+  }
+
+  const deconsolidatedTableName = resolvedTableName;
 
   console.log(`📊 Bank Account UUID: ${bankAccountUuid}`);
   console.log(`💱 Account Currency UUID: ${accountCurrencyUuid}\n`);
