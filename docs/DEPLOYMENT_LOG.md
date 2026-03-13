@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-03-13 (40)
+- Summary: Added automated daily BOG API import cron to fetch the last 3 days and process through the deconsolidated XML pipeline.
+- Changes:
+  - Added new cron endpoint `app/api/cron/bog-import-last-3-days/route.ts`.
+  - The cron resolves BOG accounts from `bank_accounts`, fetches `/statement/{account}/{currency}/{start}/{end}`, maps API payload to XML-compatible format, and calls `processBOGGELDeconsolidated`.
+  - Added optional account scoping via `BOG_CRON_ACCOUNT_UUIDS` env var and insider fallback from `BOG_CREDENTIALS_MAP` when exactly one insider is configured.
+  - Updated `vercel.json` cron schedule with `/api/cron/bog-import-last-3-days` at `0 3 * * *` (07:00 Tbilisi).
+  - Updated BOG statement mapper ID mapping to accept official fields `DocumentKey` and `EntryId` for strict import validation.
+- Commit: a2c629f
+- URL: https://ice-2r95zbsx0-iceerp.vercel.app
+
 ## 2026-03-12 (39)
 - Summary: Added stable automatic rebinding of deconsolidated rows when counteragents are created or updated.
 - Changes:
