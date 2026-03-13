@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-03-13 (41)
+- Summary: Deployed BOG deconsolidated import fix to always resolve generic/legacy BOG parsing schemes to currency-specific tables.
+- Changes:
+  - Updated `lib/bank-import/import_bank_xml_data_deconsolidated.ts` scheme normalization to map generic values (`BOG_FX`, `BOG`, and `BOG_*`) to `defaultSchemeByCurrency(currencyCode)`.
+  - Prevents invalid table targeting like `..._BOG_FX` and ensures imports route to existing currency tables such as `..._BOG_GEL`, `..._BOG_USD`, `..._BOG_EUR`, etc.
+- Commit: 29b5753
+- URL: https://ice-if6l46frg-iceerp.vercel.app
+
 ## 2026-03-13 (40)
 - Summary: Added automated daily BOG API import cron to fetch the last 3 days and process through the deconsolidated XML pipeline.
 - Changes:
