@@ -545,11 +545,20 @@ export async function processBOGGELDeconsolidated(
     schemeData = data;
   }
 
-  const scheme = !schemeData?.scheme
-    ? defaultSchemeByCurrency(currencyCode)
-    : (schemeData.scheme === 'BOG_GEL' && currencyCode !== 'GEL')
-      ? defaultSchemeByCurrency(currencyCode)
-      : schemeData.scheme;
+  const normalizeBogScheme = (rawScheme: string | undefined, ccy: string) => {
+    const fallback = defaultSchemeByCurrency(ccy);
+    const scheme = String(rawScheme || '').trim().toUpperCase();
+    if (!scheme) return fallback;
+
+    // Legacy/generic BOG schemes must resolve to currency-specific tables.
+    if (scheme === 'BOG_FX' || scheme === 'BOG' || scheme === 'BOG_GEL' || scheme === 'BOG_USD' || scheme === 'BOG_EUR' || scheme === 'BOG_AED' || scheme === 'BOG_GBP' || scheme === 'BOG_KZT' || scheme === 'BOG_CNY' || scheme === 'BOG_TRY') {
+      return fallback;
+    }
+
+    return scheme;
+  };
+
+  const scheme = normalizeBogScheme(schemeData?.scheme, currencyCode);
   const deconsolidatedTableName = resolveDeconsolidatedTableName(accountNumber, scheme);
 
   console.log(`📊 Bank Account UUID: ${bankAccountUuid}`);
