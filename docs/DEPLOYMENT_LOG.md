@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-13 (51)
+- Summary: Generalized TBC XML import processing to support currency-aware deconsolidated targets (including FX).
+- Changes:
+  - Updated `lib/bank-import/import_bank_xml_data.ts` to introduce `processTBC(...)` with currency-aware table naming (`${accountNumber}_TBC_${currencyCode}`) and retained `processTBCGEL(...)` as a backward-compatible wrapper.
+  - Updated `app/api/bank-transactions/upload/route.ts` and `app/api/bank-transactions-test/upload/route.ts` to call `processTBC(...)` for TBC uploads.
+  - Updated `scripts/test-tbc-import.ts` to use `processTBC(...)`.
+- Commit: d5f93a0
+- URL: https://ice-r8sqpn9ji-iceerp.vercel.app
+
 ## 2026-03-13 (50)
 - Summary: Corrected Payment ID Statement due and balance formulas to respect signed bank transaction direction.
 - Changes:
