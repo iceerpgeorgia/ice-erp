@@ -171,6 +171,7 @@ const mapProjectData = (row: any): Project => ({
 });
 
 const SERVICE_STATE_OPTIONS = ['Active', 'Conversion', 'Others', 'Free', 'Recovery'];
+const DEPARTMENT_OPTIONS = ['Batumi', 'Tbilisi'];
 
 export function ProjectsTable({ data }: { data?: Project[] }) {
   const [projects, setProjects] = useState<Project[]>(data ?? []);
@@ -1207,7 +1208,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
                       <SelectContent>
-                        {SERVICE_STATE_OPTIONS.map((option) => (
+                        {DEPARTMENT_OPTIONS.map((option) => (
                           <SelectItem key={option} value={option}>{option}</SelectItem>
                         ))}
                       </SelectContent>
@@ -1456,7 +1457,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
                       <SelectContent>
-                        {SERVICE_STATE_OPTIONS.map((option) => (
+                        {DEPARTMENT_OPTIONS.map((option) => (
                           <SelectItem key={option} value={option}>{option}</SelectItem>
                         ))}
                       </SelectContent>
