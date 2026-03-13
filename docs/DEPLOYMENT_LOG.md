@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-13 (53)
+- Summary: Fixed production ledger insert/update/upsert failures caused by missing `payments_ledger.insider_uuid` after insider trigger removal.
+- Changes:
+  - Updated `app/api/payments-ledger/route.ts` to resolve `insider_uuid` from `payments` before insert and persist it on new ledger rows.
+  - Updated `app/api/payments-ledger/[id]/route.ts` to validate payment insider mapping and update `payments_ledger.insider_uuid` on ledger edits.
+  - Updated `app/api/payments-ledger/bulk/route.ts` to preload payment→insider mappings, validate missing insider cases, and include `insider_uuid` in bulk inserts.
+  - Updated `app/api/cron/cash-based-monthly-accruals/route.ts` to include `insider_uuid` in monthly ledger upserts.
+- Commit: e9a5d73
+- URL: https://ice-g9v5x55gq-iceerp.vercel.app
+
 ## 2026-03-13 (52)
 - Summary: Standardized Projects date handling so DB date values stay canonical while UI display and sorting remain consistent in `dd.mm.yyyy`.
 - Changes:
