@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-13 (44)
+- Summary: Fixed production migration path so insider-constraint changes are actually applied during Vercel deploys.
+- Changes:
+  - Updated `vercel.json` build command to run `pnpm prisma migrate deploy` before `pnpm build`.
+  - Updated `app/api/counteragents/route.ts` to map Prisma `P2002` on `insider` to a clear `409` message indicating pending DB migration state.
+  - This deploy runs migration `20260313134000_allow_multiple_insiders` in Vercel build, which drops `uq_single_true_insider`.
+- Commit: 61c42ba
+- URL: https://ice-bpe0ky0ai-iceerp.vercel.app
+
 ## 2026-03-13 (43)
 - Summary: Removed single-insider restriction so multiple counteragents can be marked as insiders.
 - Changes:
