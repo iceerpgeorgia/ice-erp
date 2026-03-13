@@ -319,6 +319,13 @@ export async function POST(req: NextRequest) {
     );
   } catch (err: any) {
     console.error("POST /counteragents/api failed:", err);
+
+    if (err?.code === 'P2002' && Array.isArray(err?.meta?.target) && err.meta.target.includes('insider')) {
+      return NextResponse.json(
+        { error: 'Insider unique constraint is still active in the database. Apply latest migrations and retry.' },
+        { status: 409 }
+      );
+    }
     
     // PostgreSQL unique constraint violation
     if (err.code === '23505' && err.meta?.target?.includes('identification_number')) {
@@ -591,6 +598,13 @@ export async function PATCH(req: NextRequest) {
     );
   } catch (err: any) {
     console.error("PATCH /counteragents failed:", err);
+
+    if (err?.code === 'P2002' && Array.isArray(err?.meta?.target) && err.meta.target.includes('insider')) {
+      return NextResponse.json(
+        { error: 'Insider unique constraint is still active in the database. Apply latest migrations and retry.' },
+        { status: 409 }
+      );
+    }
     
     // PostgreSQL unique constraint violation
     if (err.code === '23505' && err.meta?.target?.includes('identification_number')) {
