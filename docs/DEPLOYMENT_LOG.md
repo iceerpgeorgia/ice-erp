@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-13 (46)
+- Summary: Fixed Projects insider visibility for multi-insider mode by removing legacy single-insider DB trigger binding.
+- Changes:
+  - Updated `app/api/projects/route.ts` insider joins to resolve insider label/flag from `projects.insider_uuid` instead of counteragent-linked insider fallback.
+  - Added migration `prisma/migrations/20260313183000_remove_single_insider_binding_triggers/migration.sql` to drop `bind_single_required_insider_uuid()` and all `trg_bind_single_insider_*` triggers, including `trg_bind_single_insider_projects`.
+  - Preserves explicitly selected insider on insert/update so homepage insider checkbox filtering and Projects table visibility align.
+- Commit: a0333a5
+- URL: https://ice-a9rmaujpz-iceerp.vercel.app
+
 ## 2026-03-13 (45)
 - Summary: Updated Projects form Department selector to fixed city options.
 - Changes:
