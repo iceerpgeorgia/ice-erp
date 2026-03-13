@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { processBOGGELDeconsolidated } from "@/lib/bank-import/import_bank_xml_data_deconsolidated";
-import { processTBCGEL } from "@/lib/bank-import/import_bank_xml_data";
+import { processTBC } from "@/lib/bank-import/import_bank_xml_data";
 import { getSupabaseClient } from "@/lib/bank-import/db-utils";
 
 /**
@@ -215,7 +215,7 @@ export async function POST(req: NextRequest) {
         } else {
           const accountDigits = accountData.account_number.replace(/\D/g, "").slice(-10);
           const rawTableName = accountData.raw_table_name || `tbc_gel_raw_${accountDigits}`;
-          await processTBCGEL(
+          await processTBC(
             xmlContent,
             accountUuid,
             accountData.account_number,

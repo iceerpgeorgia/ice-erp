@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { processBOGGELDeconsolidated } from "@/lib/bank-import/import_bank_xml_data_deconsolidated";
-import { processTBCGEL } from "@/lib/bank-import/import_bank_xml_data";
+import { processTBC } from "@/lib/bank-import/import_bank_xml_data";
 import { getSupabaseClient } from "@/lib/bank-import/db-utils";
 
 /**
@@ -240,7 +240,7 @@ export async function POST(req: NextRequest) {
           if (!rawTableName) {
             throw new Error('Unable to resolve raw table name for TBC import');
           }
-          await processTBCGEL(
+          await processTBC(
             xmlContent,
             accountUuid,
             accountData.account_number,

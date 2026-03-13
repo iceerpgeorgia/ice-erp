@@ -3,7 +3,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { parseStringPromise } from 'xml2js';
 import { getSupabaseClient } from '../lib/bank-import/db-utils';
-import { processTBCGEL } from '../lib/bank-import/import_bank_xml_data';
+import { processTBC } from '../lib/bank-import/import_bank_xml_data';
 
 async function main() {
   const xmlPath = path.join(process.cwd(), 'account_statement_14598270_01012026_02022026.xml');
@@ -62,7 +62,7 @@ async function main() {
   console.log(`Raw table: ${rawTableName}`);
   console.log(`Import batch: ${importBatchId}`);
 
-  await processTBCGEL(
+  await processTBC(
     xmlContent,
     accountData.uuid,
     accountData.account_number,

@@ -1129,7 +1129,7 @@ export async function processBOGGEL(
   console.log('='.repeat(80) + '\n');
 }
 
-export async function processTBCGEL(
+export async function processTBC(
   xmlContent: string,
   accountUuid: string,
   accountNumber: string,
@@ -1138,7 +1138,7 @@ export async function processTBCGEL(
   importBatchId: string
 ): Promise<void> {
   console.log('\n' + '='.repeat(80));
-  console.log('🚀 TBC GEL PROCESSING - Three-Phase Hierarchy');
+  console.log('🚀 TBC PROCESSING - Three-Phase Hierarchy');
   console.log('='.repeat(80) + '\n');
 
   const supabase = getSupabaseClient();
@@ -1155,7 +1155,8 @@ export async function processTBCGEL(
 
   const bankAccountUuid = accountData.uuid;
   const accountCurrencyUuid = accountData.currency_uuid;
-  const deconsolidatedTableName = `${accountNumber}_TBC_GEL`;
+  const normalizedCurrencyCode = String(currencyCode || 'GEL').trim().toUpperCase();
+  const deconsolidatedTableName = `${accountNumber}_TBC_${normalizedCurrencyCode}`;
 
   console.log(`📊 Bank Account UUID: ${bankAccountUuid}`);
   console.log(`💱 Account Currency UUID: ${accountCurrencyUuid}\n`);
@@ -1546,6 +1547,25 @@ export async function processTBCGEL(
   console.log('\n' + '='.repeat(80));
   console.log('✅ Import completed successfully!');
   console.log('='.repeat(80) + '\n');
+}
+
+// Backward-compatible wrapper for legacy call sites.
+export async function processTBCGEL(
+  xmlContent: string,
+  accountUuid: string,
+  accountNumber: string,
+  currencyCode: string,
+  rawTableName: string,
+  importBatchId: string
+): Promise<void> {
+  return processTBC(
+    xmlContent,
+    accountUuid,
+    accountNumber,
+    currencyCode,
+    rawTableName,
+    importBatchId
+  );
 }
 
 /**
