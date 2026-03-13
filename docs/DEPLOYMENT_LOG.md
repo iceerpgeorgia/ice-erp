@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-13 (54)
+- Summary: Added direct counteragent statement gateway action to each row in Projects table.
+- Changes:
+  - Updated `components/figma/projects-table.tsx` to add an `ArrowUpRight` action button in the Actions column.
+  - Button opens `/counteragent-statement/{counteragentUuid}` in a new tab and is disabled when `counteragentUuid` is missing.
+  - Expanded Actions column width to accommodate the additional control.
+- Commit: d899670
+- URL: https://ice-gz0qdvr35-iceerp.vercel.app
+
 ## 2026-03-13 (53)
 - Summary: Fixed production ledger insert/update/upsert failures caused by missing `payments_ledger.insider_uuid` after insider trigger removal.
 - Changes:
