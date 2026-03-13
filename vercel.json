@@ -8,6 +8,10 @@
   },
   "crons": [
     {
+      "path": "/api/cron/bog-import-last-3-days",
+      "schedule": "0 3 * * *"
+    },
+    {
       "path": "/api/cron/update-nbg-rates",
       "schedule": "0 16 * * *"
     },

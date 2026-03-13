@@ -181,8 +181,8 @@ function deriveHeader(payload: unknown, options?: StatementMapOptions): BogMappe
 }
 
 function mapDetail(tx: AnyRecord, index: number): BogMappedDetail {
-  const explicitDocKey = pickFirst(tx, ['DocKey', 'docKey']);
-  const explicitEntriesId = pickFirst(tx, ['EntriesId', 'entriesId']);
+  const explicitDocKey = pickFirst(tx, ['DocKey', 'docKey', 'DocumentKey', 'documentKey']);
+  const explicitEntriesId = pickFirst(tx, ['EntriesId', 'entriesId', 'EntryId', 'entryId']);
   if (!explicitDocKey || !explicitEntriesId) {
     throw new Error(
       `Transaction at index ${index} is missing required DocKey/EntriesId. Synthetic API keys are not allowed.`
