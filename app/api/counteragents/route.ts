@@ -202,20 +202,6 @@ export async function POST(req: NextRequest) {
     const counteragent_uuid = crypto.randomUUID();
     const normalizedInsider = normalizeInsiderFlag(body.insider);
 
-    if (normalizedInsider) {
-      const existingInsider = await prisma.counteragents.findFirst({
-        where: { insider: true },
-        select: { id: true, name: true },
-      });
-
-      if (existingInsider) {
-        return NextResponse.json(
-          { error: `Only one insider counteragent is allowed. Existing insider: ${existingInsider.name || existingInsider.id}` },
-          { status: 409 }
-        );
-      }
-    }
-
     const insiderName = await resolveStoredInsiderName({
       insider: normalizedInsider,
       insider_uuid: body.insider_uuid,
@@ -421,23 +407,6 @@ export async function PATCH(req: NextRequest) {
     const normalizedInsider = body.insider !== undefined
       ? normalizeInsiderFlag(body.insider)
       : existing.insider;
-
-    if (body.insider !== undefined && normalizedInsider) {
-      const existingInsider = await prisma.counteragents.findFirst({
-        where: {
-          insider: true,
-          id: { not: BigInt(id) },
-        },
-        select: { id: true, name: true },
-      });
-
-      if (existingInsider) {
-        return NextResponse.json(
-          { error: `Only one insider counteragent is allowed. Existing insider: ${existingInsider.name || existingInsider.id}` },
-          { status: 409 }
-        );
-      }
-    }
 
     const insiderName = await resolveStoredInsiderName({
       insider: normalizedInsider,
