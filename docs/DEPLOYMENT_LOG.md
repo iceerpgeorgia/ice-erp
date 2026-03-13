@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-13 (52)
+- Summary: Standardized Projects date handling so DB date values stay canonical while UI display and sorting remain consistent in `dd.mm.yyyy`.
+- Changes:
+  - Updated `components/figma/projects-table.tsx` with unified date helpers for parsing, display formatting, and edit-form input conversion across `date`, `createdAt`, and `updatedAt`.
+  - Fixed Projects table sorting to use robust date parsing for mixed `YYYY-MM-DD` and `DD.MM.YYYY` inputs.
+  - Updated `app/api/projects-v2/route.ts` to return `p.date` directly (removed `TO_CHAR(...)`) so API preserves DB date values and UI handles formatting.
+  - Updated `app/admin/projects/page.tsx` mapper comment to match canonical API date behavior.
+- Commit: 360e4ca
+- URL: https://ice-lc6cfndfn-iceerp.vercel.app
+
 ## 2026-03-13 (51)
 - Summary: Generalized TBC XML import processing to support currency-aware deconsolidated targets (including FX).
 - Changes:
