@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-13 (55)
+- Summary: Fixed TBC XML import table resolution to use configured/existing deconsolidated tables and avoid hard-failing on missing currency-specific table names.
+- Changes:
+  - Updated `lib/bank-import/import_bank_xml_data.ts` to resolve TBC target table from existing candidates in priority order: `raw_table_name`, `${account}_TBC_${currency}`, then `${account}_TBC_GEL`.
+  - Added explicit existing-table probe logic and clearer error when no TBC table candidate is found.
+  - Updated `app/api/bank-transactions/upload/route.ts` and `app/api/bank-transactions-test/upload/route.ts` to replace obsolete `tbc_gel_raw_*` fallback with TBC deconsolidated naming fallback.
+- Commit: bc9a4ad
+- URL: https://ice-m74mndg7a-iceerp.vercel.app
+
 ## 2026-03-13 (54)
 - Summary: Added direct counteragent statement gateway action to each row in Projects table.
 - Changes:
