@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-13 (42)
+- Summary: Stabilized counteragent creation under insider uniqueness constraints and prevented noisy audit failures for bulk operations.
+- Changes:
+  - Updated `app/api/counteragents/route.ts` to normalize insider writes as explicit booleans and added clear API guards that return `409` when attempting to create/update a second `insider=true` counteragent.
+  - Updated `lib/audit.ts` bigint fallback handling for `AuditLog.record_id`: when `record_id` is non-numeric (for example bulk composite IDs), the audit row is now written with `record_id = NULL` instead of failing on type mismatch.
+  - Preserved existing numeric bigint insert fallback for environments where `AuditLog.record_id` remains bigint.
+- Commit: 9ec17ff
+- URL: https://ice-jpfh4xyjv-iceerp.vercel.app
+
 ## 2026-03-13 (41)
 - Summary: Deployed BOG deconsolidated import fix to always resolve generic/legacy BOG parsing schemes to currency-specific tables.
 - Changes:
