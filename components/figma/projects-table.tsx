@@ -123,6 +123,7 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 const COLUMNS_STORAGE_KEY = 'projects-table-columns-v2';
+const DATE_SORT_FIELDS = new Set<ColumnKey>(['date', 'createdAt', 'updatedAt']);
 
 // Helper function to get responsive classes
 const getResponsiveClass = (responsive?: string) => {
@@ -752,6 +753,12 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   const sortedProjects = useMemo(() => {
     if (!sortField) return filteredProjects;
 
+    const toDateMs = (value: unknown): number => {
+      if (value instanceof Date) return value.getTime();
+      const parsed = new Date(String(value));
+      return Number.isNaN(parsed.getTime()) ? Number.NEGATIVE_INFINITY : parsed.getTime();
+    };
+
     return [...filteredProjects].sort((a, b) => {
       const aVal = a[sortField];
       const bVal = b[sortField];
@@ -759,6 +766,14 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       // Handle nulls
       if (aVal === null || aVal === undefined) return 1;
       if (bVal === null || bVal === undefined) return -1;
+
+      if (DATE_SORT_FIELDS.has(sortField)) {
+        const aTime = toDateMs(aVal);
+        const bTime = toDateMs(bVal);
+        if (aTime < bTime) return sortDirection === 'asc' ? -1 : 1;
+        if (aTime > bTime) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      }
       
       if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
       if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;

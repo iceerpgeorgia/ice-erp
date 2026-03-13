@@ -37,11 +37,12 @@ export async function GET(req: NextRequest) {
           p.*,
           COALESCE(insider_ca.insider, false) as is_insider,
           COALESCE(insider_ca.insider_name, insider_ca.counteragent, insider_ca.name) as insider_name,
+          COALESCE(p.insider_uuid, ca.insider_uuid) as effective_insider_uuid,
           COALESCE(pp.total_payment, 0) as total_payments,
           (p.value - COALESCE(pp.total_payment, 0)) as balance
         FROM projects p
         LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
-        LEFT JOIN counteragents insider_ca ON p.insider_uuid = insider_ca.counteragent_uuid
+        LEFT JOIN counteragents insider_ca ON COALESCE(p.insider_uuid, ca.insider_uuid) = insider_ca.counteragent_uuid
         LEFT JOIN (
           SELECT
             p.project_uuid,
@@ -86,7 +87,7 @@ export async function GET(req: NextRequest) {
           GROUP BY p.project_uuid, p.counteragent_uuid
         ) pp ON p.project_uuid = pp.project_uuid AND p.counteragent_uuid = pp.counteragent_uuid
         WHERE p.project_uuid = $1::uuid
-          AND p.insider_uuid IN (${insiderUuidListSql})
+          AND COALESCE(p.insider_uuid, ca.insider_uuid) IN (${insiderUuidListSql})
         `,
         projectUuid
       );
@@ -111,6 +112,7 @@ export async function GET(req: NextRequest) {
         p.*,
         MAX(COALESCE(insider_ca.insider, false)::int)::boolean as is_insider,
         MAX(COALESCE(insider_ca.insider_name, insider_ca.counteragent, insider_ca.name)) as insider_name,
+        MAX(COALESCE(p.insider_uuid, ca.insider_uuid)::text) as effective_insider_uuid,
         ARRAY_AGG(
           JSON_BUILD_OBJECT(
             'employeeUuid', pe.employee_uuid,
@@ -121,7 +123,7 @@ export async function GET(req: NextRequest) {
         ,(p.value - COALESCE(MAX(pp.total_payment), 0)) as balance
       FROM projects p
       LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
-      LEFT JOIN counteragents insider_ca ON p.insider_uuid = insider_ca.counteragent_uuid
+      LEFT JOIN counteragents insider_ca ON COALESCE(p.insider_uuid, ca.insider_uuid) = insider_ca.counteragent_uuid
       LEFT JOIN project_employees pe ON p.project_uuid = pe.project_uuid
       LEFT JOIN counteragents c ON pe.employee_uuid = c.counteragent_uuid
       LEFT JOIN (
@@ -167,7 +169,7 @@ export async function GET(req: NextRequest) {
         WHERE p.is_active = true
         GROUP BY p.project_uuid, p.counteragent_uuid
       ) pp ON p.project_uuid = pp.project_uuid AND p.counteragent_uuid = pp.counteragent_uuid
-      WHERE p.insider_uuid IN (${insiderUuidListSql})
+      WHERE COALESCE(p.insider_uuid, ca.insider_uuid) IN (${insiderUuidListSql})
       GROUP BY p.id
       ORDER BY p.created_at DESC
     `);
