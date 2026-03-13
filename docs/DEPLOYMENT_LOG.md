@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-03-13 (49)
+- Summary: Aligned Projects insider filtering and labeling strictly to `projects.insider_uuid`.
+- Changes:
+  - Updated `app/api/projects/route.ts` to use `projects.insider_uuid` directly for insider join and insider selection filtering.
+  - Removed counteragent-insider fallback from Projects list/single GET paths to match authoritative project binding.
+- Commit: 3ed2137
+- URL: https://ice-l1k0jrex8-iceerp.vercel.app
+
 ## 2026-03-13 (48)
 - Summary: Restored Projects insider-name rendering and multi-insider header context.
 - Changes:
