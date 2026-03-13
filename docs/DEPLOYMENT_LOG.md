@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-03-13 (47)
+- Summary: Fixed Projects insider visibility fallback and corrected date sorting behavior.
+- Changes:
+  - Updated `app/api/projects/route.ts` to use `COALESCE(projects.insider_uuid, counteragents.insider_uuid)` for insider filtering and insider-name join fallback, restoring visibility for mixed legacy/new insider bindings.
+  - Updated `components/figma/projects-table.tsx` sorting logic to treat `date`, `createdAt`, and `updatedAt` as real dates (timestamp comparison) instead of plain text.
+- Commit: 58f40f2
+- URL: https://ice-e1m82xbqg-iceerp.vercel.app
+
 ## 2026-03-13 (46)
 - Summary: Fixed Projects insider visibility for multi-insider mode by removing legacy single-insider DB trigger binding.
 - Changes:
