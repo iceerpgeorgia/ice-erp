@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-03-13 (43)
+- Summary: Removed single-insider restriction so multiple counteragents can be marked as insiders.
+- Changes:
+  - Updated `app/api/counteragents/route.ts` to remove POST/PATCH API guards that returned `409` when another `insider=true` row already existed.
+  - Added migration `prisma/migrations/20260313134000_allow_multiple_insiders/migration.sql` to drop unique index `uq_single_true_insider`.
+- Commit: 20af5cf
+- URL: https://ice-ixrdvsgyp-iceerp.vercel.app
+
 ## 2026-03-13 (42)
 - Summary: Stabilized counteragent creation under insider uniqueness constraints and prevented noisy audit failures for bulk operations.
 - Changes:
