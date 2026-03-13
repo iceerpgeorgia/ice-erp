@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-03-13 (50)
+- Summary: Corrected Payment ID Statement due and balance formulas to respect signed bank transaction direction.
+- Changes:
+  - Updated `app/payment-statement/[paymentId]/page.tsx` to keep bank transaction sign in `payment`/`ppc` values and normalize magnitude from nominal/account amounts.
+  - Reworked cumulative calculations so `due` and `balance` are computed with signed cumulative payment totals, while `paidPercent` uses paid magnitude.
+- Commit: 6aecc24
+- URL: https://ice-2427e8mu1-iceerp.vercel.app
+
 ## 2026-03-13 (49)
 - Summary: Aligned Projects insider filtering and labeling strictly to `projects.insider_uuid`.
 - Changes:
