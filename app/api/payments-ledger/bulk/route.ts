@@ -115,8 +115,45 @@ export async function POST(request: NextRequest) {
     }
     logs.push('[INFO] Row-level validation passed');
 
-    const paymentIds = Array.from(new Set(normalized.map((entry: { paymentId: string }) => entry.paymentId)));
+    const paymentIds: string[] = Array.from(
+      new Set(normalized.map((entry: { paymentId: string }) => entry.paymentId))
+    );
     logs.push(`[INFO] Distinct payment IDs: ${paymentIds.length}`);
+
+    const paymentRows = await prisma.$queryRawUnsafe<Array<{ payment_id: string; insider_uuid: string | null }>>(
+      `SELECT payment_id, insider_uuid
+       FROM payments
+       WHERE payment_id = ANY($1::text[])
+         AND is_active = true`,
+      paymentIds
+    );
+
+    const insiderByPaymentId = new Map<string, string | null>(
+      paymentRows.map((row) => [row.payment_id, row.insider_uuid])
+    );
+    const missingPayments = paymentIds.filter((paymentId) => !insiderByPaymentId.has(paymentId));
+    if (missingPayments.length > 0) {
+      logs.push(`[ERROR] Missing active payments: ${missingPayments.join(', ')}`);
+      return NextResponse.json(
+        {
+          error: `Missing active payment records for: ${missingPayments.join(', ')}`,
+          logs: logs.join('\n'),
+        },
+        { status: 404 }
+      );
+    }
+
+    const missingInsider = paymentIds.filter((paymentId) => !insiderByPaymentId.get(paymentId));
+    if (missingInsider.length > 0) {
+      logs.push(`[ERROR] Payments missing insider_uuid: ${missingInsider.join(', ')}`);
+      return NextResponse.json(
+        {
+          error: `Payments missing insider UUID: ${missingInsider.join(', ')}`,
+          logs: logs.join('\n'),
+        },
+        { status: 422 }
+      );
+    }
     const totals = await prisma.$queryRawUnsafe<
       Array<{ payment_id: string; accrual_total: any; order_total: any }>
     >(
@@ -184,14 +221,16 @@ export async function POST(request: NextRequest) {
              "order",
              comment,
              user_email,
-             confirmed
-           ) VALUES ($1, $2::timestamp, $3, $4, $5, $6, false)`,
+             confirmed,
+             insider_uuid
+           ) VALUES ($1, $2::timestamp, $3, $4, $5, $6, false, $7::uuid)`,
           entry.paymentId,
           entry.effectiveDate,
           entry.accrual || null,
           entry.order || null,
           entry.comment || null,
-          session.user.email
+          session.user.email,
+          insiderByPaymentId.get(entry.paymentId)
         )
       )
     );

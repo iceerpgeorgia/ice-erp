@@ -142,6 +142,26 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { paymentId, effectiveDate, accrual, order, comment } = body;
 
+    const paymentRows = await prisma.$queryRawUnsafe<Array<{ payment_id: string; insider_uuid: string | null }>>(
+      `SELECT payment_id, insider_uuid
+       FROM payments
+       WHERE payment_id = $1 AND is_active = true
+       LIMIT 1`,
+      paymentId
+    );
+
+    if (!Array.isArray(paymentRows) || paymentRows.length === 0) {
+      return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
+    }
+
+    const insiderUuid = paymentRows[0]?.insider_uuid;
+    if (!insiderUuid) {
+      return NextResponse.json(
+        { error: 'Payment insider UUID is missing; cannot create ledger entry' },
+        { status: 422 }
+      );
+    }
+
     // Validation
     if (!paymentId) {
       return NextResponse.json({ error: 'Payment ID is required' }, { status: 400 });
@@ -212,8 +232,9 @@ export async function POST(request: NextRequest) {
         "order",
         comment,
         user_email,
-        confirmed
-      ) VALUES ($1, $2::timestamp, $3, $4, $5, $6, false)
+        confirmed,
+        insider_uuid
+      ) VALUES ($1, $2::timestamp, $3, $4, $5, $6, false, $7::uuid)
       RETURNING *
     `;
 
@@ -224,7 +245,8 @@ export async function POST(request: NextRequest) {
       accrual || null,
       order || null,
       comment || null,
-      session.user.email
+      session.user.email,
+      insiderUuid
     ) as any[];
 
     // Convert BigInt to Number for JSON serialization

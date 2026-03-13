@@ -96,8 +96,10 @@ export async function PATCH(
     // Verify the new payment exists
     const paymentData = await prisma.$queryRawUnsafe<Array<{
       payment_id: string;
+      insider_uuid: string | null;
     }>>(
       `SELECT payment_id
+              , insider_uuid
        FROM payments 
        WHERE payment_id = $1 AND is_active = true`,
       paymentId
@@ -105,6 +107,14 @@ export async function PATCH(
 
     if (!Array.isArray(paymentData) || paymentData.length === 0) {
       return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
+    }
+
+    const insiderUuid = paymentData[0]?.insider_uuid;
+    if (!insiderUuid) {
+      return NextResponse.json(
+        { error: 'Payment insider UUID is missing; cannot update ledger entry' },
+        { status: 422 }
+      );
     }
 
     const beforeUpdate = await prisma.$queryRawUnsafe<any[]>(
@@ -161,13 +171,15 @@ export async function PATCH(
            accrual = $3, 
            "order" = $4,
            comment = $5,
+           insider_uuid = $6::uuid,
            updated_at = NOW()
-       WHERE id = $6`,
+       WHERE id = $7`,
       paymentId,
       effectiveDate,
       accrual || 0,
       order || 0,
       comment || null,
+      insiderUuid,
       id
     );
 

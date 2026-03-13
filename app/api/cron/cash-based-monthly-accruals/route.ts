@@ -31,6 +31,7 @@ const buildMonthlyAggregationQuery = () => {
   return `
     SELECT
       t.payment_id,
+      p.insider_uuid,
       DATE_TRUNC('month', t.transaction_date)::date AS month_start,
       SUM(ABS(COALESCE(t.nominal_amount, 0))) AS total_amount
     FROM (
@@ -39,7 +40,7 @@ const buildMonthlyAggregationQuery = () => {
     INNER JOIN payments p ON p.payment_id = t.payment_id
     WHERE p.accrual_source = $1
       AND DATE_TRUNC('month', t.transaction_date) < DATE_TRUNC('month', NOW())
-    GROUP BY t.payment_id, DATE_TRUNC('month', t.transaction_date)::date
+    GROUP BY t.payment_id, p.insider_uuid, DATE_TRUNC('month', t.transaction_date)::date
   `;
 };
 
@@ -61,6 +62,7 @@ export async function GET(req: NextRequest) {
     const query = buildMonthlyAggregationQuery();
     const aggregates = (await prisma.$queryRawUnsafe(query, MONTHLY_SOURCE)) as Array<{
       payment_id: string;
+      insider_uuid: string | null;
       month_start: Date;
       total_amount: Prisma.Decimal | number | null;
     }>;
@@ -77,6 +79,10 @@ export async function GET(req: NextRequest) {
       const recordKey = `${row.payment_id}_${monthStartStr}`;
       const recordUuid = uuidv5(recordKey, DNS_NAMESPACE);
 
+      if (!row.insider_uuid) {
+        continue;
+      }
+
       await prisma.$executeRawUnsafe(
         `
           INSERT INTO payments_ledger (
@@ -87,13 +93,15 @@ export async function GET(req: NextRequest) {
             record_uuid,
             user_email,
             comment,
+            insider_uuid,
             updated_at
-          ) VALUES ($1, $2::timestamp, $3, $4, $5::uuid, $6, $7, NOW())
+          ) VALUES ($1, $2::timestamp, $3, $4, $5::uuid, $6, $7, $8::uuid, NOW())
           ON CONFLICT (record_uuid)
           DO UPDATE SET
             accrual = EXCLUDED.accrual,
             "order" = EXCLUDED."order",
             comment = EXCLUDED.comment,
+            insider_uuid = EXCLUDED.insider_uuid,
             updated_at = NOW()
         `,
         row.payment_id,
@@ -102,7 +110,8 @@ export async function GET(req: NextRequest) {
         totalAmount,
         recordUuid,
         SYSTEM_LEDGER_USER,
-        `Auto accrual/order monthly for ${monthStartStr} - ${monthEndStr}`
+        `Auto accrual/order monthly for ${monthStartStr} - ${monthEndStr}`,
+        row.insider_uuid
       );
 
       upserted += 1;
