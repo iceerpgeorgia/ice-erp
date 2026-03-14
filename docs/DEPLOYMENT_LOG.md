@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-03-14 (56)
+- Summary: Hardened BOG statement import/cron flow so accounts with no records are treated as successful zero-row checks instead of failures.
+- Changes:
+  - Updated `lib/integrations/bog/statement-mapper.ts` to support `allowEmptyStatement` and return valid empty statement XML with `detailsCount=0`.
+  - Updated `app/api/integrations/bog/statements/route.ts` to enable empty-statement mode and skip deconsolidated import when `detailsCount=0`.
+  - Updated `app/api/cron/bog-import-last-3-days/route.ts` to treat empty statements as successful account processing (`noTransactions=true`) while continuing normal imports for non-empty statements.
+  - Updated deployment policy in `AGENTS.md` to enforce single manual production deployment using `"[skip ci]"` pushes to avoid extra Vercel auto-deploys.
+- Commit: acec041
+- URL: https://ice-hdfivy5ht-iceerp.vercel.app
+
 ## 2026-03-13 (55)
 - Summary: Fixed TBC XML import table resolution to use configured/existing deconsolidated tables and avoid hard-failing on missing currency-specific table names.
 - Changes:
