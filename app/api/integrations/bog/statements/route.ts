@@ -129,6 +129,7 @@ export async function GET(request: NextRequest) {
     const mapped = mapBogStatementPayloadToXml(bogResponse.data, {
       accountNoWithCurrency,
       currencyCode,
+      allowEmptyStatement: true,
     });
 
     if (!importToDb) {
@@ -170,6 +171,22 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    if (mapped.detailsCount === 0) {
+      return NextResponse.json({
+        ok: true,
+        mode: 'import',
+        path,
+        status: bogResponse.status,
+        correlationId: bogResponse.correlationId,
+        detailsCount: 0,
+        header: mapped.header,
+        accountContext: importAccountContext,
+        token: tokenPreview,
+        message: 'No statement transactions returned by BOG for the requested period. Import skipped.',
+      });
+    }
+
     const headerParts = normalizeAccountNumber(mapped.header.AcctNo);
 
     // Use account context from DB for write safety; mapped header is used for XML compatibility only.

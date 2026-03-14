@@ -66,6 +66,7 @@ export type BogMappedDetail = {
 export type StatementMapOptions = {
   accountNoWithCurrency?: string;
   currencyCode?: string;
+  allowEmptyStatement?: boolean;
 };
 
 export type StatementMapResult = {
@@ -308,13 +309,21 @@ function buildXml(header: BogMappedHeader, details: BogMappedDetail[]): string {
 
 export function mapBogStatementPayloadToXml(payload: unknown, options?: StatementMapOptions): StatementMapResult {
   const items = detectItems(payload);
-  if (items.length === 0) {
+  if (items.length === 0 && !options?.allowEmptyStatement) {
     throw new Error('Could not detect statement transactions in BOG API response.');
   }
 
   const header = deriveHeader(payload, options);
   if (!header.AcctNo || header.AcctNo.length <= 3) {
     throw new Error('Mapped HEADER.AcctNo is invalid. Provide accountNoWithCurrency in request.');
+  }
+
+  if (items.length === 0) {
+    return {
+      xmlContent: buildXml(header, []),
+      header,
+      detailsCount: 0,
+    };
   }
 
   const details = items.map((tx, index) => mapDetail(tx, index + 1));

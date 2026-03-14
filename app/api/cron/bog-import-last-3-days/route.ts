@@ -160,6 +160,7 @@ export async function GET(req: NextRequest) {
       detailsCount: number;
       correlationId: string | null;
       path: string;
+      noTransactions?: boolean;
     }> = [];
     const failures: Array<{
       accountUuid: string;
@@ -202,7 +203,21 @@ export async function GET(req: NextRequest) {
         const mapped = mapBogStatementPayloadToXml(bogResponse.data, {
           accountNoWithCurrency: `${accountNumber}${currencyCode}`,
           currencyCode,
+          allowEmptyStatement: true,
         });
+
+        if (mapped.detailsCount === 0) {
+          successes.push({
+            accountUuid: account.uuid,
+            accountNumber,
+            currencyCode,
+            detailsCount: 0,
+            correlationId: bogResponse.correlationId,
+            path,
+            noTransactions: true,
+          });
+          continue;
+        }
 
         await processBOGGELDeconsolidated(
           mapped.xmlContent,
