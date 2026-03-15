@@ -55,6 +55,21 @@ function parseBOGDate(dateStr: string | undefined): Date | null {
   }
 }
 
+function formatDateKey(date: Date | null): string | null {
+  return date ? date.toISOString().split('T')[0] : null;
+}
+
+function deriveBOGTransactionDate(getText: (tagName: string) => string | null): Date | null {
+  // Prefer posting/completion date so overnight pending records are eventually assigned
+  // to the day they actually post in statements.
+  return (
+    parseBOGDate(getText('EntryPDate') || undefined) ||
+    parseBOGDate(getText('DocRecDate') || undefined) ||
+    parseBOGDate(getText('DocActualDate') || undefined) ||
+    parseBOGDate(getText('DocValueDate') || undefined)
+  );
+}
+
 export function calculateNominalAmount(
   accountCurrencyAmount: number,
   accountCurrencyCode: string,
@@ -589,16 +604,30 @@ export async function processBOGGELDeconsolidated(
 
   const { data: bankAccountsData, error: bankAccountsError } = await supabase
     .from('bank_accounts')
-    .select('uuid, account_number, currency_uuid, bank_uuid');
+    .select('uuid, account_number, currency_uuid, bank_uuid, insider_uuid');
   if (bankAccountsError) throw bankAccountsError;
 
   const bankAccountsMap = new Map<
     string,
-    { uuid: string; account_number: string; currency_uuid: string; currency_code: string; bank_uuid: string | null }
+    {
+      uuid: string;
+      account_number: string;
+      currency_uuid: string;
+      currency_code: string;
+      bank_uuid: string | null;
+      insider_uuid: string | null;
+    }
   >();
   const bankAccountsByNumber = new Map<
     string,
-    { uuid: string; account_number: string; currency_uuid: string; currency_code: string; bank_uuid: string | null }
+    {
+      uuid: string;
+      account_number: string;
+      currency_uuid: string;
+      currency_code: string;
+      bank_uuid: string | null;
+      insider_uuid: string | null;
+    }
   >();
 
   const { data: bogBank } = await supabase
@@ -619,6 +648,7 @@ export async function processBOGGELDeconsolidated(
       currency_uuid: row.currency_uuid,
       currency_code: currencyCode,
       bank_uuid: row.bank_uuid ?? null,
+      insider_uuid: row.insider_uuid ?? null,
     });
     if (!bankAccountsByNumber.has(accountNumber)) {
       bankAccountsByNumber.set(accountNumber, {
@@ -627,6 +657,7 @@ export async function processBOGGELDeconsolidated(
         currency_uuid: row.currency_uuid,
         currency_code: currencyCode,
         bank_uuid: row.bank_uuid ?? null,
+        insider_uuid: row.insider_uuid ?? null,
       });
     }
   }
@@ -663,9 +694,11 @@ export async function processBOGGELDeconsolidated(
   const insertRecords: any[] = [];
   let skippedDuplicates = 0;
   let skippedMissingKeys = 0;
+  let skippedNoCompletionDate = 0;
   let skippedInvalidDates = 0;
   let updatedPendingToCompleted = 0;
   let deletedCanceled = 0;
+  let correctedDuplicateDates = 0;
   const missingNbgRateDates = new Set<string>();
   const detailMeta: Array<{
     detail: any;
@@ -686,6 +719,13 @@ export async function processBOGGELDeconsolidated(
       continue;
     }
 
+    // Skip pending/incomplete records that do not yet have posting/completion date.
+    const completionDate = parseBOGDate(getText('EntryPDate') || undefined);
+    if (!completionDate) {
+      skippedNoCompletionDate++;
+      continue;
+    }
+
     const recordUuidStr = `${DocKey}_${EntriesId}`;
     const recordUuid = uuidv5(recordUuidStr, DNS_NAMESPACE);
     detailMeta.push({ detail, DocKey, EntriesId, recordUuid });
@@ -693,6 +733,7 @@ export async function processBOGGELDeconsolidated(
 
   console.log(`🔎 Checking existing records in ${deconsolidatedTableName}...`);
   const existingUuids = new Set<string>();
+  const existingRowsByUuid = new Map<string, { transaction_date: string | null }>();
   const existingBatchSize = 200;
 
   for (let i = 0; i < detailMeta.length; i += existingBatchSize) {
@@ -701,12 +742,15 @@ export async function processBOGGELDeconsolidated(
 
     const { data, error } = await supabase
       .from(deconsolidatedTableName)
-      .select('uuid')
+      .select('uuid, transaction_date')
       .in('uuid', batchUuids);
 
     if (error) throw error;
     for (const row of data ?? []) {
       existingUuids.add(row.uuid);
+      existingRowsByUuid.set(row.uuid, {
+        transaction_date: row.transaction_date ? String(row.transaction_date).split('T')[0] : null,
+      });
     }
   }
 
@@ -721,8 +765,7 @@ export async function processBOGGELDeconsolidated(
   for (const m of detailMeta) {
     const getText = (tagName: string) => m.detail[tagName]?.[0] || null;
     // Parse date, amount, and counteragent for comparison
-    const dateStr = getText('DocValueDate') || getText('DocActualDate') || getText('DocRecDate');
-    const parsedDate = parseBOGDate(dateStr);
+    const parsedDate = deriveBOGTransactionDate(getText);
     const entryCrAmt = getText('EntryCrAmt');
     const entryDbAmt = getText('EntryDbAmt');
     const credit = entryCrAmt ? parseFloat(entryCrAmt) : 0;
@@ -808,8 +851,7 @@ export async function processBOGGELDeconsolidated(
   const xmlDates: Date[] = [];
   for (const m of detailMeta) {
     const getText = (tagName: string) => m.detail[tagName]?.[0] || null;
-    const dateStr = getText('DocValueDate') || getText('DocActualDate') || getText('DocRecDate');
-    const parsed = parseBOGDate(dateStr);
+    const parsed = deriveBOGTransactionDate(getText);
     if (parsed) xmlDates.push(parsed);
   }
 
@@ -875,15 +917,12 @@ export async function processBOGGELDeconsolidated(
   const startTime = Date.now();
   const nowIso = new Date().toISOString();
   const importDateStr = nowIso.split('T')[0];
+  const duplicateDateCorrections: Array<{ uuid: string; dockey: string; entriesid: string; fromDate: string | null; toDate: string }> = [];
+  const duplicateDateCorrectionsSeen = new Set<string>();
 
   for (let idx = 0; idx < detailMeta.length; idx++) {
     const { detail, DocKey, EntriesId, recordUuid } = detailMeta[idx];
     const getText = (tagName: string) => detail[tagName]?.[0] || null;
-
-    if (existingUuids.has(recordUuid)) {
-      skippedDuplicates++;
-      continue;
-    }
 
     const entryCrAmt = getText('EntryCrAmt');
     const entryDbAmt = getText('EntryDbAmt');
@@ -891,12 +930,26 @@ export async function processBOGGELDeconsolidated(
     const debit = entryDbAmt ? parseFloat(entryDbAmt) : 0;
     const accountCurrencyAmount = credit - debit;
 
-    const docValueDate = getText('DocValueDate');
-    const docActualDate = getText('DocActualDate');
-    const docRecDate = getText('DocRecDate');
-    const transactionDate = parseBOGDate(docValueDate || docActualDate || docRecDate);
+    const transactionDate = deriveBOGTransactionDate(getText);
     if (!transactionDate) {
       skippedInvalidDates++;
+      continue;
+    }
+
+    if (existingUuids.has(recordUuid)) {
+      skippedDuplicates++;
+      const dbDate = existingRowsByUuid.get(recordUuid)?.transaction_date ?? null;
+      const newDate = formatDateKey(transactionDate);
+      if (!duplicateDateCorrectionsSeen.has(recordUuid) && newDate && dbDate !== newDate) {
+        duplicateDateCorrectionsSeen.add(recordUuid);
+        duplicateDateCorrections.push({
+          uuid: recordUuid,
+          dockey: DocKey,
+          entriesid: EntriesId,
+          fromDate: dbDate,
+          toDate: newDate,
+        });
+      }
       continue;
     }
 
@@ -928,6 +981,7 @@ export async function processBOGGELDeconsolidated(
       docDstAmt &&
       docSrcCcy &&
       docDstCcy &&
+      String(docSrcCcy).trim().toUpperCase() !== String(docDstCcy).trim().toUpperCase() &&
       !conversionCandidates.has(DocKey)
     ) {
       conversionCandidates.set(DocKey, {
@@ -1063,23 +1117,48 @@ export async function processBOGGELDeconsolidated(
     if ((idx + 1) % 500 === 0 || idx + 1 === detailMeta.length) {
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
       console.log(
-        `  ✅ Processed ${idx + 1}/${detailMeta.length} valid records (${elapsed}s) | new: ${insertRecords.length}, dup: ${skippedDuplicates}, missing: ${skippedMissingKeys}, invalidDates: ${skippedInvalidDates}`
+        `  ✅ Processed ${idx + 1}/${detailMeta.length} valid records (${elapsed}s) | new: ${insertRecords.length}, dup: ${skippedDuplicates}, missing: ${skippedMissingKeys}, noCompletionDate: ${skippedNoCompletionDate}, invalidDates: ${skippedInvalidDates}`
       );
     }
 
     if ((idx + 1) % 1000 === 0 || idx + 1 === detailMeta.length) {
       console.log(
-        `  ✅ Processed ${idx + 1}/${detailMeta.length} valid records | queued: ${insertRecords.length} | duplicates: ${skippedDuplicates} | missing keys: ${skippedMissingKeys} | invalid dates: ${skippedInvalidDates}`
+        `  ✅ Processed ${idx + 1}/${detailMeta.length} valid records | queued: ${insertRecords.length} | duplicates: ${skippedDuplicates} | missing keys: ${skippedMissingKeys} | no completion date: ${skippedNoCompletionDate} | invalid dates: ${skippedInvalidDates}`
       );
+    }
+  }
+
+  if (duplicateDateCorrections.length > 0) {
+    console.log(`  🛠️ Correcting transaction_date on ${duplicateDateCorrections.length} duplicate records...`);
+    for (const item of duplicateDateCorrections) {
+      const { error: updateError } = await supabase
+        .from(deconsolidatedTableName)
+        .update({ transaction_date: item.toDate, updated_at: nowIso })
+        .eq('uuid', item.uuid);
+
+      if (updateError) throw updateError;
+      correctedDuplicateDates++;
+      existingRowsByUuid.set(item.uuid, { transaction_date: item.toDate });
+    }
+
+    for (const item of duplicateDateCorrections.slice(0, 10)) {
+      console.log(
+        `    🔁 ${item.dockey}/${item.entriesid}: ${item.fromDate ?? 'null'} -> ${item.toDate}`
+      );
+    }
+    if (duplicateDateCorrections.length > 10) {
+      console.log(`    ... and ${duplicateDateCorrections.length - 10} more date corrections`);
     }
   }
 
   console.log(`📊 Raw Data Import Results:`);
   console.log(`  ✅ New records to insert: ${insertRecords.length}`);
   console.log(`  🔄 Skipped duplicates: ${skippedDuplicates}`);
+  console.log(`  🛠️  Duplicate date corrections: ${correctedDuplicateDates}`);
   console.log(`  🔄 Pending→Completed updates: ${updatedPendingToCompleted}`);
   console.log(`  🗑️  Canceled records deleted: ${deletedCanceled}`);
   console.log(`  ⚠️  Skipped missing keys: ${skippedMissingKeys}`);
+  console.log(`  ⚠️  Skipped no completion date (EntryPDate): ${skippedNoCompletionDate}`);
   console.log(`  ⚠️  Skipped invalid dates: ${skippedInvalidDates}\n`);
 
   if (insertRecords.length > 0) {
@@ -1229,6 +1308,12 @@ export async function processBOGGELDeconsolidated(
       let conversionId = existingConversion?.id as number | undefined;
 
       if (!conversionUuid) {
+        const insiderUuid = outAccount.insider_uuid ?? inAccount.insider_uuid;
+        if (!insiderUuid) {
+          console.warn(`⚠️ Skipping conversion DocKey=${candidate.dockey}: insider_uuid is missing for both bank accounts`);
+          continue;
+        }
+
         const { data: insertedConversion, error: conversionError } = await supabase
           .from('conversion')
           .insert({
@@ -1237,6 +1322,7 @@ export async function processBOGGELDeconsolidated(
             account_out_uuid: outAccount.uuid,
             account_in_uuid: inAccount.uuid,
             bank_uuid: outAccount.bank_uuid ?? inAccount.bank_uuid ?? bogBankUuid,
+            insider_uuid: insiderUuid,
             currency_out_uuid: outAccount.currency_uuid,
             currency_in_uuid: inAccount.currency_uuid,
             amount_out: amounts.amountOut,
@@ -1247,7 +1333,7 @@ export async function processBOGGELDeconsolidated(
           .single();
 
         if (conversionError) {
-          console.warn('⚠️ Failed to insert conversion:', conversionError.message);
+          console.warn(`⚠️ Failed to insert conversion DocKey=${candidate.dockey}:`, conversionError.message);
           continue;
         }
 
@@ -1311,6 +1397,7 @@ export async function processBOGGELDeconsolidated(
           counteragent_name: outRow?.counteragent_name ?? null,
           financial_code: outRow?.financial_code ?? null,
           project_index: outRow?.project_index ?? null,
+          insider_uuid: outAccount.insider_uuid ?? inAccount.insider_uuid ?? null,
         },
         {
           conversion_id: conversionId ?? null,
@@ -1346,6 +1433,7 @@ export async function processBOGGELDeconsolidated(
           counteragent_name: outRow?.counteragent_name ?? null,
           financial_code: outRow?.financial_code ?? null,
           project_index: outRow?.project_index ?? null,
+          insider_uuid: outAccount.insider_uuid ?? inAccount.insider_uuid ?? null,
         },
         {
           conversion_id: conversionId ?? null,
@@ -1381,6 +1469,7 @@ export async function processBOGGELDeconsolidated(
           counteragent_name: inRow?.counteragent_name ?? null,
           financial_code: inRow?.financial_code ?? null,
           project_index: inRow?.project_index ?? null,
+          insider_uuid: inAccount.insider_uuid ?? outAccount.insider_uuid ?? null,
         },
       ];
 

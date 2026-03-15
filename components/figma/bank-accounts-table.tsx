@@ -42,6 +42,8 @@ type BankAccount = {
   bankName: string;
   balance: number | null;
   balanceDate: string | null;
+  latestDate?: string | null;
+  recordedBalance?: number | null;
   parsingSchemeUuid: string | null;
   parsingSchemeName: string | null;
   rawTableName: string | null;
@@ -50,6 +52,30 @@ type BankAccount = {
   updatedAt: string;
   insiderUuid?: string | null;
   insiderName?: string | null;
+  computedCurrentBalance?: number | null;
+  balanceDelta?: number | null;
+  periodIncome?: number | null;
+  periodExpense?: number | null;
+  balanceAsOfDate?: string | null;
+  balanceCheckStatus?: string | null;
+  bogApiBalance?: number | null;
+  bogBalanceDelta?: number | null;
+  bogBalanceStatus?: string | null;
+};
+
+type DailyBalanceRow = {
+  accountUuid: string;
+  accountNumber: string;
+  currencyCode: string | null;
+  bankName: string | null;
+  date: string;
+  openingDate: string;
+  closingDate: string;
+  openingBalance: number;
+  inflow: number;
+  outflow: number;
+  closingBalance: number;
+  hasTurnover: boolean;
 };
 
 type ColumnKey = keyof BankAccount;
@@ -69,13 +95,21 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'bankName', label: 'Bank', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'currencyCode', label: 'Currency', visible: true, sortable: true, filterable: true, width: 100 },
   { key: 'insiderName', label: 'Insider', visible: true, sortable: false, filterable: false, width: 180 },
+  { key: 'latestDate', label: 'Latest Date', visible: true, sortable: true, filterable: false, format: 'date', width: 130 },
+  { key: 'recordedBalance', label: 'Recorded Balance', visible: true, sortable: true, filterable: false, format: 'currency', width: 170 },
   { key: 'balance', label: 'Balance', visible: true, sortable: true, filterable: false, format: 'currency', width: 150 },
+  { key: 'computedCurrentBalance', label: 'Current Balance', visible: true, sortable: true, filterable: false, format: 'currency', width: 170 },
+  { key: 'bogApiBalance', label: 'BOG API Balance', visible: true, sortable: true, filterable: false, format: 'currency', width: 170 },
+  { key: 'bogBalanceDelta', label: 'BOG Delta', visible: true, sortable: true, filterable: false, format: 'currency', width: 130 },
+  { key: 'balanceDelta', label: 'Delta', visible: true, sortable: true, filterable: false, format: 'currency', width: 130 },
   { key: 'balanceDate', label: 'Balance Date', visible: true, sortable: true, filterable: false, format: 'date', width: 130 },
   { key: 'parsingSchemeName', label: 'Parsing Scheme', visible: true, sortable: true, filterable: true, width: 150 },
   { key: 'rawTableName', label: 'Raw Data Table', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'isActive', label: 'Status', visible: true, sortable: true, filterable: true, format: 'boolean', width: 100 },
   { key: 'createdAt', label: 'Created', visible: false, sortable: true, filterable: false, format: 'date', width: 150 },
 ];
+
+const BALANCE_DRIFT_WARNING_THRESHOLD = 1;
 
 interface Currency {
   uuid: string;
@@ -121,6 +155,13 @@ export function BankAccountsTable() {
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isBalanceQueryDialogOpen, setIsBalanceQueryDialogOpen] = useState(false);
+  const [queryAccountUuid, setQueryAccountUuid] = useState<string>('all');
+  const [queryFromDate, setQueryFromDate] = useState<string>('');
+  const [queryToDate, setQueryToDate] = useState<string>('');
+  const [queryRows, setQueryRows] = useState<DailyBalanceRow[]>([]);
+  const [queryLoading, setQueryLoading] = useState(false);
+  const [queryError, setQueryError] = useState<string | null>(null);
 
   // Dialog states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -258,10 +299,59 @@ export function BankAccountsTable() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/bank-accounts');
-      if (!response.ok) throw new Error('Failed to fetch bank accounts');
-      const result = await response.json();
-      setData(result);
+      const [accountsResponse, balanceResponse] = await Promise.all([
+        fetch('/api/bank-accounts'),
+        fetch('/api/bank-accounts/balance-check'),
+      ]);
+
+      if (!accountsResponse.ok) throw new Error('Failed to fetch bank accounts');
+      const accounts = await accountsResponse.json();
+
+      let balanceRows: any[] = [];
+      if (balanceResponse.ok) {
+        const payload = await balanceResponse.json();
+        balanceRows = Array.isArray(payload?.rows) ? payload.rows : [];
+      }
+
+      const balanceByAccount = new Map<string, any>(
+        balanceRows.map((row) => [String(row.bankAccountUuid), row])
+      );
+
+      const merged = (Array.isArray(accounts) ? accounts : []).map((account: any) => {
+        const balanceData = balanceByAccount.get(String(account.uuid));
+        return {
+          ...account,
+          computedCurrentBalance:
+            balanceData?.computedCurrentBalance === null || balanceData?.computedCurrentBalance === undefined
+              ? null
+              : Number(balanceData.computedCurrentBalance),
+          balanceDelta:
+            balanceData?.deltaFromStored === null || balanceData?.deltaFromStored === undefined
+              ? null
+              : Number(balanceData.deltaFromStored),
+          periodIncome:
+            balanceData?.income === null || balanceData?.income === undefined
+              ? null
+              : Number(balanceData.income),
+          periodExpense:
+            balanceData?.expense === null || balanceData?.expense === undefined
+              ? null
+              : Number(balanceData.expense),
+          balanceAsOfDate: balanceData?.asOfDate || null,
+          balanceCheckStatus: balanceData?.status || null,
+          bogApiBalance:
+            balanceData?.bogApiBalance === null || balanceData?.bogApiBalance === undefined
+              ? null
+              : Number(balanceData.bogApiBalance),
+          bogBalanceDelta:
+            balanceData?.deltaFromBogApi === null || balanceData?.deltaFromBogApi === undefined
+              ? null
+              : Number(balanceData.deltaFromBogApi),
+          bogBalanceStatus: balanceData?.bogBalanceStatus || null,
+        } as BankAccount;
+      });
+
+      setData(merged);
     } catch (error) {
       console.error('Error fetching bank accounts:', error);
     } finally {
@@ -402,6 +492,24 @@ export function BankAccountsTable() {
     }
   };
 
+  const formatDeltaCell = (row: BankAccount) => {
+    const value = row.balanceDelta;
+    if (value === null || value === undefined) return '-';
+
+    const abs = Math.abs(value);
+    const text = value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const isWarning = abs >= BALANCE_DRIFT_WARNING_THRESHOLD;
+
+    if (!isWarning) return text;
+
+    return (
+      <span className="inline-flex items-center gap-1 font-semibold text-amber-700" title={`As of ${row.balanceAsOfDate || 'today'}`}>
+        <span>Drift</span>
+        <span>{text}</span>
+      </span>
+    );
+  };
+
   const visibleColumns = useMemo(() => columns.filter(col => col.visible), [columns]);
 
   const getFacetBaseData = (excludeColumn?: ColumnKey) => {
@@ -504,6 +612,47 @@ export function BankAccountsTable() {
       });
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const runBalanceQuery = async () => {
+    if (!queryFromDate || !queryToDate) {
+      setQueryError('Please select both From and To dates.');
+      return;
+    }
+
+    if (queryFromDate > queryToDate) {
+      setQueryError('From date must be less than or equal to To date.');
+      return;
+    }
+
+    try {
+      setQueryLoading(true);
+      setQueryError(null);
+
+      const params = new URLSearchParams({
+        from: queryFromDate,
+        to: queryToDate,
+      });
+
+      if (queryAccountUuid !== 'all') {
+        params.set('accountUuid', queryAccountUuid);
+      }
+
+      const response = await fetch(`/api/bank-accounts/daily-balances?${params.toString()}`);
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error || 'Failed to query balances');
+      }
+
+      const payload = await response.json();
+      const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+      setQueryRows(rows as DailyBalanceRow[]);
+    } catch (error: any) {
+      setQueryRows([]);
+      setQueryError(error?.message || 'Failed to query balances');
+    } finally {
+      setQueryLoading(false);
     }
   };
 
@@ -761,6 +910,97 @@ export function BankAccountsTable() {
               </DialogContent>
             </Dialog>
 
+            <Dialog open={isBalanceQueryDialogOpen} onOpenChange={setIsBalanceQueryDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Filter className="w-4 h-4" />
+                  Query Balances
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-5xl max-h-[85vh] overflow-hidden flex flex-col">
+                <DialogHeader>
+                  <DialogTitle>Opening/Closing Balance Query</DialogTitle>
+                  <DialogDescription>
+                    Query specific dates and accounts using the compressed period balances.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pb-2">
+                  <div className="space-y-1">
+                    <Label>Account</Label>
+                    <Select value={queryAccountUuid} onValueChange={setQueryAccountUuid}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All accounts" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All accounts</SelectItem>
+                        {data.map((account) => (
+                          <SelectItem key={account.uuid} value={account.uuid}>
+                            {account.accountNumber} ({account.currencyCode || '-'})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>From</Label>
+                    <Input type="date" value={queryFromDate} onChange={(e) => setQueryFromDate(e.target.value)} />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>To</Label>
+                    <Input type="date" value={queryToDate} onChange={(e) => setQueryToDate(e.target.value)} />
+                  </div>
+
+                  <div className="flex items-end">
+                    <Button className="w-full" onClick={runBalanceQuery} disabled={queryLoading}>
+                      {queryLoading ? 'Querying...' : 'Run Query'}
+                    </Button>
+                  </div>
+                </div>
+
+                {queryError ? <p className="text-sm text-red-600">{queryError}</p> : null}
+
+                <div className="border rounded-md overflow-auto flex-1">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-white border-b">
+                      <tr>
+                        <th className="text-left px-3 py-2">Account</th>
+                        <th className="text-left px-3 py-2">Currency</th>
+                        <th className="text-left px-3 py-2">Date</th>
+                        <th className="text-right px-3 py-2">Opening</th>
+                        <th className="text-right px-3 py-2">Inflow</th>
+                        <th className="text-right px-3 py-2">Outflow</th>
+                        <th className="text-right px-3 py-2">Closing</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {queryRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-3 py-6 text-center text-gray-500">
+                            No rows yet. Run a query to see opening and closing balances.
+                          </td>
+                        </tr>
+                      ) : (
+                        queryRows.map((row, idx) => (
+                          <tr key={`${row.accountUuid}-${row.date}-${idx}`} className="border-b last:border-b-0">
+                            <td className="px-3 py-2">{row.accountNumber}</td>
+                            <td className="px-3 py-2">{row.currencyCode || '-'}</td>
+                            <td className="px-3 py-2">{formatValue(row.date, 'date')}</td>
+                            <td className="px-3 py-2 text-right">{formatValue(row.openingBalance, 'currency')}</td>
+                            <td className="px-3 py-2 text-right">{formatValue(row.inflow, 'currency')}</td>
+                            <td className="px-3 py-2 text-right">{formatValue(row.outflow, 'currency')}</td>
+                            <td className="px-3 py-2 text-right">{formatValue(row.closingBalance, 'currency')}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -917,6 +1157,8 @@ export function BankAccountsTable() {
                           <div className="truncate">
                             {col.key === 'insiderName'
                               ? (requiredInsiderName || '-')
+                              : col.key === 'balanceDelta'
+                                ? formatDeltaCell(row)
                               : formatValue(row[col.key], col.format)}
                           </div>
                         )}

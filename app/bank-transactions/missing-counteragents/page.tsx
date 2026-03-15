@@ -43,10 +43,26 @@ export default function MissingCounteragentsPage() {
 
   useEffect(() => { fetchData(); }, []);
 
+  const getApiErrorMessage = async (res: Response, fallback: string): Promise<string> => {
+    try {
+      const text = await res.text();
+      if (!text) return fallback;
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed?.error && typeof parsed.error === 'string') return parsed.error;
+      } catch {
+        // Response is plain text.
+      }
+      return text;
+    } catch {
+      return fallback;
+    }
+  };
+
   const handleSave = async (payload: any) => {
     // payload already matches API shape from CounteragentFormDialog
     const res = await fetch('/api/counteragents', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (!res.ok) throw new Error('Failed to create');
+    if (!res.ok) throw new Error(await getApiErrorMessage(res, 'Failed to create counteragent'));
     await fetchData();
   };
 
@@ -78,9 +94,9 @@ export default function MissingCounteragentsPage() {
       try {
         const res = await fetch('/api/counteragents', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!res.ok) {
-          const text = await res.text();
-          console.error('Failed to create candidate', c, text);
-          results.errors.push({ candidate: c, errors: { api: text } });
+          const message = await getApiErrorMessage(res, 'Failed to create counteragent');
+          console.error('Failed to create candidate', c, message);
+          results.errors.push({ candidate: c, errors: { api: message } });
         } else {
           results.saved += 1;
         }

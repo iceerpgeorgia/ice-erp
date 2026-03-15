@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 model Account {
@@ -101,6 +102,7 @@ model BankAccount {
   bank                       Bank?                        @relation(fields: [bankUuid], references: [uuid])
   currency                   currencies                   @relation(fields: [currencyUuid], references: [uuid])
   consolidatedBankAccounts   ConsolidatedBankAccount[]
+  bankAccountBalances        BankAccountBalance[]
 
   @@unique([accountNumber, currencyUuid])
   @@index([bankUuid])
@@ -108,6 +110,24 @@ model BankAccount {
   @@index([insiderUuid])
   @@index([parsingSchemeId])
   @@map("bank_accounts")
+}
+
+model BankAccountBalance {
+  id             BigInt      @id @default(autoincrement())
+  accountUuid    String      @map("account_uuid") @db.Uuid
+  openingDate    DateTime    @map("opening_date") @db.Date
+  openingBalance Decimal     @map("opening_balance") @db.Decimal(20, 2)
+  inflow         Decimal     @default(0) @db.Decimal(20, 2)
+  outflow        Decimal     @default(0) @db.Decimal(20, 2)
+  closingDate    DateTime    @map("closing_date") @db.Date
+  closingBalance Decimal     @map("closing_balance") @db.Decimal(20, 2)
+  bankAccount    BankAccount @relation(fields: [accountUuid], references: [uuid], onDelete: Cascade)
+
+  @@unique([accountUuid, openingDate], map: "uq_bank_account_balances_account_opening_date")
+  @@index([accountUuid], map: "idx_bank_account_balances_account_uuid")
+  @@index([openingDate], map: "idx_bank_account_balances_opening_date")
+  @@index([closingDate], map: "idx_bank_account_balances_closing_date")
+  @@map("bank_account_balances")
 }
 
 model Bank {

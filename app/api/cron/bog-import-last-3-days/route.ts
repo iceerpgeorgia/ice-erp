@@ -34,10 +34,19 @@ function getTbilisiYmd(date: Date): string {
 }
 
 function getLastThreeDaysRangeInTbilisi() {
-  const endYmd = getTbilisiYmd(new Date());
-  const end = new Date(`${endYmd}T00:00:00Z`);
+  const includeToday = String(process.env.BOG_CRON_INCLUDE_TODAY || '').trim() === '1';
+  const rawLookback = Number(process.env.BOG_CRON_LOOKBACK_DAYS || 4);
+  const lookbackDays = Number.isFinite(rawLookback) ? Math.max(1, Math.floor(rawLookback)) : 4;
+
+  const todayYmd = getTbilisiYmd(new Date());
+  const end = new Date(`${todayYmd}T00:00:00Z`);
+  if (!includeToday) {
+    end.setUTCDate(end.getUTCDate() - 1);
+  }
+
+  const endYmd = end.toISOString().slice(0, 10);
   const start = new Date(end);
-  start.setUTCDate(start.getUTCDate() - 2);
+  start.setUTCDate(start.getUTCDate() - (lookbackDays - 1));
   const startYmd = start.toISOString().slice(0, 10);
 
   return { startYmd, endYmd };
@@ -80,6 +89,15 @@ function parseAllowedAccountUuids(): Set<string> | null {
     .filter((value) => value.length > 0);
 
   return values.length > 0 ? new Set(values) : null;
+}
+
+function* iterateDays(startYmd: string, endYmd: string): Generator<string> {
+  const start = new Date(`${startYmd}T00:00:00Z`);
+  const end = new Date(`${endYmd}T00:00:00Z`);
+
+  for (let day = new Date(start); day <= end; day.setUTCDate(day.getUTCDate() + 1)) {
+    yield day.toISOString().slice(0, 10);
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -126,9 +144,17 @@ export async function GET(req: NextRequest) {
       throw new Error(`Failed to load BOG bank accounts: ${accountsError.message}`);
     }
 
-    const bogAccounts = ((accounts || []) as BogAccount[])
+    const allBogAccounts = ((accounts || []) as BogAccount[])
       .filter((acc) => String(acc.account_number || '').trim().length > 0)
-      .filter((acc) => (allowedAccounts ? allowedAccounts.has(acc.uuid) : true));
+      .filter((acc) => true);
+
+    let filterIgnored = false;
+    let bogAccounts = allBogAccounts.filter((acc) => (allowedAccounts ? allowedAccounts.has(acc.uuid) : true));
+    if (allowedAccounts && bogAccounts.length === 0 && allBogAccounts.length > 0) {
+      // Prevent silent total skip when env filter becomes stale.
+      filterIgnored = true;
+      bogAccounts = allBogAccounts;
+    }
 
     if (bogAccounts.length === 0) {
       return NextResponse.json({
@@ -182,71 +208,74 @@ export async function GET(req: NextRequest) {
       }
 
       const insiderUuid = account.insider_uuid || defaultInsiderUuid || undefined;
-      const path = `/statement/${accountNumber}/${currencyCode}/${startYmd}/${endYmd}`;
+      for (const day of iterateDays(startYmd, endYmd)) {
+        const path = `/statement/${accountNumber}/${currencyCode}/${day}/${day}`;
 
-      try {
-        const bogResponse = await bogApiRequest<unknown>({
-          method: 'GET',
-          path,
-          insiderUuid,
-        });
-
-        if (!bogResponse.ok) {
-          failures.push({
-            accountUuid: account.uuid,
-            accountNumber,
-            reason: `BOG API ${bogResponse.status} (correlationId=${bogResponse.correlationId || 'n/a'})`,
+        try {
+          const bogResponse = await bogApiRequest<unknown>({
+            method: 'GET',
+            path,
+            insiderUuid,
           });
-          continue;
-        }
 
-        const mapped = mapBogStatementPayloadToXml(bogResponse.data, {
-          accountNoWithCurrency: `${accountNumber}${currencyCode}`,
-          currencyCode,
-          allowEmptyStatement: true,
-        });
+          if (!bogResponse.ok) {
+            failures.push({
+              accountUuid: account.uuid,
+              accountNumber,
+              reason: `BOG API ${bogResponse.status} on ${day} (correlationId=${bogResponse.correlationId || 'n/a'})`,
+            });
+            continue;
+          }
 
-        if (mapped.detailsCount === 0) {
+          const mapped = mapBogStatementPayloadToXml(bogResponse.data, {
+            accountNoWithCurrency: `${accountNumber}${currencyCode}`,
+            currencyCode,
+            allowEmptyStatement: true,
+          });
+
+          if (mapped.detailsCount === 0) {
+            successes.push({
+              accountUuid: account.uuid,
+              accountNumber,
+              currencyCode,
+              detailsCount: 0,
+              correlationId: bogResponse.correlationId,
+              path,
+              noTransactions: true,
+            });
+            continue;
+          }
+
+          await processBOGGELDeconsolidated(
+            mapped.xmlContent,
+            account.uuid,
+            accountNumber,
+            currencyCode,
+            uuidv4()
+          );
+
           successes.push({
             accountUuid: account.uuid,
             accountNumber,
             currencyCode,
-            detailsCount: 0,
+            detailsCount: mapped.detailsCount,
             correlationId: bogResponse.correlationId,
             path,
-            noTransactions: true,
           });
-          continue;
+        } catch (error: any) {
+          failures.push({
+            accountUuid: account.uuid,
+            accountNumber,
+            reason: `${error?.message || 'Unknown error'} on ${day}`,
+          });
         }
-
-        await processBOGGELDeconsolidated(
-          mapped.xmlContent,
-          account.uuid,
-          accountNumber,
-          currencyCode,
-          uuidv4()
-        );
-
-        successes.push({
-          accountUuid: account.uuid,
-          accountNumber,
-          currencyCode,
-          detailsCount: mapped.detailsCount,
-          correlationId: bogResponse.correlationId,
-          path,
-        });
-      } catch (error: any) {
-        failures.push({
-          accountUuid: account.uuid,
-          accountNumber,
-          reason: error?.message || 'Unknown error',
-        });
       }
     }
 
     return NextResponse.json({
       ok: failures.length === 0,
       period: { startYmd, endYmd, timeZone: 'Asia/Tbilisi' },
+      filterIgnored,
       consideredAccounts: bogAccounts.length,
       processedAccounts: successes.length,
       failedAccounts: failures.length,

@@ -191,6 +191,38 @@ const toInputDate = (value?: string | null): string => {
   return '';
 };
 
+const MAX_DIRECT_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+const formatBytes = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const parseApiResponse = async (response: Response): Promise<{
+  data: Record<string, any> | null;
+  text: string;
+  contentType: string;
+}> => {
+  const contentType = response.headers.get('content-type') || '';
+  const text = await response.text();
+
+  if (!text) {
+    return { data: null, text: '', contentType };
+  }
+
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === 'object') {
+      return { data: parsed as Record<string, any>, text, contentType };
+    }
+  } catch {
+    // Non-JSON response bodies happen on gateway/proxy failures.
+  }
+
+  return { data: null, text, contentType };
+};
+
 // Helper function to get responsive classes
 const getResponsiveClass = (responsive?: string) => {
   switch (responsive) {
@@ -957,20 +989,42 @@ export function BankTransactionsTable({
 
       writeLog(`Uploading ${files.length} file(s) directly to import API...`);
 
+      const selectedFiles = Array.from(files);
+      const oversizedFiles = selectedFiles.filter(file => file.size > MAX_DIRECT_UPLOAD_BYTES);
+
+      if (oversizedFiles.length > 0) {
+        const fileNames = oversizedFiles.map(file => file.name).join(', ');
+        const maxSizeLabel = formatBytes(MAX_DIRECT_UPLOAD_BYTES);
+        const sizeError = `File too large for direct upload (${maxSizeLabel} limit): ${fileNames}. Use smaller files or split the XML export.`;
+        writeLog(`✗ ${sizeError}`);
+        throw new Error(sizeError);
+      }
+
       const formData = new FormData();
-      Array.from(files).forEach((file) => {
+      selectedFiles.forEach((file) => {
         writeLog(`→ Attaching ${file.name} (${file.size.toLocaleString()} bytes)`);
         formData.append('file', file, file.name);
       });
 
       const response = await fetch(uploadEndpoint, {
         method: 'POST',
+        headers: {
+          Accept: 'application/json',
+        },
         body: formData,
       });
 
-      const result = await response.json();
+      const { data: result, text: rawTextResponse, contentType } = await parseApiResponse(response);
 
       if (response.ok) {
+        const successMessage = result?.message || 'Import completed';
+        const successLogs =
+          typeof result?.logs === 'string'
+            ? result.logs
+            : result?.logs
+              ? JSON.stringify(result.logs, null, 2)
+              : logBuffer || 'No logs available';
+
         if (logWindow) {
           logWindow.document.write(`
             <html>
@@ -985,26 +1039,43 @@ export function BankTransactionsTable({
                 </style>
               </head>
               <body>
-                <h2 class="success">${result.message}</h2>
-                <pre>${result.logs || logBuffer || 'No logs available'}</pre>
+                <h2 class="success">${successMessage}</h2>
+                <pre>${successLogs}</pre>
                 <p><button onclick="window.close(); opener.location.reload();">Close and Reload Page</button></p>
               </body>
             </html>
           `);
           logWindow.document.close();
         } else if (useDialogFallback) {
-          setUploadLogTitle(result.message || 'Upload complete');
-          setUploadLogText(result.logs || logBuffer || 'No logs available');
+          setUploadLogTitle(successMessage || 'Upload complete');
+          setUploadLogText(successLogs);
         } else {
-          alert(`Success! ${result.message}\n\nPage will reload.`);
+          alert(`Success! ${successMessage}\n\nPage will reload.`);
           window.location.reload();
         }
       } else {
-        writeLog(`✗ Import API error: ${result.error || 'Unknown error'}`);
+        const statusLine = `HTTP ${response.status} ${response.statusText}`.trim();
+        const errorMessage = result?.error || 'Upload request failed';
+        let details =
+          result?.details ||
+          (rawTextResponse
+            ? rawTextResponse.slice(0, 500)
+            : `Unexpected empty response (content-type: ${contentType || 'unknown'})`);
+
+        if (/request entity too large|payload too large|\b413\b/i.test(details)) {
+          details = `${details}\nThe upload request exceeded server limits. Split the XML into smaller files.`;
+        }
+
+        writeLog(`✗ Import API error: ${errorMessage}`);
+        writeLog(`↳ ${statusLine}`);
+        if (details) {
+          writeLog(`↳ ${details}`);
+        }
+
         if (useDialogFallback) {
           setUploadLogTitle('Upload failed');
         } else {
-          alert(`Error: ${result.error}${result.details ? '\n' + result.details : ''}`);
+          alert(`Error: ${errorMessage}\n${statusLine}${details ? `\n\n${details}` : ''}`);
         }
       }
     } catch (error: any) {

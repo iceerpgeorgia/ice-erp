@@ -2,6 +2,9 @@
   "buildCommand": "pnpm prisma generate && pnpm prisma migrate deploy && pnpm build",
   "installCommand": "pnpm install",
   "framework": "nextjs",
+  "git": {
+    "deploymentEnabled": false
+  },
   "regions": ["iad1"],
   "env": {
     "NEXTAUTH_URL": "https://iceerpgeorgia.com"

@@ -184,6 +184,22 @@ const mapCounteragentData = (row: any): Counteragent => ({
   insiderUuid: row.insider_uuid ?? row.insiderUuid ?? null,
 });
 
+const getApiErrorMessage = async (response: Response, fallback: string): Promise<string> => {
+  try {
+    const text = await response.text();
+    if (!text) return fallback;
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed?.error && typeof parsed.error === 'string') return parsed.error;
+    } catch {
+      // Non-JSON response.
+    }
+    return text;
+  } catch {
+    return fallback;
+  }
+};
+
 // Normalization helpers to handle snake_case API responses
 const normalizeEntityType = (et: any) => ({
   entityTypeUuid: et.entity_type_uuid || et.entity_type_uuid,
@@ -359,7 +375,6 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
       const sw = el.scrollWidth;
       const cw = el.clientWidth;
       const needs = sw > cw + 1;
-      console.log('[ScrollDebug] scrollWidth:', sw, 'clientWidth:', cw, 'needsScroller:', needs);
       setScrollContentWidth(sw);
       setNeedsBottomScroller(needs);
     };
@@ -387,9 +402,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     const timer = setTimeout(() => {
       const top = scrollRef.current;
       const bottom = bottomScrollRef.current;
-      
-      console.log('[Sync] Refs:', { top: !!top, bottom: !!bottom });
-      
+
       if (!top || !bottom) return;
 
       let isSyncing = false;
@@ -397,14 +410,12 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
         if (isSyncing) return;
         isSyncing = true;
         bottom.scrollLeft = top.scrollLeft;
-        console.log('[Sync] Top->Bottom:', top.scrollLeft);
         isSyncing = false;
       };
       const syncFromBottom = () => {
         if (isSyncing) return;
         isSyncing = true;
         top.scrollLeft = bottom.scrollLeft;
-        console.log('[Sync] Bottom->Top:', bottom.scrollLeft);
         isSyncing = false;
       };
       
@@ -413,12 +424,10 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
       
       // Initialize positions to match
       bottom.scrollLeft = top.scrollLeft;
-      console.log('[Sync] Initialized, listeners attached');
       
       return () => {
         top.removeEventListener('scroll', syncFromTop);
         bottom.removeEventListener('scroll', syncFromBottom);
-        console.log('[Sync] Listeners removed');
       };
     }, 100);
     
@@ -437,9 +446,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
       
       const diff = e.clientX - isResizing.startX;
       const newWidth = Math.max(60, isResizing.startWidth + diff);
-      
-      console.log('[Resize] Moving:', { diff, newWidth, column: isResizing.column });
-      
+
       setColumns(cols => cols.map(col => 
         col.key === isResizing.column 
           ? { ...col, width: newWidth }
@@ -448,12 +455,10 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
     };
 
     const handleMouseUp = () => {
-      console.log('[Resize] Mouse up, stopping resize');
       setIsResizing(null);
     };
 
     if (isResizing) {
-      console.log('[Resize] Started resizing:', isResizing);
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = 'col-resize';
@@ -1137,8 +1142,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   });
                   
                   if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Failed to create counteragent');
+                    throw new Error(await getApiErrorMessage(response, 'Failed to create counteragent'));
                   }
                   
                   const refreshResponse = await fetch('/api/counteragents');
@@ -1166,8 +1170,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                   });
                   
                   if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Failed to update counteragent');
+                    throw new Error(await getApiErrorMessage(response, 'Failed to update counteragent'));
                   }
                   
                   const updated = await response.json();
@@ -2124,7 +2127,6 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
                         }}
                         draggable={false}
                         onMouseDown={(e) => {
-                          console.log('[Resize] MouseDown on column:', column.key, 'startX:', e.clientX, 'startWidth:', column.width);
                           e.preventDefault();
                           e.stopPropagation();
                           setIsResizing({

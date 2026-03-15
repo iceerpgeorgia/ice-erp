@@ -133,6 +133,7 @@ export default function HomePage() {
           </div>
           <p><Link href="/dictionaries/bank-transactions-test">Open Bank Transactions Test</Link></p>
           <p><Link href="/dictionaries">Open Dictionaries</Link></p>
+          <p><Link href="/voice">Open Voice Commands (Mobile)</Link></p>
           {session.user?.role === 'system_admin' && (
             <p><Link href="/admin/users">Manage Users (Admin)</Link></p>
           )}

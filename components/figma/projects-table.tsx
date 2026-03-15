@@ -16,7 +16,7 @@ import {
   EyeOff,
   Info,
   Download,
-  ArrowUpRight,
+  User,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -1994,7 +1994,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                         title={project.counteragentUuid ? 'Open counteragent statement' : 'Counteragent statement unavailable'}
                         disabled={!project.counteragentUuid}
                       >
-                        <ArrowUpRight className="h-3 w-3" />
+                        <User className="h-4 w-4" />
                       </Button>
                       <Button
                         size="sm"

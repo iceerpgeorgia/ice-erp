@@ -100,6 +100,13 @@ export function CounteragentFormDialog({
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false);
 
+  const getErrorMessage = (error: unknown): string => {
+    if (error instanceof Error && error.message.trim()) {
+      return error.message;
+    }
+    return 'Failed to save. Please try again.';
+  };
+
   // Load edit data
   useEffect(() => {
     if (editData && isOpen) {
@@ -275,7 +282,7 @@ export function CounteragentFormDialog({
       onClose();
     } catch (error) {
       console.error('Form submission error:', error);
-      alert('Failed to save. Please try again.');
+      alert(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
