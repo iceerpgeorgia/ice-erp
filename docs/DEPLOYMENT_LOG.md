@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-15 (57)
+- Summary: Deployed latest undeployed updates for testing, including bank account period-balance APIs/UI and integration route additions.
+- Changes:
+  - Added Bank Accounts balance APIs: `app/api/bank-accounts/balance-check/route.ts` and `app/api/bank-accounts/daily-balances/route.ts`.
+  - Updated `app/api/bank-accounts/route.ts` and `components/figma/bank-accounts-table.tsx` with latest-date/recorded-balance support and in-page opening/closing balance query dialog.
+  - Included related app/integration updates in this release (`openclaw`, `tbc-id`, `whatsapp`, and supporting Prisma/script changes).
+- Commit: 8568cad
+- URL: https://ice-2is5r47am-iceerp.vercel.app
+
 ## 2026-03-14 (56)
 - Summary: Hardened BOG statement import/cron flow so accounts with no records are treated as successful zero-row checks instead of failures.
 - Changes:
