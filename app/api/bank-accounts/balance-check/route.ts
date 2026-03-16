@@ -18,6 +18,27 @@ function normalizeCurrencyCode(code: string | null): string {
   return String(code || "").trim().toUpperCase();
 }
 
+function normalizeDateOnly(value: unknown): string | null {
+  if (!value) return null;
+
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const isoMatch = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (isoMatch) return isoMatch[1];
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+
+  return null;
+}
+
 function deriveDeconsolidatedTableName(params: {
   accountNumber: string;
   bankName: string | null;
@@ -274,7 +295,7 @@ export async function GET(request: NextRequest) {
     const rows = await Promise.all(
       accounts.map(async (account) => {
         const openingBalance = account.balance === null || account.balance === undefined ? null : toNumber(account.balance);
-        const balanceDate = account.balance_date ? String(account.balance_date).slice(0, 10) : null;
+        const balanceDate = normalizeDateOnly(account.balance_date);
         const tableName = deriveDeconsolidatedTableName({
           accountNumber: account.account_number,
           bankName: account.bank_name,
