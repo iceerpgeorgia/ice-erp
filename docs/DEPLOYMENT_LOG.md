@@ -1,5 +1,13 @@
-# Deployment Log
+﻿# Deployment Log
 
+## 2026-03-16 (59)
+- Summary: Normalized conversion transaction date fields in bank-transactions APIs to ISO `YYYY-MM-DD` for clean side-by-side comparison with ordinary transactions.
+- Changes:
+  - Updated `app/api/bank-transactions/route.ts` to normalize conversion `transaction_date` and `correction_date` with existing `toComparableDate` before response serialization.
+  - Updated `app/api/bank-transactions-test/route.ts` with the same normalization logic to keep test endpoint behavior aligned.
+  - No changes to underlying stored values; this deploy standardizes API output format only.
+- Commit: 07c0e5b
+- URL: https://ice-qnk461iuv-iceerp.vercel.app
 ## 2026-03-16 (58)
 - Summary: Fixed bank-account balance drift miscalculation caused by non-ISO `balance_date` parsing in balance-check API.
 - Changes:
@@ -51,7 +59,7 @@
 - Changes:
   - Updated `app/api/payments-ledger/route.ts` to resolve `insider_uuid` from `payments` before insert and persist it on new ledger rows.
   - Updated `app/api/payments-ledger/[id]/route.ts` to validate payment insider mapping and update `payments_ledger.insider_uuid` on ledger edits.
-  - Updated `app/api/payments-ledger/bulk/route.ts` to preload payment→insider mappings, validate missing insider cases, and include `insider_uuid` in bulk inserts.
+  - Updated `app/api/payments-ledger/bulk/route.ts` to preload paymentâ†’insider mappings, validate missing insider cases, and include `insider_uuid` in bulk inserts.
   - Updated `app/api/cron/cash-based-monthly-accruals/route.ts` to include `insider_uuid` in monthly ledger upserts.
 - Commit: e9a5d73
 - URL: https://ice-g9v5x55gq-iceerp.vercel.app
@@ -317,7 +325,7 @@
 ## 2026-03-10 (24)
 - Summary: Enforced payment deactivation guard when ledger activity exists and excluded inactive payments from report formatting logic.
 - Changes:
-  - Payments API now blocks active→inactive updates when non-deleted ledger rows contain non-zero `accrual` or `order` values.
+  - Payments API now blocks activeâ†’inactive updates when non-deleted ledger rows contain non-zero `accrual` or `order` values.
   - API returns explicit `409` conflict with `PAYMENT_HAS_LEDGER_ACTIVITY` for blocked deactivation attempts.
   - Payments table and Payments Report edit flow now show a clear business-rule prompt when deactivation is blocked.
   - Payments Report conditional-format calculations and row highlighting now ignore inactive payments.
@@ -486,7 +494,7 @@
   - Salary report API (`/api/salary-report`): missing-period projected rows now prefer real bank `payment_id` values per period instead of only generated IDs.
   - Salary report API (All Payments mode): payment inclusion now also accepts PRL salary-like payment IDs from bank data when accrual and bank IDs differ.
   - Projects table: when any filter is active on a hidden column (e.g. `projectUuid`), that column is auto-shown so filters are visible and removable.
-  - Result: March salary payments (e.g. for ლაშა ვერულიძე) appear in All Payments view; Projects page no longer looks unfiltered while silently filtered.
+  - Result: March salary payments (e.g. for áƒšáƒáƒ¨áƒ áƒ•áƒ”áƒ áƒ£áƒšáƒ˜áƒ«áƒ”) appear in All Payments view; Projects page no longer looks unfiltered while silently filtered.
 - Commit: f2139f5
 - URL: https://ice-ksn8qn14z-iceerp.vercel.app
 
@@ -536,27 +544,27 @@
 - Summary: Salary report per counteragent with XLSX/PDF export; bank import PGRST205 error handling fix.
 - Changes:
   - New salary report page (/salary-report/[counteragentUuid]): Opens in new tab per counteragent with header showing counteragent details (name, ID, sex, pension scheme, IBAN, currency).
-  - Report table columns: Period, Payment ID, Net Sum (adjusted by pension_scheme ×0.98), Surplus Insurance, Ded. Insurance, Ded. Fitness, Ded. Fine, Payment, Month Balance, Cumulative Accrual, Cumulative Payment, Cumulative Balance.
+  - Report table columns: Period, Payment ID, Net Sum (adjusted by pension_scheme Ã—0.98), Surplus Insurance, Ded. Insurance, Ded. Fitness, Ded. Fine, Payment, Month Balance, Cumulative Accrual, Cumulative Payment, Cumulative Balance.
   - Totals row with color-coded balances (red=unpaid, green=overpaid).
   - Export XLSX button (full report with header info + data table using xlsx library).
   - Export PDF button (via window.print() with print-friendly CSS).
   - New API endpoint /api/salary-report: Calculates paid amounts across all 10 deconsolidated tables including batch resolution, pension scheme adjustment, and cumulatives.
   - New BarChart3 (purple) icon in salary accruals row actions to open salary report in new tab. Actions column widened to 180px.
   - Page title registered for /salary-report route.
-  - Bank XML import (deconsolidated): Added PGRST205 error handling — gracefully skips missing Supabase tables instead of failing.
+  - Bank XML import (deconsolidated): Added PGRST205 error handling â€” gracefully skips missing Supabase tables instead of failing.
   - DB cleanup: Deleted orphan bank account GE43BG0000000609494201 (no raw table, no parsing scheme).
-  - DB fix: 20 nominal amount records fixed for counteragent სიჩკენდერ (GEL→USD conversion using NBG rates).
+  - DB fix: 20 nominal amount records fixed for counteragent áƒ¡áƒ˜áƒ©áƒ™áƒ”áƒœáƒ“áƒ”áƒ  (GELâ†’USD conversion using NBG rates).
 - Commit: 3bdfe1d
 - URL: https://ice-e5wxehilg-iceerp.vercel.app
 
 ## 2026-03-06 (1)
-- Summary: Copy salary accrual to months feature; NBG rate missing warning; pending→completed multi-entry detection fix.
+- Summary: Copy salary accrual to months feature; NBG rate missing warning; pendingâ†’completed multi-entry detection fix.
 - Changes:
-  - Salary accruals: New per-row "Copy to months" action (green Copy icon). Opens dialog showing source details and checkboxes for ±36-month range. Existing months shown disabled/strikethrough. Records created on last day of selected month with new payment_id. deducted_insurance set to null on copy.
+  - Salary accruals: New per-row "Copy to months" action (green Copy icon). Opens dialog showing source details and checkboxes for Â±36-month range. Existing months shown disabled/strikethrough. Records created on last day of selected month with new payment_id. deducted_insurance set to null on copy.
   - Bank import (deconsolidated): NBG exchange rate missing dates now tracked and reported in FINAL SUMMARY warning.
-  - Bank import (deconsolidated): Pending→completed detection rewritten to handle multi-entry DocKeys (e.g. TRN+COM). Now stores all entries per DocKey and matches by date+amount per entry instead of keeping only max EntriesId.
+  - Bank import (deconsolidated): Pendingâ†’completed detection rewritten to handle multi-entry DocKeys (e.g. TRN+COM). Now stores all entries per DocKey and matches by date+amount per entry instead of keeping only max EntriesId.
   - Bank import (consolidated, bog-gel-processor): calculateNominalAmount updated with optional missingRateDates parameter for rate tracking.
-  - Python import script: Added pending→completed detection and cleanup-pending-duplicates mode.
+  - Python import script: Added pendingâ†’completed detection and cleanup-pending-duplicates mode.
   - Added check-duplicates.js and cleanup-duplicates.js utility scripts.
 - Commit: d3fd1d5
 - URL: https://ice-2lws621br-iceerp.vercel.app
@@ -575,7 +583,7 @@
 - Changes:
   - Self.ge dialog: "Add to Salary" now looks up the counteragent's existing salary accruals currency (e.g. USD) instead of always defaulting to GEL.
   - Salary accruals: "Confirmed & Balance>0" filter uses `>= 0.01` threshold to properly exclude near-zero floating-point values that display as `0.00`.
-  - DB fix: Updated 2 payment records for counteragent აბდულ ჰამეედ სიჩკენდერ from GEL to USD (payment IDs: 63810f_23_9be30c, 6f15fe_50_864951).
+  - DB fix: Updated 2 payment records for counteragent áƒáƒ‘áƒ“áƒ£áƒš áƒ°áƒáƒ›áƒ”áƒ”áƒ“ áƒ¡áƒ˜áƒ©áƒ™áƒ”áƒœáƒ“áƒ”áƒ  from GEL to USD (payment IDs: 63810f_23_9be30c, 6f15fe_50_864951).
 - Commit: e29367b
 
 ## 2026-03-05 (4)
@@ -608,9 +616,9 @@
 - URL: https://ice-d9xq1sfds-iceerp.vercel.app
 
 ## 2026-03-05
-- Summary: Self.ge upload dialog enhancements: IBAN parsing, net=salary×80%, per-row add counteragent/salary buttons, comma-separated salary handling.
+- Summary: Self.ge upload dialog enhancements: IBAN parsing, net=salaryÃ—80%, per-row add counteragent/salary buttons, comma-separated salary handling.
 - Changes:
-  - upload-self-ge API: Parse IBAN from `ანგარიშის ნომერი` column; net sum calculated as `ხელფასი × 0.8`; comma-separated salary values (e.g. "2000,5000") use rightmost number; IBAN included in all comparison result categories.
+  - upload-self-ge API: Parse IBAN from `áƒáƒœáƒ’áƒáƒ áƒ˜áƒ¨áƒ˜áƒ¡ áƒœáƒáƒ›áƒ”áƒ áƒ˜` column; net sum calculated as `áƒ®áƒ”áƒšáƒ¤áƒáƒ¡áƒ˜ Ã— 0.8`; comma-separated salary values (e.g. "2000,5000") use rightmost number; IBAN included in all comparison result categories.
   - New API actions: `create-single-counteragent` (with IBAN), `add-to-salary` (creates accrual + syncs IBAN on counteragent if different). Bulk create also saves IBAN.
   - Salary accruals table: Missing Counteragents section shows IBAN column and per-row "Add" button; after adding, row moves locally to Missing In Salary section. Missing In Salary section shows IBAN column and per-row "Add to Salary" button. Bulk "Add All" also moves rows locally.
   - Types updated: `SelfGeCounteragentRow` and `SelfGeMissingSalaryRow` include optional `iban` field.
@@ -640,8 +648,8 @@
 - Summary: Add columnFormat to statement pages for full shared filter parity (numeric/date/text/boolean condition tabs).
 - Changes:
   - Both pages: Added `format?: ColumnFormat` to `ColumnConfig` type.
-  - Counteragent statement: `date` → `'date'`, `incomeTax`/`confirmed` → `'boolean'`, `accrual`/`order`/`payment`/`ppc` → `'currency'`, `comment` → `'text'`; pass `columnFormat={col.format}` to `ColumnFilterPopover`.
-  - Payment statement: `date`/`createdAt` → `'date'`, `confirmed` → `'boolean'`, `accrual`/`payment`/`order`/`ppc`/`due`/`balance` → `'currency'`, `paidPercent` → `'percent'`, `comment` → `'text'`; pass `columnFormat={column.format}` to `ColumnFilterPopover`.
+  - Counteragent statement: `date` â†’ `'date'`, `incomeTax`/`confirmed` â†’ `'boolean'`, `accrual`/`order`/`payment`/`ppc` â†’ `'currency'`, `comment` â†’ `'text'`; pass `columnFormat={col.format}` to `ColumnFilterPopover`.
+  - Payment statement: `date`/`createdAt` â†’ `'date'`, `confirmed` â†’ `'boolean'`, `accrual`/`payment`/`order`/`ppc`/`due`/`balance` â†’ `'currency'`, `paidPercent` â†’ `'percent'`, `comment` â†’ `'text'`; pass `columnFormat={column.format}` to `ColumnFilterPopover`.
 - Commit: 6b958a9
 - URL: https://ice-8jznxcbwj-iceerp.vercel.app
 
@@ -656,8 +664,8 @@
 ## 2026-03-05
 - Summary: Unified shared filter engine across all 13 table components with industry-standard numeric/text/date condition operators.
 - Changes:
-  - New: `components/figma/shared/table-filters.ts` — shared filter engine with `FilterState` type, `matchesFilter()`, and predicates for facet/numeric/text/date modes.
-  - Updated: `components/figma/shared/column-filter-popover.tsx` — added tabbed UI (Values + Condition) with numeric operators (>, <, between, =, ≠, blank, not blank), text operators (contains, starts with, ends with, equals, blank), and date operators (=, >, <, between, blank).
+  - New: `components/figma/shared/table-filters.ts` â€” shared filter engine with `FilterState` type, `matchesFilter()`, and predicates for facet/numeric/text/date modes.
+  - Updated: `components/figma/shared/column-filter-popover.tsx` â€” added tabbed UI (Values + Condition) with numeric operators (>, <, between, =, â‰ , blank, not blank), text operators (contains, starts with, ends with, equals, blank), and date operators (=, >, <, between, blank).
   - Migrated 13 tables to shared `FilterState`: salary-accruals, payments, payments-ledger, bank-accounts, conversions, parsing-scheme-rules, counteragents, countries, entity-types, projects, jobs, bank-transactions, payments-report.
   - Backward-compatible: existing facet/checkbox filters work identically; numeric/text/date condition filters are additive.
   - All localStorage persistence auto-converts between legacy and new format.
@@ -671,7 +679,7 @@
   - API (payments-ledger/confirm): Also updates `salary_accruals.confirmed = true` for matching payment_ids.
   - API (payments-ledger/deconfirm): Also updates `salary_accruals.confirmed = false` for matching payment_ids.
   - API (salary-accruals): Reads `confirmed` directly from `salary_accruals` table instead of deriving from `payments_ledger`.
-  - UI (salary-accruals-table): Conditional row colors: confirmed + month_balance < 0 → slight red (#ffebee), > 0 → slight green (#e8f5e9), = 0 → slight gray (#f3f4f6). Bold red counteragent name when cumulative_balance < 0.
+  - UI (salary-accruals-table): Conditional row colors: confirmed + month_balance < 0 â†’ slight red (#ffebee), > 0 â†’ slight green (#e8f5e9), = 0 â†’ slight gray (#f3f4f6). Bold red counteragent name when cumulative_balance < 0.
 - Commit: 4d81b5f
 - Production: https://ice-g1r5lpyvj-iceerp.vercel.app
 
@@ -692,7 +700,7 @@
 ## 2026-03-02
 - Summary: Fix batch partition amounts, salary accruals optimization, and batch editor flow fixes.
 - Changes:
-  - API (8 routes): fix `COALESCE(nominal_amount, partition_amount)` → `COALESCE(NULLIF(nominal_amount, 0), partition_amount)` so zero nominal_amount falls through to partition_amount in salary balance calculations.
+  - API (8 routes): fix `COALESCE(nominal_amount, partition_amount)` â†’ `COALESCE(NULLIF(nominal_amount, 0), partition_amount)` so zero nominal_amount falls through to partition_amount in salary balance calculations.
   - API (bank-transactions): expose `account_currency_code` in response for batch partition rows.
   - API (salary-accruals): compute paid amounts server-side, removing redundant client-side `/api/bank-transactions?limit=0` fetch; expand paidRows query to all 10 `SOURCE_TABLES`.
   - UI (payment-statement): add missing `batchId` and `accountCurrencyCode` field mappings in `openBankEditDialog` so batch editor loads partitions correctly.
@@ -705,7 +713,7 @@
 ## 2026-03-02
 - Summary: Optimize counteragent statement bulk edit with single bulk-bind endpoint.
 - Changes:
-  - API: add `/api/bank-transactions/bulk-bind` PATCH endpoint that groups synthetic IDs by source table, batch-fetches rows and NBG rates, and executes single `UPDATE…FROM(VALUES)` per table.
+  - API: add `/api/bank-transactions/bulk-bind` PATCH endpoint that groups synthetic IDs by source table, batch-fetches rows and NBG rates, and executes single `UPDATEâ€¦FROM(VALUES)` per table.
   - Counteragent statement UI: replace N individual `fetch` calls with a single bulk request.
   - Performance: reduces ~5N DB queries to ~7 total regardless of selection size.
 - Commit: 2196e0d
@@ -1792,3 +1800,4 @@
   - Currencies page: read result.data when API returns { data: [...] }.
 - Commit: 4222952
 - Production: https://ice-7monwh5jg-iceerp.vercel.app
+
