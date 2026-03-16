@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-16 (61)
+- Summary: Fixed TBC/BOG deconsolidated import failures caused by `tmp_turnovers` temp-table collisions in balance recompute triggers.
+- Changes:
+  - Updated `lib/bank-import/import_bank_xml_data.ts` to detect Postgres `42P07` `tmp_turnovers already exists` during batch insert and retry row-by-row for that batch.
+  - Added migration `prisma/migrations/20260316193000_fix_tmp_turnovers_conflict/migration.sql` to make `recompute_bank_account_balance_periods` temp-table handling re-entrant (`CREATE TEMP TABLE IF NOT EXISTS` + `TRUNCATE`).
+  - Preserves normal batch insert path for all non-conflict errors.
+- Commit: 62b343c
+- URL: https://ice-ozushicyh-iceerp.vercel.app
+
 ## 2026-03-16 (60)
 - Summary: Added optional API debug instrumentation for bank transactions to trace row counts and samples across processing stages.
 - Changes:
