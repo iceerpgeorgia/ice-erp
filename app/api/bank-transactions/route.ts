@@ -1,4 +1,4 @@
-// app/api/bank-transactions/route.ts
+﻿// app/api/bank-transactions/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
@@ -320,9 +320,34 @@ export async function GET(req: NextRequest) {
     const rawRecordUuid = searchParams.get('rawRecordUuid');
     const limitParam = searchParams.get('limit');  // Optional limit override (default: 1000)
     const offsetParam = searchParams.get('offset'); // Optional offset for pagination (default: 0)
-    
-    console.log('[API] Query params:', { fromDate, toDate, idsParam, rawRecordUuid, limitParam, offsetParam });
-    
+    const debugParam = searchParams.get('debug');
+    const includeDebug = debugParam === '1' || debugParam?.toLowerCase() === 'true';
+
+    console.log('[API] Query params:', { fromDate, toDate, idsParam, rawRecordUuid, limitParam, offsetParam, debugParam });
+
+    const toJsonSafe = (value: any): any => {
+      if (typeof value === 'bigint') return value.toString();
+      if (Array.isArray(value)) return value.map((v) => toJsonSafe(v));
+      if (value && typeof value === 'object') {
+        const out: Record<string, any> = {};
+        for (const [k, v] of Object.entries(value)) {
+          out[k] = toJsonSafe(v);
+        }
+        return out;
+      }
+      return value;
+    };
+
+    const buildSample = (rows: any[]) => rows.slice(0, 20).map((row) => toJsonSafe({
+      id: row.synthetic_id ?? row.id ?? null,
+      dockey: row.dockey ?? null,
+      entriesid: row.entriesid ?? null,
+      transaction_date: row.transaction_date ?? null,
+      account_currency_amount: row.account_currency_amount ?? null,
+      payment_id: row.payment_id ?? null,
+      parsing_lock: row.parsing_lock ?? null,
+    }));
+
     // Helper to convert dd.mm.yyyy or yyyy-mm-dd to yyyy-mm-dd for comparison
     const toComparableDate = (dateStr: string | null): string | null => {
       if (!dateStr || dateStr.length < 10) return null;
@@ -360,7 +385,7 @@ export async function GET(req: NextRequest) {
     
     // Warn if requesting too many records
     if (limit && limit > 5000) {
-      console.warn('[API] ⚠️ Large limit requested:', limit, '- this may be slow. Consider pagination.');
+      console.warn('[API] Large limit requested:', limit, '- this may be slow. Consider pagination.');
     }
     
     console.log('[API] Fetch params:', { limit, offset, hasIds: !!idsParam });
@@ -692,9 +717,27 @@ export async function GET(req: NextRequest) {
 
     if (idsParam) {
       console.log('[API] Step 7: Building response (ids only)...');
+      const debug = includeDebug ? {
+        params: { fromDate, toDate, idsParam, rawRecordUuid, limitParam, offsetParam },
+        counts: {
+          sqlRows: transactions.length,
+          dateFilteredRows: filteredTransactions.length,
+          mappedRows: result.length,
+          conversionRows: conversionRows.length,
+          balanceRows: balanceResults.length,
+          combinedRows: result.length,
+        },
+        samples: {
+          sqlRows: buildSample(transactions),
+          filteredRows: buildSample(filteredTransactions),
+          resultRows: buildSample(result),
+        },
+      } : undefined;
+
       return NextResponse.json({
         data: result,
         currency_summaries: [],
+        debug,
         pagination: {
           total: Number(totalCount),
           limit: result.length,
@@ -838,10 +881,30 @@ export async function GET(req: NextRequest) {
     console.log('[API] Step 7: Building response...');
     console.log('[API] - combinedResult length:', combinedResult.length);
     console.log('[API] - totalCount:', totalCount);
+
+    const debug = includeDebug ? {
+      params: { fromDate, toDate, idsParam, rawRecordUuid, limitParam, offsetParam },
+      counts: {
+        sqlRows: transactions.length,
+        dateFilteredRows: filteredTransactions.length,
+        mappedRows: result.length,
+        conversionRows: conversionRows.length,
+        balanceRows: balanceResults.length,
+        combinedRows: combinedResult.length,
+      },
+      samples: {
+        sqlRows: buildSample(transactions),
+        filteredRows: buildSample(filteredTransactions),
+        resultRows: buildSample(result),
+        conversionRows: buildSample(conversionRows),
+        combinedRows: buildSample(combinedResult),
+      },
+    } : undefined;
     
     return NextResponse.json({
       data: combinedResult,
       currency_summaries: Object.values(currencySummaries),
+      debug,
       pagination: totalCount !== undefined ? {
         total: Number(totalCount), // Convert BigInt to Number for JSON
         limit: limit ?? combinedResult.length,
@@ -857,4 +920,5 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
 
