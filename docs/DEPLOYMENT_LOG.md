@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-03-16 (58)
+- Summary: Fixed bank-account balance drift miscalculation caused by non-ISO `balance_date` parsing in balance-check API.
+- Changes:
+  - Updated `app/api/bank-accounts/balance-check/route.ts` to normalize `balance_date` values to `YYYY-MM-DD` before turnover-range filtering.
+  - Prevents fallback to full-history sum when `balance_date` arrives as a JS `Date` string (for example `Mon Mar 16 ...`).
+  - Eliminates double-counting that produced inflated `computedCurrentBalance` and false `deltaFromStored` drift.
+- Commit: 93b1744
+- URL: https://ice-1ofal9bk5-iceerp.vercel.app
+
 ## 2026-03-15 (57)
 - Summary: Deployed latest undeployed updates for testing, including bank account period-balance APIs/UI and integration route additions.
 - Changes:
