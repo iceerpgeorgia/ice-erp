@@ -1,5 +1,15 @@
 ﻿# Deployment Log
 
+## 2026-03-16 (60)
+- Summary: Added optional API debug instrumentation for bank transactions to trace row counts and samples across processing stages.
+- Changes:
+  - Updated app/api/bank-transactions/route.ts to accept debug=1 (or debug=true) and include a debug object in responses.
+  - Added stage counters (sqlRows, dateFilteredRows, mappedRows, conversionRows, balanceRows, combinedRows) for faster mismatch triage.
+  - Added JSON-safe sample rows for raw SQL, filtered, mapped, conversion, and combined outputs (with bigint-safe serialization).
+  - Included debug payload in both normal and ids response branches.
+- Commit: 743ff33
+- URL: https://ice-brc0gm0pm-iceerp.vercel.app
+
 ## 2026-03-16 (59)
 - Summary: Normalized conversion transaction date fields in bank-transactions APIs to ISO `YYYY-MM-DD` for clean side-by-side comparison with ordinary transactions.
 - Changes:
