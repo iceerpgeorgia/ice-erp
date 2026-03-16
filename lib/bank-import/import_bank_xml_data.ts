@@ -1503,6 +1503,13 @@ export async function processTBC(
 
   if (deconsolidatedRecords.length > 0) {
     const batchSize = 1000;
+
+    const isTmpTurnoversConflict = (error: any) => {
+      const message = String(error?.message || error || '').toLowerCase();
+      const code = String(error?.code || '').toUpperCase();
+      return code === '42P07' && message.includes('tmp_turnovers') && message.includes('already exists');
+    };
+
     for (let i = 0; i < deconsolidatedRecords.length; i += batchSize) {
       const batch = deconsolidatedRecords.slice(i, i + batchSize);
       const { error: insertError } = await supabase
@@ -1524,6 +1531,32 @@ export async function processTBC(
           errorSnapshot,
           sampleRecord: batch[0] ?? null,
         });
+
+        // Temporary DB-side trigger bug workaround:
+        // row-level trigger recomputation can fail on multi-row inserts when temp table names collide.
+        if (batch.length > 1 && isTmpTurnoversConflict(insertError)) {
+          console.warn('⚠️ Retrying deconsolidated insert row-by-row due to tmp_turnovers trigger collision...');
+          for (let rowIdx = 0; rowIdx < batch.length; rowIdx++) {
+            const row = batch[rowIdx];
+            const { error: rowError } = await supabase
+              .from(deconsolidatedTableName)
+              .insert([row]);
+
+            if (rowError) {
+              console.error('❌ Row-by-row retry failed:', {
+                table: deconsolidatedTableName,
+                absoluteIndex: i + rowIdx,
+                error: rowError,
+                sampleRecord: row,
+              });
+              throw rowError;
+            }
+          }
+
+          console.log(`  ✅ Fallback inserted ${Math.min(i + batchSize, deconsolidatedRecords.length)}/${deconsolidatedRecords.length}`);
+          continue;
+        }
+
         throw insertError;
       }
       console.log(`  ✅ Inserted ${Math.min(i + batchSize, deconsolidatedRecords.length)}/${deconsolidatedRecords.length}`);
