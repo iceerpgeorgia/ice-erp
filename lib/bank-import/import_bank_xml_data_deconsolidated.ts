@@ -973,6 +973,12 @@ export async function processBOGGELDeconsolidated(
     const docDstAmt = getText('DocDstAmt');
     const docSrcCcy = getText('DocSrcCcy');
     const docDstCcy = getText('DocDstCcy');
+    const docNomination = getText('DocNomination');
+    const docInformation = getText('DocInformation');
+    const srcCcyNorm = docSrcCcy ? String(docSrcCcy).trim().toUpperCase() : null;
+    const dstCcyNorm = docDstCcy ? String(docDstCcy).trim().toUpperCase() : null;
+    const hasCrossCurrencyMetadata = Boolean(srcCcyNorm && dstCcyNorm && srcCcyNorm !== dstCcyNorm);
+    const hasConversionLikeText = hasConversionHint(docNomination) || hasConversionHint(docInformation);
 
     if (
       senderAcctNo &&
@@ -981,7 +987,7 @@ export async function processBOGGELDeconsolidated(
       docDstAmt &&
       docSrcCcy &&
       docDstCcy &&
-      String(docSrcCcy).trim().toUpperCase() !== String(docDstCcy).trim().toUpperCase() &&
+      (hasCrossCurrencyMetadata || hasConversionLikeText) &&
       !conversionCandidates.has(DocKey)
     ) {
       conversionCandidates.set(DocKey, {
@@ -991,8 +997,8 @@ export async function processBOGGELDeconsolidated(
         benefAcctNo: String(benefAcctNo).trim(),
         docSrcAmt,
         docDstAmt,
-        docSrcCcy: String(docSrcCcy).trim().toUpperCase(),
-        docDstCcy: String(docDstCcy).trim().toUpperCase(),
+        docSrcCcy: srcCcyNorm,
+        docDstCcy: dstCcyNorm,
       });
     }
 
@@ -1206,7 +1212,9 @@ export async function processBOGGELDeconsolidated(
     docSrcCcy: string,
     docDstCcy: string,
     docSrcAmt: string,
-    docDstAmt: string
+    docDstAmt: string,
+    outRow?: { account_currency_amount?: string | number | null } | null,
+    inRow?: { account_currency_amount?: string | number | null } | null
   ) => {
     const srcAmt = Number(docSrcAmt);
     const dstAmt = Number(docDstAmt);
@@ -1216,8 +1224,27 @@ export async function processBOGGELDeconsolidated(
     if (docSrcCcy === inCurrency && docDstCcy === outCurrency) {
       return { amountOut: dstAmt, amountIn: srcAmt };
     }
+
+    // Some BOG conversion legs carry same-currency DocSrc/DocDst values.
+    // Fall back to signed paired ledger rows when metadata mapping is unavailable.
+    const outSigned = Number(outRow?.account_currency_amount ?? NaN);
+    const inSigned = Number(inRow?.account_currency_amount ?? NaN);
+    if (Number.isFinite(outSigned) && Number.isFinite(inSigned)) {
+      if (outSigned < 0 && inSigned > 0) {
+        return { amountOut: Math.abs(outSigned), amountIn: Math.abs(inSigned) };
+      }
+      if (outSigned > 0 && inSigned < 0) {
+        return { amountOut: Math.abs(inSigned), amountIn: Math.abs(outSigned) };
+      }
+    }
+
     return null;
   };
+
+  function hasConversionHint(value: string | null) {
+    if (!value) return false;
+    return /(კონვერტ|conversion|convert|exchange|fx)/i.test(String(value));
+  }
 
   const inferCounterpartAccount = (
     knownAccount: {
@@ -1338,7 +1365,9 @@ export async function processBOGGELDeconsolidated(
         candidate.docSrcCcy || '',
         candidate.docDstCcy || '',
         candidate.docSrcAmt || '0',
-        candidate.docDstAmt || '0'
+        candidate.docDstAmt || '0',
+        outRow,
+        inRow
       );
 
       if (!amounts) continue;

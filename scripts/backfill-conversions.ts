@@ -19,6 +19,8 @@ type TableRow = {
   dockey: string;
   entriesid: string | null;
   conversion_id: string | null;
+  account_currency_amount: string | null;
+  description: string | null;
   docsenderacctno: string | null;
   docbenefacctno: string | null;
   docsrcamt: string | null;
@@ -127,7 +129,7 @@ async function fetchBatch(
   const { data, error } = await supabase
     .from(tableName)
     .select(
-      'uuid,dockey,entriesid,conversion_id,docsenderacctno,docbenefacctno,docsrcamt,docdstamt,docsrcccy,docdstccy,transaction_date'
+      'uuid,dockey,entriesid,conversion_id,account_currency_amount,description,docsenderacctno,docbenefacctno,docsrcamt,docdstamt,docsrcccy,docdstccy,transaction_date'
     )
     .is('conversion_id', null)
     .order('id', { ascending: true })
@@ -220,7 +222,9 @@ async function main() {
     docSrcCcy: string,
     docDstCcy: string,
     docSrcAmt: string,
-    docDstAmt: string
+    docDstAmt: string,
+    outRow?: { account_currency_amount?: string | null } | null,
+    inRow?: { account_currency_amount?: string | null } | null
   ) => {
     const srcAmt = Number(docSrcAmt);
     const dstAmt = Number(docDstAmt);
@@ -230,7 +234,24 @@ async function main() {
     if (docSrcCcy === inCurrency && docDstCcy === outCurrency) {
       return { amountOut: dstAmt, amountIn: srcAmt };
     }
+
+    const outSigned = Number(outRow?.account_currency_amount ?? NaN);
+    const inSigned = Number(inRow?.account_currency_amount ?? NaN);
+    if (Number.isFinite(outSigned) && Number.isFinite(inSigned)) {
+      if (outSigned < 0 && inSigned > 0) {
+        return { amountOut: Math.abs(outSigned), amountIn: Math.abs(inSigned) };
+      }
+      if (outSigned > 0 && inSigned < 0) {
+        return { amountOut: Math.abs(inSigned), amountIn: Math.abs(outSigned) };
+      }
+    }
+
     return null;
+  };
+
+  const hasConversionHint = (value: string | null) => {
+    if (!value) return false;
+    return /(კონვერტ|conversion|convert|exchange|fx)/i.test(String(value));
   };
 
   const inferCounterpartAccount = (knownAccount: AccountRow, docSrcCcy: string, docDstCcy: string) => {
@@ -310,6 +331,8 @@ async function main() {
           const docSrcCcy = row.docsrcccy?.trim().toUpperCase();
           const docDstCcy = row.docdstccy?.trim().toUpperCase();
           const transactionDate = row.transaction_date ? new Date(row.transaction_date) : null;
+          const hasCrossCurrencyMetadata = Boolean(docSrcCcy && docDstCcy && docSrcCcy !== docDstCcy);
+          const hasConversionLikeText = hasConversionHint(row.description);
 
           if (
             senderAcctNo &&
@@ -318,6 +341,7 @@ async function main() {
             docDstAmt &&
             docSrcCcy &&
             docDstCcy &&
+            (hasCrossCurrencyMetadata || hasConversionLikeText) &&
             transactionDate
           ) {
             candidates.set(row.dockey, {
@@ -423,7 +447,9 @@ async function main() {
       candidate.docSrcCcy,
       candidate.docDstCcy,
       candidate.docSrcAmt,
-      candidate.docDstAmt
+      candidate.docDstAmt,
+      outRow,
+      inRow
     );
 
     if (!amounts) {
