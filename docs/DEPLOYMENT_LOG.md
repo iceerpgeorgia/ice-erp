@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-17 (63)
+- Summary: Fixed BOG conversion casting for one-sided FX rows (missing external counterpart account/row) so conversions are still created and linked.
+- Changes:
+  - Updated `lib/bank-import/import_bank_xml_data_deconsolidated.ts` conversion step to infer counterpart internal account from the same base account + opposite FX currency when one Doc account is external/missing.
+  - Added one-sided conversion handling: create conversion and upsert conversion entries when at least one side row exists, instead of requiring both deconsolidated rows.
+  - Updated `scripts/backfill-conversions.ts` with the same fallback/inference and one-sided linking behavior for reprocessing historical data.
+- Commit: 2273a35
+- URL: https://ice-oflda4srg-iceerp.vercel.app
+
 ## 2026-03-17 (62)
 - Summary: Hardened BOG cron import authorization/runtime behavior and aligned conversion backfill data model with conversion entries + API balance fields.
 - Changes:
