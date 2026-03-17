@@ -6,6 +6,8 @@ import { processBOGGELDeconsolidated } from '@/lib/bank-import/import_bank_xml_d
 import { getSupabaseClient } from '@/lib/bank-import/db-utils';
 
 export const dynamic = 'force-dynamic';
+// BOG cron import can process multiple accounts/days; allow extended runtime on Vercel.
+export const maxDuration = 300;
 
 type BogAccount = {
   uuid: string;
@@ -35,8 +37,9 @@ function getTbilisiYmd(date: Date): string {
 
 function getLastThreeDaysRangeInTbilisi() {
   const includeToday = String(process.env.BOG_CRON_INCLUDE_TODAY || '').trim() === '1';
-  const rawLookback = Number(process.env.BOG_CRON_LOOKBACK_DAYS || 4);
-  const lookbackDays = Number.isFinite(rawLookback) ? Math.max(1, Math.floor(rawLookback)) : 4;
+  // Default to 3 days to match route intent and keep cron runtime predictable.
+  const rawLookback = Number(process.env.BOG_CRON_LOOKBACK_DAYS || 3);
+  const lookbackDays = Number.isFinite(rawLookback) ? Math.max(1, Math.floor(rawLookback)) : 3;
 
   const todayYmd = getTbilisiYmd(new Date());
   const end = new Date(`${todayYmd}T00:00:00Z`);
@@ -104,15 +107,30 @@ export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
     const vercelCronHeader = req.headers.get('x-vercel-cron');
+    const vercelInfraHeader = req.headers.get('x-vercel-id');
     const userAgent = req.headers.get('user-agent') || '';
+    const cronSecret = String(process.env.CRON_SECRET || '').trim();
 
-    const isAuthorized =
-      Boolean(vercelCronHeader) ||
-      userAgent.includes('vercel-cron') ||
-      authHeader === `Bearer ${process.env.CRON_SECRET}`;
+    const hasValidSecret = Boolean(cronSecret) && authHeader === `Bearer ${cronSecret}`;
+    const hasVercelCronHeader = vercelCronHeader !== null;
+    const hasVercelInfraSignals = Boolean(vercelInfraHeader) && /vercel|cron/i.test(userAgent);
+    const isAuthorized = hasVercelCronHeader || hasVercelInfraSignals || hasValidSecret;
 
     if (!isAuthorized) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Unauthorized',
+          hints: {
+            hasVercelCronHeader,
+            hasVercelInfraHeader: Boolean(vercelInfraHeader),
+            userAgentSample: userAgent.slice(0, 120),
+            hasAuthorizationHeader: Boolean(authHeader),
+            hasCronSecretConfigured: Boolean(cronSecret),
+          },
+        },
+        { status: 401 }
+      );
     }
 
     const supabase = getSupabaseClient();

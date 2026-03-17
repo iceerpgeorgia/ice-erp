@@ -17,6 +17,7 @@ type Candidate = {
 type TableRow = {
   uuid: string;
   dockey: string;
+  entriesid: string | null;
   conversion_id: string | null;
   docsenderacctno: string | null;
   docbenefacctno: string | null;
@@ -32,6 +33,7 @@ type AccountRow = {
   account_number: string;
   currency_uuid: string;
   currency_code: string;
+  insider_uuid: string | null;
 };
 
 const defaultTables = [
@@ -125,7 +127,7 @@ async function fetchBatch(
   const { data, error } = await supabase
     .from(tableName)
     .select(
-      'uuid,dockey,conversion_id,docsenderacctno,docbenefacctno,docsrcamt,docdstamt,docsrcccy,docdstccy,transaction_date'
+      'uuid,dockey,entriesid,conversion_id,docsenderacctno,docbenefacctno,docsrcamt,docdstamt,docsrcccy,docdstccy,transaction_date'
     )
     .is('conversion_id', null)
     .order('id', { ascending: true })
@@ -152,7 +154,7 @@ async function main() {
 
   const { data: bankAccountsData, error: bankAccountsError } = await supabase
     .from('bank_accounts')
-    .select('uuid, account_number, currency_uuid');
+    .select('uuid, account_number, currency_uuid, insider_uuid');
   if (bankAccountsError) throw bankAccountsError;
 
   const bankAccountsMap = new Map<string, AccountRow>();
@@ -169,6 +171,7 @@ async function main() {
       account_number: accountNumber,
       currency_uuid: row.currency_uuid,
       currency_code: currencyCode,
+      insider_uuid: row.insider_uuid ?? null,
     };
     bankAccountsMap.set(key, accountRow);
     if (!bankAccountsByNumber.has(accountNumber)) {
@@ -405,13 +408,14 @@ async function main() {
 
     const { data: existingConversion } = await supabase
       .from('conversion')
-      .select('uuid')
+      .select('id,uuid')
       .eq('key_value', candidate.dockey)
       .eq('account_out_uuid', outAccount.uuid)
       .eq('account_in_uuid', inAccount.uuid)
       .maybeSingle();
 
     let conversionUuid = existingConversion?.uuid as string | undefined;
+    let conversionId = (existingConversion?.id as number | undefined) ?? undefined;
 
     if (!conversionUuid) {
       const { data: existingByKey } = await supabase
@@ -431,6 +435,7 @@ async function main() {
         .insert({
           date: dateKey,
           key_value: candidate.dockey,
+          insider_uuid: outAccount.insider_uuid ?? inAccount.insider_uuid ?? null,
           account_out_uuid: outAccount.uuid,
           account_in_uuid: inAccount.uuid,
           currency_out_uuid: outAccount.currency_uuid,
@@ -439,7 +444,7 @@ async function main() {
           amount_in: amounts.amountIn,
           fee: fee,
         })
-        .select('uuid')
+        .select('id,uuid')
         .single();
 
       if (conversionError) {
@@ -448,10 +453,97 @@ async function main() {
       }
 
       conversionUuid = insertedConversion?.uuid;
+      conversionId = insertedConversion?.id as number | undefined;
       conversionsInserted += 1;
     }
 
     if (!conversionUuid) continue;
+
+    const conversionDate = candidate.date
+      ? candidate.date.toLocaleDateString('en-GB').split('/').join('.')
+      : null;
+    const feeValue = fee ?? 0;
+    const feeRounded = Math.round(feeValue * 100) / 100;
+    const amountOutBody = -Math.abs(amounts.amountOut - feeRounded);
+    const feeAmount = -Math.abs(feeRounded);
+    const amountInValue = amounts.amountIn;
+    const batchId = conversionId ? `CONV_${conversionId}` : `CONV_${conversionUuid}`;
+    const commentText = `კონვერტაცია ${amounts.amountOut.toFixed(2)} ${outAccount.currency_code} = ${amounts.amountIn.toFixed(2)} ${inAccount.currency_code}`;
+
+    const conversionEntriesPayload = [
+      {
+        conversion_id: conversionId ?? null,
+        conversion_uuid: conversionUuid,
+        entry_type: 'OUT',
+        bank_account_uuid: outAccount.uuid,
+        raw_record_uuid: outRow.uuid,
+        dockey: candidate.dockey,
+        entriesid: outRow.entriesid ?? null,
+        transaction_date: conversionDate,
+        account_currency_uuid: outAccount.currency_uuid,
+        account_currency_amount: amountOutBody,
+        nominal_currency_uuid: outAccount.currency_uuid,
+        nominal_amount: amountOutBody,
+        parsing_lock: true,
+        batch_id: batchId,
+        account_number: outAccount.account_number,
+        account_currency_code: outAccount.currency_code,
+        nominal_currency_code: outAccount.currency_code,
+        comment: commentText,
+        insider_uuid: outAccount.insider_uuid ?? inAccount.insider_uuid ?? null,
+      },
+      {
+        conversion_id: conversionId ?? null,
+        conversion_uuid: conversionUuid,
+        entry_type: 'FEE',
+        bank_account_uuid: outAccount.uuid,
+        raw_record_uuid: outRow.uuid,
+        dockey: candidate.dockey,
+        entriesid: outRow.entriesid ?? null,
+        transaction_date: conversionDate,
+        account_currency_uuid: outAccount.currency_uuid,
+        account_currency_amount: feeAmount,
+        nominal_currency_uuid: outAccount.currency_uuid,
+        nominal_amount: feeAmount,
+        parsing_lock: true,
+        batch_id: batchId,
+        account_number: outAccount.account_number,
+        account_currency_code: outAccount.currency_code,
+        nominal_currency_code: outAccount.currency_code,
+        comment: commentText,
+        insider_uuid: outAccount.insider_uuid ?? inAccount.insider_uuid ?? null,
+      },
+      {
+        conversion_id: conversionId ?? null,
+        conversion_uuid: conversionUuid,
+        entry_type: 'IN',
+        bank_account_uuid: inAccount.uuid,
+        raw_record_uuid: inRow.uuid,
+        dockey: candidate.dockey,
+        entriesid: inRow.entriesid ?? null,
+        transaction_date: conversionDate,
+        account_currency_uuid: inAccount.currency_uuid,
+        account_currency_amount: amountInValue,
+        nominal_currency_uuid: inAccount.currency_uuid,
+        nominal_amount: amountInValue,
+        parsing_lock: true,
+        batch_id: batchId,
+        account_number: inAccount.account_number,
+        account_currency_code: inAccount.currency_code,
+        nominal_currency_code: inAccount.currency_code,
+        comment: commentText,
+        insider_uuid: inAccount.insider_uuid ?? outAccount.insider_uuid ?? null,
+      },
+    ];
+
+    const { error: conversionEntriesError } = await supabase
+      .from('conversion_entries')
+      .upsert(conversionEntriesPayload, { onConflict: 'conversion_uuid,entry_type' });
+
+    if (conversionEntriesError) {
+      console.warn(`⚠️ Failed to upsert conversion entries for ${candidate.dockey}: ${conversionEntriesError.message}`);
+      continue;
+    }
 
     await supabase.from(tableOut).update({ conversion_id: conversionUuid }).eq('uuid', outRow.uuid);
     await supabase.from(tableIn).update({ conversion_id: conversionUuid }).eq('uuid', inRow.uuid);

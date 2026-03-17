@@ -117,10 +117,14 @@ model BankAccountBalance {
   accountUuid    String      @map("account_uuid") @db.Uuid
   openingDate    DateTime    @map("opening_date") @db.Date
   openingBalance Decimal     @map("opening_balance") @db.Decimal(20, 2)
+  openingBalanceBankApi Decimal? @map("opening_balance_bank_api") @db.Decimal(20, 2)
   inflow         Decimal     @default(0) @db.Decimal(20, 2)
+  inflowBankApi  Decimal?    @map("inflow_bank_api") @db.Decimal(20, 2)
   outflow        Decimal     @default(0) @db.Decimal(20, 2)
+  outflowBankApi Decimal?    @map("outflow_bank_api") @db.Decimal(20, 2)
   closingDate    DateTime    @map("closing_date") @db.Date
   closingBalance Decimal     @map("closing_balance") @db.Decimal(20, 2)
+  closingBalanceBankApi Decimal? @map("closing_balance_bank_api") @db.Decimal(20, 2)
   bankAccount    BankAccount @relation(fields: [accountUuid], references: [uuid], onDelete: Cascade)
 
   @@unique([accountUuid, openingDate], map: "uq_bank_account_balances_account_opening_date")
