@@ -1219,20 +1219,74 @@ export async function processBOGGELDeconsolidated(
     return null;
   };
 
+  const inferCounterpartAccount = (
+    knownAccount: {
+      uuid: string;
+      account_number: string;
+      currency_uuid: string;
+      currency_code: string;
+      bank_uuid: string | null;
+      insider_uuid: string | null;
+    },
+    docSrcCcy: string,
+    docDstCcy: string
+  ) => {
+    const src = String(docSrcCcy || '').trim().toUpperCase();
+    const dst = String(docDstCcy || '').trim().toUpperCase();
+    const knownCcy = String(knownAccount.currency_code || '').trim().toUpperCase();
+    let counterpartCcy: string | null = null;
+
+    if (src === knownCcy && dst !== knownCcy) counterpartCcy = dst;
+    if (dst === knownCcy && src !== knownCcy) counterpartCcy = src;
+    if (!counterpartCcy) return null;
+
+    return bankAccountsMap.get(`${knownAccount.account_number}_${counterpartCcy}`) || null;
+  };
+
+  const resolveConversionAccounts = (candidate: {
+    senderAcctNo: string;
+    benefAcctNo: string;
+    docSrcCcy: string | null;
+    docDstCcy: string | null;
+  }) => {
+    const senderAccount = resolveAccountLookup(candidate.senderAcctNo);
+    const benefAccount = resolveAccountLookup(candidate.benefAcctNo);
+
+    if (senderAccount && benefAccount && senderAccount.currency_code !== benefAccount.currency_code) {
+      return { outAccount: senderAccount, inAccount: benefAccount, fallbackUsed: false };
+    }
+
+    const srcCcy = String(candidate.docSrcCcy || '').trim().toUpperCase();
+    const dstCcy = String(candidate.docDstCcy || '').trim().toUpperCase();
+
+    if (senderAccount && !benefAccount) {
+      const inferredIn = inferCounterpartAccount(senderAccount, srcCcy, dstCcy);
+      if (inferredIn && inferredIn.currency_code !== senderAccount.currency_code) {
+        return { outAccount: senderAccount, inAccount: inferredIn, fallbackUsed: true };
+      }
+    }
+
+    if (!senderAccount && benefAccount) {
+      const inferredOut = inferCounterpartAccount(benefAccount, srcCcy, dstCcy);
+      if (inferredOut && inferredOut.currency_code !== benefAccount.currency_code) {
+        return { outAccount: inferredOut, inAccount: benefAccount, fallbackUsed: true };
+      }
+    }
+
+    return null;
+  };
+
   if (conversionCandidates.size > 0) {
     console.log('\n' + '='.repeat(80));
     console.log('🔁 STEP 2: PROCESSING CONVERSIONS');
     console.log('='.repeat(80) + '\n');
 
     for (const candidate of conversionCandidates.values()) {
-      const senderAccount = resolveAccountLookup(candidate.senderAcctNo);
-      const benefAccount = resolveAccountLookup(candidate.benefAcctNo);
+      const resolvedAccounts = resolveConversionAccounts(candidate);
+      if (!resolvedAccounts) continue;
 
-      if (!senderAccount || !benefAccount) continue;
-      if (senderAccount.currency_code === benefAccount.currency_code) continue;
-
-      const outAccount = senderAccount;
-      const inAccount = benefAccount;
+      const { outAccount, inAccount, fallbackUsed } = resolvedAccounts;
+      if (outAccount.currency_code === inAccount.currency_code) continue;
 
       const tableOut = resolveDeconsolidatedTableName(outAccount.account_number, defaultSchemeByCurrency(outAccount.currency_code));
       const tableIn = resolveDeconsolidatedTableName(inAccount.account_number, defaultSchemeByCurrency(inAccount.currency_code));
@@ -1269,8 +1323,14 @@ export async function processBOGGELDeconsolidated(
         continue;
       }
 
-      if (!outRow || !inRow) continue;
+      if (!outRow && !inRow) continue;
       if (outRow.conversion_id || inRow.conversion_id) continue;
+
+      if (fallbackUsed && (!outRow || !inRow)) {
+        console.log(
+          `  ℹ️  One-sided conversion fallback DocKey=${candidate.dockey}: outRow=${Boolean(outRow)}, inRow=${Boolean(inRow)}`
+        );
+      }
 
       const amounts = resolveAmounts(
         outAccount.currency_code,
@@ -1481,8 +1541,12 @@ export async function processBOGGELDeconsolidated(
         console.warn('⚠️ Failed to upsert conversion entries:', conversionEntriesError.message);
       }
 
-      await supabase.from(tableOut).update({ conversion_id: conversionUuid }).eq('uuid', outRow.uuid);
-      await supabase.from(tableIn).update({ conversion_id: conversionUuid }).eq('uuid', inRow.uuid);
+      if (outRow?.uuid) {
+        await supabase.from(tableOut).update({ conversion_id: conversionUuid }).eq('uuid', outRow.uuid);
+      }
+      if (inRow?.uuid) {
+        await supabase.from(tableIn).update({ conversion_id: conversionUuid }).eq('uuid', inRow.uuid);
+      }
     }
   }
 

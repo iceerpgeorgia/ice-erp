@@ -233,6 +233,47 @@ async function main() {
     return null;
   };
 
+  const inferCounterpartAccount = (knownAccount: AccountRow, docSrcCcy: string, docDstCcy: string) => {
+    const src = String(docSrcCcy || '').trim().toUpperCase();
+    const dst = String(docDstCcy || '').trim().toUpperCase();
+    const knownCcy = String(knownAccount.currency_code || '').trim().toUpperCase();
+    let counterpartCcy: string | null = null;
+
+    if (src === knownCcy && dst !== knownCcy) counterpartCcy = dst;
+    if (dst === knownCcy && src !== knownCcy) counterpartCcy = src;
+    if (!counterpartCcy) return null;
+
+    return bankAccountsMap.get(`${knownAccount.account_number}_${counterpartCcy}`) || null;
+  };
+
+  const resolveConversionAccounts = (candidate: Candidate) => {
+    const senderAccount = resolveAccountLookup(candidate.senderAcctNo);
+    const benefAccount = resolveAccountLookup(candidate.benefAcctNo);
+
+    if (senderAccount && benefAccount && senderAccount.currency_code !== benefAccount.currency_code) {
+      return { outAccount: senderAccount, inAccount: benefAccount, fallbackUsed: false };
+    }
+
+    const srcCcy = String(candidate.docSrcCcy || '').trim().toUpperCase();
+    const dstCcy = String(candidate.docDstCcy || '').trim().toUpperCase();
+
+    if (senderAccount && !benefAccount) {
+      const inferredIn = inferCounterpartAccount(senderAccount, srcCcy, dstCcy);
+      if (inferredIn && inferredIn.currency_code !== senderAccount.currency_code) {
+        return { outAccount: senderAccount, inAccount: inferredIn, fallbackUsed: true };
+      }
+    }
+
+    if (!senderAccount && benefAccount) {
+      const inferredOut = inferCounterpartAccount(benefAccount, srcCcy, dstCcy);
+      if (inferredOut && inferredOut.currency_code !== benefAccount.currency_code) {
+        return { outAccount: inferredOut, inAccount: benefAccount, fallbackUsed: true };
+      }
+    }
+
+    return null;
+  };
+
   const candidates = new Map<string, Candidate>();
   const rowsByTable = new Map<string, Map<string, TableRow>>();
 
@@ -330,23 +371,21 @@ async function main() {
     if (!verbose && processedCandidates % 500 === 0) {
       console.log(`  ⏳ Processing candidates: ${processedCandidates}/${candidates.size}`);
     }
-    const senderAccount = resolveAccountLookup(candidate.senderAcctNo);
-    const benefAccount = resolveAccountLookup(candidate.benefAcctNo);
-
-    if (!senderAccount || !benefAccount) {
+    const resolvedAccounts = resolveConversionAccounts(candidate);
+    if (!resolvedAccounts) {
       skippedMissingAccounts += 1;
       if (verbose) {
         console.log(`  ⚠️  Missing account match for ${candidate.dockey}`);
       }
       continue;
     }
-    if (senderAccount.currency_code === benefAccount.currency_code) {
+
+    const { outAccount, inAccount, fallbackUsed } = resolvedAccounts;
+
+    if (outAccount.currency_code === inAccount.currency_code) {
       skippedSameCurrency += 1;
       continue;
     }
-
-    const outAccount = senderAccount;
-    const inAccount = benefAccount;
 
     const tableOut = resolveDeconsolidatedTableName(
       outAccount.account_number,
@@ -360,16 +399,22 @@ async function main() {
     const outRow = rowsByTable.get(tableOut)?.get(candidate.dockey) || null;
     const inRow = rowsByTable.get(tableIn)?.get(candidate.dockey) || null;
 
-    if (!outRow || !inRow) {
+    if (!outRow && !inRow) {
       skippedMissingPair += 1;
       if (verbose) {
         console.log(`  ⚠️  Missing paired rows for ${candidate.dockey} (${tableOut}, ${tableIn})`);
       }
       continue;
     }
-    if (outRow.conversion_id || inRow.conversion_id) {
+    if (outRow?.conversion_id || inRow?.conversion_id) {
       skippedExistingConversion += 1;
       continue;
+    }
+
+    if (fallbackUsed && (!outRow || !inRow) && verbose) {
+      console.log(
+        `  ℹ️  One-sided conversion fallback for ${candidate.dockey}: outRow=${Boolean(outRow)}, inRow=${Boolean(inRow)}`
+      );
     }
 
     const amounts = resolveAmounts(
@@ -476,9 +521,9 @@ async function main() {
         conversion_uuid: conversionUuid,
         entry_type: 'OUT',
         bank_account_uuid: outAccount.uuid,
-        raw_record_uuid: outRow.uuid,
+        raw_record_uuid: outRow?.uuid ?? null,
         dockey: candidate.dockey,
-        entriesid: outRow.entriesid ?? null,
+        entriesid: outRow?.entriesid ?? null,
         transaction_date: conversionDate,
         account_currency_uuid: outAccount.currency_uuid,
         account_currency_amount: amountOutBody,
@@ -497,9 +542,9 @@ async function main() {
         conversion_uuid: conversionUuid,
         entry_type: 'FEE',
         bank_account_uuid: outAccount.uuid,
-        raw_record_uuid: outRow.uuid,
+        raw_record_uuid: outRow?.uuid ?? null,
         dockey: candidate.dockey,
-        entriesid: outRow.entriesid ?? null,
+        entriesid: outRow?.entriesid ?? null,
         transaction_date: conversionDate,
         account_currency_uuid: outAccount.currency_uuid,
         account_currency_amount: feeAmount,
@@ -518,9 +563,9 @@ async function main() {
         conversion_uuid: conversionUuid,
         entry_type: 'IN',
         bank_account_uuid: inAccount.uuid,
-        raw_record_uuid: inRow.uuid,
+        raw_record_uuid: inRow?.uuid ?? null,
         dockey: candidate.dockey,
-        entriesid: inRow.entriesid ?? null,
+        entriesid: inRow?.entriesid ?? null,
         transaction_date: conversionDate,
         account_currency_uuid: inAccount.currency_uuid,
         account_currency_amount: amountInValue,
@@ -545,8 +590,12 @@ async function main() {
       continue;
     }
 
-    await supabase.from(tableOut).update({ conversion_id: conversionUuid }).eq('uuid', outRow.uuid);
-    await supabase.from(tableIn).update({ conversion_id: conversionUuid }).eq('uuid', inRow.uuid);
+    if (outRow?.uuid) {
+      await supabase.from(tableOut).update({ conversion_id: conversionUuid }).eq('uuid', outRow.uuid);
+    }
+    if (inRow?.uuid) {
+      await supabase.from(tableIn).update({ conversion_id: conversionUuid }).eq('uuid', inRow.uuid);
+    }
     conversionsLinked += 1;
   }
 
