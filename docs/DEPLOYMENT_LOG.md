@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-17 (62)
+- Summary: Hardened BOG cron import authorization/runtime behavior and aligned conversion backfill data model with conversion entries + API balance fields.
+- Changes:
+  - Updated `app/api/cron/bog-import-last-3-days/route.ts` with extended runtime (`maxDuration = 300`), 3-day lookback defaults, stronger Vercel/secret auth checks, and unauthorized diagnostics hints.
+  - Updated `scripts/backfill-conversions.ts` to include `entriesid`/`insider_uuid` handling and upsert `conversion_entries` (`OUT`/`FEE`/`IN`) for each linked conversion.
+  - Updated `prisma/schema.prisma` with optional bank-API mirror fields on `BankAccountBalance` (`openingBalanceBankApi`, `inflowBankApi`, `outflowBankApi`, `closingBalanceBankApi`).
+- Commit: f55742d
+- URL: https://ice-n7lo2wqb6-iceerp.vercel.app
+
 ## 2026-03-16 (61)
 - Summary: Fixed TBC/BOG deconsolidated import failures caused by `tmp_turnovers` temp-table collisions in balance recompute triggers.
 - Changes:
