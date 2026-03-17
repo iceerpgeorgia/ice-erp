@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { processBOGGELDeconsolidated } from "@/lib/bank-import/import_bank_xml_data_deconsolidated";
 import { processTBC } from "@/lib/bank-import/import_bank_xml_data";
 import { getSupabaseClient } from "@/lib/bank-import/db-utils";
+import { ensureTbcAccountProvisioned } from "@/lib/bank-import/tbc-provisioning";
 
 /**
  * Bank XML Upload API (Test) - Deconsolidated target table
@@ -193,6 +194,26 @@ export async function POST(req: NextRequest) {
           }
 
           accountData = isBog ? (accountDataFallback || null) : null;
+        }
+
+        if (!accountData && !isBog) {
+          console.log(`⚙️ Account missing in bank_accounts, provisioning TBC infrastructure for ${accountNumber} ${currencyCode}...`);
+          const provisioned = await ensureTbcAccountProvisioned(accountNumber, currencyCode);
+          console.log(
+            `✅ Provisioned TBC account: uuid=${provisioned.accountUuid}, table=${provisioned.rawTableName}, scheme=${provisioned.parsingSchemeName}, createdBankAccount=${provisioned.createdBankAccount}, createdTable=${provisioned.createdTable}`
+          );
+
+          const { data: reprovisionedAccount, error: reprovisionedAccountError } = await supabase
+            .from("bank_accounts")
+            .select("uuid, parsing_scheme_uuid, raw_table_name, account_number, currency_uuid")
+            .eq("uuid", provisioned.accountUuid)
+            .maybeSingle();
+
+          if (reprovisionedAccountError) {
+            throw reprovisionedAccountError;
+          }
+
+          accountData = reprovisionedAccount || null;
         }
 
         if (!accountData) {
