@@ -1,5 +1,15 @@
 ﻿# Deployment Log
 
+## 2026-03-17 (65)
+- Summary: Added automatic provisioning for missing TBC XML accounts so imports can create required account metadata, parsing-scheme mapping, and deconsolidated tables on demand.
+- Changes:
+  - Added `lib/bank-import/tbc-provisioning.ts` to provision missing TBC account infrastructure: ensure `TBC_<CCY>` parsing scheme, create/update `bank_accounts` mapping (`bank_uuid`, `parsing_scheme_uuid`, `raw_table_name`), and create missing `%_TBC_%` table by cloning an existing TBC table structure.
+  - Updated `app/api/bank-transactions/upload/route.ts` to auto-provision TBC account infrastructure when a TBC XML account is not found in `bank_accounts`, then continue import.
+  - Updated `app/api/bank-transactions-test/upload/route.ts` with the same auto-provisioning behavior.
+  - Added migration `prisma/migrations/20260317102000_provision_missing_tbc_accounts_from_xml/migration.sql` to pre-provision accounts/tables discovered from `TBC Missing Accounts` XMLs.
+- Commit: 3656213
+- URL: https://ice-bdntx5j4a-iceerp.vercel.app
+
 ## 2026-03-17 (64)
 - Summary: Expanded BOG conversion detection to capture conversion-like rows where per-row metadata shows same source/destination currency.
 - Changes:
