@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-17 (64)
+- Summary: Expanded BOG conversion detection to capture conversion-like rows where per-row metadata shows same source/destination currency.
+- Changes:
+  - Updated `lib/bank-import/import_bank_xml_data_deconsolidated.ts` to admit conversion candidates when conversion-like text is present (`DocNomination`/`DocInformation`), even if `DocSrcCcy == DocDstCcy` on the row.
+  - Added fallback amount inference from paired row signs (`account_currency_amount`) when `DocSrc/DocDst` currency mapping is insufficient.
+  - Updated `scripts/backfill-conversions.ts` with aligned fallback logic and candidate selection criteria for historical reprocessing consistency.
+- Commit: fe4ad49
+- URL: https://ice-d79r1q4cy-iceerp.vercel.app
+
 ## 2026-03-17 (63)
 - Summary: Fixed BOG conversion casting for one-sided FX rows (missing external counterpart account/row) so conversions are still created and linked.
 - Changes:
