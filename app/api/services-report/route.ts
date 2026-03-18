@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
         COALESCE(MAX(sp.financial_code_validation), '-') as financial_code_validation,
         sp.project_uuid,
         CASE
-          WHEN COUNT(DISTINCT sp.counteragent_uuid) = 1 THEN MIN(sp.counteragent_uuid)
+          WHEN COUNT(DISTINCT sp.counteragent_uuid) = 1 THEN MAX(sp.counteragent_uuid::text)
           ELSE NULL
         END as counteragent_uuid,
         COALESCE(MAX(sp.status_name), 'Unknown') as status_name,
