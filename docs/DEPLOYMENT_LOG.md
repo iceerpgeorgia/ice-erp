@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-18 (69)
+- Summary: Updated Services Report statement actions to match Payments Report icon-style controls.
+- Changes:
+  - Updated `components/figma/services-report-table.tsx` to replace text links with `FileText` icon buttons for payment statements.
+  - Updated `components/figma/services-report-table.tsx` to replace text "Open" link with `User` icon button for counteragent statement.
+  - Kept disabled/non-clickable state styling for rows without `counteragentUuid`, aligned with Payments Report behavior.
+- Commit: e7370fa
+- URL: https://ice-j00a2t9ke-iceerp.vercel.app
+
 ## 2026-03-18 (68)
 - Summary: Ensured Services Report shows new statement columns for existing users by resetting persisted section-column layout version.
 - Changes:
