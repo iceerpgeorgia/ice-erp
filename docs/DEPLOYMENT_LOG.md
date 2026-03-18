@@ -1,5 +1,15 @@
 ﻿# Deployment Log
 
+## 2026-03-18 (66)
+- Summary: Extended Services Report with project-level payment IDs and direct statement navigation links.
+- Changes:
+  - Updated `app/api/services-report/route.ts` to return `paymentIds` (distinct aggregated payment IDs per grouped project row).
+  - Updated `app/api/services-report/route.ts` to return grouped `counteragentUuid` when a single counteragent is present for the row.
+  - Updated `components/figma/services-report-table.tsx` to add `Payment IDs / Statements` column with clickable links to `/payment-statement/{paymentId}`.
+  - Updated `components/figma/services-report-table.tsx` to add `Counteragent Statement` column with direct link to `/counteragent-statement/{counteragentUuid}`.
+- Commit: 991e071
+- URL: https://ice-fk7n9o9ry-iceerp.vercel.app
+
 ## 2026-03-17 (65)
 - Summary: Added automatic provisioning for missing TBC XML accounts so imports can create required account metadata, parsing-scheme mapping, and deconsolidated tables on demand.
 - Changes:
