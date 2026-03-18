@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-18 (67)
+- Summary: Restored Services Report rows for selected financial codes by fixing UUID aggregation in grouped SQL.
+- Changes:
+  - Updated `app/api/services-report/route.ts` to replace unsupported `MIN(sp.counteragent_uuid)` with `MAX(sp.counteragent_uuid::text)` when deriving single counteragent per grouped row.
+  - Fixes runtime SQL error (`function min(uuid) does not exist`) that caused Services Report API to return no rows.
+- Commit: 2458f59
+- URL: https://ice-d3k204hl1-iceerp.vercel.app
+
 ## 2026-03-18 (66)
 - Summary: Extended Services Report with project-level payment IDs and direct statement navigation links.
 - Changes:
