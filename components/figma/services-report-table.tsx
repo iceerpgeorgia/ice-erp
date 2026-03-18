@@ -107,6 +107,8 @@ const DEFAULT_TOTALS = {
   balance: 0,
 };
 
+const SERVICES_REPORT_COLUMNS_STORAGE_KEY = 'servicesReportSectionColumnsV2';
+
 const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'status', label: 'Status', visible: true, width: 120, align: 'left' },
   { key: 'financialCodeValidation', label: 'Financial Code', visible: true, width: 220, align: 'left' },
@@ -182,7 +184,7 @@ export function ServicesReportTable() {
   useEffect(() => {
     const savedCodes = localStorage.getItem('servicesReportFinancialCodeUuids');
     const savedMaxDate = localStorage.getItem('servicesReportMaxDate');
-    const savedColumns = localStorage.getItem('servicesReportSectionColumnsV1');
+    const savedColumns = localStorage.getItem(SERVICES_REPORT_COLUMNS_STORAGE_KEY);
 
     if (savedCodes) {
       try {
@@ -220,7 +222,7 @@ export function ServicesReportTable() {
   }, [maxDate]);
 
   useEffect(() => {
-    localStorage.setItem('servicesReportSectionColumnsV1', JSON.stringify(sectionColumns));
+    localStorage.setItem(SERVICES_REPORT_COLUMNS_STORAGE_KEY, JSON.stringify(sectionColumns));
   }, [sectionColumns]);
 
   useEffect(() => {
