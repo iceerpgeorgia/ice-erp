@@ -169,12 +169,17 @@ export async function GET(request: NextRequest) {
         sp.financial_code_uuid,
         COALESCE(MAX(sp.financial_code_validation), '-') as financial_code_validation,
         sp.project_uuid,
+        CASE
+          WHEN COUNT(DISTINCT sp.counteragent_uuid) = 1 THEN MIN(sp.counteragent_uuid)
+          ELSE NULL
+        END as counteragent_uuid,
         COALESCE(MAX(sp.status_name), 'Unknown') as status_name,
         COALESCE(MAX(sp.project_index), '-') as project_index,
         COALESCE(MAX(sp.project_name), '-') as project_name,
         COALESCE(MAX(sp.project_amount), 0) as project_amount,
         COALESCE(MAX(sp.counteragent_name), '-') as counteragent_name,
         COALESCE(MAX(sp.currency_code), '-') as currency_code,
+        ARRAY_REMOVE(ARRAY_AGG(DISTINCT sp.payment_id ORDER BY sp.payment_id), NULL) as payment_ids,
         COUNT(DISTINCT sp.payment_id) as payment_count,
         COALESCE(MAX(jpp.jobs_count), 0) as jobs_count,
         SUM(COALESCE(la.total_accrual, 0)) as accrual,
@@ -211,11 +216,15 @@ export async function GET(request: NextRequest) {
         financialCodeUuid: row.financial_code_uuid,
         financialCodeValidation: row.financial_code_validation,
         projectUuid: row.project_uuid,
+        counteragentUuid: row.counteragent_uuid || null,
         status: row.status_name,
         project: row.project_index,
         projectName: row.project_name,
         sum: Number(row.project_amount || 0),
         counteragent: row.counteragent_name,
+        paymentIds: Array.isArray(row.payment_ids)
+          ? row.payment_ids.filter((value: unknown) => typeof value === 'string' && value.trim() !== '')
+          : [],
         currency: row.currency_code,
         paymentCount: Number(row.payment_count || 0),
         jobsCount: Number(row.jobs_count || 0),
