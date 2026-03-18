@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-18 (68)
+- Summary: Ensured Services Report shows new statement columns for existing users by resetting persisted section-column layout version.
+- Changes:
+  - Updated `components/figma/services-report-table.tsx` localStorage key from `servicesReportSectionColumnsV1` to `servicesReportSectionColumnsV2`.
+  - Forces fresh default columns so `Payment IDs / Statements` and `Counteragent Statement` are visible even when users have old saved column settings.
+- Commit: 80524b0
+- URL: https://ice-1j24mavv7-iceerp.vercel.app
+
 ## 2026-03-18 (67)
 - Summary: Restored Services Report rows for selected financial codes by fixing UUID aggregation in grouped SQL.
 - Changes:
