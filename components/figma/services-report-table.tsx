@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Columns3, Settings } from 'lucide-react';
+import { Columns3, FileText, Settings, User } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Checkbox } from './ui/checkbox';
@@ -579,31 +579,41 @@ export function ServicesReportTable() {
                             style={{ width: `${column.width}px`, minWidth: `${column.width}px` }}
                           >
                             {column.key === 'counteragentStatement' ? (
-                              row.counteragentUuid ? (
-                                <a
-                                  href={`/counteragent-statement/${row.counteragentUuid}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 underline"
-                                >
-                                  Open
-                                </a>
-                              ) : (
-                                '-'
-                              )
+                              <a
+                                href={row.counteragentUuid ? `/counteragent-statement/${row.counteragentUuid}` : '#'}
+                                target={row.counteragentUuid ? '_blank' : undefined}
+                                rel={row.counteragentUuid ? 'noopener noreferrer' : undefined}
+                                className={`inline-block p-1 rounded transition-colors ${
+                                  row.counteragentUuid
+                                    ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50'
+                                    : 'text-gray-400'
+                                }`}
+                                aria-disabled={!row.counteragentUuid}
+                                title="View counteragent statement (opens in new tab)"
+                                onClick={(event) => {
+                                  if (!row.counteragentUuid) {
+                                    event.preventDefault();
+                                  }
+                                }}
+                              >
+                                <User className="w-4 h-4" />
+                              </a>
                             ) : column.key === 'paymentIds' ? (
                               row.paymentIds.length > 0 ? (
-                                <div className="flex flex-wrap gap-x-2 gap-y-1">
+                                <div className="flex flex-col gap-1">
                                   {row.paymentIds.map((paymentId) => (
-                                    <a
-                                      key={`${row.projectUuid}-${paymentId}`}
-                                      href={`/payment-statement/${paymentId}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-blue-600 underline"
-                                    >
-                                      {paymentId}
-                                    </a>
+                                    <div key={`${row.projectUuid}-${paymentId}`} className="inline-flex items-center gap-1.5">
+                                      <span className="truncate">{paymentId}</span>
+                                      <a
+                                        href={`/payment-statement/${paymentId}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-block text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
+                                        title="View statement (opens in new tab)"
+                                      >
+                                        <FileText className="w-4 h-4" />
+                                      </a>
+                                    </div>
                                   ))}
                                 </div>
                               ) : (
