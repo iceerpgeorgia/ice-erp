@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-18 (70)
+- Summary: Moved Services Report payment/counteragent statement controls into Actions and matched Payments Report red warning icon behavior.
+- Changes:
+  - Updated `components/figma/services-report-table.tsx` to move payment IDs + statement icons and counteragent statement icon into an `Actions` column.
+  - Updated `components/figma/services-report-table.tsx` so counteragent `User` icon turns red for warning state, matching Payments Report styling and tooltip behavior.
+  - Updated `app/api/services-report/route.ts` to return `hasUnboundCounteragentTransactions` based on unbound raw transactions (`payment_id IS NULL/empty`, excluding batched records).
+- Commit: 3a646be
+- URL: https://ice-hmttxvs1l-iceerp.vercel.app
+
 ## 2026-03-18 (69)
 - Summary: Updated Services Report statement actions to match Payments Report icon-style controls.
 - Changes:
