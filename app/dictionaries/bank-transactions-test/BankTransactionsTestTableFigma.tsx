@@ -107,15 +107,15 @@ export default function BankTransactionsTestTableFigma() {
   // Record limit setting
   const [recordLimitInput, setRecordLimitInput] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('bankTransactionsTest_recordLimit') || "";
+      return localStorage.getItem('bankTransactionsTest_recordLimit') || "all";
     }
-    return "";
+    return "all";
   });
   const [appliedRecordLimit, setAppliedRecordLimit] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('bankTransactionsTest_appliedRecordLimit') || "";
+      return localStorage.getItem('bankTransactionsTest_appliedRecordLimit') || "all";
     }
-    return "";
+    return "all";
   });
 
   // Save applied filters to localStorage whenever they change
@@ -136,10 +136,10 @@ export default function BankTransactionsTestTableFigma() {
     if (typeof window === 'undefined') return;
     const storedFromDate = localStorage.getItem('bankTransactionsTest_fromDate') || '';
     const storedToDate = localStorage.getItem('bankTransactionsTest_toDate') || '';
-    const storedRecordLimit = localStorage.getItem('bankTransactionsTest_recordLimit') || '';
+    const storedRecordLimit = localStorage.getItem('bankTransactionsTest_recordLimit') || 'all';
     const storedAppliedFromDate = localStorage.getItem('bankTransactionsTest_appliedFromDate') || '';
     const storedAppliedToDate = localStorage.getItem('bankTransactionsTest_appliedToDate') || '';
-    const storedAppliedRecordLimit = localStorage.getItem('bankTransactionsTest_appliedRecordLimit') || '';
+    const storedAppliedRecordLimit = localStorage.getItem('bankTransactionsTest_appliedRecordLimit') || 'all';
 
     if (storedFromDate) setFromDateDisplay(storedFromDate);
     if (storedToDate) setToDateDisplay(storedToDate);
