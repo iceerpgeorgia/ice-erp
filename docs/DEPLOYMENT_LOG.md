@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (75)
+- Summary: Services Report grid enhancements — accrual column, colored financial columns, confirmation checkbox with conditional row formatting, dd.mm.yyyy dates. Reverted misapplied Payment Statement styling.
+- Changes:
+  - `components/figma/services-report-table.tsx`: Added Accrual column to grid. Accrual (#ffebee), Order (#fff9e6), Payment (#e8f5e9) background colors on headers and data cells. Confirmed column renders as disabled Checkbox. Rows with confirmed+due>0 highlighted green, confirmed+due=0 highlighted gray. Latest Date now uses dd.mm.yyyy format. Storage key bumped to V4.
+  - `app/payment-statement/[paymentId]/page.tsx`: Reverted deployment 74 changes (column colors, header totals, checkbox, conditional formatting) — those belong to Services Report only.
+- Commit: 5a2a7a5
+- URL: https://ice-28x4qmykx-iceerp.vercel.app
+
 ## 2026-03-19 (74)
 - Summary: Payment Statement UI enhancements — accrual/order/payment totals in header, column background colors matching Payments Report, confirmation checkbox with conditional row highlighting, dd.mm.yyyy date format.
 - Changes:
