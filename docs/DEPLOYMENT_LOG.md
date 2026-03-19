@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (74)
+- Summary: Payment Statement UI enhancements — accrual/order/payment totals in header, column background colors matching Payments Report, confirmation checkbox with conditional row highlighting, dd.mm.yyyy date format.
+- Changes:
+  - `app/payment-statement/[paymentId]/page.tsx`: Added total Accrual/Order/Payment summary cards in Payment Info header with matching colors. Accrual (#ffebee), Payment (#e8f5e9), Order (#fff9e6) column backgrounds on headers, data cells, and totals row. Confirmed column now renders as disabled Checkbox instead of Yes/No text. Rows with confirmed+due>0 highlighted green, confirmed+due=0 highlighted gray. CreatedAt date format changed from dd.mm.yyyy HH:MM:SS to dd.mm.yyyy.
+- Commit: c07d34e
+- URL: https://ice-4st07aiog-iceerp.vercel.app
+
 ## 2026-03-19 (73)
 - Summary: Payment Statement now uses income-aware due/balance formulas based on financial code `is_income` flag; Services Report Payment IDs column is text-only with statement icons only in Actions.
 - Changes:
