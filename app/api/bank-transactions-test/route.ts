@@ -75,6 +75,34 @@ const SOURCE_TABLES = [
     accountCurrencyUuid: "5a2d799d-22a1-4e0a-b029-8031a1df6d56",
     isTbc: true,
   },
+  {
+    name: "GE39TB7856036150100001_TBC_USD",
+    offset: 1010000000000,
+    bankAccountUuid: "f19bc692-00e8-40e5-b589-bda68fa78ed6",
+    accountCurrencyUuid: "0790fb09-2de6-4ea3-a71c-58a007fc62a8",
+    isTbc: true,
+  },
+  {
+    name: "GE39TB7856036150100001_TBC_EUR",
+    offset: 1020000000000,
+    bankAccountUuid: "ed5b9af9-da67-4d64-b79c-2ed15c6a9681",
+    accountCurrencyUuid: "4cfda3f2-535e-4b77-a467-eac9dc64feca",
+    isTbc: true,
+  },
+  {
+    name: "GE79TB7856045067800004_TBC_GEL",
+    offset: 1030000000000,
+    bankAccountUuid: "5dab44d2-8547-44b2-8f75-232477b57cae",
+    accountCurrencyUuid: "5a2d799d-22a1-4e0a-b029-8031a1df6d56",
+    isTbc: true,
+  },
+  {
+    name: "GE52TB7856045067800005_TBC_GEL",
+    offset: 1040000000000,
+    bankAccountUuid: "7fc3bcd9-7619-485f-bc61-6bf769913586",
+    accountCurrencyUuid: "5a2d799d-22a1-4e0a-b029-8031a1df6d56",
+    isTbc: true,
+  },
 ];
 
 const BATCH_OFFSET = 2000000000000;
