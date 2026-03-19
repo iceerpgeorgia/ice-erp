@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (73)
+- Summary: Payment Statement now uses income-aware due/balance formulas based on financial code `is_income` flag; Services Report Payment IDs column is text-only with statement icons only in Actions.
+- Changes:
+  - `app/api/payment-statement/route.ts`: Added `fc.is_income` to payment and salary_accruals SQL queries; exposed `isIncome` boolean in API response.
+  - `app/payment-statement/[paymentId]/page.tsx`: For expense codes (`isIncome=false`), uses `Math.abs(payment)` for cumulative paid; for income codes (`isIncome=true`), uses raw payment value so refunds/reversals naturally decrease cumulative paid.
+  - `components/figma/services-report-table.tsx`: Moved FileText statement icons from Payment IDs column into Actions column; Payment IDs now text-only.
+- Commit: bcf9eee
+- URL: https://ice-q7u60yjmd-iceerp.vercel.app
+
 ## 2026-03-19 (72)
 - Summary: Fixed Services Report column selector to expose all columns including Payment IDs as own column; fixed Payment Statement due/balance sign logic for income payment IDs.
 - Changes:
