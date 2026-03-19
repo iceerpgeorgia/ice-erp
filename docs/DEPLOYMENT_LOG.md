@@ -1,5 +1,17 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (78)
+- Summary: Added `address` field to Projects table and add/edit forms.
+- Changes:
+  - `prisma/schema.prisma`: Added optional `address` column to `projects` model.
+  - `scripts/add-projects-address-column.js`: DB script to add `projects.address` column if missing.
+  - `app/api/projects/route.ts`: Added `address` handling to project create and update endpoints.
+  - `components/figma/projects-table.tsx`: Added Address column in projects table, add/edit address inputs in forms, and address mapping/search/payload support.
+  - `app/admin/projects/page.tsx`: Added `address` mapping to Project DTO.
+  - `app/dictionaries/projects/ProjectsClientPage.tsx`: Added `address` mapping to Project DTO.
+- Commit: e2a545a
+- URL: https://ice-ozukwzvs5-iceerp.vercel.app
+
 ## 2026-03-19 (77)
 - Summary: Full-screen job-linking dialog with search/filter/checkboxes/select-all and many-to-many job-project binding via new `job_projects` junction table.
 - Changes:
