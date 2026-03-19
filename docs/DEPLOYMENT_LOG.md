@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (85)
+- Summary: Services Report now highlights `Sum` in bold red when it mismatches last-month accrual or last-month order.
+- Changes:
+  - `app/api/services-report/route.ts`: Added previous-month ledger aggregates per payment (`last_month_accrual`, `last_month_order`) and returned them in row payload.
+  - `components/figma/services-report-table.tsx`: Added `lastMonthAccrual`/`lastMonthOrder` to row model and styled `Sum` cell as `font-bold text-red-600` when `sum != lastMonthAccrual || sum != lastMonthOrder` (with small numeric tolerance).
+- Commit: d4a440d
+- URL: https://ice-8xor6xn16-iceerp.vercel.app
+
 ## 2026-03-19 (84)
 - Summary: Fixed Services Report job-link binding persistence (save was failing silently in some cases).
 - Changes:
