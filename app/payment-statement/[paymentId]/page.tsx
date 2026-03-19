@@ -446,27 +446,25 @@ export default function PaymentStatementPage() {
   ].sort((a, b) => a.dateSort - b.dateSort) : []; // Sort by date ascending for cumulative calculation
 
   // Calculate cumulative values for each row (from oldest to newest)
+  // Use absolute payment magnitude so due/balance work correctly for both
+  // expense payment IDs (outgoing/negative) and income payment IDs (incoming/positive).
   if (mergedTransactions.length > 0) {
     let cumulativeAccrual = 0;
-    let cumulativePaymentSigned = 0;
+    let cumulativePaidAbs = 0;
     let cumulativeOrder = 0;
 
     mergedTransactions.forEach(row => {
       cumulativeAccrual += row.accrual;
-      cumulativePaymentSigned += row.payment;
+      cumulativePaidAbs += Math.abs(row.payment);
       cumulativeOrder += row.order;
 
-      const cumulativePaid = -cumulativePaymentSigned;
-
-      // Paid percent uses paid magnitude, while row.payment remains bank-signed for display.
       row.paidPercent = cumulativeAccrual !== 0 
-        ? parseFloat(((cumulativePaid / cumulativeAccrual) * 100).toFixed(2))
+        ? parseFloat(((cumulativePaidAbs / cumulativeAccrual) * 100).toFixed(2))
         : 0;
 
-      // With signed payment rows, due/balance should move by adding signed payment total.
-      row.due = parseFloat((cumulativeOrder + cumulativePaymentSigned).toFixed(2));
+      row.due = parseFloat((cumulativeOrder - cumulativePaidAbs).toFixed(2));
 
-      row.balance = parseFloat((cumulativeAccrual + cumulativePaymentSigned).toFixed(2));
+      row.balance = parseFloat((cumulativeAccrual - cumulativePaidAbs).toFixed(2));
     });
 
     // Now reverse to show newest first in the table

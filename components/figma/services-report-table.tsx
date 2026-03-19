@@ -72,6 +72,7 @@ type SectionColumnKey =
   | 'currency'
   | 'sum'
   | 'counteragent'
+  | 'paymentIds'
   | 'paymentCount'
   | 'jobsCount'
   | 'order'
@@ -79,7 +80,8 @@ type SectionColumnKey =
   | 'due'
   | 'balance'
   | 'confirmed'
-  | 'latestDate';
+  | 'latestDate'
+  | 'actions';
 
 type SectionColumn = {
   key: SectionColumnKey;
@@ -106,7 +108,7 @@ const DEFAULT_TOTALS = {
   balance: 0,
 };
 
-const SERVICES_REPORT_COLUMNS_STORAGE_KEY = 'servicesReportSectionColumnsV2';
+const SERVICES_REPORT_COLUMNS_STORAGE_KEY = 'servicesReportSectionColumnsV3';
 
 const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'status', label: 'Status', visible: true, width: 120, align: 'left' },
@@ -115,6 +117,7 @@ const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'currency', label: 'Currency', visible: true, width: 110, align: 'left' },
   { key: 'sum', label: 'Sum', visible: true, width: 130, align: 'right' },
   { key: 'counteragent', label: 'Counteragent', visible: true, width: 220, align: 'left' },
+  { key: 'paymentIds', label: 'Payment IDs', visible: true, width: 260, align: 'left' },
   { key: 'paymentCount', label: 'Payments', visible: true, width: 100, align: 'right' },
   { key: 'jobsCount', label: 'Jobs', visible: true, width: 90, align: 'right' },
   { key: 'order', label: 'Order', visible: true, width: 130, align: 'right' },
@@ -123,6 +126,7 @@ const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'balance', label: 'Balance', visible: true, width: 130, align: 'right' },
   { key: 'confirmed', label: 'Confirmed', visible: true, width: 110, align: 'left' },
   { key: 'latestDate', label: 'Latest Date', visible: true, width: 130, align: 'left' },
+  { key: 'actions', label: 'Actions', visible: true, width: 90, align: 'left' },
 ];
 
 const formatMoney = (value: number) =>
@@ -146,6 +150,10 @@ const getColumnValue = (row: ServicesRow, key: SectionColumnKey) => {
       return formatDate(row.latestDate);
     case 'confirmed':
       return row.confirmed ? 'Yes' : 'No';
+    case 'paymentIds':
+      return row.paymentIds.join(', ');
+    case 'actions':
+      return '';
     default:
       return row[key as keyof ServicesRow] as unknown;
   }
@@ -494,9 +502,7 @@ export function ServicesReportTable() {
         sections.map((section) => {
           const columns = getColumnsForSection(section.financialCodeUuid);
           const visibleColumns = columns.filter((column) => column.visible);
-          const selectorColumns = columns.filter((column) =>
-            !['financialCodeValidation', 'paymentCount'].includes(column.key)
-          );
+          const selectorColumns = columns;
           return (
             <div key={section.financialCodeUuid} className="rounded-lg border overflow-x-auto">
               <div className="px-3 py-2 border-b bg-gray-50 flex items-center justify-between">
@@ -553,9 +559,6 @@ export function ServicesReportTable() {
                         />
                       </th>
                     ))}
-                    <th className="px-3 py-2 text-left" style={{ width: '220px', minWidth: '220px' }}>
-                      Actions
-                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -574,58 +577,61 @@ export function ServicesReportTable() {
                             className={`px-3 py-2 ${column.align === 'right' ? 'text-right' : 'text-left'}`}
                             style={{ width: `${column.width}px`, minWidth: `${column.width}px` }}
                           >
-                            {value}
+                            {column.key === 'paymentIds' ? (
+                              row.paymentIds.length > 0 ? (
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {row.paymentIds.map((paymentId) => (
+                                    <div key={`${row.projectUuid}-${paymentId}`} className="inline-flex items-center gap-1">
+                                      <span className="text-xs text-gray-700">{paymentId}</span>
+                                      <a
+                                        href={`/payment-statement/${paymentId}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-block text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
+                                        title="View statement (opens in new tab)"
+                                      >
+                                        <FileText className="w-4 h-4" />
+                                      </a>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )
+                            ) : column.key === 'actions' ? (
+                              <div className="flex items-center gap-1.5">
+                                <a
+                                  href={row.counteragentUuid ? `/counteragent-statement/${row.counteragentUuid}` : '#'}
+                                  target={row.counteragentUuid ? '_blank' : undefined}
+                                  rel={row.counteragentUuid ? 'noopener noreferrer' : undefined}
+                                  className={`inline-block p-1 rounded transition-colors ${
+                                    row.counteragentUuid
+                                      ? row.hasUnboundCounteragentTransactions
+                                        ? 'text-red-600 hover:text-red-800 hover:bg-red-50'
+                                        : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50'
+                                      : 'text-gray-400'
+                                  }`}
+                                  aria-disabled={!row.counteragentUuid}
+                                  title={
+                                    row.hasUnboundCounteragentTransactions
+                                      ? 'Counteragent has transactions without payment ID'
+                                      : 'View counteragent statement (opens in new tab)'
+                                  }
+                                  onClick={(event) => {
+                                    if (!row.counteragentUuid) {
+                                      event.preventDefault();
+                                    }
+                                  }}
+                                >
+                                  <User className="w-4 h-4" />
+                                </a>
+                              </div>
+                            ) : (
+                              value
+                            )}
                           </td>
                         );
                       })}
-                      <td className="px-3 py-2 text-left" style={{ width: '220px', minWidth: '220px' }}>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {row.paymentIds.length > 0 ? (
-                            row.paymentIds.map((paymentId) => (
-                              <div key={`${row.projectUuid}-${paymentId}`} className="inline-flex items-center gap-1">
-                                <span className="text-xs text-gray-700">{paymentId}</span>
-                                <a
-                                  href={`/payment-statement/${paymentId}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-block text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
-                                  title="View statement (opens in new tab)"
-                                >
-                                  <FileText className="w-4 h-4" />
-                                </a>
-                              </div>
-                            ))
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-
-                          <a
-                            href={row.counteragentUuid ? `/counteragent-statement/${row.counteragentUuid}` : '#'}
-                            target={row.counteragentUuid ? '_blank' : undefined}
-                            rel={row.counteragentUuid ? 'noopener noreferrer' : undefined}
-                            className={`inline-block p-1 rounded transition-colors ${
-                              row.counteragentUuid
-                                ? row.hasUnboundCounteragentTransactions
-                                  ? 'text-red-600 hover:text-red-800 hover:bg-red-50'
-                                  : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50'
-                                : 'text-gray-400'
-                            }`}
-                            aria-disabled={!row.counteragentUuid}
-                            title={
-                              row.hasUnboundCounteragentTransactions
-                                ? 'Counteragent has transactions without payment ID'
-                                : 'View counteragent statement (opens in new tab)'
-                            }
-                            onClick={(event) => {
-                              if (!row.counteragentUuid) {
-                                event.preventDefault();
-                              }
-                            }}
-                          >
-                            <User className="w-4 h-4" />
-                          </a>
-                        </div>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
