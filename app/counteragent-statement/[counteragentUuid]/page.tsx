@@ -70,6 +70,7 @@ type StatementRow = {
   payment: number;
   ppc: number;
   account: string;
+  bankAccount: string;
   comment: string;
   id1?: string | null;
   id2?: string | null;
@@ -107,6 +108,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'id1', label: 'ID1', visible: false, sortable: true, filterable: true, width: 140, align: 'left' },
   { key: 'id2', label: 'ID2', visible: false, sortable: true, filterable: true, width: 140, align: 'left' },
   { key: 'account', label: 'CA Account', visible: true, sortable: true, filterable: true, width: 220, align: 'left' },
+  { key: 'bankAccount', label: 'Account', visible: true, sortable: true, filterable: true, width: 260, align: 'left' },
   { key: 'comment', label: 'Comment', visible: true, sortable: true, filterable: true, width: 320, align: 'left', format: 'text' },
 ];
 
@@ -575,6 +577,7 @@ export default function CounteragentStatementPage() {
           confirmed: entry.confirmed ?? false,
           ppc: 0,
           account: '-',
+          bankAccount: '-',
           comment: entry.comment || '-',
           id1: null,
           id2: null,
@@ -602,7 +605,8 @@ export default function CounteragentStatementPage() {
           payment: tx.nominalAmount,
           confirmed: null,
           ppc: tx.accountCurrencyAmount,
-          account: tx.accountLabel || tx.counteragentAccountNumber || '-',
+          account: tx.counteragentAccountNumber || '-',
+          bankAccount: tx.accountLabel || '-',
           comment: tx.description || '-',
           id1: tx.id1 || null,
           id2: tx.id2 || null,

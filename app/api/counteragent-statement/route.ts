@@ -416,7 +416,7 @@ export async function GET(request: NextRequest) {
         counteragentAccountNumber: tx.counteragent_account_number,
         description: tx.description,
         createdAt: tx.created_at,
-        accountLabel: `${tx.bank_account_number || ''}_${tx.account_currency_code || ''}`.replace(/^_+|_+$/g, '') || '-',
+        accountLabel: `${tx.bank_account_number || ''}${tx.account_currency_code || ''}`.trim() || '-',
           project: info?.project || null,
           financialCode: info?.financialCode || null,
           job: info?.job || null,
