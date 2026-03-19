@@ -477,12 +477,14 @@ export function ServicesReportTable() {
   const openJobLinkDialog = async (row: ServicesRow) => {
     setJobLinkDialog((prev) => ({ ...prev, open: true, projectUuid: row.projectUuid, projectName: row.projectName, loading: true, allJobs: [], linkedJobUuids: new Set(), search: '', saving: false }));
     try {
-      const [jobsRes, linksRes] = await Promise.all([
+      const [jobsRes, linksRes, paymentsRes] = await Promise.all([
         fetch('/api/jobs'),
         fetch(`/api/job-projects?projectUuid=${row.projectUuid}`),
+        fetch(`/api/payments?paymentIds=${encodeURIComponent(row.paymentIds.join(','))}`),
       ]);
       const jobsData = jobsRes.ok ? await jobsRes.json() : [];
       const linksData = linksRes.ok ? await linksRes.json() : [];
+      const paymentsData = paymentsRes.ok ? await paymentsRes.json() : [];
       const allJobs: JobRow[] = (Array.isArray(jobsData) ? jobsData : []).map((j: any) => ({
         jobUuid: j.jobUuid,
         jobName: j.jobName || j.job_name || '',
@@ -494,6 +496,11 @@ export function ServicesReportTable() {
         isActive: j.is_active !== false,
       }));
       const linkedJobUuids = new Set<string>(Array.isArray(linksData) ? linksData : []);
+      for (const payment of (Array.isArray(paymentsData) ? paymentsData : [])) {
+        if (payment?.jobUuid) {
+          linkedJobUuids.add(String(payment.jobUuid));
+        }
+      }
       setJobLinkDialog((prev) => ({ ...prev, allJobs, linkedJobUuids, loading: false }));
     } catch {
       setJobLinkDialog((prev) => ({ ...prev, loading: false }));

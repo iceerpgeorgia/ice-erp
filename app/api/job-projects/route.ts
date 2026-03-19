@@ -12,8 +12,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'projectUuid is required' }, { status: 400 });
     }
 
+    // Fallback to legacy jobs.project_uuid so preselection still works
+    // even when a project has not been explicitly migrated into job_projects.
     const linked = await prisma.$queryRawUnsafe<any[]>(
-      `SELECT jp.job_uuid FROM job_projects jp WHERE jp.project_uuid = $1`,
+      `
+        SELECT DISTINCT job_uuid
+        FROM (
+          SELECT jp.job_uuid
+          FROM job_projects jp
+          WHERE jp.project_uuid = $1::uuid
+
+          UNION
+
+          SELECT j.job_uuid
+          FROM jobs j
+          WHERE j.project_uuid = $1::uuid
+        ) links
+      `,
       projectUuid
     );
 
