@@ -446,25 +446,29 @@ export default function PaymentStatementPage() {
   ].sort((a, b) => a.dateSort - b.dateSort) : []; // Sort by date ascending for cumulative calculation
 
   // Calculate cumulative values for each row (from oldest to newest)
-  // Use absolute payment magnitude so due/balance work correctly for both
-  // expense payment IDs (outgoing/negative) and income payment IDs (incoming/positive).
+  // For income financial codes (is_income=true): payments are incoming (positive),
+  //   refunds are negative — use raw payment value.
+  // For expense financial codes (is_income=false): payments are outgoing (negative),
+  //   use Math.abs so due/balance decrease correctly.
+  const isIncome = statementData?.payment?.isIncome ?? false;
+
   if (mergedTransactions.length > 0) {
     let cumulativeAccrual = 0;
-    let cumulativePaidAbs = 0;
+    let cumulativePaid = 0;
     let cumulativeOrder = 0;
 
     mergedTransactions.forEach(row => {
       cumulativeAccrual += row.accrual;
-      cumulativePaidAbs += Math.abs(row.payment);
+      cumulativePaid += isIncome ? row.payment : Math.abs(row.payment);
       cumulativeOrder += row.order;
 
       row.paidPercent = cumulativeAccrual !== 0 
-        ? parseFloat(((cumulativePaidAbs / cumulativeAccrual) * 100).toFixed(2))
+        ? parseFloat(((cumulativePaid / cumulativeAccrual) * 100).toFixed(2))
         : 0;
 
-      row.due = parseFloat((cumulativeOrder - cumulativePaidAbs).toFixed(2));
+      row.due = parseFloat((cumulativeOrder - cumulativePaid).toFixed(2));
 
-      row.balance = parseFloat((cumulativeAccrual - cumulativePaidAbs).toFixed(2));
+      row.balance = parseFloat((cumulativeAccrual - cumulativePaid).toFixed(2));
     });
 
     // Now reverse to show newest first in the table

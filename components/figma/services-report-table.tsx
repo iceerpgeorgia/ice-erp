@@ -579,27 +579,24 @@ export function ServicesReportTable() {
                           >
                             {column.key === 'paymentIds' ? (
                               row.paymentIds.length > 0 ? (
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  {row.paymentIds.map((paymentId) => (
-                                    <div key={`${row.projectUuid}-${paymentId}`} className="inline-flex items-center gap-1">
-                                      <span className="text-xs text-gray-700">{paymentId}</span>
-                                      <a
-                                        href={`/payment-statement/${paymentId}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-block text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
-                                        title="View statement (opens in new tab)"
-                                      >
-                                        <FileText className="w-4 h-4" />
-                                      </a>
-                                    </div>
-                                  ))}
-                                </div>
+                                <span className="text-xs text-gray-700">{row.paymentIds.join(', ')}</span>
                               ) : (
                                 <span className="text-gray-400">-</span>
                               )
                             ) : column.key === 'actions' ? (
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {row.paymentIds.map((paymentId) => (
+                                  <a
+                                    key={`${row.projectUuid}-${paymentId}`}
+                                    href={`/payment-statement/${paymentId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-block text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
+                                    title={`Payment statement: ${paymentId}`}
+                                  >
+                                    <FileText className="w-4 h-4" />
+                                  </a>
+                                ))}
                                 <a
                                   href={row.counteragentUuid ? `/counteragent-statement/${row.counteragentUuid}` : '#'}
                                   target={row.counteragentUuid ? '_blank' : undefined}

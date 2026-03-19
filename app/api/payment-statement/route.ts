@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
         ca.identification_number as counteragent_id,
         fc.validation as financial_code_validation,
         fc.code as financial_code,
+        fc.is_income,
         j.job_name,
         j.floors,
         curr.code as currency_code
@@ -94,6 +95,7 @@ export async function GET(request: NextRequest) {
             c.identification_number as counteragent_id,
             fc.validation as financial_code_validation,
             fc.code as financial_code,
+            fc.is_income,
             curr.code as currency_code
           FROM salary_accruals sa
           LEFT JOIN counteragents c ON sa.counteragent_uuid = c.counteragent_uuid
@@ -319,6 +321,7 @@ export async function GET(request: NextRequest) {
             counteragentUuid: payment.counteragent_uuid,
             counteragentId: payment.counteragent_id,
             financialCode: payment.financial_code_validation || payment.financial_code,
+            isIncome: Boolean(payment.is_income),
             job: payment.job_name,
             floors: payment.floors ? Number(payment.floors) : 0,
             incomeTax: isSalaryPayment ? false : (payment.income_tax || false),
@@ -334,6 +337,7 @@ export async function GET(request: NextRequest) {
             counteragentUuid: salaryPayment.counteragent_uuid,
             counteragentId: salaryPayment.counteragent_id,
             financialCode: salaryPayment.financial_code_validation || salaryPayment.financial_code,
+            isIncome: Boolean(salaryPayment.is_income),
             job: null,
             floors: 0,
             incomeTax: false,
