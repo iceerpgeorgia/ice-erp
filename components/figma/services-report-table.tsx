@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Columns3, FileText, Link2, Settings, User, X } from 'lucide-react';
+import { ArrowUpRight, Columns3, FileText, Link2, Settings, User, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Checkbox } from './ui/checkbox';
@@ -20,6 +20,7 @@ type ServicesRow = {
   projectUuid: string;
   counteragentUuid: string | null;
   status: string;
+  serviceState: string;
   project: string;
   projectName: string;
   sum: number;
@@ -90,6 +91,7 @@ type JobLinkDialogState = {
 
 type SectionColumnKey =
   | 'status'
+  | 'serviceState'
   | 'financialCodeValidation'
   | 'projectName'
   | 'currency'
@@ -132,10 +134,11 @@ const DEFAULT_TOTALS = {
   balance: 0,
 };
 
-const SERVICES_REPORT_COLUMNS_STORAGE_KEY = 'servicesReportSectionColumnsV4';
+const SERVICES_REPORT_COLUMNS_STORAGE_KEY = 'servicesReportSectionColumnsV5';
 
 const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'status', label: 'Status', visible: true, width: 120, align: 'left' },
+  { key: 'serviceState', label: 'Service State', visible: true, width: 150, align: 'left' },
   { key: 'financialCodeValidation', label: 'Financial Code', visible: true, width: 220, align: 'left' },
   { key: 'projectName', label: 'Project', visible: true, width: 260, align: 'left' },
   { key: 'currency', label: 'Currency', visible: true, width: 110, align: 'left' },
@@ -371,6 +374,7 @@ export function ServicesReportTable() {
     return report.rows.filter((row) =>
       [
         row.status,
+        row.serviceState,
         row.project,
         row.projectName,
         row.counteragent,
@@ -737,6 +741,29 @@ export function ServicesReportTable() {
                               ) : (
                                 <span className="text-gray-400">-</span>
                               )
+                            ) : column.key === 'projectName' ? (
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="truncate">{row.projectName || '-'}</span>
+                                <a
+                                  href={row.projectUuid ? `/admin/projects?projectUuid=${encodeURIComponent(row.projectUuid)}` : '#'}
+                                  target={row.projectUuid ? '_blank' : undefined}
+                                  rel={row.projectUuid ? 'noopener noreferrer' : undefined}
+                                  className={`inline-flex items-center justify-center rounded p-1 transition-colors flex-shrink-0 ${
+                                    row.projectUuid
+                                      ? 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                                      : 'text-gray-300 cursor-not-allowed'
+                                  }`}
+                                  title="Open project in Projects table"
+                                  aria-disabled={!row.projectUuid}
+                                  onClick={(event) => {
+                                    if (!row.projectUuid) {
+                                      event.preventDefault();
+                                    }
+                                  }}
+                                >
+                                  <ArrowUpRight className="h-3.5 w-3.5" />
+                                </a>
+                              </div>
                             ) : column.key === 'jobsCount' ? (
                               <div className="flex items-center justify-end gap-1">
                                 <span>{row.jobsCount}</span>
