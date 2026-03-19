@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (84)
+- Summary: Fixed Services Report job-link binding persistence (save was failing silently in some cases).
+- Changes:
+  - `app/api/job-projects/route.ts`: Added UUID validation/normalization for `projectUuid` and `jobUuids`, deduped job UUIDs, and wrapped delete+insert in a transaction.
+  - `components/figma/services-report-table.tsx`: Filtered invalid job UUIDs before submit, enforced `response.ok` check with surfaced API error, and awaited report refresh after save.
+- Commit: 8f9d392
+- URL: https://ice-ag0z65pdu-iceerp.vercel.app
+
 ## 2026-03-19 (83)
 - Summary: Counteragent Statement corrected to keep `CA Account` unchanged and add separate `Account` column from bank accounts.
 - Changes:
