@@ -197,6 +197,8 @@ const COLUMN_FORMAT_MAP: Partial<Record<SectionColumnKey, ColumnFormat>> = {
   latestDate: 'date',
 };
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const getColumnValue = (row: ServicesRow, key: SectionColumnKey) => {
   switch (key) {
     case 'sum':
@@ -636,16 +638,23 @@ export function ServicesReportTable() {
   const saveJobLinks = async () => {
     setJobLinkDialog((prev) => ({ ...prev, saving: true }));
     try {
-      await fetch('/api/job-projects', {
+      const jobUuids = Array.from(jobLinkDialog.linkedJobUuids).filter((value) => UUID_REGEX.test(value));
+      const response = await fetch('/api/job-projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectUuid: jobLinkDialog.projectUuid,
-          jobUuids: Array.from(jobLinkDialog.linkedJobUuids),
+          jobUuids,
         }),
       });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data?.error || 'Failed to save job links');
+      }
+
       setJobLinkDialog((prev) => ({ ...prev, open: false, saving: false }));
-      fetchReport();
+      await fetchReport();
     } catch (err: any) {
       alert(err?.message || 'Failed to save job links');
       setJobLinkDialog((prev) => ({ ...prev, saving: false }));

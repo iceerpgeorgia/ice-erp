@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 
 export const revalidate = 0;
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -48,25 +50,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'projectUuid and jobUuids[] are required' }, { status: 400 });
     }
 
-    // Remove all existing links for this project
-    await prisma.$executeRawUnsafe(
-      `DELETE FROM job_projects WHERE project_uuid = $1`,
-      projectUuid
-    );
-
-    // Insert new links
-    if (jobUuids.length > 0) {
-      const values = jobUuids
-        .map((_: string, i: number) => `($${i * 2 + 1}::uuid, $${i * 2 + 2}::uuid)`)
-        .join(', ');
-      const params = jobUuids.flatMap((ju: string) => [ju, projectUuid]);
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO job_projects (job_uuid, project_uuid) VALUES ${values} ON CONFLICT (job_uuid, project_uuid) DO NOTHING`,
-        ...params
-      );
+    const normalizedProjectUuid = String(projectUuid).trim();
+    if (!UUID_REGEX.test(normalizedProjectUuid)) {
+      return NextResponse.json({ error: 'Invalid projectUuid' }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true, count: jobUuids.length });
+    const normalizedJobUuids = Array.from(
+      new Set(
+        jobUuids
+          .map((value: unknown) => String(value ?? '').trim())
+          .filter((value: string) => UUID_REGEX.test(value))
+      )
+    );
+
+    await prisma.$transaction(async (tx) => {
+      // Remove all existing links for this project
+      await tx.$executeRawUnsafe(
+        `DELETE FROM job_projects WHERE project_uuid = $1::uuid`,
+        normalizedProjectUuid
+      );
+
+      // Insert new links
+      if (normalizedJobUuids.length > 0) {
+        const values = normalizedJobUuids
+          .map((_: string, i: number) => `($${i * 2 + 1}::uuid, $${i * 2 + 2}::uuid)`)
+          .join(', ');
+        const params = normalizedJobUuids.flatMap((ju: string) => [ju, normalizedProjectUuid]);
+        await tx.$executeRawUnsafe(
+          `INSERT INTO job_projects (job_uuid, project_uuid) VALUES ${values} ON CONFLICT (job_uuid, project_uuid) DO NOTHING`,
+          ...params
+        );
+      }
+    });
+
+    return NextResponse.json({ ok: true, count: normalizedJobUuids.length });
   } catch (error) {
     console.error('Error saving job-projects:', error);
     return NextResponse.json({ error: 'Failed to save job-projects' }, { status: 500 });
