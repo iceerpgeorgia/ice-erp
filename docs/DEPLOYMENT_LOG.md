@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (76)
+- Summary: Services Report job-linking feature — Link2 icon in Jobs column opens dialog to bind jobs to payment IDs. Jobs count now reflects only bound jobs.
+- Changes:
+  - `app/api/services-report/route.ts`: Changed jobs_count to COUNT(DISTINCT sp.job_uuid) from payment records. Added job_names array via ARRAY_AGG. Removed jobs_per_project CTE.
+  - `app/api/payments/route.ts`: Added paymentIds query parameter filter to GET endpoint for fetching specific payments by payment_id.
+  - `components/figma/services-report-table.tsx`: Added Link2 icon button next to jobs count in Jobs column. Added job-linking dialog modal with Combobox selectors per payment ID. Dialog loads project jobs and current assignments, saves via PATCH to payments API. Added JobOption and JobLinkDialogState types.
+- Commit: a0cd501
+- URL: https://ice-npre6v9tv-iceerp.vercel.app
+
 ## 2026-03-19 (75)
 - Summary: Services Report grid enhancements — accrual column, colored financial columns, confirmation checkbox with conditional row formatting, dd.mm.yyyy dates. Reverted misapplied Payment Statement styling.
 - Changes:
