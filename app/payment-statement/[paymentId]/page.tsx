@@ -400,7 +400,7 @@ export default function PaymentStatementPage() {
       user: entry.userEmail,
       caAccount: '-',
       account: '-',
-      createdAt: `${formatDate(entry.createdAt)} ${new Date(entry.createdAt).toLocaleTimeString()}`,
+      createdAt: formatDate(entry.createdAt),
       id1: null,
       id2: null,
       batchId: null,
@@ -438,7 +438,7 @@ export default function PaymentStatementPage() {
       user: '-',
       caAccount: tx.counteragentAccountNumber || '-',
       account: tx.accountLabel || '-',
-      createdAt: `${formatDate(tx.createdAt)} ${new Date(tx.createdAt).toLocaleTimeString()}`,
+      createdAt: formatDate(tx.createdAt),
       id1: tx.id1 || null,
       id2: tx.id2 || null,
       batchId: tx.batchId || null,
@@ -1162,6 +1162,20 @@ export default function PaymentStatementPage() {
                 <span className="font-medium">{statementData.payment.incomeTax ? '✓ Yes' : '✗ No'}</span>
               </div>
             </div>
+            <div className="grid grid-cols-3 gap-4 mt-4 pt-3 border-t">
+              <div className="p-2 rounded" style={{ backgroundColor: '#ffebee' }}>
+                <span className="text-gray-600 block text-xs">Total Accrual</span>
+                <span className="font-bold text-lg">{mergedTransactions.reduce((s, r) => s + r.accrual, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <div className="p-2 rounded" style={{ backgroundColor: '#fff9e6' }}>
+                <span className="text-gray-600 block text-xs">Total Order</span>
+                <span className="font-bold text-lg">{mergedTransactions.reduce((s, r) => s + r.order, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <div className="p-2 rounded" style={{ backgroundColor: '#e8f5e9' }}>
+                <span className="text-gray-600 block text-xs">Total Payment</span>
+                <span className="font-bold text-lg">{mergedTransactions.reduce((s, r) => s + r.payment, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            </div>
           </div>
 
           {/* Merged Payment Transactions */}
@@ -1284,7 +1298,12 @@ export default function PaymentStatementPage() {
                             </>
                           );
                         })()}
-                        {columns.filter(col => col.visible).map((column) => (
+                        {columns.filter(col => col.visible).map((column) => {
+                          let headerBg = '';
+                          if (column.key === 'accrual') headerBg = '#ffebee';
+                          if (column.key === 'payment') headerBg = '#e8f5e9';
+                          if (column.key === 'order') headerBg = '#fff9e6';
+                          return (
                           <th
                             key={column.key}
                             draggable
@@ -1293,11 +1312,12 @@ export default function PaymentStatementPage() {
                             onDrop={(e) => handleDrop(e, column.key)}
                             className={`px-4 py-3 font-semibold relative cursor-move select-none ${
                               column.align === 'right' ? 'text-right' : 'text-left'
-                            } ${dragOverColumn === column.key ? 'bg-blue-100' : ''}`}
+                            } ${dragOverColumn === column.key && !headerBg ? 'bg-blue-100' : ''}`}
                             style={{
                               width: `${column.width}px`,
                               minWidth: `${column.width}px`,
                               maxWidth: `${column.width}px`,
+                              ...(headerBg ? { backgroundColor: headerBg } : {}),
                             }}
                           >
                             <div className="flex items-center gap-1">
@@ -1325,7 +1345,7 @@ export default function PaymentStatementPage() {
                               />
                             </div>
                           </th>
-                        ))}
+                        )})}
                         <th className="px-4 py-3 font-semibold text-left" style={{ width: '70px' }}>
                           View
                         </th>
@@ -1338,8 +1358,13 @@ export default function PaymentStatementPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredTransactions.map((row, index) => (
-                        <tr key={row.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      {filteredTransactions.map((row, index) => {
+                        const isConfirmedDue = Boolean(row.confirmed && row.due > 0);
+                        const isConfirmedPaid = Boolean(row.confirmed && row.due === 0);
+                        return (
+                        <tr key={row.id} className={`group border-b border-gray-200 hover:bg-gray-50 ${
+                          isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : (index % 2 === 0 ? 'bg-white' : 'bg-gray-50')
+                        }`}>
                           {(() => {
                             const canSelect = row.type === 'bank' && row.payment !== 0;
                             return (
@@ -1376,15 +1401,28 @@ export default function PaymentStatementPage() {
                             );
                           })()}
                           {columns.filter(col => col.visible).map((column) => {
-                            let displayValue = row[column.key];
-                            
+                            let displayValue: any = row[column.key];
+                            let cellBg = '';
+                            if (column.key === 'accrual') cellBg = '#ffebee';
+                            if (column.key === 'payment') cellBg = '#e8f5e9';
+                            if (column.key === 'order') cellBg = '#fff9e6';
+
                             if (column.key === 'confirmed') {
-                              displayValue =
-                                displayValue === null || displayValue === undefined
-                                  ? ''
-                                  : displayValue
-                                    ? 'Yes'
-                                    : 'No';
+                              return (
+                                <td
+                                  key={column.key}
+                                  className="px-4 py-3"
+                                  style={{
+                                    width: `${column.width}px`,
+                                    minWidth: `${column.width}px`,
+                                    maxWidth: `${column.width}px`,
+                                  }}
+                                >
+                                  {displayValue === null || displayValue === undefined ? '' : (
+                                    <Checkbox checked={Boolean(displayValue)} disabled className="cursor-default" />
+                                  )}
+                                </td>
+                              );
                             }
 
                             // Format numeric values
@@ -1412,6 +1450,7 @@ export default function PaymentStatementPage() {
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
                                   whiteSpace: 'nowrap',
+                                  ...(cellBg ? { backgroundColor: cellBg } : {}),
                                 }}
                               >
                                 {displayValue}
@@ -1479,7 +1518,7 @@ export default function PaymentStatementPage() {
                             )}
                           </td>
                         </tr>
-                      ))}
+                      )})}
                       
                       {/* Totals Row */}
                       <tr className="bg-blue-50 font-bold border-t-2 border-blue-300">
@@ -1487,6 +1526,10 @@ export default function PaymentStatementPage() {
                         <td className="px-2 py-3 bg-yellow-100" style={{ width: '70px' }}></td>
                         {columns.filter(col => col.visible).map((column) => {
                           let totalValue: string | number = '';
+                          let totalBg = '';
+                          if (column.key === 'accrual') totalBg = '#ffebee';
+                          if (column.key === 'payment') totalBg = '#e8f5e9';
+                          if (column.key === 'order') totalBg = '#fff9e6';
                           
                           if (column.key === 'date') {
                             totalValue = 'TOTAL';
@@ -1517,6 +1560,7 @@ export default function PaymentStatementPage() {
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap',
+                                ...(totalBg ? { backgroundColor: totalBg } : {}),
                               }}
                             >
                               {totalValue}
