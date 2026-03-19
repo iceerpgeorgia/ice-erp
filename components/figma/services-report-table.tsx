@@ -75,6 +75,7 @@ type SectionColumnKey =
   | 'paymentIds'
   | 'paymentCount'
   | 'jobsCount'
+  | 'accrual'
   | 'order'
   | 'payment'
   | 'due'
@@ -108,7 +109,7 @@ const DEFAULT_TOTALS = {
   balance: 0,
 };
 
-const SERVICES_REPORT_COLUMNS_STORAGE_KEY = 'servicesReportSectionColumnsV3';
+const SERVICES_REPORT_COLUMNS_STORAGE_KEY = 'servicesReportSectionColumnsV4';
 
 const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'status', label: 'Status', visible: true, width: 120, align: 'left' },
@@ -120,6 +121,7 @@ const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'paymentIds', label: 'Payment IDs', visible: true, width: 260, align: 'left' },
   { key: 'paymentCount', label: 'Payments', visible: true, width: 100, align: 'right' },
   { key: 'jobsCount', label: 'Jobs', visible: true, width: 90, align: 'right' },
+  { key: 'accrual', label: 'Accrual', visible: true, width: 130, align: 'right' },
   { key: 'order', label: 'Order', visible: true, width: 130, align: 'right' },
   { key: 'payment', label: 'Payment', visible: true, width: 130, align: 'right' },
   { key: 'due', label: 'Due', visible: true, width: 130, align: 'right' },
@@ -139,7 +141,16 @@ const formatDate = (value: string | null) => {
   if (!value) return '-';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
-  return date.toLocaleDateString('en-GB');
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}.${month}.${year}`;
+};
+
+const COLUMN_BG: Partial<Record<SectionColumnKey, string>> = {
+  accrual: '#ffebee',
+  order: '#fff9e6',
+  payment: '#e8f5e9',
 };
 
 const getColumnValue = (row: ServicesRow, key: SectionColumnKey) => {
@@ -148,8 +159,10 @@ const getColumnValue = (row: ServicesRow, key: SectionColumnKey) => {
       return row.sum;
     case 'latestDate':
       return formatDate(row.latestDate);
+    case 'accrual':
+      return row.accrual;
     case 'confirmed':
-      return row.confirmed ? 'Yes' : 'No';
+      return row.confirmed;
     case 'paymentIds':
       return row.paymentIds.join(', ');
     case 'actions':
@@ -534,7 +547,9 @@ export function ServicesReportTable() {
                 <thead className="bg-gray-50 text-gray-600">
                   <tr>
                     <th className="px-3 py-2 text-left w-[56px]">#</th>
-                    {visibleColumns.map((column) => (
+                    {visibleColumns.map((column) => {
+                      const bg = COLUMN_BG[column.key];
+                      return (
                       <th
                         key={column.key}
                         draggable
@@ -542,7 +557,7 @@ export function ServicesReportTable() {
                         onDragOver={(event) => event.preventDefault()}
                         onDrop={() => handleColumnDrop(section.financialCodeUuid, column.key)}
                         className={`px-3 py-2 relative ${column.align === 'right' ? 'text-right' : 'text-left'}`}
-                        style={{ width: `${column.width}px`, minWidth: `${column.width}px` }}
+                        style={{ width: `${column.width}px`, minWidth: `${column.width}px`, ...(bg ? { backgroundColor: bg } : {}) }}
                       >
                         <span>{column.label}</span>
                         <div
@@ -558,15 +573,36 @@ export function ServicesReportTable() {
                           }}
                         />
                       </th>
-                    ))}
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {section.rows.map((row, index) => (
-                    <tr key={`${section.financialCodeUuid}-${row.projectUuid}-${index}`} className="border-t">
+                  {section.rows.map((row, index) => {
+                    const isConfirmedDue = Boolean(row.confirmed && row.due > 0);
+                    const isConfirmedPaid = Boolean(row.confirmed && row.due === 0);
+                    return (
+                    <tr
+                      key={`${section.financialCodeUuid}-${row.projectUuid}-${index}`}
+                      className={`border-t hover:bg-gray-50 ${
+                        isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : ''
+                      }`}
+                    >
                       <td className="px-3 py-2">{index + 1}</td>
                       {visibleColumns.map((column) => {
                         const rawValue = getColumnValue(row, column.key);
+                        const bg = COLUMN_BG[column.key];
+                        if (column.key === 'confirmed') {
+                          return (
+                            <td
+                              key={column.key}
+                              className="px-3 py-2"
+                              style={{ width: `${column.width}px`, minWidth: `${column.width}px` }}
+                            >
+                              <Checkbox checked={Boolean(rawValue)} disabled className="cursor-default" />
+                            </td>
+                          );
+                        }
                         const value =
                           column.align === 'right' && typeof rawValue === 'number'
                             ? formatMoney(rawValue)
@@ -575,7 +611,7 @@ export function ServicesReportTable() {
                           <td
                             key={column.key}
                             className={`px-3 py-2 ${column.align === 'right' ? 'text-right' : 'text-left'}`}
-                            style={{ width: `${column.width}px`, minWidth: `${column.width}px` }}
+                            style={{ width: `${column.width}px`, minWidth: `${column.width}px`, ...(bg ? { backgroundColor: bg } : {}) }}
                           >
                             {column.key === 'paymentIds' ? (
                               row.paymentIds.length > 0 ? (
@@ -630,7 +666,8 @@ export function ServicesReportTable() {
                         );
                       })}
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
