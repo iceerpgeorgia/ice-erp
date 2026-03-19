@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (81)
+- Summary: Added per-column sorting and filtering to Services Report grid, aligned with Payments Report-style column controls.
+- Changes:
+  - `components/figma/services-report-table.tsx`: Added sortable headers with sort icons, per-column `ColumnFilterPopover` controls, advanced filter support by column format, and clear-filters action.
+  - `components/figma/services-report-table.tsx`: Added filtering pipeline (`FilterState` + `matchesFilter`) and sorting pipeline on report rows before section grouping.
+  - `components/figma/services-report-table.tsx`: Preserved formatted date display while sorting/filtering on raw date values.
+- Commit: 7ac6d71
+- URL: https://ice-gxxmjpa6l-iceerp.vercel.app
+
 ## 2026-03-19 (80)
 - Summary: Services Report now includes Project Service State and a project shortcut in the Project column.
 - Changes:
