@@ -37,6 +37,8 @@ type ServicesRow = {
   jobNames: string[];
   accrual: number;
   order: number;
+  lastMonthAccrual: number;
+  lastMonthOrder: number;
   payment: number;
   due: number;
   balance: number;
@@ -856,6 +858,9 @@ export function ServicesReportTable() {
                   {section.rows.map((row, index) => {
                     const isConfirmedDue = Boolean(row.confirmed && row.due > 0);
                     const isConfirmedPaid = Boolean(row.confirmed && row.due === 0);
+                    const isSumMismatch =
+                      Math.abs(row.sum - row.lastMonthAccrual) > 0.009 ||
+                      Math.abs(row.sum - row.lastMonthOrder) > 0.009;
                     return (
                     <tr
                       key={`${section.financialCodeUuid}-${row.projectUuid}-${index}`}
@@ -887,7 +892,9 @@ export function ServicesReportTable() {
                         return (
                           <td
                             key={column.key}
-                            className={`px-3 py-2 ${column.align === 'right' ? 'text-right' : 'text-left'}`}
+                            className={`px-3 py-2 ${column.align === 'right' ? 'text-right' : 'text-left'} ${
+                              column.key === 'sum' && isSumMismatch ? 'font-bold text-red-600' : ''
+                            }`}
                             style={{ width: `${column.width}px`, minWidth: `${column.width}px`, ...(bg ? { backgroundColor: bg } : {}) }}
                           >
                             {column.key === 'paymentIds' ? (

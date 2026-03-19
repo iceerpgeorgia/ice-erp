@@ -60,6 +60,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const referenceDate = maxDate
+      ? new Date(`${maxDate}T00:00:00.000Z`)
+      : new Date();
+    const monthStartDate = new Date(Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth(), 1));
+    const lastMonthStartDate = new Date(Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth() - 1, 1));
+    const monthStart = monthStartDate.toISOString().slice(0, 10);
+    const lastMonthStart = lastMonthStartDate.toISOString().slice(0, 10);
+
     const ledgerDateFilter = maxDate ? `AND pl.effective_date::date <= '${maxDate}'::date` : '';
     const bankDateFilter = maxDate ? `AND transaction_date::date <= '${maxDate}'::date` : '';
 
@@ -135,6 +143,17 @@ export async function GET(request: NextRequest) {
           ${ledgerDateFilter}
         GROUP BY pl.payment_id
       ),
+      ledger_last_month AS (
+        SELECT
+          pl.payment_id,
+          SUM(COALESCE(pl.accrual, 0)) as total_accrual,
+          SUM(COALESCE(pl."order", 0)) as total_order
+        FROM payments_ledger pl
+        WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
+          AND pl.effective_date::date >= '${lastMonthStart}'::date
+          AND pl.effective_date::date < '${monthStart}'::date
+        GROUP BY pl.payment_id
+      ),
       bank_agg AS (
         SELECT
           payment_id,
@@ -199,6 +218,8 @@ export async function GET(request: NextRequest) {
         BOOL_OR(COALESCE(uc.unbound_count, 0) > 0) as has_unbound_counteragent_transactions,
         SUM(COALESCE(la.total_accrual, 0)) as accrual,
         SUM(COALESCE(la.total_order, 0)) as "order",
+        SUM(COALESCE(llm.total_accrual, 0)) as last_month_accrual,
+        SUM(COALESCE(llm.total_order, 0)) as last_month_order,
         SUM(COALESCE(ba.total_payment, 0)) as payment,
         BOOL_AND(
           CASE
@@ -213,6 +234,7 @@ export async function GET(request: NextRequest) {
         ) as latest_date
       FROM selected_payments sp
       LEFT JOIN ledger_agg la ON sp.payment_id = la.payment_id
+      LEFT JOIN ledger_last_month llm ON sp.payment_id = llm.payment_id
       LEFT JOIN bank_agg ba ON sp.payment_id = ba.payment_id
       LEFT JOIN unbound_counteragent uc ON sp.counteragent_uuid = uc.counteragent_uuid
       GROUP BY sp.financial_code_uuid, sp.project_uuid
@@ -225,6 +247,8 @@ export async function GET(request: NextRequest) {
       const accrual = Number(row.accrual || 0);
       const order = Number(row.order || 0);
       const payment = Number(row.payment || 0);
+      const lastMonthAccrual = Number(row.last_month_accrual || 0);
+      const lastMonthOrder = Number(row.last_month_order || 0);
       const due = Number((order - Math.abs(payment)).toFixed(2));
       const balance = Number((accrual - Math.abs(payment)).toFixed(2));
       return {
@@ -250,6 +274,8 @@ export async function GET(request: NextRequest) {
         hasUnboundCounteragentTransactions: Boolean(row.has_unbound_counteragent_transactions),
         accrual,
         order,
+        lastMonthAccrual,
+        lastMonthOrder,
         payment,
         due,
         balance,
