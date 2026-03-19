@@ -190,8 +190,10 @@ export async function GET(request: NextRequest) {
         COALESCE(MAX(sp.currency_code), '-') as currency_code,
         ARRAY_REMOVE(ARRAY_AGG(DISTINCT sp.payment_id ORDER BY sp.payment_id), NULL) as payment_ids,
         COUNT(DISTINCT sp.payment_id) as payment_count,
-        COUNT(DISTINCT sp.job_uuid) as jobs_count,
-        ARRAY_REMOVE(ARRAY_AGG(DISTINCT sp.job_name ORDER BY sp.job_name), NULL) as job_names,
+        (SELECT COUNT(*) FROM job_projects jp2 WHERE jp2.project_uuid = sp.project_uuid)::int as jobs_count,
+        (SELECT ARRAY_REMOVE(ARRAY_AGG(jn.job_name ORDER BY jn.job_name), NULL)
+         FROM job_projects jp3 JOIN jobs jn ON jp3.job_uuid = jn.job_uuid
+         WHERE jp3.project_uuid = sp.project_uuid AND jn.is_active = true) as job_names,
         BOOL_OR(COALESCE(uc.unbound_count, 0) > 0) as has_unbound_counteragent_transactions,
         SUM(COALESCE(la.total_accrual, 0)) as accrual,
         SUM(COALESCE(la.total_order, 0)) as "order",

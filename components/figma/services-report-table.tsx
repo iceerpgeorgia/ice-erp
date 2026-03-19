@@ -6,7 +6,6 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Checkbox } from './ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Combobox } from '@/components/ui/combobox';
 
 type FinancialCode = {
   uuid: string;
@@ -67,19 +66,24 @@ type ServicesReportResponse = {
   };
 };
 
-type JobOption = {
+type JobRow = {
   jobUuid: string;
   jobName: string;
-  jobDisplay: string;
+  projectName: string;
+  brandName: string;
+  floors: number | null;
+  weight: number | null;
+  isFf: boolean;
+  isActive: boolean;
 };
 
 type JobLinkDialogState = {
   open: boolean;
   projectUuid: string;
-  paymentIds: string[];
-  jobs: JobOption[];
-  assignments: Record<string, string>;
-  numericIds: Record<string, number>;
+  projectName: string;
+  allJobs: JobRow[];
+  linkedJobUuids: Set<string>;
+  search: string;
   loading: boolean;
   saving: boolean;
 };
@@ -217,10 +221,10 @@ export function ServicesReportTable() {
   const [jobLinkDialog, setJobLinkDialog] = useState<JobLinkDialogState>({
     open: false,
     projectUuid: '',
-    paymentIds: [],
-    jobs: [],
-    assignments: {},
-    numericIds: {},
+    projectName: '',
+    allJobs: [],
+    linkedJobUuids: new Set(),
+    search: '',
     loading: false,
     saving: false,
   });
@@ -471,55 +475,78 @@ export function ServicesReportTable() {
   };
 
   const openJobLinkDialog = async (row: ServicesRow) => {
-    setJobLinkDialog((prev) => ({ ...prev, open: true, projectUuid: row.projectUuid, paymentIds: row.paymentIds, loading: true, jobs: [], assignments: {}, numericIds: {}, saving: false }));
+    setJobLinkDialog((prev) => ({ ...prev, open: true, projectUuid: row.projectUuid, projectName: row.projectName, loading: true, allJobs: [], linkedJobUuids: new Set(), search: '', saving: false }));
     try {
-      const [jobsRes, paymentsRes] = await Promise.all([
-        fetch(`/api/jobs?projectUuid=${row.projectUuid}`),
-        fetch(`/api/payments?paymentIds=${encodeURIComponent(row.paymentIds.join(','))}`),
+      const [jobsRes, linksRes] = await Promise.all([
+        fetch('/api/jobs'),
+        fetch(`/api/job-projects?projectUuid=${row.projectUuid}`),
       ]);
       const jobsData = jobsRes.ok ? await jobsRes.json() : [];
-      const paymentsData = paymentsRes.ok ? await paymentsRes.json() : [];
-      const jobs: JobOption[] = (Array.isArray(jobsData) ? jobsData : []).map((j: any) => ({
+      const linksData = linksRes.ok ? await linksRes.json() : [];
+      const allJobs: JobRow[] = (Array.isArray(jobsData) ? jobsData : []).map((j: any) => ({
         jobUuid: j.jobUuid,
-        jobName: j.jobName,
-        jobDisplay: j.jobDisplay || j.jobName,
+        jobName: j.jobName || j.job_name || '',
+        projectName: j.projectName || j.project_name || '',
+        brandName: j.brandName || j.brand_name || '',
+        floors: j.floors ?? null,
+        weight: j.weight ?? null,
+        isFf: Boolean(j.isFf || j.is_ff),
+        isActive: j.is_active !== false,
       }));
-      const assignments: Record<string, string> = {};
-      const numericIds: Record<string, number> = {};
-      for (const p of (Array.isArray(paymentsData) ? paymentsData : [])) {
-        assignments[p.paymentId] = p.jobUuid || '';
-        numericIds[p.paymentId] = p.id;
-      }
-      setJobLinkDialog((prev) => ({ ...prev, jobs, assignments, numericIds, loading: false }));
+      const linkedJobUuids = new Set<string>(Array.isArray(linksData) ? linksData : []);
+      setJobLinkDialog((prev) => ({ ...prev, allJobs, linkedJobUuids, loading: false }));
     } catch {
       setJobLinkDialog((prev) => ({ ...prev, loading: false }));
     }
   };
 
-  const updateJobAssignment = (paymentId: string, jobUuid: string) => {
-    setJobLinkDialog((prev) => ({
-      ...prev,
-      assignments: { ...prev.assignments, [paymentId]: jobUuid },
-    }));
+  const toggleJobLink = (jobUuid: string) => {
+    setJobLinkDialog((prev) => {
+      const next = new Set(prev.linkedJobUuids);
+      if (next.has(jobUuid)) next.delete(jobUuid); else next.add(jobUuid);
+      return { ...prev, linkedJobUuids: next };
+    });
   };
 
-  const saveJobAssignments = async () => {
+  const filteredDialogJobs = useMemo(() => {
+    const s = jobLinkDialog.search.toLowerCase();
+    if (!s) return jobLinkDialog.allJobs;
+    return jobLinkDialog.allJobs.filter((j) =>
+      j.jobName.toLowerCase().includes(s) ||
+      j.projectName.toLowerCase().includes(s) ||
+      j.brandName.toLowerCase().includes(s)
+    );
+  }, [jobLinkDialog.allJobs, jobLinkDialog.search]);
+
+  const allFilteredChecked = filteredDialogJobs.length > 0 && filteredDialogJobs.every((j) => jobLinkDialog.linkedJobUuids.has(j.jobUuid));
+
+  const toggleAllFiltered = () => {
+    setJobLinkDialog((prev) => {
+      const next = new Set(prev.linkedJobUuids);
+      if (allFilteredChecked) {
+        for (const j of filteredDialogJobs) next.delete(j.jobUuid);
+      } else {
+        for (const j of filteredDialogJobs) next.add(j.jobUuid);
+      }
+      return { ...prev, linkedJobUuids: next };
+    });
+  };
+
+  const saveJobLinks = async () => {
     setJobLinkDialog((prev) => ({ ...prev, saving: true }));
     try {
-      const entries = Object.entries(jobLinkDialog.assignments);
-      for (const [paymentId, jobUuid] of entries) {
-        const numericId = jobLinkDialog.numericIds[paymentId];
-        if (!numericId) continue;
-        await fetch(`/api/payments?id=${numericId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ jobUuid: jobUuid || null }),
-        });
-      }
+      await fetch('/api/job-projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectUuid: jobLinkDialog.projectUuid,
+          jobUuids: Array.from(jobLinkDialog.linkedJobUuids),
+        }),
+      });
       setJobLinkDialog((prev) => ({ ...prev, open: false, saving: false }));
       fetchReport();
     } catch (err: any) {
-      alert(err?.message || 'Failed to save job assignments');
+      alert(err?.message || 'Failed to save job links');
       setJobLinkDialog((prev) => ({ ...prev, saving: false }));
     }
   };
@@ -771,46 +798,92 @@ export function ServicesReportTable() {
       )}
 
       {jobLinkDialog.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-xl w-[560px] max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <h2 className="text-sm font-semibold">Link Jobs to Payment IDs</h2>
-              <button
-                onClick={() => setJobLinkDialog((prev) => ({ ...prev, open: false }))}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-lg shadow-xl flex flex-col" style={{ width: '95vw', maxWidth: '1960px', height: '95vh' }}>
+            <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
+              <div className="flex items-center gap-3">
+                <h2 className="text-base font-semibold">Link Jobs to Project</h2>
+                <span className="text-sm text-gray-500 font-medium">{jobLinkDialog.projectName}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-500">
+                  {jobLinkDialog.linkedJobUuids.size} selected / {filteredDialogJobs.length} shown / {jobLinkDialog.allJobs.length} total
+                </span>
+                <button
+                  onClick={() => setJobLinkDialog((prev) => ({ ...prev, open: false }))}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+            <div className="px-5 py-3 border-b shrink-0">
+              <Input
+                placeholder="Search by job name, project, or brand..."
+                value={jobLinkDialog.search}
+                onChange={(e) => setJobLinkDialog((prev) => ({ ...prev, search: e.target.value }))}
+                className="w-full max-w-md"
+              />
+            </div>
+            <div className="flex-1 overflow-auto">
               {jobLinkDialog.loading ? (
-                <div className="text-sm text-gray-500 py-4 text-center">Loading...</div>
-              ) : jobLinkDialog.paymentIds.length === 0 ? (
-                <div className="text-sm text-gray-500 py-4 text-center">No payment IDs in this row.</div>
+                <div className="text-sm text-gray-500 py-12 text-center">Loading jobs...</div>
               ) : (
-                jobLinkDialog.paymentIds.map((paymentId) => (
-                  <div key={paymentId} className="flex items-center gap-3">
-                    <span className="text-sm font-mono w-[140px] shrink-0 truncate" title={paymentId}>{paymentId}</span>
-                    <Combobox
-                      value={jobLinkDialog.assignments[paymentId] || ''}
-                      onValueChange={(val) => updateJobAssignment(paymentId, val)}
-                      options={[
-                        { value: '', label: '— No job —' },
-                        ...jobLinkDialog.jobs.map((j) => ({ value: j.jobUuid, label: j.jobDisplay })),
-                      ]}
-                      placeholder="Select job..."
-                      className="flex-1"
-                    />
-                  </div>
-                ))
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-gray-50 z-10">
+                    <tr className="border-b">
+                      <th className="px-4 py-2 text-left w-10">
+                        <Checkbox
+                          checked={allFilteredChecked}
+                          onCheckedChange={toggleAllFiltered}
+                          title="Select / deselect all filtered"
+                        />
+                      </th>
+                      <th className="px-4 py-2 text-left">Job Name</th>
+                      <th className="px-4 py-2 text-left">Original Project</th>
+                      <th className="px-4 py-2 text-left">Brand</th>
+                      <th className="px-4 py-2 text-right">Floors</th>
+                      <th className="px-4 py-2 text-right">Weight</th>
+                      <th className="px-4 py-2 text-center">FF</th>
+                      <th className="px-4 py-2 text-center">Active</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredDialogJobs.length === 0 ? (
+                      <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No jobs match your search.</td></tr>
+                    ) : (
+                      filteredDialogJobs.map((job) => {
+                        const checked = jobLinkDialog.linkedJobUuids.has(job.jobUuid);
+                        return (
+                          <tr
+                            key={job.jobUuid}
+                            className={`border-b hover:bg-gray-50 cursor-pointer ${checked ? 'bg-blue-50' : ''}`}
+                            onClick={() => toggleJobLink(job.jobUuid)}
+                          >
+                            <td className="px-4 py-2">
+                              <Checkbox checked={checked} onCheckedChange={() => toggleJobLink(job.jobUuid)} />
+                            </td>
+                            <td className="px-4 py-2 font-medium">{job.jobName}</td>
+                            <td className="px-4 py-2 text-gray-600">{job.projectName || '-'}</td>
+                            <td className="px-4 py-2 text-gray-600">{job.brandName || '-'}</td>
+                            <td className="px-4 py-2 text-right">{job.floors ?? '-'}</td>
+                            <td className="px-4 py-2 text-right">{job.weight ?? '-'}</td>
+                            <td className="px-4 py-2 text-center">{job.isFf ? 'FF' : ''}</td>
+                            <td className="px-4 py-2 text-center">{job.isActive ? 'Yes' : 'No'}</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               )}
             </div>
-            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t">
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t shrink-0">
               <Button variant="outline" onClick={() => setJobLinkDialog((prev) => ({ ...prev, open: false }))}>
                 Cancel
               </Button>
-              <Button onClick={saveJobAssignments} disabled={jobLinkDialog.saving || jobLinkDialog.loading}>
-                {jobLinkDialog.saving ? 'Saving...' : 'Save'}
+              <Button onClick={saveJobLinks} disabled={jobLinkDialog.saving || jobLinkDialog.loading}>
+                {jobLinkDialog.saving ? 'Saving...' : `Save (${jobLinkDialog.linkedJobUuids.size} jobs)`}
               </Button>
             </div>
           </div>
