@@ -108,15 +108,15 @@ export default function BankTransactionsTableFigma() {
   // Record limit setting
   const [recordLimitInput, setRecordLimitInput] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('bankTransactions_recordLimit') || "";
+      return localStorage.getItem('bankTransactions_recordLimit') || "all";
     }
-    return "";
+    return "all";
   });
   const [appliedRecordLimit, setAppliedRecordLimit] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('bankTransactions_appliedRecordLimit') || "";
+      return localStorage.getItem('bankTransactions_appliedRecordLimit') || "all";
     }
-    return "";
+    return "all";
   });
 
   // Save applied filters to localStorage whenever they change
@@ -183,8 +183,8 @@ export default function BankTransactionsTableFigma() {
     setToDateDisplay("");
     setAppliedFromDate("");
     setAppliedToDate("");
-    setRecordLimitInput("");
-    setAppliedRecordLimit("");
+    setRecordLimitInput("all");
+    setAppliedRecordLimit("all");
   };
 
   useEffect(() => {
@@ -200,12 +200,13 @@ export default function BankTransactionsTableFigma() {
         if (appliedFromDate) params.set('fromDate', appliedFromDate);
         if (appliedToDate) params.set('toDate', appliedToDate);
         
-        // Apply record limit (if not 'all')
+        // Apply record limit; explicit limit=0 means "all" for the API.
         const limitValue = appliedRecordLimit.toLowerCase();
-        if (limitValue !== 'all' && limitValue !== '') {
+        if (limitValue === 'all') {
+          params.set('limit', '0');
+        } else if (limitValue !== '') {
           params.set('limit', appliedRecordLimit);
         }
-        // If 'all', don't set limit parameter (will use API default or fetch all available)
         
         const queryString = params.toString();
         const url = `/api/bank-transactions${queryString ? `?${queryString}` : ''}`;

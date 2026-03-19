@@ -57,6 +57,26 @@ const SOURCE_TABLES = [
     offset: 1000000000000,
     isTbc: true,
   },
+  {
+    name: "GE39TB7856036150100001_TBC_USD",
+    offset: 1010000000000,
+    isTbc: true,
+  },
+  {
+    name: "GE39TB7856036150100001_TBC_EUR",
+    offset: 1020000000000,
+    isTbc: true,
+  },
+  {
+    name: "GE79TB7856045067800004_TBC_GEL",
+    offset: 1030000000000,
+    isTbc: true,
+  },
+  {
+    name: "GE52TB7856045067800005_TBC_GEL",
+    offset: 1040000000000,
+    isTbc: true,
+  },
 ];
 
 const BATCH_OFFSET = 2000000000000;
