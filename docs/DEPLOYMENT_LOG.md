@@ -1,5 +1,22 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (80)
+- Summary: Services Report now includes Project Service State and a project shortcut in the Project column.
+- Changes:
+  - `app/api/services-report/route.ts`: Added `service_state` from `projects` to selected payments and final grouped response as `serviceState`.
+  - `components/figma/services-report-table.tsx`: Added `Service State` column to the grid, included it in search, and added project shortcut icon in Project column linking to `/admin/projects?projectUuid=...`.
+  - `components/figma/services-report-table.tsx`: Bumped per-section column storage key to V5 to include new column defaults.
+- Commit: 6d2bc3a
+- URL: https://ice-bqg9ekn4h-iceerp.vercel.app
+
+## 2026-03-19 (79)
+- Summary: Fixed empty preselection in Services Report job-linking dialog for legacy elevator links.
+- Changes:
+  - `app/api/job-projects/route.ts`: GET now falls back to legacy `jobs.project_uuid` links in addition to `job_projects`.
+  - `components/figma/services-report-table.tsx`: Dialog loader now also merges current payment-assigned `jobUuid` values into preselected set.
+- Commit: 2c8a079
+- URL: https://ice-ee2j07hx1-iceerp.vercel.app
+
 ## 2026-03-19 (78)
 - Summary: Added `address` field to Projects table and add/edit forms.
 - Changes:
