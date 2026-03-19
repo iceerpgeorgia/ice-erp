@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (83)
+- Summary: Bank Transactions Test now defaults to loading all records, preventing GEL TBC rows from being paginated out by the default first-page limit.
+- Changes:
+  - Updated `app/dictionaries/bank-transactions-test/BankTransactionsTestTableFigma.tsx` to default `recordLimitInput` and `appliedRecordLimit` to `all`.
+  - Updated localStorage fallback values for record limit keys (`bankTransactionsTest_recordLimit`, `bankTransactionsTest_appliedRecordLimit`) to `all`.
+- Commit: 0a62a04
+- URL: https://ice-d3aiw6z3p-iceerp.vercel.app
+
 ## 2026-03-19 (82)
 - Summary: Bank Transactions Test API now includes newly imported TBC deconsolidated tables so those records are visible in the Test UI.
 - Changes:
