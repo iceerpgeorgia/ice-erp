@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (82)
+- Summary: Counteragent Statement now shows bank account from `bank_accounts` in `accountNumber_currency` format.
+- Changes:
+  - `app/api/counteragent-statement/route.ts`: Formatted `accountLabel` as `${bank_account_number}_${account_currency_code}` (trimmed fallbacks).
+  - `app/counteragent-statement/[counteragentUuid]/page.tsx`: Prioritized `accountLabel` over `counteragentAccountNumber` in statement rows.
+- Commit: a18444b
+- URL: https://ice-j77dqoe8i-iceerp.vercel.app
+
 ## 2026-03-19 (84)
 - Summary: Fixed missing historical TBC transactions in the main Bank Transactions page by including new TBC source tables and ensuring "all" limit is applied explicitly.
 - Changes:
