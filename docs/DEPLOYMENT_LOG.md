@@ -1,5 +1,18 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (84)
+- Summary: Fixed missing historical TBC transactions in the main Bank Transactions page by including new TBC source tables and ensuring "all" limit is applied explicitly.
+- Changes:
+  - Updated `app/api/bank-transactions/route.ts` `SOURCE_TABLES` to include:
+    - `GE39TB7856036150100001_TBC_USD`
+    - `GE39TB7856036150100001_TBC_EUR`
+    - `GE79TB7856045067800004_TBC_GEL`
+    - `GE52TB7856045067800005_TBC_GEL`
+  - Updated `app/dictionaries/bank-transactions/BankTransactionsTableFigma.tsx` to default record limit to `all` and send `limit=0` when `all` is selected.
+  - Updated clear-filters behavior in `BankTransactionsTableFigma.tsx` to reset limit back to `all`.
+- Commit: 689dbfc
+- URL: https://ice-3lwa57hnz-iceerp.vercel.app
+
 ## 2026-03-19 (83)
 - Summary: Bank Transactions Test now defaults to loading all records, preventing GEL TBC rows from being paginated out by the default first-page limit.
 - Changes:
