@@ -1,5 +1,16 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (77)
+- Summary: Full-screen job-linking dialog with search/filter/checkboxes/select-all and many-to-many job-project binding via new `job_projects` junction table.
+- Changes:
+  - `prisma/schema.prisma`: Added `job_projects` model (job_uuid + project_uuid junction table with unique constraint).
+  - `scripts/create-job-projects-table.js`: Migration script — creates `job_projects` table, indexes, and backfills 520 rows from existing `jobs.project_uuid`.
+  - `app/api/job-projects/route.ts`: New API endpoint — GET returns linked job UUIDs for a project, POST bulk-saves job-project links (replace-all strategy).
+  - `app/api/services-report/route.ts`: Jobs count now uses `job_projects` table (correlated subquery) instead of `COUNT(DISTINCT sp.job_uuid)` from payments. Job names also sourced from `job_projects`.
+  - `components/figma/services-report-table.tsx`: Dialog redesigned to 95vw x 95vh full-screen. Shows ALL jobs in a searchable table with columns (checkbox, name, project, brand, floors, weight, FF, active). Select-all for filtered results. Bulk bind/unbind jobs to the row's project. Removed Combobox dependency.
+- Commit: e4514e9
+- URL: https://ice-o73hgufjv-iceerp.vercel.app
+
 ## 2026-03-19 (76)
 - Summary: Services Report job-linking feature — Link2 icon in Jobs column opens dialog to bind jobs to payment IDs. Jobs count now reflects only bound jobs.
 - Changes:
