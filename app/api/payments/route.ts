@@ -12,10 +12,20 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get('limit');
     const sort = searchParams.get('sort');
+    const paymentIdsFilter = searchParams.get('paymentIds');
 
     const parsedLimit = Number.parseInt(limit ?? '', 10);
     const limitClause = Number.isFinite(parsedLimit) && parsedLimit > 0 ? `LIMIT ${parsedLimit}` : '';
     const orderClause = sort === 'desc' ? 'DESC' : 'ASC';
+
+    let paymentIdsClause = '';
+    if (paymentIdsFilter) {
+      const ids = paymentIdsFilter.split(',').map((s) => s.trim()).filter(Boolean);
+      if (ids.length > 0) {
+        const escaped = ids.map((id) => `'${id.replace(/'/g, "''")}'`).join(',');
+        paymentIdsClause = `AND p.payment_id IN (${escaped})`;
+      }
+    }
     
     const payments = await prisma.$queryRawUnsafe(`
       SELECT 
@@ -49,6 +59,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
       LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
       WHERE p.insider_uuid IN (${insiderUuidListSql})
+      ${paymentIdsClause}
       ORDER BY p.created_at ${orderClause}
       ${limitClause}
     `) as any[];

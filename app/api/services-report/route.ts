@@ -89,29 +89,24 @@ export async function GET(request: NextRequest) {
           p.counteragent_uuid,
           p.currency_uuid,
           p.financial_code_uuid,
+          p.job_uuid,
           COALESCE(fc.validation, fc.code, '-') as financial_code_validation,
           proj.project_index,
           proj.project_name,
           proj.value as project_amount,
           COALESCE(ps.name, proj.state, 'Unknown') as status_name,
           COALESCE(ca.counteragent, ca.name, '-') as counteragent_name,
-          curr.code as currency_code
+          curr.code as currency_code,
+          j.job_name
         FROM payments p
         LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
         LEFT JOIN project_states ps ON proj.state_uuid = ps.uuid
         LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
         LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
         LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
+        LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
         WHERE p.is_active = true
           AND p.financial_code_uuid IN (${financialCodePlaceholders})
-      ),
-      jobs_per_project AS (
-        SELECT
-          j.project_uuid,
-          COUNT(*) as jobs_count
-        FROM jobs j
-        WHERE j.is_active = true
-        GROUP BY j.project_uuid
       ),
       unbound_counteragent AS (
         SELECT
@@ -195,7 +190,8 @@ export async function GET(request: NextRequest) {
         COALESCE(MAX(sp.currency_code), '-') as currency_code,
         ARRAY_REMOVE(ARRAY_AGG(DISTINCT sp.payment_id ORDER BY sp.payment_id), NULL) as payment_ids,
         COUNT(DISTINCT sp.payment_id) as payment_count,
-        COALESCE(MAX(jpp.jobs_count), 0) as jobs_count,
+        COUNT(DISTINCT sp.job_uuid) as jobs_count,
+        ARRAY_REMOVE(ARRAY_AGG(DISTINCT sp.job_name ORDER BY sp.job_name), NULL) as job_names,
         BOOL_OR(COALESCE(uc.unbound_count, 0) > 0) as has_unbound_counteragent_transactions,
         SUM(COALESCE(la.total_accrual, 0)) as accrual,
         SUM(COALESCE(la.total_order, 0)) as "order",
@@ -214,7 +210,6 @@ export async function GET(request: NextRequest) {
       FROM selected_payments sp
       LEFT JOIN ledger_agg la ON sp.payment_id = la.payment_id
       LEFT JOIN bank_agg ba ON sp.payment_id = ba.payment_id
-      LEFT JOIN jobs_per_project jpp ON sp.project_uuid = jpp.project_uuid
       LEFT JOIN unbound_counteragent uc ON sp.counteragent_uuid = uc.counteragent_uuid
       GROUP BY sp.financial_code_uuid, sp.project_uuid
       ORDER BY financial_code_validation ASC, status_name ASC, project_index ASC
@@ -244,6 +239,9 @@ export async function GET(request: NextRequest) {
         currency: row.currency_code,
         paymentCount: Number(row.payment_count || 0),
         jobsCount: Number(row.jobs_count || 0),
+        jobNames: Array.isArray(row.job_names)
+          ? row.job_names.filter((v: unknown) => typeof v === 'string' && v.trim() !== '')
+          : [],
         hasUnboundCounteragentTransactions: Boolean(row.has_unbound_counteragent_transactions),
         accrual,
         order,

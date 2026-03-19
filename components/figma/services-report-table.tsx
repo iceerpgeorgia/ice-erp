@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Columns3, FileText, Settings, User } from 'lucide-react';
+import { Columns3, FileText, Link2, Settings, User, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Checkbox } from './ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Combobox } from '@/components/ui/combobox';
 
 type FinancialCode = {
   uuid: string;
@@ -29,6 +30,7 @@ type ServicesRow = {
   currency: string;
   paymentCount: number;
   jobsCount: number;
+  jobNames: string[];
   accrual: number;
   order: number;
   payment: number;
@@ -63,6 +65,23 @@ type ServicesReportResponse = {
     due: number;
     balance: number;
   };
+};
+
+type JobOption = {
+  jobUuid: string;
+  jobName: string;
+  jobDisplay: string;
+};
+
+type JobLinkDialogState = {
+  open: boolean;
+  projectUuid: string;
+  paymentIds: string[];
+  jobs: JobOption[];
+  assignments: Record<string, string>;
+  numericIds: Record<string, number>;
+  loading: boolean;
+  saving: boolean;
 };
 
 type SectionColumnKey =
@@ -194,6 +213,17 @@ export function ServicesReportTable() {
     startX: number;
     startWidth: number;
   } | null>(null);
+
+  const [jobLinkDialog, setJobLinkDialog] = useState<JobLinkDialogState>({
+    open: false,
+    projectUuid: '',
+    paymentIds: [],
+    jobs: [],
+    assignments: {},
+    numericIds: {},
+    loading: false,
+    saving: false,
+  });
 
   useEffect(() => {
     const savedCodes = localStorage.getItem('servicesReportFinancialCodeUuids');
@@ -440,6 +470,60 @@ export function ServicesReportTable() {
     setDraggedColumn(null);
   };
 
+  const openJobLinkDialog = async (row: ServicesRow) => {
+    setJobLinkDialog((prev) => ({ ...prev, open: true, projectUuid: row.projectUuid, paymentIds: row.paymentIds, loading: true, jobs: [], assignments: {}, numericIds: {}, saving: false }));
+    try {
+      const [jobsRes, paymentsRes] = await Promise.all([
+        fetch(`/api/jobs?projectUuid=${row.projectUuid}`),
+        fetch(`/api/payments?paymentIds=${encodeURIComponent(row.paymentIds.join(','))}`),
+      ]);
+      const jobsData = jobsRes.ok ? await jobsRes.json() : [];
+      const paymentsData = paymentsRes.ok ? await paymentsRes.json() : [];
+      const jobs: JobOption[] = (Array.isArray(jobsData) ? jobsData : []).map((j: any) => ({
+        jobUuid: j.jobUuid,
+        jobName: j.jobName,
+        jobDisplay: j.jobDisplay || j.jobName,
+      }));
+      const assignments: Record<string, string> = {};
+      const numericIds: Record<string, number> = {};
+      for (const p of (Array.isArray(paymentsData) ? paymentsData : [])) {
+        assignments[p.paymentId] = p.jobUuid || '';
+        numericIds[p.paymentId] = p.id;
+      }
+      setJobLinkDialog((prev) => ({ ...prev, jobs, assignments, numericIds, loading: false }));
+    } catch {
+      setJobLinkDialog((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  const updateJobAssignment = (paymentId: string, jobUuid: string) => {
+    setJobLinkDialog((prev) => ({
+      ...prev,
+      assignments: { ...prev.assignments, [paymentId]: jobUuid },
+    }));
+  };
+
+  const saveJobAssignments = async () => {
+    setJobLinkDialog((prev) => ({ ...prev, saving: true }));
+    try {
+      const entries = Object.entries(jobLinkDialog.assignments);
+      for (const [paymentId, jobUuid] of entries) {
+        const numericId = jobLinkDialog.numericIds[paymentId];
+        if (!numericId) continue;
+        await fetch(`/api/payments?id=${numericId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobUuid: jobUuid || null }),
+        });
+      }
+      setJobLinkDialog((prev) => ({ ...prev, open: false, saving: false }));
+      fetchReport();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to save job assignments');
+      setJobLinkDialog((prev) => ({ ...prev, saving: false }));
+    }
+  };
+
   return (
     <div className="space-y-4 p-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -619,6 +703,17 @@ export function ServicesReportTable() {
                               ) : (
                                 <span className="text-gray-400">-</span>
                               )
+                            ) : column.key === 'jobsCount' ? (
+                              <div className="flex items-center justify-end gap-1">
+                                <span>{row.jobsCount}</span>
+                                <button
+                                  onClick={() => openJobLinkDialog(row)}
+                                  title={row.jobNames.length > 0 ? `Jobs: ${row.jobNames.join(', ')}` : 'Link jobs to payments'}
+                                  className="text-blue-600 hover:text-blue-800 p-0.5 rounded hover:bg-blue-50 transition-colors"
+                                >
+                                  <Link2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             ) : column.key === 'actions' ? (
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 {row.paymentIds.map((paymentId) => (
@@ -673,6 +768,53 @@ export function ServicesReportTable() {
             </div>
           );
         })
+      )}
+
+      {jobLinkDialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl w-[560px] max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <h2 className="text-sm font-semibold">Link Jobs to Payment IDs</h2>
+              <button
+                onClick={() => setJobLinkDialog((prev) => ({ ...prev, open: false }))}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+              {jobLinkDialog.loading ? (
+                <div className="text-sm text-gray-500 py-4 text-center">Loading...</div>
+              ) : jobLinkDialog.paymentIds.length === 0 ? (
+                <div className="text-sm text-gray-500 py-4 text-center">No payment IDs in this row.</div>
+              ) : (
+                jobLinkDialog.paymentIds.map((paymentId) => (
+                  <div key={paymentId} className="flex items-center gap-3">
+                    <span className="text-sm font-mono w-[140px] shrink-0 truncate" title={paymentId}>{paymentId}</span>
+                    <Combobox
+                      value={jobLinkDialog.assignments[paymentId] || ''}
+                      onValueChange={(val) => updateJobAssignment(paymentId, val)}
+                      options={[
+                        { value: '', label: '— No job —' },
+                        ...jobLinkDialog.jobs.map((j) => ({ value: j.jobUuid, label: j.jobDisplay })),
+                      ]}
+                      placeholder="Select job..."
+                      className="flex-1"
+                    />
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t">
+              <Button variant="outline" onClick={() => setJobLinkDialog((prev) => ({ ...prev, open: false }))}>
+                Cancel
+              </Button>
+              <Button onClick={saveJobAssignments} disabled={jobLinkDialog.saving || jobLinkDialog.loading}>
+                {jobLinkDialog.saving ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
      </div>
    );
