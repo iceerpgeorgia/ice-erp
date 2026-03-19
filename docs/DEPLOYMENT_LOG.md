@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (72)
+- Summary: Fixed Services Report column selector to expose all columns including Payment IDs as own column; fixed Payment Statement due/balance sign logic for income payment IDs.
+- Changes:
+  - Updated `components/figma/services-report-table.tsx`: Payment IDs is now a separate column with statement icons; Actions column contains only counteragent icon; all columns (including Actions) are selectable from Columns button; removed column exclusion filter; bumped storage key to V3.
+  - Updated `app/payment-statement/[paymentId]/page.tsx`: replaced signed cumulative payment with absolute magnitude for due/balance/paidPercent so formulas work correctly for both expense (outgoing) and income (incoming) payment IDs.
+- Commit: b866ed1
+- URL: https://ice-1q11nzld7-iceerp.vercel.app
+
 ## 2026-03-19 (71)
 - Summary: Restored BOG daily cron imports by adding missing production BOG credentials.
 - Changes:
