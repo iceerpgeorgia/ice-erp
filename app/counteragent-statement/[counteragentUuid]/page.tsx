@@ -602,7 +602,7 @@ export default function CounteragentStatementPage() {
           payment: tx.nominalAmount,
           confirmed: null,
           ppc: tx.accountCurrencyAmount,
-          account: tx.counteragentAccountNumber || tx.accountLabel || '-',
+          account: tx.accountLabel || tx.counteragentAccountNumber || '-',
           comment: tx.description || '-',
           id1: tx.id1 || null,
           id2: tx.id2 || null,
