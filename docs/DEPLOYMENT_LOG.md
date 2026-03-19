@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (71)
+- Summary: Restored BOG daily cron imports by adding missing production BOG credentials.
+- Changes:
+  - Added `BOG_CREDENTIALS_MAP` to Vercel Production environment variables.
+  - Triggered one manual production redeploy so API/cron functions load new credentials.
+  - Verified `/api/cron/bog-import-last-3-days` executes and imports records when called with cron headers.
+- Commit: 60c9b5c
+- URL: https://ice-cxj2wrh8b-iceerp.vercel.app
+
 ## 2026-03-18 (70)
 - Summary: Moved Services Report payment/counteragent statement controls into Actions and matched Payments Report red warning icon behavior.
 - Changes:
