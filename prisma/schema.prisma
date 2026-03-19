@@ -551,6 +551,7 @@ model projects {
   currency            String?
   state               String?
   contract_no         String?
+  address             String?
   department          String?
   service_state       String?
   project_index       String?

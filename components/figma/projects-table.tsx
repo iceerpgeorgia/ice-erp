@@ -71,6 +71,7 @@ export type Project = {
   currency: string | null;
   state: string | null;
   contractNo: string | null;
+  address: string | null;
   department: string | null;
   serviceState: string | null;
   isInsider: boolean;
@@ -112,6 +113,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'currency', label: 'Currency', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'state', label: 'State', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'contractNo', label: 'Contract No', width: 150, visible: true, sortable: true, filterable: true },
+  { key: 'address', label: 'Address', width: 220, visible: true, sortable: true, filterable: true },
   { key: 'department', label: 'Department', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'serviceState', label: 'Service State', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'projectIndex', label: 'Project Index', width: 250, visible: false, sortable: true, filterable: true, responsive: 'xl' },
@@ -229,6 +231,7 @@ const mapProjectData = (row: any): Project => ({
   currency: row.currency || row.CURRENCY || null,
   state: row.state || row.STATE || null,
   contractNo: row.contract_no || row.contractNo || null,
+  address: row.address || row.ADDRESS || null,
   department: row.department || row.DEPARTMENT || null,
   serviceState: row.service_state || row.serviceState || null,
   projectIndex: row.project_index || row.projectIndex || null,
@@ -407,6 +410,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
     date: '',
     value: '',
     oris1630: '',
+    address: '',
     department: '',
     serviceState: '',
     insiderUuid: '',
@@ -801,6 +805,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
         (project.department || '').toLowerCase().includes(search) ||
         (project.serviceState || '').toLowerCase().includes(search) ||
         (project.contractNo || '').toLowerCase().includes(search) ||
+        (project.address || '').toLowerCase().includes(search) ||
         (project.employees?.some(e => e.employeeName?.toLowerCase().includes(search)))
       );
     }
@@ -917,6 +922,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
             date: formData.date,
             value: parseFloat(formData.value),
             oris_1630: formData.oris1630 || null,
+            address: formData.address || null,
             department: formData.department || null,
             service_state: formData.serviceState || null,
             insider_uuid: formData.insiderUuid || null,
@@ -954,6 +960,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
             date: formData.date,
             value: parseFloat(formData.value),
             oris1630: formData.oris1630 || null,
+            address: formData.address || null,
             department: formData.department || null,
             serviceState: formData.serviceState || null,
             counteragentUuid: formData.counteragentUuid,
@@ -998,6 +1005,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       date: '',
       value: '',
       oris1630: '',
+      address: '',
       department: '',
       serviceState: '',
       insiderUuid: fixedInsider?.insiderUuid || insidersList[0]?.insiderUuid || '',
@@ -1017,6 +1025,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       date: formatDateForInputValue(project.date),
       value: String(project.value || ''),
       oris1630: project.oris1630 || '',
+      address: project.address || '',
       department: project.department || '',
       serviceState: project.serviceState || '',
       insiderUuid: isInsiderFixed
@@ -1280,6 +1289,18 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                 </div>
 
                 <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="add-address" className="text-right">Address</Label>
+                  <div className="col-span-3">
+                    <Input
+                      id="add-address"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      placeholder="Project address"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="add-department" className="text-right">Department</Label>
                   <div className="col-span-3">
                     <Select
@@ -1524,6 +1545,18 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                       id="edit-oris1630"
                       value={formData.oris1630}
                       onChange={(e) => setFormData({...formData, oris1630: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-address" className="text-right">Address</Label>
+                  <div className="col-span-3">
+                    <Input
+                      id="edit-address"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      placeholder="Project address"
                     />
                   </div>
                 </div>

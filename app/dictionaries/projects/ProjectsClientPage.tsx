@@ -27,6 +27,7 @@ const mapProjectData = (row: any): Project => ({
   currency: row.currency || null,
   state: row.state || null,
   contractNo: row.contract_no || row.contractNo || null,
+  address: row.address || null,
   department: row.department || null,
   serviceState: row.service_state || row.serviceState || null,
   projectIndex: row.project_index || row.projectIndex || null,
