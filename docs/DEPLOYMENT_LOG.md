@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (83)
+- Summary: Counteragent Statement corrected to keep `CA Account` unchanged and add separate `Account` column from bank accounts.
+- Changes:
+  - `app/api/counteragent-statement/route.ts`: `accountLabel` now formats as `accountNumber + currency` (e.g., `GE65...GEL`).
+  - `app/counteragent-statement/[counteragentUuid]/page.tsx`: Restored `CA Account` to `counteragentAccountNumber`, added new `Account` column using `accountLabel` from bank accounts.
+- Commit: a3089f2
+- URL: https://ice-fw0fkx7lo-iceerp.vercel.app
+
 ## 2026-03-19 (82)
 - Summary: Counteragent Statement now shows bank account from `bank_accounts` in `accountNumber_currency` format.
 - Changes:
