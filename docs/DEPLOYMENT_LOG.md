@@ -1,5 +1,17 @@
 ﻿# Deployment Log
 
+## 2026-03-19 (82)
+- Summary: Bank Transactions Test API now includes newly imported TBC deconsolidated tables so those records are visible in the Test UI.
+- Changes:
+  - Updated `app/api/bank-transactions-test/route.ts` `SOURCE_TABLES` to include:
+    - `GE39TB7856036150100001_TBC_USD`
+    - `GE39TB7856036150100001_TBC_EUR`
+    - `GE79TB7856045067800004_TBC_GEL`
+    - `GE52TB7856045067800005_TBC_GEL`
+  - Added unique synthetic ID offsets for the new TBC sources to avoid collisions in combined result sets.
+- Commit: 9d506da
+- URL: https://ice-jyfsdnbac-iceerp.vercel.app
+
 ## 2026-03-19 (81)
 - Summary: Added per-column sorting and filtering to Services Report grid, aligned with Payments Report-style column controls.
 - Changes:
