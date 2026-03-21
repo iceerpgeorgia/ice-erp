@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-21 (87)
+- Summary: Services Report XLSX export now creates separate worksheets per section and includes a consolidated Summary worksheet.
+- Changes:
+  - `components/figma/services-report-table.tsx`: Added `Export XLSX` action for Services Report data.
+  - `components/figma/services-report-table.tsx`: Export now writes one worksheet per financial-code section (matching filtered/sorted on-screen rows).
+  - `components/figma/services-report-table.tsx`: Added `Summary` worksheet with per-section totals and a grand total row (`Rows`, `Payments`, `Jobs`, `Sum`, `Accrual`, `Order`, `Payment`, `Due`, `Balance`).
+- Commit: 78cb5dd
+- URL: https://ice-o5i8qhuxe-iceerp.vercel.app
+
 ## 2026-03-20 (86)
 - Summary: Services Report payment IDs now include quick shortcut links that open Payments table pre-filtered by selected payment ID.
 - Changes:
