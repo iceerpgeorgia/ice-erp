@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-21 (88)
+- Summary: Services Report now supports inline Payment ID editing and shows `Latest Date` from accrual/order ledger only.
+- Changes:
+  - `components/figma/services-report-table.tsx`: Added Payment ID edit action in `Payment IDs` column with modal dialog and save flow via `PATCH /api/payments?id=...`.
+  - `components/figma/services-report-table.tsx`: Added loading/saving/error handling and report refresh after successful Payment ID update.
+  - `app/api/services-report/route.ts`: Changed `latest_date` calculation to `MAX(la.latest_ledger_date)` so payment transaction dates do not affect `Latest Date`.
+- Commit: 5730885
+- URL: https://ice-9fxnyqurq-iceerp.vercel.app
+
 ## 2026-03-21 (87)
 - Summary: Services Report XLSX export now creates separate worksheets per section and includes a consolidated Summary worksheet.
 - Changes:
