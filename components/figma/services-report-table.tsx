@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Columns3, FileText, Link2, Settings, User, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Columns3, Download, FileText, Link2, Settings, User, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Checkbox } from './ui/checkbox';
@@ -10,6 +10,7 @@ import { ColumnFilterPopover } from './shared/column-filter-popover';
 import type { ColumnFormat, FilterState } from './shared/table-filters';
 import { matchesFilter } from './shared/table-filters';
 import { ClearFiltersButton } from './shared/clear-filters-button';
+import * as XLSX from 'xlsx';
 
 type FinancialCode = {
   uuid: string;
@@ -222,6 +223,7 @@ const getColumnValue = (row: ServicesRow, key: SectionColumnKey) => {
 
 export function ServicesReportTable() {
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [maxDate, setMaxDate] = useState('');
@@ -663,6 +665,187 @@ export function ServicesReportTable() {
     }
   };
 
+  const handleExportXlsx = useCallback(() => {
+    if (sections.length === 0) return;
+
+    setIsExporting(true);
+    try {
+      const workbook = XLSX.utils.book_new();
+      const sheetNameCounters = new Map<string, number>();
+
+      const buildUniqueSheetName = (rawName: string) => {
+        const sanitized = rawName.replace(/[\\/?*\[\]:]/g, ' ').replace(/\s+/g, ' ').trim() || 'Section';
+        const base = sanitized.slice(0, 31);
+        const existingCount = sheetNameCounters.get(base) || 0;
+        sheetNameCounters.set(base, existingCount + 1);
+        if (existingCount === 0) return base;
+
+        const suffix = ` (${existingCount + 1})`;
+        const truncatedBase = base.slice(0, Math.max(1, 31 - suffix.length));
+        return `${truncatedBase}${suffix}`;
+      };
+
+      const header = [
+        '#',
+        'Status',
+        'Service State',
+        'Financial Code',
+        'Project',
+        'Project UUID',
+        'Counteragent',
+        'Counteragent UUID',
+        'Payment IDs',
+        'Payments',
+        'Jobs',
+        'Job Names',
+        'Currency',
+        'Sum',
+        'Accrual',
+        'Order',
+        'Payment',
+        'Due',
+        'Balance',
+        'Confirmed',
+        'Latest Date',
+      ];
+
+      const summaryHeader = [
+        'Section',
+        'Rows',
+        'Payments',
+        'Jobs',
+        'Sum',
+        'Accrual',
+        'Order',
+        'Payment',
+        'Due',
+        'Balance',
+      ];
+
+      const summaryRows = sections.map((section) => {
+        const sectionTotals = section.rows.reduce(
+          (acc, row) => {
+            acc.rows += 1;
+            acc.payments += row.paymentCount;
+            acc.jobs += row.jobsCount;
+            acc.sum += row.sum;
+            acc.accrual += row.accrual;
+            acc.order += row.order;
+            acc.payment += row.payment;
+            acc.due += row.due;
+            acc.balance += row.balance;
+            return acc;
+          },
+          {
+            rows: 0,
+            payments: 0,
+            jobs: 0,
+            sum: 0,
+            accrual: 0,
+            order: 0,
+            payment: 0,
+            due: 0,
+            balance: 0,
+          }
+        );
+
+        return [
+          section.financialCodeValidation,
+          sectionTotals.rows,
+          sectionTotals.payments,
+          sectionTotals.jobs,
+          sectionTotals.sum,
+          sectionTotals.accrual,
+          sectionTotals.order,
+          sectionTotals.payment,
+          sectionTotals.due,
+          sectionTotals.balance,
+        ];
+      });
+
+      const grandTotals = summaryRows.reduce(
+        (acc, row) => {
+          acc.rows += Number(row[1]) || 0;
+          acc.payments += Number(row[2]) || 0;
+          acc.jobs += Number(row[3]) || 0;
+          acc.sum += Number(row[4]) || 0;
+          acc.accrual += Number(row[5]) || 0;
+          acc.order += Number(row[6]) || 0;
+          acc.payment += Number(row[7]) || 0;
+          acc.due += Number(row[8]) || 0;
+          acc.balance += Number(row[9]) || 0;
+          return acc;
+        },
+        {
+          rows: 0,
+          payments: 0,
+          jobs: 0,
+          sum: 0,
+          accrual: 0,
+          order: 0,
+          payment: 0,
+          due: 0,
+          balance: 0,
+        }
+      );
+
+      const summaryWorksheet = XLSX.utils.aoa_to_sheet([
+        summaryHeader,
+        ...summaryRows,
+        [
+          'TOTAL',
+          grandTotals.rows,
+          grandTotals.payments,
+          grandTotals.jobs,
+          grandTotals.sum,
+          grandTotals.accrual,
+          grandTotals.order,
+          grandTotals.payment,
+          grandTotals.due,
+          grandTotals.balance,
+        ],
+      ]);
+      XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Summary');
+
+      for (const section of sections) {
+        const rows = section.rows.map((row, index) => [
+          index + 1,
+          row.status,
+          row.serviceState,
+          row.financialCodeValidation,
+          row.projectName,
+          row.projectUuid,
+          row.counteragent,
+          row.counteragentUuid ?? '',
+          row.paymentIds.join(', '),
+          row.paymentCount,
+          row.jobsCount,
+          row.jobNames.join(', '),
+          row.currency,
+          row.sum,
+          row.accrual,
+          row.order,
+          row.payment,
+          row.due,
+          row.balance,
+          row.confirmed ? 'Yes' : 'No',
+          formatDate(row.latestDate),
+        ]);
+
+        const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+        XLSX.utils.book_append_sheet(
+          workbook,
+          worksheet,
+          buildUniqueSheetName(section.financialCodeValidation)
+        );
+      }
+
+      XLSX.writeFile(workbook, `services-report_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [sections]);
+
   const getSortIcon = (field: SectionColumnKey) => {
     if (sortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-50" />;
     return sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
@@ -735,6 +918,15 @@ export function ServicesReportTable() {
           label="Clear Column Filters"
         />
         <Button variant="outline" onClick={fetchReport}>Refresh</Button>
+        <Button
+          variant="outline"
+          onClick={handleExportXlsx}
+          disabled={isExporting || sortedRows.length === 0}
+          className="flex items-center gap-2"
+        >
+          <Download className="h-4 w-4" />
+          {isExporting ? 'Exporting...' : 'Export XLSX'}
+        </Button>
       </div>
 
       <div className="text-sm text-gray-600">Selected financial codes: {selectedFinancialCodeUuids.size}</div>
