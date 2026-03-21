@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-20 (86)
+- Summary: Services Report payment IDs now include quick shortcut links that open Payments table pre-filtered by selected payment ID.
+- Changes:
+  - `components/figma/services-report-table.tsx`: Payment IDs column now renders each `paymentId` with an `ArrowUpRight` shortcut to `/dictionaries/payments?paymentId=...`.
+  - `components/figma/payments-table.tsx`: Reads `paymentId` from URL query params on load and applies it to table search state.
+- Commit: 275561c
+- URL: https://ice-nn7zf7xik-iceerp.vercel.app
+
 ## 2026-03-19 (85)
 - Summary: Services Report now highlights `Sum` in bold red when it mismatches last-month accrual or last-month order.
 - Changes:
