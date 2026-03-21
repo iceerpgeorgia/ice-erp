@@ -899,7 +899,22 @@ export function ServicesReportTable() {
                           >
                             {column.key === 'paymentIds' ? (
                               row.paymentIds.length > 0 ? (
-                                <span className="text-xs text-gray-700">{row.paymentIds.join(', ')}</span>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {row.paymentIds.map((paymentId) => (
+                                    <span key={`${row.projectUuid}-${paymentId}`} className="inline-flex items-center gap-1 text-xs text-gray-700">
+                                      <span>{paymentId}</span>
+                                      <a
+                                        href={`/dictionaries/payments?paymentId=${encodeURIComponent(paymentId)}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center justify-center rounded p-0.5 text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+                                        title={`Open Payments table filtered by ${paymentId}`}
+                                      >
+                                        <ArrowUpRight className="h-3.5 w-3.5" />
+                                      </a>
+                                    </span>
+                                  ))}
+                                </div>
                               ) : (
                                 <span className="text-gray-400">-</span>
                               )

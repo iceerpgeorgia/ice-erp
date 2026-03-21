@@ -236,6 +236,15 @@ export function PaymentsTable() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const paymentIdParam = params.get('paymentId');
+    if (paymentIdParam && paymentIdParam.trim()) {
+      setSearchTerm(paymentIdParam.trim());
+    }
+  }, []);
+
+  useEffect(() => {
     if (!isInsiderFixed || !fixedInsider?.insiderUuid) return;
     setSelectedInsiderUuid(fixedInsider.insiderUuid);
     setEditInsiderUuid(fixedInsider.insiderUuid);
