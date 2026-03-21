@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Columns3, Download, FileText, Link2, Settings, User, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Columns3, Download, Edit2, FileText, Link2, Settings, User, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Checkbox } from './ui/checkbox';
@@ -94,6 +94,16 @@ type JobLinkDialogState = {
   search: string;
   loading: boolean;
   saving: boolean;
+};
+
+type PaymentIdEditDialogState = {
+  open: boolean;
+  loading: boolean;
+  saving: boolean;
+  paymentRowId: number | null;
+  originalPaymentId: string;
+  value: string;
+  error: string | null;
 };
 
 type SectionColumnKey =
@@ -257,6 +267,15 @@ export function ServicesReportTable() {
     search: '',
     loading: false,
     saving: false,
+  });
+  const [paymentIdEditDialog, setPaymentIdEditDialog] = useState<PaymentIdEditDialogState>({
+    open: false,
+    loading: false,
+    saving: false,
+    paymentRowId: null,
+    originalPaymentId: '',
+    value: '',
+    error: null,
   });
 
   useEffect(() => {
@@ -637,6 +656,83 @@ export function ServicesReportTable() {
       }
       return { ...prev, linkedJobUuids: next };
     });
+  };
+
+  const openPaymentIdEditDialog = async (paymentId: string) => {
+    setPaymentIdEditDialog({
+      open: true,
+      loading: true,
+      saving: false,
+      paymentRowId: null,
+      originalPaymentId: paymentId,
+      value: paymentId,
+      error: null,
+    });
+
+    try {
+      const response = await fetch(`/api/payments?paymentIds=${encodeURIComponent(paymentId)}&limit=1&sort=desc`);
+      if (!response.ok) {
+        throw new Error('Failed to load payment for editing');
+      }
+
+      const data = await response.json();
+      const rows = Array.isArray(data) ? data : [];
+      const matched = rows.find((row: any) => String(row.paymentId || '') === paymentId) || rows[0];
+      if (!matched || matched.id == null) {
+        throw new Error(`Payment record not found for ${paymentId}`);
+      }
+
+      setPaymentIdEditDialog((prev) => ({
+        ...prev,
+        loading: false,
+        paymentRowId: Number(matched.id),
+      }));
+    } catch (error: any) {
+      setPaymentIdEditDialog((prev) => ({
+        ...prev,
+        loading: false,
+        error: error?.message || 'Failed to load payment for editing',
+      }));
+    }
+  };
+
+  const savePaymentIdEdit = async () => {
+    if (!paymentIdEditDialog.paymentRowId) {
+      setPaymentIdEditDialog((prev) => ({ ...prev, error: 'Missing payment record id.' }));
+      return;
+    }
+
+    setPaymentIdEditDialog((prev) => ({ ...prev, saving: true, error: null }));
+    try {
+      const response = await fetch(`/api/payments?id=${paymentIdEditDialog.paymentRowId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId: paymentIdEditDialog.value.trim() || null }),
+      });
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}));
+        throw new Error(errorPayload?.error || 'Failed to update payment ID');
+      }
+
+      setPaymentIdEditDialog({
+        open: false,
+        loading: false,
+        saving: false,
+        paymentRowId: null,
+        originalPaymentId: '',
+        value: '',
+        error: null,
+      });
+
+      await fetchReport();
+    } catch (error: any) {
+      setPaymentIdEditDialog((prev) => ({
+        ...prev,
+        saving: false,
+        error: error?.message || 'Failed to update payment ID',
+      }));
+    }
   };
 
   const saveJobLinks = async () => {
@@ -1095,6 +1191,14 @@ export function ServicesReportTable() {
                                   {row.paymentIds.map((paymentId) => (
                                     <span key={`${row.projectUuid}-${paymentId}`} className="inline-flex items-center gap-1 text-xs text-gray-700">
                                       <span>{paymentId}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => openPaymentIdEditDialog(paymentId)}
+                                        className="inline-flex items-center justify-center rounded p-0.5 text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+                                        title={`Edit payment ID ${paymentId}`}
+                                      >
+                                        <Edit2 className="h-3.5 w-3.5" />
+                                      </button>
                                       <a
                                         href={`/dictionaries/payments?paymentId=${encodeURIComponent(paymentId)}`}
                                         target="_blank"
@@ -1287,6 +1391,72 @@ export function ServicesReportTable() {
               </Button>
               <Button onClick={saveJobLinks} disabled={jobLinkDialog.saving || jobLinkDialog.loading}>
                 {jobLinkDialog.saving ? 'Saving...' : `Save (${jobLinkDialog.linkedJobUuids.size} jobs)`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {paymentIdEditDialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b px-5 py-3">
+              <h2 className="text-base font-semibold">Edit Payment ID</h2>
+              <button
+                onClick={() =>
+                  setPaymentIdEditDialog({
+                    open: false,
+                    loading: false,
+                    saving: false,
+                    paymentRowId: null,
+                    originalPaymentId: '',
+                    value: '',
+                    error: null,
+                  })
+                }
+                className="text-gray-400 hover:text-gray-600"
+                disabled={paymentIdEditDialog.saving}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-3 px-5 py-4">
+              <div className="text-sm text-gray-600">Original: {paymentIdEditDialog.originalPaymentId}</div>
+              <Input
+                value={paymentIdEditDialog.value}
+                onChange={(event) =>
+                  setPaymentIdEditDialog((prev) => ({ ...prev, value: event.target.value }))
+                }
+                placeholder="Enter payment ID"
+                disabled={paymentIdEditDialog.loading || paymentIdEditDialog.saving}
+              />
+              {paymentIdEditDialog.error ? (
+                <div className="text-sm text-red-600">{paymentIdEditDialog.error}</div>
+              ) : null}
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t px-5 py-3">
+              <Button
+                variant="outline"
+                onClick={() =>
+                  setPaymentIdEditDialog({
+                    open: false,
+                    loading: false,
+                    saving: false,
+                    paymentRowId: null,
+                    originalPaymentId: '',
+                    value: '',
+                    error: null,
+                  })
+                }
+                disabled={paymentIdEditDialog.saving}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={savePaymentIdEdit}
+                disabled={paymentIdEditDialog.loading || paymentIdEditDialog.saving}
+              >
+                {paymentIdEditDialog.saving ? 'Saving...' : 'Save'}
               </Button>
             </div>
           </div>

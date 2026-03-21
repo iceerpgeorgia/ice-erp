@@ -227,11 +227,7 @@ export async function GET(request: NextRequest) {
             ELSE false
           END
         ) as confirmed,
-        COALESCE(
-          GREATEST(MAX(la.latest_ledger_date), MAX(ba.latest_bank_date)),
-          MAX(la.latest_ledger_date),
-          MAX(ba.latest_bank_date)
-        ) as latest_date
+        MAX(la.latest_ledger_date) as latest_date
       FROM selected_payments sp
       LEFT JOIN ledger_agg la ON sp.payment_id = la.payment_id
       LEFT JOIN ledger_last_month llm ON sp.payment_id = llm.payment_id
