@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-23 (90)
+- Summary: Services Report now highlights `Sum` in red bold only when it differs from latest accrual (latest ledger effective date), not from cumulative accrual.
+- Changes:
+  - `app/api/services-report/route.ts`: Added `latest_accrual` aggregation using per-payment latest `effective_date` from `payments_ledger` and exposed it in API response as `latestAccrual`.
+  - `components/figma/services-report-table.tsx`: Updated mismatch rule to `Math.abs(row.sum - row.latestAccrual) > 0.009` for red-bold formatting.
+- Commit: f7689be
+- URL: https://ice-elosweolp-iceerp.vercel.app
+
 ## 2026-03-23 (89)
 - Summary: Services Report payment IDs now open full payment edit dialog, and `Sum` red-bold mismatch is shown only when `sum != accrual`.
 - Changes:
