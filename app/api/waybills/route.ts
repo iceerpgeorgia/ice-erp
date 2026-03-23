@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { resolveInsiderSelection } from '@/lib/insider-selection';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -584,6 +585,8 @@ const allowedUpdateFields = new Set([
 ]);
 
 export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const selection = await resolveInsiderSelection(req);
     const insider = selection.primaryInsider;

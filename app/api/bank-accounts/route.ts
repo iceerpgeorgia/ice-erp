@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from "@/lib/insider-selection";
+import { requireAuth, isAuthError } from "@/lib/auth-guard";
 
 const prisma = new PrismaClient();
 const TABLE_NAME_RE = /^[A-Za-z0-9_]+$/;
@@ -173,6 +174,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const selection = await resolveInsiderSelection(request);
     const body = await request.json();

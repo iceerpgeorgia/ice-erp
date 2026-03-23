@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import type { BrandType } from '@/types/brand';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
+import { createBrandSchema, updateBrandSchema, formatZodErrors } from '@/lib/api-schemas';
 
 // GET all brands
 export async function GET(req: NextRequest) {
@@ -37,18 +39,18 @@ export async function GET(req: NextRequest) {
 
 // POST - Create new brand
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const body = await req.json();
-    const { name, counteragentUuids } = body;
-
-    if (!name) {
+    const parsed = createBrandSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Brand name is required' },
+        { error: 'Validation failed', details: formatZodErrors(parsed.error) },
         { status: 400 }
       );
     }
-
-    const uuids = counteragentUuids || [];
+    const { name, counteragentUuids: uuids } = parsed.data;
 
     const result = await prisma.$queryRaw`
       INSERT INTO brands (name, counteragent_uuids)
@@ -68,18 +70,18 @@ export async function POST(req: NextRequest) {
 
 // PUT - Update brand
 export async function PUT(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const body = await req.json();
-    const { id, name, counteragentUuids } = body;
-
-    if (!id) {
+    const parsed = updateBrandSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Brand ID is required' },
+        { error: 'Validation failed', details: formatZodErrors(parsed.error) },
         { status: 400 }
       );
     }
-
-    const uuids = counteragentUuids || [];
+    const { id, name, counteragentUuids: uuids } = parsed.data;
 
     await prisma.$queryRaw`
       UPDATE brands
@@ -102,6 +104,8 @@ export async function PUT(req: NextRequest) {
 
 // DELETE - Soft delete brand
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');

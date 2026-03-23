@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { getRequiredInsider } from "@/lib/required-insider";
+import { requireAuth, isAuthError } from "@/lib/auth-guard";
 
 function formatDate(date: string | Date | undefined): string {
   if (!date) return "";
@@ -67,6 +68,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const insider = await getRequiredInsider();
     const body = await req.json().catch(() => ({}));
@@ -125,6 +128,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const insider = await getRequiredInsider();
     const idParam = new URL(req.url).searchParams.get("id");
@@ -195,6 +200,8 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const idParam = new URL(req.url).searchParams.get("id");
     if (!idParam) return NextResponse.json({ error: "Missing id" }, { status: 400 });

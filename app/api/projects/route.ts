@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 const SOURCE_TABLES = [
   "GE78BG0000000893486000_BOG_GEL",
@@ -202,6 +203,8 @@ export async function GET(req: NextRequest) {
 
 // POST create new project
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const body = await req.json();
     const {
@@ -337,6 +340,8 @@ export async function POST(req: NextRequest) {
 
 // PATCH update existing project
 export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');

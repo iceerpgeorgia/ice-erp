@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-The workspace is a pnpm monorepo with three core apps: `apps/webapp` hosts the Next.js UI (pages and components live in `app/` with co-located hooks and styles), `apps/server` exposes the Node API (HTTP routes in `src/routes`, business logic in `src/modules`), and `apps/workers` handles queues under `src/jobs`. Shared Prisma schema and migrations sit in `prisma/`, reusable types in `types/`, and Playwright suites in `tests/e2e/` alongside auth helpers.
+The workspace is a single Next.js 14 application (App Router) with co-located API routes. Pages and components live in `app/` with co-located hooks and styles. API routes are in `app/api/` (50+ route files). Shared Prisma schema and migrations sit in `prisma/`, reusable types in `types/`, shared utilities in `lib/` (auth, Prisma client, audit logging, Zod schemas). Python scripts for bank XML processing live at the project root. Vercel cron jobs handle scheduled tasks (BOG import, NBG rates, cash accruals) via `vercel.json`.
 
 ## BOG GEL Bank Statement Processing - Three-Stage Approach
 

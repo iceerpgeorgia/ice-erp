@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 // Helper to serialize BigInt to string for JSON
 function serializeFinancialCode(code: any) {
@@ -192,6 +193,8 @@ function validatePayload(body: any) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const body = await req.json();
     console.log('[API POST] Received payload:', body);
@@ -280,6 +283,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const body = await req.json();
     const idString = body.id;
@@ -380,6 +385,8 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const { searchParams } = new URL(req.url);
     const idString = searchParams.get("id");

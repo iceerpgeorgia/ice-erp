@@ -28,7 +28,6 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: googleClientId!,
       clientSecret: googleClientSecret!,
-      allowDangerousEmailAccountLinking: true, // Allow linking Google account to existing email
     }),
   ],
   session: { 

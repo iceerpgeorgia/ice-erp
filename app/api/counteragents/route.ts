@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { reparseByCounteragentInn } from "@/lib/bank-import/reparse";
+import { requireAuth, isAuthError } from "@/lib/auth-guard";
 
 export const revalidate = 0;
 
@@ -181,6 +182,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const body = await req.json();
 
@@ -340,6 +343,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");

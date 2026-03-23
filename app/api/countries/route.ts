@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
+import { requireAuth, isAuthError } from "@/lib/auth-guard";
 
 function validatePayload(body: any) {
   const errors: Record<string, string> = {};
@@ -81,6 +82,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const body = await req.json().catch(() => ({}));
     const { errors, payload } = validatePayload(body);
@@ -127,6 +130,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const { searchParams } = new URL(req.url);
     const idParam = searchParams.get("id");
@@ -140,6 +145,8 @@ export async function DELETE(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const { searchParams } = new URL(req.url);
     const idParam = searchParams.get("id");

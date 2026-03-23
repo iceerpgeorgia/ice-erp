@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_DATABASE_URL")
 }
 
@@ -46,7 +46,7 @@ model Entry {
   project   String
   hours     Int      @default(0)
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([createdAt])
@@ -85,24 +85,24 @@ model VerificationToken {
 }
 
 model BankAccount {
-  id                         BigInt                       @id @default(autoincrement())
-  uuid                       String                       @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  accountNumber              String                       @map("account_number")
-  currencyUuid               String                       @map("currency_uuid") @db.Uuid
-  isActive                   Boolean                      @default(true) @map("is_active")
-  createdAt                  DateTime                     @default(now()) @map("created_at")
-  updatedAt                  DateTime                     @map("updated_at")
-  bankUuid                   String?                      @map("bank_uuid") @db.Uuid
-  balance                    Decimal?                     @db.Decimal(18, 2)
-  balanceDate                DateTime?                    @map("balance_date") @db.Date
-  insiderUuid                String?                      @map("insider_uuid") @db.Uuid
-  parsingSchemeUuid          String?                      @map("parsing_scheme_uuid") @db.Uuid
-  rawTableName               String?                      @map("raw_table_name") @db.VarChar(255)
-  parsingSchemeId            BigInt?                      @map("parsing_scheme_id")
-  bank                       Bank?                        @relation(fields: [bankUuid], references: [uuid])
-  currency                   currencies                   @relation(fields: [currencyUuid], references: [uuid])
-  consolidatedBankAccounts   ConsolidatedBankAccount[]
-  bankAccountBalances        BankAccountBalance[]
+  id                       BigInt                    @id @default(autoincrement())
+  uuid                     String                    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountNumber            String                    @map("account_number")
+  currencyUuid             String                    @map("currency_uuid") @db.Uuid
+  isActive                 Boolean                   @default(true) @map("is_active")
+  createdAt                DateTime                  @default(now()) @map("created_at")
+  updatedAt                DateTime                  @updatedAt @map("updated_at")
+  bankUuid                 String?                   @map("bank_uuid") @db.Uuid
+  balance                  Decimal?                  @db.Decimal(18, 2)
+  balanceDate              DateTime?                 @map("balance_date") @db.Date
+  insiderUuid              String?                   @map("insider_uuid") @db.Uuid
+  parsingSchemeUuid        String?                   @map("parsing_scheme_uuid") @db.Uuid
+  rawTableName             String?                   @map("raw_table_name") @db.VarChar(255)
+  parsingSchemeId          BigInt?                   @map("parsing_scheme_id")
+  bank                     Bank?                     @relation(fields: [bankUuid], references: [uuid])
+  currency                 currencies                @relation(fields: [currencyUuid], references: [uuid])
+  consolidatedBankAccounts ConsolidatedBankAccount[]
+  bankAccountBalances      BankAccountBalance[]
 
   @@unique([accountNumber, currencyUuid])
   @@index([bankUuid])
@@ -113,19 +113,19 @@ model BankAccount {
 }
 
 model BankAccountBalance {
-  id             BigInt      @id @default(autoincrement())
-  accountUuid    String      @map("account_uuid") @db.Uuid
-  openingDate    DateTime    @map("opening_date") @db.Date
-  openingBalance Decimal     @map("opening_balance") @db.Decimal(20, 2)
-  openingBalanceBankApi Decimal? @map("opening_balance_bank_api") @db.Decimal(20, 2)
-  inflow         Decimal     @default(0) @db.Decimal(20, 2)
-  inflowBankApi  Decimal?    @map("inflow_bank_api") @db.Decimal(20, 2)
-  outflow        Decimal     @default(0) @db.Decimal(20, 2)
-  outflowBankApi Decimal?    @map("outflow_bank_api") @db.Decimal(20, 2)
-  closingDate    DateTime    @map("closing_date") @db.Date
-  closingBalance Decimal     @map("closing_balance") @db.Decimal(20, 2)
-  closingBalanceBankApi Decimal? @map("closing_balance_bank_api") @db.Decimal(20, 2)
-  bankAccount    BankAccount @relation(fields: [accountUuid], references: [uuid], onDelete: Cascade)
+  id                    BigInt      @id @default(autoincrement())
+  accountUuid           String      @map("account_uuid") @db.Uuid
+  openingDate           DateTime    @map("opening_date") @db.Date
+  openingBalance        Decimal     @map("opening_balance") @db.Decimal(20, 2)
+  openingBalanceBankApi Decimal?    @map("opening_balance_bank_api") @db.Decimal(20, 2)
+  inflow                Decimal     @default(0) @db.Decimal(20, 2)
+  inflowBankApi         Decimal?    @map("inflow_bank_api") @db.Decimal(20, 2)
+  outflow               Decimal     @default(0) @db.Decimal(20, 2)
+  outflowBankApi        Decimal?    @map("outflow_bank_api") @db.Decimal(20, 2)
+  closingDate           DateTime    @map("closing_date") @db.Date
+  closingBalance        Decimal     @map("closing_balance") @db.Decimal(20, 2)
+  closingBalanceBankApi Decimal?    @map("closing_balance_bank_api") @db.Decimal(20, 2)
+  bankAccount           BankAccount @relation(fields: [accountUuid], references: [uuid], onDelete: Cascade)
 
   @@unique([accountUuid, openingDate], map: "uq_bank_account_balances_account_opening_date")
   @@index([accountUuid], map: "idx_bank_account_balances_account_uuid")
@@ -140,9 +140,9 @@ model Bank {
   bankName     String        @map("bank_name")
   isActive     Boolean       @default(true) @map("is_active")
   createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @map("updated_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
   bankAccounts BankAccount[]
-  
+
   @@map("banks")
 }
 
@@ -227,7 +227,7 @@ model brands {
   counteragent_uuids String[] @default([]) @db.Uuid
   is_active          Boolean  @default(true)
   created_at         DateTime @default(now())
-  updated_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
   jobs               jobs[]
 
   @@index([name], map: "idx_brands_name")
@@ -236,28 +236,28 @@ model brands {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model ConsolidatedBankAccount {
-  id                        BigInt        @id @default(autoincrement())
-  uuid                      String        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  bankAccountUuid           String        @map("bank_account_uuid") @db.Uuid
-  rawRecordUuid             String        @map("raw_record_uuid") @db.Uuid
-  transactionDate           String        @map("transaction_date")
+  id                        BigInt      @id @default(autoincrement())
+  uuid                      String      @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bankAccountUuid           String      @map("bank_account_uuid") @db.Uuid
+  rawRecordUuid             String      @map("raw_record_uuid") @db.Uuid
+  transactionDate           String      @map("transaction_date")
   description               String?
-  counteragentUuid          String?       @map("counteragent_uuid") @db.Uuid
-  projectUuid               String?       @map("project_uuid") @db.Uuid
-  financialCodeUuid         String?       @map("financial_code_uuid") @db.Uuid
-  accountCurrencyUuid       String        @map("account_currency_uuid") @db.Uuid
-  accountCurrencyAmount     Decimal       @map("account_currency_amount") @db.Decimal(20, 2)
-  nominalCurrencyUuid       String        @map("nominal_currency_uuid") @db.Uuid
-  nominalAmount             Decimal       @map("nominal_amount") @db.Decimal(20, 2)
-  createdAt                 DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt                 DateTime      @default(now()) @map("updated_at") @db.Timestamp(6)
-  processingCase            String?       @map("processing_case")
-  counteragentAccountNumber String?       @map("counteragent_account_number")
-  paymentId                 String?       @map("payment_id") @db.VarChar(255)
-  insiderUuid               String?       @map("insider_uuid") @db.Uuid
-  correctionDate            DateTime?     @map("correction_date") @db.Date
-  exchangeRate              Decimal?      @map("exchange_rate") @db.Decimal(20, 10)
-  bankAccount               BankAccount   @relation(fields: [bankAccountUuid], references: [uuid])
+  counteragentUuid          String?     @map("counteragent_uuid") @db.Uuid
+  projectUuid               String?     @map("project_uuid") @db.Uuid
+  financialCodeUuid         String?     @map("financial_code_uuid") @db.Uuid
+  accountCurrencyUuid       String      @map("account_currency_uuid") @db.Uuid
+  accountCurrencyAmount     Decimal     @map("account_currency_amount") @db.Decimal(20, 2)
+  nominalCurrencyUuid       String      @map("nominal_currency_uuid") @db.Uuid
+  nominalAmount             Decimal     @map("nominal_amount") @db.Decimal(20, 2)
+  createdAt                 DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt                 DateTime    @updatedAt @map("updated_at") @db.Timestamp(6)
+  processingCase            String?     @map("processing_case")
+  counteragentAccountNumber String?     @map("counteragent_account_number")
+  paymentId                 String?     @map("payment_id") @db.VarChar(255)
+  insiderUuid               String?     @map("insider_uuid") @db.Uuid
+  correctionDate            DateTime?   @map("correction_date") @db.Date
+  exchangeRate              Decimal?    @map("exchange_rate") @db.Decimal(20, 10)
+  bankAccount               BankAccount @relation(fields: [bankAccountUuid], references: [uuid])
 
   @@index([bankAccountUuid], map: "idx_consolidated_bank_account_uuid")
   @@index([correctionDate], map: "idx_consolidated_correction_date")
@@ -268,14 +268,13 @@ model ConsolidatedBankAccount {
   @@index([projectUuid], map: "idx_consolidated_project_uuid")
   @@index([rawRecordUuid], map: "idx_consolidated_raw_record_uuid")
   @@index([transactionDate], map: "idx_consolidated_transaction_date")
-  
   @@map("consolidated_bank_accounts")
 }
 
 model counteragents {
   id                          BigInt         @id @default(autoincrement())
   created_at                  DateTime       @default(now())
-  updated_at                  DateTime
+  updated_at                  DateTime       @updatedAt
   ts                          DateTime       @default(now()) @db.Timestamptz(6)
   name                        String?
   identification_number       String?        @unique
@@ -313,7 +312,7 @@ model counteragents {
 model countries {
   id           BigInt   @id @default(autoincrement())
   created_at   DateTime @default(now())
-  updated_at   DateTime
+  updated_at   DateTime @updatedAt
   ts           DateTime @default(now()) @db.Timestamptz(6)
   country_uuid String   @unique @db.Uuid
   name_en      String
@@ -326,14 +325,14 @@ model countries {
 }
 
 model currencies {
-  id            BigInt          @id @default(autoincrement())
-  uuid          String          @unique @db.Uuid
-  code          String          @unique
-  name          String
-  is_active     Boolean         @default(true)
-  created_at    DateTime        @default(now())
-  updated_at    DateTime
-  bankAccounts  BankAccount[]
+  id           BigInt        @id @default(autoincrement())
+  uuid         String        @unique @db.Uuid
+  code         String        @unique
+  name         String
+  is_active    Boolean       @default(true)
+  created_at   DateTime      @default(now())
+  updated_at   DateTime      @updatedAt
+  bankAccounts BankAccount[]
 }
 
 model document_types {
@@ -342,20 +341,20 @@ model document_types {
   name       String   @unique
   is_active  Boolean  @default(true)
   created_at DateTime @default(now())
-  updated_at DateTime
+  updated_at DateTime @updatedAt
 }
 
 model entity_types {
-  id               BigInt   @id @default(autoincrement())
-  created_at       DateTime @default(now())
-  updated_at       DateTime
-  ts               DateTime @default(now()) @db.Timestamptz(6)
-  entity_type_uuid String   @unique @db.Uuid
-  name_en          String
-  name_ka          String
-  is_natural_person Boolean @default(false)
-  is_id_exempt      Boolean @default(false)
-  is_active        Boolean  @default(true)
+  id                BigInt   @id @default(autoincrement())
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  ts                DateTime @default(now()) @db.Timestamptz(6)
+  entity_type_uuid  String   @unique @db.Uuid
+  name_en           String
+  name_ka           String
+  is_natural_person Boolean  @default(false)
+  is_id_exempt      Boolean  @default(false)
+  is_active         Boolean  @default(true)
 }
 
 model financial_codes {
@@ -373,7 +372,7 @@ model financial_codes {
   sort_order    Int            @default(0)
   is_active     Boolean        @default(true)
   created_at    DateTime       @default(now())
-  updated_at    DateTime
+  updated_at    DateTime       @updatedAt
   transactions  transactions[]
 
   @@index([applies_to_cf])
@@ -396,7 +395,7 @@ model jobs {
   is_ff        Boolean  @default(false)
   is_active    Boolean  @default(true)
   created_at   DateTime @default(now())
-  updated_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
   brand_uuid   String?  @db.Uuid
   insider_uuid String?  @db.Uuid
   brands       brands?  @relation(fields: [brand_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "fk_jobs_brand_uuid")
@@ -423,7 +422,7 @@ model mi_dimensions {
   name       String   @unique
   is_active  Boolean  @default(true)
   created_at DateTime @default(now())
-  updated_at DateTime
+  updated_at DateTime @updatedAt
 }
 
 model nbg_exchange_rates {
@@ -439,7 +438,7 @@ model nbg_exchange_rates {
   aed_rate   Decimal? @db.Decimal(18, 6)
   kzt_rate   Decimal? @db.Decimal(18, 6)
   created_at DateTime @default(now())
-  updated_at DateTime
+  updated_at DateTime @updatedAt
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -473,7 +472,7 @@ model payments {
   record_uuid         String            @unique
   is_active           Boolean           @default(true)
   created_at          DateTime          @default(now())
-  updated_at          DateTime
+  updated_at          DateTime          @updatedAt
   income_tax          Boolean           @default(false)
   currency_uuid       String            @db.Uuid
   accrual_source      String?           @db.VarChar(50)
@@ -500,7 +499,7 @@ model payments_ledger {
   record_uuid    String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_email     String
   created_at     DateTime @default(now())
-  updated_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
   comment        String?
   is_deleted     Boolean  @default(false)
   insider_uuid   String?  @db.Uuid
@@ -530,13 +529,13 @@ model project_states {
   name       String   @unique
   is_active  Boolean  @default(true)
   created_at DateTime @default(now())
-  updated_at DateTime
+  updated_at DateTime @updatedAt
 }
 
 model projects {
   id                  BigInt              @id @default(autoincrement())
   created_at          DateTime            @default(now())
-  updated_at          DateTime
+  updated_at          DateTime            @updatedAt
   project_uuid        String              @unique @db.Uuid
   counteragent_uuid   String              @db.Uuid
   financial_code_uuid String              @db.Uuid
@@ -575,7 +574,7 @@ model transactions {
   counteragent_id   BigInt?
   created_at        DateTime        @default(now())
   created_by        String?
-  updated_at        DateTime
+  updated_at        DateTime        @updatedAt
   updated_by        String?
   counteragents     counteragents?  @relation(fields: [counteragent_id], references: [id])
   financial_codes   financial_codes @relation(fields: [financial_code_id], references: [id])
@@ -601,7 +600,7 @@ model salary_accruals {
   confirmed             Boolean  @default(false)
   insider_uuid          String?  @db.Uuid
   created_at            DateTime @default(now())
-  updated_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
   created_by            String   @db.VarChar(255)
   updated_by            String   @db.VarChar(255)
 
@@ -615,44 +614,45 @@ model salary_accruals {
 }
 
 model rs_waybills_in {
-  id                          BigInt   @id @default(autoincrement())
-  waybill_no                  String?
-  state                       String?
-  condition                   String?
-  category                    String?
-  type                        String?
-  counteragent                String?
-  counteragent_inn            String?
-  counteragent_name           String?
-  counteragent_uuid           String?  @db.Uuid
-  insider_uuid                String?  @db.Uuid
-  vat                         Boolean  @default(false)
-  sum                         Decimal? @db.Decimal(20, 2)
-  driver                      String?
-  driver_id                   String?
-  driver_uuid                 String?  @db.Uuid
-  vehicle                     String?
-  transportation_sum          Decimal? @db.Decimal(20, 2)
-  departure_address           String?
-  shipping_address            String?
-  activation_time             DateTime?
+  id                            BigInt    @id @default(autoincrement())
+  waybill_no                    String?
+  state                         String?
+  condition                     String?
+  category                      String?
+  type                          String?
+  counteragent                  String?
+  counteragent_inn              String?
+  counteragent_name             String?
+  counteragent_uuid             String?   @db.Uuid
+  insider_uuid                  String?   @db.Uuid
+  vat                           Boolean   @default(false)
+  sum                           Decimal?  @db.Decimal(20, 2)
+  driver                        String?
+  driver_id                     String?
+  driver_uuid                   String?   @db.Uuid
+  vehicle                       String?
+  transportation_sum            Decimal?  @db.Decimal(20, 2)
+  departure_address             String?
+  shipping_address              String?
+  activation_time               DateTime?
   transportation_beginning_time DateTime?
-  submission_time             DateTime?
-  cancellation_time           DateTime?
-  note                        String?
-  vat_doc_id                  String?
-  stat                        String?
-  transportation_cost         Decimal? @db.Decimal(20, 2)
-  rs_id                       String?
-  project_uuid                String?  @db.Uuid
-  financial_code_uuid         String?  @db.Uuid
-  corresponding_account       String?
-  date                        String?
-  period                      String?
-  import_batch_id             String?
-  created_at                  DateTime @default(now())
-  updated_at                  DateTime @default(now())
+  submission_time               DateTime?
+  cancellation_time             DateTime?
+  note                          String?
+  vat_doc_id                    String?
+  stat                          String?
+  transportation_cost           Decimal?  @db.Decimal(20, 2)
+  rs_id                         String?
+  project_uuid                  String?   @db.Uuid
+  financial_code_uuid           String?   @db.Uuid
+  corresponding_account         String?
+  date                          String?
+  period                        String?
+  import_batch_id               String?
+  created_at                    DateTime  @default(now())
+  updated_at                    DateTime  @updatedAt
 
+  @@unique([rs_id, waybill_no])
   @@index([waybill_no])
   @@index([counteragent_inn])
   @@index([activation_time])
@@ -662,7 +662,6 @@ model rs_waybills_in {
   @@index([project_uuid])
   @@index([financial_code_uuid])
   @@index([rs_id])
-  @@unique([rs_id, waybill_no])
   @@map("rs_waybills_in")
 }
 
@@ -672,7 +671,7 @@ model dimensions {
   dimension        String             @unique
   is_active        Boolean            @default(true)
   created_at       DateTime           @default(now())
-  updated_at       DateTime           @default(now())
+  updated_at       DateTime           @updatedAt
   inventory_groups inventory_groups[]
   inventories      inventories[]
 
@@ -686,7 +685,7 @@ model inventory_groups {
   dimension_uuid String        @db.Uuid
   is_active      Boolean       @default(true)
   created_at     DateTime      @default(now())
-  updated_at     DateTime      @default(now())
+  updated_at     DateTime      @updatedAt
   dimension      dimensions    @relation(fields: [dimension_uuid], references: [uuid])
   inventories    inventories[]
 
@@ -695,22 +694,22 @@ model inventory_groups {
 }
 
 model inventories {
-  id                    BigInt               @id @default(autoincrement())
-  uuid                  String               @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name                  String
-  producer_uuid         String?              @db.Uuid
-  insider_uuid          String?              @db.Uuid
-  inventory_group_uuid  String?              @db.Uuid
-  dimension_uuid        String?              @db.Uuid
-  internal_number       String?
-  is_nonbalance         Boolean              @default(false)
-  is_capex              Boolean              @default(false)
-  is_active             Boolean              @default(true)
-  created_at            DateTime             @default(now())
-  updated_at            DateTime             @default(now())
-  inventory_group       inventory_groups?    @relation(fields: [inventory_group_uuid], references: [uuid])
-  dimension             dimensions?          @relation(fields: [dimension_uuid], references: [uuid])
-  waybill_items         rs_waybills_in_items[]
+  id                   BigInt                 @id @default(autoincrement())
+  uuid                 String                 @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                 String
+  producer_uuid        String?                @db.Uuid
+  insider_uuid         String?                @db.Uuid
+  inventory_group_uuid String?                @db.Uuid
+  dimension_uuid       String?                @db.Uuid
+  internal_number      String?
+  is_nonbalance        Boolean                @default(false)
+  is_capex             Boolean                @default(false)
+  is_active            Boolean                @default(true)
+  created_at           DateTime               @default(now())
+  updated_at           DateTime               @updatedAt
+  inventory_group      inventory_groups?      @relation(fields: [inventory_group_uuid], references: [uuid])
+  dimension            dimensions?            @relation(fields: [dimension_uuid], references: [uuid])
+  waybill_items        rs_waybills_in_items[]
 
   @@index([producer_uuid])
   @@index([insider_uuid])
@@ -738,7 +737,7 @@ model rs_waybills_in_items {
   corresponding_account String?
   import_batch_id       String?
   created_at            DateTime     @default(now())
-  updated_at            DateTime     @default(now())
+  updated_at            DateTime     @updatedAt
   inventory             inventories? @relation(fields: [inventory_uuid], references: [uuid])
 
   @@index([waybill_no])

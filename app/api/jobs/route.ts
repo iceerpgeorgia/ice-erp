@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 // GET all jobs with project and brand info
 export async function GET(req: NextRequest) {
@@ -131,6 +132,8 @@ export async function GET(req: NextRequest) {
 
 // POST - Create new job
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const selection = await resolveInsiderSelection(req);
     const body = await req.json();
@@ -207,6 +210,8 @@ export async function POST(req: NextRequest) {
 
 // PUT - Update job
 export async function PUT(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const selection = await resolveInsiderSelection(req);
     const body = await req.json();
@@ -288,6 +293,8 @@ export async function PUT(req: NextRequest) {
 
 // DELETE - Soft delete job
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');

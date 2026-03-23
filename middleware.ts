@@ -1,7 +1,8 @@
 import { withAuth } from "next-auth/middleware";
 
-// Explicitly set NEXTAUTH_SECRET for Edge runtime
-process.env.NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || 'dhFhx/XLIvdcZxDMszlcRnXLd5CHEGq0LVkLdbo4kis=';
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error("NEXTAUTH_SECRET environment variable is required");
+}
 
 export default withAuth({
   pages: {
@@ -11,5 +12,14 @@ export default withAuth({
 });
 
 export const config = {
-  matcher: ["/dashboard"],
+  matcher: [
+    "/dashboard/:path*",
+    "/dictionaries/:path*",
+    "/bank-transactions/:path*",
+    "/counteragent-statement/:path*",
+    "/payment-statement/:path*",
+    "/salary-report/:path*",
+    "/admin/:path*",
+    "/api/((?!auth|cron|test-env).*)",
+  ],
 };
