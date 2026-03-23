@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-23 (89)
+- Summary: Services Report payment IDs now open full payment edit dialog, and `Sum` red-bold mismatch is shown only when `sum != accrual`.
+- Changes:
+  - `components/figma/services-report-table.tsx`: Replaced payment-ID-only edit with full payment edit dialog (`paymentId`, `label`, `counteragent`, `financial code`, `currency`, optional `project/job`, `incomeTax`, `isActive`) and save via `PATCH /api/payments?id=...`.
+  - `components/figma/services-report-table.tsx`: Removed Payment IDs shortcut link-to-filtered-payments behavior in favor of direct edit action.
+  - `components/figma/services-report-table.tsx`: Updated Sum mismatch highlighting logic to compare against latest accrual (`row.accrual`) so matching Sum/Accrual is not red-bold.
+- Commit: 9e44413
+- URL: https://ice-1f8xf2r7h-iceerp.vercel.app
+
 ## 2026-03-21 (88)
 - Summary: Services Report now supports inline Payment ID editing and shows `Latest Date` from accrual/order ledger only.
 - Changes:
