@@ -96,13 +96,57 @@ type JobLinkDialogState = {
   saving: boolean;
 };
 
-type PaymentIdEditDialogState = {
+type ProjectOption = {
+  projectUuid?: string;
+  project_uuid?: string;
+  projectIndex?: string;
+  project_index?: string;
+  projectName?: string;
+  project_name?: string;
+};
+
+type CounteragentOption = {
+  counteragent_uuid?: string;
+  counteragentUuid?: string;
+  counteragent?: string;
+  name?: string;
+  identification_number?: string;
+  identificationNumber?: string;
+};
+
+type FinancialCodeOption = {
+  uuid: string;
+  validation?: string;
+  code?: string;
+};
+
+type CurrencyOption = {
+  uuid: string;
+  code?: string;
+  name?: string;
+};
+
+type JobOption = {
+  jobUuid: string;
+  jobName: string;
+  jobDisplay?: string;
+};
+
+type PaymentEditDialogState = {
   open: boolean;
   loading: boolean;
   saving: boolean;
   paymentRowId: number | null;
   originalPaymentId: string;
-  value: string;
+  paymentId: string;
+  label: string;
+  counteragentUuid: string;
+  financialCodeUuid: string;
+  currencyUuid: string;
+  projectUuid: string;
+  jobUuid: string;
+  incomeTax: boolean;
+  isActive: boolean;
   error: string | null;
 };
 
@@ -268,13 +312,26 @@ export function ServicesReportTable() {
     loading: false,
     saving: false,
   });
-  const [paymentIdEditDialog, setPaymentIdEditDialog] = useState<PaymentIdEditDialogState>({
+  const [paymentProjects, setPaymentProjects] = useState<ProjectOption[]>([]);
+  const [paymentCounteragents, setPaymentCounteragents] = useState<CounteragentOption[]>([]);
+  const [paymentFinancialCodes, setPaymentFinancialCodes] = useState<FinancialCodeOption[]>([]);
+  const [paymentCurrencies, setPaymentCurrencies] = useState<CurrencyOption[]>([]);
+  const [paymentJobs, setPaymentJobs] = useState<JobOption[]>([]);
+  const [paymentEditDialog, setPaymentEditDialog] = useState<PaymentEditDialogState>({
     open: false,
     loading: false,
     saving: false,
     paymentRowId: null,
     originalPaymentId: '',
-    value: '',
+    paymentId: '',
+    label: '',
+    counteragentUuid: '',
+    financialCodeUuid: '',
+    currencyUuid: '',
+    projectUuid: '',
+    jobUuid: '',
+    incomeTax: false,
+    isActive: true,
     error: null,
   });
 
@@ -658,18 +715,95 @@ export function ServicesReportTable() {
     });
   };
 
-  const openPaymentIdEditDialog = async (paymentId: string) => {
-    setPaymentIdEditDialog({
+  const closePaymentEditDialog = () => {
+    setPaymentEditDialog({
+      open: false,
+      loading: false,
+      saving: false,
+      paymentRowId: null,
+      originalPaymentId: '',
+      paymentId: '',
+      label: '',
+      counteragentUuid: '',
+      financialCodeUuid: '',
+      currencyUuid: '',
+      projectUuid: '',
+      jobUuid: '',
+      incomeTax: false,
+      isActive: true,
+      error: null,
+    });
+    setPaymentJobs([]);
+  };
+
+  const ensurePaymentEditDictionariesLoaded = async () => {
+    if (
+      paymentProjects.length > 0 &&
+      paymentCounteragents.length > 0 &&
+      paymentFinancialCodes.length > 0 &&
+      paymentCurrencies.length > 0
+    ) {
+      return;
+    }
+
+    const [projectsRes, counteragentsRes, financialCodesRes, currenciesRes] = await Promise.all([
+      fetch('/api/projects-v2'),
+      fetch('/api/counteragents'),
+      fetch('/api/financial-codes?leafOnly=true'),
+      fetch('/api/currencies'),
+    ]);
+
+    if (!projectsRes.ok || !counteragentsRes.ok || !financialCodesRes.ok || !currenciesRes.ok) {
+      throw new Error('Failed to load payment dictionaries');
+    }
+
+    const [projectsData, counteragentsData, financialCodesData, currenciesData] = await Promise.all([
+      projectsRes.json(),
+      counteragentsRes.json(),
+      financialCodesRes.json(),
+      currenciesRes.json(),
+    ]);
+
+    const projectsList = Array.isArray(projectsData)
+      ? projectsData
+      : Array.isArray(projectsData?.data)
+        ? projectsData.data
+        : [];
+
+    const currenciesList = Array.isArray(currenciesData)
+      ? currenciesData
+      : Array.isArray(currenciesData?.data)
+        ? currenciesData.data
+        : [];
+
+    setPaymentProjects(projectsList);
+    setPaymentCounteragents(Array.isArray(counteragentsData) ? counteragentsData : []);
+    setPaymentFinancialCodes(Array.isArray(financialCodesData) ? financialCodesData : []);
+    setPaymentCurrencies(currenciesList);
+  };
+
+  const openPaymentEditDialog = async (paymentId: string) => {
+    setPaymentEditDialog({
       open: true,
       loading: true,
       saving: false,
       paymentRowId: null,
       originalPaymentId: paymentId,
-      value: paymentId,
+      paymentId,
+      label: '',
+      counteragentUuid: '',
+      financialCodeUuid: '',
+      currencyUuid: '',
+      projectUuid: '',
+      jobUuid: '',
+      incomeTax: false,
+      isActive: true,
       error: null,
     });
 
     try {
+      await ensurePaymentEditDictionariesLoaded();
+
       const response = await fetch(`/api/payments?paymentIds=${encodeURIComponent(paymentId)}&limit=1&sort=desc`);
       if (!response.ok) {
         throw new Error('Failed to load payment for editing');
@@ -682,13 +816,22 @@ export function ServicesReportTable() {
         throw new Error(`Payment record not found for ${paymentId}`);
       }
 
-      setPaymentIdEditDialog((prev) => ({
+      setPaymentEditDialog((prev) => ({
         ...prev,
         loading: false,
         paymentRowId: Number(matched.id),
+        paymentId: String(matched.paymentId || paymentId),
+        label: String(matched.label || ''),
+        counteragentUuid: String(matched.counteragent_uuid || ''),
+        financialCodeUuid: String(matched.financial_code_uuid || ''),
+        currencyUuid: String(matched.currencyUuid || ''),
+        projectUuid: String(matched.project_uuid || ''),
+        jobUuid: String(matched.jobUuid || ''),
+        incomeTax: Boolean(matched.incomeTax),
+        isActive: matched.is_active !== false,
       }));
     } catch (error: any) {
-      setPaymentIdEditDialog((prev) => ({
+      setPaymentEditDialog((prev) => ({
         ...prev,
         loading: false,
         error: error?.message || 'Failed to load payment for editing',
@@ -696,41 +839,73 @@ export function ServicesReportTable() {
     }
   };
 
-  const savePaymentIdEdit = async () => {
-    if (!paymentIdEditDialog.paymentRowId) {
-      setPaymentIdEditDialog((prev) => ({ ...prev, error: 'Missing payment record id.' }));
+  useEffect(() => {
+    const fetchPaymentJobs = async () => {
+      if (!paymentEditDialog.open || !paymentEditDialog.projectUuid) {
+        setPaymentJobs([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/jobs?projectUuid=${encodeURIComponent(paymentEditDialog.projectUuid)}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch project jobs');
+        }
+
+        const data = await response.json();
+        setPaymentJobs(Array.isArray(data) ? data : []);
+      } catch {
+        setPaymentJobs([]);
+      }
+    };
+
+    fetchPaymentJobs();
+  }, [paymentEditDialog.open, paymentEditDialog.projectUuid]);
+
+  const savePaymentEdit = async () => {
+    if (!paymentEditDialog.paymentRowId) {
+      setPaymentEditDialog((prev) => ({ ...prev, error: 'Missing payment record id.' }));
       return;
     }
 
-    setPaymentIdEditDialog((prev) => ({ ...prev, saving: true, error: null }));
+    if (!paymentEditDialog.counteragentUuid || !paymentEditDialog.financialCodeUuid || !paymentEditDialog.currencyUuid) {
+      setPaymentEditDialog((prev) => ({
+        ...prev,
+        error: 'Counteragent, financial code, and currency are required.',
+      }));
+      return;
+    }
+
+    setPaymentEditDialog((prev) => ({ ...prev, saving: true, error: null }));
     try {
-      const response = await fetch(`/api/payments?id=${paymentIdEditDialog.paymentRowId}`, {
+      const response = await fetch(`/api/payments?id=${paymentEditDialog.paymentRowId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentId: paymentIdEditDialog.value.trim() || null }),
+        body: JSON.stringify({
+          projectUuid: paymentEditDialog.projectUuid || null,
+          counteragentUuid: paymentEditDialog.counteragentUuid,
+          financialCodeUuid: paymentEditDialog.financialCodeUuid,
+          jobUuid: paymentEditDialog.jobUuid || null,
+          incomeTax: paymentEditDialog.incomeTax,
+          currencyUuid: paymentEditDialog.currencyUuid,
+          paymentId: paymentEditDialog.paymentId.trim() || null,
+          label: paymentEditDialog.label.trim() || null,
+          isActive: paymentEditDialog.isActive,
+        }),
       });
 
       if (!response.ok) {
         const errorPayload = await response.json().catch(() => ({}));
-        throw new Error(errorPayload?.error || 'Failed to update payment ID');
+        throw new Error(errorPayload?.error || 'Failed to update payment');
       }
 
-      setPaymentIdEditDialog({
-        open: false,
-        loading: false,
-        saving: false,
-        paymentRowId: null,
-        originalPaymentId: '',
-        value: '',
-        error: null,
-      });
-
+      closePaymentEditDialog();
       await fetchReport();
     } catch (error: any) {
-      setPaymentIdEditDialog((prev) => ({
+      setPaymentEditDialog((prev) => ({
         ...prev,
         saving: false,
-        error: error?.message || 'Failed to update payment ID',
+        error: error?.message || 'Failed to update payment',
       }));
     }
   };
@@ -1146,9 +1321,7 @@ export function ServicesReportTable() {
                   {section.rows.map((row, index) => {
                     const isConfirmedDue = Boolean(row.confirmed && row.due > 0);
                     const isConfirmedPaid = Boolean(row.confirmed && row.due === 0);
-                    const isSumMismatch =
-                      Math.abs(row.sum - row.lastMonthAccrual) > 0.009 ||
-                      Math.abs(row.sum - row.lastMonthOrder) > 0.009;
+                    const isSumMismatch = Math.abs(row.sum - row.accrual) > 0.009;
                     return (
                     <tr
                       key={`${section.financialCodeUuid}-${row.projectUuid}-${index}`}
@@ -1193,21 +1366,12 @@ export function ServicesReportTable() {
                                       <span>{paymentId}</span>
                                       <button
                                         type="button"
-                                        onClick={() => openPaymentIdEditDialog(paymentId)}
+                                        onClick={() => openPaymentEditDialog(paymentId)}
                                         className="inline-flex items-center justify-center rounded p-0.5 text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
-                                        title={`Edit payment ID ${paymentId}`}
+                                        title={`Edit payment ${paymentId}`}
                                       >
                                         <Edit2 className="h-3.5 w-3.5" />
                                       </button>
-                                      <a
-                                        href={`/dictionaries/payments?paymentId=${encodeURIComponent(paymentId)}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center justify-center rounded p-0.5 text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
-                                        title={`Open Payments table filtered by ${paymentId}`}
-                                      >
-                                        <ArrowUpRight className="h-3.5 w-3.5" />
-                                      </a>
                                     </span>
                                   ))}
                                 </div>
@@ -1397,66 +1561,180 @@ export function ServicesReportTable() {
         </div>
       )}
 
-      {paymentIdEditDialog.open && (
+      {paymentEditDialog.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+          <div className="w-full max-w-3xl rounded-lg bg-white shadow-xl">
             <div className="flex items-center justify-between border-b px-5 py-3">
-              <h2 className="text-base font-semibold">Edit Payment ID</h2>
-              <button
-                onClick={() =>
-                  setPaymentIdEditDialog({
-                    open: false,
-                    loading: false,
-                    saving: false,
-                    paymentRowId: null,
-                    originalPaymentId: '',
-                    value: '',
-                    error: null,
-                  })
-                }
-                className="text-gray-400 hover:text-gray-600"
-                disabled={paymentIdEditDialog.saving}
-              >
+              <h2 className="text-base font-semibold">Edit Payment</h2>
+              <button onClick={closePaymentEditDialog} className="text-gray-400 hover:text-gray-600" disabled={paymentEditDialog.saving}>
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-3 px-5 py-4">
-              <div className="text-sm text-gray-600">Original: {paymentIdEditDialog.originalPaymentId}</div>
-              <Input
-                value={paymentIdEditDialog.value}
-                onChange={(event) =>
-                  setPaymentIdEditDialog((prev) => ({ ...prev, value: event.target.value }))
-                }
-                placeholder="Enter payment ID"
-                disabled={paymentIdEditDialog.loading || paymentIdEditDialog.saving}
-              />
-              {paymentIdEditDialog.error ? (
-                <div className="text-sm text-red-600">{paymentIdEditDialog.error}</div>
+              <div className="text-sm text-gray-600">Original payment ID: {paymentEditDialog.originalPaymentId}</div>
+              {paymentEditDialog.loading ? <div className="text-sm text-gray-500">Loading payment details...</div> : null}
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Payment ID</label>
+                  <Input
+                    value={paymentEditDialog.paymentId}
+                    onChange={(event) =>
+                      setPaymentEditDialog((prev) => ({ ...prev, paymentId: event.target.value }))
+                    }
+                    placeholder="Enter payment ID"
+                    disabled={paymentEditDialog.loading || paymentEditDialog.saving}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Label</label>
+                  <Input
+                    value={paymentEditDialog.label}
+                    onChange={(event) =>
+                      setPaymentEditDialog((prev) => ({ ...prev, label: event.target.value }))
+                    }
+                    placeholder="Enter payment label"
+                    disabled={paymentEditDialog.loading || paymentEditDialog.saving}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Counteragent *</label>
+                  <select
+                    value={paymentEditDialog.counteragentUuid}
+                    onChange={(event) =>
+                      setPaymentEditDialog((prev) => ({ ...prev, counteragentUuid: event.target.value }))
+                    }
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    disabled={paymentEditDialog.loading || paymentEditDialog.saving}
+                  >
+                    <option value="">Select counteragent</option>
+                    {paymentCounteragents.map((ca) => {
+                      const uuid = ca.counteragent_uuid || ca.counteragentUuid || '';
+                      const name = ca.counteragent || ca.name || '';
+                      const inn = ca.identification_number || ca.identificationNumber || '';
+                      return (
+                        <option key={uuid} value={uuid}>
+                          {inn ? `${name} (TIN ${inn})` : name}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Financial Code *</label>
+                  <select
+                    value={paymentEditDialog.financialCodeUuid}
+                    onChange={(event) =>
+                      setPaymentEditDialog((prev) => ({ ...prev, financialCodeUuid: event.target.value }))
+                    }
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    disabled={paymentEditDialog.loading || paymentEditDialog.saving}
+                  >
+                    <option value="">Select financial code</option>
+                    {paymentFinancialCodes.map((fc) => (
+                      <option key={fc.uuid} value={fc.uuid}>
+                        {fc.validation || fc.code || fc.uuid}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Currency *</label>
+                  <select
+                    value={paymentEditDialog.currencyUuid}
+                    onChange={(event) =>
+                      setPaymentEditDialog((prev) => ({ ...prev, currencyUuid: event.target.value }))
+                    }
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    disabled={paymentEditDialog.loading || paymentEditDialog.saving}
+                  >
+                    <option value="">Select currency</option>
+                    {paymentCurrencies.map((currency) => (
+                      <option key={currency.uuid} value={currency.uuid}>
+                        {currency.code || currency.name || currency.uuid}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Project (Optional)</label>
+                  <select
+                    value={paymentEditDialog.projectUuid}
+                    onChange={(event) =>
+                      setPaymentEditDialog((prev) => ({ ...prev, projectUuid: event.target.value, jobUuid: '' }))
+                    }
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    disabled={paymentEditDialog.loading || paymentEditDialog.saving}
+                  >
+                    <option value="">No project</option>
+                    {paymentProjects.map((project) => {
+                      const projectUuid = project.projectUuid || project.project_uuid || '';
+                      const projectLabel =
+                        project.projectIndex ||
+                        project.project_index ||
+                        project.projectName ||
+                        project.project_name ||
+                        projectUuid;
+                      return (
+                        <option key={projectUuid} value={projectUuid}>
+                          {projectLabel}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Job (Optional)</label>
+                  <select
+                    value={paymentEditDialog.jobUuid}
+                    onChange={(event) =>
+                      setPaymentEditDialog((prev) => ({ ...prev, jobUuid: event.target.value }))
+                    }
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    disabled={!paymentEditDialog.projectUuid || paymentEditDialog.loading || paymentEditDialog.saving}
+                  >
+                    <option value="">No job</option>
+                    {paymentJobs.map((job) => (
+                      <option key={job.jobUuid} value={job.jobUuid}>
+                        {job.jobDisplay || job.jobName || job.jobUuid}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-1 flex items-center gap-2 md:col-span-2">
+                  <Checkbox
+                    id="services-report-edit-income-tax"
+                    checked={paymentEditDialog.incomeTax}
+                    onCheckedChange={(value) =>
+                      setPaymentEditDialog((prev) => ({ ...prev, incomeTax: Boolean(value) }))
+                    }
+                    disabled={paymentEditDialog.loading || paymentEditDialog.saving}
+                  />
+                  <label htmlFor="services-report-edit-income-tax" className="text-sm">
+                    Income Tax
+                  </label>
+                  <Checkbox
+                    id="services-report-edit-is-active"
+                    checked={paymentEditDialog.isActive}
+                    onCheckedChange={(value) =>
+                      setPaymentEditDialog((prev) => ({ ...prev, isActive: Boolean(value) }))
+                    }
+                    disabled={paymentEditDialog.loading || paymentEditDialog.saving}
+                  />
+                  <label htmlFor="services-report-edit-is-active" className="text-sm">
+                    Active
+                  </label>
+                </div>
+              </div>
+              {paymentEditDialog.error ? (
+                <div className="text-sm text-red-600">{paymentEditDialog.error}</div>
               ) : null}
             </div>
             <div className="flex items-center justify-end gap-2 border-t px-5 py-3">
-              <Button
-                variant="outline"
-                onClick={() =>
-                  setPaymentIdEditDialog({
-                    open: false,
-                    loading: false,
-                    saving: false,
-                    paymentRowId: null,
-                    originalPaymentId: '',
-                    value: '',
-                    error: null,
-                  })
-                }
-                disabled={paymentIdEditDialog.saving}
-              >
+              <Button variant="outline" onClick={closePaymentEditDialog} disabled={paymentEditDialog.saving}>
                 Cancel
               </Button>
-              <Button
-                onClick={savePaymentIdEdit}
-                disabled={paymentIdEditDialog.loading || paymentIdEditDialog.saving}
-              >
-                {paymentIdEditDialog.saving ? 'Saving...' : 'Save'}
+              <Button onClick={savePaymentEdit} disabled={paymentEditDialog.loading || paymentEditDialog.saving}>
+                {paymentEditDialog.saving ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
           </div>
