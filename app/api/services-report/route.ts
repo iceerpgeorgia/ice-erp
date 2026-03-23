@@ -143,6 +143,27 @@ export async function GET(request: NextRequest) {
           ${ledgerDateFilter}
         GROUP BY pl.payment_id
       ),
+      latest_ledger_date_per_payment AS (
+        SELECT
+          pl.payment_id,
+          MAX(pl.effective_date) as latest_effective_date
+        FROM payments_ledger pl
+        WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
+          ${ledgerDateFilter}
+        GROUP BY pl.payment_id
+      ),
+      ledger_latest AS (
+        SELECT
+          pl.payment_id,
+          SUM(COALESCE(pl.accrual, 0)) as latest_accrual
+        FROM payments_ledger pl
+        JOIN latest_ledger_date_per_payment ldp
+          ON ldp.payment_id = pl.payment_id
+         AND ldp.latest_effective_date = pl.effective_date
+        WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
+          ${ledgerDateFilter}
+        GROUP BY pl.payment_id
+      ),
       ledger_last_month AS (
         SELECT
           pl.payment_id,
@@ -217,6 +238,7 @@ export async function GET(request: NextRequest) {
          WHERE jp3.project_uuid = sp.project_uuid AND jn.is_active = true) as job_names,
         BOOL_OR(COALESCE(uc.unbound_count, 0) > 0) as has_unbound_counteragent_transactions,
         SUM(COALESCE(la.total_accrual, 0)) as accrual,
+        SUM(COALESCE(ll.latest_accrual, 0)) as latest_accrual,
         SUM(COALESCE(la.total_order, 0)) as "order",
         SUM(COALESCE(llm.total_accrual, 0)) as last_month_accrual,
         SUM(COALESCE(llm.total_order, 0)) as last_month_order,
@@ -230,6 +252,7 @@ export async function GET(request: NextRequest) {
         MAX(la.latest_ledger_date) as latest_date
       FROM selected_payments sp
       LEFT JOIN ledger_agg la ON sp.payment_id = la.payment_id
+      LEFT JOIN ledger_latest ll ON sp.payment_id = ll.payment_id
       LEFT JOIN ledger_last_month llm ON sp.payment_id = llm.payment_id
       LEFT JOIN bank_agg ba ON sp.payment_id = ba.payment_id
       LEFT JOIN unbound_counteragent uc ON sp.counteragent_uuid = uc.counteragent_uuid
@@ -241,6 +264,7 @@ export async function GET(request: NextRequest) {
 
     const formattedRows = rows.map((row) => {
       const accrual = Number(row.accrual || 0);
+      const latestAccrual = Number(row.latest_accrual || 0);
       const order = Number(row.order || 0);
       const payment = Number(row.payment || 0);
       const lastMonthAccrual = Number(row.last_month_accrual || 0);
@@ -269,6 +293,7 @@ export async function GET(request: NextRequest) {
           : [],
         hasUnboundCounteragentTransactions: Boolean(row.has_unbound_counteragent_transactions),
         accrual,
+        latestAccrual,
         order,
         lastMonthAccrual,
         lastMonthOrder,

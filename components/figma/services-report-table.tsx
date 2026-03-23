@@ -37,6 +37,7 @@ type ServicesRow = {
   jobsCount: number;
   jobNames: string[];
   accrual: number;
+  latestAccrual: number;
   order: number;
   lastMonthAccrual: number;
   lastMonthOrder: number;
@@ -1321,7 +1322,7 @@ export function ServicesReportTable() {
                   {section.rows.map((row, index) => {
                     const isConfirmedDue = Boolean(row.confirmed && row.due > 0);
                     const isConfirmedPaid = Boolean(row.confirmed && row.due === 0);
-                    const isSumMismatch = Math.abs(row.sum - row.accrual) > 0.009;
+                    const isSumMismatch = Math.abs(row.sum - row.latestAccrual) > 0.009;
                     return (
                     <tr
                       key={`${section.financialCodeUuid}-${row.projectUuid}-${index}`}
