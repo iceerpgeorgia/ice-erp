@@ -1,5 +1,20 @@
 ﻿# Deployment Log
 
+## 2026-03-24 (91)
+- Summary: Security hardening & code quality audit — auth guards on all mutation API routes, Zod validation, error boundaries, @updatedAt on all Prisma models.
+- Changes:
+  - `middleware.ts`: Removed hardcoded NEXTAUTH_SECRET fallback, expanded route matcher to protect all app/API routes.
+  - `lib/auth-guard.ts`: New shared requireAuth/requireAdmin/isAuthError helpers.
+  - `lib/auth.ts`: Removed allowDangerousEmailAccountLinking from Google OAuth.
+  - 16 API route files: Added auth guards to 40+ POST/PATCH/PUT/DELETE handlers (counteragents, financial-codes, currencies, banks, countries, entity-types, dimensions, exchange-rates, projects, jobs, brands, bank-accounts, waybills, waybill-items, inventories, inventory-groups).
+  - `lib/api-schemas.ts`: New Zod validation schemas for all entity types, integrated into brands/banks routes.
+  - 6 route groups: Added loading.tsx and error.tsx boundaries (dictionaries, bank-transactions, admin, counteragent-statement, payment-statement, salary-report).
+  - `prisma/schema.prisma`: Added @updatedAt to all models with updated_at fields.
+  - `lib/__tests__/`: 21 new unit tests for Zod schemas and auth type guard.
+  - `AGENTS.md`: Fixed project structure description.
+- Commit: 2e89c6b
+- URL: https://ice-oocarrqab-iceerp.vercel.app
+
 ## 2026-03-23 (90)
 - Summary: Services Report now highlights `Sum` in red bold only when it differs from latest accrual (latest ledger effective date), not from cumulative accrual.
 - Changes:
