@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-24 (92)
+- Summary: Fixed Bank Transactions split-batch nominal ISO so partitioned rows use payment/batch nominal currency instead of raw account currency.
+- Changes:
+  - `app/api/bank-transactions/route.ts`: Updated nominal currency join to use `COALESCE(cba.batch_nominal_currency_uuid, cba.nominal_currency_uuid)` in all listing branches (default, ids, rawRecordUuid).
+  - Ensures split transactions display `nominal_currency_code` from assigned payment/batch context when available.
+- Commit: 5e60fde
+- URL: https://ice-6k9vc11a8-iceerp.vercel.app
+
 ## 2026-03-24 (91)
 - Summary: Security hardening & code quality audit — auth guards on all mutation API routes, Zod validation, error boundaries, @updatedAt on all Prisma models.
 - Changes:
