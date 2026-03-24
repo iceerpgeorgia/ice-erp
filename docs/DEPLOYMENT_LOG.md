@@ -1,5 +1,20 @@
 ﻿# Deployment Log
 
+## 2026-03-24 (94)
+- Summary: Added payment adjustments feature (CRUD API, payment/counteragent statement integration, UI with add/delete); fixed bank-transaction-batches UUID type-casting bug.
+- Changes:
+  - `prisma/schema.prisma`: Added `payment_adjustments` model with relation to `payments`.
+  - `app/api/adjustments/route.ts`: New CRUD API (GET/POST/PATCH/DELETE) with auth guards and audit logging.
+  - `app/api/payment-statement/route.ts`: Added adjustments query to payment statement response.
+  - `app/api/counteragent-statement/route.ts`: Added adjustments query for all payment IDs in counteragent statement.
+  - `app/payment-statement/[paymentId]/page.tsx`: Added adjustment rows, Add Adjustment dialog, delete action.
+  - `app/counteragent-statement/[counteragentUuid]/page.tsx`: Added adjustment rows and delete action.
+  - `app/api/bank-transaction-batches/route.ts`: Fixed `uuid = text` operator error by converting string interpolation to parameterized queries with `::uuid` casts.
+  - `apply-payment-adjustments-migration.js`: Migration script for `payment_adjustments` table.
+- **NOTE**: Run `node apply-payment-adjustments-migration.js` against production DB to create `payment_adjustments` table.
+- Commit: e55a626
+- URL: https://ice-8jenpzf6s-iceerp.vercel.app
+
 ## 2026-03-24 (93)
 - Summary: Applied same nominal ISO COALESCE fix to Bank Transactions Test API so batch-split rows display payment/batch nominal currency.
 - Changes:
