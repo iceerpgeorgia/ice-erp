@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { useParams } from 'next/navigation';
-import { Edit2, Eye, Filter, Plus, Search, Settings } from 'lucide-react';
+import { Edit2, Eye, Filter, Plus, Search, Settings, X } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Checkbox } from '../../../components/ui/checkbox';
@@ -50,7 +50,7 @@ const toInputDate = (val: any): string => {
 
 type StatementRow = {
   id: string;
-  type: 'ledger' | 'bank';
+  type: 'ledger' | 'bank' | 'adjustment';
   paymentId: string | null;
   date: string;
   dateSort: number;
@@ -58,6 +58,7 @@ type StatementRow = {
   bankId?: number;
   bankSourceId?: number;
   bankUuid?: string;
+  adjustmentId?: number;
   effectiveDateRaw?: string | null;
   project: string | null;
   financialCode: string | null;
@@ -613,6 +614,33 @@ export default function CounteragentStatementPage() {
           batchId: tx.batchId || null,
         };
       }),
+      ...(statement.adjustments || []).map((adj: any) => {
+        const info = getPaymentInfo(adj.paymentId || null);
+        return {
+          id: `adj-${adj.id}`,
+          type: 'adjustment' as const,
+          paymentId: adj.paymentId || null,
+          date: formatDate(adj.effectiveDate),
+          dateSort: new Date(adj.effectiveDate).getTime(),
+          adjustmentId: adj.id,
+          project: adj.project ?? info.project ?? null,
+          financialCode: adj.financialCode ?? info.financialCode ?? null,
+          job: adj.job ?? info.job ?? null,
+          incomeTax: adj.incomeTax ?? info.incomeTax ?? null,
+          currency: adj.currency ?? info.currency ?? null,
+          accrual: 0,
+          order: 0,
+          payment: adj.amount,
+          confirmed: null,
+          ppc: 0,
+          account: '-',
+          bankAccount: '-',
+          comment: adj.comment || '-',
+          id1: null,
+          id2: null,
+          batchId: null,
+        };
+      }),
     ].sort((a, b) => a.dateSort - b.dateSort);
     } catch (e: any) {
       console.error('[counteragent-statement] rows memo error:', e);
@@ -1112,6 +1140,26 @@ export default function CounteragentStatementPage() {
     } else {
       setAddLedgerStep('payment');
       setSelectedCounteragentUuid(counteragentUuid || '');
+    }
+  };
+
+  const handleDeleteAdjustment = async (adjustmentId: number) => {
+    if (!confirm('Delete this adjustment?')) return;
+    try {
+      const response = await fetch(`/api/adjustments?id=${adjustmentId}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete adjustment');
+      }
+      if (statement) {
+        setStatement({
+          ...statement,
+          adjustments: (statement.adjustments || []).filter((a: any) => a.id !== adjustmentId),
+        });
+      }
+    } catch (error: any) {
+      console.error('Error deleting adjustment:', error);
+      alert(error.message || 'Failed to delete adjustment');
     }
   };
 
@@ -1959,6 +2007,15 @@ export default function CounteragentStatementPage() {
                             title="Edit bank transaction"
                           >
                             <Edit2 className="h-4 w-4 text-blue-600" />
+                          </button>
+                        ) : null}
+                        {row.type === 'adjustment' && row.adjustmentId ? (
+                          <button
+                            onClick={() => handleDeleteAdjustment(row.adjustmentId as number)}
+                            className="p-1 hover:bg-gray-200 rounded"
+                            title="Delete adjustment"
+                          >
+                            <X className="h-4 w-4 text-red-600" />
                           </button>
                         ) : null}
                       </td>

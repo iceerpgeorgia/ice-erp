@@ -50,9 +50,9 @@ export async function GET(request: NextRequest) {
         LEFT JOIN projects proj ON btb.project_uuid = proj.project_uuid
         LEFT JOIN financial_codes fc ON btb.financial_code_uuid = fc.uuid
         LEFT JOIN currencies curr ON btb.nominal_currency_uuid = curr.uuid
-        WHERE btb.batch_uuid = '${batchUuid}'
+        WHERE btb.batch_uuid = $1::uuid
         ORDER BY btb.partition_sequence
-      `) as any[];
+      `, batchUuid) as any[];
 
       const mappedPartitions = partitions.map((partition) => ({
         ...partition,
@@ -106,9 +106,9 @@ export async function GET(request: NextRequest) {
         LEFT JOIN projects proj ON btb.project_uuid = proj.project_uuid
         LEFT JOIN financial_codes fc ON btb.financial_code_uuid = fc.uuid
         LEFT JOIN currencies curr ON btb.nominal_currency_uuid = curr.uuid
-        WHERE btb.batch_id = '${batchId}'
+        WHERE btb.batch_id = $1
         ORDER BY btb.partition_sequence
-      `) as any[];
+      `, batchId) as any[];
 
       const mappedPartitions = partitions.map((partition) => ({
         ...partition,
@@ -145,9 +145,9 @@ export async function GET(request: NextRequest) {
           SUM(partition_amount) as total_amount,
           ARRAY_AGG(payment_id ORDER BY partition_sequence) as payment_ids
         FROM bank_transaction_batches
-        WHERE raw_record_uuid = '${rawRecordUuid}'
+        WHERE raw_record_uuid::text = $1::text
         GROUP BY batch_uuid
-      `) as any[];
+      `, rawRecordUuid) as any[];
 
       const mapped = batches.map((batch) => ({
         batchUuid: batch.batch_uuid,
@@ -497,20 +497,20 @@ export async function DELETE(request: Request) {
 
     if (batchUuid) {
       // Delete entire batch
-      await prisma.$executeRawUnsafe(`
-        DELETE FROM bank_transaction_batches 
-        WHERE batch_uuid = '${batchUuid}'
-      `);
+      await prisma.$executeRawUnsafe(
+        `DELETE FROM bank_transaction_batches WHERE batch_uuid = $1::uuid`,
+        batchUuid
+      );
       await cleanupRawBatchMarkers(affectedRawRecordUuids, fallbackCounteragentByRawUuid);
       return NextResponse.json({ success: true });
     }
     
     if (partitionUuid) {
       // Delete single partition
-      await prisma.$executeRawUnsafe(`
-        DELETE FROM bank_transaction_batches 
-        WHERE uuid = '${partitionUuid}'
-      `);
+      await prisma.$executeRawUnsafe(
+        `DELETE FROM bank_transaction_batches WHERE uuid = $1::uuid`,
+        partitionUuid
+      );
       await cleanupRawBatchMarkers(affectedRawRecordUuids, fallbackCounteragentByRawUuid);
       return NextResponse.json({ success: true });
     }

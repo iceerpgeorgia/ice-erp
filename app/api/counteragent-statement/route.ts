@@ -350,6 +350,18 @@ export async function GET(request: NextRequest) {
 
     console.log(`[counteragent-statement] uuid=${counteragentUuid} paymentIds=${paymentIds.length} ledger=${ledgerEntries.length} bank=${bankTransactions.length}`);
 
+    // Get payment adjustments for all payment IDs
+    const adjustments = paymentIds.length
+      ? await prisma.$queryRawUnsafe<any[]>(
+          `SELECT id, payment_id, effective_date, amount, comment, user_email, created_at
+           FROM payment_adjustments
+           WHERE payment_id = ANY($1::text[])
+             AND (is_deleted = false OR is_deleted IS NULL)
+           ORDER BY effective_date DESC`,
+          paymentIds
+        )
+      : [];
+
     return NextResponse.json({
       counteragent,
       paymentIds,
@@ -417,6 +429,23 @@ export async function GET(request: NextRequest) {
         description: tx.description,
         createdAt: tx.created_at,
         accountLabel: `${tx.bank_account_number || ''}${tx.account_currency_code || ''}`.trim() || '-',
+          project: info?.project || null,
+          financialCode: info?.financialCode || null,
+          job: info?.job || null,
+          incomeTax: info?.incomeTax ?? null,
+          currency: info?.currency || null,
+        };
+      }),
+      adjustments: adjustments.map((adj) => {
+        const info = adj.payment_id ? paymentInfoMap.get(normalizePaymentKey(adj.payment_id)) : null;
+        return {
+          id: Number(adj.id),
+          paymentId: adj.payment_id,
+          effectiveDate: adj.effective_date,
+          amount: adj.amount ? parseFloat(adj.amount) : 0,
+          comment: adj.comment,
+          userEmail: adj.user_email,
+          createdAt: adj.created_at,
           project: info?.project || null,
           financialCode: info?.financialCode || null,
           job: info?.job || null,

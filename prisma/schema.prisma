@@ -478,7 +478,8 @@ model payments {
   accrual_source      String?           @db.VarChar(50)
   label               String?           @db.Text
   insider_uuid        String?           @db.Uuid
-  payments_ledger     payments_ledger[]
+  payments_ledger      payments_ledger[]
+  payment_adjustments  payment_adjustments[]
 
   @@unique([project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid], map: "payments_project_uuid_counteragent_uuid_financial_code_uu_key")
   @@index([counteragent_uuid])
@@ -504,6 +505,25 @@ model payments_ledger {
   is_deleted     Boolean  @default(false)
   insider_uuid   String?  @db.Uuid
   payments       payments @relation(fields: [payment_id], references: [payment_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_ledger_payment")
+
+  @@index([effective_date])
+  @@index([insider_uuid])
+  @@index([payment_id])
+}
+
+model payment_adjustments {
+  id             BigInt   @id @default(autoincrement())
+  payment_id     String
+  effective_date DateTime
+  amount         Decimal  @db.Decimal(18, 2)
+  comment        String?
+  record_uuid    String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_email     String
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+  is_deleted     Boolean  @default(false)
+  insider_uuid   String?  @db.Uuid
+  payments       payments @relation(fields: [payment_id], references: [payment_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_adjustment_payment")
 
   @@index([effective_date])
   @@index([insider_uuid])

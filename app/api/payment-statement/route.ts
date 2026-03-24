@@ -310,6 +310,16 @@ export async function GET(request: NextRequest) {
       normalizedPaymentId
     );
 
+    // Get payment adjustments
+    const adjustmentsResult = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT id, payment_id, effective_date, amount, comment, user_email, created_at
+       FROM payment_adjustments
+       WHERE payment_id = $1
+         AND (is_deleted = false OR is_deleted IS NULL)
+       ORDER BY effective_date DESC`,
+      paymentId
+    );
+
     // Format response
     const response = {
       payment: payment
@@ -379,6 +389,14 @@ export async function GET(request: NextRequest) {
         description: tx.description,
         createdAt: tx.created_at,
         accountLabel: `${tx.bank_account_number || ''} ${tx.account_currency_code || ''}`.trim() || '-',
+      })),
+      adjustments: (adjustmentsResult as any[]).map(adj => ({
+        id: Number(adj.id),
+        effectiveDate: adj.effective_date,
+        amount: adj.amount ? parseFloat(adj.amount) : 0,
+        comment: adj.comment,
+        userEmail: adj.user_email,
+        createdAt: adj.created_at,
       })),
     };
 

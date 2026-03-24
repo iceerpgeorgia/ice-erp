@@ -54,7 +54,8 @@ type TransactionRow = {
   ledgerId?: number; // Add ledger ID for editing
   bankUuid?: string;
   bankId?: number;
-  type: 'ledger' | 'bank';
+  adjustmentId?: number;
+  type: 'ledger' | 'bank' | 'adjustment';
   date: string;
   accrual: number;
   payment: number;
@@ -184,6 +185,13 @@ export default function PaymentStatementPage() {
   const [selectedAccrualIds, setSelectedAccrualIds] = useState<Set<string>>(new Set());
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [isAoSubmitting, setIsAoSubmitting] = useState(false);
+
+  // Add Adjustment dialog state
+  const [isAddAdjustmentDialogOpen, setIsAddAdjustmentDialogOpen] = useState(false);
+  const [adjEffectiveDate, setAdjEffectiveDate] = useState('');
+  const [adjAmount, setAdjAmount] = useState('');
+  const [adjComment, setAdjComment] = useState('');
+  const [isAddingAdjustment, setIsAddingAdjustment] = useState(false);
 
   useEffect(() => {
     if (pageTitleSet || !statementData?.payment) return;
@@ -442,7 +450,30 @@ export default function PaymentStatementPage() {
       id1: tx.id1 || null,
       id2: tx.id2 || null,
       batchId: tx.batchId || null,
-    }})
+    }}),
+    ...(statementData.adjustments || []).map((adj: any) => ({
+      id: `adj-${adj.id}`,
+      adjustmentId: adj.id,
+      type: 'adjustment' as const,
+      date: formatDate(adj.effectiveDate),
+      dateSort: new Date(adj.effectiveDate).getTime(),
+      accrual: 0,
+      payment: adj.amount,
+      order: 0,
+      confirmed: null,
+      ppc: 0,
+      paidPercent: 0,
+      due: 0,
+      balance: 0,
+      comment: adj.comment || '-',
+      user: adj.userEmail || '-',
+      caAccount: '-',
+      account: '-',
+      createdAt: formatDate(adj.createdAt),
+      id1: null,
+      id2: null,
+      batchId: null,
+    })),
   ].sort((a, b) => a.dateSort - b.dateSort) : []; // Sort by date ascending for cumulative calculation
 
   // Calculate cumulative values for each row (from oldest to newest)
@@ -656,6 +687,102 @@ export default function PaymentStatementPage() {
       alert(error.message || 'Failed to add ledger entry');
     } finally {
       setIsAddingLedger(false);
+    }
+  };
+
+  // Adjustment handlers
+  const resetAddAdjustmentForm = () => {
+    setAdjEffectiveDate('');
+    setAdjAmount('');
+    setAdjComment('');
+    setIsAddingAdjustment(false);
+  };
+
+  const handleOpenAddAdjustment = () => {
+    resetAddAdjustmentForm();
+    setIsAddAdjustmentDialogOpen(true);
+  };
+
+  const handleCloseAddAdjustment = () => {
+    setIsAddAdjustmentDialogOpen(false);
+    resetAddAdjustmentForm();
+  };
+
+  const handleSaveAddAdjustment = async () => {
+    if (!statementData?.payment?.paymentId) {
+      alert('Payment ID is missing');
+      return;
+    }
+
+    const amountValue = adjAmount ? parseFloat(adjAmount) : null;
+    if (!amountValue || amountValue === 0) {
+      alert('Amount is required and cannot be zero');
+      return;
+    }
+
+    setIsAddingAdjustment(true);
+    try {
+      const response = await fetch('/api/adjustments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentId: statementData.payment.paymentId,
+          effectiveDate: adjEffectiveDate || undefined,
+          amount: amountValue,
+          comment: adjComment || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create adjustment');
+      }
+
+      const result = await response.json();
+      const created = Array.isArray(result) ? result[0] : result;
+
+      if (created && statementData) {
+        const newAdj = {
+          id: Number(created.id),
+          effectiveDate: created.effective_date || created.effectiveDate,
+          amount: created.amount ? Number(created.amount) : 0,
+          comment: created.comment,
+          userEmail: created.user_email || created.userEmail,
+          createdAt: created.created_at || created.createdAt,
+        };
+
+        setStatementData({
+          ...statementData,
+          adjustments: [...(statementData.adjustments || []), newAdj],
+        });
+      }
+
+      handleCloseAddAdjustment();
+    } catch (error: any) {
+      console.error('Error adding adjustment:', error);
+      alert(error.message || 'Failed to add adjustment');
+    } finally {
+      setIsAddingAdjustment(false);
+    }
+  };
+
+  const handleDeleteAdjustment = async (adjustmentId: number) => {
+    if (!confirm('Delete this adjustment?')) return;
+    try {
+      const response = await fetch(`/api/adjustments?id=${adjustmentId}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete adjustment');
+      }
+      if (statementData) {
+        setStatementData({
+          ...statementData,
+          adjustments: (statementData.adjustments || []).filter((a: any) => a.id !== adjustmentId),
+        });
+      }
+    } catch (error: any) {
+      console.error('Error deleting adjustment:', error);
+      alert(error.message || 'Failed to delete adjustment');
     }
   };
 
@@ -1183,6 +1310,14 @@ export default function PaymentStatementPage() {
                   Add Ledger
                 </button>
                 <button
+                  onClick={handleOpenAddAdjustment}
+                  className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+                  title="Add adjustment"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Adjustment
+                </button>
+                <button
                   onClick={handleAddAccrualOrderFromPayments}
                   className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors"
                   disabled={isAoSubmitting}
@@ -1457,6 +1592,15 @@ export default function PaymentStatementPage() {
                                 <Info className="h-4 w-4 text-gray-700" />
                               </button>
                             )}
+                            {row.type === 'adjustment' && row.adjustmentId && (
+                              <button
+                                onClick={() => viewAuditLog('payment_adjustments', row.adjustmentId as number, 'Adjustment Audit Log')}
+                                className="p-1 hover:bg-gray-200 rounded"
+                                title="View adjustment audit log"
+                              >
+                                <Info className="h-4 w-4 text-gray-700" />
+                              </button>
+                            )}
                           </td>
                           <td className="px-4 py-3" style={{ width: '90px' }}>
                             {row.type === 'ledger' && row.ledgerId && (
@@ -1475,6 +1619,15 @@ export default function PaymentStatementPage() {
                                 title="Edit bank transaction"
                               >
                                 <Edit2 className="h-4 w-4 text-blue-600" />
+                              </button>
+                            )}
+                            {row.type === 'adjustment' && row.adjustmentId && (
+                              <button
+                                onClick={() => handleDeleteAdjustment(row.adjustmentId as number)}
+                                className="p-1 hover:bg-gray-200 rounded"
+                                title="Delete adjustment"
+                              >
+                                <X className="h-4 w-4 text-red-600" />
                               </button>
                             )}
                           </td>
@@ -1643,6 +1796,93 @@ export default function PaymentStatementPage() {
                   disabled={isAddingLedger}
                 >
                   {isAddingLedger ? 'Saving...' : 'Add Entry'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Adjustment Dialog */}
+      {isAddAdjustmentDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">Add Adjustment</h2>
+              <button
+                onClick={handleCloseAddAdjustment}
+                className="p-1 hover:bg-gray-100 rounded"
+                disabled={isAddingAdjustment}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Payment ID (Locked)
+                </label>
+                <input
+                  value={statementData?.payment?.paymentId || ''}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Effective Date
+                </label>
+                <input
+                  type="date"
+                  value={adjEffectiveDate}
+                  onChange={(e) => setAdjEffectiveDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Amount (positive increases paid, negative decreases paid)
+                </label>
+                <input
+                  type="number"
+                  value={adjAmount}
+                  onChange={(e) => setAdjAmount(e.target.value)}
+                  placeholder="0.00"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Comment
+                </label>
+                <textarea
+                  value={adjComment}
+                  onChange={(e) => setAdjComment(e.target.value)}
+                  placeholder="Enter comment..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  onClick={handleCloseAddAdjustment}
+                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+                  disabled={isAddingAdjustment}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveAddAdjustment}
+                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                  disabled={isAddingAdjustment}
+                >
+                  {isAddingAdjustment ? 'Saving...' : 'Add Adjustment'}
                 </button>
               </div>
             </div>
