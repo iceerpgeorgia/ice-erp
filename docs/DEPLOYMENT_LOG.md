@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-24 (95)
+- Summary: Added Balance to Payments Report summary boxes; added per-section summary boxes (Sum/Accrual/Order/Payment/Due/Balance by currency) to Services Report grids.
+- Changes:
+  - `components/figma/payments-report-table.tsx`: Added Balance row to per-currency totals boxes.
+  - `components/figma/services-report-table.tsx`: Added per-section summary boxes below each financial code grid, grouped by currency.
+- Commit: c25af14
+- URL: https://ice-fg7llorn7-iceerp.vercel.app
+
 ## 2026-03-24 (94)
 - Summary: Added payment adjustments feature (CRUD API, payment/counteragent statement integration, UI with add/delete); fixed bank-transaction-batches UUID type-casting bug.
 - Changes:
