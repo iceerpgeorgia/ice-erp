@@ -431,7 +431,7 @@ export async function GET(req: NextRequest) {
          LEFT JOIN projects proj ON COALESCE(cba.batch_project_uuid, cba.project_uuid, pay.project_uuid) = proj.project_uuid
          LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid, pay.financial_code_uuid) = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
-         LEFT JOIN currencies curr_nom ON cba.nominal_currency_uuid = curr_nom.uuid
+         LEFT JOIN currencies curr_nom ON COALESCE(cba.batch_nominal_currency_uuid, cba.nominal_currency_uuid) = curr_nom.uuid
          WHERE cba.raw_record_uuid::text = $1::text
          ORDER BY cba.transaction_date DESC, cba.id DESC`,
         rawRecordUuid
@@ -459,7 +459,7 @@ export async function GET(req: NextRequest) {
          LEFT JOIN projects proj ON COALESCE(cba.batch_project_uuid, cba.project_uuid, pay.project_uuid) = proj.project_uuid
          LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid, pay.financial_code_uuid) = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
-         LEFT JOIN currencies curr_nom ON cba.nominal_currency_uuid = curr_nom.uuid
+         LEFT JOIN currencies curr_nom ON COALESCE(cba.batch_nominal_currency_uuid, cba.nominal_currency_uuid) = curr_nom.uuid
          WHERE cba.synthetic_id = ANY($1::bigint[])
          ORDER BY cba.transaction_date DESC, cba.id DESC`,
         idsArray
@@ -506,7 +506,7 @@ export async function GET(req: NextRequest) {
          LEFT JOIN projects proj ON COALESCE(cba.batch_project_uuid, cba.project_uuid, pay.project_uuid) = proj.project_uuid
          LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid, pay.financial_code_uuid) = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
-         LEFT JOIN currencies curr_nom ON cba.nominal_currency_uuid = curr_nom.uuid
+         LEFT JOIN currencies curr_nom ON COALESCE(cba.batch_nominal_currency_uuid, cba.nominal_currency_uuid) = curr_nom.uuid
          ${whereSql}
          ORDER BY cba.transaction_date DESC, cba.id DESC${limitSql}`,
         ...params
