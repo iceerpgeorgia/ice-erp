@@ -3179,6 +3179,8 @@ export function PaymentsReportTable() {
                   <div className="font-semibold text-blue-900">{formatValue(totals.payment, 'currency', 'payment')}</div>
                   <div className="text-gray-600">Due:</div>
                   <div className="font-semibold text-blue-900">{formatValue(totals.due, 'currency', 'due')}</div>
+                  <div className="text-gray-600">Balance:</div>
+                  <div className="font-semibold text-blue-900">{formatValue(totals.balance, 'currency', 'balance')}</div>
                 </div>
               </div>
             ))
