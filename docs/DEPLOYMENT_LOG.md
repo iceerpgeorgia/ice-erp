@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-03-24 (93)
+- Summary: Applied same nominal ISO COALESCE fix to Bank Transactions Test API so batch-split rows display payment/batch nominal currency.
+- Changes:
+  - `app/api/bank-transactions-test/route.ts`: Updated nominal currency join to use `COALESCE(cba.batch_nominal_currency_uuid, cba.nominal_currency_uuid)` in all listing branches (default, ids, rawRecordUuid).
+- Commit: dede579
+- URL: https://ice-p28cweplq-iceerp.vercel.app
+
 ## 2026-03-24 (92)
 - Summary: Fixed Bank Transactions split-batch nominal ISO so partitioned rows use payment/batch nominal currency instead of raw account currency.
 - Changes:
