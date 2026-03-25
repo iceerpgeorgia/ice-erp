@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
           COALESCE(ca.counteragent, ca.name, '-') as counteragent_name,
           curr.code as currency_code,
           j.job_name,
-          COALESCE(insider_ca.name, insider_ca.counteragent, '-') as insider_name,
+          COALESCE(insider_ca.insider_name, insider_ca.name, insider_ca.counteragent, '-') as insider_name,
           COALESCE(proj.department, '-') as department
         FROM payments p
         LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid

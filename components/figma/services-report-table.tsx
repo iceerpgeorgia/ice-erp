@@ -393,7 +393,7 @@ export function ServicesReportTable() {
 
     const handleMouseMove = (event: MouseEvent) => {
       const delta = event.clientX - resizing.startX;
-      const nextWidth = Math.max(80, resizing.startWidth + delta);
+      const nextWidth = Math.max(20, resizing.startWidth + delta);
       setSectionColumns((prev) => {
         const current = prev[resizing.sectionId] || DEFAULT_SECTION_COLUMNS;
         const updated = current.map((column) =>
@@ -1228,8 +1228,8 @@ export function ServicesReportTable() {
           const visibleColumns = columns.filter((column) => column.visible);
           const selectorColumns = columns;
           return (
-            <div key={section.financialCodeUuid} className="rounded-lg border">
-              {/* Sticky section header + summary */}
+            <div key={section.financialCodeUuid} className="rounded-lg border overflow-x-auto">
+              {/* Sticky section header + summary + column headers */}
               <div className="sticky top-0 z-20 bg-white rounded-t-lg">
               <div className="px-3 py-2 border-b bg-gray-50 flex items-center justify-between">
                 <div className="text-sm font-medium">{section.financialCodeValidation} ({section.rows.length})</div>
@@ -1296,10 +1296,7 @@ export function ServicesReportTable() {
                   </div>
                 ) : null;
               })()}
-              </div>{/* end sticky band */}
-
-              <div className="overflow-x-auto">
-              <table className="text-sm min-w-full">
+              <table className="text-sm min-w-full" style={{ tableLayout: 'fixed' }}>
                 <thead className="bg-gray-50 text-gray-600">
                   <tr>
                     <th className="px-3 py-2 text-left w-[56px]">#</th>
@@ -1314,10 +1311,10 @@ export function ServicesReportTable() {
                         onDragStart={() => setDraggedColumn({ sectionId: section.financialCodeUuid, key: column.key })}
                         onDragOver={(event) => event.preventDefault()}
                         onDrop={() => handleColumnDrop(section.financialCodeUuid, column.key)}
-                        className={`px-3 py-2 relative ${column.align === 'right' ? 'text-right' : 'text-left'}`}
-                        style={{ width: `${column.width}px`, minWidth: `${column.width}px`, ...(bg ? { backgroundColor: bg } : {}) }}
+                        className={`px-3 py-2 relative overflow-hidden ${column.align === 'right' ? 'text-right' : 'text-left'}`}
+                        style={{ width: `${column.width}px`, maxWidth: `${column.width}px`, ...(bg ? { backgroundColor: bg } : {}) }}
                       >
-                        <div className={`flex items-center gap-2 ${column.align === 'right' ? 'justify-end pr-2' : ''}`}>
+                        <div className={`flex items-center gap-2 min-w-0 ${column.align === 'right' ? 'justify-end pr-2' : ''}`}>
                           {isSortable ? (
                             <button
                               onClick={() => {
@@ -1375,6 +1372,16 @@ export function ServicesReportTable() {
                     })}
                   </tr>
                 </thead>
+              </table>
+              </div>{/* end sticky band */}
+
+              <table className="text-sm min-w-full" style={{ tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '56px' }} />
+                  {visibleColumns.map((column) => (
+                    <col key={column.key} style={{ width: `${column.width}px` }} />
+                  ))}
+                </colgroup>
                 <tbody>
                   {section.rows.map((row, index) => {
                     const isConfirmedDue = Boolean(row.confirmed && row.due > 0);
@@ -1395,8 +1402,8 @@ export function ServicesReportTable() {
                           return (
                             <td
                               key={column.key}
-                              className="px-3 py-2"
-                              style={{ width: `${column.width}px`, minWidth: `${column.width}px` }}
+                              className="px-3 py-2 overflow-hidden"
+                              style={{ width: `${column.width}px`, maxWidth: `${column.width}px` }}
                             >
                               <Checkbox checked={Boolean(rawValue)} disabled className="cursor-default" />
                             </td>
@@ -1411,10 +1418,10 @@ export function ServicesReportTable() {
                         return (
                           <td
                             key={column.key}
-                            className={`px-3 py-2 ${column.align === 'right' ? 'text-right' : 'text-left'} ${
+                            className={`px-3 py-2 overflow-hidden ${column.align === 'right' ? 'text-right' : 'text-left'} ${
                               column.key === 'sum' && isSumMismatch ? 'font-bold text-red-600' : ''
                             }`}
-                            style={{ width: `${column.width}px`, minWidth: `${column.width}px`, ...(bg ? { backgroundColor: bg } : {}) }}
+                            style={{ width: `${column.width}px`, maxWidth: `${column.width}px`, ...(bg ? { backgroundColor: bg } : {}) }}
                           >
                             {column.key === 'paymentIds' ? (
                               row.paymentIds.length > 0 ? (
@@ -1536,7 +1543,6 @@ export function ServicesReportTable() {
                   })}
                 </tbody>
               </table>
-              </div>{/* end overflow-x-auto */}
             </div>
           );
         })
