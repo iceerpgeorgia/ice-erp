@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-03-25 (100)
+- Summary: Fix services report column alignment and sticky behavior.
+- Changes:
+  - `components/figma/services-report-table.tsx`: Merged back to single table (was two separate tables causing column misalignment). Section title + summary boxes sticky outside overflow wrapper; column headers sticky via `<thead sticky>` within `overflow-x-auto` container. Headers have opaque background so content doesn't show through.
+- Commit: 85384e2
+- URL: https://ice-ijxl691q6-iceerp.vercel.app
+
 ## 2026-03-25 (99)
 - Summary: Services report sticky column headers, full column resizing, insider_name field fix.
 - Changes:
