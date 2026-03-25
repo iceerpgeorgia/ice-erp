@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-25 (97)
+- Summary: Edit adjustments from payment statement; services report sticky section headers; summary boxes filter to active service_state only; live nominal amount preview in adjustment dialog.
+- Changes:
+  - `app/payment-statement/[paymentId]/page.tsx`: Unified add/edit adjustment dialog (Edit2 button on adjustment rows, PATCH for edits); debounced nominal amount preview via API call; state refactored (isAdjustmentDialogOpen, editingAdjustmentId, adjNominalPreview).
+  - `components/figma/services-report-table.tsx`: Summary boxes now only aggregate rows with serviceState === 'active'; section header + summary boxes are sticky (top:0 z-20) while scrolling within each financial code grid.
+  - `app/api/adjustments/preview-nominal/route.ts`: New GET endpoint — computes nominal amount from face currency inputs using NBG rates for live dialog preview.
+- Commit: 7323ccd
+- URL: https://ice-2sgd0xktf-iceerp.vercel.app
+
 ## 2026-03-25 (96)
 - Summary: Added face/nominal currency support to payment adjustments (NBG rate lookup, manual rate override); integrated adjustments into payments report and services report figures (payment/due/balance); moved services report summary boxes to top of grid.
 - Changes:
