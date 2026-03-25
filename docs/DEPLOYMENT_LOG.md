@@ -1,5 +1,22 @@
 ﻿# Deployment Log
 
+## 2026-03-25 (96)
+- Summary: Added face/nominal currency support to payment adjustments (NBG rate lookup, manual rate override); integrated adjustments into payments report and services report figures (payment/due/balance); moved services report summary boxes to top of grid.
+- Changes:
+  - `app/api/adjustments/route.ts`: Added NBG rate lookup, computeNominalAmount, face currency support in POST/PATCH, new columns in GET response.
+  - `app/api/payment-statement/route.ts`: Added face_currency_code, face_amount, manual_rate, nominal_amount to adjustments query and response.
+  - `app/api/counteragent-statement/route.ts`: Same face currency columns added to adjustments query and response.
+  - `app/api/payments-report/route.ts`: Added adj_agg CTE; total_payment now includes adjustments.
+  - `app/api/services-report/route.ts`: Added adj_agg CTE; payment column now includes adjustments.
+  - `app/payment-statement/[paymentId]/page.tsx`: Add Adjustment dialog now has face currency section (currency dropdown, face amount, manual rate); adjustment rows use nominalAmount.
+  - `app/counteragent-statement/[counteragentUuid]/page.tsx`: Adjustment rows use nominalAmount, show face currency prefix in comment.
+  - `components/figma/services-report-table.tsx`: Moved per-section summary boxes from below to above grid.
+  - `prisma/schema.prisma`: Added face_currency_code, face_amount, manual_rate, nominal_amount fields to payment_adjustments model.
+  - `apply-payment-adjustments-face-currency-migration.js`: Migration script for new columns (run on both local and production).
+- Migration: `apply-payment-adjustments-face-currency-migration.js` run on production Supabase.
+- Commit: d2ae873
+- URL: https://ice-skm81nats-iceerp.vercel.app
+
 ## 2026-03-24 (95)
 - Summary: Added Balance to Payments Report summary boxes; added per-section summary boxes (Sum/Accrual/Order/Payment/Due/Balance by currency) to Services Report grids.
 - Changes:
