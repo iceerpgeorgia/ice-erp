@@ -735,6 +735,12 @@ export async function GET(req: NextRequest) {
     // Combine regular transactions and balance records
     const combinedResult = [...resultWithConversions, ...balanceResults];
 
+    // BigInt-safe JSON helper
+    const jsonResponse = (body: any) =>
+      new NextResponse(JSON.stringify(body, (_k, v) => typeof v === 'bigint' ? Number(v) : v), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
     if (idsParam) {
       console.log('[API] Step 7: Building response (ids only)...');
       const debug = includeDebug ? {
@@ -754,7 +760,7 @@ export async function GET(req: NextRequest) {
         },
       } : undefined;
 
-      return NextResponse.json({
+      return jsonResponse({
         data: result,
         currency_summaries: [],
         debug,
@@ -921,12 +927,12 @@ export async function GET(req: NextRequest) {
       },
     } : undefined;
     
-    return NextResponse.json({
+    return jsonResponse({
       data: combinedResult,
       currency_summaries: Object.values(currencySummaries),
       debug,
       pagination: totalCount !== undefined ? {
-        total: Number(totalCount), // Convert BigInt to Number for JSON
+        total: Number(totalCount),
         limit: limit ?? combinedResult.length,
         offset: offset,
         hasMore: Number(totalCount) > (offset + (limit ?? 0))

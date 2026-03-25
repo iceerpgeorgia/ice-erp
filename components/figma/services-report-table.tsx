@@ -30,6 +30,8 @@ type ServicesRow = {
   projectName: string;
   sum: number;
   counteragent: string;
+  insiderName: string;
+  department: string;
   paymentIds: string[];
   hasUnboundCounteragentTransactions?: boolean;
   currency: string;
@@ -156,6 +158,8 @@ type SectionColumnKey =
   | 'serviceState'
   | 'financialCodeValidation'
   | 'projectName'
+  | 'insiderName'
+  | 'department'
   | 'currency'
   | 'sum'
   | 'counteragent'
@@ -196,13 +200,15 @@ const DEFAULT_TOTALS = {
   balance: 0,
 };
 
-const SERVICES_REPORT_COLUMNS_STORAGE_KEY = 'servicesReportSectionColumnsV5';
+const SERVICES_REPORT_COLUMNS_STORAGE_KEY = 'servicesReportSectionColumnsV6';
 
 const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'status', label: 'Status', visible: true, width: 120, align: 'left' },
   { key: 'serviceState', label: 'Service State', visible: true, width: 150, align: 'left' },
   { key: 'financialCodeValidation', label: 'Financial Code', visible: true, width: 220, align: 'left' },
   { key: 'projectName', label: 'Project', visible: true, width: 260, align: 'left' },
+  { key: 'insiderName', label: 'Insider', visible: false, width: 200, align: 'left' },
+  { key: 'department', label: 'Department', visible: false, width: 160, align: 'left' },
   { key: 'currency', label: 'Currency', visible: true, width: 110, align: 'left' },
   { key: 'sum', label: 'Sum', visible: true, width: 130, align: 'right' },
   { key: 'counteragent', label: 'Counteragent', visible: true, width: 220, align: 'left' },
@@ -243,6 +249,8 @@ const COLUMN_BG: Partial<Record<SectionColumnKey, string>> = {
 
 const COLUMN_FORMAT_MAP: Partial<Record<SectionColumnKey, ColumnFormat>> = {
   serviceState: 'text',
+  insiderName: 'text',
+  department: 'text',
   sum: 'currency',
   paymentCount: 'number',
   jobsCount: 'number',
@@ -963,6 +971,8 @@ export function ServicesReportTable() {
         'Service State',
         'Financial Code',
         'Project',
+        'Insider',
+        'Department',
         'Project UUID',
         'Counteragent',
         'Counteragent UUID',
@@ -1086,6 +1096,8 @@ export function ServicesReportTable() {
           row.serviceState,
           row.financialCodeValidation,
           row.projectName,
+          row.insiderName,
+          row.department,
           row.projectUuid,
           row.counteragent,
           row.counteragentUuid ?? '',
@@ -1446,6 +1458,21 @@ export function ServicesReportTable() {
                                 >
                                   <ArrowUpRight className="h-3.5 w-3.5" />
                                 </a>
+                              </div>
+                            ) : column.key === 'counteragent' ? (
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="truncate">{row.counteragent || '-'}</span>
+                                {row.counteragent && row.counteragent !== '-' && (
+                                  <a
+                                    href={`/dictionaries/counteragents?search=${encodeURIComponent(row.counteragent)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center rounded p-1 transition-colors flex-shrink-0 text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                                    title="Open in Counteragents table"
+                                  >
+                                    <ArrowUpRight className="h-3.5 w-3.5" />
+                                  </a>
+                                )}
                               </div>
                             ) : column.key === 'jobsCount' ? (
                               <div className="flex items-center justify-end gap-1">

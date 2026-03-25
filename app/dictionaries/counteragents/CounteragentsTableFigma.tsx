@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { Counteragent } from "@/components/figma/counteragents-table";
 
@@ -31,6 +32,8 @@ function toISO(d: Date | null): string {
 }
 
 export default function CounteragentsTableFigma() {
+  const searchParams = useSearchParams();
+  const initialSearch = searchParams.get('search') ?? '';
   const [counteragents, setCounteragents] = useState<Counteragent[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -95,5 +98,5 @@ export default function CounteragentsTableFigma() {
     );
   }
 
-  return <CounteragentsTableDynamic data={counteragents} />;
+  return <CounteragentsTableDynamic data={counteragents} initialSearch={initialSearch} />;
 }

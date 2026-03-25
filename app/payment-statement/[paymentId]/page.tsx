@@ -499,7 +499,7 @@ export default function PaymentStatementPage() {
       payment: adj.nominalAmount ?? adj.amount,
       order: 0,
       confirmed: null,
-      ppc: 0,
+      ppc: adj.faceAmount ?? adj.nominalAmount ?? adj.amount,
       paidPercent: 0,
       due: 0,
       balance: 0,

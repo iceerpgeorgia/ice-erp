@@ -632,7 +632,7 @@ export default function CounteragentStatementPage() {
           order: 0,
           payment: adj.nominalAmount ?? adj.amount,
           confirmed: null,
-          ppc: 0,
+          ppc: adj.faceAmount ?? adj.nominalAmount ?? adj.amount,
           account: '-',
           bankAccount: '-',
           comment: (adj.faceCurrencyCode && adj.faceAmount ? `[${adj.faceCurrencyCode} ${adj.faceAmount}] ` : '') + (adj.comment || '-'),

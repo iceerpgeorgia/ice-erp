@@ -106,11 +106,14 @@ export async function GET(request: NextRequest) {
           COALESCE(ps.name, proj.state, 'Unknown') as status_name,
           COALESCE(ca.counteragent, ca.name, '-') as counteragent_name,
           curr.code as currency_code,
-          j.job_name
+          j.job_name,
+          COALESCE(insider_ca.name, insider_ca.counteragent, '-') as insider_name,
+          COALESCE(proj.department, '-') as department
         FROM payments p
         LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
         LEFT JOIN project_states ps ON proj.state_uuid = ps.uuid
         LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
+        LEFT JOIN counteragents insider_ca ON proj.insider_uuid = insider_ca.counteragent_uuid
         LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
         LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
         LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
@@ -238,6 +241,8 @@ export async function GET(request: NextRequest) {
         COALESCE(MAX(sp.project_amount), 0) as project_amount,
         COALESCE(MAX(sp.counteragent_name), '-') as counteragent_name,
         COALESCE(MAX(sp.currency_code), '-') as currency_code,
+        COALESCE(MAX(sp.insider_name), '-') as insider_name,
+        COALESCE(MAX(sp.department), '-') as department,
         ARRAY_REMOVE(ARRAY_AGG(DISTINCT sp.payment_id ORDER BY sp.payment_id), NULL) as payment_ids,
         COUNT(DISTINCT sp.payment_id) as payment_count,
         (SELECT COUNT(*) FROM job_projects jp2 WHERE jp2.project_uuid = sp.project_uuid)::int as jobs_count,
@@ -291,6 +296,8 @@ export async function GET(request: NextRequest) {
         serviceState: row.service_state || '-',
         sum: Number(row.project_amount || 0),
         counteragent: row.counteragent_name,
+        insiderName: row.insider_name || '-',
+        department: row.department || '-',
         paymentIds: Array.isArray(row.payment_ids)
           ? row.payment_ids.filter((value: unknown) => typeof value === 'string' && value.trim() !== '')
           : [],

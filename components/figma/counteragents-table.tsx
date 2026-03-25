@@ -215,7 +215,7 @@ const normalizeCountry = (c: any) => ({
   id: c.id
 });
 
-export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
+export function CounteragentsTable({ data, initialSearch }: { data?: Counteragent[]; initialSearch?: string }) {
   const [entityTypes, setEntityTypes] = useState<Counteragent[]>(data ?? []);
   // Dropdown data - API returns snake_case field names
   const [entityTypesList, setEntityTypesList] = useState<Array<{id: number, name_ka: string, entity_type_uuid: string, is_natural_person?: boolean, is_id_exempt?: boolean}>>([]);
@@ -227,7 +227,7 @@ export function CounteragentsTable({ data }: { data?: Counteragent[] }) {
   const bottomScrollRef = useRef<HTMLDivElement>(null);
   const [needsBottomScroller, setNeedsBottomScroller] = useState(false);
   const [scrollContentWidth, setScrollContentWidth] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialSearch ?? '');
   const [sortField, setSortField] = useState<ColumnKey | null>('createdAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
