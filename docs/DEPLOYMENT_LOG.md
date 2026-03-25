@@ -1,5 +1,18 @@
 ﻿# Deployment Log
 
+## 2026-03-25 (98)
+- Summary: Fix BigInt serialization crash in bank-transactions API; adjustments depicted as PPC in payment/counteragent statements; services report Insider & Department columns; counteragent shortcut link.
+- Changes:
+  - `app/api/bank-transactions/route.ts`: Added BigInt-safe `jsonResponse()` helper using JSON.stringify replacer to fix `TypeError: Do not know how to serialize a BigInt` crash.
+  - `app/payment-statement/[paymentId]/page.tsx`: Adjustment rows now use face amount as PPC value instead of 0.
+  - `app/counteragent-statement/[counteragentUuid]/page.tsx`: Same PPC adjustment fix.
+  - `app/api/services-report/route.ts`: Added insider_name (via counteragents JOIN on insider_uuid) and department from projects table.
+  - `components/figma/services-report-table.tsx`: Added Insider and Department columns (hidden by default, selectable from Columns button); counteragent column now has ArrowUpRight shortcut opening counteragents table filtered by name; storage key bumped to V6.
+  - `components/figma/counteragents-table.tsx`: Added `initialSearch` prop support.
+  - `app/dictionaries/counteragents/CounteragentsTableFigma.tsx`: Reads `?search=` URL param and passes to table component.
+- Commit: fc72283
+- URL: https://ice-l2rslobwy-iceerp.vercel.app
+
 ## 2026-03-25 (97)
 - Summary: Edit adjustments from payment statement; services report sticky section headers; summary boxes filter to active service_state only; live nominal amount preview in adjustment dialog.
 - Changes:
