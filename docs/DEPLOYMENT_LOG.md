@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-25 (99)
+- Summary: Services report sticky column headers, full column resizing, insider_name field fix.
+- Changes:
+  - `components/figma/services-report-table.tsx`: Column headers now sticky (included in sticky band with section title and summary boxes); table-layout fixed with overflow-hidden + maxWidth on cells; min resize width lowered to 20px matching payments report.
+  - `app/api/services-report/route.ts`: Insider column now uses `counteragent.insider_name` (preferred) instead of `counteragent.name`.
+- Commit: 8460e9b
+- URL: https://ice-fwzt7o3t1-iceerp.vercel.app
+
 ## 2026-03-25 (98)
 - Summary: Fix BigInt serialization crash in bank-transactions API; adjustments depicted as PPC in payment/counteragent statements; services report Insider & Department columns; counteragent shortcut link.
 - Changes:
