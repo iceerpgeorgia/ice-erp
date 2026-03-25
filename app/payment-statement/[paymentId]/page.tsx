@@ -186,15 +186,50 @@ export default function PaymentStatementPage() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [isAoSubmitting, setIsAoSubmitting] = useState(false);
 
-  // Add Adjustment dialog state
-  const [isAddAdjustmentDialogOpen, setIsAddAdjustmentDialogOpen] = useState(false);
+  // Adjustment dialog state (shared for add & edit)
+  const [isAdjustmentDialogOpen, setIsAdjustmentDialogOpen] = useState(false);
+  const [editingAdjustmentId, setEditingAdjustmentId] = useState<number | null>(null);
   const [adjEffectiveDate, setAdjEffectiveDate] = useState('');
   const [adjAmount, setAdjAmount] = useState('');
   const [adjComment, setAdjComment] = useState('');
   const [adjFaceCurrency, setAdjFaceCurrency] = useState('');
   const [adjFaceAmount, setAdjFaceAmount] = useState('');
   const [adjManualRate, setAdjManualRate] = useState('');
-  const [isAddingAdjustment, setIsAddingAdjustment] = useState(false);
+  const [isSavingAdjustment, setIsSavingAdjustment] = useState(false);
+  const [adjNominalPreview, setAdjNominalPreview] = useState<{ nominalAmount: number; nominalCurrency: string; rate: number; rateSource?: string } | null>(null);
+
+  // Live preview of nominal amount when face currency inputs change
+  useEffect(() => {
+    if (!isAdjustmentDialogOpen) return;
+    const pid = statementData?.payment?.paymentId;
+    if (!pid || !adjFaceCurrency || !adjFaceAmount || parseFloat(adjFaceAmount) === 0) {
+      setAdjNominalPreview(null);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({
+          paymentId: pid,
+          faceCurrency: adjFaceCurrency,
+          faceAmount: adjFaceAmount,
+          date: adjEffectiveDate || new Date().toISOString().split('T')[0],
+        });
+        if (adjManualRate && parseFloat(adjManualRate) !== 0) {
+          params.set('manualRate', adjManualRate);
+        }
+        const res = await fetch(`/api/adjustments/preview-nominal?${params}`, { signal: controller.signal });
+        if (res.ok) {
+          setAdjNominalPreview(await res.json());
+        } else {
+          setAdjNominalPreview(null);
+        }
+      } catch {
+        if (!controller.signal.aborted) setAdjNominalPreview(null);
+      }
+    }, 300);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [isAdjustmentDialogOpen, adjFaceCurrency, adjFaceAmount, adjManualRate, adjEffectiveDate, statementData?.payment?.paymentId]);
 
   useEffect(() => {
     if (pageTitleSet || !statementData?.payment) return;
@@ -694,27 +729,45 @@ export default function PaymentStatementPage() {
   };
 
   // Adjustment handlers
-  const resetAddAdjustmentForm = () => {
+  const resetAdjustmentForm = () => {
+    setEditingAdjustmentId(null);
     setAdjEffectiveDate('');
     setAdjAmount('');
     setAdjComment('');
     setAdjFaceCurrency('');
     setAdjFaceAmount('');
     setAdjManualRate('');
-    setIsAddingAdjustment(false);
+    setIsSavingAdjustment(false);
+    setAdjNominalPreview(null);
   };
 
   const handleOpenAddAdjustment = () => {
-    resetAddAdjustmentForm();
-    setIsAddAdjustmentDialogOpen(true);
+    resetAdjustmentForm();
+    setIsAdjustmentDialogOpen(true);
   };
 
-  const handleCloseAddAdjustment = () => {
-    setIsAddAdjustmentDialogOpen(false);
-    resetAddAdjustmentForm();
+  const handleOpenEditAdjustment = (adjustmentId: number) => {
+    const adj = (statementData?.adjustments || []).find((a: any) => a.id === adjustmentId);
+    if (!adj) return;
+    resetAdjustmentForm();
+    setEditingAdjustmentId(adj.id);
+    // Format date for input[type=date]
+    const d = adj.effectiveDate ? new Date(adj.effectiveDate) : null;
+    setAdjEffectiveDate(d && !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : '');
+    setAdjAmount(adj.amount ? String(adj.amount) : '');
+    setAdjComment(adj.comment || '');
+    setAdjFaceCurrency(adj.faceCurrencyCode || '');
+    setAdjFaceAmount(adj.faceAmount ? String(adj.faceAmount) : '');
+    setAdjManualRate(adj.manualRate ? String(adj.manualRate) : '');
+    setIsAdjustmentDialogOpen(true);
   };
 
-  const handleSaveAddAdjustment = async () => {
+  const handleCloseAdjustmentDialog = () => {
+    setIsAdjustmentDialogOpen(false);
+    resetAdjustmentForm();
+  };
+
+  const handleSaveAdjustment = async () => {
     if (!statementData?.payment?.paymentId) {
       alert('Payment ID is missing');
       return;
@@ -730,64 +783,80 @@ export default function PaymentStatementPage() {
       }
     }
 
-    setIsAddingAdjustment(true);
+    setIsSavingAdjustment(true);
     try {
-      const payload: any = {
-        paymentId: statementData.payment.paymentId,
-        effectiveDate: adjEffectiveDate || undefined,
-        comment: adjComment || undefined,
-      };
+      const isEdit = editingAdjustmentId !== null;
+      const payload: any = isEdit
+        ? { id: editingAdjustmentId }
+        : { paymentId: statementData.payment.paymentId };
+
+      payload.effectiveDate = adjEffectiveDate || undefined;
+      payload.comment = adjComment || undefined;
 
       if (useFaceCurrency) {
         payload.faceCurrencyCode = adjFaceCurrency;
         payload.faceAmount = parseFloat(adjFaceAmount);
         if (adjManualRate && parseFloat(adjManualRate) !== 0) {
           payload.manualRate = parseFloat(adjManualRate);
+        } else {
+          payload.manualRate = null;
         }
       } else {
         payload.amount = parseFloat(adjAmount);
+        payload.faceCurrencyCode = null;
+        payload.faceAmount = null;
+        payload.manualRate = null;
       }
 
       const response = await fetch('/api/adjustments', {
-        method: 'POST',
+        method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to create adjustment');
+        throw new Error(error.error || `Failed to ${isEdit ? 'update' : 'create'} adjustment`);
       }
 
       const result = await response.json();
-      const created = Array.isArray(result) ? result[0] : result;
+      const saved = Array.isArray(result) ? result[0] : result;
 
-      if (created && statementData) {
-        const newAdj = {
-          id: Number(created.id),
-          effectiveDate: created.effective_date || created.effectiveDate,
-          amount: created.amount ? Number(created.amount) : 0,
-          faceCurrencyCode: created.face_currency_code || created.faceCurrencyCode || null,
-          faceAmount: created.face_amount ? Number(created.face_amount) : (created.faceAmount ? Number(created.faceAmount) : null),
-          manualRate: created.manual_rate ? Number(created.manual_rate) : (created.manualRate ? Number(created.manualRate) : null),
-          nominalAmount: created.nominal_amount ? Number(created.nominal_amount) : (created.nominalAmount ? Number(created.nominalAmount) : (created.amount ? Number(created.amount) : 0)),
-          comment: created.comment,
-          userEmail: created.user_email || created.userEmail,
-          createdAt: created.created_at || created.createdAt,
+      if (saved && statementData) {
+        const adjObj = {
+          id: Number(saved.id),
+          effectiveDate: saved.effective_date || saved.effectiveDate,
+          amount: saved.amount ? Number(saved.amount) : 0,
+          faceCurrencyCode: saved.face_currency_code || saved.faceCurrencyCode || null,
+          faceAmount: saved.face_amount ? Number(saved.face_amount) : (saved.faceAmount ? Number(saved.faceAmount) : null),
+          manualRate: saved.manual_rate ? Number(saved.manual_rate) : (saved.manualRate ? Number(saved.manualRate) : null),
+          nominalAmount: saved.nominal_amount ? Number(saved.nominal_amount) : (saved.nominalAmount ? Number(saved.nominalAmount) : (saved.amount ? Number(saved.amount) : 0)),
+          comment: saved.comment,
+          userEmail: saved.user_email || saved.userEmail,
+          createdAt: saved.created_at || saved.createdAt,
         };
 
-        setStatementData({
-          ...statementData,
-          adjustments: [...(statementData.adjustments || []), newAdj],
-        });
+        if (isEdit) {
+          setStatementData({
+            ...statementData,
+            adjustments: (statementData.adjustments || []).map((a: any) =>
+              a.id === editingAdjustmentId ? adjObj : a
+            ),
+          });
+        } else {
+          setStatementData({
+            ...statementData,
+            adjustments: [...(statementData.adjustments || []), adjObj],
+          });
+        }
       }
 
-      handleCloseAddAdjustment();
+      handleCloseAdjustmentDialog();
     } catch (error: any) {
-      console.error('Error adding adjustment:', error);
-      alert(error.message || 'Failed to add adjustment');
+      console.error('Error saving adjustment:', error);
+      alert(error.message || 'Failed to save adjustment');
     } finally {
-      setIsAddingAdjustment(false);
+      setIsSavingAdjustment(false);
     }
   };
 
@@ -1648,6 +1717,15 @@ export default function PaymentStatementPage() {
                             )}
                             {row.type === 'adjustment' && row.adjustmentId && (
                               <button
+                                onClick={() => handleOpenEditAdjustment(row.adjustmentId as number)}
+                                className="p-1 hover:bg-gray-200 rounded"
+                                title="Edit adjustment"
+                              >
+                                <Edit2 className="h-4 w-4 text-blue-600" />
+                              </button>
+                            )}
+                            {row.type === 'adjustment' && row.adjustmentId && (
+                              <button
                                 onClick={() => handleDeleteAdjustment(row.adjustmentId as number)}
                                 className="p-1 hover:bg-gray-200 rounded"
                                 title="Delete adjustment"
@@ -1828,16 +1906,16 @@ export default function PaymentStatementPage() {
         </div>
       )}
 
-      {/* Add Adjustment Dialog */}
-      {isAddAdjustmentDialogOpen && (
+      {/* Add/Edit Adjustment Dialog */}
+      {isAdjustmentDialogOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">Add Adjustment</h2>
+              <h2 className="text-xl font-bold">{editingAdjustmentId ? 'Edit Adjustment' : 'Add Adjustment'}</h2>
               <button
-                onClick={handleCloseAddAdjustment}
+                onClick={handleCloseAdjustmentDialog}
                 className="p-1 hover:bg-gray-100 rounded"
-                disabled={isAddingAdjustment}
+                disabled={isSavingAdjustment}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1909,6 +1987,20 @@ export default function PaymentStatementPage() {
                 </div>
               </div>
 
+              {/* Nominal amount preview */}
+              {adjNominalPreview && (
+                <div className="rounded-md border border-purple-200 bg-purple-50 px-4 py-2 flex items-center justify-between">
+                  <div className="text-sm text-purple-800">
+                    <span className="font-medium">Nominal Amount:</span>{' '}
+                    <span className="font-bold text-lg">{adjNominalPreview.nominalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>{' '}
+                    <span className="font-medium">{adjNominalPreview.nominalCurrency}</span>
+                  </div>
+                  <div className="text-xs text-purple-600">
+                    Rate: {adjNominalPreview.rate} ({adjNominalPreview.rateSource === 'manual' ? 'manual' : 'NBG'})
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
                   Amount (nominal — used if no face currency)
@@ -1939,18 +2031,18 @@ export default function PaymentStatementPage() {
 
               <div className="flex justify-end gap-3 pt-4">
                 <button
-                  onClick={handleCloseAddAdjustment}
+                  onClick={handleCloseAdjustmentDialog}
                   className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
-                  disabled={isAddingAdjustment}
+                  disabled={isSavingAdjustment}
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleSaveAddAdjustment}
+                  onClick={handleSaveAdjustment}
                   className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-                  disabled={isAddingAdjustment}
+                  disabled={isSavingAdjustment}
                 >
-                  {isAddingAdjustment ? 'Saving...' : 'Add Adjustment'}
+                  {isSavingAdjustment ? 'Saving...' : (editingAdjustmentId ? 'Save Changes' : 'Add Adjustment')}
                 </button>
               </div>
             </div>

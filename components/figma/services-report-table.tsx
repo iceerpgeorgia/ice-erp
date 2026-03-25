@@ -1216,7 +1216,9 @@ export function ServicesReportTable() {
           const visibleColumns = columns.filter((column) => column.visible);
           const selectorColumns = columns;
           return (
-            <div key={section.financialCodeUuid} className="rounded-lg border overflow-x-auto">
+            <div key={section.financialCodeUuid} className="rounded-lg border">
+              {/* Sticky section header + summary */}
+              <div className="sticky top-0 z-20 bg-white rounded-t-lg">
               <div className="px-3 py-2 border-b bg-gray-50 flex items-center justify-between">
                 <div className="text-sm font-medium">{section.financialCodeValidation} ({section.rows.length})</div>
                 <Popover>
@@ -1241,10 +1243,11 @@ export function ServicesReportTable() {
                   </PopoverContent>
                 </Popover>
               </div>
-              {/* Section totals boxes */}
+              {/* Section totals boxes (active service_state projects only) */}
               {(() => {
                 const totalsMap = new Map<string, { sum: number; accrual: number; order: number; payment: number; due: number; balance: number }>();
                 for (const row of section.rows) {
+                  if ((row.serviceState || '').toLowerCase() !== 'active') continue;
                   const ccy = row.currency || 'N/A';
                   const cur = totalsMap.get(ccy) || { sum: 0, accrual: 0, order: 0, payment: 0, due: 0, balance: 0 };
                   totalsMap.set(ccy, {
@@ -1281,7 +1284,9 @@ export function ServicesReportTable() {
                   </div>
                 ) : null;
               })()}
+              </div>{/* end sticky band */}
 
+              <div className="overflow-x-auto">
               <table className="text-sm min-w-full">
                 <thead className="bg-gray-50 text-gray-600">
                   <tr>
@@ -1504,6 +1509,7 @@ export function ServicesReportTable() {
                   })}
                 </tbody>
               </table>
+              </div>{/* end overflow-x-auto */}
             </div>
           );
         })
