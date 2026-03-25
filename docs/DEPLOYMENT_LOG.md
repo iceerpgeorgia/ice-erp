@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-03-25 (101)
+- Summary: Prevent bank account balance recompute conflicts on `(account_uuid, opening_date)` during concurrent updates/import runs.
+- Changes:
+  - `prisma/migrations/20260325113000_fix_recompute_balance_upsert_conflicts/migration.sql`: Replaced plain inserts inside `recompute_bank_account_balance_periods` with `INSERT ... ON CONFLICT (account_uuid, opening_date) DO UPDATE`, making recomputation idempotent and eliminating 23505/409 conflicts.
+- Commit: 3208a68
+- URL: https://ice-8xr4fuh64-iceerp.vercel.app
+
 ## 2026-03-25 (100)
 - Summary: Fix services report column alignment and sticky behavior.
 - Changes:
