@@ -1228,8 +1228,8 @@ export function ServicesReportTable() {
           const visibleColumns = columns.filter((column) => column.visible);
           const selectorColumns = columns;
           return (
-            <div key={section.financialCodeUuid} className="rounded-lg border overflow-x-auto">
-              {/* Sticky section header + summary + column headers */}
+            <div key={section.financialCodeUuid} className="rounded-lg border">
+              {/* Sticky section header + summary */}
               <div className="sticky top-0 z-20 bg-white rounded-t-lg">
               <div className="px-3 py-2 border-b bg-gray-50 flex items-center justify-between">
                 <div className="text-sm font-medium">{section.financialCodeValidation} ({section.rows.length})</div>
@@ -1296,10 +1296,19 @@ export function ServicesReportTable() {
                   </div>
                 ) : null;
               })()}
+              </div>{/* end sticky band */}
+
+              <div className="overflow-x-auto">
               <table className="text-sm min-w-full" style={{ tableLayout: 'fixed' }}>
-                <thead className="bg-gray-50 text-gray-600">
+                <colgroup>
+                  <col style={{ width: '56px' }} />
+                  {visibleColumns.map((column) => (
+                    <col key={column.key} style={{ width: `${column.width}px` }} />
+                  ))}
+                </colgroup>
+                <thead className="bg-gray-50 text-gray-600 sticky top-0 z-10">
                   <tr>
-                    <th className="px-3 py-2 text-left w-[56px]">#</th>
+                    <th className="px-3 py-2 text-left w-[56px] bg-gray-50">#</th>
                     {visibleColumns.map((column) => {
                       const bg = COLUMN_BG[column.key];
                       const isSortable = column.key !== 'actions';
@@ -1312,7 +1321,7 @@ export function ServicesReportTable() {
                         onDragOver={(event) => event.preventDefault()}
                         onDrop={() => handleColumnDrop(section.financialCodeUuid, column.key)}
                         className={`px-3 py-2 relative overflow-hidden ${column.align === 'right' ? 'text-right' : 'text-left'}`}
-                        style={{ width: `${column.width}px`, maxWidth: `${column.width}px`, ...(bg ? { backgroundColor: bg } : {}) }}
+                        style={{ width: `${column.width}px`, maxWidth: `${column.width}px`, backgroundColor: bg || '#f9fafb' }}
                       >
                         <div className={`flex items-center gap-2 min-w-0 ${column.align === 'right' ? 'justify-end pr-2' : ''}`}>
                           {isSortable ? (
@@ -1372,16 +1381,6 @@ export function ServicesReportTable() {
                     })}
                   </tr>
                 </thead>
-              </table>
-              </div>{/* end sticky band */}
-
-              <table className="text-sm min-w-full" style={{ tableLayout: 'fixed' }}>
-                <colgroup>
-                  <col style={{ width: '56px' }} />
-                  {visibleColumns.map((column) => (
-                    <col key={column.key} style={{ width: `${column.width}px` }} />
-                  ))}
-                </colgroup>
                 <tbody>
                   {section.rows.map((row, index) => {
                     const isConfirmedDue = Boolean(row.confirmed && row.due > 0);
@@ -1543,6 +1542,7 @@ export function ServicesReportTable() {
                   })}
                 </tbody>
               </table>
+              </div>{/* end overflow-x-auto */}
             </div>
           );
         })
