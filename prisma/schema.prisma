@@ -512,18 +512,22 @@ model payments_ledger {
 }
 
 model payment_adjustments {
-  id             BigInt   @id @default(autoincrement())
-  payment_id     String
-  effective_date DateTime
-  amount         Decimal  @db.Decimal(18, 2)
-  comment        String?
-  record_uuid    String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_email     String
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
-  is_deleted     Boolean  @default(false)
-  insider_uuid   String?  @db.Uuid
-  payments       payments @relation(fields: [payment_id], references: [payment_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_adjustment_payment")
+  id                 BigInt   @id @default(autoincrement())
+  payment_id         String
+  effective_date     DateTime
+  amount             Decimal  @db.Decimal(18, 2)
+  face_currency_code String?
+  face_amount        Decimal? @db.Decimal(18, 2)
+  manual_rate        Decimal? @db.Decimal(18, 6)
+  nominal_amount     Decimal? @db.Decimal(18, 2)
+  comment            String?
+  record_uuid        String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_email         String
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+  is_deleted         Boolean  @default(false)
+  insider_uuid       String?  @db.Uuid
+  payments           payments @relation(fields: [payment_id], references: [payment_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_adjustment_payment")
 
   @@index([effective_date])
   @@index([insider_uuid])

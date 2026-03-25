@@ -214,6 +214,14 @@ export async function GET(request: NextRequest) {
         WHERE payment_id IS NOT NULL AND payment_id <> ''
         ${bankDateFilter}
         GROUP BY payment_id
+      ),
+      adj_agg AS (
+        SELECT
+          payment_id,
+          SUM(COALESCE(nominal_amount, amount)) as total_adjustment
+        FROM payment_adjustments
+        WHERE (is_deleted = false OR is_deleted IS NULL)
+        GROUP BY payment_id
       )
       SELECT
         sp.financial_code_uuid,
@@ -242,7 +250,7 @@ export async function GET(request: NextRequest) {
         SUM(COALESCE(la.total_order, 0)) as "order",
         SUM(COALESCE(llm.total_accrual, 0)) as last_month_accrual,
         SUM(COALESCE(llm.total_order, 0)) as last_month_order,
-        SUM(COALESCE(ba.total_payment, 0)) as payment,
+        SUM(COALESCE(ba.total_payment, 0) + COALESCE(adj.total_adjustment, 0)) as payment,
         BOOL_AND(
           CASE
             WHEN COALESCE(la.entries_count, 0) > 0 THEN COALESCE(la.all_confirmed, false)
@@ -255,6 +263,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN ledger_latest ll ON sp.payment_id = ll.payment_id
       LEFT JOIN ledger_last_month llm ON sp.payment_id = llm.payment_id
       LEFT JOIN bank_agg ba ON sp.payment_id = ba.payment_id
+      LEFT JOIN adj_agg adj ON sp.payment_id = adj.payment_id
       LEFT JOIN unbound_counteragent uc ON sp.counteragent_uuid = uc.counteragent_uuid
       GROUP BY sp.financial_code_uuid, sp.project_uuid
       ORDER BY financial_code_validation ASC, status_name ASC, project_index ASC

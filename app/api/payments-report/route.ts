@@ -65,6 +65,14 @@ export async function GET(request: NextRequest) {
             WHERE btb.raw_record_uuid::text = ru.raw_record_uuid::text
           )
         GROUP BY counteragent_uuid
+      ),
+      adj_agg AS (
+        SELECT
+          payment_id,
+          SUM(COALESCE(nominal_amount, amount)) as total_adjustment
+        FROM payment_adjustments
+        WHERE (is_deleted = false OR is_deleted IS NULL)
+        GROUP BY payment_id
       )
       SELECT 
         p.id as payment_row_id,
@@ -100,7 +108,8 @@ export async function GET(request: NextRequest) {
         COALESCE(ledger_agg.ledger_users, '') as ledger_users,
         COALESCE(ledger_agg.confirmed, false) as confirmed,
         ledger_agg.latest_ledger_created_at,
-        COALESCE(bank_agg.total_payment, 0) as total_payment,
+        COALESCE(bank_agg.total_payment, 0) + COALESCE(adj_agg.total_adjustment, 0) as total_payment,
+        COALESCE(adj_agg.total_adjustment, 0) as total_adjustment,
         COALESCE(GREATEST(ledger_agg.latest_ledger_date, bank_agg.latest_bank_date), ledger_agg.latest_ledger_date, bank_agg.latest_bank_date) as latest_date
       FROM payments p
       LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
@@ -111,6 +120,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
       LEFT JOIN entity_types et ON ca.entity_type_uuid = et.entity_type_uuid
       LEFT JOIN unbound_counteragent uc ON p.counteragent_uuid = uc.counteragent_uuid
+      LEFT JOIN adj_agg ON p.payment_id = adj_agg.payment_id
       LEFT JOIN (
         SELECT 
           payment_id,

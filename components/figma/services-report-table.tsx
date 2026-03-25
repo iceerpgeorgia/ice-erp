@@ -1241,6 +1241,46 @@ export function ServicesReportTable() {
                   </PopoverContent>
                 </Popover>
               </div>
+              {/* Section totals boxes */}
+              {(() => {
+                const totalsMap = new Map<string, { sum: number; accrual: number; order: number; payment: number; due: number; balance: number }>();
+                for (const row of section.rows) {
+                  const ccy = row.currency || 'N/A';
+                  const cur = totalsMap.get(ccy) || { sum: 0, accrual: 0, order: 0, payment: 0, due: 0, balance: 0 };
+                  totalsMap.set(ccy, {
+                    sum: cur.sum + row.sum,
+                    accrual: cur.accrual + row.accrual,
+                    order: cur.order + row.order,
+                    payment: cur.payment + row.payment,
+                    due: cur.due + row.due,
+                    balance: cur.balance + row.balance,
+                  });
+                }
+                const entries = Array.from(totalsMap.entries()).sort(([a], [b]) => a.localeCompare(b));
+                return entries.length > 0 ? (
+                  <div className="px-3 py-2 border-b bg-blue-50 flex flex-wrap items-center gap-3">
+                    {entries.map(([ccy, t]) => (
+                      <div key={ccy} className="rounded-md border border-blue-100 bg-white px-3 py-1.5">
+                        <div className="text-xs font-semibold text-blue-700">{ccy}</div>
+                        <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
+                          <div className="text-gray-600">Sum:</div>
+                          <div className="font-semibold text-blue-900 text-right">{formatMoney(t.sum)}</div>
+                          <div className="text-gray-600">Accrual:</div>
+                          <div className="font-semibold text-blue-900 text-right">{formatMoney(t.accrual)}</div>
+                          <div className="text-gray-600">Order:</div>
+                          <div className="font-semibold text-blue-900 text-right">{formatMoney(t.order)}</div>
+                          <div className="text-gray-600">Payment:</div>
+                          <div className="font-semibold text-blue-900 text-right">{formatMoney(t.payment)}</div>
+                          <div className="text-gray-600">Due:</div>
+                          <div className="font-semibold text-blue-900 text-right">{formatMoney(t.due)}</div>
+                          <div className="text-gray-600">Balance:</div>
+                          <div className="font-semibold text-blue-900 text-right">{formatMoney(t.balance)}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
 
               <table className="text-sm min-w-full">
                 <thead className="bg-gray-50 text-gray-600">
@@ -1464,46 +1504,6 @@ export function ServicesReportTable() {
                   })}
                 </tbody>
               </table>
-              {/* Section totals boxes */}
-              {(() => {
-                const totalsMap = new Map<string, { sum: number; accrual: number; order: number; payment: number; due: number; balance: number }>();
-                for (const row of section.rows) {
-                  const ccy = row.currency || 'N/A';
-                  const cur = totalsMap.get(ccy) || { sum: 0, accrual: 0, order: 0, payment: 0, due: 0, balance: 0 };
-                  totalsMap.set(ccy, {
-                    sum: cur.sum + row.sum,
-                    accrual: cur.accrual + row.accrual,
-                    order: cur.order + row.order,
-                    payment: cur.payment + row.payment,
-                    due: cur.due + row.due,
-                    balance: cur.balance + row.balance,
-                  });
-                }
-                const entries = Array.from(totalsMap.entries()).sort(([a], [b]) => a.localeCompare(b));
-                return entries.length > 0 ? (
-                  <div className="px-3 py-2 border-t bg-blue-50 flex flex-wrap items-center gap-3">
-                    {entries.map(([ccy, t]) => (
-                      <div key={ccy} className="rounded-md border border-blue-100 bg-white px-3 py-1.5">
-                        <div className="text-xs font-semibold text-blue-700">{ccy}</div>
-                        <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
-                          <div className="text-gray-600">Sum:</div>
-                          <div className="font-semibold text-blue-900 text-right">{formatMoney(t.sum)}</div>
-                          <div className="text-gray-600">Accrual:</div>
-                          <div className="font-semibold text-blue-900 text-right">{formatMoney(t.accrual)}</div>
-                          <div className="text-gray-600">Order:</div>
-                          <div className="font-semibold text-blue-900 text-right">{formatMoney(t.order)}</div>
-                          <div className="text-gray-600">Payment:</div>
-                          <div className="font-semibold text-blue-900 text-right">{formatMoney(t.payment)}</div>
-                          <div className="text-gray-600">Due:</div>
-                          <div className="font-semibold text-blue-900 text-right">{formatMoney(t.due)}</div>
-                          <div className="text-gray-600">Balance:</div>
-                          <div className="font-semibold text-blue-900 text-right">{formatMoney(t.balance)}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null;
-              })()}
             </div>
           );
         })

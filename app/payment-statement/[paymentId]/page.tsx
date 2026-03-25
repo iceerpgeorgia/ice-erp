@@ -191,6 +191,9 @@ export default function PaymentStatementPage() {
   const [adjEffectiveDate, setAdjEffectiveDate] = useState('');
   const [adjAmount, setAdjAmount] = useState('');
   const [adjComment, setAdjComment] = useState('');
+  const [adjFaceCurrency, setAdjFaceCurrency] = useState('');
+  const [adjFaceAmount, setAdjFaceAmount] = useState('');
+  const [adjManualRate, setAdjManualRate] = useState('');
   const [isAddingAdjustment, setIsAddingAdjustment] = useState(false);
 
   useEffect(() => {
@@ -458,14 +461,14 @@ export default function PaymentStatementPage() {
       date: formatDate(adj.effectiveDate),
       dateSort: new Date(adj.effectiveDate).getTime(),
       accrual: 0,
-      payment: adj.amount,
+      payment: adj.nominalAmount ?? adj.amount,
       order: 0,
       confirmed: null,
       ppc: 0,
       paidPercent: 0,
       due: 0,
       balance: 0,
-      comment: adj.comment || '-',
+      comment: (adj.faceCurrencyCode && adj.faceAmount ? `[${adj.faceCurrencyCode} ${adj.faceAmount}] ` : '') + (adj.comment || '-'),
       user: adj.userEmail || '-',
       caAccount: '-',
       account: '-',
@@ -695,6 +698,9 @@ export default function PaymentStatementPage() {
     setAdjEffectiveDate('');
     setAdjAmount('');
     setAdjComment('');
+    setAdjFaceCurrency('');
+    setAdjFaceAmount('');
+    setAdjManualRate('');
     setIsAddingAdjustment(false);
   };
 
@@ -714,23 +720,38 @@ export default function PaymentStatementPage() {
       return;
     }
 
-    const amountValue = adjAmount ? parseFloat(adjAmount) : null;
-    if (!amountValue || amountValue === 0) {
-      alert('Amount is required and cannot be zero');
-      return;
+    const useFaceCurrency = adjFaceCurrency && adjFaceAmount && parseFloat(adjFaceAmount) !== 0;
+
+    if (!useFaceCurrency) {
+      const amountValue = adjAmount ? parseFloat(adjAmount) : null;
+      if (!amountValue || amountValue === 0) {
+        alert('Amount is required and cannot be zero (or provide face currency + face amount)');
+        return;
+      }
     }
 
     setIsAddingAdjustment(true);
     try {
+      const payload: any = {
+        paymentId: statementData.payment.paymentId,
+        effectiveDate: adjEffectiveDate || undefined,
+        comment: adjComment || undefined,
+      };
+
+      if (useFaceCurrency) {
+        payload.faceCurrencyCode = adjFaceCurrency;
+        payload.faceAmount = parseFloat(adjFaceAmount);
+        if (adjManualRate && parseFloat(adjManualRate) !== 0) {
+          payload.manualRate = parseFloat(adjManualRate);
+        }
+      } else {
+        payload.amount = parseFloat(adjAmount);
+      }
+
       const response = await fetch('/api/adjustments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          paymentId: statementData.payment.paymentId,
-          effectiveDate: adjEffectiveDate || undefined,
-          amount: amountValue,
-          comment: adjComment || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -746,6 +767,10 @@ export default function PaymentStatementPage() {
           id: Number(created.id),
           effectiveDate: created.effective_date || created.effectiveDate,
           amount: created.amount ? Number(created.amount) : 0,
+          faceCurrencyCode: created.face_currency_code || created.faceCurrencyCode || null,
+          faceAmount: created.face_amount ? Number(created.face_amount) : (created.faceAmount ? Number(created.faceAmount) : null),
+          manualRate: created.manual_rate ? Number(created.manual_rate) : (created.manualRate ? Number(created.manualRate) : null),
+          nominalAmount: created.nominal_amount ? Number(created.nominal_amount) : (created.nominalAmount ? Number(created.nominalAmount) : (created.amount ? Number(created.amount) : 0)),
           comment: created.comment,
           userEmail: created.user_email || created.userEmail,
           createdAt: created.created_at || created.createdAt,
@@ -1842,9 +1867,51 @@ export default function PaymentStatementPage() {
                 />
               </div>
 
+              {/* Face Currency Section */}
+              <div className="border border-gray-200 rounded-md p-4 space-y-3 bg-gray-50">
+                <p className="text-sm font-medium text-gray-700">Face Currency (optional — auto-converts to nominal)</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-xs text-gray-500">Currency</label>
+                    <select
+                      value={adjFaceCurrency}
+                      onChange={(e) => setAdjFaceCurrency(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    >
+                      <option value="">— none —</option>
+                      {['GEL','USD','EUR','GBP','CNY','TRY','AED','KZT','RUB'].map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs text-gray-500">Face Amount</label>
+                    <input
+                      type="number"
+                      value={adjFaceAmount}
+                      onChange={(e) => setAdjFaceAmount(e.target.value)}
+                      placeholder="0.00"
+                      step="0.01"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs text-gray-500">Manual Rate (opt.)</label>
+                    <input
+                      type="number"
+                      value={adjManualRate}
+                      onChange={(e) => setAdjManualRate(e.target.value)}
+                      placeholder="auto"
+                      step="0.000001"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Amount (positive increases paid, negative decreases paid)
+                  Amount (nominal — used if no face currency)
                 </label>
                 <input
                   type="number"
@@ -1853,6 +1920,7 @@ export default function PaymentStatementPage() {
                   placeholder="0.00"
                   step="0.01"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  disabled={!!(adjFaceCurrency && adjFaceAmount)}
                 />
               </div>
 
