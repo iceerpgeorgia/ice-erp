@@ -1,5 +1,21 @@
 ﻿# Deployment Log
 
+## 2026-03-26 (103)
+- Summary: Project-derived payments, delete protection triggers, and financial code auto-payment gating.
+- Changes:
+  - `prisma/migrations/20260326120000_add_is_project_derived_to_payments/migration.sql`: Adds `is_project_derived BOOLEAN DEFAULT false` to payments table with partial index.
+  - `prisma/migrations/20260326130000_prevent_delete_with_transactions/migration.sql`: BEFORE DELETE triggers on payments and projects that block deletion when ledger entries, adjustments, or bank transactions are attached (returns 409 from API).
+  - `prisma/migrations/20260326140000_add_automated_payment_id_to_financial_codes/migration.sql`: Adds `automated_payment_id BOOLEAN DEFAULT false` to financial_codes table.
+  - `app/api/projects/route.ts`: Auto-creates project-derived payment on POST only when financial code has `automated_payment_id=true`. PATCH syncs/creates/deactivates derived payment based on flag.
+  - `app/api/projects/[id]/route.ts`: PUT syncs derived payment with FC flag gating. DELETE checks for attached transactions (409) then deactivates derived payment.
+  - `app/api/payments/route.ts`: Blocks PATCH on project-derived payments (403). GET returns `isProjectDerived` field.
+  - `app/api/financial-codes/route.ts`: POST/PATCH accept `automatedPaymentId` boolean field.
+  - `components/figma/payments-table.tsx`: Source column (Project/Manual badges), edit lockout for auto-created payments.
+  - `components/financial-codes-table.tsx`: Auto Payment column visible for income leaf codes, checkbox in edit dialog.
+  - `scripts/audit-project-derived-payments.sql`: Audit query for post-migration verification.
+- Commit: c8c768f
+- URL: https://ice-li9q3y4c8-iceerp.vercel.app
+
 ## 2026-03-26 (102)
 - Summary: Fix `recompute_bank_account_balance_periods` — remove invalid `updated_at` reference from `DO UPDATE` clause (column does not exist on `bank_account_balances` table).
 - Changes:
