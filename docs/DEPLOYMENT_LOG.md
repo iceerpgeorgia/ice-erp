@@ -1,5 +1,16 @@
 ﻿# Deployment Log
 
+## 2026-03-26 (107)
+- Summary: Shared useTableFilters hook migration, Excel-like condition filters for all column types, date column format annotations.
+- Changes:
+  - `components/figma/shared/use-table-filters.ts`: Shared hook with pageSize/setPageSize state, sort, pagination, search, column filters.
+  - `components/figma/shared/table-filters.ts`: Changed `inferFilterMode()` default from 'facet' to 'text' so all column types show Condition tab.
+  - 14 table components: Migrated to shared `useTableFilters` hook, added `columnFormat` prop to ColumnFilterPopover, added `format?: ColumnFormat` to ColumnConfig types.
+  - Date column annotations: Added `format: 'date'` or `format: 'datetime'` to 16 date columns across 7 tables (counteragents, countries, entity-types, jobs, payments, waybills). Enables proper date filter operators (After, Before, Between).
+  - `salary-accruals-table.tsx`: Updated `formatValue()` parameter type to use `ColumnFormat`.
+- Commit: 77fc0ef
+- Production: https://ice-3w9ti7isl-iceerp.vercel.app
+
 ## 2026-03-26 (106)
 - Summary: NBG cron retry/resilience, table filter type fixes, useTableFilters shared hook, conversion resolver improvements.
 - Changes:
