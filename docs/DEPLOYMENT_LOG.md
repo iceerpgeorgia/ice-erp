@@ -1,5 +1,17 @@
 ﻿# Deployment Log
 
+## 2026-03-27 (105)
+- Summary: Fix currency conversion date parsing, add weekend/holiday rate fallback, add reusable Add Project dialog to 3 pages.
+- Changes:
+  - `app/api/bank-transactions/[id]/route.ts`: Fix `calculateExchangeRateAndAmount()` — added `toDateStr()` helper to handle Date objects from `$queryRawUnsafe` (was calling `.split('.')` on Date objects causing silent TypeError). Also added weekend/holiday rate fallback: when exact date has no NBG rate, uses latest available rate before that date.
+  - `components/figma/add-project-dialog.tsx`: New reusable Add Project dialog component with counteragent locking support.
+  - `components/figma/payments-report-table.tsx`: Added Add Project button.
+  - `components/figma/services-report-table.tsx`: Added Add Project button.
+  - `app/counteragent-statement/[counteragentUuid]/page.tsx`: Added Add Project button with fixed counteragent.
+- Data fix: Corrected 2,478 deconsolidated records where payment_id binding set nominal_currency correctly but failed to convert nominal_amount (exchange_rate was null, nominal_amount still equaled GEL account_amount). All records now have proper USD/EUR amounts and exchange rates from NBG.
+- Commit: 8058ca6
+- URL: https://ice-5b05wy12y-iceerp.vercel.app
+
 ## 2026-03-26 (104)
 - Summary: Fix auto-payment checkbox visibility in financial codes create/edit forms.
 - Changes:
