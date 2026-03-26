@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-26 (102)
+- Summary: Fix `recompute_bank_account_balance_periods` — remove invalid `updated_at` reference from `DO UPDATE` clause (column does not exist on `bank_account_balances` table).
+- Changes:
+  - `prisma/migrations/20260326074000_fix_recompute_upsert_no_updated_at/migration.sql`: Replaces the function from migration 20260325113000, keeping the `INSERT ... ON CONFLICT DO UPDATE` idempotent logic but without the `updated_at = now()` line that caused `column "updated_at" does not exist` (code 42703) runtime errors on `PATCH /api/bank-transactions/[id]`.
+  - Migration was applied directly to production via direct DB connection before this deploy.
+- Commit: d4aefa3
+- URL: https://ice-dwnjcj5au-iceerp.vercel.app
+
 ## 2026-03-25 (101)
 - Summary: Prevent bank account balance recompute conflicts on `(account_uuid, opening_date)` during concurrent updates/import runs.
 - Changes:
