@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
+import { reparseByPaymentId } from '@/lib/bank-import/reparse';
 
 const SOURCE_TABLES = [
   "GE78BG0000000893486000_BOG_GEL",
@@ -316,6 +317,48 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Auto-create project-derived payment only if financial code has automated_payment_id=true
+    try {
+      const fcRows = await prisma.$queryRawUnsafe<Array<{ automated_payment_id: boolean }>>(
+        `SELECT automated_payment_id FROM financial_codes WHERE uuid = $1::uuid LIMIT 1`,
+        financialCodeUuid
+      );
+      const autoPaymentEnabled = fcRows.length > 0 && fcRows[0].automated_payment_id === true;
+
+      if (autoPaymentEnabled) {
+        await prisma.$queryRaw`
+          INSERT INTO payments (
+            project_uuid,
+            counteragent_uuid,
+            financial_code_uuid,
+            job_uuid,
+            income_tax,
+            currency_uuid,
+            payment_id,
+            record_uuid,
+            insider_uuid,
+            is_project_derived,
+            updated_at
+          ) VALUES (
+            ${project.project_uuid}::uuid,
+            ${counteragentUuid}::uuid,
+            ${financialCodeUuid}::uuid,
+            NULL,
+            false,
+          ${currencyUuid}::uuid,
+          '',
+          '',
+          ${effectiveInsiderUuid}::uuid,
+          true,
+          NOW()
+        )
+      `;
+      }
+    } catch (paymentError: any) {
+      // Log but don't fail project creation if payment already exists (composite unique conflict)
+      console.warn('Auto-create project-derived payment skipped:', paymentError?.message);
+    }
+
     await logAudit({
       table: 'projects',
       recordId: Number(project.id),
@@ -455,6 +498,81 @@ export async function PATCH(req: NextRequest) {
       recordId: parseInt(id),
       action: 'update',
     });
+
+    // Sync project-derived payment with updated project fields
+    try {
+      // Check if the financial code has automated_payment_id enabled
+      const fcRows = await prisma.$queryRawUnsafe<Array<{ automated_payment_id: boolean }>>(
+        `SELECT automated_payment_id FROM financial_codes WHERE uuid = $1::uuid LIMIT 1`,
+        project.financial_code_uuid
+      );
+      const autoPaymentEnabled = fcRows.length > 0 && fcRows[0].automated_payment_id === true;
+
+      const derivedPayments = await prisma.$queryRawUnsafe<Array<{ id: bigint; payment_id: string; counteragent_uuid: string; financial_code_uuid: string; currency_uuid: string; insider_uuid: string | null }>>(
+        `SELECT id, payment_id, counteragent_uuid, financial_code_uuid, currency_uuid, insider_uuid
+         FROM payments
+         WHERE project_uuid = $1::uuid AND is_project_derived = true
+         LIMIT 1`,
+        project.project_uuid
+      );
+
+      if (derivedPayments.length > 0 && autoPaymentEnabled) {
+        // Sync existing derived payment
+        const dp = derivedPayments[0];
+        const newCa = project.counteragent_uuid;
+        const newFc = project.financial_code_uuid;
+        const newCur = project.currency_uuid;
+        const newInsider = project.insider_uuid;
+        const changed =
+          dp.counteragent_uuid !== newCa ||
+          dp.financial_code_uuid !== newFc ||
+          dp.currency_uuid !== newCur ||
+          dp.insider_uuid !== newInsider;
+
+        if (changed) {
+          await prisma.$queryRawUnsafe(
+            `UPDATE payments
+             SET counteragent_uuid = $1::uuid,
+                 financial_code_uuid = $2::uuid,
+                 currency_uuid = $3::uuid,
+                 insider_uuid = $4::uuid,
+                 updated_at = NOW()
+             WHERE id = $5`,
+            newCa,
+            newFc,
+            newCur,
+            newInsider,
+            dp.id
+          );
+
+          // Reparse bank transactions attached to this payment
+          if (dp.payment_id) {
+            await reparseByPaymentId(dp.payment_id);
+          }
+        }
+      } else if (derivedPayments.length > 0 && !autoPaymentEnabled) {
+        // Financial code no longer has auto-payment flag — deactivate derived payment
+        await prisma.$queryRawUnsafe(
+          `UPDATE payments SET is_active = false, updated_at = NOW() WHERE id = $1`,
+          derivedPayments[0].id
+        );
+      } else if (derivedPayments.length === 0 && autoPaymentEnabled) {
+        // No derived payment yet but FC now has auto-payment — create one
+        await prisma.$queryRawUnsafe(
+          `INSERT INTO payments (
+            project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax,
+            currency_uuid, payment_id, record_uuid, insider_uuid, is_project_derived, updated_at
+          ) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, '', '', $5::uuid, true, NOW())`,
+          project.project_uuid,
+          project.counteragent_uuid,
+          project.financial_code_uuid,
+          project.currency_uuid,
+          project.insider_uuid
+        );
+      }
+    } catch (syncError: any) {
+      console.warn('Project-derived payment sync error:', syncError?.message);
+    }
 
     // Serialize BigInt values for JSON response
     const serializedProject = {

@@ -18,6 +18,7 @@ type FinancialCode = {
   depth: number;
   sortOrder: number;
   isActive: boolean;
+  automatedPaymentId: boolean;
   children?: FinancialCode[];
 };
 
@@ -50,6 +51,7 @@ export function FinancialCodesTable() {
             depth: code.depth ?? 0,
             sortOrder: code.sortOrder ?? code.sort_order ?? 0,
             isActive: code.isActive ?? code.is_active ?? true,
+            automatedPaymentId: code.automatedPaymentId ?? code.automated_payment_id ?? false,
             children: [],
           }))
         : [];
@@ -167,6 +169,7 @@ export function FinancialCodesTable() {
         { key: 'appliesToCF', label: 'CF' },
         { key: 'isIncome', label: 'Income' },
         { key: 'isActive', label: 'Active' },
+        { key: 'automatedPaymentId', label: 'Auto Payment' },
         { key: 'parentUuid', label: 'Parent UUID' },
         { key: 'depth', label: 'Depth' },
         { key: 'sortOrder', label: 'Sort Order' },
@@ -260,6 +263,9 @@ export function FinancialCodesTable() {
               {code.isActive ? "✓" : "✗"}
             </span>
           </td>
+          <td className="px-4 py-3 text-center">
+            {code.isIncome && !hasChildren && code.automatedPaymentId ? "✓" : ""}
+          </td>
           <td className="px-4 py-3">
             <div className="flex items-center gap-2">
               <button
@@ -329,13 +335,14 @@ export function FinancialCodesTable() {
               <th className="px-4 py-3 text-center font-semibold text-slate-700">P&L</th>
               <th className="px-4 py-3 text-center font-semibold text-slate-700">CF</th>
               <th className="px-4 py-3 text-center font-semibold text-slate-700">Active</th>
+              <th className="px-4 py-3 text-center font-semibold text-slate-700">Auto Payment</th>
               <th className="px-4 py-3 text-left font-semibold text-slate-700">Actions</th>
             </tr>
           </thead>
           <tbody>
             {codes.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={10} className="px-4 py-8 text-center text-slate-500">
                   No financial codes found. Click &quot;Add Root Code&quot; to create one.
                 </td>
               </tr>
@@ -377,6 +384,7 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
     appliesToPL: false,
     appliesToCF: false,
     isActive: true,
+    automatedPaymentId: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -396,6 +404,7 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
         appliesToPL: code.appliesToPL,
         appliesToCF: code.appliesToCF,
         isActive: code.isActive,
+        automatedPaymentId: code.automatedPaymentId,
       });
     }
   }, [code, parent]);
@@ -428,6 +437,7 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
         appliesToPL: formData.appliesToPL,
         appliesToCF: formData.appliesToCF,
         isActive: formData.isActive,
+        automatedPaymentId: formData.automatedPaymentId,
         parentUuid: parent?.uuid || null,
       };
 
@@ -530,7 +540,7 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
               <input
                 type="checkbox"
                 checked={formData.isIncome}
-                onChange={(e) => setFormData({ ...formData, isIncome: e.target.checked })}
+                onChange={(e) => setFormData({ ...formData, isIncome: e.target.checked, ...(!e.target.checked && { automatedPaymentId: false }) })}
                 className="rounded"
               />
               <span className="text-sm font-medium">Is Income</span>
@@ -565,6 +575,19 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
               />
               <span className="text-sm font-medium">Active</span>
             </label>
+
+            {formData.isIncome && (!code || !code.children || code.children.length === 0) && (
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.automatedPaymentId}
+                  onChange={(e) => setFormData({ ...formData, automatedPaymentId: e.target.checked })}
+                  className="rounded"
+                />
+                <span className="text-sm font-medium">Automated Payment ID</span>
+                <span className="text-xs text-slate-500">(auto-create payment when project uses this code)</span>
+              </label>
+            )}
           </div>
 
           {errors._form && <p className="text-red-600 text-sm">{errors._form}</p>}

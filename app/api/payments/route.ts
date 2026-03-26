@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
         p.record_uuid,
         p.insider_uuid,
         p.is_active,
+        p.is_project_derived,
         p.created_at,
         p.updated_at,
         proj.project_index,
@@ -78,6 +79,7 @@ export async function GET(request: NextRequest) {
       recordUuid: payment.record_uuid,
       insider_uuid: payment.insider_uuid,
       is_active: payment.is_active,
+      isProjectDerived: payment.is_project_derived ?? false,
       createdAt: payment.created_at,
       updatedAt: payment.updated_at,
       projectIndex: payment.project_index,
@@ -324,6 +326,14 @@ export async function PATCH(request: NextRequest) {
     }
 
     const existing = existingRows[0];
+
+    // Block editing of project-derived payments — they are managed via the project
+    if (existing.is_project_derived) {
+      return NextResponse.json(
+        { error: 'This payment is project-derived and cannot be edited from the payments module. Update the associated project instead.' },
+        { status: 403 }
+      );
+    }
 
     if (
       projectUuid === undefined &&

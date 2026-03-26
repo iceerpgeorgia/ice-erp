@@ -48,6 +48,7 @@ export type Payment = {
   paymentId: string;
   recordUuid: string;
   isActive: boolean;
+  isProjectDerived?: boolean;
   createdAt: string;
   updatedAt: string;
   projectIndex: string | null;
@@ -91,6 +92,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'currencyUuid', label: 'Currency UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'jobIdentifier', label: 'Job Identifier', width: 200, visible: false, sortable: true, filterable: true },
   { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true },
+  { key: 'isProjectDerived', label: 'Source', width: 90, visible: true, sortable: true, filterable: true },
   { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true },
   { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true },
 ];
@@ -184,7 +186,7 @@ export function PaymentsTable() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const versionKey = 'paymentsTableColumnsVersion';
-    const currentVersion = '3';
+    const currentVersion = '4';
     const savedVersion = localStorage.getItem(versionKey);
     if (savedVersion !== currentVersion) {
       localStorage.setItem('paymentsTableColumns', JSON.stringify(defaultColumns));
@@ -1521,6 +1523,12 @@ export function PaymentsTable() {
                             <Badge variant={payment.isActive ? 'default' : 'secondary'}>
                               {payment.isActive ? 'Active' : 'Inactive'}
                             </Badge>
+                          ) : col.key === 'isProjectDerived' ? (
+                            payment.isProjectDerived ? (
+                              <Badge variant="outline" className="text-blue-600 border-blue-300">Project</Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">Manual</span>
+                            )
                           ) : col.key === 'incomeTax' ? (
                             <span className="text-muted-foreground">
                               {payment.incomeTax ? 'Yes' : 'No'}
@@ -1534,13 +1542,19 @@ export function PaymentsTable() {
                       </td>
                     ))}
                     <td className="px-4 py-2 text-sm" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenEditDialog(payment)}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
+                      {payment.isProjectDerived ? (
+                        <span className="text-xs text-muted-foreground" title="Project-derived — edit via project">
+                          Auto
+                        </span>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenEditDialog(payment)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))

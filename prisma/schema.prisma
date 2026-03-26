@@ -370,10 +370,11 @@ model financial_codes {
   description   String?
   depth         Int            @default(1)
   sort_order    Int            @default(0)
-  is_active     Boolean        @default(true)
-  created_at    DateTime       @default(now())
-  updated_at    DateTime       @updatedAt
-  transactions  transactions[]
+  is_active             Boolean        @default(true)
+  automated_payment_id  Boolean        @default(false)
+  created_at            DateTime       @default(now())
+  updated_at            DateTime       @updatedAt
+  transactions          transactions[]
 
   @@index([applies_to_cf])
   @@index([applies_to_pl])
@@ -478,6 +479,7 @@ model payments {
   accrual_source      String?           @db.VarChar(50)
   label               String?           @db.Text
   insider_uuid        String?           @db.Uuid
+  is_project_derived  Boolean           @default(false)
   payments_ledger      payments_ledger[]
   payment_adjustments  payment_adjustments[]
 
