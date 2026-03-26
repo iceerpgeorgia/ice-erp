@@ -217,6 +217,7 @@ export function FinancialCodesTable() {
 
   const renderRow = (code: FinancialCode, level: number = 0): React.ReactNode => {
     const hasChildren = code.children && code.children.length > 0;
+    const isParentOfLeaves = hasChildren && code.children!.every(c => !c.children || c.children.length === 0);
     const isExpanded = expandedIds.has(code.id);
     const indent = level * 24;
 
@@ -264,7 +265,7 @@ export function FinancialCodesTable() {
             </span>
           </td>
           <td className="px-4 py-3 text-center">
-            {code.isIncome && !hasChildren && code.automatedPaymentId ? "✓" : ""}
+            {code.isIncome && code.automatedPaymentId ? "✓" : ""}
           </td>
           <td className="px-4 py-3">
             <div className="flex items-center gap-2">
@@ -576,7 +577,7 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
               <span className="text-sm font-medium">Active</span>
             </label>
 
-            {formData.isIncome && (!code || !code.children || code.children.length === 0) && (
+            {formData.isIncome && (
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
