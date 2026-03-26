@@ -19,6 +19,7 @@ import {
 } from '../../../components/ui/dialog';
 import { BankTransactionsTable } from '../../../components/figma/bank-transactions-table';
 import type { BankTransaction } from '../../../components/figma/bank-transactions-table';
+import { AddProjectDialog } from '../../../components/figma/add-project-dialog';
 import { Combobox } from '../../../components/ui/combobox';
 import { Label } from '../../../components/ui/label';
 import { ColumnFilterPopover } from '../../../components/figma/shared/column-filter-popover';
@@ -1386,6 +1387,11 @@ export default function CounteragentStatementPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <AddProjectDialog
+              fixedCounteragentUuid={counteragentUuid}
+              fixedCounteragentName={counteragentName}
+              onSuccess={fetchStatement}
+            />
             {selectedBankIds.size > 0 ? (
               <Dialog open={isBulkEditOpen} onOpenChange={(open) => {
                 setIsBulkEditOpen(open);

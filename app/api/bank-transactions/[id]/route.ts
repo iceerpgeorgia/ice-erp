@@ -139,11 +139,25 @@ async function calculateExchangeRateAndAmount(
   accountCurrencyUuid: string,
   nominalCurrencyUuid: string,
   accountAmount: any,
-  transactionDate: string,
+  transactionDate: string | Date,
   correctionDate: any = null
 ): Promise<{ exchangeRate: Decimal; nominalAmount: Decimal } | null> {
   try {
     const getRateField = (code: string) => `${code.toLowerCase()}_rate`;
+
+    // Normalize any date value (Date object, ISO string, DD.MM.YYYY) to YYYY-MM-DD
+    const toDateStr = (val: any): string | null => {
+      if (!val) return null;
+      if (val instanceof Date) return val.toISOString().split('T')[0];
+      const s = String(val).trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+      if (/^\d{2}\.\d{2}\.\d{4}$/.test(s)) {
+        const [day, month, year] = s.split('.');
+        return `${year}-${month}-${day}`;
+      }
+      const parsed = new Date(s);
+      return !isNaN(parsed.getTime()) ? parsed.toISOString().split('T')[0] : null;
+    };
 
     // Get currency codes
     const [accountCurrency, nominalCurrency] = await Promise.all([
@@ -172,18 +186,32 @@ async function calculateExchangeRateAndAmount(
     }
 
     // Use correction_date if provided, otherwise transaction_date
-    const effectiveDate = correctionDate 
-      ? new Date(correctionDate).toISOString().split('T')[0]
-      : new Date(transactionDate.split('.').reverse().join('-')).toISOString().split('T')[0];
+    const effectiveDate = toDateStr(correctionDate) || toDateStr(transactionDate);
+
+    if (!effectiveDate) {
+      console.warn('[calculateExchangeRateAndAmount] Could not parse date from', { transactionDate, correctionDate });
+      return null;
+    }
 
     console.log(`[calculateExchangeRateAndAmount] ${accountCode} → ${nominalCode} on ${effectiveDate}`);
+
+    // Helper: fetch rate for exact date, falling back to latest available before that date (weekends/holidays)
+    const fetchRate = async (dateStr: string) => {
+      let rates = await prisma.$queryRaw<Array<any>>`
+        SELECT * FROM nbg_exchange_rates WHERE date = ${dateStr}::date LIMIT 1
+      `;
+      if (rates.length === 0) {
+        rates = await prisma.$queryRaw<Array<any>>`
+          SELECT * FROM nbg_exchange_rates WHERE date <= ${dateStr}::date ORDER BY date DESC LIMIT 1
+        `;
+      }
+      return rates;
+    };
 
     // For GEL base currency, fetch the rate from nbg_exchange_rates
     if (accountCode === 'GEL') {
       // GEL → Foreign: rate is the foreign currency rate
-      const rates = await prisma.$queryRaw<Array<any>>`
-        SELECT * FROM nbg_exchange_rates WHERE date = ${effectiveDate}::date LIMIT 1
-      `;
+      const rates = await fetchRate(effectiveDate);
 
       if (rates.length === 0) {
         console.warn(`[calculateExchangeRateAndAmount] No exchange rate found for ${effectiveDate}`);
@@ -208,9 +236,7 @@ async function calculateExchangeRateAndAmount(
       return { exchangeRate, nominalAmount };
     } else if (nominalCode === 'GEL') {
       // Foreign → GEL: rate is the account currency rate
-      const rates = await prisma.$queryRaw<Array<any>>`
-        SELECT * FROM nbg_exchange_rates WHERE date = ${effectiveDate}::date LIMIT 1
-      `;
+      const rates = await fetchRate(effectiveDate);
 
       if (rates.length === 0) {
         console.warn(`[calculateExchangeRateAndAmount] No exchange rate found for ${effectiveDate}`);
@@ -235,9 +261,7 @@ async function calculateExchangeRateAndAmount(
       return { exchangeRate, nominalAmount };
     } else {
       // Foreign → Foreign: convert through GEL
-      const rates = await prisma.$queryRaw<Array<any>>`
-        SELECT * FROM nbg_exchange_rates WHERE date = ${effectiveDate}::date LIMIT 1
-      `;
+      const rates = await fetchRate(effectiveDate);
 
       if (rates.length === 0) {
         console.warn(`[calculateExchangeRateAndAmount] No exchange rate found for ${effectiveDate}`);

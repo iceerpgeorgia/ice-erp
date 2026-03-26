@@ -41,6 +41,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import * as XLSX from 'xlsx';
+import { AddProjectDialog } from './add-project-dialog';
 
 
 type PaymentReport = {
@@ -2462,6 +2463,8 @@ export function PaymentsReportTable() {
                 </DialogContent>
               </Dialog>
             )}
+            {/* Add Project Button */}
+            <AddProjectDialog onSuccess={() => fetchData()} />
             {/* Add Entry Button */}
             <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
               <DialogTrigger asChild>

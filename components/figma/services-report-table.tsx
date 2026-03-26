@@ -11,6 +11,7 @@ import type { ColumnFormat, FilterState } from './shared/table-filters';
 import { matchesFilter } from './shared/table-filters';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import * as XLSX from 'xlsx';
+import { AddProjectDialog } from './add-project-dialog';
 
 type FinancialCode = {
   uuid: string;
@@ -1201,6 +1202,7 @@ export function ServicesReportTable() {
           activeCount={activeFilterCount}
           label="Clear Column Filters"
         />
+        <AddProjectDialog onSuccess={fetchReport} />
         <Button variant="outline" onClick={fetchReport}>Refresh</Button>
         <Button
           variant="outline"
