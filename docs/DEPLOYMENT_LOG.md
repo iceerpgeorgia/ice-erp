@@ -1,5 +1,20 @@
 ﻿# Deployment Log
 
+## 2026-03-26 (106)
+- Summary: NBG cron retry/resilience, table filter type fixes, useTableFilters shared hook, conversion resolver improvements.
+- Changes:
+  - `app/api/cron/update-nbg-rates/route.ts`: Added 3-attempt retry with exponential backoff and content-type validation (checks header + body prefix before JSON.parse) for both main and backfill fetches. Fixes transient NBG API HTML error responses.
+  - `components/figma/conversions-table.tsx`: Fixed `setCurrentPage` type error (functional updater → direct value).
+  - `components/figma/entity-types-table.tsx`: Added missing `useMemo` import, fixed `setCurrentPage` type error.
+  - `components/figma/shared/use-table-filters.ts`: New shared table filters hook with sort, pagination, search, faceted filtering.
+  - `next.config.js`: Added `_deploy-log` to webpack watch ignored patterns.
+  - `lib/bank-import/import_bank_xml_data_deconsolidated.ts`: Enhanced conversion account resolver with `resolveConversionAccountsFromRows` fallback.
+  - `scripts/backfill-conversions.ts`: Added `bank_account_uuid` mapping and sync conversion account resolver fallback.
+  - `import_bank_xml_data.py`: Minor updates.
+  - 2 new Prisma migrations (balance account filter fix, bank API columns).
+- Commit: 2039335
+- URL: https://ice-uq6i4ea5n-iceerp.vercel.app
+
 ## 2026-03-27 (105)
 - Summary: Fix currency conversion date parsing, add weekend/holiday rate fallback, add reusable Add Project dialog to 3 pages.
 - Changes:
