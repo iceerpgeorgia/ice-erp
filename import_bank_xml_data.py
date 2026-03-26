@@ -22,6 +22,11 @@ from decimal import Decimal
 import re
 import time
 
+def quote_ident(name):
+    """Safely quote SQL identifier names (tables/columns)."""
+    value = str(name or '').strip()
+    return '"' + value.replace('"', '""') + '"'
+
 # Detect environment
 IS_VERCEL = os.getenv('VERCEL') == '1' or os.getenv('VERCEL_ENV') is not None
 
@@ -1404,6 +1409,7 @@ def backparse_existing_data(account_uuid=None, batch_id=None, clear_consolidated
         
         for account in accounts:
             acc_uuid, acc_number, currency_code, parsing_scheme, raw_table_name, bank_name = account
+            raw_table = quote_ident(raw_table_name) if raw_table_name else None
             
             print(f"\n{'='*80}")
             print(f"📊 Processing Account: {acc_number} ({bank_name})")
@@ -1424,13 +1430,13 @@ def backparse_existing_data(account_uuid=None, batch_id=None, clear_consolidated
                 print(f"🔄 Resetting is_processed flags...")
                 if batch_id:
                     supabase_cursor.execute(f"""
-                        UPDATE {raw_table_name} 
+                        UPDATE {raw_table} 
                         SET is_processed = FALSE
                         WHERE import_batch_id = %s
                     """, (batch_id,))
                 else:
                     supabase_cursor.execute(f"""
-                        UPDATE {raw_table_name} 
+                        UPDATE {raw_table} 
                         SET is_processed = FALSE
                     """)
                 supabase_conn.commit()
@@ -1463,6 +1469,7 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
     """
     
     supabase_cursor = supabase_conn.cursor()
+    raw_table = quote_ident(raw_table_name)
     
     print(f"🚀 BOG GEL BACKPARSE - Three-Phase Hierarchy")
     print(f"   └─ All operations on Supabase\n")
@@ -1649,7 +1656,7 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
                 EntryCrAmt, EntryDbAmt, DocSenderInn, DocBenefInn,
                 DocSenderAcctNo, DocBenefAcctNo, DocCorAcct,
                 DocNomination, DocInformation, DocProdGroup, CcyRate
-            FROM {raw_table_name}
+            FROM {raw_table}
             WHERE import_batch_id = %s
         """
         params = (batch_id,)
@@ -1660,7 +1667,7 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
                 EntryCrAmt, EntryDbAmt, DocSenderInn, DocBenefInn,
                 DocSenderAcctNo, DocBenefAcctNo, DocCorAcct,
                 DocNomination, DocInformation, DocProdGroup, CcyRate
-            FROM {raw_table_name}
+            FROM {raw_table}
             WHERE DocValueDate IS NOT NULL
         """
         params = ()
@@ -2010,7 +2017,7 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
     
     if raw_updates:
         update_raw_query = f"""
-            UPDATE {raw_table_name} SET
+            UPDATE {raw_table} SET
                 counteragent_processed = %(case1_counteragent_processed)s,
                 counteragent_inn_blank = %(case2_counteragent_inn_blank)s,
                 counteragent_inn_nonblank_no_match = %(case3_counteragent_inn_nonblank_no_match)s,
@@ -2102,7 +2109,7 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
             placeholders = ','.join(['%s'] * len(batch_uuids))
             
             supabase_cursor.execute(f"""
-                UPDATE {raw_table_name} AS raw SET
+                UPDATE {raw_table} AS raw SET
                     counteragent_processed = tmp.counteragent_processed,
                     counteragent_found = tmp.counteragent_found,
                     counteragent_missing = tmp.counteragent_missing,

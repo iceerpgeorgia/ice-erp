@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Search, 
@@ -31,9 +31,8 @@ import {
 } from './ui/table';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
-import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
-import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
-import { matchesFilter } from './shared/table-filters';
+import { useTableFilters } from './shared/use-table-filters';
+import type { ColumnFormat } from './shared/table-filters';
 
 
 
@@ -93,9 +92,6 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
   const bottomScrollRef = useRef<HTMLDivElement>(null);
   const [needsBottomScroller, setNeedsBottomScroller] = useState(false);
   const [scrollContentWidth, setScrollContentWidth] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<ColumnKey | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -103,7 +99,6 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
   const [editingEntityType, setEditingEntityType] = useState<EntityType | null>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
-  const [columnFilters, setColumnFilters] = useState<FilterState>(new Map());
   const filtersStorageKey = 'entity-types-table:column-filters';
   
   // Initialize columns from localStorage or use defaults
@@ -127,20 +122,18 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
 
-  useEffect(() => {
-    const legacy = loadColumnFilters(filtersStorageKey) as Record<string, string[]>;
-    const fs: FilterState = new Map();
-    Object.entries(legacy).forEach(([k, v]) => { if (v.length > 0) fs.set(k, { mode: 'facet', values: new Set(v) }); });
-    setColumnFilters(fs);
-  }, [filtersStorageKey]);
-
-  useEffect(() => {
-    const legacy: Record<string, string[]> = {};
-    columnFilters.forEach((filter, key) => {
-      if (filter.mode === 'facet') legacy[key] = Array.from(filter.values).map(String);
-    });
-    saveColumnFilters(filtersStorageKey, legacy);
-  }, [filtersStorageKey, columnFilters]);
+  const {
+    filters, searchTerm, sortColumn, sortDirection, currentPage, pageSize,
+    sortedData: sortedEntityTypes, paginatedData: paginatedEntityTypes, totalPages,
+    getColumnValues, setSearchTerm, handleSort, setSortColumn, setSortDirection,
+    setCurrentPage, setPageSize, handleFilterChange, clearFilters, activeFilterCount,
+  } = useTableFilters<EntityType, ColumnKey>({
+    data: entityTypes,
+    columns,
+    defaultSortColumn: 'id',
+    defaultSortDirection: 'asc',
+    filtersStorageKey,
+  });
   
   // Form state with validation
   const [formData, setFormData] = useState({
@@ -153,41 +146,12 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
   
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
   const pageSizeOptions = [50, 100, 200, 500, 1000];
 
   // Respond to external data updates
   useEffect(() => {
     if (data) setEntityTypes(data);
   }, [data]);
-
-  const getFacetBaseData = (excludeColumn?: ColumnKey) => {
-    let result = [...entityTypes];
-
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      result = result.filter(row =>
-        Object.values(row).some(val => String(val ?? '').toLowerCase().includes(search))
-      );
-    }
-
-    if (columnFilters.size > 0) {
-      result = result.filter(row => {
-        for (const [columnKey, filter] of columnFilters.entries()) {
-          if (excludeColumn && columnKey === excludeColumn) continue;
-          const rowValue = row[columnKey as ColumnKey];
-          if (!matchesFilter(rowValue, filter)) {
-            return false;
-          }
-        }
-        return true;
-      });
-    }
-
-    return result;
-  };
 
   // Measure scroll content width and whether a horizontal scrollbar is needed
   useEffect(() => {
@@ -369,86 +333,8 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
     return Object.keys(errors).length === 0;
   };
 
-  // Filter and search logic
-  const filteredEntityTypes = useMemo(() => {
-    let filtered = entityTypes;
-
-    // Apply search across all visible text fields
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(entityType =>
-        entityType.nameEn.toLowerCase().includes(search) ||
-        entityType.nameKa.toLowerCase().includes(search) ||
-        (entityType.isActive ? 'active' : 'inactive').includes(search) ||
-        entityType.ts.toLowerCase().includes(search)
-      );
-    }
-
-    // Apply column filters
-    if (columnFilters.size > 0) {
-      filtered = filtered.filter(entityType => {
-        for (const [column, filter] of columnFilters.entries()) {
-          const cellValue = entityType[column as ColumnKey];
-          if (!matchesFilter(cellValue, filter)) return false;
-        }
-        return true;
-      });
-    }
-
-    return filtered;
-  }, [entityTypes, searchTerm, columnFilters]);
-
-  // Sort logic
-  const sortedEntityTypes = useMemo(() => {
-    if (!sortField) return filteredEntityTypes;
-
-    return [...filteredEntityTypes].sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-
-      const aNorm = aVal === null || aVal === undefined
-        ? ''
-        : typeof aVal === 'boolean'
-          ? (aVal ? 1 : 0)
-          : aVal;
-      const bNorm = bVal === null || bVal === undefined
-        ? ''
-        : typeof bVal === 'boolean'
-          ? (bVal ? 1 : 0)
-          : bVal;
-      
-      if (aNorm < bNorm) return sortDirection === 'asc' ? -1 : 1;
-      if (aNorm > bNorm) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [filteredEntityTypes, sortField, sortDirection]);
-
-  // Pagination
-  const totalRecords = sortedEntityTypes.length;
-  const totalPages = Math.ceil(totalRecords / pageSize);
-  
-  const paginatedEntityTypes = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return sortedEntityTypes.slice(startIndex, endIndex);
-  }, [sortedEntityTypes, currentPage, pageSize]);
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, columnFilters, pageSize]);
-
-  const handleSort = (field: ColumnKey) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
   const getSortIcon = (field: ColumnKey) => {
-    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-50" />;
+    if (sortColumn !== field) return <ArrowUpDown className="h-3 w-3 opacity-50" />;
     return sortDirection === 'asc' 
       ? <ArrowUp className="h-3 w-3" />
       : <ArrowDown className="h-3 w-3" />;
@@ -602,12 +488,6 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
     } finally {
       setLoadingAudit(false);
     }
-  };
-
-  // Get unique values for column filters
-  const getUniqueValues = (column: ColumnKey) => {
-    const baseData = getFacetBaseData(column);
-    return [...new Set(baseData.map(entityType => String(entityType[column] ?? '')))].sort();
   };
 
   // Column settings dialog
@@ -989,7 +869,7 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
         </div>
         <div className="flex items-center gap-4">
           <div className="text-sm text-muted-foreground">
-            Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} records
+            Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, sortedEntityTypes.length)} of {sortedEntityTypes.length} records
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Rows per page:</span>
@@ -1024,7 +904,7 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
             >
               Previous
@@ -1032,7 +912,7 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
             >
               Next
@@ -1091,25 +971,14 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
                           <ColumnFilterPopover
                             columnKey={column.key}
                             columnLabel={column.label}
-                            values={getUniqueValues(column.key)}
-                            activeFilters={columnFilters.get(column.key)?.mode === 'facet' ? (columnFilters.get(column.key) as any).values : new Set()}
-                            activeFilter={columnFilters.get(column.key)}
-                            onAdvancedFilterChange={(filter) => {
-                              setColumnFilters(prev => {
-                                const next = new Map(prev);
-                                if (filter) { next.set(column.key, filter); } else { next.delete(column.key); }
-                                return next;
-                              });
-                            }}
-                            onFilterChange={(values) => {
-                              setColumnFilters(prev => {
-                                const next = new Map(prev);
-                                if (values.size > 0) { next.set(column.key, { mode: 'facet', values }); } else { next.delete(column.key); }
-                                return next;
-                              });
-                            }}
+                            values={getColumnValues(column.key)}
+                            activeFilters={filters.get(column.key)?.mode === 'facet' ? (filters.get(column.key) as any).values : new Set()}
+                            activeFilter={filters.get(column.key)}
+                            onAdvancedFilterChange={(filter) => handleFilterChange(column.key, filter)}
+                            onFilterChange={(values) => handleFilterChange(column.key, values.size > 0 ? { mode: 'facet', values } : null)}
+                            columnFormat={(column as any).format as ColumnFormat | undefined}
                             onSort={(direction) => {
-                              setSortField(column.key);
+                              setSortColumn(column.key);
                               setSortDirection(direction);
                             }}
                           />
@@ -1225,7 +1094,7 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
       {sortedEntityTypes.length === 0 && (
         <div className="text-center py-12">
           <div className="text-muted-foreground">
-            {searchTerm || columnFilters.size > 0 ? (
+            {searchTerm || activeFilterCount > 0 ? (
               <>
                 <p className="text-lg font-medium mb-2">No entityTypes found</p>
                 <p className="text-sm">Try adjusting your search or filters</p>
@@ -1242,10 +1111,10 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
 
       {/* Active filters indicator */}
       <div className="flex items-center space-x-2 text-sm">
-        {columnFilters.size > 0 && (
+        {activeFilterCount > 0 && (
           <>
             <span className="text-muted-foreground">Active filters:</span>
-            {Array.from(columnFilters.entries()).map(([column, filter]) => (
+            {Array.from(filters.entries()).map(([column, filter]) => (
                 <Badge key={column} variant="secondary" className="text-xs">
                   {columns.find(c => c.key === column)?.label}: {filter.mode === 'facet' ? filter.values.size : 1}
                 </Badge>
@@ -1253,11 +1122,10 @@ export function EntityTypesTable({ data }: { data?: EntityType[] }) {
           </>
         )}
         <ClearFiltersButton
-          activeCount={columnFilters.size + (searchTerm.trim() ? 1 : 0)}
+          activeCount={activeFilterCount + (searchTerm.trim() ? 1 : 0)}
           label="Clear All"
           onClear={() => {
-            clearColumnFilters(filtersStorageKey);
-            setColumnFilters(new Map());
+            clearFilters();
             setSearchTerm('');
           }}
           className="h-6 px-2 text-xs"

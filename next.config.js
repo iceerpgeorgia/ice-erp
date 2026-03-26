@@ -6,7 +6,7 @@ const nextConfig = {
   webpack: (config, { isServer }) => {
     config.watchOptions = {
       ...config.watchOptions,
-      ignored: ['**/Payments Report Figma/**', '**/node_modules/**'],
+      ignored: ['**/Payments Report Figma/**', '**/node_modules/**', '**/_deploy-log/**'],
     };
     return config;
   },

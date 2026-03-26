@@ -19,6 +19,7 @@ type TableRow = {
   dockey: string;
   entriesid: string | null;
   conversion_id: string | null;
+  bank_account_uuid: string | null;
   account_currency_amount: string | null;
   description: string | null;
   docsenderacctno: string | null;
@@ -129,7 +130,7 @@ async function fetchBatch(
   const { data, error } = await supabase
     .from(tableName)
     .select(
-      'uuid,dockey,entriesid,conversion_id,account_currency_amount,description,docsenderacctno,docbenefacctno,docsrcamt,docdstamt,docsrcccy,docdstccy,transaction_date'
+      'uuid,dockey,entriesid,conversion_id,bank_account_uuid,account_currency_amount,description,docsenderacctno,docbenefacctno,docsrcamt,docdstamt,docsrcccy,docdstccy,transaction_date'
     )
     .is('conversion_id', null)
     .order('id', { ascending: true })
@@ -161,6 +162,7 @@ async function main() {
 
   const bankAccountsMap = new Map<string, AccountRow>();
   const bankAccountsByNumber = new Map<string, AccountRow>();
+  const bankAccountsByUuid = new Map<string, AccountRow>();
   const bankAccountsList: AccountRow[] = [];
 
   for (const row of bankAccountsData ?? []) {
@@ -176,6 +178,7 @@ async function main() {
       insider_uuid: row.insider_uuid ?? null,
     };
     bankAccountsMap.set(key, accountRow);
+    bankAccountsByUuid.set(accountRow.uuid, accountRow);
     if (!bankAccountsByNumber.has(accountNumber)) {
       bankAccountsByNumber.set(accountNumber, accountRow);
     }
@@ -295,6 +298,27 @@ async function main() {
     return null;
   };
 
+  const resolveConversionAccountsFromRows = (dockey: string) => {
+    const matchedRows: Array<{ row: TableRow; account: AccountRow }> = [];
+    for (const tableMap of rowsByTable.values()) {
+      const row = tableMap.get(dockey);
+      if (!row?.bank_account_uuid) continue;
+      const account = bankAccountsByUuid.get(row.bank_account_uuid);
+      if (!account) continue;
+      matchedRows.push({ row, account });
+    }
+
+    const out = matchedRows.find((item) => Number(item.row.account_currency_amount) < 0);
+    const inRow = matchedRows.find(
+      (item) => Number(item.row.account_currency_amount) > 0 && (!out || item.account.uuid !== out.account.uuid)
+    );
+
+    if (!out || !inRow) return null;
+    if (out.account.currency_code === inRow.account.currency_code) return null;
+
+    return { outAccount: out.account, inAccount: inRow.account, fallbackUsed: true };
+  };
+
   const candidates = new Map<string, Candidate>();
   const rowsByTable = new Map<string, Map<string, TableRow>>();
 
@@ -395,7 +419,7 @@ async function main() {
     if (!verbose && processedCandidates % 500 === 0) {
       console.log(`  ⏳ Processing candidates: ${processedCandidates}/${candidates.size}`);
     }
-    const resolvedAccounts = resolveConversionAccounts(candidate);
+    const resolvedAccounts = resolveConversionAccounts(candidate) || resolveConversionAccountsFromRows(candidate.dockey);
     if (!resolvedAccounts) {
       skippedMissingAccounts += 1;
       if (verbose) {

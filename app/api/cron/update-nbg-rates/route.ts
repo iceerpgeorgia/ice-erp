@@ -37,17 +37,38 @@ export async function GET(req: NextRequest) {
 
     console.log('[CRON] Starting NBG rates update...');
 
-    // Fetch from NBG API
-    const response = await fetch(NBG_API_URL, { 
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    });
+    // Fetch from NBG API with retry
+    let data: any;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const response = await fetch(NBG_API_URL, { 
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch from NBG API");
+      if (!response.ok) {
+        if (attempt < 3) {
+          console.warn(`[CRON] NBG API returned ${response.status}, retrying (${attempt}/3)...`);
+          await new Promise(r => setTimeout(r, 2000 * attempt));
+          continue;
+        }
+        throw new Error(`Failed to fetch from NBG API: HTTP ${response.status}`);
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const body = await response.text();
+
+      if (!contentType.includes('application/json') || body.trimStart().startsWith('<')) {
+        if (attempt < 3) {
+          console.warn(`[CRON] NBG API returned non-JSON (content-type: ${contentType}), retrying (${attempt}/3)...`);
+          await new Promise(r => setTimeout(r, 2000 * attempt));
+          continue;
+        }
+        throw new Error(`NBG API returned non-JSON response (content-type: ${contentType})`);
+      }
+
+      data = JSON.parse(body);
+      break;
     }
-
-    const data = await response.json();
     
     if (!data || data.length === 0) {
       throw new Error("No data received from NBG API");
@@ -195,7 +216,15 @@ export async function GET(req: NextRequest) {
               });
 
               if (historicalResponse.ok) {
-                const historicalData = await historicalResponse.json();
+                const histContentType = historicalResponse.headers.get('content-type') || '';
+                const histBody = await historicalResponse.text();
+
+                if (!histContentType.includes('application/json') || histBody.trimStart().startsWith('<')) {
+                  console.warn(`[CRON] NBG API returned non-JSON for ${dateStr}, skipping`);
+                  continue;
+                }
+
+                const historicalData = JSON.parse(histBody);
                 
                 if (historicalData && historicalData.length > 0) {
                   const historicalRates = historicalData[0];

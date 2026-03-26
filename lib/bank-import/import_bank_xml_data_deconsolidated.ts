@@ -629,6 +629,18 @@ export async function processBOGGELDeconsolidated(
       insider_uuid: string | null;
     }
   >();
+  const bankAccountsByUuid = new Map<
+    string,
+    {
+      uuid: string;
+      account_number: string;
+      currency_uuid: string;
+      currency_code: string;
+      bank_uuid: string | null;
+      insider_uuid: string | null;
+    }
+  >();
+  const bankAccountTableNames = new Set<string>();
 
   const { data: bogBank } = await supabase
     .from('banks')
@@ -650,6 +662,15 @@ export async function processBOGGELDeconsolidated(
       bank_uuid: row.bank_uuid ?? null,
       insider_uuid: row.insider_uuid ?? null,
     });
+    bankAccountsByUuid.set(row.uuid, {
+      uuid: row.uuid,
+      account_number: accountNumber,
+      currency_uuid: row.currency_uuid,
+      currency_code: currencyCode,
+      bank_uuid: row.bank_uuid ?? null,
+      insider_uuid: row.insider_uuid ?? null,
+    });
+    bankAccountTableNames.add(resolveDeconsolidatedTableName(accountNumber, defaultSchemeByCurrency(currencyCode)));
     if (!bankAccountsByNumber.has(accountNumber)) {
       bankAccountsByNumber.set(accountNumber, {
         uuid: row.uuid,
@@ -1303,13 +1324,67 @@ export async function processBOGGELDeconsolidated(
     return null;
   };
 
+  const resolveConversionAccountsFromRows = async (candidate: {
+    dockey: string;
+  }) => {
+    const matchedRows: Array<{
+      account: {
+        uuid: string;
+        account_number: string;
+        currency_uuid: string;
+        currency_code: string;
+        bank_uuid: string | null;
+        insider_uuid: string | null;
+      };
+      amount: number;
+    }> = [];
+
+    for (const tableName of bankAccountTableNames.values()) {
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('bank_account_uuid, account_currency_amount, conversion_id')
+        .eq('dockey', candidate.dockey)
+        .is('conversion_id', null)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+          continue;
+        }
+        continue;
+      }
+
+      const accountUuid = String((data as any)?.bank_account_uuid || '');
+      if (!accountUuid) continue;
+      const account = bankAccountsByUuid.get(accountUuid);
+      if (!account) continue;
+
+      const amount = Number((data as any)?.account_currency_amount ?? NaN);
+      if (!Number.isFinite(amount)) continue;
+
+      matchedRows.push({ account, amount });
+    }
+
+    const out = matchedRows.find((item) => item.amount < 0);
+    const inRow = matchedRows.find((item) => item.amount > 0 && (!out || item.account.uuid !== out.account.uuid));
+
+    if (!out || !inRow) return null;
+    if (out.account.currency_code === inRow.account.currency_code) return null;
+
+    return { outAccount: out.account, inAccount: inRow.account, fallbackUsed: true };
+  };
+
   if (conversionCandidates.size > 0) {
     console.log('\n' + '='.repeat(80));
     console.log('🔁 STEP 2: PROCESSING CONVERSIONS');
     console.log('='.repeat(80) + '\n');
 
     for (const candidate of conversionCandidates.values()) {
-      const resolvedAccounts = resolveConversionAccounts(candidate);
+      let resolvedAccounts = resolveConversionAccounts(candidate);
+      if (!resolvedAccounts) {
+        resolvedAccounts = await resolveConversionAccountsFromRows(candidate);
+      }
       if (!resolvedAccounts) continue;
 
       const { outAccount, inAccount, fallbackUsed } = resolvedAccounts;

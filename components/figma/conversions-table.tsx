@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, Search, Settings } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -10,8 +10,8 @@ import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
 import { useRequiredInsiderName } from './shared/use-required-insider';
-import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
-import { matchesFilter } from './shared/table-filters';
+import { useTableFilters } from './shared/use-table-filters';
+import type { ColumnFormat } from './shared/table-filters';
 
 const columnsStorageKey = 'conversionsTableColumnsV2';
 const filtersStorageKey = 'conversionsTableFiltersV2';
@@ -78,13 +78,7 @@ export function ConversionsTable() {
   const requiredInsiderName = useRequiredInsiderName();
   const [data, setData] = useState<ConversionRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortColumn, setSortColumn] = useState<ColumnKey>('date');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
-  const [filters, setFilters] = useState<FilterState>(new Map());
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(100);
   const [isResizing, setIsResizing] = useState<{
     column: ColumnKey;
     startX: number;
@@ -93,6 +87,18 @@ export function ConversionsTable() {
   } | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
+
+  const {
+    filters, searchTerm, sortColumn, sortDirection, currentPage,
+    sortedData, paginatedData, totalPages, getColumnValues,
+    setSearchTerm, handleSort, setSortColumn, setSortDirection,
+    setCurrentPage, handleFilterChange, clearFilters, activeFilterCount,
+  } = useTableFilters<ConversionRow, ColumnKey>({
+    data,
+    columns,
+    defaultSortColumn: 'date',
+    filtersStorageKey,
+  });
 
   useEffect(() => {
     const savedColumns = localStorage.getItem(columnsStorageKey);
@@ -106,37 +112,11 @@ export function ConversionsTable() {
         setColumns(defaultColumns);
       }
     }
-
-    const savedFilters = localStorage.getItem(filtersStorageKey);
-    if (savedFilters) {
-      try {
-        const parsed = JSON.parse(savedFilters) as Record<string, any[]>;
-        const restored: FilterState = new Map();
-        Object.entries(parsed).forEach(([key, values]) => {
-          if (Array.isArray(values) && values.length > 0) {
-            restored.set(key, { mode: 'facet', values: new Set(values) });
-          }
-        });
-        setFilters(restored);
-      } catch {
-        setFilters(new Map());
-      }
-    }
   }, []);
 
   useEffect(() => {
     localStorage.setItem(columnsStorageKey, JSON.stringify(columns));
   }, [columns]);
-
-  useEffect(() => {
-    const serializable: Record<string, any[]> = {};
-    filters.forEach((filter, key) => {
-      if (filter.mode === 'facet') {
-        serializable[key] = Array.from(filter.values);
-      }
-    });
-    localStorage.setItem(filtersStorageKey, JSON.stringify(serializable));
-  }, [filters]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -186,105 +166,6 @@ export function ConversionsTable() {
   }, [isResizing]);
 
   const visibleColumns = useMemo(() => columns.filter((col) => col.visible), [columns]);
-
-  const columnValues = useMemo(() => {
-    const map = new Map<ColumnKey, any[]>();
-    visibleColumns.forEach((col) => map.set(col.key, []));
-    data.forEach((row) => {
-      visibleColumns.forEach((col) => {
-        const arr = map.get(col.key);
-        if (!arr) return;
-        arr.push((row as any)[col.key]);
-      });
-    });
-    return map;
-  }, [data, visibleColumns]);
-
-  const applyFilters = useCallback(
-    (rows: ConversionRow[]) => {
-      return rows.filter((row) => {
-        for (const [key, filter] of filters.entries()) {
-          const value = (row as any)[key];
-          if (!matchesFilter(value, filter)) return false;
-        }
-        return true;
-      });
-    },
-    [filters]
-  );
-
-  const filteredData = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    const searched = term
-      ? data.filter((row) =>
-          visibleColumns.some((col) =>
-            String((row as any)[col.key] ?? '')
-              .toLowerCase()
-              .includes(term)
-          )
-        )
-      : data;
-
-    return applyFilters(searched);
-  }, [data, searchTerm, visibleColumns, applyFilters]);
-
-  const sortedData = useMemo(() => {
-    const sorted = [...filteredData];
-    sorted.sort((a, b) => {
-      const aValue = (a as any)[sortColumn];
-      const bValue = (b as any)[sortColumn];
-
-      if (aValue === null || aValue === undefined) return sortDirection === 'asc' ? -1 : 1;
-      if (bValue === null || bValue === undefined) return sortDirection === 'asc' ? 1 : -1;
-
-      const columnConfig = columns.find((col) => col.key === sortColumn);
-      if (columnConfig?.format === 'number') {
-        return sortDirection === 'asc' ? Number(aValue) - Number(bValue) : Number(bValue) - Number(aValue);
-      }
-
-      if (columnConfig?.format === 'date') {
-        const aDate = new Date(aValue).getTime();
-        const bDate = new Date(bValue).getTime();
-        return sortDirection === 'asc' ? aDate - bDate : bDate - aDate;
-      }
-
-      return sortDirection === 'asc'
-        ? String(aValue).localeCompare(String(bValue))
-        : String(bValue).localeCompare(String(aValue));
-    });
-    return sorted;
-  }, [filteredData, sortColumn, sortDirection, columns]);
-
-  const totalPages = Math.max(1, Math.ceil(sortedData.length / pageSize));
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return sortedData.slice(start, start + pageSize);
-  }, [sortedData, currentPage, pageSize]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(1);
-  }, [currentPage, totalPages]);
-
-  const handleSort = (column: ColumnKey) => {
-    if (sortColumn === column) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortColumn(column);
-      setSortDirection('asc');
-    }
-  };
-
-  const handleFilterChange = (key: ColumnKey, filter: ColumnFilter | null) => {
-    setFilters((prev) => {
-      const next = new Map(prev);
-      if (filter) {
-        next.set(String(key), filter);
-      } else {
-        next.delete(String(key));
-      }
-      return next;
-    });
-  };
 
   const handleDragStart = (key: ColumnKey) => {
     setDraggedColumn(key);
@@ -368,9 +249,9 @@ export function ConversionsTable() {
         </Popover>
 
         <ClearFiltersButton
-          activeCount={filters.size + (searchTerm.trim() ? 1 : 0)}
+          activeCount={activeFilterCount + (searchTerm.trim() ? 1 : 0)}
           onClear={() => {
-            setFilters(new Map());
+            clearFilters();
             setSearchTerm('');
           }}
         />
@@ -383,8 +264,7 @@ export function ConversionsTable() {
               <tr>
                 {visibleColumns.map((col) => {
                   const isSorted = sortColumn === col.key;
-                  const values = columnValues.get(col.key as ColumnKey) ?? [];
-                  const activeFilters = filters.get(String(col.key)) ?? new Set();
+                  const values = getColumnValues(col.key);
 
                   return (
                     <th
@@ -486,7 +366,7 @@ export function ConversionsTable() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
           >
             Prev
@@ -497,7 +377,7 @@ export function ConversionsTable() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
             disabled={currentPage === totalPages}
           >
             Next
