@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-03-26 (104)
+- Summary: Fix auto-payment checkbox visibility in financial codes create/edit forms.
+- Changes:
+  - `components/financial-codes-table.tsx`: Show "Automated Payment ID" checkbox for all income codes in create/edit dialog (removed parent-of-leaves restriction). Table column shows checkmark for any income code with the flag set.
+- Commit: a97dbc4
+- URL: https://ice-pg8oug0mw-iceerp.vercel.app
+
 ## 2026-03-26 (103)
 - Summary: Project-derived payments, delete protection triggers, and financial code auto-payment gating.
 - Changes:
