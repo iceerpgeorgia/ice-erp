@@ -32,8 +32,8 @@ import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
 import { useRequiredInsiderName } from './shared/use-required-insider';
-import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
-import { matchesFilter, serializeFilterState, deserializeFilterState, fromMapFilters } from './shared/table-filters';
+import type { ColumnFormat } from './shared/table-filters';
+import { useTableFilters } from './shared/use-table-filters';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,7 +83,7 @@ type ColumnConfig = {
   visible: boolean;
   sortable: boolean;
   filterable: boolean;
-  format?: 'currency' | 'date' | 'text' | 'boolean';
+  format?: ColumnFormat;
   width: number;
 };
 
@@ -187,25 +187,30 @@ const defaultColumns: ColumnConfig[] = [
 
 export function SalaryAccrualsTable() {
   const requiredInsiderName = useRequiredInsiderName();
-  const filtersStorageKey = 'salaryAccrualsFiltersV1';
   const [data, setData] = useState<SalaryAccrual[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   
   // Table state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortColumn, setSortColumn] = useState<ColumnKey>('salary_month');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
-  const [filters, setFilters] = useState<FilterState>(new Map());
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number; element: HTMLElement } | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [filtersInitialized, setFiltersInitialized] = useState(false);
+
+  const {
+    filters, searchTerm, sortColumn, sortDirection, currentPage, pageSize,
+    sortedData: hookSortedData,
+    getColumnValues, setSearchTerm, handleSort, setSortColumn, setSortDirection,
+    setCurrentPage, setPageSize, handleFilterChange, clearFilters, activeFilterCount,
+  } = useTableFilters<SalaryAccrual, ColumnKey>({
+    data,
+    columns,
+    defaultSortColumn: 'salary_month',
+    defaultSortDirection: 'desc',
+    filtersStorageKey: 'salaryAccrualsFiltersV1',
+  });
 
   // Conditions filter state
   const allConditions = [
@@ -339,45 +344,14 @@ export function SalaryAccrualsTable() {
       }
     }
 
-    const savedFilters = localStorage.getItem(filtersStorageKey);
-    let restoredFilters: FilterState | null = null;
-    if (savedFilters) {
-      try {
-        const parsed = JSON.parse(savedFilters);
-        if (typeof parsed.searchTerm === 'string') setSearchTerm(parsed.searchTerm);
-        if (parsed.sortColumn) setSortColumn(parsed.sortColumn as ColumnKey);
-        if (parsed.sortDirection === 'asc' || parsed.sortDirection === 'desc') {
-          setSortDirection(parsed.sortDirection);
-        }
-        if (typeof parsed.pageSize === 'number') setPageSize(parsed.pageSize);
-        if (Array.isArray(parsed.filters)) {
-          // Legacy format: array of [key, values[]] pairs
-          const restored = new Map<string, Set<any>>(
-            parsed.filters.map(([key, values]: [string, any[]]) => [key, new Set(values)])
-          );
-          restoredFilters = fromMapFilters(restored);
-        } else if (parsed.filtersV2) {
-          restoredFilters = deserializeFilterState(parsed.filtersV2);
-        }
-      } catch (e) {
-        console.error('Failed to parse saved filters:', e);
-      }
-    }
-
     // Override filters from URL query parameters (e.g. ?counteragentUuid=UUID)
     const urlParams = new URLSearchParams(window.location.search);
     const counteragentUuidParam = urlParams.get('counteragentUuid');
     if (counteragentUuidParam) {
-      if (!restoredFilters) restoredFilters = new Map();
-      restoredFilters.set('counteragent_uuid', { mode: 'facet', values: new Set([counteragentUuidParam]) });
+      handleFilterChange('counteragent_uuid' as ColumnKey, { mode: 'facet', values: new Set([counteragentUuidParam]) });
     }
 
-    if (restoredFilters) {
-      setFilters(restoredFilters);
-    }
-    
     setIsInitialized(true);
-    setFiltersInitialized(true);
   }, []);
 
   // Fetch data after initialization
@@ -413,18 +387,6 @@ export function SalaryAccrualsTable() {
       localStorage.setItem('salaryAccrualsProjectedMonths', String(projectedMonths));
     }
   }, [projectedMonths, isInitialized]);
-
-  useEffect(() => {
-    if (!filtersInitialized || !isInitialized || typeof window === 'undefined') return;
-    const serialized = {
-      searchTerm,
-      sortColumn,
-      sortDirection,
-      pageSize,
-      filtersV2: serializeFilterState(filters),
-    };
-    localStorage.setItem(filtersStorageKey, JSON.stringify(serialized));
-  }, [filtersInitialized, isInitialized, searchTerm, sortColumn, sortDirection, pageSize, filters]);
 
   // Save conditions filter to localStorage
   useEffect(() => {
@@ -1026,7 +988,7 @@ export function SalaryAccrualsTable() {
         return String(rawValue);
       };
 
-      const rows = filteredAndSortedData.map((row) =>
+      const rows = sortedAccruals.map((row) =>
         exportColumns.map((column) => toExportValue(row, column))
       );
 
@@ -1712,27 +1674,6 @@ export function SalaryAccrualsTable() {
     );
   };
 
-  const handleSort = (columnKey: ColumnKey) => {
-    if (sortColumn === columnKey) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(columnKey);
-      setSortDirection('asc');
-    }
-  };
-
-  const handleFilterChange = useCallback((columnKey: string, filter: ColumnFilter | null) => {
-    setFilters(prev => {
-      const next = new Map(prev);
-      if (filter) {
-        next.set(columnKey, filter);
-      } else {
-        next.delete(columnKey);
-      }
-      return next;
-    });
-  }, []);
-
   const applyConditionsFilter = useCallback((rows: SalaryAccrual[]) => {
     if (selectedConditions.size === 0 || selectedConditions.has('ALL')) return rows;
 
@@ -1755,119 +1696,13 @@ export function SalaryAccrualsTable() {
     });
   }, [selectedConditions]);
 
-  const filteredAndSortedData = useMemo(() => {
-    let result = [...data];
-
-    // Apply search
-    if (searchTerm) {
-      result = result.filter(row =>
-        Object.values(row).some(val =>
-          String(val).toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      );
-    }
-
-    // Apply filters
-    if (filters.size > 0) {
-      result = result.filter(row => {
-        for (const [columnKey, filter] of filters.entries()) {
-          const rowValue = getRowValue(row, columnKey as ColumnKey);
-          if (!matchesFilter(rowValue, filter)) {
-            return false;
-          }
-        }
-        return true;
-      });
-    }
-
-    // Apply conditions filter
-    result = applyConditionsFilter(result);
-
-    // Apply sort
-    result.sort((a, b) => {
-      const aVal = getRowValue(a, sortColumn);
-      const bVal = getRowValue(b, sortColumn);
-      
-      if (aVal === bVal) return 0;
-      
-      // Special handling for date columns
-      const columnConfig = columns.find(col => col.key === sortColumn);
-      if (columnConfig?.format === 'date') {
-        const aDate = aVal ? new Date(aVal as string).getTime() : 0;
-        const bDate = bVal ? new Date(bVal as string).getTime() : 0;
-        const comparison = aDate < bDate ? -1 : 1;
-        return sortDirection === 'asc' ? comparison : -comparison;
-      }
-      
-      // Handle null/undefined values
-      if (aVal === null || aVal === undefined) return 1;
-      if (bVal === null || bVal === undefined) return -1;
-      
-      const comparison = aVal < bVal ? -1 : 1;
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-
-    return result;
-  }, [data, searchTerm, sortColumn, sortDirection, filters, columns, applyConditionsFilter]);
-
-  // Paginate data
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return filteredAndSortedData.slice(startIndex, endIndex);
-  }, [filteredAndSortedData, currentPage, pageSize]);
-
-  const totalPages = Math.ceil(filteredAndSortedData.length / pageSize);
-
-  // Reset to page 1 when filters/search change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filters]);
-
-  const getFacetBaseData = useCallback((excludeColumn?: ColumnKey) => {
-    let result = [...data];
-
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(row =>
-        Object.values(row).some(value =>
-          String(value).toLowerCase().includes(term)
-        )
-      );
-    }
-
-    if (filters.size > 0) {
-      result = result.filter(row => {
-        for (const [columnKey, filter] of filters.entries()) {
-          if (excludeColumn && columnKey === excludeColumn) continue;
-          const rowValue = getRowValue(row, columnKey as ColumnKey);
-          if (!matchesFilter(rowValue, filter)) {
-            return false;
-          }
-        }
-        return true;
-      });
-    }
-
-    result = applyConditionsFilter(result);
-
-    return result;
-  }, [data, searchTerm, filters, applyConditionsFilter]);
-
-  // Memoize unique values
-  const uniqueValuesCache = useMemo(() => {
-    const cache = new Map<ColumnKey, any[]>();
-    const filterableColumns = columns.filter(col => col.filterable);
-    
-    filterableColumns.forEach(col => {
-      const values = new Set(
-        getFacetBaseData(col.key).map(row => getRowValue(row, col.key))
-      );
-      cache.set(col.key, Array.from(values).sort());
-    });
-    
-    return cache;
-  }, [columns, getFacetBaseData]);
+  // Derive condition-filtered + paginated data from hook output
+  const sortedAccruals = useMemo(() => applyConditionsFilter(hookSortedData), [hookSortedData, applyConditionsFilter]);
+  const paginatedAccruals = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedAccruals.slice(start, start + pageSize);
+  }, [sortedAccruals, currentPage, pageSize]);
+  const totalPages = Math.max(1, Math.ceil(sortedAccruals.length / pageSize));
 
   const formatMonthLabel = (value: any) => {
     const date = parseSalaryMonth(String(value));
@@ -1877,11 +1712,7 @@ export function SalaryAccrualsTable() {
     return String(value);
   };
 
-  const getUniqueValues = useCallback((columnKey: ColumnKey): any[] => {
-    return uniqueValuesCache.get(columnKey) || [];
-  }, [uniqueValuesCache]);
-
-  const formatValue = (value: any, format?: 'currency' | 'date' | 'text' | 'boolean') => {
+  const formatValue = (value: any, format?: ColumnFormat) => {
     if (value === null || value === undefined) return '-';
 
     if (format === 'boolean') {
@@ -1907,12 +1738,11 @@ export function SalaryAccrualsTable() {
   };
 
   const visibleColumns = columns.filter(col => col.visible);
-  const activeFilterCount = filters.size;
-  const filteredIds = filteredAndSortedData.map((row) => row.id);
+  const filteredIds = sortedAccruals.map((row) => row.id);
   const allFilteredSelected = filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id));
   const selectedRecords = useMemo(
-    () => filteredAndSortedData.filter((row) => selectedIds.has(row.id)),
-    [filteredAndSortedData, selectedIds]
+    () => sortedAccruals.filter((row) => selectedIds.has(row.id)),
+    [sortedAccruals, selectedIds]
   );
 
   const hasUnconfirmedSelected = useMemo(
@@ -1999,7 +1829,7 @@ export function SalaryAccrualsTable() {
 
   // Calculate totals
   const totals = useMemo(() => {
-    return filteredAndSortedData.reduce((acc, row) => {
+    return sortedAccruals.reduce((acc, row) => {
       const { surplus, deducted } = getNormalizedInsuranceAmounts(row);
       return {
         net_sum: acc.net_sum + (parseFloat(row.net_sum) || 0),
@@ -2021,7 +1851,7 @@ export function SalaryAccrualsTable() {
       deducted_fitness: 0, 
       deducted_fine: 0 
     });
-  }, [filteredAndSortedData]);
+  }, [sortedAccruals]);
 
   if (loading) {
     return (
@@ -2041,7 +1871,7 @@ export function SalaryAccrualsTable() {
             <h1 className="text-lg font-semibold">Salary Accruals</h1>
             <RequiredInsiderBadge />
             <Badge variant="secondary">
-              {filteredAndSortedData.length} records
+              {sortedAccruals.length} records
             </Badge>
             <Badge variant="outline">
               Total: {data.length}
@@ -2743,13 +2573,13 @@ export function SalaryAccrualsTable() {
             <ClearFiltersButton
               activeCount={activeFilterCount + (searchTerm.trim() ? 1 : 0)}
               onClear={() => {
-                setFilters(new Map());
+                clearFilters();
                 setSearchTerm('');
               }}
             />
 
             {/* Pagination Controls */}
-            {filteredAndSortedData.length > 0 && (
+            {sortedAccruals.length > 0 && (
               <>
                 <div className="flex items-center gap-2 border-l pl-2">
                   <span className="text-sm text-gray-600">Rows per page:</span>
@@ -2770,12 +2600,12 @@ export function SalaryAccrualsTable() {
 
                 <div className="flex items-center gap-2 border-l pl-2">
                   <span className="text-sm text-gray-600">
-                    {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, filteredAndSortedData.length)} of {filteredAndSortedData.length}
+                    {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, sortedAccruals.length)} of {sortedAccruals.length}
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
                   >
                     <ChevronLeft className="h-4 w-4" />
@@ -2783,7 +2613,7 @@ export function SalaryAccrualsTable() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages}
                   >
                     <ChevronRight className="h-4 w-4" />
@@ -3049,7 +2879,7 @@ export function SalaryAccrualsTable() {
                         <ColumnFilterPopover
                           columnKey={col.key}
                           columnLabel={col.label}
-                          values={getUniqueValues(col.key)}
+                          values={getColumnValues(col.key)}
                           activeFilters={filters.get(col.key)?.mode === 'facet' ? (filters.get(col.key) as any).values : new Set()}
                           activeFilter={filters.get(col.key)}
                           columnFormat={col.format as ColumnFormat | undefined}
@@ -3104,14 +2934,14 @@ export function SalaryAccrualsTable() {
                     Loading...
                   </td>
                 </tr>
-              ) : filteredAndSortedData.length === 0 ? (
+              ) : sortedAccruals.length === 0 ? (
                 <tr>
                   <td colSpan={visibleColumns.length + 2} className="text-center py-8 px-4 text-gray-500">
                     No records found
                   </td>
                 </tr>
               ) : (
-                paginatedData.map((accrual, idx) => {
+                paginatedAccruals.map((accrual, idx) => {
                   const monthBalance = getRowValue(accrual, 'month_balance') as number | undefined;
                   const mb = typeof monthBalance === 'number' ? monthBalance : computeBalance(accrual);
                   const cumulBal = typeof accrual.cumulative_balance === 'number' ? accrual.cumulative_balance : 0;

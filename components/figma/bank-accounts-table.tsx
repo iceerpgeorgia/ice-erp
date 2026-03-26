@@ -20,9 +20,8 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
-import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
-import { matchesFilter } from './shared/table-filters';
-import { loadFilterMap, saveFilterMap, clearColumnFilters } from './shared/column-filter-storage';
+import type { ColumnFormat } from './shared/table-filters';
+import { useTableFilters } from './shared/use-table-filters';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from './ui/dialog';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -136,20 +135,20 @@ export function BankAccountsTable() {
   const [insidersList, setInsidersList] = useState<Array<{ insiderUuid: string; insiderName: string }>>([]);
   const [selectedInsiderUuids, setSelectedInsiderUuids] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortColumn, setSortColumn] = useState<ColumnKey>('accountNumber');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
-  const filtersStorageKey = 'filters:bank-accounts';
-  const [filters, setFilters] = useState<FilterState>(() => {
-    const legacy = loadFilterMap(filtersStorageKey);
-    // Convert legacy Map<string, Set<any>> to FilterState
-    const fs: FilterState = new Map();
-    legacy.forEach((values, key) => { if (values.size > 0) fs.set(key, { mode: 'facet', values }); });
-    return fs;
+
+  const {
+    filters, searchTerm, sortColumn, sortDirection, currentPage, pageSize,
+    sortedData: sortedAccounts, paginatedData: paginatedAccounts, totalPages,
+    getColumnValues, setSearchTerm, handleSort, setSortColumn, setSortDirection,
+    setCurrentPage, setPageSize, handleFilterChange, clearFilters, activeFilterCount,
+  } = useTableFilters<BankAccount, ColumnKey>({
+    data,
+    columns,
+    defaultSortColumn: 'accountNumber',
+    defaultSortDirection: 'asc',
+    filtersStorageKey: 'filters:bank-accounts',
   });
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number; element: HTMLElement } | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
@@ -247,15 +246,6 @@ export function BankAccountsTable() {
       localStorage.setItem('bankAccountsColumns', JSON.stringify(columns));
     }
   }, [columns, isInitialized]);
-
-  useEffect(() => {
-    // Convert FilterState back to legacy format for persistence
-    const legacyMap = new Map<string, Set<any>>();
-    filters.forEach((filter, key) => {
-      if (filter.mode === 'facet') legacyMap.set(key, filter.values);
-    });
-    saveFilterMap(filtersStorageKey, legacyMap);
-  }, [filters]);
 
   // Column resize handlers
   useEffect(() => {
@@ -512,100 +502,13 @@ export function BankAccountsTable() {
 
   const visibleColumns = useMemo(() => columns.filter(col => col.visible), [columns]);
 
-  const getFacetBaseData = (excludeColumn?: ColumnKey) => {
-    let result = [...data];
-
-    if (searchTerm) {
-      const lowerSearch = searchTerm.toLowerCase();
-      result = result.filter(row =>
-        Object.values(row).some(val =>
-          String(val).toLowerCase().includes(lowerSearch)
-        )
-      );
-    }
-
-    filters.forEach((filter, columnKey) => {
-      if (excludeColumn && columnKey === excludeColumn) return;
-      result = result.filter(row => matchesFilter(row[columnKey as ColumnKey], filter));
-    });
-
-    return result;
-  };
-
-  const getUniqueValues = (columnKey: ColumnKey) => {
-    const values = new Set(getFacetBaseData(columnKey).map(row => row[columnKey]));
-    return Array.from(values).filter(v => v !== null && v !== undefined);
-  };
-
-  const handleFilterChange = (columnKey: string, filter: ColumnFilter | null) => {
-    setFilters(prev => {
-      const newFilters = new Map(prev);
-      if (filter) {
-        newFilters.set(columnKey, filter);
-      } else {
-        newFilters.delete(columnKey);
-      }
-      return newFilters;
-    });
-    setCurrentPage(1);
-  };
-
-  const filteredAndSortedData = useMemo(() => {
-    let result = [...data];
-
-    // Apply search
-    if (searchTerm) {
-      const lowerSearch = searchTerm.toLowerCase();
-      result = result.filter(row =>
-        Object.values(row).some(val =>
-          String(val).toLowerCase().includes(lowerSearch)
-        )
-      );
-    }
-
-    // Apply filters
-    filters.forEach((filter, columnKey) => {
-      result = result.filter(row => matchesFilter(row[columnKey as ColumnKey], filter));
-    });
-
-    // Apply sort
-    if (sortColumn) {
-      result.sort((a, b) => {
-        const aVal = a[sortColumn];
-        const bVal = b[sortColumn];
-        
-        if (aVal === null || aVal === undefined) return 1;
-        if (bVal === null || bVal === undefined) return -1;
-        
-        if (typeof aVal === 'number' && typeof bVal === 'number') {
-          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-        }
-        
-        const aStr = String(aVal).toLowerCase();
-        const bStr = String(bVal).toLowerCase();
-        return sortDirection === 'asc' 
-          ? aStr.localeCompare(bStr) 
-          : bStr.localeCompare(aStr);
-      });
-    }
-
-    return result;
-  }, [data, searchTerm, sortColumn, sortDirection, filters]);
-
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    return filteredAndSortedData.slice(startIndex, startIndex + pageSize);
-  }, [filteredAndSortedData, currentPage, pageSize]);
-
-  const totalPages = Math.ceil(filteredAndSortedData.length / pageSize);
-
   const handleExportXlsx = () => {
-    if (filteredAndSortedData.length === 0) return;
+    if (sortedAccounts.length === 0) return;
     setIsExporting(true);
     try {
       const fileName = `bank-accounts_${new Date().toISOString().slice(0, 10)}.xlsx`;
       exportRowsToXlsx({
-        rows: filteredAndSortedData,
+        rows: sortedAccounts,
         columns,
         fileName,
         sheetName: 'Bank Accounts',
@@ -757,7 +660,7 @@ export function BankAccountsTable() {
               variant="outline"
               size="sm"
               onClick={handleExportXlsx}
-              disabled={isExporting || filteredAndSortedData.length === 0}
+              disabled={isExporting || sortedAccounts.length === 0}
               className="gap-2"
             >
               <Download className="h-4 w-4" />
@@ -1038,10 +941,9 @@ export function BankAccountsTable() {
             </Popover>
 
             <ClearFiltersButton
-              activeCount={filters.size + (searchTerm.trim() ? 1 : 0)}
+              activeCount={activeFilterCount + (searchTerm.trim() ? 1 : 0)}
               onClear={() => {
-                setFilters(new Map());
-                clearColumnFilters(filtersStorageKey);
+                clearFilters();
                 setSearchTerm('');
               }}
             />
@@ -1081,7 +983,7 @@ export function BankAccountsTable() {
                         <ColumnFilterPopover
                           columnKey={col.key}
                           columnLabel={col.label}
-                          values={getUniqueValues(col.key)}
+                          values={getColumnValues(col.key)}
                           activeFilters={filters.get(col.key)?.mode === 'facet' ? (filters.get(col.key) as any).values : new Set()}
                           activeFilter={filters.get(col.key)}
                           columnFormat={col.format as ColumnFormat | undefined}
@@ -1130,14 +1032,14 @@ export function BankAccountsTable() {
                     Loading...
                   </td>
                 </tr>
-              ) : filteredAndSortedData.length === 0 ? (
+              ) : sortedAccounts.length === 0 ? (
                 <tr>
                   <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4 text-gray-500">
                     No records found
                   </td>
                 </tr>
               ) : (
-                paginatedData.map((row) => (
+                paginatedAccounts.map((row) => (
                   <tr key={row.uuid} className="border-b border-gray-200 hover:bg-gray-50">
                     {visibleColumns.map(col => (
                       <td 
@@ -1194,15 +1096,15 @@ export function BankAccountsTable() {
       <div className="sticky bottom-0 z-20 flex-shrink-0 bg-white border-t px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-600">
-            Showing {filteredAndSortedData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} to{' '}
-            {Math.min(currentPage * pageSize, filteredAndSortedData.length)} of{' '}
-            {filteredAndSortedData.length} records
+            Showing {sortedAccounts.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} to{' '}
+            {Math.min(currentPage * pageSize, sortedAccounts.length)} of{' '}
+            {sortedAccounts.length} records
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
             >
               <ChevronLeft className="w-4 h-4" />
@@ -1213,7 +1115,7 @@ export function BankAccountsTable() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages || totalPages === 0}
             >
               <ChevronRight className="w-4 h-4" />

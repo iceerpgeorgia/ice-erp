@@ -23,6 +23,7 @@ import { ClearFiltersButton } from './shared/clear-filters-button';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
 import { useRequiredInsiderName } from './shared/use-required-insider';
 import { BLANK_FACET_TOKEN } from './shared/table-filters';
+import type { ColumnFormat } from './shared/table-filters';
 import * as XLSX from 'xlsx';
 
 const CORRESPONDING_ACCOUNTS = [
@@ -78,7 +79,7 @@ type ColumnConfig = {
   visible: boolean;
   sortable?: boolean;
   filterable?: boolean;
-  format?: 'date' | 'datetime' | 'boolean' | 'number';
+  format?: ColumnFormat;
   width: number;
 };
 
@@ -96,8 +97,8 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'driver', label: 'Driver', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'vehicle', label: 'Vehicle', visible: true, sortable: true, filterable: true, width: 160 },
   { key: 'activation_time', label: 'Activation Time', visible: true, sortable: true, filterable: true, format: 'datetime', width: 190 },
-  { key: 'date', label: 'Date', visible: true, sortable: true, filterable: true, width: 120 },
-  { key: 'period', label: 'Period', visible: true, sortable: true, filterable: true, width: 120 },
+  { key: 'date', label: 'Date', visible: true, sortable: true, filterable: true, format: 'date', width: 120 },
+  { key: 'period', label: 'Period', visible: true, sortable: true, filterable: true, format: 'date', width: 120 },
   { key: 'rs_id', label: 'RS ID', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'transportation_sum', label: 'Transport Sum', visible: true, sortable: true, filterable: true, format: 'number', width: 140 },
   { key: 'transportation_cost', label: 'Transport Cost', visible: true, sortable: true, filterable: true, format: 'number', width: 140 },

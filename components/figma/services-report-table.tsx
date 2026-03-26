@@ -7,9 +7,9 @@ import { Input } from './ui/input';
 import { Checkbox } from './ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
-import type { ColumnFormat, FilterState } from './shared/table-filters';
-import { matchesFilter } from './shared/table-filters';
+import type { ColumnFormat } from './shared/table-filters';
 import { ClearFiltersButton } from './shared/clear-filters-button';
+import { useTableFilters, type FilterableColumn } from './shared/use-table-filters';
 import * as XLSX from 'xlsx';
 import { AddProjectDialog } from './add-project-dialog';
 
@@ -285,11 +285,20 @@ const getColumnValue = (row: ServicesRow, key: SectionColumnKey) => {
   }
 };
 
+const HOOK_COLUMNS: FilterableColumn<SectionColumnKey>[] = DEFAULT_SECTION_COLUMNS.map((col) => ({
+  key: col.key,
+  label: col.label,
+  visible: true,
+  sortable: col.key !== 'actions',
+  filterable: col.key !== 'actions',
+  format: COLUMN_FORMAT_MAP[col.key],
+  width: col.width,
+}));
+
 export function ServicesReportTable() {
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
   const [maxDate, setMaxDate] = useState('');
   const [financialCodeSearch, setFinancialCodeSearch] = useState('');
   const [financialCodes, setFinancialCodes] = useState<FinancialCode[]>([]);
@@ -299,9 +308,30 @@ export function ServicesReportTable() {
     summaryByStatus: [],
     totals: DEFAULT_TOTALS,
   });
-  const [sortField, setSortField] = useState<SectionColumnKey>('latestDate');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [columnFilters, setColumnFilters] = useState<FilterState>(new Map());
+
+  const {
+    filters: columnFilters,
+    searchTerm: search,
+    sortColumn: sortField,
+    sortDirection,
+    sortedData: sortedServices,
+    setSearchTerm: setSearch,
+    handleSort,
+    setSortColumn: setSortField,
+    setSortDirection,
+    handleFilterChange,
+    clearFilters,
+    activeFilterCount,
+    getColumnValues: getUniqueValues,
+  } = useTableFilters<ServicesRow, SectionColumnKey>({
+    data: report.rows,
+    columns: HOOK_COLUMNS,
+    defaultSortColumn: 'latestDate',
+    defaultSortDirection: 'desc',
+    searchColumns: ['status', 'serviceState', 'project', 'projectName', 'counteragent', 'currency', 'financialCodeValidation'] as SectionColumnKey[],
+    getRowValue: (row, key) => getColumnValue(row, key as SectionColumnKey),
+    pageSize: 100000,
+  });
 
   const [sectionColumns, setSectionColumns] = useState<Record<string, SectionColumn[]>>({});
   const [draggedColumn, setDraggedColumn] = useState<{ sectionId: string; key: SectionColumnKey } | null>(null);
@@ -481,94 +511,6 @@ export function ServicesReportTable() {
     fetchReport();
   }, [fetchReport]);
 
-  const searchFilteredRows = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return report.rows;
-    return report.rows.filter((row) =>
-      [
-        row.status,
-        row.serviceState,
-        row.project,
-        row.projectName,
-        row.counteragent,
-        row.currency,
-        row.financialCodeValidation,
-      ]
-        .join(' ')
-        .toLowerCase()
-        .includes(term)
-    );
-  }, [report.rows, search]);
-
-  const getFacetBaseRows = useCallback(
-    (excludeColumn?: SectionColumnKey) => {
-      if (columnFilters.size === 0) return searchFilteredRows;
-      return searchFilteredRows.filter((row) => {
-        for (const [columnKey, filter] of columnFilters.entries()) {
-          if (excludeColumn && columnKey === excludeColumn) continue;
-          const value = getColumnValue(row, columnKey as SectionColumnKey);
-          if (!matchesFilter(value, filter)) {
-            return false;
-          }
-        }
-        return true;
-      });
-    },
-    [columnFilters, searchFilteredRows]
-  );
-
-  const getUniqueValues = useCallback(
-    (columnKey: SectionColumnKey) => {
-      if (columnKey === 'actions') return [] as any[];
-      const values = getFacetBaseRows(columnKey).map((row) => getColumnValue(row, columnKey));
-      return Array.from(new Set(values));
-    },
-    [getFacetBaseRows]
-  );
-
-  const filteredRows = useMemo(() => {
-    if (columnFilters.size === 0) return searchFilteredRows;
-    return searchFilteredRows.filter((row) => {
-      for (const [columnKey, filter] of columnFilters.entries()) {
-        const value = getColumnValue(row, columnKey as SectionColumnKey);
-        if (!matchesFilter(value, filter)) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [columnFilters, searchFilteredRows]);
-
-  const sortedRows = useMemo(() => {
-    if (sortField === 'actions') return filteredRows;
-    const rows = [...filteredRows];
-    rows.sort((a, b) => {
-      const aVal = getColumnValue(a, sortField);
-      const bVal = getColumnValue(b, sortField);
-
-      if (aVal == null && bVal == null) return 0;
-      if (aVal == null) return 1;
-      if (bVal == null) return -1;
-
-      const direction = sortDirection === 'asc' ? 1 : -1;
-      if (typeof aVal === 'number' && typeof bVal === 'number') {
-        return (aVal - bVal) * direction;
-      }
-      if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
-        return (Number(aVal) - Number(bVal)) * direction;
-      }
-      if (sortField === 'latestDate') {
-        const aTime = new Date(String(aVal)).getTime();
-        const bTime = new Date(String(bVal)).getTime();
-        const safeA = Number.isNaN(aTime) ? Number.NEGATIVE_INFINITY : aTime;
-        const safeB = Number.isNaN(bTime) ? Number.NEGATIVE_INFINITY : bTime;
-        return (safeA - safeB) * direction;
-      }
-      return String(aVal).localeCompare(String(bVal)) * direction;
-    });
-    return rows;
-  }, [filteredRows, sortDirection, sortField]);
-
   const filteredFinancialCodes = useMemo(() => {
     const term = financialCodeSearch.trim().toLowerCase();
     if (!term) return financialCodes;
@@ -587,7 +529,7 @@ export function ServicesReportTable() {
 
   const sections = useMemo(() => {
     const grouped = new Map<string, SectionData>();
-    for (const row of sortedRows) {
+    for (const row of sortedServices) {
       const key = row.financialCodeUuid || 'unknown';
       const existing = grouped.get(key);
       if (existing) {
@@ -605,7 +547,7 @@ export function ServicesReportTable() {
     return Array.from(grouped.values()).sort((a, b) =>
       a.financialCodeValidation.localeCompare(b.financialCodeValidation)
     );
-  }, [sortedRows, codeLabelByUuid]);
+  }, [sortedServices, codeLabelByUuid]);
 
   const toggleFinancialCode = (uuid: string) => {
     setSelectedFinancialCodeUuids((prev) => {
@@ -1136,8 +1078,6 @@ export function ServicesReportTable() {
     return sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   };
 
-  const activeFilterCount = columnFilters.size;
-
   return (
     <div className="space-y-4 p-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -1198,7 +1138,7 @@ export function ServicesReportTable() {
           className="w-[260px]"
         />
         <ClearFiltersButton
-          onClear={() => setColumnFilters(new Map())}
+          onClear={clearFilters}
           activeCount={activeFilterCount}
           label="Clear Column Filters"
         />
@@ -1207,7 +1147,7 @@ export function ServicesReportTable() {
         <Button
           variant="outline"
           onClick={handleExportXlsx}
-          disabled={isExporting || sortedRows.length === 0}
+          disabled={isExporting || sortedServices.length === 0}
           className="flex items-center gap-2"
         >
           <Download className="h-4 w-4" />
@@ -1328,14 +1268,7 @@ export function ServicesReportTable() {
                         <div className={`flex items-center gap-2 min-w-0 ${column.align === 'right' ? 'justify-end pr-2' : ''}`}>
                           {isSortable ? (
                             <button
-                              onClick={() => {
-                                if (sortField === column.key) {
-                                  setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-                                } else {
-                                  setSortField(column.key);
-                                  setSortDirection('asc');
-                                }
-                              }}
+                              onClick={() => handleSort(column.key)}
                               className="inline-flex items-center gap-1 hover:text-black"
                             >
                               <span>{column.label}</span>
@@ -1350,14 +1283,7 @@ export function ServicesReportTable() {
                               columnLabel={column.label}
                               values={getUniqueValues(column.key)}
                               activeFilter={columnFilters.get(column.key)}
-                              onAdvancedFilterChange={(filter) => {
-                                setColumnFilters((prev) => {
-                                  const next = new Map(prev);
-                                  if (filter) next.set(column.key, filter);
-                                  else next.delete(column.key);
-                                  return next;
-                                });
-                              }}
+                              onAdvancedFilterChange={(filter) => handleFilterChange(column.key, filter)}
                               onSort={(direction) => {
                                 setSortField(column.key);
                                 setSortDirection(direction);

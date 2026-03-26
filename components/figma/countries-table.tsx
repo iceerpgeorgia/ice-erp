@@ -31,9 +31,8 @@ import {
 } from './ui/table';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
-import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
-import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
-import { matchesFilter } from './shared/table-filters';
+import type { ColumnFormat } from './shared/table-filters';
+import { useTableFilters } from './shared/use-table-filters';
 
 // Sample data matching your exact database schema
 const initialCountries = [
@@ -147,14 +146,15 @@ type ColumnConfig = {
   visible: boolean;
   sortable: boolean;
   filterable: boolean;
+  format?: ColumnFormat;
   responsive?: 'sm' | 'md' | 'lg' | 'xl';
 };
 
 const defaultColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', width: 80, visible: true, sortable: true, filterable: true },
-  { key: 'createdAt', label: 'Created', width: 140, visible: true, sortable: true, filterable: true, responsive: 'xl' },
-  { key: 'updatedAt', label: 'Updated', width: 140, visible: true, sortable: true, filterable: true, responsive: 'xl' },
-  { key: 'ts', label: 'Timestamp', width: 140, visible: true, sortable: true, filterable: true, responsive: 'lg' },
+  { key: 'createdAt', label: 'Created', width: 140, visible: true, sortable: true, filterable: true, format: 'date', responsive: 'xl' },
+  { key: 'updatedAt', label: 'Updated', width: 140, visible: true, sortable: true, filterable: true, format: 'date', responsive: 'xl' },
+  { key: 'ts', label: 'Timestamp', width: 140, visible: true, sortable: true, filterable: true, format: 'datetime', responsive: 'lg' },
   { key: 'countryUuid', label: 'UUID', width: 200, visible: true, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'nameEn', label: 'Name EN', width: 180, visible: true, sortable: true, filterable: true },
   { key: 'nameKa', label: 'Name GE', width: 200, visible: true, sortable: true, filterable: true, responsive: 'md' },
@@ -183,9 +183,6 @@ export function CountriesTable({ data }: { data?: Country[] }) {
   const bottomScrollRef = useRef<HTMLDivElement>(null);
   const [needsBottomScroller, setNeedsBottomScroller] = useState(false);
   const [scrollContentWidth, setScrollContentWidth] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<ColumnKey | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -193,9 +190,6 @@ export function CountriesTable({ data }: { data?: Country[] }) {
   const [editingCountry, setEditingCountry] = useState<Country | null>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
-  const [columnFilters, setColumnFilters] = useState<FilterState>(new Map());
-  const filtersStorageKey = 'countries-table:column-filters';
-  
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
     if (typeof window !== 'undefined') {
@@ -215,21 +209,6 @@ export function CountriesTable({ data }: { data?: Country[] }) {
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
 
-  useEffect(() => {
-    const legacy = loadColumnFilters(filtersStorageKey) as Record<string, string[]>;
-    const fs: FilterState = new Map();
-    Object.entries(legacy).forEach(([k, v]) => { if (v.length > 0) fs.set(k, { mode: 'facet', values: new Set(v) }); });
-    setColumnFilters(fs);
-  }, [filtersStorageKey]);
-
-  useEffect(() => {
-    const legacy: Record<string, string[]> = {};
-    columnFilters.forEach((filter, key) => {
-      if (filter.mode === 'facet') legacy[key] = Array.from(filter.values).map(String);
-    });
-    saveColumnFilters(filtersStorageKey, legacy);
-  }, [filtersStorageKey, columnFilters]);
-  
   // Form state with validation
   const [formData, setFormData] = useState({
     nameEn: '',
@@ -242,9 +221,6 @@ export function CountriesTable({ data }: { data?: Country[] }) {
   
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
   const pageSizeOptions = [50, 100, 200, 500, 1000];
 
   // Respond to external data updates
@@ -252,29 +228,18 @@ export function CountriesTable({ data }: { data?: Country[] }) {
     if (data) setCountries(data);
   }, [data]);
 
-  const getFacetBaseData = (excludeColumn?: ColumnKey) => {
-    let result = [...countries];
-
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      result = result.filter(row =>
-        Object.values(row).some(val => String(val ?? '').toLowerCase().includes(search))
-      );
-    }
-
-    if (columnFilters.size > 0) {
-      result = result.filter(row => {
-        for (const [column, filter] of columnFilters.entries()) {
-          if (excludeColumn && column === excludeColumn) continue;
-          const cellValue = row[column as ColumnKey];
-          if (!matchesFilter(cellValue, filter)) return false;
-        }
-        return true;
-      });
-    }
-
-    return result;
-  };
+  const {
+    filters, searchTerm, sortColumn, sortDirection, currentPage, pageSize,
+    sortedData: sortedCountries, paginatedData: paginatedCountries, totalPages,
+    getColumnValues, setSearchTerm, handleSort, setSortColumn, setSortDirection,
+    setCurrentPage, setPageSize, handleFilterChange, clearFilters, activeFilterCount,
+  } = useTableFilters<Country, ColumnKey>({
+    data: countries,
+    columns,
+    defaultSortColumn: 'id',
+    defaultSortDirection: 'asc',
+    filtersStorageKey: 'countries-table:column-filters',
+  });
 
   // Measure scroll content width and whether a horizontal scrollbar is needed
   useEffect(() => {
@@ -479,79 +444,8 @@ export function CountriesTable({ data }: { data?: Country[] }) {
     return Object.keys(errors).length === 0;
   };
 
-  // Filter and search logic
-  const filteredCountries = useMemo(() => {
-    let filtered = countries;
-
-    // Apply search across all visible text fields
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(country =>
-        country.nameEn.toLowerCase().includes(search) ||
-        country.nameKa.toLowerCase().includes(search) ||
-        country.iso2.toLowerCase().includes(search) ||
-        country.iso3.toLowerCase().includes(search) ||
-        country.unCode.toString().includes(search) ||
-        country.country.toLowerCase().includes(search) ||
-        (country.isActive ? 'active' : 'inactive').includes(search) ||
-        country.ts.toLowerCase().includes(search)
-      );
-    }
-
-    // Apply column filters
-    if (columnFilters.size > 0) {
-      filtered = filtered.filter(row => {
-        for (const [column, filter] of columnFilters.entries()) {
-          const cellValue = row[column as ColumnKey];
-          if (!matchesFilter(cellValue, filter)) return false;
-        }
-        return true;
-      });
-    }
-
-    return filtered;
-  }, [countries, searchTerm, columnFilters]);
-
-  // Sort logic
-  const sortedCountries = useMemo(() => {
-    if (!sortField) return filteredCountries;
-
-    return [...filteredCountries].sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-      
-      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [filteredCountries, sortField, sortDirection]);
-
-  // Pagination
-  const totalRecords = sortedCountries.length;
-  const totalPages = Math.ceil(totalRecords / pageSize);
-  
-  const paginatedCountries = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return sortedCountries.slice(startIndex, endIndex);
-  }, [sortedCountries, currentPage, pageSize]);
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, columnFilters, pageSize]);
-
-  const handleSort = (field: ColumnKey) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
   const getSortIcon = (field: ColumnKey) => {
-    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-50" />;
+    if (sortColumn !== field) return <ArrowUpDown className="h-3 w-3 opacity-50" />;
     return sortDirection === 'asc' 
       ? <ArrowUp className="h-3 w-3" />
       : <ArrowDown className="h-3 w-3" />;
@@ -699,12 +593,6 @@ export function CountriesTable({ data }: { data?: Country[] }) {
     } finally {
       setLoadingAudit(false);
     }
-  };
-
-  // Get unique values for column filters
-  const getUniqueValues = (column: ColumnKey) => {
-    const baseData = getFacetBaseData(column);
-    return [...new Set(baseData.map(country => String(country[column] ?? '')))].sort();
   };
 
   // Column settings dialog
@@ -1144,7 +1032,7 @@ export function CountriesTable({ data }: { data?: Country[] }) {
         </div>
         <div className="flex items-center gap-4">
           <div className="text-sm text-muted-foreground">
-            Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} records
+            Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, sortedCountries.length)} of {sortedCountries.length} records
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Rows per page:</span>
@@ -1179,7 +1067,7 @@ export function CountriesTable({ data }: { data?: Country[] }) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
             >
               Previous
@@ -1187,7 +1075,7 @@ export function CountriesTable({ data }: { data?: Country[] }) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
             >
               Next
@@ -1246,24 +1134,18 @@ export function CountriesTable({ data }: { data?: Country[] }) {
                           <ColumnFilterPopover
                             columnKey={column.key}
                             columnLabel={column.label}
-                            values={getUniqueValues(column.key)}
-                            activeFilter={columnFilters.get(column.key)}
-                            activeFilters={columnFilters.get(column.key)?.mode === 'facet' ? (columnFilters.get(column.key) as any).values : new Set()}
+                            values={getColumnValues(column.key)}
+                            activeFilter={filters.get(column.key)}
+                            activeFilters={filters.get(column.key)?.mode === 'facet' ? (filters.get(column.key) as any).values : new Set()}
                             onFilterChange={(values) => {
-                              const next = new Map(columnFilters);
-                              if (values.size === 0) next.delete(column.key);
-                              else next.set(column.key, { mode: 'facet', values });
-                              setColumnFilters(next);
+                              handleFilterChange(column.key, values.size > 0 ? { mode: 'facet', values } : null);
                             }}
                             onAdvancedFilterChange={(filter) => {
-                              const next = new Map(columnFilters);
-                              if (!filter) next.delete(column.key);
-                              else next.set(column.key, filter);
-                              setColumnFilters(next);
+                              handleFilterChange(column.key, filter);
                             }}
                             columnFormat={(column as any).format as ColumnFormat | undefined}
                             onSort={(direction) => {
-                              setSortField(column.key);
+                              setSortColumn(column.key);
                               setSortDirection(direction);
                             }}
                           />
@@ -1378,7 +1260,7 @@ export function CountriesTable({ data }: { data?: Country[] }) {
       {sortedCountries.length === 0 && (
         <div className="text-center py-12">
           <div className="text-muted-foreground">
-            {searchTerm || columnFilters.size > 0 ? (
+            {searchTerm || activeFilterCount > 0 ? (
               <>
                 <p className="text-lg font-medium mb-2">No countries found</p>
                 <p className="text-sm">Try adjusting your search or filters</p>
@@ -1395,10 +1277,10 @@ export function CountriesTable({ data }: { data?: Country[] }) {
 
       {/* Active filters indicator */}
       <div className="flex items-center space-x-2 text-sm">
-        {columnFilters.size > 0 && (
+        {activeFilterCount > 0 && (
           <>
             <span className="text-muted-foreground">Active filters:</span>
-            {Array.from(columnFilters.entries()).map(([column, filter]) => (
+            {Array.from(filters.entries()).map(([column, filter]) => (
               <Badge key={column} variant="secondary" className="text-xs">
                 {columns.find(c => c.key === column)?.label}: {filter.mode === 'facet' ? filter.values.size : filter.mode}
               </Badge>
@@ -1406,11 +1288,10 @@ export function CountriesTable({ data }: { data?: Country[] }) {
           </>
         )}
         <ClearFiltersButton
-          activeCount={columnFilters.size + (searchTerm.trim() ? 1 : 0)}
+          activeCount={activeFilterCount + (searchTerm.trim() ? 1 : 0)}
           label="Clear All"
           onClear={() => {
-            clearColumnFilters(filtersStorageKey);
-            setColumnFilters(new Map());
+            clearFilters();
             setSearchTerm('');
           }}
           className="h-6 px-2 text-xs"

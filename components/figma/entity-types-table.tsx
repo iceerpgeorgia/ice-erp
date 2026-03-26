@@ -58,14 +58,15 @@ type ColumnConfig = {
   visible: boolean;
   sortable: boolean;
   filterable: boolean;
+  format?: ColumnFormat;
   responsive?: 'sm' | 'md' | 'lg' | 'xl';
 };
 
 const defaultColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', width: 80, visible: true, sortable: true, filterable: true },
-  { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true, responsive: 'xl' },
-  { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true, responsive: 'xl' },
-  { key: 'ts', label: 'Timestamp', width: 140, visible: false, sortable: true, filterable: true, responsive: 'lg' },
+  { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true, format: 'date', responsive: 'xl' },
+  { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true, format: 'date', responsive: 'xl' },
+  { key: 'ts', label: 'Timestamp', width: 140, visible: false, sortable: true, filterable: true, format: 'datetime', responsive: 'lg' },
   { key: 'entityTypeUuid', label: 'UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'nameEn', label: 'Name EN', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'nameKa', label: 'Name GE', width: 200, visible: true, sortable: true, filterable: true, responsive: 'md' },

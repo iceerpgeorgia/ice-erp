@@ -37,9 +37,8 @@ import { Combobox } from '@/components/ui/combobox';
 import { MultiCombobox } from '@/components/ui/multi-combobox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
-import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
-import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
-import { matchesFilter } from './shared/table-filters';
+import { useTableFilters } from './shared/use-table-filters';
+import type { ColumnFormat } from './shared/table-filters';
 import { 
   Table, 
   TableBody, 
@@ -93,19 +92,20 @@ type ColumnConfig = {
   visible: boolean;
   sortable: boolean;
   filterable: boolean;
+  format?: ColumnFormat;
   responsive?: 'sm' | 'md' | 'lg' | 'xl';
 };
 
 const defaultColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', width: 80, visible: false, sortable: true, filterable: true },
-  { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true, responsive: 'xl' },
-  { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true, responsive: 'xl' },
+  { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true, format: 'date', responsive: 'xl' },
+  { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true, format: 'date', responsive: 'xl' },
   { key: 'projectUuid', label: 'UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'projectName', label: 'Project Name', width: 200, visible: true, sortable: true, filterable: true },
-  { key: 'date', label: 'Date', width: 120, visible: true, sortable: true, filterable: true },
-  { key: 'value', label: 'Value', width: 120, visible: true, sortable: true, filterable: true },
-  { key: 'totalPayments', label: 'Total Payments', width: 140, visible: true, sortable: true, filterable: true },
-  { key: 'balance', label: 'Balance', width: 140, visible: true, sortable: true, filterable: true },
+  { key: 'date', label: 'Date', width: 120, visible: true, sortable: true, filterable: true, format: 'date' },
+  { key: 'value', label: 'Value', width: 120, visible: true, sortable: true, filterable: true, format: 'number' },
+  { key: 'totalPayments', label: 'Total Payments', width: 140, visible: true, sortable: true, filterable: true, format: 'number' },
+  { key: 'balance', label: 'Balance', width: 140, visible: true, sortable: true, filterable: true, format: 'number' },
   { key: 'oris1630', label: 'ORIS 1630', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'counteragent', label: 'Counteragent', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'insiderName', label: 'Insider Name', width: 180, visible: true, sortable: false, filterable: true },
@@ -125,36 +125,6 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 const COLUMNS_STORAGE_KEY = 'projects-table-columns-v2';
-const DATE_SORT_FIELDS = new Set<ColumnKey>(['date', 'createdAt', 'updatedAt']);
-
-function parseDateToSortMs(value: unknown): number {
-  if (value instanceof Date) return value.getTime();
-  if (value === null || value === undefined) return Number.NEGATIVE_INFINITY;
-
-  const raw = String(value).trim();
-  if (!raw) return Number.NEGATIVE_INFINITY;
-
-  // DD.MM.YYYY
-  const dmy = raw.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-  if (dmy) {
-    const day = Number(dmy[1]);
-    const month = Number(dmy[2]);
-    const year = Number(dmy[3]);
-    return Date.UTC(year, month - 1, day);
-  }
-
-  // YYYY-MM-DD (or date-time starting with that)
-  const ymd = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (ymd) {
-    const year = Number(ymd[1]);
-    const month = Number(ymd[2]);
-    const day = Number(ymd[3]);
-    return Date.UTC(year, month - 1, day);
-  }
-
-  const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? Number.NEGATIVE_INFINITY : parsed.getTime();
-}
 
 function formatDateDisplay(value: unknown): string {
   if (value === null || value === undefined) return '';
@@ -263,9 +233,6 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   const bottomScrollRef = useRef<HTMLDivElement>(null);
   const [needsBottomScroller, setNeedsBottomScroller] = useState(false);
   const [scrollContentWidth, setScrollContentWidth] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<ColumnKey | null>('createdAt');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -274,8 +241,6 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   const [isSaving, setIsSaving] = useState(false);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
-  const [columnFilters, setColumnFilters] = useState<FilterState>(new Map());
-  const filtersStorageKey = 'projects-table:column-filters';
   const [isExporting, setIsExporting] = useState(false);
   
   // Initialize columns from localStorage or use defaults
@@ -336,73 +301,39 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
     return source.map((item) => item.insiderName).filter(Boolean);
   }, [insidersList, selectedInsiderUuids]);
 
-  const getFacetBaseData = (excludeColumn?: ColumnKey) => {
-    let result = [...projects];
-
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      result = result.filter(row =>
-        Object.values(row).some(val => String(val ?? '').toLowerCase().includes(search))
-      );
-    }
-
-    if (columnFilters.size > 0) {
-      result = result.filter(row => {
-        for (const [columnKey, filter] of columnFilters.entries()) {
-          if (excludeColumn && columnKey === excludeColumn) continue;
-          const rowValue = row[columnKey as ColumnKey];
-          if (!matchesFilter(rowValue, filter)) {
-            return false;
-          }
-        }
-        return true;
-      });
-    }
-
-    return result;
-  };
-
+  // Apply URL param filters on mount
   useEffect(() => {
-    const legacy = loadColumnFilters(filtersStorageKey) as Record<string, string[]>;
-    const fs: FilterState = new Map();
-    Object.entries(legacy).forEach(([k, v]) => { if (v.length > 0) fs.set(k, { mode: 'facet', values: new Set(v) }); });
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const projectUuid = params.get('projectUuid');
+    const projectName = params.get('projectName');
+    const projectIndex = params.get('projectIndex');
 
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const projectUuid = params.get('projectUuid');
-      const projectName = params.get('projectName');
-      const projectIndex = params.get('projectIndex');
+    let filterKey: ColumnKey | null = null;
+    let filterValue: string | null = null;
 
-      if (projectUuid) {
-        fs.set('projectUuid', { mode: 'facet', values: new Set([projectUuid]) });
-      } else if (projectIndex) {
-        fs.set('projectIndex', { mode: 'facet', values: new Set([projectIndex]) });
-      } else if (projectName) {
-        fs.set('projectName', { mode: 'facet', values: new Set([projectName]) });
-      }
+    if (projectUuid) {
+      filterKey = 'projectUuid';
+      filterValue = projectUuid;
+    } else if (projectIndex) {
+      filterKey = 'projectIndex';
+      filterValue = projectIndex;
+    } else if (projectName) {
+      filterKey = 'projectName';
+      filterValue = projectName;
     }
 
-    const filteredColumns = new Set(Array.from(fs.keys()) as ColumnKey[]);
-    if (filteredColumns.size > 0) {
+    if (filterKey && filterValue) {
+      handleFilterChange(filterKey, { mode: 'facet', values: new Set([filterValue]) });
       setColumns((prev) =>
         prev.map((col) =>
-          filteredColumns.has(col.key) && !col.visible
+          col.key === filterKey && !col.visible
             ? { ...col, visible: true }
             : col
         )
       );
     }
-
-    setColumnFilters(fs);
-  }, [filtersStorageKey]);
-
-  useEffect(() => {
-    const legacy: Record<string, string[]> = {};
-    columnFilters.forEach((filter, key) => {
-      if (filter.mode === 'facet') legacy[key] = Array.from(filter.values).map(String);
-    });
-    saveColumnFilters(filtersStorageKey, legacy);
-  }, [filtersStorageKey, columnFilters]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Form state with validation
   const [formData, setFormData] = useState({
@@ -423,10 +354,51 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
+  const filtersStorageKey = 'projects-table:column-filters';
   const pageSizeOptions = [50, 100, 200, 500, 1000];
+
+  const {
+    filters: columnFilters,
+    searchTerm,
+    sortColumn: sortField,
+    sortDirection,
+    currentPage,
+    pageSize,
+    sortedData: sortedProjects,
+    paginatedData: paginatedProjects,
+    totalPages,
+    getColumnValues: getUniqueValues,
+    setSearchTerm,
+    handleSort,
+    setSortColumn: setSortField,
+    setSortDirection,
+    setCurrentPage,
+    setPageSize,
+    handleFilterChange,
+    clearFilters,
+    activeFilterCount,
+  } = useTableFilters<Project, ColumnKey>({
+    data: projects,
+    columns,
+    defaultSortColumn: 'createdAt',
+    defaultSortDirection: 'desc',
+    filtersStorageKey,
+    pageSize: 100,
+    getRowValue: (row: Project, key: string) => {
+      if (key === 'employees') {
+        return (row.employees || []).map((e: any) => e.employeeName).join(', ');
+      }
+      if (key === 'date') {
+        const raw = String((row as any).date || '').trim();
+        const dmy = raw.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+        if (dmy) return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+        return raw;
+      }
+      return (row as any)[key];
+    },
+  });
+
+  const totalRecords = sortedProjects.length;
 
   // Respond to external data updates
   useEffect(() => {
@@ -789,80 +761,6 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
 
   
 
-  // Filter and search logic
-  const filteredProjects = useMemo(() => {
-    let filtered = projects;
-
-    // Apply search across all visible text fields
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(project =>
-        (project.projectName || '').toLowerCase().includes(search) ||
-        (project.counteragent || '').toLowerCase().includes(search) ||
-        (project.financialCode || '').toLowerCase().includes(search) ||
-        (project.currency || '').toLowerCase().includes(search) ||
-        (project.state || '').toLowerCase().includes(search) ||
-        (project.department || '').toLowerCase().includes(search) ||
-        (project.serviceState || '').toLowerCase().includes(search) ||
-        (project.contractNo || '').toLowerCase().includes(search) ||
-        (project.address || '').toLowerCase().includes(search) ||
-        (project.employees?.some(e => e.employeeName?.toLowerCase().includes(search)))
-      );
-    }
-
-    // Apply column filters
-    if (columnFilters.size > 0) {
-      filtered = filtered.filter(project => {
-        for (const [column, filter] of columnFilters.entries()) {
-          if (column === 'employees') {
-            // For employees, check if any employee name matches the selected facet values
-            if (filter.mode === 'facet') {
-              const employeeNames = project.employees?.map(e => e.employeeName) || [];
-              const hasMatch = Array.from(filter.values).some((selectedName: string) => employeeNames.includes(selectedName));
-              if (!hasMatch) return false;
-            }
-            continue;
-          }
-          const cellValue = project[column as ColumnKey];
-          if (!matchesFilter(cellValue, filter)) return false;
-        }
-        return true;
-      });
-    }
-
-    return filtered;
-  }, [projects, searchTerm, columnFilters]);
-
-  // Sort logic
-  const sortedProjects = useMemo(() => {
-    if (!sortField) return filteredProjects;
-
-    return [...filteredProjects].sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-      
-      // Handle nulls
-      if (aVal === null || aVal === undefined) return 1;
-      if (bVal === null || bVal === undefined) return -1;
-
-      if (DATE_SORT_FIELDS.has(sortField)) {
-        const aTime = parseDateToSortMs(aVal);
-        const bTime = parseDateToSortMs(bVal);
-        if (aTime < bTime) return sortDirection === 'asc' ? -1 : 1;
-        if (aTime > bTime) return sortDirection === 'asc' ? 1 : -1;
-        return 0;
-      }
-      
-      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [filteredProjects, sortField, sortDirection]);
-
-  // Pagination
-  const totalRecords = sortedProjects.length;
-  const totalPages = Math.ceil(totalRecords / pageSize);
-
   const handleExportXlsx = () => {
     if (sortedProjects.length === 0) return;
     setIsExporting(true);
@@ -876,26 +774,6 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       });
     } finally {
       setIsExporting(false);
-    }
-  };
-  
-  const paginatedProjects = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return sortedProjects.slice(startIndex, endIndex);
-  }, [sortedProjects, currentPage, pageSize]);
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, columnFilters, pageSize]);
-
-  const handleSort = (field: ColumnKey) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
     }
   };
 
@@ -1073,18 +951,6 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
     }
   };
 
-  // Get unique values for column filters
-  const getUniqueValues = (column: ColumnKey) => {
-    const baseData = getFacetBaseData(column);
-    if (column === 'employees') {
-      // For employees, extract all unique employee names from the filtered rows
-      const allEmployees = baseData.flatMap(project =>
-        project.employees?.map(e => e.employeeName) || []
-      );
-      return [...new Set(allEmployees)].sort();
-    }
-    return [...new Set(baseData.map(project => String(project[column] ?? '')))].sort();
-  };
   // Column settings dialog
   const ColumnSettings = () => (
     <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
@@ -1817,7 +1683,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
             >
               Previous
@@ -1825,7 +1691,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
             >
               Next
@@ -1887,19 +1753,10 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                             values={getUniqueValues(column.key)}
                             activeFilters={columnFilters.get(column.key)?.mode === 'facet' ? (columnFilters.get(column.key) as any).values : new Set()}
                             activeFilter={columnFilters.get(column.key)}
-                            onAdvancedFilterChange={(filter) => {
-                              setColumnFilters(prev => {
-                                const next = new Map(prev);
-                                if (filter) { next.set(column.key, filter); } else { next.delete(column.key); }
-                                return next;
-                              });
-                            }}
+                            columnFormat={column.format as ColumnFormat | undefined}
+                            onAdvancedFilterChange={(filter) => handleFilterChange(column.key, filter)}
                             onFilterChange={(values) => {
-                              setColumnFilters(prev => {
-                                const next = new Map(prev);
-                                if (values.size > 0) { next.set(column.key, { mode: 'facet', values }); } else { next.delete(column.key); }
-                                return next;
-                              });
+                              handleFilterChange(column.key, values.size > 0 ? { mode: 'facet', values } : null);
                             }}
                             onSort={(direction) => {
                               setSortField(column.key);
@@ -2060,7 +1917,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       {sortedProjects.length === 0 && (
         <div className="text-center py-12">
           <div className="text-muted-foreground">
-            {searchTerm || columnFilters.size > 0 ? (
+            {searchTerm || activeFilterCount > 0 ? (
               <>
                 <p className="text-lg font-medium mb-2">No projects found</p>
                 <p className="text-sm">Try adjusting your search or filters</p>
@@ -2077,7 +1934,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
 
       {/* Active filters indicator */}
       <div className="flex items-center space-x-2 text-sm">
-        {columnFilters.size > 0 && (
+        {activeFilterCount > 0 && (
           <>
             <span className="text-muted-foreground">Active filters:</span>
             {Array.from(columnFilters.entries()).map(([column, filter]) => (
@@ -2088,11 +1945,10 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
           </>
         )}
         <ClearFiltersButton
-          activeCount={columnFilters.size + (searchTerm.trim() ? 1 : 0)}
+          activeCount={activeFilterCount + (searchTerm.trim() ? 1 : 0)}
           label="Clear All"
           onClear={() => {
-            clearColumnFilters(filtersStorageKey);
-            setColumnFilters(new Map());
+            clearFilters();
             setSearchTerm('');
           }}
           className="h-6 px-2 text-xs"

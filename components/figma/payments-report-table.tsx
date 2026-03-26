@@ -32,8 +32,8 @@ import { Label } from './ui/label';
 import { Combobox } from '../ui/combobox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
-import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
-import { matchesFilter } from './shared/table-filters';
+import type { ColumnFilter, ColumnFormat } from './shared/table-filters';
+import { useTableFilters } from './shared/use-table-filters';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -135,13 +135,7 @@ export function PaymentsReportTable() {
   const filtersStorageKey = 'paymentsReportFiltersV2';
   const [data, setData] = useState<PaymentReport[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortColumn, setSortColumn] = useState<ColumnKey>('latestDate');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
-  const [filters, setFilters] = useState<FilterState>(new Map());
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number; element: HTMLElement } | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
@@ -167,7 +161,6 @@ export function PaymentsReportTable() {
   const [isDeconfirmOpen, setIsDeconfirmOpen] = useState(false);
   const [isDeconfirming, setIsDeconfirming] = useState(false);
   const [deconfirmError, setDeconfirmError] = useState<string | null>(null);
-  const [filtersInitialized, setFiltersInitialized] = useState(false);
   const ledgerUploadInputRef = useRef<HTMLInputElement>(null);
   const [isLedgerUploadOpen, setIsLedgerUploadOpen] = useState(false);
   const [ledgerUploadFileName, setLedgerUploadFileName] = useState('');
@@ -401,71 +394,8 @@ export function PaymentsReportTable() {
       }
     }
 
-    const savedFilters = localStorage.getItem(filtersStorageKey);
-    let restoredFilters: FilterState = new Map();
-    if (savedFilters) {
-      try {
-        const parsed = JSON.parse(savedFilters);
-        if (typeof parsed.searchTerm === 'string') setSearchTerm(parsed.searchTerm);
-        if (parsed.sortColumn) setSortColumn(parsed.sortColumn as ColumnKey);
-        if (parsed.sortDirection === 'asc' || parsed.sortDirection === 'desc') {
-          setSortDirection(parsed.sortDirection);
-        }
-        if (typeof parsed.pageSize === 'number') setPageSize(parsed.pageSize);
-        if (Array.isArray(parsed.filters)) {
-          parsed.filters.forEach(([key, values]: [string, any[]]) => {
-            if (Array.isArray(values) && values.length > 0) {
-              restoredFilters.set(key, { mode: 'facet', values: new Set(values) });
-            }
-          });
-        }
-      } catch (e) {
-        console.error('Failed to parse saved filters:', e);
-      }
-    }
-
-    // Override filters from URL query parameters (e.g. ?counteragentUuid=UUID)
-    const urlParams = new URLSearchParams(window.location.search);
-    const counteragentUuidParam = urlParams.get('counteragentUuid');
-    const projectUuidParam = urlParams.get('projectUuid');
-    const jobUuidParam = urlParams.get('jobUuid');
-    const hasUrlQuickFilter = Boolean(counteragentUuidParam || projectUuidParam || jobUuidParam);
-
-    if (hasUrlQuickFilter) {
-      restoredFilters = new Map();
-      setSearchTerm('');
-    }
-
-    if (counteragentUuidParam) {
-      restoredFilters.set('counteragentUuid', { mode: 'facet', values: new Set([counteragentUuidParam]) });
-    }
-    if (projectUuidParam) {
-      restoredFilters.set('projectUuid', { mode: 'facet', values: new Set([projectUuidParam]) });
-    }
-    if (jobUuidParam) {
-      restoredFilters.set('jobUuid', { mode: 'facet', values: new Set([jobUuidParam]) });
-    }
-
-    setFilters(restoredFilters);
-    
     setIsInitialized(true);
-    setFiltersInitialized(true);
   }, []);
-
-  useEffect(() => {
-    if (!filtersInitialized) return;
-    const serialized = {
-      searchTerm,
-      sortColumn,
-      sortDirection,
-      pageSize,
-      filters: Array.from(filters.entries()).map(([key, filter]) => {
-        if (filter.mode === 'facet') return [key, Array.from(filter.values)];
-        return [key, []]; // Non-facet filters not persisted yet
-      }),
-    };
-    localStorage.setItem(filtersStorageKey, JSON.stringify(serialized));
-  }, [filtersInitialized, searchTerm, sortColumn, sortDirection, pageSize, filters]);
 
   // Fetch data after initialization and when date filter changes
   useEffect(() => {
@@ -1086,10 +1016,6 @@ export function PaymentsReportTable() {
         console.log('[Payments Report] Received', result.length, 'records');
         setData(result);
       }
-      
-      // Always set default sort to latestDate descending after data loads
-      setSortColumn('latestDate');
-      setSortDirection('desc');
     } catch (error) {
       console.error('Error fetching report:', error);
     } finally {
@@ -1132,35 +1058,6 @@ export function PaymentsReportTable() {
     );
   };
 
-  const handleSort = (columnKey: ColumnKey) => {
-    if (sortColumn === columnKey) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(columnKey);
-      setSortDirection('asc');
-    }
-  };
-
-  const handleFilterChange = (columnKey: string, filter: ColumnFilter | null) => {
-    setFilters(prev => {
-      const next = new Map(prev);
-      if (filter) { next.set(columnKey, filter); } else { next.delete(columnKey); }
-      return next;
-    });
-  };
-
-  const normalizeFilterValue = (value: any) => {
-    if (value === null || value === undefined) return value;
-    if (typeof value === 'object') {
-      try {
-        return JSON.stringify(value);
-      } catch {
-        return String(value);
-      }
-    }
-    return value;
-  };
-
   const splitUserEmails = (value: unknown) => {
     if (value === null || value === undefined) return [];
     return String(value)
@@ -1171,48 +1068,11 @@ export function PaymentsReportTable() {
 
   const normalizeUserEmail = (value: string) => value.trim().toLowerCase();
 
-  const matchesUsersFilter = (rowValue: unknown, allowedValues: Set<any>) => {
-    const allowedEmails = new Set(
-      Array.from(allowedValues).map((value) => normalizeUserEmail(String(value)))
-    );
-    const rowEmails = splitUserEmails(rowValue).map(normalizeUserEmail);
-    if (rowEmails.length === 0) return false;
-    return rowEmails.some((email) => allowedEmails.has(email));
-  };
+  // Pre-filter data by conditions before passing to hook
+  const conditionsFilteredData = useMemo(() => {
+    if (selectedConditions.size === 0 || selectedConditions.has('ALL')) return data;
 
-  const applySearchFilter = useCallback((rows: PaymentReport[]) => {
-    if (!searchTerm) return rows;
-    return rows.filter(row =>
-      Object.values(row).some(val =>
-        String(val).toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    );
-  }, [searchTerm]);
-
-  const applyColumnFilters = useCallback((rows: PaymentReport[], excludeColumn?: ColumnKey) => {
-    if (filters.size === 0) return rows;
-    return rows.filter(row => {
-      for (const [columnKey, filter] of filters.entries()) {
-        if (excludeColumn && columnKey === excludeColumn) continue;
-        if (columnKey === 'users' && filter.mode === 'facet') {
-          if (!matchesUsersFilter(row.users, filter.values)) {
-            return false;
-          }
-          continue;
-        }
-        const rowValue = row[columnKey as ColumnKey];
-        if (!matchesFilter(rowValue, filter)) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [filters, matchesUsersFilter]);
-
-  const applyConditionsFilter = useCallback((rows: PaymentReport[]) => {
-    if (selectedConditions.size === 0 || selectedConditions.has('ALL')) return rows;
-
-    return rows.filter(row => {
+    return data.filter(row => {
       for (const condition of selectedConditions) {
         let matches = false;
 
@@ -1286,105 +1146,75 @@ export function PaymentsReportTable() {
       }
       return false;
     });
-  }, [selectedConditions]);
+  }, [data, selectedConditions]);
 
-  const getFacetBaseData = useCallback((excludeColumn?: ColumnKey) => {
-    let result = [...data];
-    result = applySearchFilter(result);
-    result = applyColumnFilters(result, excludeColumn);
-    result = applyConditionsFilter(result);
-    return result;
-  }, [data, applySearchFilter, applyColumnFilters, applyConditionsFilter]);
+  const {
+    searchTerm,
+    setSearchTerm,
+    sortColumn,
+    sortDirection,
+    setSortColumn,
+    setSortDirection,
+    filters,
+    handleFilterChange,
+    handleSort,
+    filteredData,
+    sortedData,
+    paginatedData,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    totalPages,
+    activeFilterCount,
+    clearFilters,
+    getColumnValues,
+  } = useTableFilters<PaymentReport, ColumnKey>({
+    data: conditionsFilteredData,
+    columns: columns as any[],
+    defaultSortColumn: 'latestDate' as ColumnKey,
+    defaultSortDirection: 'desc',
+    filtersStorageKey,
+  });
 
-  const filteredAndSortedData = useMemo(() => {
-    let result = getFacetBaseData();
-
-    // Apply sort
-    result.sort((a, b) => {
-      const aVal = a[sortColumn];
-      const bVal = b[sortColumn];
-
-      if (sortColumn === 'latestDate' && sortDirection === 'desc') {
-        const aLatestDate = a.latestDate ? new Date(a.latestDate).getTime() : 0;
-        const bLatestDate = b.latestDate ? new Date(b.latestDate).getTime() : 0;
-
-        if (aLatestDate !== bLatestDate) {
-          return bLatestDate - aLatestDate;
-        }
-
-        const aCreatedAt = a.latestLedgerCreatedAt ? new Date(a.latestLedgerCreatedAt).getTime() : 0;
-        const bCreatedAt = b.latestLedgerCreatedAt ? new Date(b.latestLedgerCreatedAt).getTime() : 0;
-
-        if (aCreatedAt !== bCreatedAt) {
-          return bCreatedAt - aCreatedAt;
-        }
-
-        return (b.paymentId || '').localeCompare(a.paymentId || '');
-      }
-      
-      if (aVal === bVal) return 0;
-      
-      // Special handling for date columns
-      const columnConfig = columns.find(col => col.key === sortColumn);
-      if (columnConfig?.format === 'date') {
-        const aDate = aVal && typeof aVal !== 'boolean' ? new Date(aVal as string | number).getTime() : 0;
-        const bDate = bVal && typeof bVal !== 'boolean' ? new Date(bVal as string | number).getTime() : 0;
-        const comparison = aDate < bDate ? -1 : 1;
-        return sortDirection === 'asc' ? comparison : -comparison;
-      }
-      
-      // Handle null/undefined values
-      if (aVal === null || aVal === undefined) return 1;
-      if (bVal === null || bVal === undefined) return -1;
-      
-      const comparison = aVal < bVal ? -1 : 1;
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-
-    return result;
-  }, [getFacetBaseData, sortColumn, sortDirection]);
-
-  // Paginate data to limit DOM nodes
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return filteredAndSortedData.slice(startIndex, endIndex);
-  }, [filteredAndSortedData, currentPage, pageSize]);
-
-  const totalPages = Math.ceil(filteredAndSortedData.length / pageSize);
-
-  // Reset to page 1 when filters/search change
+  // Override filters from URL query parameters on initial mount
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filters]);
+    const urlParams = new URLSearchParams(window.location.search);
+    const counteragentUuidParam = urlParams.get('counteragentUuid');
+    const projectUuidParam = urlParams.get('projectUuid');
+    const jobUuidParam = urlParams.get('jobUuid');
+    const hasUrlQuickFilter = Boolean(counteragentUuidParam || projectUuidParam || jobUuidParam);
 
-  // Memoize unique values to avoid recalculating on every render
-  const uniqueValuesCache = useMemo(() => {
-    const cache = new Map<ColumnKey, any[]>();
-    const filterableColumns = columns.filter(col => col.filterable);
-
-    filterableColumns.forEach(col => {
-      const baseData = getFacetBaseData(col.key);
-      if (col.key === 'users') {
-        const values = new Set<string>();
-        baseData.forEach((row) => {
-          splitUserEmails(row.users).forEach((email) => {
-            values.add(normalizeUserEmail(email));
-          });
-        });
-        cache.set(col.key, Array.from(values).sort());
-        return;
+    if (hasUrlQuickFilter) {
+      clearFilters();
+      setSearchTerm('');
+      if (counteragentUuidParam) {
+        handleFilterChange('counteragentUuid' as ColumnKey, { mode: 'facet', values: new Set([counteragentUuidParam]) });
       }
-      const values = new Set(baseData.map(row => normalizeFilterValue(row[col.key])));
-      cache.set(col.key, Array.from(values).sort());
-    });
+      if (projectUuidParam) {
+        handleFilterChange('projectUuid' as ColumnKey, { mode: 'facet', values: new Set([projectUuidParam]) });
+      }
+      if (jobUuidParam) {
+        handleFilterChange('jobUuid' as ColumnKey, { mode: 'facet', values: new Set([jobUuidParam]) });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    return cache;
-  }, [columns, getFacetBaseData]);
-
+  // Wrap getColumnValues to split user emails for the 'users' facet
   const getUniqueValues = useCallback((columnKey: ColumnKey): any[] => {
-    return uniqueValuesCache.get(columnKey) || [];
-  }, [uniqueValuesCache]);
+    if (columnKey === 'users') {
+      const rawValues = getColumnValues(columnKey);
+      const emails = new Set<string>();
+      rawValues.forEach((val) => {
+        splitUserEmails(val).forEach((email: string) => {
+          emails.add(normalizeUserEmail(email));
+        });
+      });
+      return Array.from(emails).sort();
+    }
+    return getColumnValues(columnKey);
+  }, [getColumnValues]);
 
   const formatValue = (
     value: any,
@@ -1669,7 +1499,7 @@ export function PaymentsReportTable() {
   };
 
   const handleDownloadBankXlsx = async () => {
-    const selectedRecords = filteredAndSortedData.filter((row) => selectedPaymentIds.has(row.paymentId));
+    const selectedRecords = sortedData.filter((row) => selectedPaymentIds.has(row.paymentId));
     if (selectedRecords.length === 0) {
       alert('No records selected');
       return;
@@ -2045,7 +1875,7 @@ export function PaymentsReportTable() {
   };
 
   const handleDownloadTbcBankXlsx = async () => {
-    const selectedRecords = filteredAndSortedData.filter((row) => selectedPaymentIds.has(row.paymentId));
+    const selectedRecords = sortedData.filter((row) => selectedPaymentIds.has(row.paymentId));
     if (selectedRecords.length === 0) {
       alert('No records selected');
       return;
@@ -2123,7 +1953,7 @@ export function PaymentsReportTable() {
   };
 
   const handleExportXlsx = () => {
-    const rows = filteredAndSortedData.map((row) => {
+    const rows = sortedData.map((row) => {
       const out: Record<string, any> = {};
       visibleColumns.forEach((col) => {
         out[col.label] = row[col.key];
@@ -2138,24 +1968,19 @@ export function PaymentsReportTable() {
   };
 
   const visibleColumns = columns.filter(col => col.visible);
-  const activeFilterCount = filters.size;
   const hasActiveFilters = activeFilterCount > 0 || searchTerm.length > 0;
 
   const resetAllFilters = () => {
-    setFilters(new Map());
+    clearFilters();
     setSearchTerm('');
-    setCurrentPage(1);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(filtersStorageKey);
-    }
   };
-  const filteredPaymentIds = filteredAndSortedData.map((row) => row.paymentId);
+  const filteredPaymentIds = sortedData.map((row) => row.paymentId);
   const allFilteredSelected =
     filteredPaymentIds.length > 0 && filteredPaymentIds.every((id) => selectedPaymentIds.has(id));
 
   const selectedRecords = useMemo(
-    () => filteredAndSortedData.filter((row) => selectedPaymentIds.has(row.paymentId)),
-    [filteredAndSortedData, selectedPaymentIds]
+    () => sortedData.filter((row) => selectedPaymentIds.has(row.paymentId)),
+    [sortedData, selectedPaymentIds]
   );
 
   const handleConfirmSelected = async () => {
@@ -2237,7 +2062,7 @@ export function PaymentsReportTable() {
       floors: number;
     }>();
 
-    filteredAndSortedData.forEach((row) => {
+    sortedData.forEach((row) => {
       const currency = row.currency || 'N/A';
       const current = totalsMap.get(currency) || {
         accrual: 0,
@@ -2264,7 +2089,7 @@ export function PaymentsReportTable() {
         ...sums,
         paidPercent: sums.accrual !== 0 ? (sums.payment / sums.accrual) * 100 : 0,
       }));
-  }, [filteredAndSortedData]);
+  }, [sortedData]);
 
   const confirmMaxDate = getMaxDateFilter();
 
@@ -2276,7 +2101,7 @@ export function PaymentsReportTable() {
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-semibold">Payments Report</h1>
             <Badge variant="secondary">
-              {filteredAndSortedData.length} records
+              {sortedData.length} records
             </Badge>
             {totalPages > 1 && (
               <span className="text-sm text-gray-500">
@@ -2851,7 +2676,7 @@ export function PaymentsReportTable() {
             />
 
             {/* Pagination Controls */}
-            {filteredAndSortedData.length > 0 && (
+            {sortedData.length > 0 && (
               <>
                 <div className="flex items-center gap-2 border-l pl-2">
                   <span className="text-sm text-gray-600">Rows per page:</span>
@@ -2859,7 +2684,6 @@ export function PaymentsReportTable() {
                     value={pageSize}
                     onChange={(e) => {
                       setPageSize(Number(e.target.value));
-                      setCurrentPage(1);
                     }}
                     className="border rounded px-2 py-1 text-sm"
                   >
@@ -2872,12 +2696,12 @@ export function PaymentsReportTable() {
 
                 <div className="flex items-center gap-2 border-l pl-2">
                   <span className="text-sm text-gray-600">
-                    {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, filteredAndSortedData.length)} of {filteredAndSortedData.length}
+                    {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, sortedData.length)} of {sortedData.length}
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
                   >
                     <ChevronLeft className="h-4 w-4" />
@@ -2885,7 +2709,7 @@ export function PaymentsReportTable() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages}
                   >
                     <ChevronRight className="h-4 w-4" />
@@ -3293,7 +3117,7 @@ export function PaymentsReportTable() {
                   Loading...
                 </td>
               </tr>
-            ) : filteredAndSortedData.length === 0 ? (
+            ) : sortedData.length === 0 ? (
               <tr>
                 <td colSpan={visibleColumns.length + 2} className="text-center py-8 px-4 text-gray-500">
                   No records found

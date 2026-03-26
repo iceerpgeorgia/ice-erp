@@ -26,9 +26,8 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
-import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
-import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
-import { matchesFilter, hasActiveFilter } from './shared/table-filters';
+import { useTableFilters } from './shared/use-table-filters';
+import type { ColumnFormat } from './shared/table-filters';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
 import {
   Select,
@@ -97,18 +96,19 @@ type ColumnConfig = {
   visible: boolean;
   sortable: boolean;
   filterable: boolean;
+  format?: ColumnFormat;
   responsive?: 'sm' | 'md' | 'lg' | 'xl';
 };
 
 const defaultColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', width: 80, visible: false, sortable: true, filterable: true },
-  { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true, responsive: 'xl' },
-  { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true, responsive: 'xl' },
-  { key: 'ts', label: 'Timestamp', width: 140, visible: false, sortable: true, filterable: true, responsive: 'lg' },
+  { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true, format: 'date', responsive: 'xl' },
+  { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true, format: 'date', responsive: 'xl' },
+  { key: 'ts', label: 'Timestamp', width: 140, visible: false, sortable: true, filterable: true, format: 'datetime', responsive: 'lg' },
   { key: 'counteragentUuid', label: 'UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'name', label: 'Name', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'identificationNumber', label: 'ID Number', width: 150, visible: true, sortable: true, filterable: true },
-  { key: 'birthOrIncorporationDate', label: 'Birth/Inc Date', width: 140, visible: true, sortable: true, filterable: true },
+  { key: 'birthOrIncorporationDate', label: 'Birth/Inc Date', width: 140, visible: true, sortable: true, filterable: true, format: 'date' },
   { key: 'entityType', label: 'Entity Type', width: 130, visible: true, sortable: true, filterable: true },
   { key: 'sex', label: 'Sex', width: 80, visible: false, sortable: true, filterable: true },
   { key: 'pensionScheme', label: 'Pension', width: 100, visible: false, sortable: true, filterable: true },
@@ -227,9 +227,6 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
   const bottomScrollRef = useRef<HTMLDivElement>(null);
   const [needsBottomScroller, setNeedsBottomScroller] = useState(false);
   const [scrollContentWidth, setScrollContentWidth] = useState(0);
-  const [searchTerm, setSearchTerm] = useState(initialSearch ?? '');
-  const [sortField, setSortField] = useState<ColumnKey | null>('createdAt');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -237,7 +234,6 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
   const [editingEntityType, setEditingEntityType] = useState<Counteragent | null>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
-  const [columnFilters, setColumnFilters] = useState<FilterState>(new Map());
   const filtersStorageKey = 'counteragents-table:column-filters';
   const [isExporting, setIsExporting] = useState(false);
   
@@ -295,21 +291,6 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
   const isIdExempt = !!selectedEntityType?.is_id_exempt;
 
   useEffect(() => {
-    const legacy = loadColumnFilters(filtersStorageKey) as Record<string, string[]>;
-    const fs: FilterState = new Map();
-    Object.entries(legacy).forEach(([k, v]) => { if (v && v.length > 0) fs.set(k, { mode: 'facet', values: new Set(v) }); });
-    setColumnFilters(fs);
-  }, [filtersStorageKey]);
-
-  useEffect(() => {
-    const legacy: Record<string, string[]> = {};
-    columnFilters.forEach((filter, key) => {
-      if (filter.mode === 'facet') legacy[key] = Array.from(filter.values).map(String);
-    });
-    saveColumnFilters(filtersStorageKey, legacy);
-  }, [filtersStorageKey, columnFilters]);
-
-  useEffect(() => {
     if (!isNaturalPerson && (formData.sex || formData.pensionScheme)) {
       setFormData(prev => ({
         ...prev,
@@ -321,10 +302,41 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
   
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
   const pageSizeOptions = [50, 100, 200, 500, 1000];
+
+  const {
+    filters: columnFilters,
+    searchTerm,
+    sortColumn: sortField,
+    sortDirection,
+    currentPage,
+    pageSize,
+    sortedData: sortedCounterAgents,
+    paginatedData: paginatedCounterAgents,
+    totalPages,
+    getColumnValues: getUniqueValues,
+    setSearchTerm,
+    handleSort,
+    setSortColumn: setSortField,
+    setSortDirection,
+    setCurrentPage,
+    setPageSize,
+    handleFilterChange,
+    clearFilters,
+    activeFilterCount,
+  } = useTableFilters<Counteragent, ColumnKey>({
+    data: entityTypes,
+    columns,
+    defaultSortColumn: 'createdAt',
+    defaultSortDirection: 'desc',
+    filtersStorageKey,
+    pageSize: 100,
+  });
+
+  // Set initial search from prop
+  useEffect(() => {
+    if (initialSearch) setSearchTerm(initialSearch);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Respond to external data updates
   useEffect(() => {
@@ -660,93 +672,19 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
     }
   };
 
-  // Filter and search logic
-  const filteredEntityTypes = useMemo(() => {
-    let filtered = entityTypes;
-
-    // Apply search across all visible text fields
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(counteragent =>
-        counteragent.name.toLowerCase().includes(search) ||
-        (counteragent.identificationNumber || '').toLowerCase().includes(search) ||
-        (counteragent.entityType || '').toLowerCase().includes(search) ||
-        (counteragent.country || '').toLowerCase().includes(search) ||
-        (counteragent.email || '').toLowerCase().includes(search) ||
-        (counteragent.phone || '').toLowerCase().includes(search) ||
-        (counteragent.isActive ? 'active' : 'inactive').includes(search)
-      );
-    }
-
-    // Apply column filters
-    if (columnFilters.size > 0) {
-      filtered = filtered.filter(counteragent => {
-        for (const [column, filter] of columnFilters.entries()) {
-          const cellValue = counteragent[column as ColumnKey];
-          if (!matchesFilter(cellValue, filter)) return false;
-        }
-        return true;
-      });
-    }
-
-    return filtered;
-  }, [entityTypes, searchTerm, columnFilters]);
-
-  // Sort logic
-  const sortedEntityTypes = useMemo(() => {
-    if (!sortField) return filteredEntityTypes;
-
-    return [...filteredEntityTypes].sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-      
-      // Handle nulls
-      if (aVal === null || aVal === undefined) return 1;
-      if (bVal === null || bVal === undefined) return -1;
-      
-      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [filteredEntityTypes, sortField, sortDirection]);
-
-  // Pagination
-  const totalRecords = sortedEntityTypes.length;
-  const totalPages = Math.ceil(totalRecords / pageSize);
-
   const handleExportXlsx = () => {
-    if (sortedEntityTypes.length === 0) return;
+    if (sortedCounterAgents.length === 0) return;
     setIsExporting(true);
     try {
       const fileName = `counteragents_${new Date().toISOString().slice(0, 10)}.xlsx`;
       exportRowsToXlsx({
-        rows: sortedEntityTypes,
+        rows: sortedCounterAgents,
         columns,
         fileName,
         sheetName: 'Counteragents',
       });
     } finally {
       setIsExporting(false);
-    }
-  };
-  
-  const paginatedEntityTypes = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return sortedEntityTypes.slice(startIndex, endIndex);
-  }, [sortedEntityTypes, currentPage, pageSize]);
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, columnFilters, pageSize]);
-
-  const handleSort = (field: ColumnKey) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
     }
   };
 
@@ -1000,39 +938,6 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
     }
   };
 
-  const getFacetBaseData = (excludeColumn?: ColumnKey) => {
-    let result = [...entityTypes];
-
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      result = result.filter(row =>
-        Object.values(row).some(val => String(val ?? '').toLowerCase().includes(search))
-      );
-    }
-
-    if (columnFilters.size > 0) {
-      result = result.filter(row => {
-        for (const [columnKey, filter] of columnFilters.entries()) {
-          if (excludeColumn && columnKey === excludeColumn) continue;
-          const rowValue = row[columnKey as ColumnKey];
-          if (!matchesFilter(rowValue, filter)) {
-            return false;
-          }
-        }
-        return true;
-      });
-    }
-
-    return result;
-  };
-
-  // Get unique values for column filters (respecting other filters)
-  const getUniqueValues = (column: ColumnKey) => {
-    const baseData = getFacetBaseData(column);
-    return [...new Set(baseData.map(counteragent => String(counteragent[column] ?? '')))].sort();
-  };
-
-
   // Column settings dialog
   const ColumnSettings = () => (
     <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
@@ -1115,7 +1020,7 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
             variant="outline"
             size="sm"
             onClick={handleExportXlsx}
-            disabled={isExporting || sortedEntityTypes.length === 0}
+            disabled={isExporting || sortedCounterAgents.length === 0}
           >
             <Download className="h-4 w-4 mr-2" />
             {isExporting ? 'Exporting...' : 'Export XLSX'}
@@ -1991,7 +1896,7 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
         </div>
         <div className="flex items-center gap-4">
           <div className="text-sm text-muted-foreground">
-            Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} records
+            Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, sortedCounterAgents.length)} of {sortedCounterAgents.length} records
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Rows per page:</span>
@@ -2026,7 +1931,7 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
             >
               Previous
@@ -2034,7 +1939,7 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
             >
               Next
@@ -2096,19 +2001,10 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
                             values={getUniqueValues(column.key)}
                             activeFilters={columnFilters.get(column.key)?.mode === 'facet' ? (columnFilters.get(column.key) as any).values : new Set()}
                             activeFilter={columnFilters.get(column.key)}
-                            onAdvancedFilterChange={(filter) => {
-                              setColumnFilters(prev => {
-                                const next = new Map(prev);
-                                if (filter) { next.set(column.key, filter); } else { next.delete(column.key); }
-                                return next;
-                              });
-                            }}
+                            columnFormat={column.format as ColumnFormat | undefined}
+                            onAdvancedFilterChange={(filter) => handleFilterChange(column.key, filter)}
                             onFilterChange={(values) => {
-                              setColumnFilters(prev => {
-                                const next = new Map(prev);
-                                if (values.size > 0) { next.set(column.key, { mode: 'facet', values }); } else { next.delete(column.key); }
-                                return next;
-                              });
+                              handleFilterChange(column.key, values.size > 0 ? { mode: 'facet', values } : null);
                             }}
                             onSort={(direction) => {
                               setSortField(column.key);
@@ -2151,7 +2047,7 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedEntityTypes.map((counteragent) => (
+              {paginatedCounterAgents.map((counteragent) => (
                 <TableRow key={counteragent.id} className="hover:bg-muted/50 transition-colors">
                   {visibleColumns.map((column) => (
                     <TableCell
@@ -2268,7 +2164,7 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
       </div>
 
       {/* Empty state */}
-      {sortedEntityTypes.length === 0 && (
+      {sortedCounterAgents.length === 0 && (
         <div className="text-center py-12">
           <div className="text-muted-foreground">
             {searchTerm || columnFilters.size > 0 ? (
@@ -2299,11 +2195,10 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
           </>
         )}
         <ClearFiltersButton
-          activeCount={columnFilters.size + (searchTerm.trim() ? 1 : 0)}
+          activeCount={activeFilterCount + (searchTerm.trim() ? 1 : 0)}
           label="Clear All"
           onClear={() => {
-            clearColumnFilters(filtersStorageKey);
-            setColumnFilters(new Map());
+            clearFilters();
             setSearchTerm('');
           }}
           className="h-6 px-2 text-xs"

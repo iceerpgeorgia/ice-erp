@@ -140,7 +140,10 @@ export function useTableFilters<
 
   // ── Internal: apply search + column filters ──────────────────────────────
 
-  const accessor = getRowValue ?? ((row: TRow, key: string) => (row as any)[key]);
+  const accessor = useMemo(
+    () => getRowValue ?? ((row: TRow, key: string) => (row as any)[key]),
+    [getRowValue],
+  );
 
   const applyFiltersInternal = useCallback(
     (rows: TRow[], excludeColumn?: string): TRow[] => {

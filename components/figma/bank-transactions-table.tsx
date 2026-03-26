@@ -19,7 +19,7 @@ import * as XLSX from 'xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
-import { matchesFilter } from './shared/table-filters';
+import { useTableFilters } from './shared/use-table-filters';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -109,18 +109,19 @@ type ColumnConfig = {
   visible: boolean;
   sortable: boolean;
   filterable: boolean;
+  format?: ColumnFormat;
   responsive?: 'sm' | 'md' | 'lg' | 'xl';
 };
 
 const defaultColumns: ColumnConfig[] = [
-  { key: 'id', label: 'ID', width: 80, visible: false, sortable: true, filterable: true },
-  { key: 'date', label: 'Date', width: 120, visible: true, sortable: true, filterable: true },
+  { key: 'id', label: 'ID', width: 80, visible: false, sortable: true, filterable: true, format: 'number' },
+  { key: 'date', label: 'Date', width: 120, visible: true, sortable: true, filterable: true, format: 'date' },
   { key: 'accountNumber', label: 'Account', width: 180, visible: true, sortable: true, filterable: true },
   { key: 'bankName', label: 'Bank', width: 150, visible: true, sortable: true, filterable: true },
-  { key: 'accountCurrencyAmount', label: 'Amount', width: 120, visible: true, sortable: true, filterable: true },
+  { key: 'accountCurrencyAmount', label: 'Amount', width: 120, visible: true, sortable: true, filterable: true, format: 'currency' },
   { key: 'processingCase', label: 'Case', width: 220, visible: true, sortable: true, filterable: true },
-  { key: 'parsingLock', label: 'Lock', width: 80, visible: true, sortable: true, filterable: true },
-  { key: 'appliedRuleId', label: 'Applied Rule ID', width: 120, visible: false, sortable: true, filterable: true },
+  { key: 'parsingLock', label: 'Lock', width: 80, visible: true, sortable: true, filterable: true, format: 'boolean' },
+  { key: 'appliedRuleId', label: 'Applied Rule ID', width: 120, visible: false, sortable: true, filterable: true, format: 'number' },
   { key: 'counteragentName', label: 'Counteragent', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'counteragentAccountNumber', label: 'CA Account', width: 180, visible: true, sortable: true, filterable: true },
   { key: 'projectIndex', label: 'Project', width: 120, visible: true, sortable: true, filterable: true },
@@ -130,10 +131,10 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'batchId', label: 'Batch ID', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'description', label: 'Description', width: 300, visible: true, sortable: true, filterable: true },
   { key: 'comment', label: 'Comment', width: 260, visible: true, sortable: true, filterable: true },
-  { key: 'nominalAmount', label: 'Nominal Amt', width: 120, visible: false, sortable: true, filterable: true },
-  { key: 'usdGelRate', label: 'USD/GEL', width: 120, visible: true, sortable: true, filterable: true },
-  { key: 'correctionDate', label: 'Correction Date', width: 120, visible: false, sortable: true, filterable: true },
-  { key: 'exchangeRate', label: 'FX', width: 120, visible: false, sortable: true, filterable: true },
+  { key: 'nominalAmount', label: 'Nominal Amt', width: 120, visible: false, sortable: true, filterable: true, format: 'currency' },
+  { key: 'usdGelRate', label: 'USD/GEL', width: 120, visible: true, sortable: true, filterable: true, format: 'number' },
+  { key: 'correctionDate', label: 'Correction Date', width: 120, visible: false, sortable: true, filterable: true, format: 'date' },
+  { key: 'exchangeRate', label: 'FX', width: 120, visible: false, sortable: true, filterable: true, format: 'number' },
   { key: 'id1', label: 'ID1', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'id2', label: 'ID2', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'recordUuid', label: 'Record UUID', width: 200, visible: false, sortable: true, filterable: true },
@@ -145,8 +146,8 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'projectUuid', label: 'Project UUID', width: 200, visible: false, sortable: true, filterable: true },
   { key: 'financialCodeUuid', label: 'Fin. Code UUID', width: 200, visible: false, sortable: true, filterable: true },
   { key: 'nominalCurrencyUuid', label: 'Nominal Cur. UUID', width: 200, visible: false, sortable: true, filterable: true },
-  { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true },
-  { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true }
+  { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true, format: 'datetime' },
+  { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true, format: 'datetime' }
 ];
 
 // Helper function to format date as dd.mm.yyyy
@@ -273,17 +274,7 @@ export function BankTransactionsTable({
   const bottomScrollRef = useRef<HTMLDivElement>(null);
   const [needsBottomScroller, setNeedsBottomScroller] = useState(false);
   const [scrollContentWidth, setScrollContentWidth] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  
-  // Table sorting - default to date descending
-  const [sortField, setSortField] = useState<ColumnKey>('date');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [columnFilters, setColumnFilters] = useState<FilterState>(new Map());
-  const [filtersInitialized, setFiltersInitialized] = useState(false);
-  const [pageSize, setPageSize] = useState(100);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -525,54 +516,12 @@ export function BankTransactionsTable({
     }
   }, [autoEditIdProp]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const savedFilters = localStorage.getItem(resolvedFiltersStorageKey);
-    if (savedFilters) {
-      try {
-        const parsed = JSON.parse(savedFilters);
-        if (typeof parsed.searchTerm === 'string') setSearchTerm(parsed.searchTerm);
-        if (parsed.sortField) setSortField(parsed.sortField as ColumnKey);
-        if (parsed.sortDirection === 'asc' || parsed.sortDirection === 'desc') {
-          setSortDirection(parsed.sortDirection);
-        }
-        if (typeof parsed.pageSize === 'number') setPageSize(parsed.pageSize);
-        if (parsed.columnFilters && typeof parsed.columnFilters === 'object') {
-          const fs: FilterState = new Map();
-          Object.entries(parsed.columnFilters as Record<string, string[]>).forEach(([k, v]) => {
-            if (Array.isArray(v) && v.length > 0) fs.set(k, { mode: 'facet', values: new Set(v) });
-          });
-          setColumnFilters(fs);
-        }
-      } catch (error) {
-        console.warn('Failed to parse saved bank transaction filters:', error);
-      }
-    }
-    setFiltersInitialized(true);
-  }, [resolvedFiltersStorageKey]);
-
-  useEffect(() => {
-    if (!filtersInitialized || typeof window === 'undefined') return;
-    const legacy: Record<string, string[]> = {};
-    columnFilters.forEach((filter, key) => {
-      if (filter.mode === 'facet') legacy[key] = Array.from(filter.values).map(String);
-    });
-    const serialized = {
-      searchTerm,
-      sortField,
-      sortDirection,
-      pageSize,
-      columnFilters: legacy,
-    };
-    localStorage.setItem(resolvedFiltersStorageKey, JSON.stringify(serialized));
-  }, [filtersInitialized, resolvedFiltersStorageKey, searchTerm, sortField, sortDirection, pageSize, columnFilters]);
-  
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
     if (typeof window !== 'undefined') {
       const savedColumns = localStorage.getItem('bank-transactions-table-columns');
       const savedVersion = localStorage.getItem('bank-transactions-table-version');
-      const currentVersion = '10'; // Increment this when defaultColumns structure changes
+      const currentVersion = '11'; // Increment this when defaultColumns structure changes
       
       if (savedColumns && savedVersion === currentVersion) {
         try {
@@ -592,9 +541,47 @@ export function BankTransactionsTable({
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
   
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
   const pageSizeOptions = [50, 100, 200, 500, 1000];
+
+  // Shared table filters hook
+  const {
+    filters: columnFilters,
+    searchTerm,
+    sortColumn: sortField,
+    sortDirection,
+    currentPage,
+    pageSize,
+    filteredData,
+    sortedData,
+    paginatedData,
+    totalPages,
+    getColumnValues: getColumnUniqueValues,
+    setSearchTerm,
+    setSortColumn: setSortField,
+    setSortDirection,
+    setCurrentPage,
+    setPageSize,
+    handleFilterChange,
+    clearFilters,
+    activeFilterCount,
+  } = useTableFilters<BankTransaction, ColumnKey>({
+    data: transactions,
+    columns: columns as any,
+    defaultSortColumn: 'date',
+    defaultSortDirection: 'desc',
+    filtersStorageKey: resolvedFiltersStorageKey,
+    searchColumns: [
+      'counteragentName',
+      'counteragentAccountNumber',
+      'projectIndex',
+      'paymentId',
+      'financialCode',
+      'description',
+    ],
+    regexSearch: true,
+    pageSize: 100,
+  });
+
   const [isExporting, setIsExporting] = useState(false);
 
   // Respond to external data updates
@@ -627,26 +614,6 @@ export function BankTransactionsTable({
     };
     fetchAllPayments();
   }, []);
-
-  // Debounce search term to improve performance
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 150); // 150ms debounce - faster response
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [searchTerm]);
-
-  // Set isSearching flag
-  useEffect(() => {
-    if (searchTerm !== debouncedSearchTerm) {
-      setIsSearching(true);
-    } else {
-      setIsSearching(false);
-    }
-  }, [searchTerm, debouncedSearchTerm]);
 
   // Measure scroll content width
   useEffect(() => {
@@ -788,110 +755,6 @@ export function BankTransactionsTable({
     setDragOverColumn(null);
   };
 
-  const getFilterBaseData = (excludeColumnKey?: ColumnKey) => {
-    let result = [...transactions];
-
-    // Apply search filter - supports regex patterns
-    if (debouncedSearchTerm) {
-      const searchableColumns: ColumnKey[] = [
-        'counteragentName',
-        'counteragentAccountNumber',
-        'projectIndex',
-        'paymentId',
-        'financialCode',
-        'description'
-      ];
-
-      let searchRegex: RegExp | null = null;
-      let isValidRegex = false;
-      try {
-        searchRegex = new RegExp(debouncedSearchTerm, 'i');
-        isValidRegex = true;
-      } catch (e) {
-        console.warn('Invalid regex pattern, using literal search:', debouncedSearchTerm);
-      }
-
-      result = result.filter(row => {
-        for (const key of searchableColumns) {
-          const val = row[key];
-          if (val !== null && val !== undefined) {
-            const strVal = typeof val === 'string' ? val : String(val);
-
-            if (isValidRegex && searchRegex) {
-              if (searchRegex.test(strVal)) {
-                return true;
-              }
-            } else if (strVal.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) {
-              return true;
-            }
-          }
-        }
-        return false;
-      });
-    }
-
-    if (columnFilters.size > 0) {
-      result = result.filter(row => {
-        for (const [columnKey, filter] of columnFilters.entries()) {
-          if (excludeColumnKey && columnKey === excludeColumnKey) continue;
-          const rowValue = row[columnKey as ColumnKey];
-          if (!matchesFilter(rowValue, filter)) {
-            return false;
-          }
-        }
-        return true;
-      });
-    }
-
-    return result;
-  };
-
-  // Filtering and sorting
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const filteredData = useMemo(() => {
-    let result = getFilterBaseData();
-
-    // Apply sorting
-    if (sortField) {
-      result.sort((a, b) => {
-        const aVal = a[sortField];
-        const bVal = b[sortField];
-
-        if (aVal === bVal) return 0;
-
-        // Handle null/undefined values
-        if (aVal === null || aVal === undefined) return 1;
-        if (bVal === null || bVal === undefined) return -1;
-
-        let comparison = 0;
-        if (typeof aVal === 'number' && typeof bVal === 'number') {
-          comparison = aVal - bVal;
-        } else if (sortField === 'date') {
-          const toComparable = (dateStr: any): string => {
-            if (!dateStr || typeof dateStr !== 'string') return '';
-            const parts = dateStr.split('.');
-            if (parts.length !== 3) return dateStr;
-            const [day, month, year] = parts;
-            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-          };
-          const aComparable = toComparable(aVal);
-          const bComparable = toComparable(bVal);
-          comparison = aComparable < bComparable ? -1 : 1;
-        } else if (sortField === 'correctionDate' || sortField === 'createdAt' || sortField === 'updatedAt') {
-          const aDate = new Date(aVal as string | number).getTime();
-          const bDate = new Date(bVal as string | number).getTime();
-          comparison = aDate < bDate ? -1 : 1;
-        } else {
-          comparison = String(aVal).localeCompare(String(bVal));
-        }
-
-        return sortDirection === 'asc' ? comparison : -comparison;
-      });
-    }
-
-    return result;
-  }, [transactions, debouncedSearchTerm, columnFilters, sortField, sortDirection]);
-
   // Calculate summary statistics from filtered data
   const summaryStats = useMemo(() => {
     const inflow = filteredData.reduce((sum, row) => {
@@ -908,19 +771,6 @@ export function BankTransactionsTable({
 
     return { inflow, outflow, balance };
   }, [filteredData]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredData.length / pageSize);
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredData.slice(start, start + pageSize);
-  }, [filteredData, currentPage, pageSize]);
-
-  // Reset to page 1 when filters change
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearchTerm, columnFilters, pageSize]);
 
   // Sorting is locked to date descending - no handleSort needed
 
@@ -1936,17 +1786,6 @@ export function BankTransactionsTable({
     }
   };
 
-  // Get unique values for column filters
-  const getColumnUniqueValues = (columnKey: ColumnKey) => {
-    const baseRows = getFilterBaseData(columnKey);
-    const values = new Set<string>();
-    baseRows.forEach(row => {
-      const val = row[columnKey];
-      values.add(String(val ?? ''));
-    });
-    return Array.from(values).sort();
-  };
-
   const visibleColumns = columns.filter(col => col.visible);
   const totalWidth = visibleColumns.reduce((sum, col) => sum + col.width, 0);
 
@@ -2007,7 +1846,7 @@ export function BankTransactionsTable({
   };
 
   const handleExportXlsx = () => {
-    if (filteredData.length === 0) {
+    if (sortedData.length === 0) {
       alert('No data to export');
       return;
     }
@@ -2015,7 +1854,7 @@ export function BankTransactionsTable({
       setIsExporting(true);
       const exportColumns = visibleColumns;
       const header = exportColumns.map(col => col.label);
-      const rows = filteredData.map(row =>
+      const rows = sortedData.map(row =>
         exportColumns.map(col => formatExportValue(col.key, row[col.key]))
       );
       const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
@@ -2307,11 +2146,8 @@ export function BankTransactionsTable({
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 pr-9 w-full"
             />
-            {isSearching && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
-            )}
           </div>
-          {debouncedSearchTerm && (
+          {searchTerm && (
             <p className="text-xs text-muted-foreground mt-1">
               Searching in: Counteragent, CA Account, Project, Payment ID, Fin. Code, Description
             </p>
@@ -2320,9 +2156,9 @@ export function BankTransactionsTable({
         
         <div className="flex items-center gap-2">
           <ClearFiltersButton
-            activeCount={columnFilters.size + (debouncedSearchTerm.trim() ? 1 : 0)}
+            activeCount={activeFilterCount + (searchTerm.trim() ? 1 : 0)}
             onClear={() => {
-              setColumnFilters(new Map());
+              clearFilters();
               setSearchTerm('');
             }}
           />
@@ -2494,19 +2330,12 @@ export function BankTransactionsTable({
                           values={getColumnUniqueValues(col.key)}
                           activeFilters={columnFilters.get(col.key)?.mode === 'facet' ? (columnFilters.get(col.key) as any).values : new Set()}
                           activeFilter={columnFilters.get(col.key)}
+                          columnFormat={col.format as ColumnFormat | undefined}
                           onAdvancedFilterChange={(filter) => {
-                            setColumnFilters(prev => {
-                              const next = new Map(prev);
-                              if (filter) { next.set(col.key, filter); } else { next.delete(col.key); }
-                              return next;
-                            });
+                            handleFilterChange(col.key, filter);
                           }}
                           onFilterChange={(values) => {
-                            setColumnFilters(prev => {
-                              const next = new Map(prev);
-                              if (values.size > 0) { next.set(col.key, { mode: 'facet', values }); } else { next.delete(col.key); }
-                              return next;
-                            });
+                            handleFilterChange(col.key, values.size > 0 ? { mode: 'facet', values } : null);
                           }}
                           onSort={(direction) => {
                             setSortField(col.key);
@@ -2645,7 +2474,7 @@ export function BankTransactionsTable({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
           >
             Previous
@@ -2656,7 +2485,7 @@ export function BankTransactionsTable({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
             disabled={currentPage === totalPages}
           >
             Next

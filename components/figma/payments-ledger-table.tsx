@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable react-hooks/exhaustive-deps */
 
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, 
   Plus, 
@@ -22,8 +22,8 @@ import { Checkbox } from './ui/checkbox';
 import { Combobox } from '../ui/combobox';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
-import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
-import { matchesFilter } from './shared/table-filters';
+import type { ColumnFormat } from './shared/table-filters';
+import { useTableFilters } from './shared/use-table-filters';
 
 export type PaymentLedgerEntry = {
   id: number;
@@ -63,7 +63,7 @@ type ColumnConfig = {
   width: number;
   sortable: boolean;
   filterable: boolean;
-  format?: 'currency' | 'number' | 'boolean' | 'date';
+  format?: ColumnFormat;
 };
 
 const defaultColumns: ColumnConfig[] = [
@@ -98,14 +98,21 @@ export function PaymentsLedgerTable() {
     counteragentName?: string;
   }>>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
   const [isExporting, setIsExporting] = useState(false);
-  const [sortColumn, setSortColumn] = useState<ColumnKey>('effectiveDate');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(defaultColumns);
-  const [filters, setFilters] = useState<FilterState>(new Map());
-  const [currentPage, setCurrentPage] = useState(1);
-  const [recordsPerPage, setRecordsPerPage] = useState(50);
+
+  const {
+    filters, searchTerm, sortColumn, sortDirection, currentPage, pageSize,
+    sortedData: sortedEntries, paginatedData: paginatedEntries, totalPages,
+    getColumnValues, setSearchTerm, handleSort, setSortColumn, setSortDirection,
+    setCurrentPage, setPageSize, handleFilterChange, clearFilters, activeFilterCount,
+  } = useTableFilters<PaymentLedgerEntry, ColumnKey>({
+    data: entries,
+    columns: columnConfig,
+    defaultSortColumn: 'effectiveDate',
+    defaultSortDirection: 'desc',
+    pageSize: 50,
+  });
 
   // Column resize and drag states
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number; element: HTMLElement } | null>(null);
@@ -307,88 +314,21 @@ export function PaymentsLedgerTable() {
     setDragOverColumn(null);
   };
 
-  const handleSort = (column: ColumnKey) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(column);
-      setSortDirection('asc');
-    }
-  };
-
   const toggleColumnVisibility = (key: ColumnKey) => {
     setColumnConfig(prev => 
       prev.map(col => col.key === key ? { ...col, visible: !col.visible } : col)
     );
   };
 
-  const clearFilters = () => {
-    setFilters(new Map());
-  };
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const filteredAndSortedEntries = useMemo(() => {
-    let result = [...entries];
-
-    // Apply search
-    if (searchTerm) {
-      result = result.filter(entry =>
-        Object.values(entry).some(val =>
-          String(val).toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      );
-    }
-
-    // Apply filters
-    if (filters.size > 0) {
-      result = result.filter(entry => {
-        for (const [columnKey, filter] of filters.entries()) {
-          const entryValue = entry[columnKey as ColumnKey];
-          if (!matchesFilter(entryValue, filter)) {
-            return false;
-          }
-        }
-        return true;
-      });
-    }
-
-    // Apply sorting
-    result.sort((a, b) => {
-      const aVal = a[sortColumn];
-      const bVal = b[sortColumn];
-
-      if (aVal === bVal) return 0;
-
-      // Special handling for date columns
-      const columnCfg = columnConfig.find(col => col.key === sortColumn);
-      if (columnCfg?.format === 'date') {
-        const aDate = aVal && typeof aVal !== 'boolean' ? new Date(aVal as string | number).getTime() : 0;
-        const bDate = bVal && typeof bVal !== 'boolean' ? new Date(bVal as string | number).getTime() : 0;
-        const comparison = aDate < bDate ? -1 : 1;
-        return sortDirection === 'asc' ? comparison : -comparison;
-      }
-
-      // Handle null/undefined values
-      if (aVal === null || aVal === undefined) return 1;
-      if (bVal === null || bVal === undefined) return -1;
-
-      const comparison = aVal < bVal ? -1 : 1;
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-
-    return result;
-  }, [entries, searchTerm, sortColumn, sortDirection, filters]);
-
-  // Pagination
-  const totalRecords = filteredAndSortedEntries.length;
+  const visibleColumns = columnConfig.filter(col => col.visible);
 
   const handleExportXlsx = () => {
-    if (filteredAndSortedEntries.length === 0) return;
+    if (sortedEntries.length === 0) return;
     setIsExporting(true);
     try {
       const fileName = `payments-ledger_${new Date().toISOString().slice(0, 10)}.xlsx`;
       exportRowsToXlsx({
-        rows: filteredAndSortedEntries,
+        rows: sortedEntries,
         columns: columnConfig,
         fileName,
         sheetName: 'Payments Ledger',
@@ -397,19 +337,6 @@ export function PaymentsLedgerTable() {
       setIsExporting(false);
     }
   };
-  const totalPages = Math.ceil(totalRecords / recordsPerPage);
-  const startIndex = (currentPage - 1) * recordsPerPage;
-  const endIndex = startIndex + recordsPerPage;
-  const paginatedEntries = filteredAndSortedEntries.slice(startIndex, endIndex);
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filters]);
-
-  const visibleColumns = columnConfig.filter(col => col.visible);
-  const activeFilterCount = filters.size;
-
   const formatValue = (key: ColumnKey, value: any, entry?: PaymentLedgerEntry) => {
     if (value === null || value === undefined) return '';
     
@@ -460,60 +387,6 @@ export function PaymentsLedgerTable() {
     return String(value);
   };
 
-  const getFacetBaseData = useCallback((excludeColumn?: ColumnKey) => {
-    let result = [...entries];
-
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(entry =>
-        Object.values(entry).some(value =>
-          String(value).toLowerCase().includes(term)
-        )
-      );
-    }
-
-    if (filters.size > 0) {
-      result = result.filter(row => {
-        for (const [columnKey, filter] of filters.entries()) {
-          if (excludeColumn && columnKey === excludeColumn) continue;
-          const rowValue = row[columnKey as ColumnKey];
-          if (!matchesFilter(rowValue, filter)) {
-            return false;
-          }
-        }
-        return true;
-      });
-    }
-
-    return result;
-  }, [entries, searchTerm, filters]);
-
-  // Memoize unique values to avoid recalculating on every render
-  const uniqueValuesCache = useMemo(() => {
-    const cache = new Map<ColumnKey, any[]>();
-    const filterableColumns = columnConfig.filter(col => col.filterable);
-    
-    filterableColumns.forEach(col => {
-      const values = new Set(getFacetBaseData(col.key).map(entry => entry[col.key]));
-      cache.set(col.key, Array.from(values).sort());
-    });
-    
-    return cache;
-  }, [columnConfig, getFacetBaseData]);
-
-  const getUniqueValues = useCallback((columnKey: ColumnKey): any[] => {
-    return uniqueValuesCache.get(columnKey) || [];
-  }, [uniqueValuesCache]);
-
-  const handleFilterChange = (columnKey: string, filter: ColumnFilter | null) => {
-    const newFilters = new Map(filters);
-    if (filter) {
-      newFilters.set(columnKey, filter);
-    } else {
-      newFilters.delete(columnKey);
-    }
-    setFilters(newFilters);
-  };
 
 
   return (
@@ -528,7 +401,7 @@ export function PaymentsLedgerTable() {
             variant="outline"
             size="sm"
             onClick={handleExportXlsx}
-            disabled={isExporting || filteredAndSortedEntries.length === 0}
+            disabled={isExporting || sortedEntries.length === 0}
           >
             <Download className="h-4 w-4 mr-2" />
             {isExporting ? 'Exporting...' : 'Export XLSX'}
@@ -707,7 +580,7 @@ export function PaymentsLedgerTable() {
                           <ColumnFilterPopover
                             columnKey={col.key}
                             columnLabel={col.label}
-                            values={getUniqueValues(col.key)}
+                            values={getColumnValues(col.key)}
                             activeFilters={filters.get(col.key)?.mode === 'facet' ? (filters.get(col.key) as any).values : new Set()}
                             activeFilter={filters.get(col.key)}
                             columnFormat={col.format as ColumnFormat | undefined}
@@ -758,7 +631,7 @@ export function PaymentsLedgerTable() {
                     Loading...
                   </td>
                 </tr>
-              ) : filteredAndSortedEntries.length === 0 ? (
+              ) : sortedEntries.length === 0 ? (
                 <tr>
                   <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4 text-gray-500">
                     No entries found
@@ -812,18 +685,17 @@ export function PaymentsLedgerTable() {
       {/* Pagination Controls */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          Showing {startIndex + 1} to {Math.min(endIndex, totalRecords)} of {totalRecords} entries
-          {entries.length !== totalRecords && ` (filtered from ${entries.length} total)`}
+          Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, sortedEntries.length)} of {sortedEntries.length} entries
+          {entries.length !== sortedEntries.length && ` (filtered from ${entries.length} total)`}
         </div>
         
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2">
             <span className="text-sm">Rows per page:</span>
             <select
-              value={recordsPerPage}
+              value={pageSize}
               onChange={(e) => {
-                setRecordsPerPage(Number(e.target.value));
-                setCurrentPage(1);
+                setPageSize(Number(e.target.value));
               }}
               className="border rounded px-2 py-1 text-sm"
             >
@@ -846,7 +718,7 @@ export function PaymentsLedgerTable() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
             >
               Previous
@@ -857,7 +729,7 @@ export function PaymentsLedgerTable() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
             >
               Next

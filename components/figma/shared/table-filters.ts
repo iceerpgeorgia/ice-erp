@@ -445,8 +445,12 @@ export function inferFilterMode(format?: ColumnFormat): ColumnFilter['mode'] {
     case 'date':
     case 'datetime':
       return 'date';
-    default:
+    case 'boolean':
       return 'facet';
+    default:
+      // Text columns (including unspecified format) get
+      // the condition tab with contains / starts with / etc.
+      return 'text';
   }
 }
 

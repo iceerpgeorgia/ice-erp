@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable react-hooks/exhaustive-deps */
 
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, 
   Plus, 
@@ -20,8 +20,8 @@ import {
 } from 'lucide-react';
   import { ColumnFilterPopover } from './shared/column-filter-popover';
   import { ClearFiltersButton } from './shared/clear-filters-button';
-import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
-import { matchesFilter } from './shared/table-filters';
+import { useTableFilters } from './shared/use-table-filters';
+import type { ColumnFormat } from './shared/table-filters';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
 import { useRequiredInsiderName } from './shared/use-required-insider';
 import { Button } from './ui/button';
@@ -70,6 +70,7 @@ type ColumnConfig = {
   visible: boolean;
   sortable: boolean;
   filterable: boolean;
+  format?: ColumnFormat;
   responsive?: 'sm' | 'md' | 'lg' | 'xl';
 };
 
@@ -93,8 +94,8 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'jobIdentifier', label: 'Job Identifier', width: 200, visible: false, sortable: true, filterable: true },
   { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'isProjectDerived', label: 'Source', width: 90, visible: true, sortable: true, filterable: true },
-  { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true },
-  { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true },
+  { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true, format: 'date' },
+  { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true, format: 'date' },
 ];
 
 export function PaymentsTable() {
@@ -108,17 +109,37 @@ export function PaymentsTable() {
   const [currencies, setCurrencies] = useState<Array<{ uuid: string; code: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortColumn, setSortColumn] = useState<ColumnKey>('createdAt');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(defaultColumns);
-  const [filters, setFilters] = useState<FilterState>(new Map());
   const [isInitialized, setIsInitialized] = useState(false);
-  
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
   const pageSizeOptions = [50, 100, 200, 500, 1000];
+
+  const {
+    filters,
+    searchTerm,
+    setSearchTerm,
+    sortColumn,
+    sortDirection,
+    setSortColumn,
+    setSortDirection,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    sortedData,
+    paginatedData,
+    totalPages,
+    getColumnValues,
+    handleSort,
+    handleFilterChange,
+    clearFilters,
+    activeFilterCount,
+  } = useTableFilters<Payment, ColumnKey>({
+    data: payments,
+    columns: columnConfig,
+    defaultSortColumn: 'createdAt',
+    defaultSortDirection: 'desc',
+    pageSize: 100,
+  });
   
   // Column dragging and resizing states
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number; element: HTMLElement } | null>(null);
@@ -879,15 +900,6 @@ export function PaymentsTable() {
     setDragOverColumn(null);
   };
 
-  const handleSort = (column: ColumnKey) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(column);
-      setSortDirection('asc');
-    }
-  };
-
   const handleToggleColumn = (columnKey: string) => {
     setColumnConfig(prev => 
       prev.map(col => 
@@ -896,149 +908,15 @@ export function PaymentsTable() {
     );
   };
 
-  const handleFilterChange = useCallback((columnKey: string, filter: ColumnFilter | null) => {
-    setFilters(prev => {
-      const next = new Map(prev);
-      if (filter) {
-        next.set(columnKey, filter);
-      } else {
-        next.delete(columnKey);
-      }
-      return next;
-    });
-  }, []);
-
-  const getFacetBaseData = useCallback((excludeColumn?: ColumnKey) => {
-    let result = [...payments];
-
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(payment =>
-        Object.values(payment).some(value =>
-          String(value).toLowerCase().includes(term)
-        )
-      );
-    }
-
-    if (filters.size > 0) {
-      result = result.filter(row => {
-        for (const [columnKey, filter] of filters.entries()) {
-          if (excludeColumn && columnKey === excludeColumn) continue;
-          const rowValue = row[columnKey as ColumnKey];
-          if (!matchesFilter(rowValue, filter)) {
-            return false;
-          }
-        }
-        return true;
-      });
-    }
-
-    return result;
-  }, [payments, searchTerm, filters]);
-
-  const uniqueValuesCache = useMemo(() => {
-    const cache = new Map<ColumnKey, any[]>();
-    const filterableColumns = columnConfig.filter(col => col.filterable);
-
-    filterableColumns.forEach(col => {
-      const values = new Set(getFacetBaseData(col.key).map(row => row[col.key]));
-      cache.set(col.key, Array.from(values).sort());
-    });
-
-    return cache;
-  }, [columnConfig, getFacetBaseData]);
-
-  const getUniqueValues = (columnKey: ColumnKey): any[] => {
-    return uniqueValuesCache.get(columnKey) || [];
-  };
-
-  const applyFiltersAndSorting = useCallback((input: Payment[]) => {
-    let filtered = [...input];
-
-    // Apply search filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(payment =>
-        Object.values(payment).some(value =>
-          String(value).toLowerCase().includes(term)
-        )
-      );
-    }
-
-    // Apply column filters
-    if (filters.size > 0) {
-      filtered = filtered.filter(row => {
-        for (const [columnKey, filter] of filters.entries()) {
-          const rowValue = row[columnKey as ColumnKey];
-          if (!matchesFilter(rowValue, filter)) {
-            return false;
-          }
-        }
-        return true;
-      });
-    }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      const aValue = a[sortColumn];
-      const bValue = b[sortColumn];
-      
-      if (aValue === null || aValue === undefined) return 1;
-      if (bValue === null || bValue === undefined) return -1;
-      
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
-      }
-      
-      const aStr = String(aValue).toLowerCase();
-      const bStr = String(bValue).toLowerCase();
-      
-      if (sortDirection === 'asc') {
-        return aStr.localeCompare(bStr);
-      } else {
-        return bStr.localeCompare(aStr);
-      }
-    });
-
-    return filtered;
-  }, [searchTerm, sortColumn, sortDirection, filters]);
-
-  const filteredAndSortedPayments = useMemo(() => (
-    applyFiltersAndSorting(payments)
-  ), [payments, applyFiltersAndSorting]);
-
-  // Pagination
-  const totalRecords = filteredAndSortedPayments.length;
-  const totalPages = Math.ceil(totalRecords / pageSize);
-  
-  const paginatedPayments = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return filteredAndSortedPayments.slice(startIndex, endIndex);
-  }, [filteredAndSortedPayments, currentPage, pageSize]);
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filters, pageSize]);
-
   const visibleColumns = columnConfig.filter(col => col.visible);
-  const activeFilterCount = filters.size;
 
   const handleExportXlsx = async () => {
     setIsExporting(true);
     try {
-      const response = await fetch('/api/payments?limit=all', { cache: 'no-store' });
-      if (!response.ok) throw new Error('Failed to fetch payments for export');
-      const data = await response.json();
-      const normalized: Payment[] = Array.isArray(data)
-        ? data.map(normalizePayment)
-        : [];
-      const exportRows = applyFiltersAndSorting(normalized);
-      if (exportRows.length === 0) return;
+      if (sortedData.length === 0) return;
       const fileName = `payments_${new Date().toISOString().slice(0, 10)}.xlsx`;
       exportRowsToXlsx({
-        rows: exportRows,
+        rows: sortedData,
         columns: columnConfig,
         fileName,
         sheetName: 'Payments',
@@ -1063,7 +941,7 @@ export function PaymentsTable() {
             <h1 className="text-lg font-semibold">Payments</h1>
             <RequiredInsiderBadge />
             <Badge variant="secondary">
-              {filteredAndSortedPayments.length} records
+              {sortedData.length} records
             </Badge>
             {totalPages > 1 && (
               <span className="text-sm text-gray-500">
@@ -1076,7 +954,7 @@ export function PaymentsTable() {
               variant="outline"
               size="sm"
               onClick={handleExportXlsx}
-              disabled={isExporting || filteredAndSortedPayments.length === 0}
+              disabled={isExporting || sortedData.length === 0}
               className="flex items-center gap-2"
             >
               <Download className="h-4 w-4" />
@@ -1335,13 +1213,13 @@ export function PaymentsTable() {
             <ClearFiltersButton
               activeCount={activeFilterCount + (searchTerm.trim() ? 1 : 0)}
               onClear={() => {
-                setFilters(new Map());
+                clearFilters();
                 setSearchTerm('');
               }}
             />
 
             {/* Pagination Controls */}
-            {filteredAndSortedPayments.length > 0 && (
+            {sortedData.length > 0 && (
               <>
                 <div className="flex items-center gap-2 border-l pl-2">
                   <span className="text-sm text-gray-600">Rows per page:</span>
@@ -1361,12 +1239,12 @@ export function PaymentsTable() {
 
                 <div className="flex items-center gap-2 border-l pl-2">
                   <span className="text-sm text-gray-600">
-                    {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, filteredAndSortedPayments.length)} of {filteredAndSortedPayments.length}
+                    {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, sortedData.length)} of {sortedData.length}
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
                   >
                     <ChevronLeft className="h-4 w-4" />
@@ -1374,7 +1252,7 @@ export function PaymentsTable() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages}
                   >
                     <ChevronRight className="h-4 w-4" />
@@ -1456,7 +1334,7 @@ export function PaymentsTable() {
                         <ColumnFilterPopover
                           columnKey={col.key}
                           columnLabel={col.label}
-                          values={getUniqueValues(col.key)}
+                          values={getColumnValues(col.key)}
                           activeFilters={filters.get(col.key)?.mode === 'facet' ? (filters.get(col.key) as any).values : new Set()}
                           activeFilter={filters.get(col.key)}
                           onAdvancedFilterChange={(filter) => handleFilterChange(col.key, filter)}
@@ -1499,14 +1377,14 @@ export function PaymentsTable() {
               </tr>
             </thead>
             <tbody>
-              {filteredAndSortedPayments.length === 0 ? (
+              {sortedData.length === 0 ? (
                 <tr>
                   <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4 text-gray-500">
                     No records found
                   </td>
                 </tr>
               ) : (
-                paginatedPayments.map((payment, idx) => (
+                paginatedData.map((payment, idx) => (
                   <tr key={`${payment.id}-${idx}`} className="border-b border-gray-200 hover:bg-gray-50">
                     {visibleColumns.map(col => (
                       <td 

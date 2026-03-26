@@ -37,9 +37,8 @@ import { RequiredInsiderBadge } from './shared/required-insider-badge';
 import { useRequiredInsiderName } from './shared/use-required-insider';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
-import { clearColumnFilters, loadColumnFilters, saveColumnFilters } from './shared/column-filter-storage';
-import type { FilterState, ColumnFilter, ColumnFormat } from './shared/table-filters';
-import { matchesFilter } from './shared/table-filters';
+import { useTableFilters } from './shared/use-table-filters';
+import type { ColumnFormat } from './shared/table-filters';
 import { 
   Table, 
   TableBody, 
@@ -81,6 +80,7 @@ type ColumnConfig = {
   visible: boolean;
   sortable: boolean;
   filterable: boolean;
+  format?: ColumnFormat;
   responsive?: 'sm' | 'md' | 'lg' | 'xl';
 };
 
@@ -99,8 +99,8 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'weight', label: 'Weight (kg)', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'isFf', label: 'FF', width: 80, visible: true, sortable: true, filterable: true },
   { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true },
-  { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true },
-  { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true },
+  { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true, format: 'date' },
+  { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true, format: 'date' },
 ];
 
 export function JobsTable() {
@@ -110,7 +110,6 @@ export function JobsTable() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
@@ -135,70 +134,24 @@ export function JobsTable() {
     }
     return defaultColumns;
   });
-  const [sortField, setSortField] = useState<ColumnKey | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [columnFilters, setColumnFilters] = useState<FilterState>(new Map());
-  const filtersStorageKey = 'jobs-table:column-filters';
-  const [pageSize, setPageSize] = useState(50);
-  const [currentPage, setCurrentPage] = useState(1);
+
+  const {
+    filters, searchTerm, sortColumn, sortDirection, currentPage, pageSize,
+    sortedData: sortedJobs, paginatedData: paginatedJobs, totalPages,
+    getColumnValues, setSearchTerm, handleSort, setSortColumn, setSortDirection,
+    setCurrentPage, setPageSize, handleFilterChange, clearFilters, activeFilterCount,
+  } = useTableFilters<Job, ColumnKey>({
+    data: jobs,
+    columns,
+    defaultSortColumn: 'id',
+    defaultSortDirection: 'asc',
+    filtersStorageKey: 'jobs-table:column-filters',
+  });
   
   // Resize and drag state
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number } | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
-
-  const getFacetBaseData = (excludeColumn?: ColumnKey) => {
-    let result = [...jobs];
-
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      result = result.filter(job =>
-        (job.jobName || '').toLowerCase().includes(search) ||
-        (job.projectIndex || '').toLowerCase().includes(search) ||
-        (job.projectName || '').toLowerCase().includes(search) ||
-        (job.brandName || '').toLowerCase().includes(search) ||
-        (job.jobIndex || '').toLowerCase().includes(search)
-      );
-    }
-
-    if (columnFilters.size > 0) {
-      result = result.filter(row => {
-        for (const [columnKey, filter] of columnFilters.entries()) {
-          if (excludeColumn && columnKey === excludeColumn) continue;
-          const rowValue = row[columnKey as ColumnKey];
-          if (!matchesFilter(rowValue, filter)) {
-            return false;
-          }
-        }
-        return true;
-      });
-    }
-
-    return result;
-  };
-
-  useEffect(() => {
-    const legacy = loadColumnFilters(filtersStorageKey) as Record<string, string[]>;
-    const fs: FilterState = new Map();
-    Object.entries(legacy).forEach(([k, v]) => { if (v.length > 0) fs.set(k, { mode: 'facet', values: new Set(v) }); });
-
-    // Override filters from URL query parameters (e.g. ?jobUuid=UUID)
-    const urlParams = new URLSearchParams(window.location.search);
-    const jobUuidParam = urlParams.get('jobUuid');
-    if (jobUuidParam) {
-      fs.set('jobUuid', { mode: 'facet', values: new Set([jobUuidParam]) });
-    }
-
-    setColumnFilters(fs);
-  }, [filtersStorageKey]);
-
-  useEffect(() => {
-    const legacy: Record<string, string[]> = {};
-    columnFilters.forEach((filter, key) => {
-      if (filter.mode === 'facet') legacy[key] = Array.from(filter.values).map(String);
-    });
-    saveColumnFilters(filtersStorageKey, legacy);
-  }, [filtersStorageKey, columnFilters]);
 
   const [formData, setFormData] = useState({
     projectUuid: '',
@@ -468,66 +421,6 @@ export function JobsTable() {
     });
   };
 
-  // Helper function to get unique values for filtering
-  const getUniqueValues = (column: ColumnKey) => {
-    const baseData = getFacetBaseData(column);
-    return [...new Set(baseData.map(job => String(job[column] ?? '')))].sort();
-  };
-
-  const filteredJobs = useMemo(() => {
-    let filtered = jobs;
-
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(job =>
-        (job.jobName || '').toLowerCase().includes(search) ||
-        (job.projectIndex || '').toLowerCase().includes(search) ||
-        (job.projectName || '').toLowerCase().includes(search) ||
-        (job.brandName || '').toLowerCase().includes(search) ||
-        (job.jobIndex || '').toLowerCase().includes(search)
-      );
-    }
-
-    if (columnFilters.size > 0) {
-      filtered = filtered.filter(job => {
-        for (const [column, filter] of columnFilters.entries()) {
-          const cellValue = job[column as ColumnKey];
-          if (!matchesFilter(cellValue, filter)) return false;
-        }
-        return true;
-      });
-    }
-
-    return filtered;
-  }, [jobs, searchTerm, columnFilters]);
-
-  const sortedJobs = useMemo(() => {
-    if (!sortField) return filteredJobs;
-
-    return [...filteredJobs].sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-
-      if (aVal === bVal) return 0;
-      if (aVal === null || aVal === undefined) return 1;
-      if (bVal === null || bVal === undefined) return -1;
-
-      if (typeof aVal === 'number' && typeof bVal === 'number') {
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-      }
-
-      const comparison = String(aVal).localeCompare(String(bVal));
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-  }, [filteredJobs, sortField, sortDirection]);
-
-  const totalRecords = sortedJobs.length;
-  const totalPages = Math.ceil(totalRecords / pageSize);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, columnFilters, pageSize]);
-
   const handleExportXlsx = () => {
     if (sortedJobs.length === 0) return;
     setIsExporting(true);
@@ -543,18 +436,8 @@ export function JobsTable() {
       setIsExporting(false);
     }
   };
-  const paginatedJobs = sortedJobs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const visibleColumns = columns.filter(col => col.visible);
-
-  const handleSort = (field: ColumnKey) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
 
   const toggleColumnVisibility = (key: ColumnKey) => {
     setColumns(columns.map(col => 
@@ -619,7 +502,7 @@ export function JobsTable() {
           <h1 className="text-2xl font-bold">Jobs</h1>
           <RequiredInsiderBadge className="mt-2" />
           <p className="text-sm text-muted-foreground">
-            {totalRecords} total jobs
+            {sortedJobs.length} total jobs
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -673,10 +556,9 @@ export function JobsTable() {
         </div>
 
         <ClearFiltersButton
-          activeCount={columnFilters.size + (searchTerm.trim() ? 1 : 0)}
+          activeCount={activeFilterCount + (searchTerm.trim() ? 1 : 0)}
           onClear={() => {
-            clearColumnFilters(filtersStorageKey);
-            setColumnFilters(new Map());
+            clearFilters();
             setSearchTerm('');
           }}
         />
@@ -709,7 +591,7 @@ export function JobsTable() {
         </Popover>
 
         {/* Page Size */}
-        <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(1); }}>
+        <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
           <SelectTrigger className="w-32">
             <SelectValue />
           </SelectTrigger>
@@ -755,7 +637,7 @@ export function JobsTable() {
                             onClick={() => handleSort(column.key)}
                             className="hover:bg-accent rounded p-1"
                           >
-                            {sortField === column.key ? (
+                            {sortColumn === column.key ? (
                               sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
                             ) : (
                               <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
@@ -769,25 +651,16 @@ export function JobsTable() {
                         <ColumnFilterPopover
                           columnKey={column.key}
                           columnLabel={column.label}
-                          values={getUniqueValues(column.key)}
-                          activeFilters={columnFilters.get(column.key)?.mode === 'facet' ? (columnFilters.get(column.key) as any).values : new Set()}
-                          activeFilter={columnFilters.get(column.key)}
-                          onAdvancedFilterChange={(filter) => {
-                            setColumnFilters(prev => {
-                              const next = new Map(prev);
-                              if (filter) { next.set(column.key, filter); } else { next.delete(column.key); }
-                              return next;
-                            });
-                          }}
+                          values={getColumnValues(column.key)}
+                          activeFilters={filters.get(column.key)?.mode === 'facet' ? (filters.get(column.key) as any).values : new Set()}
+                          activeFilter={filters.get(column.key)}
+                          columnFormat={column.format as ColumnFormat | undefined}
+                          onAdvancedFilterChange={(filter) => handleFilterChange(column.key, filter)}
                           onFilterChange={(values) => {
-                            setColumnFilters(prev => {
-                              const next = new Map(prev);
-                              if (values.size > 0) { next.set(column.key, { mode: 'facet', values }); } else { next.delete(column.key); }
-                              return next;
-                            });
+                            handleFilterChange(column.key, values.size > 0 ? { mode: 'facet', values } : null);
                           }}
                           onSort={(direction) => {
-                            setSortField(column.key);
+                            setSortColumn(column.key);
                             setSortDirection(direction);
                           }}
                         />
@@ -873,13 +746,13 @@ export function JobsTable() {
       {/* Pagination */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords}
+          Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, sortedJobs.length)} of {sortedJobs.length}
         </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
           >
             Previous
@@ -892,7 +765,7 @@ export function JobsTable() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
             disabled={currentPage === totalPages}
           >
             Next
