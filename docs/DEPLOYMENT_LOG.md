@@ -2319,3 +2319,10 @@
 - Commit: 140c267
 - Production: https://ice-cltbcyr0v-iceerp.vercel.app
 
+## 2026-03-27
+- Summary: Fix jobs page not showing project IDs due to stale cached column config.
+- Changes:
+  - Jobs table: bump column version from 3 to 4 to reset localStorage cached columns after junction table refactor.
+- Commit: e6b146d
+- Production: https://ice-mafp8ftgb-iceerp.vercel.app
+
