@@ -93,7 +93,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'currencyUuid', label: 'Currency UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'jobIdentifier', label: 'Job Identifier', width: 200, visible: false, sortable: true, filterable: true },
   { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true },
-  { key: 'isProjectDerived', label: 'Source', width: 90, visible: true, sortable: true, filterable: true },
+  { key: 'isProjectDerived', label: 'Auto', width: 90, visible: true, sortable: true, filterable: true },
   { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true, format: 'date' },
   { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true, format: 'date' },
 ];

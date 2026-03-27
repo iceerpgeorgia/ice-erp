@@ -55,6 +55,7 @@ type PaymentReport = {
   jobUuid?: string | null;
   currencyUuid?: string | null;
   isActive?: boolean;
+  isProjectDerived?: boolean;
   counteragent: string;
   counteragentId?: string | null;
   counteragentIban?: string | null;
@@ -128,6 +129,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'due', label: 'Due', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },
   { key: 'accrualPerFloor', label: 'Accrual/Floor', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },
   { key: 'balance', label: 'Balance', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },
+  { key: 'isProjectDerived', label: 'Auto', visible: true, sortable: true, filterable: true, format: 'boolean', width: 90 },
   { key: 'latestDate', label: 'Latest Date', visible: true, sortable: true, filterable: true, format: 'date', width: 120 },
 ];
 
