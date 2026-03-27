@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-03-27 (109)
+- Summary: Add per-day logging to BOG cron import for visibility on empty vs data days.
+- Changes:
+  - `app/api/cron/bog-import-last-3-days/route.ts`: Log date range per account and per-day transaction counts (data/empty/error).
+- Commit: fae8503
+- URL: https://ice-mdp08d3pn-iceerp.vercel.app
+
 ## 2026-03-27 (108)
 - Summary: Add is_project_derived (Auto) column to payments report table and API.
 - Changes:
