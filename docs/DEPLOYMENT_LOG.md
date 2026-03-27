@@ -2326,3 +2326,11 @@
 - Commit: e6b146d
 - Production: https://ice-mafp8ftgb-iceerp.vercel.app
 
+## 2026-03-27
+- Summary: Add bulk project binding with row checkboxes on jobs table.
+- Changes:
+  - Jobs table: added row checkboxes, select-all, and "Bind N to Projects" bulk action button with dialog.
+  - Jobs API: added PATCH endpoint for bulk job-project binding via job_projects junction table.
+- Commit: 44a5b02
+- Production: https://ice-n1pfu02fz-iceerp.vercel.app
+
