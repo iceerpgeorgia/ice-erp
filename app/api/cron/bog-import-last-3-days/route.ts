@@ -226,6 +226,7 @@ export async function GET(req: NextRequest) {
       }
 
       const insiderUuid = account.insider_uuid || defaultInsiderUuid || undefined;
+      console.log(`[CRON] 📅 ${accountNumber} ${currencyCode}: querying days ${startYmd} → ${endYmd}`);
       for (const day of iterateDays(startYmd, endYmd)) {
         const path = `/statement/${accountNumber}/${currencyCode}/${day}/${day}`;
 
@@ -237,6 +238,7 @@ export async function GET(req: NextRequest) {
           });
 
           if (!bogResponse.ok) {
+            console.log(`[CRON] ❌ ${accountNumber} ${day}: BOG API ${bogResponse.status}`);
             failures.push({
               accountUuid: account.uuid,
               accountNumber,
@@ -252,6 +254,7 @@ export async function GET(req: NextRequest) {
           });
 
           if (mapped.detailsCount === 0) {
+            console.log(`[CRON] ⏭️  ${accountNumber} ${day}: 0 transactions (empty statement)`);
             successes.push({
               accountUuid: account.uuid,
               accountNumber,
@@ -263,6 +266,8 @@ export async function GET(req: NextRequest) {
             });
             continue;
           }
+
+          console.log(`[CRON] 📦 ${accountNumber} ${day}: ${mapped.detailsCount} transactions`);
 
           await processBOGGELDeconsolidated(
             mapped.xmlContent,
