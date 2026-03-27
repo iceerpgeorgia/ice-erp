@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Combobox } from '@/components/ui/combobox';
 import { X, Plus, Check, AlertCircle } from 'lucide-react';
 
@@ -149,6 +148,24 @@ export function BatchEditor({
     }
     return result;
   })();
+
+  // Track payment IDs already used in partitions or the pending chips list
+  const usedPaymentIds = new Set(
+    [
+      ...partitions
+        .filter((p) => p.paymentId)
+        .map((p) => normalizePaymentId(p.paymentId!)),
+      ...paymentIdsInput
+        .split(/[,;\n]+/)
+        .map((id) => id.trim())
+        .filter(Boolean)
+        .map(normalizePaymentId),
+    ]
+  );
+
+  const availablePayments = filteredPayments.filter(
+    (p) => !usedPaymentIds.has(normalizePaymentId(p.paymentId))
+  );
 
   const counteragentLabel = counteragentUuid
     ? (filteredPayments[0]?.counteragentName || null)
@@ -773,7 +790,7 @@ export function BatchEditor({
             <div>
               <Label htmlFor="payment-label-select">Add payment by label</Label>
               <Combobox
-                options={filteredPayments.map((p) => ({
+                options={availablePayments.map((p) => ({
                   value: p.recordUuid,
                   label: buildPaymentOptionLabel(p, counteragentLabel),
                 }))}
@@ -787,14 +804,39 @@ export function BatchEditor({
               </p>
             </div>
             <div>
-              <Label htmlFor="payment-ids-input">Payment IDs (comma-separated)</Label>
-              <Textarea
-                id="payment-ids-input"
-                value={paymentIdsInput}
-                onChange={(e) => setPaymentIdsInput(e.target.value)}
-                placeholder="e.g. 12ab34_cd_56ef78, 90ab12_cd_34ef56"
-                rows={3}
-              />
+              <Label>Selected Payment IDs</Label>
+              <div className="flex flex-wrap gap-2 min-h-[40px] rounded-md border border-input bg-background px-3 py-2">
+                {paymentIdsInput
+                  .split(/[,;\n]+/)
+                  .map((id) => id.trim())
+                  .filter(Boolean)
+                  .map((id) => (
+                    <span
+                      key={id}
+                      className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-sm font-medium text-primary"
+                    >
+                      {id}
+                      <button
+                        type="button"
+                        className="ml-0.5 rounded-full hover:bg-primary/20 p-0.5"
+                        onClick={() => {
+                          setPaymentIdsInput((prev) =>
+                            prev
+                              .split(/[,;\n]+/)
+                              .map((s) => s.trim())
+                              .filter((s) => s && normalizePaymentId(s) !== normalizePaymentId(id))
+                              .join(', ')
+                          );
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                {!paymentIdsInput.trim() && (
+                  <span className="text-sm text-muted-foreground">No payment IDs selected</span>
+                )}
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <Button type="button" size="sm" onClick={buildPartitionsFromPaymentIds}>
@@ -879,10 +921,19 @@ export function BatchEditor({
                       placeholder="Enter payment ID or pick from the list"
                     />
                     <Combobox
-                      options={filteredPayments.map((p) => ({
-                        value: p.recordUuid,
-                        label: buildPaymentOptionLabel(p, counteragentLabel),
-                      }))}
+                      options={(() => {
+                        const currentNormalized = partition.paymentId ? normalizePaymentId(partition.paymentId) : null;
+                        return filteredPayments
+                          .filter((p) => {
+                            const norm = normalizePaymentId(p.paymentId);
+                            if (currentNormalized && norm === currentNormalized) return true;
+                            return !usedPaymentIds.has(norm);
+                          })
+                          .map((p) => ({
+                            value: p.recordUuid,
+                            label: buildPaymentOptionLabel(p, counteragentLabel),
+                          }));
+                      })()}
                       value={
                         partition.paymentUuid
                           || (partition.paymentId

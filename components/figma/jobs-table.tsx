@@ -188,6 +188,21 @@ export function JobsTable() {
   useEffect(() => {
     localStorage.setItem('jobs-table-columns', JSON.stringify(columns));
   }, [columns]);
+
+  // Apply URL query param filters on mount (e.g. ?jobUuid=UUID from payments report)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const jobUuid = params.get('jobUuid');
+    if (jobUuid) {
+      handleFilterChange('jobUuid', { mode: 'facet', values: new Set([jobUuid]) });
+      setColumns((prev) =>
+        prev.map((col) =>
+          col.key === 'jobUuid' && !col.visible ? { ...col, visible: true } : col
+        )
+      );
+    }
+  }, []);
   
   // Handle column resizing
   useEffect(() => {
