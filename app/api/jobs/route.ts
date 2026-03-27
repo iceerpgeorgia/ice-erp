@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(serialized);
     }
 
-    // Full listing: each job is a single row, project info aggregated from job_projects
+    // Full listing: one row per job-project binding
     const jobs = await prisma.$queryRawUnsafe(`
       SELECT 
         j.id,
@@ -73,12 +73,12 @@ export async function GET(req: NextRequest) {
         j.created_at,
         j.updated_at,
         b.name as brand_name,
-        -- Computed job_index using first project name
+        jp.project_uuid as bound_project_uuid,
+        p.project_index as bound_project_index,
+        p.project_name as bound_project_name,
+        -- Computed job_index using this row's project
         CONCAT(
-          COALESCE(
-            (SELECT p2.project_name FROM job_projects jp2 JOIN projects p2 ON jp2.project_uuid = p2.project_uuid WHERE jp2.job_uuid = j.job_uuid ORDER BY p2.project_index LIMIT 1),
-            '-'
-          ),
+          COALESCE(p.project_name, '-'),
           ' | ',
           j.job_name,
           ' | ',
@@ -92,25 +92,18 @@ export async function GET(req: NextRequest) {
           ' | ',
           CASE WHEN j.is_ff THEN 'FF' ELSE 'NOT FF' END
         ) as job_index,
-        -- All linked project indices (comma-separated)
-        (SELECT string_agg(DISTINCT p3.project_index, ', ' ORDER BY p3.project_index)
-         FROM job_projects jp3
-         JOIN projects p3 ON jp3.project_uuid = p3.project_uuid
-         WHERE jp3.job_uuid = j.job_uuid
-        ) as all_project_indices,
-        -- All linked project UUIDs
-        (SELECT array_agg(DISTINCT jp4.project_uuid::text)
-         FROM job_projects jp4
-         WHERE jp4.job_uuid = j.job_uuid
-        ) as project_uuids
+        -- Total number of project bindings for this job
+        (SELECT count(*) FROM job_projects jp2 WHERE jp2.job_uuid = j.job_uuid) as binding_count
       FROM jobs j
+      INNER JOIN job_projects jp ON jp.job_uuid = j.job_uuid
+      LEFT JOIN projects p ON jp.project_uuid = p.project_uuid
       LEFT JOIN brands b ON j.brand_uuid = b.uuid
       WHERE j.insider_uuid IN (${insiderUuidListSql})
         AND j.is_active = true
-      ORDER BY j.created_at DESC
+      ORDER BY j.created_at DESC, p.project_index ASC
     `);
 
-    const serialized = (jobs as any[]).map((job: any) => ({
+    const serialized = (jobs as any[]).map((job: any, idx: number) => ({
       id: Number(job.id),
       jobUuid: job.job_uuid,
       jobName: job.job_name,
@@ -120,13 +113,16 @@ export async function GET(req: NextRequest) {
       brandUuid: job.brand_uuid,
       brandName: job.brand_name,
       jobIndex: job.job_index,
-      allProjectIndices: job.all_project_indices || '-',
-      projectUuids: job.project_uuids || [],
+      projectUuid: job.bound_project_uuid,
+      projectIndex: job.bound_project_index || '-',
+      projectName: job.bound_project_name || '-',
+      bindingCount: Number(job.binding_count),
       is_active: job.is_active,
       createdAt: job.created_at,
       updatedAt: job.updated_at,
       insider_uuid: job.insider_uuid ?? insider?.insiderUuid ?? null,
       insider_name: insider?.insiderName ?? null,
+      _rowKey: `${job.job_uuid}_${job.bound_project_uuid || idx}`,
     }));
 
     return NextResponse.json(serialized);

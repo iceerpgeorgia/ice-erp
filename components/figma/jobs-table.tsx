@@ -63,12 +63,15 @@ export type Job = {
   brandUuid: string | null;
   brandName: string;
   jobIndex: string;
-  allProjectIndices: string;
-  projectUuids: string[];
+  projectUuid: string;
+  projectIndex: string;
+  projectName: string;
+  bindingCount: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
   insiderName?: string | null;
+  _rowKey: string;
 };
 
 type ColumnKey = keyof Job;
@@ -89,7 +92,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'jobUuid', label: 'Job UUID', width: 200, visible: true, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'brandUuid', label: 'Brand UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'jobIndex', label: 'Job Index', width: 400, visible: true, sortable: true, filterable: true },
-  { key: 'allProjectIndices', label: 'Projects', width: 200, visible: true, sortable: true, filterable: true },
+  { key: 'projectIndex', label: 'Project', width: 300, visible: true, sortable: true, filterable: true },
   { key: 'jobName', label: 'Job Name', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'insiderName', label: 'Insider', width: 180, visible: true, sortable: false, filterable: false },
   { key: 'brandName', label: 'Brand', width: 150, visible: true, sortable: true, filterable: true },
@@ -119,7 +122,7 @@ export function JobsTable() {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('jobs-table-columns');
       const version = localStorage.getItem('jobs-table-columns-version');
-      const currentVersion = '4'; // Increment this when changing default column visibility
+      const currentVersion = '5'; // Increment this when changing default column visibility
       
       if (saved && version === currentVersion) {
         try {
@@ -251,11 +254,14 @@ export function JobsTable() {
               brandUuid: job.brandUuid || job.brand_uuid || null,
               brandName: job.brandName || job.brand_name,
               jobIndex: job.jobIndex || job.job_index,
-              allProjectIndices: job.allProjectIndices || '-',
-              projectUuids: job.projectUuids || [],
+              projectUuid: job.projectUuid || '',
+              projectIndex: job.projectIndex || '-',
+              projectName: job.projectName || '-',
+              bindingCount: job.bindingCount ?? 1,
               isActive: job.isActive ?? job.is_active ?? true,
               createdAt: job.createdAt || job.created_at,
               updatedAt: job.updatedAt || job.updated_at,
+              _rowKey: job._rowKey || `${job.jobUuid || job.job_uuid}_${job.projectUuid || ''}`,
             }))
           : [];
         setJobs(normalized);
@@ -396,9 +402,12 @@ export function JobsTable() {
 
   const openEditDialog = (job: Job) => {
     setEditingJob(job);
+    // Gather all project bindings for this job from the full list
+    const allBindings = jobs.filter(j => j.jobUuid === job.jobUuid);
+    const allProjectUuids = [...new Set(allBindings.map(b => b.projectUuid).filter(Boolean))];
     setFormData({
-      projectUuid: job.projectUuids?.[0] || '',
-      projectUuids: job.projectUuids || [],
+      projectUuid: allProjectUuids[0] || '',
+      projectUuids: allProjectUuids,
       jobName: job.jobName,
       floors: job.floors ?? '',
       weight: job.weight ?? '',
@@ -546,7 +555,7 @@ export function JobsTable() {
           <h1 className="text-2xl font-bold">Jobs</h1>
           <RequiredInsiderBadge className="mt-2" />
           <p className="text-sm text-muted-foreground">
-            {sortedJobs.length} total jobs
+            {sortedJobs.length} bindings ({new Set(sortedJobs.map(j => j.jobUuid)).size} jobs)
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -756,7 +765,7 @@ export function JobsTable() {
             </TableHeader>
             <TableBody>
               {paginatedJobs.map(job => (
-                <TableRow key={job.id} className={selectedJobUuids.has(job.jobUuid) ? 'bg-muted/30' : ''}>
+                <TableRow key={job._rowKey} className={selectedJobUuids.has(job.jobUuid) ? 'bg-muted/30' : ''}>
                   <TableCell className="w-10">
                     <Checkbox
                       checked={selectedJobUuids.has(job.jobUuid)}
@@ -779,11 +788,11 @@ export function JobsTable() {
                         <span>{job.weight == null ? '-' : `${job.weight} kg`}</span>
                       ) : column.key === 'insiderName' ? (
                         <span className="text-sm">{requiredInsiderName || '-'}</span>
-                      ) : column.key === 'allProjectIndices' ? (
-                        <span className="text-sm" title={job.allProjectIndices}>
-                          {job.allProjectIndices || '-'}
-                          {job.projectUuids && job.projectUuids.length > 1 && (
-                            <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">{job.projectUuids.length}</Badge>
+                      ) : column.key === 'projectIndex' ? (
+                        <span className="text-sm" title={job.projectIndex}>
+                          {job.projectIndex || '-'}
+                          {job.bindingCount > 1 && (
+                            <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">{job.bindingCount}</Badge>
                           )}
                         </span>
                       ) : (
