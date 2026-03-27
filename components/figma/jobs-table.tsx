@@ -114,7 +114,7 @@ export function JobsTable() {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('jobs-table-columns');
       const version = localStorage.getItem('jobs-table-columns-version');
-      const currentVersion = '3'; // Increment this when changing default column visibility
+      const currentVersion = '4'; // Increment this when changing default column visibility
       
       if (saved && version === currentVersion) {
         try {
