@@ -166,22 +166,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if job with same name already exists for this insider+brand
-    const existing = await prisma.$queryRaw`
-      SELECT id, job_uuid
-      FROM jobs
-      WHERE lower(job_name) = lower(${jobName})
-        AND insider_uuid = ${effectiveInsiderUuid}::uuid
-        AND COALESCE(brand_uuid::text, '') = COALESCE(${brandUuid}::text, '')
-        AND is_active = true
+    // Check if job with same name already exists for this insider+brand+project
+    // Job names (L0001, L0002...) are per-project, so we must also check
+    // that an existing job is already bound to one of the target projects
+    const existing = await prisma.$queryRawUnsafe(`
+      SELECT j.id, j.job_uuid
+      FROM jobs j
+      INNER JOIN job_projects jp ON jp.job_uuid = j.job_uuid
+      WHERE lower(j.job_name) = lower($1)
+        AND j.insider_uuid = $2::uuid
+        AND COALESCE(j.brand_uuid::text, '') = COALESCE($3::text, '')
+        AND j.is_active = true
+        AND jp.project_uuid = ANY($4::uuid[])
       LIMIT 1
-    ` as any[];
+    `, jobName, effectiveInsiderUuid, brandUuid || '', targetProjectUuids) as any[];
 
     let jobId: number;
     let jobUuidValue: string;
 
     if (existing.length > 0) {
-      // Job already exists - just add project bindings
+      // Job already exists for this project - just add any extra project bindings
       jobId = Number(existing[0].id);
       jobUuidValue = existing[0].job_uuid;
     } else {
