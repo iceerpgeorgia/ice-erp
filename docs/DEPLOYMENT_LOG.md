@@ -1,5 +1,15 @@
 ﻿# Deployment Log
 
+## 2026-03-27 (116)
+- Summary: Differential sync for job-project bindings, payment deletion protection.
+- Changes:
+  - PUT /api/jobs: Replaced destructive delete-all + re-insert of job_projects with differential sync (only removes/adds changed bindings).
+  - DELETE /api/jobs: Added pre-check for active payments, returns 409 if any exist.
+  - POST /api/job-projects: Same differential sync fix — no longer deletes all bindings before re-inserting.
+  - DB triggers (applied directly): trg_prevent_job_deactivation_with_payments, trg_prevent_job_project_unbind_with_payments.
+- Commit: 4ab15ef
+- Production: https://ice-hwtpy5iwl-iceerp.vercel.app
+
 ## 2026-03-27 (115)
 - Summary: Fix cross-project job reuse bug in POST /api/jobs handler.
 - Changes:
