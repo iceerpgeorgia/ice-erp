@@ -54,18 +54,32 @@ export async function POST(request: NextRequest) {
     );
 
     await prisma.$transaction(async (tx) => {
-      // Remove all existing links for this project
-      await tx.$executeRawUnsafe(
-        `DELETE FROM job_projects WHERE project_uuid = $1::uuid`,
+      // Get current bindings for this project
+      const currentBindings = await tx.$queryRawUnsafe<{ job_uuid: string }[]>(
+        `SELECT job_uuid FROM job_projects WHERE project_uuid = $1::uuid`,
         normalizedProjectUuid
       );
+      const currentJobUuids = new Set(currentBindings.map((r) => r.job_uuid));
+      const targetJobUuids = new Set(normalizedJobUuids);
 
-      // Insert new links
-      if (normalizedJobUuids.length > 0) {
-        const values = normalizedJobUuids
+      // Remove only bindings not in the target set
+      const toRemove = [...currentJobUuids].filter((id) => !targetJobUuids.has(id));
+      if (toRemove.length > 0) {
+        const placeholders = toRemove.map((_, i) => `$${i + 2}::uuid`).join(', ');
+        await tx.$executeRawUnsafe(
+          `DELETE FROM job_projects WHERE project_uuid = $1::uuid AND job_uuid IN (${placeholders})`,
+          normalizedProjectUuid,
+          ...toRemove
+        );
+      }
+
+      // Add only bindings not already present
+      const toAdd = normalizedJobUuids.filter((id: string) => !currentJobUuids.has(id));
+      if (toAdd.length > 0) {
+        const values = toAdd
           .map((_: string, i: number) => `($${i * 2 + 1}::uuid, $${i * 2 + 2}::uuid)`)
           .join(', ');
-        const params = normalizedJobUuids.flatMap((ju: string) => [ju, normalizedProjectUuid]);
+        const params = toAdd.flatMap((ju: string) => [ju, normalizedProjectUuid]);
         await tx.$executeRawUnsafe(
           `INSERT INTO job_projects (job_uuid, project_uuid) VALUES ${values} ON CONFLICT (job_uuid, project_uuid) DO NOTHING`,
           ...params

@@ -286,16 +286,32 @@ export async function PUT(req: NextRequest) {
       WHERE id = ${id}
     `;
 
-    // Sync job_projects: delete all existing, re-insert selected
-    await prisma.$executeRawUnsafe(
-      `DELETE FROM job_projects WHERE job_uuid = $1::uuid`,
+    // Sync job_projects: only remove bindings not in the new set, add new ones
+    // This avoids deleting bindings that have active payments
+    const currentBindings = await prisma.$queryRawUnsafe(
+      `SELECT project_uuid::text FROM job_projects WHERE job_uuid = $1::uuid`,
       jobUuidValue
-    );
+    ) as any[];
+    const currentSet = new Set(currentBindings.map((b: any) => b.project_uuid));
+    const targetSet = new Set(targetProjectUuids);
+
+    // Remove bindings no longer in the target set
+    for (const cur of currentSet) {
+      if (!targetSet.has(cur)) {
+        await prisma.$executeRawUnsafe(
+          `DELETE FROM job_projects WHERE job_uuid = $1::uuid AND project_uuid = $2::uuid`,
+          jobUuidValue, cur
+        );
+      }
+    }
+    // Add new bindings
     for (const projUuid of targetProjectUuids) {
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO job_projects (job_uuid, project_uuid) VALUES ($1::uuid, $2::uuid) ON CONFLICT (job_uuid, project_uuid) DO NOTHING`,
-        jobUuidValue, projUuid
-      );
+      if (!currentSet.has(projUuid)) {
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO job_projects (job_uuid, project_uuid) VALUES ($1::uuid, $2::uuid) ON CONFLICT (job_uuid, project_uuid) DO NOTHING`,
+          jobUuidValue, projUuid
+        );
+      }
     }
 
     return NextResponse.json({ success: true });
@@ -327,6 +343,22 @@ export async function DELETE(req: NextRequest) {
     const job = await prisma.$queryRaw`
       SELECT job_uuid FROM jobs WHERE id = ${id} LIMIT 1
     ` as any[];
+
+    if (job.length === 0) {
+      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
+
+    // Check if any active payments reference this job
+    const linkedPayments = await prisma.$queryRawUnsafe(
+      `SELECT count(*) as cnt FROM payments WHERE job_uuid = $1::uuid AND is_active = true`,
+      job[0].job_uuid
+    ) as any[];
+    if (Number(linkedPayments[0].cnt) > 0) {
+      return NextResponse.json(
+        { error: `Cannot delete this job — it has ${Number(linkedPayments[0].cnt)} active payment(s) linked to it. Remove or reassign the payments first.` },
+        { status: 409 }
+      );
+    }
 
     await prisma.$queryRaw`
       UPDATE jobs
