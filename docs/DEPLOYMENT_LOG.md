@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-27 (108)
+- Summary: Add is_project_derived (Auto) column to payments report table and API.
+- Changes:
+  - API: added p.is_project_derived to payments-report SQL query and response mapping.
+  - UI: added isProjectDerived to PaymentReport type, defaultColumns in payments-report-table.
+  - Renamed column label from "Source" to "Auto" in both payments-table and payments-report-table.
+- Commit: f9b73db
+- Production: https://ice-9uo1i6t7h-iceerp.vercel.app
+
 ## 2026-03-26 (107)
 - Summary: Shared useTableFilters hook migration, Excel-like condition filters for all column types, date column format annotations.
 - Changes:
