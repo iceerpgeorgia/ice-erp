@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-27 (114)
+- Summary: Batch editor chip UI for payment IDs, filter used IDs from dropdowns, jobs table URL param filter.
+- Changes:
+  - Batch editor: replaced plain-text textarea with chip/tag UI for selected payment IDs (non-editable, removable chips). Already-selected IDs filtered out from all combobox dropdowns.
+  - Jobs table: added URL query param support (`?jobUuid=`) so links from payments report correctly filter the jobs page.
+- Commit: c9df208
+- Production: https://ice-9mxxdu7a2-iceerp.vercel.app
+
 ## 2026-03-27 (113)
 - Summary: Add "Only due" checkbox to bank transaction edit dialog and batch split editor.
 - Changes:
