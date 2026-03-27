@@ -56,6 +56,8 @@ interface BatchEditorProps {
   description: string;
   onClose: () => void;
   onSave: () => void;
+  onlyDue?: boolean;
+  duePaymentIds?: Set<string>;
 }
 
 const BATCH_PAYMENT_ID_REGEX = /^BTC_[A-F0-9]{6}_[A-F0-9]{2}_[A-F0-9]{6}$/i;
@@ -111,6 +113,8 @@ export function BatchEditor({
   description,
   onClose,
   onSave,
+  onlyDue = false,
+  duePaymentIds,
 }: BatchEditorProps) {
   const [partitions, setPartitions] = useState<Partition[]>([
     {
@@ -136,9 +140,15 @@ export function BatchEditor({
   const [missingPaymentIds, setMissingPaymentIds] = useState<string[]>([]);
   const [autoAddRemaining, setAutoAddRemaining] = useState(true);
 
-  const filteredPayments = counteragentUuid
-    ? payments.filter((payment) => payment.counteragentUuid === counteragentUuid)
-    : payments;
+  const filteredPayments = (() => {
+    let result = counteragentUuid
+      ? payments.filter((payment) => payment.counteragentUuid === counteragentUuid)
+      : payments;
+    if (onlyDue && duePaymentIds && duePaymentIds.size > 0) {
+      result = result.filter((payment) => duePaymentIds.has(payment.paymentId));
+    }
+    return result;
+  })();
 
   const counteragentLabel = counteragentUuid
     ? (filteredPayments[0]?.counteragentName || null)

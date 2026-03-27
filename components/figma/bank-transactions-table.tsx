@@ -300,6 +300,13 @@ export function BankTransactionsTable({
   const [batchEditorError, setBatchEditorError] = useState<string | null>(null);
   const [paymentOptions, setPaymentOptions] = useState<any[]>([]);
   const [allPayments, setAllPayments] = useState<any[]>([]); // All payments for search
+  const [onlyDue, setOnlyDue] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('bank-tx-only-due-payments') === 'true';
+    }
+    return false;
+  });
+  const [duePaymentIds, setDuePaymentIds] = useState<Set<string>>(new Set());
   const [projectOptions, setProjectOptions] = useState<any[]>([]);
 
   const mapApiRowToTransaction = (row: any, fallback?: BankTransaction): BankTransaction => ({
@@ -613,6 +620,26 @@ export function BankTransactionsTable({
       }
     };
     fetchAllPayments();
+  }, []);
+
+  // Fetch due payment IDs from payments report
+  useEffect(() => {
+    const fetchDuePaymentIds = async () => {
+      try {
+        const response = await fetch('/api/payments-report');
+        if (!response.ok) return;
+        const reportData = await response.json();
+        const dueIds = new Set<string>(
+          (reportData as any[])
+            .filter((row: any) => row.due > 0 && row.paymentId)
+            .map((row: any) => row.paymentId)
+        );
+        setDuePaymentIds(dueIds);
+      } catch (error) {
+        console.error('[BankTransactionsTable] Error fetching due payment IDs:', error);
+      }
+    };
+    fetchDuePaymentIds();
   }, []);
 
   // Measure scroll content width
@@ -2544,6 +2571,7 @@ export function BankTransactionsTable({
                       <SelectItem value="__none__">-- No Payment --</SelectItem>
                         {paymentOptions
                           .filter((payment) => {
+                            if (onlyDue && duePaymentIds.size > 0 && !duePaymentIds.has(payment.paymentId)) return false;
                             if (!paymentSearch) return true;
                             const searchLower = paymentSearch.toLowerCase();
                             return (
@@ -2580,23 +2608,42 @@ export function BankTransactionsTable({
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-gray-500">
-                    {editingTransaction?.counteragentUuid 
-                      ? paymentOptions.length > 0
-                        ? `Showing ${paymentOptions.length} payment${paymentOptions.length === 1 ? '' : 's'} for counteragent: ${editingTransaction.counteragentName || 'Unknown'}`
-                        : `G��n+� No payments found for counteragent: ${editingTransaction.counteragentName || 'Unknown'}. Create a payment for this counteragent first.`
-                      : `Showing all ${paymentOptions.length} payments (no counteragent parsed)`}
+                    {(() => {
+                      const dueFiltered = onlyDue && duePaymentIds.size > 0
+                        ? paymentOptions.filter(p => duePaymentIds.has(p.paymentId)).length
+                        : paymentOptions.length;
+                      const dueLabel = onlyDue && duePaymentIds.size > 0 ? ` (${dueFiltered} due)` : '';
+                      return editingTransaction?.counteragentUuid 
+                        ? paymentOptions.length > 0
+                          ? `Showing ${paymentOptions.length} payment${paymentOptions.length === 1 ? '' : 's'}${dueLabel} for counteragent: ${editingTransaction.counteragentName || 'Unknown'}`
+                          : `No payments found for counteragent: ${editingTransaction.counteragentName || 'Unknown'}. Create a payment for this counteragent first.`
+                        : `Showing all ${paymentOptions.length} payments${dueLabel} (no counteragent parsed)`;
+                    })()}
                   </p>
-                  <div className="flex items-center gap-2 pt-2">
-                    <Checkbox
-                      checked={formData.parsing_lock}
-                      onCheckedChange={(checked) => {
-                        setFormData((prev) => ({ ...prev, parsing_lock: Boolean(checked) }));
-                        if (saveNotice) {
-                          setSaveNotice(null);
-                        }
-                      }}
-                    />
-                    <Label className="text-sm">Parsing lock (skip during backparse)</Label>
+                  <div className="flex items-center gap-4 pt-2">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={onlyDue}
+                        onCheckedChange={(checked) => {
+                          const val = Boolean(checked);
+                          setOnlyDue(val);
+                          localStorage.setItem('bank-tx-only-due-payments', String(val));
+                        }}
+                      />
+                      <Label className="text-sm">Only due</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={formData.parsing_lock}
+                        onCheckedChange={(checked) => {
+                          setFormData((prev) => ({ ...prev, parsing_lock: Boolean(checked) }));
+                          if (saveNotice) {
+                            setSaveNotice(null);
+                          }
+                        }}
+                      />
+                      <Label className="text-sm">Parsing lock (skip during backparse)</Label>
+                    </div>
                   </div>
                   <div className="pt-2 flex items-center gap-2">
                     <Button
@@ -3030,6 +3077,8 @@ export function BankTransactionsTable({
                       description={editingTransaction.description || ''}
                       onClose={handleBatchEditorClose}
                       onSave={handleBatchEditorSaved}
+                      onlyDue={onlyDue}
+                      duePaymentIds={duePaymentIds}
                     />
                         );
                       })()}
