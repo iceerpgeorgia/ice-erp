@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-03-27 (115)
+- Summary: Fix cross-project job reuse bug in POST /api/jobs handler.
+- Changes:
+  - POST /api/jobs duplicate check now also verifies the existing job is bound to one of the target projects via job_projects. Previously matched by (job_name, insider_uuid, brand_uuid) only, causing new jobs to silently append bindings to unrelated existing jobs with the same name.
+- Commit: 63caf3d
+- Production: https://ice-luj8cxf93-iceerp.vercel.app
+
 ## 2026-03-27 (114)
 - Summary: Batch editor chip UI for payment IDs, filter used IDs from dropdowns, jobs table URL param filter.
 - Changes:
