@@ -1,0 +1,2961 @@
+{
+  "totalProjects": 726,
+  "alreadyBound": 357,
+  "unboundCount": 0,
+  "noPaymentCount": 369,
+  "unboundDetails": [],
+  "noPaymentDetails": [
+    {
+      "projectUuid": "9ca3527c-2e17-4d5e-b95f-f4f9af9c8f45",
+      "projectIndex": "1 TV Service | 1.1.2 | თბილი სახლი | 960.00 | USD | 01.01.2024",
+      "projectName": "1 TV Service",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "25de0bba-bb92-433b-9ef1-8a99d709779b",
+      "projectIndex": "10 Units Mitsubishi Split Conditioner | 1.2.1 | სოკარ ჯორჯია პეტროლეუმი | 13,800.00 | GEL | 25.06.2021",
+      "projectName": "10 Units Mitsubishi Split Conditioner",
+      "counteragent": "სოკარ ჯორჯია პეტროლეუმი (ს.კ. 202352514) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "5b9bbcea-65ad-447e-b953-72656ef4dfed",
+      "projectIndex": "1TV Fireboxes | 1.2.1 | თბილი სახლი | 54,875.00 | USD | 01.03.2023",
+      "projectName": "1TV Fireboxes",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "5699445e-fb58-4ecb-be76-17b8232dbf8b",
+      "projectIndex": "2 Units Mitsubishi Split Conditioner | 1.2.1 | გიორგი მარგებაძე | 4,420.00 | GEL | 13.05.2021",
+      "projectName": "2 Units Mitsubishi Split Conditioner",
+      "counteragent": "გიორგი მარგებაძე (ს.კ. 01025019447) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "d2404f8c-8f50-4dac-8c2e-26552253d955",
+      "projectIndex": "3 MHI SPLITS | 1.2.1 | თერმორუმი | 5,500.00 | GEL | 17.11.2020",
+      "projectName": "3 MHI SPLITS",
+      "counteragent": "თერმორუმი (ს.კ. 405134448) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "a7e6c5f8-c8af-4f4a-8bfd-0891f6eb6546",
+      "projectIndex": "4 Units RC-EX3 | 1.2.1 | თერმორუმი | 500.00 | USD | 22.10.2020",
+      "projectName": "4 Units RC-EX3",
+      "counteragent": "თერმორუმი (ს.კ. 405134448) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "219f1651-bc31-4ffe-9f29-616243ffa049",
+      "projectIndex": "7Sky VRV Mockup | 1.2.1 | მეპერსი | 2,458.27 | USD | 21.09.2020",
+      "projectName": "7Sky VRV Mockup",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "00e49759-7f95-4756-93d9-afbbc1721877",
+      "projectIndex": "7th Heaven Mockup 2 | 1.2.1 | ეიჩ გრუპ კონსტრაქშენ | 1.00 | GEL | 01.06.2021",
+      "projectName": "7th Heaven Mockup 2",
+      "counteragent": "ეიჩ გრუპ კონსტრაქშენ (ს.კ. 445510411) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "be52609c-9f8d-4a8f-9386-2ef0e7538f65",
+      "projectIndex": "7th Sky Service | 1.1.2 | ეიჩ გრუპ კონსტრაქშენ | 480.00 | USD | 01.01.2024",
+      "projectName": "7th Sky Service",
+      "counteragent": "ეიჩ გრუპ კონსტრაქშენ (ს.კ. 445510411) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "24f7bfb6-e62e-4ac7-ae2c-6cae7b9628f2",
+      "projectIndex": "8 Units Elevator Service | 1.1.3 | დომუს სერვისი | 1,000.00 | GEL | 24.10.2022",
+      "projectName": "8 Units Elevator Service",
+      "counteragent": "დომუს სერვისი (ს.კ. 405311336) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "b56a8f1d-3a8b-478e-aed9-78922b71241a",
+      "projectIndex": "A & B Block Doors | 1.1.3 | ლაიქ ჰაუსი | 3,960.00 | USD | 23.06.2025",
+      "projectName": "A & B Block Doors",
+      "counteragent": "ლაიქ ჰაუსი (ს.კ. 445478563) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "cd0d21e5-a18e-4593-a72d-8c014e2be149",
+      "projectIndex": "Abashidze 70 | 1.1.3 | ი. აბაშიძე 70 | 1,290.00 | USD | 12.04.2021",
+      "projectName": "Abashidze 70",
+      "counteragent": "ი. აბაშიძე 70 (ს.კ. ICE001687) - ამხანაგობა",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "57f7e542-ee11-48fb-96f9-15131f005d4d",
+      "projectIndex": "Abuseridze - Batumi | 1.1.2 | ანა აბუსერიძე | 1.00 | USD | 06.06.2019",
+      "projectName": "Abuseridze - Batumi",
+      "counteragent": "ანა აბუსერიძე (ს.კ. 61001051501) - ფიზ. პირი",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "b979c2b2-4f18-41fa-9937-5cedc68ee335",
+      "projectIndex": "Aeroporti | 1.1.2 | ტრანსმშენი | 1.00 | GEL | 22.08.2019",
+      "projectName": "Aeroporti",
+      "counteragent": "ტრანსმშენი (ს.კ. 212274812) - სს",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "8ee463a9-91d9-4e21-882d-b96d46bc95bb",
+      "projectIndex": "Air Conditioner | 1.2.1 | Technolux LLC | 109,684.00 | USD | 29.05.2023",
+      "projectName": "Air Conditioner",
+      "counteragent": "Technolux LLC (ს.კ. ICE003016) - უცხოური საწარმო",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "1e97a333-c3be-47e6-a2c4-fb3909837ddc",
+      "projectIndex": "Air Conditioner | 1.2.1 | ანა კომახიძე | 850.00 | GEL | 11.02.2025",
+      "projectName": "Air Conditioner",
+      "counteragent": "ანა კომახიძე (ს.კ. 61001084981) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "eef81c65-a18f-4c07-aeda-19277f8b204d",
+      "projectIndex": "Air Conditioner | 1.2.1 | ანტონ ვორონინი | 700.00 | USD | 28.02.2025",
+      "projectName": "Air Conditioner",
+      "counteragent": "ანტონ ვორონინი (ს.კ. 03187803411) - არარეზიდენტი ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "d9145bd4-38e3-44e6-bff0-c0163b0a77b4",
+      "projectIndex": "Air Conditioner | 1.2.1 | გიორგი სულაბერიძე | 5,000.00 | GEL | 14.06.2024",
+      "projectName": "Air Conditioner",
+      "counteragent": "გიორგი სულაბერიძე (ს.კ. 01031005706) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "3c364f09-534c-4d14-9a75-0854444da485",
+      "projectIndex": "Air Conditioner | 1.2.1 | გიორგი ხონელია | 1,900.00 | GEL | 01.04.2025",
+      "projectName": "Air Conditioner",
+      "counteragent": "გიორგი ხონელია (ს.კ. 62007000908) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "40c14abc-bd4d-4bf5-8c03-025945ed5589",
+      "projectIndex": "Air Conditioner | 1.2.1 | დავით გოზალიშვილი | 1,800.00 | GEL | 10.05.2024",
+      "projectName": "Air Conditioner",
+      "counteragent": "დავით გოზალიშვილი (ს.კ. 01024017502) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "4896ffcf-11a4-4a58-a48d-2aed650ee58d",
+      "projectIndex": "Air Conditioner | 1.2.1 | ეკატერინე გოგია | 950.00 | GEL | 03.10.2024",
+      "projectName": "Air Conditioner",
+      "counteragent": "ეკატერინე გოგია (ს.კ. 62001008516) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "c1b197a0-15a4-4e4f-8422-ef40466e43c2",
+      "projectIndex": "Air Conditioner | 1.2.1 | ელირან ტრაბელსი | 950.00 | GEL | 09.12.2024",
+      "projectName": "Air Conditioner",
+      "counteragent": "ელირან ტრაბელსი (ს.კ. ICE003083) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "82cd5401-3c9e-4b0c-b1ce-e28b66d0d465",
+      "projectIndex": "Air Conditioner | 1.2.1 | ზაზა კვიციანი | 2,850.00 | GEL | 20.11.2024",
+      "projectName": "Air Conditioner",
+      "counteragent": "ზაზა კვიციანი (ს.კ. 01006002615) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "01d0c2ca-cf5c-4bfa-a2f5-7db118722143",
+      "projectIndex": "Air Conditioner | 1.2.1 | ზურაბი ლომიძე | 600.00 | USD | 16.10.2024",
+      "projectName": "Air Conditioner",
+      "counteragent": "ზურაბი ლომიძე (ს.კ. 38001046593) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "66aa2bdf-5ac1-43bb-973e-d219058d2fcf",
+      "projectIndex": "Air Conditioner | 1.2.1 | ირაკლი მიქელაძე | 6,450.00 | GEL | 14.06.2024",
+      "projectName": "Air Conditioner",
+      "counteragent": "ირაკლი მიქელაძე (ს.კ. 01008048570) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "d51e9c7e-8b2f-4387-b61b-993c93b9eda4",
+      "projectIndex": "Air Conditioner | 1.2.1 | კახა ვარდიაშვილი | 1,480.00 | GEL | 01.04.2025",
+      "projectName": "Air Conditioner",
+      "counteragent": "კახა ვარდიაშვილი (ს.კ. 01008023192) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "26782850-65da-4cc4-ae35-87f207e0be38",
+      "projectIndex": "Air Conditioner | 1.2.1 | ლეონოვა ანნა | 950.00 | GEL | 18.07.2024",
+      "projectName": "Air Conditioner",
+      "counteragent": "ლეონოვა ანნა (ს.კ. 756863414) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "50127fe7-f116-400d-b859-9225eebb5469",
+      "projectIndex": "Air Conditioner | 1.2.1 | მაიკლი ნაუმოვი | 1,900.00 | GEL | 01.04.2025",
+      "projectName": "Air Conditioner",
+      "counteragent": "მაიკლი ნაუმოვი (ს.კ. ICE003082) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "b56eb55f-d8ca-497f-a212-344799d996bc",
+      "projectIndex": "Air Conditioner | 1.2.1 | მიხაილ უდოვკინ | 2,855.00 | USD | 02.02.2024",
+      "projectName": "Air Conditioner",
+      "counteragent": "მიხაილ უდოვკინ (ს.კ. 761253063) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "667cb813-7b0b-44fb-b185-d5b8ae40dab8",
+      "projectIndex": "Air Conditioner | 1.2.1 | მურუსიძე გიორგი | 4,716.00 | GEL | 16.10.2024",
+      "projectName": "Air Conditioner",
+      "counteragent": "მურუსიძე გიორგი (ს.კ. 61001034832) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "d6ed50c7-8195-4769-9f15-84c78c314f63",
+      "projectIndex": "Air Conditioner | 1.2.1 | ოლგა ბეზბაბნიჯა | 950.00 | GEL | 22.01.2025",
+      "projectName": "Air Conditioner",
+      "counteragent": "ოლგა ბეზბაბნიჯა (ს.კ. LV5293430) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "7f82d3e4-bdba-4abe-b584-fbb136b6231f",
+      "projectIndex": "Air Conditioner | 1.2.1 | ოლეგ კაპლიევ | 4,545.00 | USD | 19.02.2025",
+      "projectName": "Air Conditioner",
+      "counteragent": "ოლეგ კაპლიევ (ს.კ. 345720703) - ინდ. მეწარმე",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "bef3d37a-b2b0-4cd3-962a-656b79692471",
+      "projectIndex": "Air Conditioner | 1.2.1 | ფალლაჰა მონა | 850.00 | GEL | 28.02.2025",
+      "projectName": "Air Conditioner",
+      "counteragent": "ფალლაჰა მონა (ს.კ. LR1331828) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "dd87f96f-2dde-46cd-8140-86ca6d815a40",
+      "projectIndex": "Akhaltsikhe Compressor | 1.2.1 | თბილი სახლი | 3,100.00 | USD | 03.02.2021",
+      "projectName": "Akhaltsikhe Compressor",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "66f718a2-359b-4815-a3ab-19c0ca474a03",
+      "projectIndex": "Akhvlediani 22 | 1.1.2 | ბეტა ჰოთელს | 400.00 | USD | 01.10.2022",
+      "projectName": "Akhvlediani 22",
+      "counteragent": "ბეტა ჰოთელს (ს.კ. 404585686) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "a9f12776-d4df-490f-9568-76a563f60b71",
+      "projectIndex": "Aleqseevka | 1.1.2 | ემ ელ სი ლოჯისტიკს | 300.00 | GEL | 01.09.2023",
+      "projectName": "Aleqseevka",
+      "counteragent": "ემ ელ სი ლოჯისტიკს (ს.კ. 405380181) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "913dcc58-9eb3-4d5f-824f-538c2e0909e4",
+      "projectIndex": "Ali Batumi | 1.2.1 | Malsi | 12,585.00 | USD | 15.07.2025",
+      "projectName": "Ali Batumi",
+      "counteragent": "Malsi (ს.კ. 445419770) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "9c11b7e9-5437-430b-a09a-41333f4f4f63",
+      "projectIndex": "Alliance Highline FCU | 1.2.1 | დრს ინტერნეიშენალ | 83,274.00 | EUR | 11.10.2023",
+      "projectName": "Alliance Highline FCU",
+      "counteragent": "დრს ინტერნეიშენალ (ს.კ. 421279182) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "2cfbda54-f6d4-45b4-8be3-493e6826cd37",
+      "projectIndex": "Alliance Highline Thermostat | 1.2.1 | დრს ინტერნეიშენალ | 22,000.00 | USD | 01.03.2024",
+      "projectName": "Alliance Highline Thermostat",
+      "counteragent": "დრს ინტერნეიშენალ (ს.კ. 421279182) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "b00cd68e-053a-4994-80e0-dad77e2461da",
+      "projectIndex": "ALLIANCE HIGHLINES CHILLERS | 1.2.1 | მეპერსი | 276,034.00 | EUR | 15.06.2022",
+      "projectName": "ALLIANCE HIGHLINES CHILLERS",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "076c347a-79b7-406c-a032-20726a4cdb01",
+      "projectIndex": "Alliance Pevilige Service | 1.1.2 | ალიანსი ფრივილიჯი | 1,770.00 | USD | 01.01.2024",
+      "projectName": "Alliance Pevilige Service",
+      "counteragent": "ალიანსი ფრივილიჯი (ს.კ. 412718466) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "d22fc7c9-f775-46e7-8a80-5f8e01959689",
+      "projectIndex": "Alliance Previlige | 1.1.2 | ალიანსი ფრივილიჯი | 1,770.00 | USD | 01.01.2024",
+      "projectName": "Alliance Previlige",
+      "counteragent": "ალიანსი ფრივილიჯი (ს.კ. 412718466) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "7cb7f4b5-368a-4ff8-b6a5-853d97da7b48",
+      "projectIndex": "Ambassador Goderdzi AHU Panels | 1.2.1 | ამბასადორი ბათუმი | 59,200.00 | USD | 22.07.2025",
+      "projectName": "Ambassador Goderdzi AHU Panels",
+      "counteragent": "ამბასადორი ბათუმი (ს.კ. 445515719) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "8633f9a0-0740-4210-ad2c-2c07d58023c9",
+      "projectIndex": "Amera Bank 3 | 1.2.1 | SCHERCO TRADING AG | 3,630.00 | USD | 09.08.2023",
+      "projectName": "Amera Bank 3",
+      "counteragent": "SCHERCO TRADING AG (ს.კ. ICE000388) - უცხოური საწარმო",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "c33bdaeb-0f9d-45da-8f8a-d080739c67ca",
+      "projectIndex": "Anton Voronin -HILTON BATUMI | 1.2.1 | ანტონ ვორონინი | 3,505.00 | USD | 15.10.2021",
+      "projectName": "Anton Voronin -HILTON BATUMI",
+      "counteragent": "ანტონ ვორონინი (ს.კ. 03187803411) - არარეზიდენტი ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "600f100b-fe10-471e-90a9-5bc7931d086f",
+      "projectIndex": "Aparthotel Service | 1.1.3 | კანალესა | 760.00 | USD | 25.10.2024",
+      "projectName": "Aparthotel Service",
+      "counteragent": "კანალესა (ს.კ. 405021925) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "c7dcea7b-68aa-4429-b33f-d3a7c73a50a7",
+      "projectIndex": "Archi Isani C1 Repair | 1.1.3 | ისანი ც სერვისი 1 | 400.00 | GEL | 15.01.2025",
+      "projectName": "Archi Isani C1 Repair",
+      "counteragent": "ისანი ც სერვისი 1 (ს.კ. 405476300) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "780da0cb-91c2-4d8d-9a18-d99b8132c339",
+      "projectIndex": "Arken Service | 1.2.3 | თბილისი დრაი პორტი | 2,800.00 | USD | 29.05.2025",
+      "projectName": "Arken Service",
+      "counteragent": "თბილისი დრაი პორტი (ს.კ. 405483454) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "b9da0ad3-690a-4ca3-8981-98afcbcc6791",
+      "projectIndex": "Armenia Project | 1.2.1 | SIGRAM | 4,681.00 | USD | 06.07.2021",
+      "projectName": "Armenia Project",
+      "counteragent": "SIGRAM (ს.კ. ICE000343) - უცხოური საწარმო",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "2421757e-72bb-4e3c-91e5-45543eb1955e",
+      "projectIndex": "Arqi mindeli | 1.1.2 | არქი საბურთალო | 100.00 | USD | 01.12.2021",
+      "projectName": "Arqi mindeli",
+      "counteragent": "არქი საბურთალო (ს.კ. 405176982) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "90f593d7-5c95-4bdb-84a7-8bbd126df038",
+      "projectIndex": "Asatiani - Kvariati | 1.2.1 | თინათინ ასათიანი | 1,550.00 | GEL | 12.02.2021",
+      "projectName": "Asatiani - Kvariati",
+      "counteragent": "თინათინ ასათიანი (ს.კ. 01009008545) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "083ac5c9-6da9-4bdc-b93b-dd60b42c8cc9",
+      "projectIndex": "Askaneli Restaurant | 1.2.3 | გრიინ ინვესტ | 1,500.00 | GEL | 11.07.2022",
+      "projectName": "Askaneli Restaurant",
+      "counteragent": "გრიინ ინვესტ (ს.კ. 445450850) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "295bb4d6-362d-4f8d-8f3c-5c31fe2d84d5",
+      "projectIndex": "ATU Conditioners | 1.2.1 | ასოციაცია ატუ | 31,200.00 | GEL | 20.05.2021",
+      "projectName": "ATU Conditioners",
+      "counteragent": "ასოციაცია ატუ (ს.კ. 239402491) - არასამეწარმეო (არაკომერციული) იურიდიული პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "d276735d-4cd8-453e-98e3-1bb5ace1a265",
+      "projectIndex": "ATU Conditioners 2 | 1.2.1 | ასოციაცია ატუ | 6,300.00 | GEL | 22.06.2022",
+      "projectName": "ATU Conditioners 2",
+      "counteragent": "ასოციაცია ატუ (ს.კ. 239402491) - არასამეწარმეო (არაკომერციული) იურიდიული პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "62a84425-2431-42db-8a77-4bcd9b8f13ec",
+      "projectIndex": "ATU Duck Type 2020 | 1.2.1 | ასოციაცია ატუ | 19,200.00 | GEL | 27.08.2020",
+      "projectName": "ATU Duck Type 2020",
+      "counteragent": "ასოციაცია ატუ (ს.კ. 239402491) - არასამეწარმეო (არაკომერციული) იურიდიული პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "788e0111-02a0-4084-922b-9b4b18d3b711",
+      "projectIndex": "Axis office | 1.2.1 | თბილი სახლი | 60,886.00 | USD | 30.12.2020",
+      "projectName": "Axis office",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "94c3f1ed-b241-4ac2-8709-fdc471284d94",
+      "projectIndex": "Bagebi | 1.1.2 | ნირან პროპერტის დეველოპმენტი | 1.00 | GEL | 22.01.2018",
+      "projectName": "Bagebi",
+      "counteragent": "ნირან პროპერტის დეველოპმენტი (ს.კ. 204564729) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "1da13bc6-9aa2-4d33-8b24-e5d5205bf210",
+      "projectIndex": "Bagebi | 1.1.2 | სფერა | 350.00 | GEL | 15.01.2021",
+      "projectName": "Bagebi",
+      "counteragent": "სფერა (ს.კ. 405412361) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "8c5a66e1-83c1-4c69-8753-00a868f8278b",
+      "projectIndex": "Bagrationi VRF | 1.2.1 | ბაგრატიონი რეზიდენსი | 14,985.00 | USD | 26.10.2023",
+      "projectName": "Bagrationi VRF",
+      "counteragent": "ბაგრატიონი რეზიდენსი (ს.კ. 445572568) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "6a882251-3de5-47f0-8ea4-3cb46367b476",
+      "projectIndex": "Baratashvili | 1.1.2 | Dar Building | 250.00 | GEL | 01.08.2021",
+      "projectName": "Baratashvili",
+      "counteragent": "Dar Building (ს.კ. 445420875) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "3adecafc-fdae-4cf5-9baa-2fa52abe03b2",
+      "projectIndex": "Barnovi Service | 1.1.2 | პრემიუმ დეველოპმენტ კომპანი | 118.00 | USD | 01.01.2024",
+      "projectName": "Barnovi Service",
+      "counteragent": "პრემიუმ დეველოპმენტ კომპანი (ს.კ. 404597691) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "4194f937-e12f-4bee-ae41-ed29e3542132",
+      "projectIndex": "BAT Tower | 1.1.2 | ბათბილდინგი | 1.00 | USD | 27.12.2018",
+      "projectName": "BAT Tower",
+      "counteragent": "ბათბილდინგი (ს.კ. 445509334) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "263b24b6-e48a-46b4-8419-bb559f37bdb5",
+      "projectIndex": "Batumi Mall Repair | 1.1.3 | სიმონ შეშელიძე | 310.00 | USD | 03.06.2024",
+      "projectName": "Batumi Mall Repair",
+      "counteragent": "სიმონ შეშელიძე (ს.კ. 33001059430) - ფიზ. პირი",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "e9c2f796-1747-4be3-b301-c28cfc381dec",
+      "projectIndex": "Batumi office rental | 1.3.2 | კაზა დი ბათუმი | 500.00 | GEL | 14.08.2020",
+      "projectName": "Batumi office rental",
+      "counteragent": "კაზა დი ბათუმი (ს.კ. 405389397) - შპს",
+      "fcCode": "1.3.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "1599bf02-997e-469d-9096-8557eb953dad",
+      "projectIndex": "Batumi Office Stock | 1.3.1 | აი-სი-ი | 1.00 | GEL | 01.01.2000",
+      "projectName": "Batumi Office Stock",
+      "counteragent": "აი-სი-ი (ს.კ. 400017245) - შპს",
+      "fcCode": "1.3.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "b0be5274-ae97-423e-8f09-7f2271128fc0",
+      "projectIndex": "Batumi Restaurant Promech | 1.2.1 | პრომეჩი | 13,035.00 | USD | 20.07.2023",
+      "projectName": "Batumi Restaurant Promech",
+      "counteragent": "პრომეჩი (ს.კ. 445496213) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "fd8d72c0-37e0-47e4-a595-ce2288ab374d",
+      "projectIndex": "Batumi Stadium | 1.1.2 | ანაგი | 1.00 | USD | 04.05.2019",
+      "projectName": "Batumi Stadium",
+      "counteragent": "ანაგი (ს.კ. 245416401) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "4ec23d40-5ee5-458c-b5bc-525dd6fc2ba9",
+      "projectIndex": "Beach Tower | 1.1.3 | ორბი ჯგუფი | 840.00 | USD | 07.02.2021",
+      "projectName": "Beach Tower",
+      "counteragent": "ორბი ჯგუფი (ს.კ. 245621849) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "60e39328-36da-44a9-93a6-12c7ab19714b",
+      "projectIndex": "Beach Tower Service | 1.2.1 | მეპერსი | 3,849.00 | GEL | 01.12.2020",
+      "projectName": "Beach Tower Service",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "6eb56c6c-4342-4259-aae1-743464c025c5",
+      "projectIndex": "Beach Tower Trouble | 1.2.1 | ტექნოკლიმა | 3,849.00 | GEL | 28.10.2020",
+      "projectName": "Beach Tower Trouble",
+      "counteragent": "ტექნოკლიმა (ს.კ. 402009857) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "507e8d73-197b-4278-8461-30cea6a9a1cb",
+      "projectIndex": "Beauty Life MEP | 1.2.1 | Beauty Life | 9,330.00 | USD | 20.01.2022",
+      "projectName": "Beauty Life MEP",
+      "counteragent": "Beauty Life (ს.კ. 204557639) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "65a40d34-cef1-44cd-a2af-fc14354579ea",
+      "projectIndex": "Beridze Multisplit | 1.2.1 | ბერიძე არჩილ | 4,919.00 | USD | 07.06.2023",
+      "projectName": "Beridze Multisplit",
+      "counteragent": "ბერიძე არჩილ (ს.კ. 61001032541) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "9e0d99f4-edd9-4413-8bf9-ff5a090bfc4c",
+      "projectIndex": "Beroshvili - Mitsubishi Split Conditioner | 1.2.1 | ზურაბ ბეროშვილი | 4,050.00 | GEL | 07.06.2022",
+      "projectName": "Beroshvili - Mitsubishi Split Conditioner",
+      "counteragent": "ზურაბ ბეროშვილი (ს.კ. 01008016853) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "4932e4a3-203d-47f8-9146-f2227b6dd2bb",
+      "projectIndex": "BLC VRF | 1.2.1 | ბიელსი | 6,890.00 | USD | 20.08.2021",
+      "projectName": "BLC VRF",
+      "counteragent": "ბიელსი (ს.კ. 404507182) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "ff479744-33df-4d30-8471-bc78f6e40577",
+      "projectIndex": "BLC VRF Service | 1.2.3 | ბიელსი | 5,000.00 | GEL | 03.06.2022",
+      "projectName": "BLC VRF Service",
+      "counteragent": "ბიელსი (ს.კ. 404507182) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "d643d96f-c78d-4ee8-aedb-6e88e2e3706b",
+      "projectIndex": "Block 5 | 1.1.2 | ნიუ გუდაური ბლოკ 5 | 600.00 | USD | 01.11.2025",
+      "projectName": "Block 5",
+      "counteragent": "ნიუ გუდაური ბლოკ 5 (ს.კ. ICE003236) - ამხანაგობა",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "95cf5afa-5f39-4ca1-9ce6-6728e96ccf6a",
+      "projectIndex": "BOG Oth | 1.3.1 | საქართველოს ბანკი | 465.00 | USD | 13.05.2025",
+      "projectName": "BOG Oth",
+      "counteragent": "საქართველოს ბანკი (ს.კ. 204378869) - სს",
+      "fcCode": "1.3.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "b4ce2b7e-624e-4f3b-9471-0b062c85e8f8",
+      "projectIndex": "Bragvadze - Mitsubishi Split Conditioner | 1.2.1 | რუსუდან ბრაგვაძე | 1,860.00 | GEL | 01.07.2021",
+      "projectName": "Bragvadze - Mitsubishi Split Conditioner",
+      "counteragent": "რუსუდან ბრაგვაძე (ს.კ. 01024067897) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "1f331018-ef65-4dbf-8121-94414670b98f",
+      "projectIndex": "Buttons | 1.1.3 | DMS | 115.00 | USD | 01.01.2025",
+      "projectName": "Buttons",
+      "counteragent": "DMS (ს.კ. 404868728) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "2fc0f7a8-ad08-469d-8951-4f1e36984883",
+      "projectIndex": "Caan Construction Oth | 1.2.1 | ქაან ქონსთრაქშენ | 12,080.00 | USD | 29.11.2023",
+      "projectName": "Caan Construction Oth",
+      "counteragent": "ქაან ქონსთრაქშენ (ს.კ. 445718411) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "de73aba7-f006-499e-b8ca-825c89e8bdbe",
+      "projectIndex": "Cafe Central Oth | 1.1.3 | კაფე ცენტრალი | 170.00 | GEL | 09.06.2024",
+      "projectName": "Cafe Central Oth",
+      "counteragent": "კაფე ცენტრალი (ს.კ. 445685884) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "fbf5d449-c6d6-4821-99a4-5050c11ae20b",
+      "projectIndex": "Carrier AC | 1.2.1 | თბილი სახლი | 7,600.00 | USD | 12.08.2021",
+      "projectName": "Carrier AC",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "49fcfc77-a25c-4798-a811-a11d7b44cca4",
+      "projectIndex": "Carrier Unit | 1.2.1 | ლენოქსი | 1,900.00 | USD | 01.12.2020",
+      "projectName": "Carrier Unit",
+      "counteragent": "ლენოქსი (ს.კ. 418476893) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "d2ae423a-fa4e-4277-93aa-a9cd216811e7",
+      "projectIndex": "Ceiling Cassette Type & Remote Control | 1.2.1 | სუპრემე სოლუთიონს | 2,250.00 | USD | 21.12.2022",
+      "projectName": "Ceiling Cassette Type & Remote Control",
+      "counteragent": "სუპრემე სოლუთიონს (ს.კ. 445587320) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "6a96f913-7fc9-420f-9a28-f08c0966d903",
+      "projectIndex": "Central Compressors 2023 | 1.2.1 | თბილისი ცენტრალი | 51,447.00 | USD | 07.08.2023",
+      "projectName": "Central Compressors 2023",
+      "counteragent": "თბილისი ცენტრალი (ს.კ. 205129653) - სს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "2dbbdb2a-ae3c-4d2e-9732-25f75c16dc1a",
+      "projectIndex": "Chakhrukhadze | 1.1.2 | ინდეკო | 1.00 | USD | 24.10.2019",
+      "projectName": "Chakhrukhadze",
+      "counteragent": "ინდეკო (ს.კ. 202376133) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "11686e76-5a10-4cc5-bf69-3c417086442b",
+      "projectIndex": "Chateau Di Vere | 1.1.2 | შატო დე ვერე | 100.00 | USD | 01.01.2024",
+      "projectName": "Chateau Di Vere",
+      "counteragent": "შატო დე ვერე (ს.კ. 405357224) - სს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "c9abade1-3a48-479d-b73f-dd6be570c0a0",
+      "projectIndex": "Chavchavadze Oth | 1.2.1 | ეკატერინე ჭავჭავაძე | 1,850.00 | GEL | 17.06.2024",
+      "projectName": "Chavchavadze Oth",
+      "counteragent": "ეკატერინე ჭავჭავაძე (ს.კ. 01009010735) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "e27d0114-30c4-4a29-8271-7cf903b942ab",
+      "projectIndex": "Chavchavadze Stock | 1.3.1 | აი-სი-ი | 1.00 | GEL | 01.01.2000",
+      "projectName": "Chavchavadze Stock",
+      "counteragent": "აი-სი-ი (ს.კ. 400017245) - შპს",
+      "fcCode": "1.3.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "850e50a8-0fad-4499-9ff4-3555daa33336",
+      "projectIndex": "Chempioni | 1.1.2 | ჩემპიონი 2 | 1.00 | GEL | 15.06.2016",
+      "projectName": "Chempioni",
+      "counteragent": "ჩემპიონი 2 (ს.კ. 248416432) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "163c4119-b1c7-4f27-830e-b834747a6363",
+      "projectIndex": "Chonkadze Home | 1.2.1 | ქეთევანი ავალიანი | 11,508.00 | USD | 29.07.2020",
+      "projectName": "Chonkadze Home",
+      "counteragent": "ქეთევანი ავალიანი (ს.კ. 60001034749) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "d7419e4c-7b69-450c-8038-3ebfd263decd",
+      "projectIndex": "Chonkadze Home Split | 1.2.1 | ქეთევანი ავალიანი | 3,492.00 | GEL | 27.07.2020",
+      "projectName": "Chonkadze Home Split",
+      "counteragent": "ქეთევანი ავალიანი (ს.კ. 60001034749) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "6213f7c7-afe1-4e2d-996f-36da99526997",
+      "projectIndex": "Churkveidze - 2 Units Conditioner | 1.2.1 | თამილა ჭურკვეიძე | 5,140.00 | GEL | 17.11.2022",
+      "projectName": "Churkveidze - 2 Units Conditioner",
+      "counteragent": "თამილა ჭურკვეიძე (ს.კ. 61006026727) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "801d2f71-6bad-4428-8e22-38a2b8dac0e4",
+      "projectIndex": "City Mall Oth | 1.1.3 | აი ჯი დეველოფმენტ ჯორჯია | 1,300.00 | GEL | 31.05.2024",
+      "projectName": "City Mall Oth",
+      "counteragent": "აი ჯი დეველოფმენტ ჯორჯია (ს.კ. 404851503) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "8e720888-0071-44ca-8fb6-008db71626f0",
+      "projectIndex": "Compressor | 1.2.1 | აკაკი ახვლედიანი | 3,965.00 | USD | 16.11.2020",
+      "projectName": "Compressor",
+      "counteragent": "აკაკი ახვლედიანი (ს.კ. 01024008652) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "87c718f1-2605-4905-ab2d-949bc6ed80d9",
+      "projectIndex": "Compressor | 1.2.1 | თბილი სახლი | 8,780.00 | USD | 24.05.2022",
+      "projectName": "Compressor",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "80817f8d-6f07-4ad5-9a74-c277fdf4687e",
+      "projectIndex": "Compressor Instalation | 1.2.1 | თბილისი ცენტრალი | 6,800.00 | GEL | 23.06.2020",
+      "projectName": "Compressor Instalation",
+      "counteragent": "თბილისი ცენტრალი (ს.კ. 205129653) - სს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "7ecc8bc0-1dd0-48fb-a138-1ab2cf5c27e8",
+      "projectIndex": "Compressors 1 | 1.2.1 | თბილისი ცენტრალი | 25,200.00 | USD | 17.02.2020",
+      "projectName": "Compressors 1",
+      "counteragent": "თბილისი ცენტრალი (ს.კ. 205129653) - სს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "3d160dba-bcb2-4a49-833b-e00dcc93bdbb",
+      "projectIndex": "Compressors 2 | 1.2.1 | თბილისი ცენტრალი | 12,410.00 | USD | 17.09.2020",
+      "projectName": "Compressors 2",
+      "counteragent": "თბილისი ცენტრალი (ს.კ. 205129653) - სს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "8fc23987-6f38-4c47-a180-3a48f70ab235",
+      "projectIndex": "Compressors 2025 | 1.2.1 | ტელეგრაფი | 4,040.00 | USD | 01.06.2025",
+      "projectName": "Compressors 2025",
+      "counteragent": "ტელეგრაფი (ს.კ. 404505406) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "4b812a0f-4a6a-4130-875a-66dedb91ad2a",
+      "projectIndex": "Conditioner blocks | 1.2.1 | პარავიანი ალვინა | 1,900.00 | GEL | 24.09.2024",
+      "projectName": "Conditioner blocks",
+      "counteragent": "პარავიანი ალვინა (ს.კ. 01014004683) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "d91c249a-2c4d-4283-9a90-f48d3ffadf6c",
+      "projectIndex": "Conditioner Parts | 1.2.1 | თბილისი ცენტრალი | 25,080.00 | USD | 26.07.2022",
+      "projectName": "Conditioner Parts",
+      "counteragent": "თბილისი ცენტრალი (ს.კ. 205129653) - სს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "dc08644f-dc8a-4f5c-adde-5987253058b1",
+      "projectIndex": "Conditioners | 1.2.1 | აკაკი მგელაძე | 6,000.00 | GEL | 17.09.2020",
+      "projectName": "Conditioners",
+      "counteragent": "აკაკი მგელაძე (ს.კ. 61001034433) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "080b0609-8ac5-4a35-8f67-c1e8d392e2f5",
+      "projectIndex": "Conditioners | 1.2.1 | გიორგი გულაშვილი | 10,420.00 | GEL | 12.10.2020",
+      "projectName": "Conditioners",
+      "counteragent": "გიორგი გულაშვილი (ს.კ. 01026006745) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "2c4d2a44-9e47-4cf0-bd0c-536199fc68bd",
+      "projectIndex": "Control System | 1.2.3 | თბილისი ცენტრალი | 1,600.00 | USD | 24.04.2025",
+      "projectName": "Control System",
+      "counteragent": "თბილისი ცენტრალი (ს.კ. 205129653) - სს",
+      "fcCode": "1.2.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "b1e1d0d3-3078-495e-8667-dc50cc397b43",
+      "projectIndex": "Cooling Tower Belts | 1.2.1 | თბილისი სითი | 12,060.00 | USD | 07.11.2022",
+      "projectName": "Cooling Tower Belts",
+      "counteragent": "თბილისი სითი (ს.კ. 405034537) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "89441ec7-27a5-4210-91f3-96bb35383900",
+      "projectIndex": "Copper Pipes Stock | 1.2.1 | მეპერსი | 7,201.20 | GEL | 21.02.2020",
+      "projectName": "Copper Pipes Stock",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "63ddf218-4647-4e1b-969f-6b4f83d1e514",
+      "projectIndex": "CPI Geo Oth | 1.2.1 | სი ფი აი ჯორჯია | 4,310.00 | USD | 29.01.2024",
+      "projectName": "CPI Geo Oth",
+      "counteragent": "სი ფი აი ჯორჯია (ს.კ. 204969908) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "49874021-2275-4952-b2ab-173fe2385788",
+      "projectIndex": "Crown Plaza HVAC | 1.2.1 | მეკარტ ჯორჯია | 693,840.00 | USD | 05.11.2024",
+      "projectName": "Crown Plaza HVAC",
+      "counteragent": "მეკარტ ჯორჯია (ს.კ. 445474852) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "061c70bf-3363-4ce1-97ec-3f704e1fcecf",
+      "projectIndex": "Crystal Bakuriani | 1.1.2 | ბაკურიანი ბიზნეს ჯგუფი | 1.00 | USD | 23.05.2019",
+      "projectName": "Crystal Bakuriani",
+      "counteragent": "ბაკურიანი ბიზნეს ჯგუფი (ს.კ. 226166163) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "7835377d-23cd-4ca1-9a56-8610de5a7094",
+      "projectIndex": "D1 Block Service | 1.1.2 | ორბი ჯგუფი ბათუმი | 1,858.50 | USD | 01.01.2024",
+      "projectName": "D1 Block Service",
+      "counteragent": "ორბი ჯგუფი ბათუმი (ს.კ. 445468798) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "37ad22da-f121-422b-a453-f6e17397401c",
+      "projectIndex": "Deka Digomi Oth | 1.1.3 | დეკა დიდი დიღომი | 1,300.00 | GEL | 22.04.2024",
+      "projectName": "Deka Digomi Oth",
+      "counteragent": "დეკა დიდი დიღომი (ს.კ. 405569665) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "36f78c14-fe6c-4a5c-b47b-0eec5a6d2774",
+      "projectIndex": "Didi dighomi LOP | 1.2.3 | გიორგი ჩხიკვიშვილი | 268.00 | USD | 26.01.2023",
+      "projectName": "Didi dighomi LOP",
+      "counteragent": "გიორგი ჩხიკვიშვილი (ს.კ. 55001026533) - ფიზ. პირი",
+      "fcCode": "1.2.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "4f58ef53-d455-47ad-971a-9bce278d33aa",
+      "projectIndex": "Didi Digomi 2C | 1.1.2 | არქი მეინთენენს | 300.00 | USD | 01.02.2025",
+      "projectName": "Didi Digomi 2C",
+      "counteragent": "არქი მეინთენენს (ს.კ. 405752957) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "bc912060-bca0-4072-b760-a3d8143125d5",
+      "projectIndex": "Didi Digomi 2D | 1.1.2 | არქი მეინთენენს | 300.00 | USD | 01.02.2025",
+      "projectName": "Didi Digomi 2D",
+      "counteragent": "არქი მეინთენენს (ს.კ. 405752957) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "609c623f-d3a4-469e-91c7-a7c5ffacb0fc",
+      "projectIndex": "Diesel Generator Service | 1.2.3 | თემურ უსტიაშვილი | 1,076.20 | GEL | 25.10.2022",
+      "projectName": "Diesel Generator Service",
+      "counteragent": "თემურ უსტიაშვილი (ს.კ. 61001007309) - ფიზ. პირი",
+      "fcCode": "1.2.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "7ddad25f-27c2-44d5-9764-7a8dcd599a6f",
+      "projectIndex": "Dighomi 2B Push Button | 1.1.3 | დიღომი 2ბ სერვისი | 130.00 | USD | 12.09.2023",
+      "projectName": "Dighomi 2B Push Button",
+      "counteragent": "დიღომი 2ბ სერვისი (ს.კ. 405476319) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "38fa4d48-0354-4e37-96f4-bbff2528d194",
+      "projectIndex": "Digomi 2B Service | 1.1.2 | არქი მეინთენენს | 350.00 | GEL | 01.02.2025",
+      "projectName": "Digomi 2B Service",
+      "counteragent": "არქი მეინთენენს (ს.კ. 405752957) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "730c476f-bfea-4580-8081-a195df6c17ee",
+      "projectIndex": "Display & Board | 1.1.3 | იუნიქს ქონსთრაქშენ კომპანი | 800.00 | USD | 02.10.2020",
+      "projectName": "Display & Board",
+      "counteragent": "იუნიქს ქონსთრაქშენ კომპანი (ს.კ. 405133822) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "04f89f95-038a-4435-93b8-56e9be467bf6",
+      "projectIndex": "Door threshold | 1.1.3 | Dar Building | 3,000.00 | GEL | 19.06.2023",
+      "projectName": "Door threshold",
+      "counteragent": "Dar Building (ს.კ. 445420875) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "bb5aa003-4709-4b84-b34a-e5972a2aeba6",
+      "projectIndex": "Doors change | 1.1.3 | მზიური რეზორტ | 480.00 | USD | 29.08.2023",
+      "projectName": "Doors change",
+      "counteragent": "მზიური რეზორტ (ს.კ. 404462256) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "291d1023-6d7d-4e76-9d5c-bafd22b2d1df",
+      "projectIndex": "DRS AHU | 1.2.1 | დრს ინტერნეიშენალ | 14,300.00 | EUR | 27.12.2022",
+      "projectName": "DRS AHU",
+      "counteragent": "დრს ინტერნეიშენალ (ს.კ. 421279182) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "08b11b3d-796f-4d80-82f9-149fc940360a",
+      "projectIndex": "Dumpers | 1.2.1 | ლენოქსი | 150.00 | GEL | 01.12.2020",
+      "projectName": "Dumpers",
+      "counteragent": "ლენოქსი (ს.კ. 418476893) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "64e9d62c-acb0-491a-a10e-5ad9141e78b8",
+      "projectIndex": "Elevator Rope | 1.1.3 | გალერია ჰოტელ მენეჯმენტი | 2,350.00 | USD | 14.12.2022",
+      "projectName": "Elevator Rope",
+      "counteragent": "გალერია ჰოტელ მენეჯმენტი (ს.კ. 404567508) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "f6789785-e0fe-453f-97ac-abf31ae7b774",
+      "projectIndex": "Elevators Repair | 1.1.2 | სამხრეთის სამშენებლო კომპანია | 2,310.00 | GEL | 25.10.2025",
+      "projectName": "Elevators Repair",
+      "counteragent": "სამხრეთის სამშენებლო კომპანია (ს.კ. 445721595) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "ab3e19ec-199a-4403-835f-0f9d6640a135",
+      "projectIndex": "ELT Building Service | 1.1.2 | ელთ ბილდინგი | 500.00 | USD | 01.01.2024",
+      "projectName": "ELT Building Service",
+      "counteragent": "ელთ ბილდინგი (ს.კ. 445471285) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "fc82605a-4030-4c2a-8efe-6f9bc6842f61",
+      "projectIndex": "Encoder | 1.1.3 | ეკომეტრი | 2,000.00 | GEL | 01.07.2020",
+      "projectName": "Encoder",
+      "counteragent": "ეკომეტრი (ს.კ. 404464030) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "1201270d-7b5c-49b7-b018-4a907af6c80a",
+      "projectIndex": "Escalator PCB | 1.1.3 | გალერია თბილისი | 540.00 | USD | 22.03.2023",
+      "projectName": "Escalator PCB",
+      "counteragent": "გალერია თბილისი (ს.კ. 204558497) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "d9c7317f-1a7e-41e4-a66e-c50365e0034b",
+      "projectIndex": "Fan Motor | 1.2.1 | კლიმატ ინჟინერინგი | 870.00 | USD | 11.10.2021",
+      "projectName": "Fan Motor",
+      "counteragent": "კლიმატ ინჟინერინგი (ს.კ. 405164584) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "794560d8-fd88-4918-80c7-c550fdc68abf",
+      "projectIndex": "Fan Propeller | 1.2.1 | თბილი სახლი | 1,180.00 | USD | 05.11.2020",
+      "projectName": "Fan Propeller",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "4d458a60-ecf8-40ed-8900-b45b09123050",
+      "projectIndex": "Fancoil | 1.2.1 | მეპერსი | 1,124.53 | USD | 13.06.2022",
+      "projectName": "Fancoil",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "fa3d0a89-18d5-47bb-8e21-acd82dced4fd",
+      "projectIndex": "Fans and Dumper | 1.2.1 | ლენოქსი | 9,500.00 | USD | 01.12.2021",
+      "projectName": "Fans and Dumper",
+      "counteragent": "ლენოქსი (ს.კ. 418476893) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "c226202d-d865-4e63-9fe3-33ca85b0e1bb",
+      "projectIndex": "Filter supply and compresor change service | 1.2.1 | თბილისი ცენტრალი | 1,150.00 | GEL | 10.09.2020",
+      "projectName": "Filter supply and compresor change service",
+      "counteragent": "თბილისი ცენტრალი (ს.კ. 205129653) - სს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "78e4cc00-618f-4336-9fd8-61a70993a023",
+      "projectIndex": "Fire Cabinet | 1.2.1 | 1920 | 3,835.00 | USD | 18.06.2019",
+      "projectName": "Fire Cabinet",
+      "counteragent": "1920 (ს.კ. 400247899) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "b8df279b-a563-4a9e-a572-71092d60dfdc",
+      "projectIndex": "Ford Center | 1.2.1 | თბილი სახლი | 2,545.00 | USD | 25.03.2021",
+      "projectName": "Ford Center",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "6437eb9d-d258-4248-aea1-ce4eaaa7aa9b",
+      "projectIndex": "Ford Center Compressor Control Board | 1.2.1 | თბილი სახლი | 1,350.00 | USD | 30.08.2023",
+      "projectName": "Ford Center Compressor Control Board",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "edf87557-df6e-4e04-9a90-23496f0293c8",
+      "projectIndex": "Ford Center Propeler Motor | 1.2.1 | თბილი სახლი | 1,735.00 | USD | 19.11.2020",
+      "projectName": "Ford Center Propeler Motor",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "bb17a965-20c8-4bf0-bca0-1bf4793cda23",
+      "projectIndex": "Fotosell | 1.1.3 | ნეო გუდაური | 1,000.00 | GEL | 30.05.2025",
+      "projectName": "Fotosell",
+      "counteragent": "ნეო გუდაური (ს.კ. ICE000618) - ამხანაგობა",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "cc20c9d4-7dd6-4aca-8fee-67c931041e9b",
+      "projectIndex": "Founder Home | 1.2.1 | არგო გრუპ ჯორჯია | 7,000.00 | USD | 16.05.2023",
+      "projectName": "Founder Home",
+      "counteragent": "არგო გრუპ ჯორჯია (ს.კ. 400113532) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "5095a22c-341e-47b7-883d-118c3212beb6",
+      "projectIndex": "Gagnidze - Mitsubishi Split Conditioner | 1.2.1 | გიორგი გაგნიძე | 3,350.00 | GEL | 22.06.2021",
+      "projectName": "Gagnidze - Mitsubishi Split Conditioner",
+      "counteragent": "გიორგი გაგნიძე (ს.კ. 01027023991) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "0bfa7858-c205-453e-8fb3-cfd81d7f14ae",
+      "projectIndex": "Gagnidze - Mitsubishi Split Conditioner Instalation | 1.2.1 | გიორგი გაგნიძე | 500.00 | GEL | 22.06.2021",
+      "projectName": "Gagnidze - Mitsubishi Split Conditioner Instalation",
+      "counteragent": "გიორგი გაგნიძე (ს.კ. 01027023991) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "79500bdf-aec6-4255-8105-31d05c0ca9a4",
+      "projectIndex": "Gagua Oth | 1.2.1 | ანა გაგუა | 8,500.00 | GEL | 24.05.2024",
+      "projectName": "Gagua Oth",
+      "counteragent": "ანა გაგუა (ს.კ. 60001021539) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "43bd641d-3c9f-40d5-9e8c-49d404a896da",
+      "projectIndex": "Galleria Elevator Spare Parts | 1.1.3 | გალერია თბილისი | 7,335.00 | USD | 25.08.2020",
+      "projectName": "Galleria Elevator Spare Parts",
+      "counteragent": "გალერია თბილისი (ს.კ. 204558497) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "10c38dc7-e96a-4b59-aede-84ebbaf6195e",
+      "projectIndex": "Galleria Escalator Spare Part | 1.1.3 | გალერია თბილისი | 3,420.00 | USD | 16.02.2021",
+      "projectName": "Galleria Escalator Spare Part",
+      "counteragent": "გალერია თბილისი (ს.კ. 204558497) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "beb3b0ee-c827-42c0-a283-0b86f554af6e",
+      "projectIndex": "Galleria Tbilisi - Escalator Combs | 1.1.3 | გალერია თბილისი | 2,493.56 | GEL | 05.07.2022",
+      "projectName": "Galleria Tbilisi - Escalator Combs",
+      "counteragent": "გალერია თბილისი (ს.კ. 204558497) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "272de8fc-2cd2-4c41-bede-30c53c15d314",
+      "projectIndex": "Galleria Tbilisi - Escalator Handrail rollers | 1.1.3 | გალერია თბილისი | 660.00 | USD | 23.11.2021",
+      "projectName": "Galleria Tbilisi - Escalator Handrail rollers",
+      "counteragent": "გალერია თბილისი (ს.კ. 204558497) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "a88d27c3-4f8a-4edd-b19b-041153242af3",
+      "projectIndex": "Gardens Oth | 1.1.3 | მზიური რეზორტ | 770.00 | GEL | 29.05.2025",
+      "projectName": "Gardens Oth",
+      "counteragent": "მზიური რეზორტ (ს.კ. 404462256) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "f487d937-85d8-43b1-8d4d-27757bc0be36",
+      "projectIndex": "Gazapkhuli | 1.1.2 | დეველოპერული კომპანია მც კვადრატი | 100.00 | GEL | 01.01.2020",
+      "projectName": "Gazapkhuli",
+      "counteragent": "დეველოპერული კომპანია მც კვადრატი (ს.კ. 404474403) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "67037d5c-5bca-4fc1-a900-e85128c5635f",
+      "projectIndex": "Germany Embassy | 1.2.1 | ბეთბი | 4,320.00 | GEL | 20.05.2021",
+      "projectName": "Germany Embassy",
+      "counteragent": "ბეთბი (ს.კ. 204882190) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "b9fd8dfd-accc-4897-a244-e0780733cea0",
+      "projectIndex": "Germany Embassy | 1.2.2 | ბეთბი | 1.00 | EUR | 25.05.2021",
+      "projectName": "Germany Embassy",
+      "counteragent": "ბეთბი (ს.კ. 204882190) - შპს",
+      "fcCode": "1.2.2",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "d953db46-2a80-436c-958a-a42bc2c32408",
+      "projectIndex": "Germany Embassy | 1.2.3 | ბეთბი | 6,000.00 | GEL | 20.05.2021",
+      "projectName": "Germany Embassy",
+      "counteragent": "ბეთბი (ს.კ. 204882190) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "dc11d4a7-8e3c-4a57-8c03-b9ca0d608766",
+      "projectIndex": "GM Pharma Compresor | 1.2.1 | ჯი ემ ფარმასიუთიქალს | 12,000.00 | USD | 12.07.2024",
+      "projectName": "GM Pharma Compresor",
+      "counteragent": "ჯი ემ ფარმასიუთიქალს (ს.კ. 211385268) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "88447f3e-4227-4c99-8cf8-67037c5ffac5",
+      "projectIndex": "Goderdzi Hotel AHU | 1.2.1 | თი ელ ქონსთრაქშენ | 71,023.91 | EUR | 27.08.2022",
+      "projectName": "Goderdzi Hotel AHU",
+      "counteragent": "თი ელ ქონსთრაქშენ (ს.კ. 445520525) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "ae760261-16e0-44ad-b507-8d2f4e6f036a",
+      "projectIndex": "Gogatishvili Oth | 1.2.1 | კობა გოგატიშვილი | 775.00 | USD | 02.05.2023",
+      "projectName": "Gogatishvili Oth",
+      "counteragent": "კობა გოგატიშვილი (ს.კ. 54001008148) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "7f14cd1f-83c7-47d4-a33e-ed0751bf2cb8",
+      "projectIndex": "Gogotishvili kaklebi | 1.2.1 | თბილი სახლი | 8,805.00 | USD | 19.08.2021",
+      "projectName": "Gogotishvili kaklebi",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "e7fd2ddd-f62d-4635-9468-df10b5448af4",
+      "projectIndex": "Gogotishvili Oth | 1.2.1 | გოგოტიშვილი კობა | 1,900.00 | GEL | 13.06.2024",
+      "projectName": "Gogotishvili Oth",
+      "counteragent": "გოგოტიშვილი კობა (ს.კ. 33001026839) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "3d3a6ba2-fc37-4c7b-9979-9c6c932ba9bf",
+      "projectIndex": "Gonio | 1.1.2 | ერა პალასი | 300.00 | GEL | 01.06.2019",
+      "projectName": "Gonio",
+      "counteragent": "ერა პალასი (ს.კ. 245619807) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "7eb44f77-a800-435f-ab32-702491846076",
+      "projectIndex": "Gori Mall Oth | 1.2.3 | მპ დეველოპმენტი | 1,080.00 | USD | 01.04.2024",
+      "projectName": "Gori Mall Oth",
+      "counteragent": "მპ დეველოპმენტი (ს.კ. 404960217) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "67800432-96ff-489a-983a-99bd3f4c4954",
+      "projectIndex": "Grena MEP 1 | 1.2.1 | საქ სამეცნიერო-საგანმანათ. კომპ ქსელების ასოციაცია გრენა | 9,885.00 | GEL | 22.06.2020",
+      "projectName": "Grena MEP 1",
+      "counteragent": "საქ სამეცნიერო-საგანმანათ. კომპ ქსელების ასოციაცია გრენა (ს.კ. 204931654) - ასოციაცია",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "39f85d24-b9fe-4ee2-862a-a1705eb0d659",
+      "projectIndex": "Gtem Hospitality Oth | 1.2.3 | გთემ ჰოსფითალითი გრუპ | 2,100.00 | GEL | 21.12.2023",
+      "projectName": "Gtem Hospitality Oth",
+      "counteragent": "გთემ ჰოსფითალითი გრუპ (ს.კ. 445604640) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "7f26eb7b-2e7c-4a75-8728-31ac9ad52fee",
+      "projectIndex": "Gudauri Alpic | 1.1.2 | რედ-კო მენეჯმენტ გრუპი | 1.00 | USD | 24.09.2019",
+      "projectName": "Gudauri Alpic",
+      "counteragent": "რედ-კო მენეჯმენტ გრუპი (ს.კ. 405198986) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "0085f59a-37c7-4424-9251-c2428f3e6e7d",
+      "projectIndex": "Gudauri Redco Parking | 1.1.2 | რედ-კო მენეჯმენტ გრუპი | 1.00 | USD | 26.09.2019",
+      "projectName": "Gudauri Redco Parking",
+      "counteragent": "რედ-კო მენეჯმენტ გრუპი (ს.კ. 405198986) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "6fc6ec1c-7fe8-4c59-b5b0-0099ea2e5ab8",
+      "projectIndex": "Gumbati Port Line | 1.1.2 | სქაი ბათუმი | 450.00 | USD | 01.01.2024",
+      "projectName": "Gumbati Port Line",
+      "counteragent": "სქაი ბათუმი (ს.კ. 445552866) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "b669fd06-8b10-470b-be04-d96a1e457018",
+      "projectIndex": "HAVANA CLUB KIFSHIDZE | 1.2.3 | ჰავანა | 3,000.00 | GEL | 10.01.2022",
+      "projectName": "HAVANA CLUB KIFSHIDZE",
+      "counteragent": "ჰავანა (ს.კ. 405022817) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "8380cc2c-30e5-4ac7-a1a4-85bc1ee0bdff",
+      "projectIndex": "Heat Pump | 1.2.1 | DECRIPT CJSC | 4,400.00 | USD | 06.09.2025",
+      "projectName": "Heat Pump",
+      "counteragent": "DECRIPT CJSC (ს.კ. 2885818) - უცხოური საწარმო",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "4a5004d6-b85b-41e0-99b0-a33785e10645",
+      "projectIndex": "Heat Pumps | 1.2.1 | სუპრემე სოლუთიონს | 3,700.00 | USD | 02.11.2022",
+      "projectName": "Heat Pumps",
+      "counteragent": "სუპრემე სოლუთიონს (ს.კ. 445587320) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "fff21f65-9095-4104-bf7e-6153cfe24096",
+      "projectIndex": "HGI Heat Pump Mbus | 1.2.1 | მეპერსი | 10,807.36 | USD | 13.10.2021",
+      "projectName": "HGI Heat Pump Mbus",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "d78a50df-8538-48a5-a164-2caf2ee08edd",
+      "projectIndex": "HIEX (EUR) | 1.2.1 | მეპერსი | 34,167.15 | EUR | 01.03.2021",
+      "projectName": "HIEX (EUR)",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "b6e0a204-58b5-494c-916d-cf90b1fc158b",
+      "projectIndex": "HIEX | 1.2.1 | მეპერსი | 678,014.84 | USD | 01.03.2021",
+      "projectName": "HIEX",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "a0f5e8c8-f574-497b-8136-430475789711",
+      "projectIndex": "Hilton 1703 | 1.2.1 | ეკატერინა ბერდიშევა | 2,675.00 | USD | 16.08.2021",
+      "projectName": "Hilton 1703",
+      "counteragent": "ეკატერინა ბერდიშევა (ს.კ. 762917460) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "addf5f3a-4117-410e-8c74-7b4ca5ff0d04",
+      "projectIndex": "Hilton Batumi VRF | 1.2.3 | ტურინვესტი | 7,600.00 | GEL | 28.09.2020",
+      "projectName": "Hilton Batumi VRF",
+      "counteragent": "ტურინვესტი (ს.კ. 245555554) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "4723017e-ef0c-427f-be8d-95a49c03170f",
+      "projectIndex": "Hilton Garden Inn PIPES | 1.2.1 | მეპერსი | 8,684.86 | USD | 13.03.2020",
+      "projectName": "Hilton Garden Inn PIPES",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "53d78126-348d-47ec-8e18-aca366d918b3",
+      "projectIndex": "Hilton Garden Inn Pipes 2 | 1.2.1 | მეპერსი | 4,580.94 | USD | 01.06.2020",
+      "projectName": "Hilton Garden Inn Pipes 2",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "68e42d82-be50-4f66-82a4-cdc4deb322c3",
+      "projectIndex": "Hilton Garden Inn VRV 1 | 1.2.1 | მეპერსი | 56,818.84 | USD | 10.03.2020",
+      "projectName": "Hilton Garden Inn VRV 1",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "b866cca1-4f5c-4c49-9517-cd64763ad8cc",
+      "projectIndex": "Hilton Garden Mockup | 1.2.1 | მეპერსი | 2,872.57 | USD | 12.05.2019",
+      "projectName": "Hilton Garden Mockup",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "51838b0d-dd89-4a12-b525-8d367543250c",
+      "projectIndex": "Hilton Garden VRV2 | 1.2.1 | მეპერსი | 124,122.43 | USD | 20.07.2020",
+      "projectName": "Hilton Garden VRV2",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "277c4480-ea4d-4c16-a668-709c6572dbcc",
+      "projectIndex": "Hilton Service Parts | 1.2.1 | ტურინვესტი | 7,350.00 | USD | 19.08.2020",
+      "projectName": "Hilton Service Parts",
+      "counteragent": "ტურინვესტი (ს.კ. 245555554) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "941e1441-95a1-4cee-b83b-2c61c507985c",
+      "projectIndex": "Honda Civic | 1.3.1 | ზვიად ჯორბენაძე | 5,300.00 | GEL | 08.02.2023",
+      "projectName": "Honda Civic",
+      "counteragent": "ზვიად ჯორბენაძე (ს.კ. 61001067900) - ფიზ. პირი",
+      "fcCode": "1.3.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "fb0ee8e6-158c-4da7-8fae-ed32e09a1d20",
+      "projectIndex": "Hospital Generator | 1.2.1 | თბილი სახლი | 5,100.00 | USD | 20.07.2020",
+      "projectName": "Hospital Generator",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "a5b0d7a8-41bf-419c-beff-6c24d5e3b233",
+      "projectIndex": "HOTEL IBIS VRV Service | 1.2.3 | მაქრო ტურიზმ | 2,650.00 | USD | 23.07.2021",
+      "projectName": "HOTEL IBIS VRV Service",
+      "counteragent": "მაქრო ტურიზმ (ს.კ. 404492759) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "9bc9b19c-886c-4ef5-a43c-8d1a0ab616f3",
+      "projectIndex": "Hotel Radius | 1.2.1 | თბილი სახლი | 2,340.00 | GEL | 15.04.2021",
+      "projectName": "Hotel Radius",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "5872f0bb-ab6a-4a31-bd17-24a33d9981b4",
+      "projectIndex": "Iakobidze - Mitsubishi Conditioner | 1.2.1 | ილია იაკობიძე | 7,600.00 | GEL | 14.04.2022",
+      "projectName": "Iakobidze - Mitsubishi Conditioner",
+      "counteragent": "ილია იაკობიძე (ს.კ. 01008053571) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "db0b0f04-8cc8-4554-a3e4-94629f921b7b",
+      "projectIndex": "Ibis Airport Oth | 1.1.3 | ფუჯინ სილქ ფროფერთის | 500.00 | GEL | 13.09.2024",
+      "projectName": "Ibis Airport Oth",
+      "counteragent": "ფუჯინ სილქ ფროფერთის (ს.კ. 405273421) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "388d50bc-735a-4d45-a8e5-0cccd4a0941a",
+      "projectIndex": "IBIS ORTACHALA MEP + VRF Washing | 1.2.1 | მაქრო ტურიზმ | 7,575.00 | USD | 08.07.2021",
+      "projectName": "IBIS ORTACHALA MEP + VRF Washing",
+      "counteragent": "მაქრო ტურიზმ (ს.კ. 404492759) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "4863e815-e96b-40a3-b8d2-9a507b9fbe95",
+      "projectIndex": "IBIS Perov Dumbwaiter | 1.1.2 | ბეტა ჯგუფი | 1.00 | USD | 05.12.2019",
+      "projectName": "IBIS Perov Dumbwaiter",
+      "counteragent": "ბეტა ჯგუფი (ს.კ. 405171996) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "8fc96a51-c0e1-4cd2-a65c-9097a4d3a10d",
+      "projectIndex": "IBIS Perov Oth | 1.1.3 | ბეტა ჰოთელს | 3,888.00 | USD | 30.12.2023",
+      "projectName": "IBIS Perov Oth",
+      "counteragent": "ბეტა ჰოთელს (ს.კ. 404585686) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "f2e099bd-fbf9-4e4f-9f49-b23293ec0cd8",
+      "projectIndex": "IBIS Perovi | 1.1.2 | ბეტა ჯგუფი | 1.00 | USD | 11.09.2019",
+      "projectName": "IBIS Perovi",
+      "counteragent": "ბეტა ჯგუფი (ს.კ. 405171996) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "902cd182-efd6-4535-879a-2d22b2bbab54",
+      "projectIndex": "IBIS Perovi | 1.1.3 | ბეტა ჯგუფი | 1,440.00 | USD | 03.03.2021",
+      "projectName": "IBIS Perovi",
+      "counteragent": "ბეტა ჯგუფი (ს.კ. 405171996) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "cd067e66-6a27-47e4-ada8-f0ee19acf89a",
+      "projectIndex": "ICETERRA | 1.2.1 | აისტერრა | 23,520.00 | USD | 09.09.2025",
+      "projectName": "ICETERRA",
+      "counteragent": "აისტერრა (ს.კ. 445733065) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "a22792ae-98f7-4990-a17d-8080e8e8bca5",
+      "projectIndex": "IDC Mitsubishi Conditioner | 1.2.1 | აიდისი | 2,855.00 | GEL | 25.07.2022",
+      "projectName": "IDC Mitsubishi Conditioner",
+      "counteragent": "აიდისი (ს.კ. 204998342) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "85616cb7-40e7-478f-a16e-ab1942aaf326",
+      "projectIndex": "Impeller | 1.2.3 | დნთ ქონსთრაქშენ | 941.00 | USD | 17.09.2025",
+      "projectName": "Impeller",
+      "counteragent": "დნთ ქონსთრაქშენ (ს.კ. 405418196) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "390e884c-8c3a-41ae-b092-dc7b92cafe7e",
+      "projectIndex": "Inaishvili - 2 Units Mitsubishi Conditioner | 1.2.1 | ჯემალ ინაიშვილი | 1,280.00 | USD | 02.05.2022",
+      "projectName": "Inaishvili - 2 Units Mitsubishi Conditioner",
+      "counteragent": "ჯემალ ინაიშვილი (ს.კ. 61001000802) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "bf9b0807-4d4f-4465-85ff-3acbb87b2a78",
+      "projectIndex": "Inspection | 1.1.2 | ტურინვესტი | 600.00 | GEL | 16.06.2020",
+      "projectName": "Inspection",
+      "counteragent": "ტურინვესტი (ს.კ. 245555554) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "fd995793-412f-44a2-828a-97643944e79e",
+      "projectIndex": "Inverter Board and Buttons | 1.1.3 | იუნიქს ქონსთრაქშენ კომპანი | 1,150.00 | USD | 13.05.2021",
+      "projectName": "Inverter Board and Buttons",
+      "counteragent": "იუნიქს ქონსთრაქშენ კომპანი (ს.კ. 405133822) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "d5f86a85-fba6-4af8-8441-b10f49e9fd59",
+      "projectIndex": "INVERTER COOLING FAN | 1.2.1 | მ2 | 824.00 | EUR | 20.08.2020",
+      "projectName": "INVERTER COOLING FAN",
+      "counteragent": "მ2 (ს.კ. 404465529) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "f3e5acc9-4fd1-4256-bed3-5a4b95f48bd1",
+      "projectIndex": "Ioseliani - Mitsubishi Split Conditioner | 1.2.1 | ონისე იოსელიანი | 3,000.00 | GEL | 01.07.2021",
+      "projectName": "Ioseliani - Mitsubishi Split Conditioner",
+      "counteragent": "ონისე იოსელიანი (ს.კ. 01009020969) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "96622052-3fa7-4a40-ae75-9bbc080c5d5b",
+      "projectIndex": "Isani D Block Door Engine | 1.1.3 | არქი მეინთენენს | 800.00 | USD | 20.03.2025",
+      "projectName": "Isani D Block Door Engine",
+      "counteragent": "არქი მეინთენენს (ს.კ. 405752957) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "411b72af-f983-4a0d-8bbe-c8e1c5e1da28",
+      "projectIndex": "Iveshniakov - Conditioner | 1.2.1 | იევგენ ოვეშნიაქოვ | 4,750.00 | GEL | 24.03.2022",
+      "projectName": "Iveshniakov - Conditioner",
+      "counteragent": "იევგენ ოვეშნიაქოვ (ს.კ. 1982092803392) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "c41b98d5-4119-4cb3-8d99-98517a940254",
+      "projectIndex": "Janashia | 1.1.2 | თბილი სახლი | 250.00 | GEL | 01.01.2019",
+      "projectName": "Janashia",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "13ee18bd-cce4-4a46-9493-f970255e5a5c",
+      "projectIndex": "Jikia house | 1.2.1 | გიორგი ბახტაძე | 2,720.00 | GEL | 23.10.2020",
+      "projectName": "Jikia house",
+      "counteragent": "გიორგი ბახტაძე (ს.კ. 01024067298) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "e44aebac-eeb1-42f7-9c90-43fddae3a935",
+      "projectIndex": "Joints | 1.2.1 | მეპერსი | 595.84 | GEL | 04.04.2024",
+      "projectName": "Joints",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "a3cc070f-345e-4516-b64b-60dbc450a8ee",
+      "projectIndex": "Kaklebi doors repears | 1.1.3 | გოჩა ჩხაიძე | 501.00 | USD | 23.03.2022",
+      "projectName": "Kaklebi doors repears",
+      "counteragent": "გოჩა ჩხაიძე (ს.კ. 65002012107) - ფიზ. პირი",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "fb3a8551-b20d-4a9e-9678-57d0737358ac",
+      "projectIndex": "Kaklebi Oth | 1.1.3 | ევროპროდუქტი | 500.00 | USD | 22.02.2024",
+      "projectName": "Kaklebi Oth",
+      "counteragent": "ევროპროდუქტი (ს.კ. 202227134) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "a08f2e92-ddcd-44b8-8515-27faf5f4eb63",
+      "projectIndex": "Kart | 1.2.3 | მეპერსი | 920.00 | USD | 01.08.2025",
+      "projectName": "Kart",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "3a44dba7-152b-4c3d-8a70-c51193549f07",
+      "projectIndex": "Kempinski Mockup | 1.2.1 | მეპერსი | 2,245.13 | USD | 21.10.2019",
+      "projectName": "Kempinski Mockup",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "4799e7ce-cc53-4faf-b671-8e593922f7cd",
+      "projectIndex": "Khachatrian - Mitsubishi Split Conditioner | 1.2.1 | ტიგრან ხაჩატრიან | 6,600.00 | GEL | 06.12.2021",
+      "projectName": "Khachatrian - Mitsubishi Split Conditioner",
+      "counteragent": "ტიგრან ხაჩატრიან (ს.კ. 65130000512) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "d813cda0-13c5-499b-9e42-9b0f68330eb9",
+      "projectIndex": "Kikutadze Conditioner | 1.2.1 | გიორგი კიკუტაძე | 2,230.00 | GEL | 21.08.2023",
+      "projectName": "Kikutadze Conditioner",
+      "counteragent": "გიორგი კიკუტაძე (ს.კ. 01901146888) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "9ee462fd-bce8-4e65-b80f-6597aac0a198",
+      "projectIndex": "King Parnavaz Service | 1.1.3 | ფარნავაზ მეფის # 62 | 1,800.00 | GEL | 24.12.2024",
+      "projectName": "King Parnavaz Service",
+      "counteragent": "ფარნავაზ მეფის # 62 (ს.კ. 245665221) - ამხანაგობა",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "3d5d929f-3463-45e5-9f02-79f8c75db4c4",
+      "projectIndex": "Kitchen Fan | 1.2.1 | ასოციაცია ატუ | 22,250.00 | EUR | 29.11.2021",
+      "projectName": "Kitchen Fan",
+      "counteragent": "ასოციაცია ატუ (ს.კ. 239402491) - არასამეწარმეო (არაკომერციული) იურიდიული პირი",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "76c81ead-4186-4cc5-b1cb-8d0bd724c936",
+      "projectIndex": "Kobuleti Garden Inn Other | 1.1.3 | იოსებ გუნთაიშვილი | 300.00 | GEL | 14.08.2025",
+      "projectName": "Kobuleti Garden Inn Other",
+      "counteragent": "იოსებ გუნთაიშვილი (ს.კ. 61001008820) - ფიზ. პირი",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "81c84c3c-2de9-4ebb-b541-575d248507ae",
+      "projectIndex": "Kontridze Split | 1.2.1 | ივანე კონტრიძე | 500.00 | GEL | 12.07.2024",
+      "projectName": "Kontridze Split",
+      "counteragent": "ივანე კონტრიძე (ს.კ. 01024066432) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "f54a67d3-6554-4e60-a206-69bc6652a169",
+      "projectIndex": "Krtsanisi Residence | 1.2.1 | კრწანისი როიალ რეზიდენსი | 2,260.00 | GEL | 16.06.2021",
+      "projectName": "Krtsanisi Residence",
+      "counteragent": "კრწანისი როიალ რეზიდენსი (ს.კ. 404569837) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "b2c29fa7-faab-409d-9c60-153629af1011",
+      "projectIndex": "Krtsanisi Residence 1 | 1.2.1 | კრწანისი როიალ რეზიდენსი | 2,260.00 | GEL | 21.06.2021",
+      "projectName": "Krtsanisi Residence 1",
+      "counteragent": "კრწანისი როიალ რეზიდენსი (ს.კ. 404569837) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "44e3bc1e-c684-42ce-b79f-aee33b9b16fe",
+      "projectIndex": "Krtsanisi Villa Residence Meppers | 1.1.2 | მეპერსი | 1,200.00 | USD | 01.01.2024",
+      "projectName": "Krtsanisi Villa Residence Meppers",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "5dab5fd3-0954-44a3-a1a4-36720357b97f",
+      "projectIndex": "Kutaisi Rooftop Launch | 1.2.3 | თბილი სახლი | 5,500.00 | GEL | 01.05.2025",
+      "projectName": "Kutaisi Rooftop Launch",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "055323fb-ac01-425f-ab71-fcd601f49e1c",
+      "projectIndex": "Kvareli Elevators Service | 1.1.2 | ინდეკო ჰოსფითალითი | 1,350.00 | USD | 01.01.2024",
+      "projectName": "Kvareli Elevators Service",
+      "counteragent": "ინდეკო ჰოსფითალითი (ს.კ. 405508026) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "6ed7254f-9cb4-4319-9b92-05f707838d07",
+      "projectIndex": "Kvareli Termostat Check | 1.2.1 | ინდეკო სი ემ  | 1,000.00 | GEL | 01.11.2024",
+      "projectName": "Kvareli Termostat Check",
+      "counteragent": "ინდეკო სი ემ  (ს.კ. 405508339) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "75ec5898-1b86-4e14-a694-5fa0da9f55ef",
+      "projectIndex": "Kvariati FLS | 1.2.1 | მეპერსი | 11,189.02 | EUR | 10.05.2024",
+      "projectName": "Kvariati FLS",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "f438b982-9914-413c-b500-5c67e2c42ff2",
+      "projectIndex": "Laboratoria | 1.2.1 | DIAGNOSTICA MEDICAL CORPORATION | 102,052.00 | USD | 27.06.2023",
+      "projectName": "Laboratoria",
+      "counteragent": "DIAGNOSTICA MEDICAL CORPORATION (ს.კ.  01202228) - უცხოური საწარმო",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "898f9815-9aec-455c-8778-12cd91a6e27e",
+      "projectIndex": "Lekveishvili Oth | 1.2.1 | ლეკვეიშვილი გრიგოლ | 7,964.00 | GEL | 22.07.2024",
+      "projectName": "Lekveishvili Oth",
+      "counteragent": "ლეკვეიშვილი გრიგოლ (ს.კ. 01001010845) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "2c9bc2b2-3114-464d-bfab-15a69088e204",
+      "projectIndex": "Lezhava - Mitsubishi Split Conditioner | 1.2.1 | ბექა ლეჟავა | 3,000.00 | GEL | 22.06.2021",
+      "projectName": "Lezhava - Mitsubishi Split Conditioner",
+      "counteragent": "ბექა ლეჟავა (ს.კ. 01009014629) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "0ce9ff5a-43b3-4ee5-b98b-1047e260c7f5",
+      "projectIndex": "Lift Buttons | 1.1.3 | ბეტა ჰოთელს | 500.00 | GEL | 01.05.2025",
+      "projectName": "Lift Buttons",
+      "counteragent": "ბეტა ჰოთელს (ს.კ. 404585686) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "a98aeb61-0717-49c6-8e93-f00ddbd6a8dc",
+      "projectIndex": "Lisi Villa MEP & Smart house | 1.2.1 | ირაკლი ბუხიაშვილი | 9,140.00 | USD | 03.02.2022",
+      "projectName": "Lisi Villa MEP & Smart house",
+      "counteragent": "ირაკლი ბუხიაშვილი (ს.კ. 01031007136) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "aa3bf3fc-6268-4e8f-bec3-0779a283897e",
+      "projectIndex": "Living Container | 1.3.1 | მეპერსი | 22,373.00 | GEL | 18.02.2021",
+      "projectName": "Living Container",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.3.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "d6364fde-a9a4-4772-bdbd-d788e5769c30",
+      "projectIndex": "Lomidze Conditioner | 1.2.1 | ლომიძე ლიანა | 1,300.00 | GEL | 01.06.2024",
+      "projectName": "Lomidze Conditioner",
+      "counteragent": "ლომიძე ლიანა (ს.კ. 01117067344) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "02cdc31f-d22b-4866-afae-513ba7a86530",
+      "projectIndex": "Lortkipanidze - Mitsubishi Conditioner | 1.2.1 | გიორგი ლორთქიფანიძე | 1,420.00 | GEL | 25.03.2022",
+      "projectName": "Lortkipanidze - Mitsubishi Conditioner",
+      "counteragent": "გიორგი ლორთქიფანიძე (ს.კ. 01009002617) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "0dc6ca59-634f-462e-989c-fbd7ab27545c",
+      "projectIndex": "M2 conditioner instalatio | 1.2.3 | ბკ ქონსთრაქშენი | 181,545.00 | GEL | 14.12.2020",
+      "projectName": "M2 conditioner instalatio",
+      "counteragent": "ბკ ქონსთრაქშენი (ს.კ. 404537809) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "5d79a202-227f-46ed-ac97-9b5c8899aaa3",
+      "projectIndex": "Macdonalds Isani | 1.2.2 | თბილი სახლი | 944.00 | GEL | 01.11.2022",
+      "projectName": "Macdonalds Isani",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "8bc6c19b-97f2-4132-8098-d17b7934309a",
+      "projectIndex": "Macdonalds Orkhevi | 1.2.2 | თბილი სახლი | 944.00 | GEL | 01.10.2022",
+      "projectName": "Macdonalds Orkhevi",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "fe67ae9a-a8dd-4ac1-9804-5b2eb570f00b",
+      "projectIndex": "Machavariani - 3 Units Mitsubishi Split Conditioner | 1.2.1 | დავით მაჭავარიანი | 4,690.00 | GEL | 02.07.2021",
+      "projectName": "Machavariani - 3 Units Mitsubishi Split Conditioner",
+      "counteragent": "დავით მაჭავარიანი (ს.კ. 01031006443) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "a2c64723-d22e-4f0c-8840-a93aa06d97f3",
+      "projectIndex": "Mammadova Oth | 1.2.1 | ელენა მამმადოვა | 4,948.00 | USD | 12.12.2023",
+      "projectName": "Mammadova Oth",
+      "counteragent": "ელენა მამმადოვა (ს.კ. 01794001582) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "0381a5c5-6a6d-4390-ab1e-6cebc3fa3a63",
+      "projectIndex": "Marriots | 1.1.2 | ჯი ემ თი | 300.00 | USD | 01.01.2024",
+      "projectName": "Marriots",
+      "counteragent": "ჯი ემ თი (ს.კ. 435431445) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "58e66a51-4df4-45a2-8ce1-b070b0fadf53",
+      "projectIndex": "McDonalds Marjanishvili Rooftop | 1.2.1 | თბილი სახლი | 82,990.00 | EUR | 08.06.2023",
+      "projectName": "McDonalds Marjanishvili Rooftop",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "66da52ba-5cc9-4db2-ab2f-e5d503a67fd1",
+      "projectIndex": "Meboengineering | 1.2.1 | მებოენჯინიერინგ | 18,970.00 | USD | 22.12.2020",
+      "projectName": "Meboengineering",
+      "counteragent": "მებოენჯინიერინგ (ს.კ. 405353399) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "70724719-a960-437a-a800-b2f21e235fd7",
+      "projectIndex": "Med. University | 1.1.2 | ბეტა ჯგუფი | 1.00 | USD | 29.10.2019",
+      "projectName": "Med. University",
+      "counteragent": "ბეტა ჯგუფი (ს.კ. 405171996) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "69a7700f-3ef5-4f71-a2f8-6fb637c08f41",
+      "projectIndex": "Meppers Hilton Garden Inn Carrier | 1.2.1 | მეპერსი | 51,684.38 | EUR | 01.10.2020",
+      "projectName": "Meppers Hilton Garden Inn Carrier",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "50b022e8-0e8d-406f-a6ca-c79bef92a6c7",
+      "projectIndex": "MESKHI - 4 Units Mitsubishi Conditioner | 1.2.1 | მაია მესხი | 9,000.00 | GEL | 24.01.2022",
+      "projectName": "MESKHI - 4 Units Mitsubishi Conditioner",
+      "counteragent": "მაია მესხი (ს.კ. 01024009520) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "7a07961a-9e7e-4222-bb76-1a367beb3ab1",
+      "projectIndex": "Mestia | 1.1.2 | თბილი სახლი | 250.00 | GEL | 01.01.2019",
+      "projectName": "Mestia",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "b57f44da-173f-4982-82ae-21a306c2b22e",
+      "projectIndex": "MHI Conditioner | 1.2.1 | ინსტალი | 1,180.00 | GEL | 29.11.2019",
+      "projectName": "MHI Conditioner",
+      "counteragent": "ინსტალი (ს.კ. 404436570) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "28f6d5e5-fb67-45f8-b809-5cfd36f97a16",
+      "projectIndex": "MHI KZ 1 | 1.2.1 | EurAsia Klimat LLC | 118,273.05 | USD | 12.02.2024",
+      "projectName": "MHI KZ 1",
+      "counteragent": "EurAsia Klimat LLC (ს.კ. 230840027493) - უცხოური საწარმო",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "a389eb6f-dbb0-48a5-a16c-463ff453a49e",
+      "projectIndex": "MHI Products | 1.2.1 | ბერკეტი-დიზაინი | 12,436.00 | USD | 25.08.2023",
+      "projectName": "MHI Products",
+      "counteragent": "ბერკეტი-დიზაინი (ს.კ. 204909812) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "4bbb6753-0b4e-4f5b-bb68-e06ff36148a2",
+      "projectIndex": "MHI Split | 1.2.1 | ელიტ ელექტრონიქსი | 1.00 | GEL | 01.04.2020",
+      "projectName": "MHI Split",
+      "counteragent": "ელიტ ელექტრონიქსი (ს.კ. 202268928) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "e9489c29-8aff-4dd7-9089-2a094f602bf0",
+      "projectIndex": "MHI Splits | 1.2.1 | თბილი სახლი | 9,490.00 | GEL | 10.08.2020",
+      "projectName": "MHI Splits",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "cb33edc0-148d-4378-97a5-6633bf7e40ff",
+      "projectIndex": "Mitsubishi Compressor | 1.2.1 | თბილი სახლი | 6,950.00 | USD | 09.02.2021",
+      "projectName": "Mitsubishi Compressor",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "c586ac0e-3b96-40da-abb7-0b19b8064172",
+      "projectIndex": "Mitsubishi Conditioner | 1.2.1 | თერმორუმი | 1,380.00 | GEL | 23.03.2021",
+      "projectName": "Mitsubishi Conditioner",
+      "counteragent": "თერმორუმი (ს.კ. 405134448) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "ad72b3df-067c-44c4-9e00-f5b8d2b67b3e",
+      "projectIndex": "Mitsubishi Multisplits | 1.2.3 | ლევანი მახათაძე | 3,800.00 | GEL | 02.09.2025",
+      "projectName": "Mitsubishi Multisplits",
+      "counteragent": "ლევანი მახათაძე (ს.კ. 18001008498) - ფიზ. პირი",
+      "fcCode": "1.2.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "54304f4d-dfe3-4bf3-8802-5befb5793b76",
+      "projectIndex": "Mitsubishi Split Condicioner | 1.2.1 | ირინა ბაგრატიონი | 2,800.00 | GEL | 29.03.2021",
+      "projectName": "Mitsubishi Split Condicioner",
+      "counteragent": "ირინა ბაგრატიონი (ს.კ. 62001000738) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "0df15d30-571f-43ad-b36a-19dc2909b6d3",
+      "projectIndex": "Mitsubishi Split Conditioners | 1.2.1 | დავით დავითაშვილი | 2,450.00 | GEL | 25.02.2021",
+      "projectName": "Mitsubishi Split Conditioners",
+      "counteragent": "დავით დავითაშვილი (ს.კ. 24001002261) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "f0412171-41c0-4b65-a228-d0b169a59f36",
+      "projectIndex": "Mitsubishi Split Conditioners | 1.2.1 | თბილი სახლი | 7,320.00 | GEL | 16.10.2020",
+      "projectName": "Mitsubishi Split Conditioners",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "4aed96e0-db8e-4bf0-a866-b7492408cd65",
+      "projectIndex": "Mitsubishi Splits | 1.2.1 | მონუმენტი 1880 | 22,240.00 | GEL | 12.03.2020",
+      "projectName": "Mitsubishi Splits",
+      "counteragent": "მონუმენტი 1880 (ს.კ. 402159980) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "5ba10e73-ad9a-41dc-99a7-2d0d2442a590",
+      "projectIndex": "Mitsubisi Vasilieva | 1.1.3 | ნატალია ვასილიევა | 1,900.00 | GEL | 29.11.2024",
+      "projectName": "Mitsubisi Vasilieva",
+      "counteragent": "ნატალია ვასილიევა (ს.კ. 01019013928) - ფიზ. პირი",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "7bc35f3e-94db-44b7-88fd-d23a90501f4d",
+      "projectIndex": "Modus Oth | 1.1.3 | მოდუსი | 260.00 | USD | 01.09.2023",
+      "projectName": "Modus Oth",
+      "counteragent": "მოდუსი (ს.კ. 245565669) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "a9b6febd-3a47-4dfb-acc0-be284a1fe961",
+      "projectIndex": "Modus PU Duct | 1.2.1 | მეპერსი | 109,423.76 | GEL | 10.05.2019",
+      "projectName": "Modus PU Duct",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "fd1edf0d-38f3-4dad-bd01-a54531cad071",
+      "projectIndex": "Modus VRV | 1.2.1 | მეპერსი | 11,810.00 | USD | 17.05.2019",
+      "projectName": "Modus VRV",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "2a366a59-81bc-43f7-abdb-194c81dcaa00",
+      "projectIndex": "Molashvili Auto | 1.3.1 | ანზორ მოლაშვილი | 3,000.00 | GEL | 26.07.2024",
+      "projectName": "Molashvili Auto",
+      "counteragent": "ანზორ მოლაშვილი (ს.კ. 40001004103) - ინდ. მეწარმე",
+      "fcCode": "1.3.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "4631583d-647c-4d35-b27c-0f6c2495469b",
+      "projectIndex": "Monadirishvili - Mitsubishi Conditioner | 1.2.1 | შოთა მონადირიშვილი | 1,380.00 | GEL | 06.06.2022",
+      "projectName": "Monadirishvili - Mitsubishi Conditioner",
+      "counteragent": "შოთა მონადირიშვილი (ს.კ. 01024051928) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "ac2abdf7-c970-467c-af5b-35cf909642f4",
+      "projectIndex": "Moxy Hotel Rooftop Service | 1.2.3 | ვერგე | 2,250.00 | GEL | 20.10.2022",
+      "projectName": "Moxy Hotel Rooftop Service",
+      "counteragent": "ვერგე (ს.კ. 425365507) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "a01720ab-7170-466b-916a-85a0ee7dfb6a",
+      "projectIndex": "Moxy hotel Service | 1.2.3 | ვერგე | 1,300.00 | GEL | 13.07.2022",
+      "projectName": "Moxy hotel Service",
+      "counteragent": "ვერგე (ს.კ. 425365507) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "da66f037-6e74-4365-89ec-71c75e6a827f",
+      "projectIndex": "Moxy Zaabruken Hotel 1 | 1.1.3 | ჯი-ემ-თი სასტუმროები | 600.00 | USD | 24.02.2021",
+      "projectName": "Moxy Zaabruken Hotel 1",
+      "counteragent": "ჯი-ემ-თი სასტუმროები (ს.კ. 203842333) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "9872b8ef-9c0d-4988-b318-d5961b54d631",
+      "projectIndex": "Moxy Zaabruken Hotel 2 | 1.1.3 | ჯი-ემ-თი სასტუმროები | 250.00 | USD | 25.02.2021",
+      "projectName": "Moxy Zaabruken Hotel 2",
+      "counteragent": "ჯი-ემ-თი სასტუმროები (ს.კ. 203842333) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "bdc6a343-35df-4438-b271-a93aa6cb9752",
+      "projectIndex": "Mshvildosani - Mitsubishi Conditioner | 1.2.1 | მშვილდოსანი | 1,870.00 | GEL | 11.11.2021",
+      "projectName": "Mshvildosani - Mitsubishi Conditioner",
+      "counteragent": "მშვილდოსანი (ს.კ. 404385401) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "3fb97ee9-631f-42c6-bdca-dbfd70394b1e",
+      "projectIndex": "Multisplit | 1.2.1 | დავით ნიკოლეიშვილი | 7,675.00 | USD | 19.05.2023",
+      "projectName": "Multisplit",
+      "counteragent": "დავით ნიკოლეიშვილი (ს.კ. 01027021475) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "a2e3f215-3821-413c-986a-762d210a2b0c",
+      "projectIndex": "Multisplit | 1.2.1 | ეკატერინე გელაშვილი | 2,850.00 | GEL | 25.11.2024",
+      "projectName": "Multisplit",
+      "counteragent": "ეკატერინე გელაშვილი (ს.კ. 01023000852) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "c18ad321-297a-4ccd-a5e3-8012938b4b82",
+      "projectIndex": "N13 Elevator board | 1.1.3 | გალერია თბილისი | 600.00 | USD | 24.11.2020",
+      "projectName": "N13 Elevator board",
+      "counteragent": "გალერია თბილისი (ს.კ. 204558497) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "3da92b0d-9fff-4b92-aa85-26d103a4e032",
+      "projectIndex": "N2 lift service | 1.1.3 | გალერია თბილისი | 200.00 | GEL | 26.10.2020",
+      "projectName": "N2 lift service",
+      "counteragent": "გალერია თბილისი (ს.კ. 204558497) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "c7c47b8c-a05b-4f2f-89f5-5fcc2dca9f16",
+      "projectIndex": "Nasidze 20 | 1.1.2 | ლაბარტყავა მარიამ | 200.00 | GEL | 01.01.2024",
+      "projectName": "Nasidze 20",
+      "counteragent": "ლაბარტყავა მარიამ (ს.კ. 01008043151) - ფიზ. პირი",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "3cedf6a3-8ad9-4cf7-bd9b-fa7b624e1742",
+      "projectIndex": "Ninotsminda - Mitsubishi Conditioner | 1.2.1 | ნინოწმინდა | 3,590.00 | GEL | 16.05.2022",
+      "projectName": "Ninotsminda - Mitsubishi Conditioner",
+      "counteragent": "ნინოწმინდა (ს.კ. 438115754) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "c5f7c66d-c0f5-4bd7-868a-bd0bf8cbccb4",
+      "projectIndex": "Norway Embassy MEP1 | 1.2.1 | ნორვეგიის სამეფოს საელჩო ქ. თბილისში | 5,250.00 | GEL | 01.06.2020",
+      "projectName": "Norway Embassy MEP1",
+      "counteragent": "ნორვეგიის სამეფოს საელჩო ქ. თბილისში (ს.კ. 205376608) - დიპლომატი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "5d7f9683-902a-436b-86b8-f3cf981f6c85",
+      "projectIndex": "OFFICE Dar Building | 1.1.2 | Dar Building | 1.00 | USD | 05.12.2020",
+      "projectName": "OFFICE Dar Building",
+      "counteragent": "Dar Building (ს.კ. 445420875) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "17aa883e-0952-423f-92ab-ab644127c587",
+      "projectIndex": "Okrokana  MEP | 1.2.1 | გრინ ლაიფ | 22,060.00 | USD | 23.04.2021",
+      "projectName": "Okrokana  MEP",
+      "counteragent": "გრინ ლაიფ (ს.კ. 404477730) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "740b928c-4173-4a00-8523-a29d1c596ecc",
+      "projectIndex": "Orbi Bakuriani VRV | 1.2.1 | მეპერსი | 87,484.25 | USD | 04.03.2020",
+      "projectName": "Orbi Bakuriani VRV",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "5564fe9d-da57-4c23-b925-e2d095d97d24",
+      "projectIndex": "ORBI Office Lift | 1.1.2 | ორბი ჯგუფი ბათუმი | 1.00 | USD | 19.11.2019",
+      "projectName": "ORBI Office Lift",
+      "counteragent": "ორბი ჯგუფი ბათუმი (ს.კ. 445468798) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "dce1fba2-ac1d-4481-b551-0d2215188884",
+      "projectIndex": "Orbi Other | 1.1.2 | ორბი ჯგუფი ბათუმი | 1.00 | GEL | 01.01.2020",
+      "projectName": "Orbi Other",
+      "counteragent": "ორბი ჯგუფი ბათუმი (ს.კ. 445468798) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "30259522-170b-46db-bcea-36d4c04025b4",
+      "projectIndex": "Paata House | 1.2.1 | პაატა დვალიშვილი | 2,812.46 | USD | 20.07.2020",
+      "projectName": "Paata House",
+      "counteragent": "პაატა დვალიშვილი (ს.კ. 01001011731) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "a7467957-6d0f-46f0-9188-0491dd97f3f8",
+      "projectIndex": "Paata House Splits | 1.2.1 | პაატა დვალიშვილი | 5,670.00 | GEL | 23.10.2020",
+      "projectName": "Paata House Splits",
+      "counteragent": "პაატა დვალიშვილი (ს.კ. 01001011731) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "7bf44d02-b0dc-4c8a-b073-3af38b2cf72c",
+      "projectIndex": "Paata House Thermostats | 1.2.1 | პაატა დვალიშვილი | 800.00 | USD | 18.12.2020",
+      "projectName": "Paata House Thermostats",
+      "counteragent": "პაატა დვალიშვილი (ს.კ. 01001011731) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "d2bbf476-3a4e-41dc-8ab6-f79660138b81",
+      "projectIndex": "Paco | 1.2.1 | აიემდი | 51,640.00 | USD | 06.06.2023",
+      "projectName": "Paco",
+      "counteragent": "აიემდი (ს.კ. 405203462) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "e8cfb672-add5-4faa-ad22-a302a1962bb4",
+      "projectIndex": "Palm Apartments Service | 1.1.2 | პალმ აპარტამენტი | 177.00 | USD | 01.01.2024",
+      "projectName": "Palm Apartments Service",
+      "counteragent": "პალმ აპარტამენტი (ს.კ. 445614381) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "4bb82ea0-b8e9-46e3-a328-811454f6cb93",
+      "projectIndex": "Panel repair | 1.1.3 | ეიესჯისოფტ | 783.00 | GEL | 01.10.2025",
+      "projectName": "Panel repair",
+      "counteragent": "ეიესჯისოფტ (ს.კ. 402128149) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "d43b879c-f195-4d3e-9993-6904d02fe92e",
+      "projectIndex": "Park Home Mziuri Rooftop | 1.2.1 | თბილი სახლი | 25,200.00 | EUR | 14.08.2023",
+      "projectName": "Park Home Mziuri Rooftop",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "dbacb19b-c9f3-43d5-b317-3aacc1ccaeac",
+      "projectIndex": "Parnavaz Mepis 26 | 1.1.2 | დიღომი 2ბ სერვისი | 300.00 | USD | 01.08.2023",
+      "projectName": "Parnavaz Mepis 26",
+      "counteragent": "დიღომი 2ბ სერვისი (ს.კ. 405476319) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "d0dfb7e1-9ca2-4e35-9f4f-7db378cc7b8b",
+      "projectIndex": "Philip Morries Elevator Repair | 1.1.3 | ჯი-ემ-თი სასტუმროები | 2,400.00 | GEL | 18.11.2022",
+      "projectName": "Philip Morries Elevator Repair",
+      "counteragent": "ჯი-ემ-თი სასტუმროები (ს.კ. 203842333) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "838b4e65-9a61-4673-a9df-1fd36bf906ac",
+      "projectIndex": "Piazza Oth | 1.2.1 | PIAZZA MANAGEMENT | 1,300.00 | USD | 15.12.2023",
+      "projectName": "Piazza Oth",
+      "counteragent": "PIAZZA MANAGEMENT (ს.კ. 445394369) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "53f2a0ef-69de-4231-8647-be271eaff618",
+      "projectIndex": "Poti Port Service | 1.2.3 | AHI Carrier Fzc | 2,000.00 | EUR | 04.09.2020",
+      "projectName": "Poti Port Service",
+      "counteragent": "AHI Carrier Fzc (ს.კ. ICE001727) - უცხოური საწარმო",
+      "fcCode": "1.2.3",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "b4b4f708-0972-42bd-817c-c52baa10aef0",
+      "projectIndex": "PU Ducts | 1.2.1 | თერმორუმი | 14,728.50 | GEL | 03.11.2020",
+      "projectName": "PU Ducts",
+      "counteragent": "თერმორუმი (ს.კ. 405134448) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "b1946c84-d9e0-40d3-87a7-af3ef7ed9984",
+      "projectIndex": "Pult | 1.2.1 | მაია ჩავლეიშვილი | 350.00 | GEL | 11.02.2025",
+      "projectName": "Pult",
+      "counteragent": "მაია ჩავლეიშვილი (ს.კ. 01021017124) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "3d1a5e81-49a0-4a46-a477-a230ab0cc121",
+      "projectIndex": "Qurcadze Parts | 1.2.1 | ქურცაძე ვასო | 950.00 | GEL | 16.07.2024",
+      "projectName": "Qurcadze Parts",
+      "counteragent": "ქურცაძე ვასო (ს.კ. 18001065894) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "9a0748f1-7447-4e99-b52a-c299b2be2267",
+      "projectIndex": "Ramada Melikishvili | 1.2.1 | მეპერსი | 312,660.96 | USD | 17.06.2019",
+      "projectName": "Ramada Melikishvili",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "300e878a-b016-48b5-a930-e3edeefb0fed",
+      "projectIndex": "Ramada Melikishvili Additional | 1.2.1 | მეპერსი | 11,636.28 | USD | 16.08.2019",
+      "projectName": "Ramada Melikishvili Additional",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "8c35ae1c-a6ab-42b6-9ee6-4fa33ce10e1e",
+      "projectIndex": "Redisson Red VRV | 1.2.1 | ბალტიის ბიზნეს განვითარება | 227,761.00 | USD | 05.04.2021",
+      "projectName": "Redisson Red VRV",
+      "counteragent": "ბალტიის ბიზნეს განვითარება (ს.კ. 400098078) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "bee6b355-8dd8-4dea-8792-d3f635cb2928",
+      "projectIndex": "Refugee Lost Parts | 1.1.3 | ანაგი | 5,000.00 | USD | 10.02.2026",
+      "projectName": "Refugee Lost Parts",
+      "counteragent": "ანაგი (ს.კ. 245416401) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "28f1450e-df95-400c-b54e-5ff7719aad17",
+      "projectIndex": "Refugee Lost Parts | 1.1.3 | ანაგი | 5,000.00 | USD | 19.02.2026",
+      "projectName": "Refugee Lost Parts",
+      "counteragent": "ანაგი (ს.კ. 245416401) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "7086f521-987e-4ec3-9211-7015cc98d385",
+      "projectIndex": "Refugee Lost Parts | 1.1.3 | ანაგი | 5,000.00 | USD | 19.02.2026",
+      "projectName": "Refugee Lost Parts",
+      "counteragent": "ანაგი (ს.კ. 245416401) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "3c0253d4-aa33-4d4b-93ba-6e95a9b80d64",
+      "projectIndex": "Refugee Lost Parts | 1.1.3 | ანაგი | 6,000.00 | USD | 01.02.2026",
+      "projectName": "Refugee Lost Parts",
+      "counteragent": "ანაგი (ს.კ. 245416401) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "7887aca3-740d-4e53-9411-ba8242f5967c",
+      "projectIndex": "Rehab Sewage Materials | 1.2.1 | სანა მენტე | 122,329.89 | GEL | 01.10.2023",
+      "projectName": "Rehab Sewage Materials",
+      "counteragent": "სანა მენტე (ს.კ. 405627022) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "89e63c65-0c75-4997-9a1b-929d9804c011",
+      "projectIndex": "Rooftop Parts | 1.2.1 | ჯი-ემ-თი მთაწმინდა | 5,285.00 | EUR | 17.11.2022",
+      "projectName": "Rooftop Parts",
+      "counteragent": "ჯი-ემ-თი მთაწმინდა (ს.კ. 203843396) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "97c6ecba-da0f-4e2c-b8db-26993dfce122",
+      "projectIndex": "Rovshan Mamadovi | 1.2.1 | როვშან მამადოვი | 8,214.00 | USD | 17.06.2020",
+      "projectName": "Rovshan Mamadovi",
+      "counteragent": "როვშან მამადოვი (ს.კ. 67008001418) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "d6f67cb9-fc9f-480c-8810-a925042a1330",
+      "projectIndex": "SAKCABELI - Fan | 1.2.2 | ლენოქსი | 12,850.00 | GEL | 30.09.2022",
+      "projectName": "SAKCABELI - Fan",
+      "counteragent": "ლენოქსი (ს.კ. 418476893) - შპს",
+      "fcCode": "1.2.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "dc29629e-9a02-4442-b53f-71350cfb5a8f",
+      "projectIndex": "Samkharadze - 2 Units Mitsubishi Conditioner | 1.2.1 | ბეჟან სამხარაძე | 6,250.00 | GEL | 18.04.2022",
+      "projectName": "Samkharadze - 2 Units Mitsubishi Conditioner",
+      "counteragent": "ბეჟან სამხარაძე (ს.კ. 01024029963) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "d126262c-dbc0-459a-9ecf-e2cee027e985",
+      "projectIndex": "Saturday Mode | 1.1.3 | გოლდენ გრუპ | 3,900.00 | GEL | 01.10.2022",
+      "projectName": "Saturday Mode",
+      "counteragent": "გოლდენ გრუპ (ს.კ. 445519831) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "b2a08978-d922-469e-8e22-8010dcebc223",
+      "projectIndex": "SAUDI | 1.2.1 | CENTER OF ELECTRICAT GOODS | 10,708.00 | EUR | 25.03.2021",
+      "projectName": "SAUDI",
+      "counteragent": "CENTER OF ELECTRICAT GOODS (ს.კ. ICE001762) - უცხოური საწარმო",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "ccd89e5c-8a53-490c-9b49-ebb1d99952b7",
+      "projectIndex": "Scaffolding Rent | 1.3.2 | მეპერსი | 1,800.00 | GEL | 22.01.2025",
+      "projectName": "Scaffolding Rent",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.3.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "d68a9652-dc80-4115-b65c-6952cf3030df",
+      "projectIndex": "Server | 1.2.3 | შპს წინანდლის მამულები | 2,825.00 | USD | 24.09.2024",
+      "projectName": "Server",
+      "counteragent": "შპს წინანდლის მამულები (ს.კ. 204557372) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "92925da9-ca4e-467c-996d-6feda3590026",
+      "projectIndex": "Service Irakli Kirtshkhalia | 1.1.2 | ნინო კირცხალია | 250.00 | GEL | 01.05.2023",
+      "projectName": "Service Irakli Kirtshkhalia",
+      "counteragent": "ნინო კირცხალია (ს.კ. 01031005362) - ფიზ. პირი",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "94f792a8-0a79-4bfe-aa88-7289c35686ca",
+      "projectIndex": "Seturidze - Mitsubishi Conditioner | 1.2.1 | ნიკოლოზ სეთურიძე | 3,370.00 | GEL | 13.06.2022",
+      "projectName": "Seturidze - Mitsubishi Conditioner",
+      "counteragent": "ნიკოლოზ სეთურიძე (ს.კ. 01017017831) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "9bcd48ab-d336-44bf-a18f-40a488d486dc",
+      "projectIndex": "Shartava Meppers | 1.1.2 | Budget Dummy | 1,000.00 | USD | 01.01.2024",
+      "projectName": "Shartava Meppers",
+      "counteragent": "Budget Dummy (ს.კ. ICE003177) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "e0320f62-e537-44f1-a7ba-4e5e09fd3397",
+      "projectIndex": "Shatberashvili 45 Oth | 1.1.3 | შატბერაშვილის 45 | 750.00 | GEL | 27.11.2024",
+      "projectName": "Shatberashvili 45 Oth",
+      "counteragent": "შატბერაშვილის 45 (ს.კ. 405629583) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "1b32c213-6c67-4c1a-a767-a06e197a43ae",
+      "projectIndex": "Shato Mukhrani Filters | 1.2.1 | შატო მუხრანი | 545.00 | USD | 26.07.2022",
+      "projectName": "Shato Mukhrani Filters",
+      "counteragent": "შატო მუხრანი (ს.კ. 205000381) - სს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "798dcba8-c0cf-4caa-83e5-397fd911aaf0",
+      "projectIndex": "Shato Mukhrani Gen-Set 2020 | 1.2.1 | შატო მუხრანი | 55,680.00 | EUR | 08.06.2020",
+      "projectName": "Shato Mukhrani Gen-Set 2020",
+      "counteragent": "შატო მუხრანი (ს.კ. 205000381) - სს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "0308aec3-30a9-411f-9805-0d2f71f2198b",
+      "projectIndex": "Shvela | 1.1.2 | შველა | 1.00 | USD | 15.06.2016",
+      "projectName": "Shvela",
+      "counteragent": "შველა (ს.კ. 448396021) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "2a5e8033-faf4-4fff-9566-79e0daff5dac",
+      "projectIndex": "Shyposha - Hilton Batumi  Apartment | 1.2.1 | ოლეკსანდრ შიპოშა | 1,250.00 | USD | 24.03.2022",
+      "projectName": "Shyposha - Hilton Batumi  Apartment",
+      "counteragent": "ოლეკსანდრ შიპოშა (ს.კ. ICE003028) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "1fbccd92-f5a8-4225-91dd-dcd8df379bae",
+      "projectIndex": "SOLOLAKI VRF | 1.2.1 | სტუდიო  | 5,350.00 | USD | 29.04.2021",
+      "projectName": "SOLOLAKI VRF",
+      "counteragent": "სტუდიო  (ს.კ. 405429987) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "7370930e-dc0d-46c9-b0e3-571bcb140d9a",
+      "projectIndex": "Split Mitsubishi Conditioners (R410A) | 1.2.1 | გიორგი გულაშვილი | 10,420.00 | GEL | 12.10.2020",
+      "projectName": "Split Mitsubishi Conditioners (R410A)",
+      "counteragent": "გიორგი გულაშვილი (ს.კ. 01026006745) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "a00bf232-e4d4-40b5-88ad-806bdd7c6014",
+      "projectIndex": "SRK45ZSP-S/SRC45ZSP-S | 1.2.1 | აკაკი მგელაძე | 2,260.00 | GEL | 10.10.2020",
+      "projectName": "SRK45ZSP-S/SRC45ZSP-S",
+      "counteragent": "აკაკი მგელაძე (ს.კ. 61001034433) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "80eeafcf-0938-46eb-9d47-0f0ad6273a08",
+      "projectIndex": "Status House | 1.1.2 | როსტომ თავდგირიძე | 708.00 | GEL | 01.02.2026",
+      "projectName": "Status House",
+      "counteragent": "როსტომ თავდგირიძე (ს.კ. 61002003376) - ფიზ. პირი",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "9b64ad53-7bfe-490f-8da4-bf87df5fa6ae",
+      "projectIndex": "Stela | 1.2.1 | შპს სტელა + | 5,700.00 | USD | 25.09.2020",
+      "projectName": "Stela",
+      "counteragent": "შპს სტელა + (ს.კ. 418475974) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "26b0b776-c82e-4bf8-b851-6125c7d5a28f",
+      "projectIndex": "Summit | 1.1.2 | სამიტი ქონსთრაქშენ | 200.00 | USD | 01.01.2024",
+      "projectName": "Summit",
+      "counteragent": "სამიტი ქონსთრაქშენ (ს.კ. 406328184) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "174e78c9-d1af-4a01-9090-699e21e482fa",
+      "projectIndex": "Sunrise Shartava Oth | 1.1.3 | სანრაიზ დეველოპმენტი | 1,237.00 | USD | 23.11.2024",
+      "projectName": "Sunrise Shartava Oth",
+      "counteragent": "სანრაიზ დეველოპმენტი (ს.კ. 405285221) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "e33988dd-3f3b-4397-b736-73c95d7557ae",
+      "projectIndex": "Supreme Solutions | 1.2.1 | სუპრემე სოლუთიონს | 2,975.00 | USD | 28.09.2021",
+      "projectName": "Supreme Solutions",
+      "counteragent": "სუპრემე სოლუთიონს (ს.კ. 445587320) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "8328e43a-5a22-4272-94bf-82dfce48267a",
+      "projectIndex": "Supreme Solutions Var | 1.2.1 | სუპრემე სოლუთიონს | 3,790.00 | USD | 22.08.2023",
+      "projectName": "Supreme Solutions Var",
+      "counteragent": "სუპრემე სოლუთიონს (ს.კ. 445587320) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "e8b09c68-f084-4ac0-9095-d107a7a5b682",
+      "projectIndex": "Supreme Solutions VRV | 1.2.1 | სუპრემე სოლუთიონს | 1,895.00 | USD | 17.12.2021",
+      "projectName": "Supreme Solutions VRV",
+      "counteragent": "სუპრემე სოლუთიონს (ს.კ. 445587320) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "546c5d60-9463-422a-a7cc-b2c425b16a6b",
+      "projectIndex": "Surmanidzeebi | 1.1.2 | სამშენებლო კომპანია სურმანიძეები | 708.00 | USD | 01.01.2024",
+      "projectName": "Surmanidzeebi",
+      "counteragent": "სამშენებლო კომპანია სურმანიძეები (ს.კ. 445455846) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "6dbef53f-401e-44e0-9814-80dddcb72384",
+      "projectIndex": "Tabori Resorts | 1.2.1 | თაბორი რიზორთსი | 2,035.00 | USD | 17.05.2021",
+      "projectName": "Tabori Resorts",
+      "counteragent": "თაბორი რიზორთსი (ს.კ. 405147755) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "f1bf095e-8231-4ce2-896c-292cd8300a73",
+      "projectIndex": "Talakvadze - Mitsubishi Split Conditioner | 1.2.1 | ანა თალაკვაძე | 3,590.00 | GEL | 28.06.2021",
+      "projectName": "Talakvadze - Mitsubishi Split Conditioner",
+      "counteragent": "ანა თალაკვაძე (ს.კ. 01001003747) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "07b520d4-d4e2-4fa7-b51c-f481122cec43",
+      "projectIndex": "Tamarashviili Elevator | 1.1.2 | ადალისკ სერვის ჯორჯია | 300.00 | GEL | 01.03.2026",
+      "projectName": "Tamarashviili Elevator",
+      "counteragent": "ადალისკ სერვის ჯორჯია (ს.კ. 406548259) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "fa5ac42a-39b7-43c8-ad78-3b4862ec91b4",
+      "projectIndex": "Tavadze Oth | 1.2.1 | თავაძე თამაზი | 2,200.00 | GEL | 02.09.2024",
+      "projectName": "Tavadze Oth",
+      "counteragent": "თავაძე თამაზი (ს.კ. 01019014393) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "0477e04f-a631-4e98-a274-bd38f2269178",
+      "projectIndex": "Tavartkiladze - Mitsubishi Split Conditioner | 1.2.1 | ირაკლი თავართქილაძე | 1,380.00 | GEL | 06.07.2021",
+      "projectName": "Tavartkiladze - Mitsubishi Split Conditioner",
+      "counteragent": "ირაკლი თავართქილაძე (ს.კ. 61001014004) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "31d74da5-397f-408b-b0f4-b613ac0a0a13",
+      "projectIndex": "TBC Additional FCU | 1.2.1 | დნთ ქონსთრაქშენ | 9,100.00 | EUR | 16.10.2025",
+      "projectName": "TBC Additional FCU",
+      "counteragent": "დნთ ქონსთრაქშენ (ს.კ. 405418196) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "7213db89-283a-482f-a6cc-6b9783c8b947",
+      "projectIndex": "TBC AHU | 1.2.1 | დნთ ქონსთრაქშენ | 313,042.00 | EUR | 22.12.2022",
+      "projectName": "TBC AHU",
+      "counteragent": "დნთ ქონსთრაქშენ (ს.კ. 405418196) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "34ddb99b-0555-4a3e-9e84-ce906d1e5f4d",
+      "projectIndex": "TBC Chillers | 1.2.1 | DT MUHENDISLIK VE TAAHHUT A.S. | 465,028.00 | USD | 22.12.2022",
+      "projectName": "TBC Chillers",
+      "counteragent": "DT MUHENDISLIK VE TAAHHUT A.S. (ს.კ. ICE003079) - უცხოური საწარმო",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "df3bc660-2d88-4c2e-919b-a5268936542c",
+      "projectIndex": "TBC Fancoils | 1.2.1 | DT MUHENDISLIK VE TAAHHUT A.S. | 281,128.00 | EUR | 22.12.2022",
+      "projectName": "TBC Fancoils",
+      "counteragent": "DT MUHENDISLIK VE TAAHHUT A.S. (ს.კ. ICE003079) - უცხოური საწარმო",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "eb0efe21-f26b-4e3c-a378-8c460bec7d38",
+      "projectIndex": "Tbilisi Central Conditioners system | 1.2.1 | თბილისი ცენტრალი | 34,060.00 | USD | 05.08.2021",
+      "projectName": "Tbilisi Central Conditioners system",
+      "counteragent": "თბილისი ცენტრალი (ს.კ. 205129653) - სს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "b4d90ca1-ab04-40a7-93be-f9b4f171032d",
+      "projectIndex": "Tbilisi Central MHI Compressor | 1.2.1 | თბილისი ცენტრალი | 5,920.00 | USD | 12.07.2021",
+      "projectName": "Tbilisi Central MHI Compressor",
+      "counteragent": "თბილისი ცენტრალი (ს.კ. 205129653) - სს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "a17d631b-d5a2-41ea-ad41-46dfd5b1d2da",
+      "projectIndex": "Tbilisi Gardens Oth | 1.1.3 | BD Property | 1,400.00 | GEL | 18.10.2024",
+      "projectName": "Tbilisi Gardens Oth",
+      "counteragent": "BD Property (ს.კ. 404390967) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "ea8c475c-caa4-4bf8-ab80-24d6d1a9fb53",
+      "projectIndex": "Tegeta Other Repair | 1.2.3 | თეგეტა მოტორსი | 3,160.00 | GEL | 22.04.2025",
+      "projectName": "Tegeta Other Repair",
+      "counteragent": "თეგეტა მოტორსი (ს.კ. 202177205) - შპს",
+      "fcCode": "1.2.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "64b3e7cb-aedc-4b4e-a83d-7722f86b213e",
+      "projectIndex": "Telegraph AHU | 1.2.1 | დნთ ქონსთრაქშენ | 178,165.00 | EUR | 01.04.2024",
+      "projectName": "Telegraph AHU",
+      "counteragent": "დნთ ქონსთრაქშენ (ს.კ. 405418196) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "426e8878-2ce5-4f00-bb0d-8b61642149ba",
+      "projectIndex": "Telegraph Ahu Additional | 1.2.1 | დნთ ქონსთრაქშენ | 28,000.00 | EUR | 14.05.2025",
+      "projectName": "Telegraph Ahu Additional",
+      "counteragent": "დნთ ქონსთრაქშენ (ს.კ. 405418196) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "91658558-ce51-4156-bea8-3b5d6362dad3",
+      "projectIndex": "Telegraph Chiller | 1.2.1 | DT MUHENDISLIK VE TAAHHUT A.S. | 311,588.00 | EUR | 27.03.2024",
+      "projectName": "Telegraph Chiller",
+      "counteragent": "DT MUHENDISLIK VE TAAHHUT A.S. (ს.კ. ICE003079) - უცხოური საწარმო",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "d522af64-5434-40b5-ab55-2e7d15d39ac9",
+      "projectIndex": "Telegraph Fancoils | 1.2.1 | DT MUHENDISLIK VE TAAHHUT A.S. | 175,247.00 | EUR | 22.09.2023",
+      "projectName": "Telegraph Fancoils",
+      "counteragent": "DT MUHENDISLIK VE TAAHHUT A.S. (ს.კ. ICE003079) - უცხოური საწარმო",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "c2527c31-fc87-4dac-990a-f13afa377510",
+      "projectIndex": "TELEGRAPH FCU MOTOR | 1.2.1 | დნთ ქონსთრაქშენ | 6,750.00 | USD | 26.06.2025",
+      "projectName": "TELEGRAPH FCU MOTOR",
+      "counteragent": "დნთ ქონსთრაქშენ (ს.კ. 405418196) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "76dff0ea-9a54-4593-bd6e-27bb5653af7c",
+      "projectIndex": "Telegraph Hotel Humidifier | 1.2.1 | დნთ ქონსთრაქშენ | 2,040.00 | USD | 01.07.2025",
+      "projectName": "Telegraph Hotel Humidifier",
+      "counteragent": "დნთ ქონსთრაქშენ (ს.კ. 405418196) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "49335194-4507-4c89-82fe-fae37caa6ee3",
+      "projectIndex": "Thermoroom 2 units | 1.2.1 | თერმორუმი | 2,640.00 | GEL | 13.10.2020",
+      "projectName": "Thermoroom 2 units",
+      "counteragent": "თერმორუმი (ს.კ. 405134448) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "e8d5552e-313d-4fcf-9d30-b98b197b6acc",
+      "projectIndex": "Thermostats and joints | 1.2.1 | ბალტიის ბიზნეს განვითარება | 17,882.00 | USD | 28.03.2021",
+      "projectName": "Thermostats and joints",
+      "counteragent": "ბალტიის ბიზნეს განვითარება (ს.კ. 400098078) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "6e0930c6-bd7b-47d3-8c6d-2c31634a01e6",
+      "projectIndex": "Toshiba Outdoor Unit | 1.2.1 | პენსილვანიის (აშშ) საგუშაგო კოშკის, ბიბლიისა და\r\nტრაქტატების საზოგადოების ფილიალი საქართველოში | 320.00 | USD | 26.08.2021",
+      "projectName": "Toshiba Outdoor Unit",
+      "counteragent": "პენსილვანიის (აშშ) საგუშაგო კოშკის, ბიბლიისა და\r\nტრაქტატების საზოგადოების ფილიალი საქართველოში (ს.კ. 206093494) - უცხოური არასამეწარმეო იურიდიული პირის ფილიალი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "c5a02d60-3c42-41be-b64a-371c3fd08fda",
+      "projectIndex": "Toshiba Split | 1.2.1 | გიორგი ნიქაბაძე | 2,000.00 | GEL | 16.07.2022",
+      "projectName": "Toshiba Split",
+      "counteragent": "გიორგი ნიქაბაძე (ს.კ. 01030030896) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "11037c10-1318-4614-a60f-754e1147ce9e",
+      "projectIndex": "Tsirekidze - Mitsubishi Split Conditioner | 1.2.1 | გრიგოლ ცირეკიძე | 2,900.00 | GEL | 02.06.2021",
+      "projectName": "Tsirekidze - Mitsubishi Split Conditioner",
+      "counteragent": "გრიგოლ ცირეკიძე (ს.კ. 01007008822) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "5f53d4ef-21df-4a59-8401-bb1245c0d8b9",
+      "projectIndex": "Tskhneti House Valves | 1.2.1 | მეპერსი | 3,658.89 | EUR | 15.06.2020",
+      "projectName": "Tskhneti House Valves",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "5ba4654c-95a6-41a4-acf8-2e9cf225d016",
+      "projectIndex": "UNIX Ipolit Ivanov | 1.1.3 | იუნიქს ქონსთრაქშენ კომპანი | 773.00 | USD | 22.02.2021",
+      "projectName": "UNIX Ipolit Ivanov",
+      "counteragent": "იუნიქს ქონსთრაქშენ კომპანი (ს.კ. 405133822) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "3b80beb6-c20b-4ecb-81a6-0527b796a706",
+      "projectIndex": "UNIX MARSEL Oth | 1.1.3 | ფრანგული უბანი ფრანგული უბნის \"დ\" და \"ე\" ბლოკების ამხანაგობა | 250.00 | USD | 16.05.2024",
+      "projectName": "UNIX MARSEL Oth",
+      "counteragent": "ფრანგული უბანი ფრანგული უბნის \"დ\" და \"ე\" ბლოკების ამხანაგობა (ს.კ. 200316657) - ამხანაგობა",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "91ee07cf-9713-420d-a132-7aefd9a5f054",
+      "projectIndex": "UNIX Marselle 1 | 1.1.2 | იუნიქს ქონსთრაქშენ კომპანი | 1.00 | GEL | 01.07.2020",
+      "projectName": "UNIX Marselle 1",
+      "counteragent": "იუნიქს ქონსთრაქშენ კომპანი (ს.კ. 405133822) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "8852c85c-3176-4651-bcbb-8585b2842c8c",
+      "projectIndex": "Unix Marselle 2 | 1.1.2 | იუნიქს ქონსთრაქშენ კომპანი | 800.00 | USD | 28.09.2020",
+      "projectName": "Unix Marselle 2",
+      "counteragent": "იუნიქს ქონსთრაქშენ კომპანი (ს.კ. 405133822) - შპს",
+      "fcCode": "1.1.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "61bdad7e-951a-49e1-ad20-effc58d831c0",
+      "projectIndex": "V-JEO Restaurant Oth | 1.2.1 | ვ-ჯეო რესტორნები | 4,550.00 | USD | 18.06.2024",
+      "projectName": "V-JEO Restaurant Oth",
+      "counteragent": "ვ-ჯეო რესტორნები (ს.კ. 405404076) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "3455d38b-7359-49d2-8da9-d57e251d22bc",
+      "projectIndex": "Vake Apartment | 1.2.1 | გიდანი | 13,930.00 | USD | 01.10.2021",
+      "projectName": "Vake Apartment",
+      "counteragent": "გიდანი (ს.კ. 205259780) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "b62a9a1e-f268-4c63-8f98-547fac6ebcea",
+      "projectIndex": "Vake Ramishvili Refregerant | 1.2.1 | ინდეკო სი ემ  | 6,100.00 | GEL | 01.10.2024",
+      "projectName": "Vake Ramishvili Refregerant",
+      "counteragent": "ინდეკო სი ემ  (ს.კ. 405508339) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "f4a2edee-7e84-4f30-91ba-5752286bd0a1",
+      "projectIndex": "Valves Med. University | 1.2.1 | მეპერსი | 881.46 | EUR | 16.12.2019",
+      "projectName": "Valves Med. University",
+      "counteragent": "მეპერსი (ს.კ. 402121887) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "EUR"
+    },
+    {
+      "projectUuid": "a87c9332-a4ab-4fb3-b4dd-34e3c522dd56",
+      "projectIndex": "Varazi 99 D | 1.2.2 | ბენე კომფორტი | 200.00 | USD | 10.05.2025",
+      "projectName": "Varazi 99 D",
+      "counteragent": "ბენე კომფორტი (ს.კ. 405384383) - შპს",
+      "fcCode": "1.2.2",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "46ced0cf-f8e8-40db-8161-4be66840d7fb",
+      "projectIndex": "Vehicle TOYOTA 2014 | 1.3.1 | გიორგი ბახტაძე | 69,385.00 | GEL | 01.11.2022",
+      "projectName": "Vehicle TOYOTA 2014",
+      "counteragent": "გიორგი ბახტაძე (ს.კ. 01024067298) - ფიზ. პირი",
+      "fcCode": "1.3.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "f26f4e6a-f817-4b50-93e7-0f8c69aabd74",
+      "projectIndex": "Vekua Oth | 1.2.1 | ვეკუა ლაშა | 2,450.00 | GEL | 15.05.2024",
+      "projectName": "Vekua Oth",
+      "counteragent": "ვეკუა ლაშა (ს.კ. 01027060345) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "9c110e19-ca3e-4aa2-876e-13dc3ad8b746",
+      "projectIndex": "Verheij Property | 1.3.1 | ვერჰეიჯ ნორა | 30,000.00 | USD | 01.10.2023",
+      "projectName": "Verheij Property",
+      "counteragent": "ვერჰეიჯ ნორა (ს.კ. NV0C25JD1) - ფიზ. პირი",
+      "fcCode": "1.3.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "5bd4920c-8403-4ba4-b865-a271c999b332",
+      "projectIndex": "VOYARG ASSY CONTROL | 1.2.1 | ვოიარგ ლიმითედ | 2,800.00 | USD | 27.05.2022",
+      "projectName": "VOYARG ASSY CONTROL",
+      "counteragent": "ვოიარგ ლიმითედ (ს.კ. 405346102) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "52d886f8-9173-4e2d-9d73-fd44e28b55ca",
+      "projectIndex": "VRF | 1.2.1 | ნინო თავამაიშვილი | 8,720.00 | USD | 27.05.2025",
+      "projectName": "VRF",
+      "counteragent": "ნინო თავამაიშვილი (ს.კ. 33001020674) - ფიზ. პირი",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "95e2ef5c-9438-42f4-824b-80841e2868f7",
+      "projectIndex": "VRF Materials | 1.2.1 | სანა მენტე | 56,076.60 | GEL | 01.09.2023",
+      "projectName": "VRF Materials",
+      "counteragent": "სანა მენტე (ს.კ. 405627022) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "ab99535b-7282-4c49-99ad-b7b5c4bfc7b2",
+      "projectIndex": "VRF Sensor & Fan motor | 1.2.1 | თბილისი ცენტრალი | 680.00 | USD | 17.02.2021",
+      "projectName": "VRF Sensor & Fan motor",
+      "counteragent": "თბილისი ცენტრალი (ს.კ. 205129653) - სს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "1c4d425b-1862-4b65-9a50-f0827c6bbdb2",
+      "projectIndex": "Wendys Compressors | 1.2.1 | ვენჯორჯია | 6,505.00 | USD | 09.07.2021",
+      "projectName": "Wendys Compressors",
+      "counteragent": "ვენჯორჯია (ს.კ. 404885335) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "2c44b5d3-d4bb-4666-8eb0-1b61108abef7",
+      "projectIndex": "Zara Brush | 1.1.3 | Spanish Retail Georgia | 576.80 | USD | 03.03.2021",
+      "projectName": "Zara Brush",
+      "counteragent": "Spanish Retail Georgia (ს.კ. 404404774) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "f914effa-df0f-4fe1-bc99-203dbbe71cb4",
+      "projectIndex": "Zara City Mall | 1.1.3 | Spanish Retail Georgia | 576.80 | USD | 03.03.2021",
+      "projectName": "Zara City Mall",
+      "counteragent": "Spanish Retail Georgia (ს.კ. 404404774) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "USD"
+    },
+    {
+      "projectUuid": "57750850-228d-4061-97f3-70fd758f51c7",
+      "projectIndex": "Zara City Mall Elevator Details | 1.1.3 | Spanish Retail Georgia | 2,100.00 | GEL | 14.02.2024",
+      "projectName": "Zara City Mall Elevator Details",
+      "counteragent": "Spanish Retail Georgia (ს.კ. 404404774) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "2b109f1a-7ce1-4af8-a2e7-e0b90d88d0ed",
+      "projectIndex": "Zara Escalator Repair | 1.1.3 | Spanish Retail Georgia | 4,600.00 | GEL | 08.07.2025",
+      "projectName": "Zara Escalator Repair",
+      "counteragent": "Spanish Retail Georgia (ს.კ. 404404774) - შპს",
+      "fcCode": "1.1.3",
+      "currency": "GEL"
+    },
+    {
+      "projectUuid": "2f9e7948-8da7-4630-8e1f-2164cb9dc44f",
+      "projectIndex": "Zurab Margvelashvili | 1.2.1 | თბილი სახლი | 13,310.00 | USD | 01.11.2023",
+      "projectName": "Zurab Margvelashvili",
+      "counteragent": "თბილი სახლი (ს.კ. 204976179) - შპს",
+      "fcCode": "1.2.1",
+      "currency": "USD"
+    }
+  ]
+}

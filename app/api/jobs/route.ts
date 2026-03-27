@@ -3,17 +3,16 @@ import { prisma } from '@/lib/prisma';
 import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
-// GET all jobs with project and brand info
+// GET all jobs with project info from job_projects junction table
 export async function GET(req: NextRequest) {
   try {
     const selection = await resolveInsiderSelection(req);
     const insider = selection.primaryInsider;
     const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
-    // Get query parameters
     const { searchParams } = new URL(req.url);
     const projectUuid = searchParams.get('projectUuid');
 
-    // Simple approach: if projectUuid provided, use raw query with brand info
+    // If projectUuid provided, return jobs linked to that project via job_projects
     if (projectUuid) {
       console.log('[GET /api/jobs] Fetching jobs for project:', projectUuid);
       const jobs = await prisma.$queryRawUnsafe(`
@@ -25,7 +24,6 @@ export async function GET(req: NextRequest) {
           j.is_ff,
           j.brand_uuid,
           b.name as brand_name,
-          -- Formatted job display: job_name | brand_name | floors | weight | FF
           CONCAT(
             j.job_name,
             ' | ',
@@ -37,8 +35,9 @@ export async function GET(req: NextRequest) {
             CASE WHEN j.is_ff THEN ' | FF' ELSE '' END
           ) as job_display
         FROM jobs j
+        INNER JOIN job_projects jp ON jp.job_uuid = j.job_uuid
         LEFT JOIN brands b ON j.brand_uuid = b.uuid
-        WHERE j.project_uuid = $1::uuid
+        WHERE jp.project_uuid = $1::uuid
           AND j.insider_uuid IN (${insiderUuidListSql})
           AND j.is_active = true
         ORDER BY j.job_name ASC
@@ -60,12 +59,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(serialized);
     }
 
-    // Otherwise, use the full query with all fields
+    // Full listing: each job is a single row, project info aggregated from job_projects
     const jobs = await prisma.$queryRawUnsafe(`
       SELECT 
         j.id,
         j.job_uuid,
-        j.project_uuid,
         j.job_name,
         j.floors,
         j.weight,
@@ -74,45 +72,56 @@ export async function GET(req: NextRequest) {
         j.is_active,
         j.created_at,
         j.updated_at,
-        p.project_index,
-        p.project_name,
         b.name as brand_name,
-        -- Computed job_index
+        -- Computed job_index using first project name
         CONCAT(
-          p.project_name,
+          COALESCE(
+            (SELECT p2.project_name FROM job_projects jp2 JOIN projects p2 ON jp2.project_uuid = p2.project_uuid WHERE jp2.job_uuid = j.job_uuid ORDER BY p2.project_index LIMIT 1),
+            '-'
+          ),
           ' | ',
           j.job_name,
           ' | ',
-          b.name,
+          COALESCE(b.name, '-'),
           ' | ',
-          j.floors,
+          COALESCE(j.floors::text, '-'),
           ' Floors',
           ' | ',
-          j.weight,
+          COALESCE(j.weight::text, '-'),
           ' kg',
           ' | ',
           CASE WHEN j.is_ff THEN 'FF' ELSE 'NOT FF' END
-        ) as job_index
+        ) as job_index,
+        -- All linked project indices (comma-separated)
+        (SELECT string_agg(DISTINCT p3.project_index, ', ' ORDER BY p3.project_index)
+         FROM job_projects jp3
+         JOIN projects p3 ON jp3.project_uuid = p3.project_uuid
+         WHERE jp3.job_uuid = j.job_uuid
+        ) as all_project_indices,
+        -- All linked project UUIDs
+        (SELECT array_agg(DISTINCT jp4.project_uuid::text)
+         FROM job_projects jp4
+         WHERE jp4.job_uuid = j.job_uuid
+        ) as project_uuids
       FROM jobs j
-      LEFT JOIN projects p ON j.project_uuid = p.project_uuid
       LEFT JOIN brands b ON j.brand_uuid = b.uuid
       WHERE j.insider_uuid IN (${insiderUuidListSql})
+        AND j.is_active = true
       ORDER BY j.created_at DESC
     `);
 
     const serialized = (jobs as any[]).map((job: any) => ({
       id: Number(job.id),
       jobUuid: job.job_uuid,
-      project_uuid: job.project_uuid,
       jobName: job.job_name,
       floors: job.floors,
       weight: job.weight,
       isFf: job.is_ff,
       brandUuid: job.brand_uuid,
-      projectIndex: job.project_index,
-      projectName: job.project_name,
       brandName: job.brand_name,
       jobIndex: job.job_index,
+      allProjectIndices: job.all_project_indices || '-',
+      projectUuids: job.project_uuids || [],
       is_active: job.is_active,
       createdAt: job.created_at,
       updatedAt: job.updated_at,
@@ -130,7 +139,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST - Create new job
+// POST - Create a single job row + link to projects via job_projects
 export async function POST(req: NextRequest) {
   const auth = await requireAuth();
   if (isAuthError(auth)) return auth;
@@ -154,7 +163,6 @@ export async function POST(req: NextRequest) {
       ? projectUuids.filter((item) => typeof item === 'string' && item.trim().length > 0)
       : (projectUuid ? [projectUuid] : []);
 
-    // Validation
     if (targetProjectUuids.length === 0 || !jobName || isFf === undefined) {
       return NextResponse.json(
         { error: 'Missing required fields' },
@@ -162,42 +170,51 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const created: Array<{ id: number | null; job_uuid: string | null }> = [];
-    const skipped: string[] = [];
+    // Check if job with same name already exists for this insider+brand
+    const existing = await prisma.$queryRaw`
+      SELECT id, job_uuid
+      FROM jobs
+      WHERE lower(job_name) = lower(${jobName})
+        AND insider_uuid = ${effectiveInsiderUuid}::uuid
+        AND COALESCE(brand_uuid::text, '') = COALESCE(${brandUuid}::text, '')
+        AND is_active = true
+      LIMIT 1
+    ` as any[];
 
-    for (const projectUuidItem of targetProjectUuids) {
-      const existing = await prisma.$queryRaw`
-        SELECT id, job_uuid
-        FROM jobs
-        WHERE project_uuid = ${projectUuidItem}::uuid
-          AND lower(job_name) = lower(${jobName})
-          AND is_active = true
-        LIMIT 1
-      ` as any[];
+    let jobId: number;
+    let jobUuidValue: string;
 
-      if (existing.length > 0) {
-        skipped.push(projectUuidItem);
-        continue;
-      }
-
+    if (existing.length > 0) {
+      // Job already exists - just add project bindings
+      jobId = Number(existing[0].id);
+      jobUuidValue = existing[0].job_uuid;
+    } else {
+      // Create single job row (no project_uuid on jobs table)
       const result = await prisma.$queryRaw`
-        INSERT INTO jobs (project_uuid, job_name, floors, weight, is_ff, brand_uuid, insider_uuid)
-        VALUES (${projectUuidItem}::uuid, ${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${brandUuid}::uuid, ${effectiveInsiderUuid}::uuid)
+        INSERT INTO jobs (job_name, floors, weight, is_ff, brand_uuid, insider_uuid)
+        VALUES (${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${brandUuid}::uuid, ${effectiveInsiderUuid}::uuid)
         RETURNING id, job_uuid
       ` as any[];
 
       const row = result[0];
-      created.push({
-        id: row?.id !== undefined && row?.id !== null ? Number(row.id) : null,
-        job_uuid: row?.job_uuid ?? null,
-      });
+      jobId = Number(row.id);
+      jobUuidValue = row.job_uuid;
+    }
+
+    // Insert project links into job_projects
+    let linkedCount = 0;
+    for (const projUuid of targetProjectUuids) {
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO job_projects (job_uuid, project_uuid) VALUES ($1::uuid, $2::uuid) ON CONFLICT (job_uuid, project_uuid) DO NOTHING`,
+        jobUuidValue, projUuid
+      );
+      linkedCount++;
     }
 
     return NextResponse.json({
-      created,
-      skippedProjectUuids: skipped,
-      createdCount: created.length,
-      skippedCount: skipped.length,
+      created: [{ id: jobId, job_uuid: jobUuidValue }],
+      linkedProjects: linkedCount,
+      createdCount: existing.length > 0 ? 0 : 1,
     });
   } catch (error: any) {
     console.error('POST /api/jobs error:', error);
@@ -208,7 +225,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PUT - Update job
+// PUT - Update job parameters + sync job_projects bindings
 export async function PUT(req: NextRequest) {
   const auth = await requireAuth();
   if (isAuthError(auth)) return auth;
@@ -246,12 +263,19 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const primaryProjectUuid = targetProjectUuids[0];
+    // Get the current job's UUID
+    const currentJob = await prisma.$queryRaw`
+      SELECT job_uuid FROM jobs WHERE id = ${id} LIMIT 1
+    ` as any[];
+    if (currentJob.length === 0) {
+      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
+    const jobUuidValue = currentJob[0].job_uuid;
 
+    // Update job parameters (no project_uuid on jobs table)
     await prisma.$queryRaw`
       UPDATE jobs
       SET 
-        project_uuid = ${primaryProjectUuid}::uuid,
         job_name = ${jobName},
         floors = ${floors ?? null},
         weight = ${weight ?? null},
@@ -262,23 +286,16 @@ export async function PUT(req: NextRequest) {
       WHERE id = ${id}
     `;
 
-    const additionalProjects = targetProjectUuids.slice(1);
-    for (const projectUuidItem of additionalProjects) {
-      const existing = await prisma.$queryRaw`
-        SELECT id
-        FROM jobs
-        WHERE project_uuid = ${projectUuidItem}::uuid
-          AND lower(job_name) = lower(${jobName})
-          AND is_active = true
-        LIMIT 1
-      ` as any[];
-
-      if (existing.length > 0) continue;
-
-      await prisma.$queryRaw`
-        INSERT INTO jobs (project_uuid, job_name, floors, weight, is_ff, brand_uuid, insider_uuid)
-        VALUES (${projectUuidItem}::uuid, ${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${brandUuid}::uuid, ${effectiveInsiderUuid}::uuid)
-      `;
+    // Sync job_projects: delete all existing, re-insert selected
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM job_projects WHERE job_uuid = $1::uuid`,
+      jobUuidValue
+    );
+    for (const projUuid of targetProjectUuids) {
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO job_projects (job_uuid, project_uuid) VALUES ($1::uuid, $2::uuid) ON CONFLICT (job_uuid, project_uuid) DO NOTHING`,
+        jobUuidValue, projUuid
+      );
     }
 
     return NextResponse.json({ success: true });
@@ -291,7 +308,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// DELETE - Soft delete job
+// DELETE - Soft delete job + clean up job_projects
 export async function DELETE(req: NextRequest) {
   const auth = await requireAuth();
   if (isAuthError(auth)) return auth;
@@ -306,11 +323,24 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    // Get job_uuid before deactivating
+    const job = await prisma.$queryRaw`
+      SELECT job_uuid FROM jobs WHERE id = ${id} LIMIT 1
+    ` as any[];
+
     await prisma.$queryRaw`
       UPDATE jobs
       SET is_active = false, updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
+
+    // Clean up job_projects entries
+    if (job.length > 0) {
+      await prisma.$executeRawUnsafe(
+        `DELETE FROM job_projects WHERE job_uuid = $1::uuid`,
+        job[0].job_uuid
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

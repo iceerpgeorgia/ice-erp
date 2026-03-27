@@ -1,0 +1,473 @@
+{
+  "totals": {
+    "syntheticTotal": 1000,
+    "withAnyMatch": 142,
+    "withSingleMatch": 138,
+    "withMultiMatch": 4,
+    "withoutMatch": 858
+  },
+  "report": [
+    {
+      "table": "GE65TB7856036050100002_TBC_GEL",
+      "mapping": {
+        "Date": "transaction_date",
+        "Amount": "account_currency_amount",
+        "CA account": "counteragent_account_number",
+        "Description": "description"
+      },
+      "syntheticTotal": 0,
+      "withAnyMatch": 0,
+      "withSingleMatch": 0,
+      "withMultiMatch": 0,
+      "withoutMatch": 0,
+      "samples": {
+        "matched": [],
+        "unmatched": []
+      }
+    },
+    {
+      "table": "GE74BG0000000586388146_BOG_USD",
+      "mapping": {
+        "Date": "transaction_date",
+        "Amount": "account_currency_amount",
+        "CA account": "counteragent_account_number",
+        "Description": "description"
+      },
+      "syntheticTotal": 0,
+      "withAnyMatch": 0,
+      "withSingleMatch": 0,
+      "withMultiMatch": 0,
+      "withoutMatch": 0,
+      "samples": {
+        "matched": [],
+        "unmatched": []
+      }
+    },
+    {
+      "table": "GE78BG0000000893486000_BOG_AED",
+      "mapping": {
+        "Date": "transaction_date",
+        "Amount": "account_currency_amount",
+        "CA account": "counteragent_account_number",
+        "Description": "description"
+      },
+      "syntheticTotal": 0,
+      "withAnyMatch": 0,
+      "withSingleMatch": 0,
+      "withMultiMatch": 0,
+      "withoutMatch": 0,
+      "samples": {
+        "matched": [],
+        "unmatched": []
+      }
+    },
+    {
+      "table": "GE78BG0000000893486000_BOG_CNY",
+      "mapping": {
+        "Date": "transaction_date",
+        "Amount": "account_currency_amount",
+        "CA account": "counteragent_account_number",
+        "Description": "description"
+      },
+      "syntheticTotal": 0,
+      "withAnyMatch": 0,
+      "withSingleMatch": 0,
+      "withMultiMatch": 0,
+      "withoutMatch": 0,
+      "samples": {
+        "matched": [],
+        "unmatched": []
+      }
+    },
+    {
+      "table": "GE78BG0000000893486000_BOG_EUR",
+      "mapping": {
+        "Date": "transaction_date",
+        "Amount": "account_currency_amount",
+        "CA account": "counteragent_account_number",
+        "Description": "description"
+      },
+      "syntheticTotal": 0,
+      "withAnyMatch": 0,
+      "withSingleMatch": 0,
+      "withMultiMatch": 0,
+      "withoutMatch": 0,
+      "samples": {
+        "matched": [],
+        "unmatched": []
+      }
+    },
+    {
+      "table": "GE78BG0000000893486000_BOG_GBP",
+      "mapping": {
+        "Date": "transaction_date",
+        "Amount": "account_currency_amount",
+        "CA account": "counteragent_account_number",
+        "Description": "description"
+      },
+      "syntheticTotal": 0,
+      "withAnyMatch": 0,
+      "withSingleMatch": 0,
+      "withMultiMatch": 0,
+      "withoutMatch": 0,
+      "samples": {
+        "matched": [],
+        "unmatched": []
+      }
+    },
+    {
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "mapping": {
+        "Date": "transaction_date",
+        "Amount": "account_currency_amount",
+        "CA account": "counteragent_account_number",
+        "Description": "description"
+      },
+      "syntheticTotal": 1000,
+      "withAnyMatch": 142,
+      "withSingleMatch": 138,
+      "withMultiMatch": 4,
+      "withoutMatch": 858,
+      "samples": {
+        "matched": [
+          {
+            "uuid": "7d862436-122d-5174-9370-1ebd149d4112",
+            "dockey": "API_DOC_4",
+            "entriesid": "4",
+            "transaction_date": "2026-01-22",
+            "account_currency_amount": "-0.50",
+            "counteragent_account_number": "200122900",
+            "description": "887762014100",
+            "original_match_count": 1,
+            "sample_originals": [
+              {
+                "uuid": "63ae3d64-b223-5f9e-acba-832087191f42",
+                "dockey": "31542522315",
+                "entriesid": "110008493545"
+              }
+            ]
+          },
+          {
+            "uuid": "6bc40da3-64ef-535a-9328-4addf794e304",
+            "dockey": "API_DOC_9",
+            "entriesid": "9",
+            "transaction_date": "2026-01-22",
+            "account_currency_amount": "-30.00",
+            "counteragent_account_number": "GE19BG0000000602453500GEL",
+            "description": "სამივლინებო Kvareli Repair",
+            "original_match_count": 1,
+            "sample_originals": [
+              {
+                "uuid": "448249b4-c21a-5dd5-98c2-43405933df35",
+                "dockey": "31547321006",
+                "entriesid": "110024446805"
+              }
+            ]
+          },
+          {
+            "uuid": "72b563a5-26a4-58bf-8b26-57f376edadda",
+            "dockey": "API_DOC_14",
+            "entriesid": "14",
+            "transaction_date": "2026-01-22",
+            "account_currency_amount": "-90.00",
+            "counteragent_account_number": "GE18BG0000000101461710GEL",
+            "description": "სამივლინებო",
+            "original_match_count": 1,
+            "sample_originals": [
+              {
+                "uuid": "0f35e2f8-e2b9-57f3-b1bc-78b0d49d03f0",
+                "dockey": "31547323019",
+                "entriesid": "110024447122"
+              }
+            ]
+          },
+          {
+            "uuid": "f42f6654-25fa-59db-a5b5-954fd0ecd69d",
+            "dockey": "API_DOC_24",
+            "entriesid": "24",
+            "transaction_date": "2026-01-22",
+            "account_currency_amount": "-550.00",
+            "counteragent_account_number": "GE79BG0000000523963900GEL",
+            "description": "მასალის ღირებულება Varketili Mall",
+            "original_match_count": 1,
+            "sample_originals": [
+              {
+                "uuid": "b797fceb-4272-5b01-bf61-4bfbc9ee3481",
+                "dockey": "31542521289",
+                "entriesid": "110006806319"
+              }
+            ]
+          },
+          {
+            "uuid": "76f787ce-2858-515e-bd99-cae888e16b84",
+            "dockey": "API_DOC_25",
+            "entriesid": "25",
+            "transaction_date": "2026-01-22",
+            "account_currency_amount": "-600.00",
+            "counteragent_account_number": "GE29BG0000000152561500GEL",
+            "description": "მომსახურების ღირებულება Admiral",
+            "original_match_count": 1,
+            "sample_originals": [
+              {
+                "uuid": "3bbc4199-a993-59fb-a1c7-11dc82cb5a51",
+                "dockey": "31547332973",
+                "entriesid": "110024476164"
+              }
+            ]
+          },
+          {
+            "uuid": "15e8adb6-e369-5d50-91db-15f4b51df09c",
+            "dockey": "API_DOC_36",
+            "entriesid": "36",
+            "transaction_date": "2026-01-22",
+            "account_currency_amount": "-1859.55",
+            "counteragent_account_number": "GE45BG0000000131138277GEL",
+            "description": "ლიფტის მექანიკური მონტაჟის ღირებულება Varketili Mall L0002",
+            "original_match_count": 1,
+            "sample_originals": [
+              {
+                "uuid": "368c6738-48b1-54be-a530-e4d8034c3ed4",
+                "dockey": "31547926625",
+                "entriesid": "110026060231"
+              }
+            ]
+          },
+          {
+            "uuid": "53d07115-c041-5c02-9a0c-1d9c8b985000",
+            "dockey": "API_DOC_46",
+            "entriesid": "46",
+            "transaction_date": "2026-01-23",
+            "account_currency_amount": "-0.50",
+            "counteragent_account_number": "GE26TB7784945061600005",
+            "description": "მომსახურების ღირებულება Facade Lifts Elevation",
+            "original_match_count": 1,
+            "sample_originals": [
+              {
+                "uuid": "4097f496-415c-5f42-9ed3-5684c9804ba9",
+                "dockey": "31549838577",
+                "entriesid": "110043496089"
+              }
+            ]
+          },
+          {
+            "uuid": "3f386836-a9e8-50d0-81e7-22d210094111",
+            "dockey": "API_DOC_47",
+            "entriesid": "47",
+            "transaction_date": "2026-01-23",
+            "account_currency_amount": "-0.50",
+            "counteragent_account_number": "200122900",
+            "description": "C5554",
+            "original_match_count": 1,
+            "sample_originals": [
+              {
+                "uuid": "f320ca43-8d8b-5dd7-866c-f91bc2e89c23",
+                "dockey": "31558524958",
+                "entriesid": "110062413577"
+              }
+            ]
+          },
+          {
+            "uuid": "b8f80bad-05d7-50ba-8a60-7a16eaa5c169",
+            "dockey": "API_DOC_50",
+            "entriesid": "50",
+            "transaction_date": "2026-01-23",
+            "account_currency_amount": "-0.50",
+            "counteragent_account_number": "200122900",
+            "description": "მომსახურების ღირებულება",
+            "original_match_count": 1,
+            "sample_originals": [
+              {
+                "uuid": "94f1c5b7-445d-5d1b-b8fd-a3b15219d120",
+                "dockey": "31558832862",
+                "entriesid": "110063910204"
+              }
+            ]
+          },
+          {
+            "uuid": "c853b2af-e382-501e-b72d-dc1b9f0985a8",
+            "dockey": "API_DOC_54",
+            "entriesid": "54",
+            "transaction_date": "2026-01-23",
+            "account_currency_amount": "-225.00",
+            "counteragent_account_number": "GE68BG0000000026544800GEL",
+            "description": "საქონლის ღირებულება",
+            "original_match_count": 1,
+            "sample_originals": [
+              {
+                "uuid": "5f1e0f91-43b6-527c-bceb-5ede7be370ff",
+                "dockey": "31561121223",
+                "entriesid": "110073768821"
+              }
+            ]
+          }
+        ],
+        "unmatched": [
+          {
+            "uuid": "7423aa07-d7eb-5d14-a356-e74f94fd25ec",
+            "dockey": "API_DOC_1",
+            "entriesid": "1",
+            "transaction_date": "2026-01-21",
+            "account_currency_amount": "-1900.01",
+            "counteragent_account_number": "26019810200100000001",
+            "description": "Conversion for Pay Commission of Agreement : ADV1118453-25",
+            "original_match_count": 0,
+            "sample_originals": null
+          },
+          {
+            "uuid": "991658d3-e0d3-5ce8-825a-f3a84cbab7b5",
+            "dockey": "API_DOC_2",
+            "entriesid": "2",
+            "transaction_date": "2026-01-21",
+            "account_currency_amount": "1900.00",
+            "counteragent_account_number": "GE51BG0000000608679742GEL",
+            "description": "თანხის გადარიცხვა",
+            "original_match_count": 0,
+            "sample_originals": null
+          },
+          {
+            "uuid": "f20ec8fe-0fdc-5cd8-bd3b-936f05a404b5",
+            "dockey": "API_DOC_3",
+            "entriesid": "3",
+            "transaction_date": "2026-01-22",
+            "account_currency_amount": "-0.50",
+            "counteragent_account_number": "GE16LB0111144105936000",
+            "description": "ავტომობილის საექპლუატაციო ხარჯი",
+            "original_match_count": 0,
+            "sample_originals": null
+          },
+          {
+            "uuid": "4a74551f-790e-5448-abef-34320d044225",
+            "dockey": "API_DOC_5",
+            "entriesid": "5",
+            "transaction_date": "2026-01-22",
+            "account_currency_amount": "-0.50",
+            "counteragent_account_number": "GE48TB1100000018467453",
+            "description": "საწვავის ღირებულება",
+            "original_match_count": 0,
+            "sample_originals": null
+          },
+          {
+            "uuid": "40c04f7f-b62d-59c7-84d2-13292f83891d",
+            "dockey": "API_DOC_6",
+            "entriesid": "6",
+            "transaction_date": "2026-01-22",
+            "account_currency_amount": "-0.50",
+            "counteragent_account_number": "GE48TB1100000018467453",
+            "description": "საწვავის ღირებულება",
+            "original_match_count": 0,
+            "sample_originals": null
+          },
+          {
+            "uuid": "911c8c39-306b-5e05-82d6-c08eec2755f6",
+            "dockey": "API_DOC_7",
+            "entriesid": "7",
+            "transaction_date": "2026-01-22",
+            "account_currency_amount": "-0.50",
+            "counteragent_account_number": "GE48TB1100000018467453",
+            "description": "საწვავის ღირებულება",
+            "original_match_count": 0,
+            "sample_originals": null
+          },
+          {
+            "uuid": "fb627319-b896-5e5b-9e0c-5864efd15f3a",
+            "dockey": "API_DOC_8",
+            "entriesid": "8",
+            "transaction_date": "2026-01-22",
+            "account_currency_amount": "-0.50",
+            "counteragent_account_number": "64079811547200000000",
+            "description": "საკომისიო, 22/01/2026 , \"ეპ ჯორჯია მიწოდება\", აბონენტის ნომერი 4210332041, გადახდის კოდი - 17486641971",
+            "original_match_count": 0,
+            "sample_originals": null
+          },
+          {
+            "uuid": "089fa250-4af4-5804-86ce-1b3292c66ab6",
+            "dockey": "API_DOC_10",
+            "entriesid": "10",
+            "transaction_date": "2026-01-22",
+            "account_currency_amount": "-50.00",
+            "counteragent_account_number": "GE92BG0000000100739571GEL",
+            "description": "საქვეანგარიშოდ ბლიცი",
+            "original_match_count": 0,
+            "sample_originals": null
+          },
+          {
+            "uuid": "d80b3d83-54ce-56d1-b785-5d1664a84e84",
+            "dockey": "API_DOC_11",
+            "entriesid": "11",
+            "transaction_date": "2026-01-22",
+            "account_currency_amount": "-60.00",
+            "counteragent_account_number": "GE19BG0000000602453500GEL",
+            "description": "სამივლინებო Kvareli Repair",
+            "original_match_count": 0,
+            "sample_originals": null
+          },
+          {
+            "uuid": "efd238d6-bc45-5315-83c0-ba6635ad6eef",
+            "dockey": "API_DOC_12",
+            "entriesid": "12",
+            "transaction_date": "2026-01-22",
+            "account_currency_amount": "-60.00",
+            "counteragent_account_number": "GE39BG0000000162886000GEL",
+            "description": "სამივლინებო Kvareli Repair",
+            "original_match_count": 0,
+            "sample_originals": null
+          }
+        ]
+      }
+    },
+    {
+      "table": "GE78BG0000000893486000_BOG_KZT",
+      "mapping": {
+        "Date": "transaction_date",
+        "Amount": "account_currency_amount",
+        "CA account": "counteragent_account_number",
+        "Description": "description"
+      },
+      "syntheticTotal": 0,
+      "withAnyMatch": 0,
+      "withSingleMatch": 0,
+      "withMultiMatch": 0,
+      "withoutMatch": 0,
+      "samples": {
+        "matched": [],
+        "unmatched": []
+      }
+    },
+    {
+      "table": "GE78BG0000000893486000_BOG_TRY",
+      "mapping": {
+        "Date": "transaction_date",
+        "Amount": "account_currency_amount",
+        "CA account": "counteragent_account_number",
+        "Description": "description"
+      },
+      "syntheticTotal": 0,
+      "withAnyMatch": 0,
+      "withSingleMatch": 0,
+      "withMultiMatch": 0,
+      "withoutMatch": 0,
+      "samples": {
+        "matched": [],
+        "unmatched": []
+      }
+    },
+    {
+      "table": "GE78BG0000000893486000_BOG_USD",
+      "mapping": {
+        "Date": "transaction_date",
+        "Amount": "account_currency_amount",
+        "CA account": "counteragent_account_number",
+        "Description": "description"
+      },
+      "syntheticTotal": 0,
+      "withAnyMatch": 0,
+      "withSingleMatch": 0,
+      "withMultiMatch": 0,
+      "withoutMatch": 0,
+      "samples": {
+        "matched": [],
+        "unmatched": []
+      }
+    }
+  ]
+}

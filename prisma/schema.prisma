@@ -389,7 +389,7 @@ model financial_codes {
 model jobs {
   id           BigInt   @id @default(autoincrement())
   job_uuid     String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  project_uuid String   @db.Uuid
+  project_uuid String?  @db.Uuid
   job_name     String
   floors       Int?
   weight       Int?

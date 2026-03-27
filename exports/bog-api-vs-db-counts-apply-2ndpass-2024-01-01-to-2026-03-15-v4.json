@@ -1,0 +1,721 @@
+{
+  "summary": {
+    "mode": "apply",
+    "range": {
+      "start": "2024-01-01",
+      "end": "2026-03-15",
+      "days": 805
+    },
+    "accounts": 9,
+    "port": 3001,
+    "totals": {
+      "apiTotal": 23385,
+      "dbTotal": 23709,
+      "totalGap": -324,
+      "apiErrors": 0,
+      "mismatchRows": 29
+    }
+  },
+  "apply": {
+    "attempted": 29,
+    "stillMismatched": 4
+  },
+  "actions": [
+    {
+      "date": "2024-05-28",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 0,
+        "db": 13,
+        "gap": -13
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 13,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 13,
+        "db": 13,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2024-06-04",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 34,
+        "db": 33,
+        "gap": 1
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 34,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 34,
+        "db": 34,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2024-06-04",
+      "account": "GE78BG0000000893486000",
+      "currency": "USD",
+      "table": "GE78BG0000000893486000_BOG_USD",
+      "before": {
+        "api": 59,
+        "db": 61,
+        "gap": -2
+      },
+      "importCall": {
+        "ok": false,
+        "status": 500,
+        "detailsCount": 0,
+        "message": null,
+        "error": "relation \"tmp_turnovers\" already exists"
+      },
+      "after": {
+        "api": 59,
+        "db": 61,
+        "gap": -2
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2024-06-05",
+      "account": "GE78BG0000000893486000",
+      "currency": "USD",
+      "table": "GE78BG0000000893486000_BOG_USD",
+      "before": {
+        "api": 8,
+        "db": 6,
+        "gap": 2
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 8,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 8,
+        "db": 8,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2024-06-06",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 0,
+        "db": 48,
+        "gap": -48
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 48,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 48,
+        "db": 48,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2024-07-18",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 59,
+        "db": 58,
+        "gap": 1
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 59,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 59,
+        "db": 59,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2024-07-26",
+      "account": "GE78BG0000000893486000",
+      "currency": "EUR",
+      "table": "GE78BG0000000893486000_BOG_EUR",
+      "before": {
+        "api": 0,
+        "db": 1,
+        "gap": -1
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 1,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 1,
+        "db": 1,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2024-08-21",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 0,
+        "db": 17,
+        "gap": -17
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 17,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 17,
+        "db": 17,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2024-08-22",
+      "account": "GE78BG0000000893486000",
+      "currency": "USD",
+      "table": "GE78BG0000000893486000_BOG_USD",
+      "before": {
+        "api": 0,
+        "db": 1,
+        "gap": -1
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 1,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 1,
+        "db": 1,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-03-03",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 0,
+        "db": 1,
+        "gap": -1
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 1,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 1,
+        "db": 1,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-03-17",
+      "account": "GE78BG0000000893486000",
+      "currency": "USD",
+      "table": "GE78BG0000000893486000_BOG_USD",
+      "before": {
+        "api": 0,
+        "db": 1,
+        "gap": -1
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 1,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 1,
+        "db": 1,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-04-06",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 0,
+        "db": 1,
+        "gap": -1
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 1,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 1,
+        "db": 1,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-04-11",
+      "account": "GE78BG0000000893486000",
+      "currency": "USD",
+      "table": "GE78BG0000000893486000_BOG_USD",
+      "before": {
+        "api": 0,
+        "db": 2,
+        "gap": -2
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 3,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 3,
+        "db": 3,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-04-22",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 0,
+        "db": 16,
+        "gap": -16
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 16,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 16,
+        "db": 16,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-05-01",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 0,
+        "db": 49,
+        "gap": -49
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 49,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 49,
+        "db": 49,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-05-28",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 0,
+        "db": 42,
+        "gap": -42
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 42,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 42,
+        "db": 42,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-06-09",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 75,
+        "db": 77,
+        "gap": -2
+      },
+      "importCall": {
+        "ok": false,
+        "status": 500,
+        "detailsCount": 0,
+        "message": null,
+        "error": "relation \"tmp_turnovers\" already exists"
+      },
+      "after": {
+        "api": 75,
+        "db": 77,
+        "gap": -2
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-06-12",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 56,
+        "db": 55,
+        "gap": 1
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 56,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 56,
+        "db": 56,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-07-08",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 0,
+        "db": 11,
+        "gap": -11
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 11,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 11,
+        "db": 11,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-07-09",
+      "account": "GE78BG0000000893486000",
+      "currency": "EUR",
+      "table": "GE78BG0000000893486000_BOG_EUR",
+      "before": {
+        "api": 0,
+        "db": 2,
+        "gap": -2
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 2,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 2,
+        "db": 2,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-07-21",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 0,
+        "db": 54,
+        "gap": -54
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 54,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 54,
+        "db": 54,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-07-30",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 31,
+        "db": 30,
+        "gap": 1
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 31,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 31,
+        "db": 31,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-08-03",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 0,
+        "db": 7,
+        "gap": -7
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 7,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 7,
+        "db": 7,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-09-16",
+      "account": "GE74BG0000000586388146",
+      "currency": "USD",
+      "table": "GE74BG0000000586388146_BOG_USD",
+      "before": {
+        "api": 0,
+        "db": 3,
+        "gap": -3
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 3,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 3,
+        "db": 3,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-10-23",
+      "account": "GE78BG0000000893486000",
+      "currency": "USD",
+      "table": "GE78BG0000000893486000_BOG_USD",
+      "before": {
+        "api": 0,
+        "db": 1,
+        "gap": -1
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 1,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 1,
+        "db": 1,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2025-12-03",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 0,
+        "db": 45,
+        "gap": -45
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 45,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 45,
+        "db": 45,
+        "gap": 0
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2026-01-09",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 57,
+        "db": 55,
+        "gap": 2
+      },
+      "importCall": {
+        "ok": false,
+        "status": 500,
+        "detailsCount": 0,
+        "message": null,
+        "error": "relation \"tmp_turnovers\" already exists"
+      },
+      "after": {
+        "api": 57,
+        "db": 55,
+        "gap": 2
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2026-01-13",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 21,
+        "db": 18,
+        "gap": 3
+      },
+      "importCall": {
+        "ok": false,
+        "status": 500,
+        "detailsCount": 0,
+        "message": null,
+        "error": "relation \"tmp_turnovers\" already exists"
+      },
+      "after": {
+        "api": 21,
+        "db": 18,
+        "gap": 3
+      },
+      "conversionOverride": null
+    },
+    {
+      "date": "2026-02-04",
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "before": {
+        "api": 0,
+        "db": 16,
+        "gap": -16
+      },
+      "importCall": {
+        "ok": true,
+        "status": 200,
+        "detailsCount": 16,
+        "message": "BOG API statement mapped to XML headers/details and imported through deconsolidated pipeline.",
+        "error": null
+      },
+      "after": {
+        "api": 16,
+        "db": 16,
+        "gap": 0
+      },
+      "conversionOverride": null
+    }
+  ]
+}

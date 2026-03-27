@@ -1,0 +1,1966 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<gemini:AccountStatement xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:gemini="http://www.mygemini.com/schemas/mygemini">
+  <gemini:Head>
+    <gemini:AccountFriendlyName>ჩემი ბარათი</gemini:AccountFriendlyName>
+    <gemini:AccountType>ბარათი</gemini:AccountType>
+    <gemini:AccountNo>GE79TB7856045067800004</gemini:AccountNo>
+    <gemini:AccountNameGeorgian>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298</gemini:AccountNameGeorgian>
+    <gemini:AccountNameEnglish>LTD ICE; Giorgi Bakhtadze 01024067298</gemini:AccountNameEnglish>
+    <gemini:Currency>GEL</gemini:Currency>
+    <gemini:FilterDateFrom>01/01/2024</gemini:FilterDateFrom>
+    <gemini:FilterDateTo>17/03/2026</gemini:FilterDateTo>
+    <gemini:StartingBalance>0.00</gemini:StartingBalance>
+    <gemini:ClosingBalance>0.00</gemini:ClosingBalance>
+  </gemini:Head>
+  <gemini:Record>
+    <gemini:Date>05/01/2024</gemini:Date>
+    <gemini:PaidIn>113.29</gemini:PaidIn>
+    <gemini:Balance>113.29</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>05/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1704443040</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11381871527</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>05/01/2024</gemini:Date>
+    <gemini:PaidIn>1000.0</gemini:PaidIn>
+    <gemini:Balance>1113.29</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>05/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1704459902</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11386015491</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>06/01/2024</gemini:Date>
+    <gemini:PaidIn>421.28</gemini:PaidIn>
+    <gemini:Balance>1534.57</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>06/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1704535794</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11391246040</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>06/01/2024</gemini:Date>
+    <gemini:Balance>1134.57</gemini:Balance>
+    <gemini:PaidOut>400.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-399 (Vaja br 5/2,   ტრანზაქციის თანხა 400.00 GEL, Jan  5 2024  5:50PM, , ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>05/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>942546599</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>400513514755</gemini:AdditionalDescription>
+    <gemini:TransactionId>11393336834</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>06/01/2024</gemini:Date>
+    <gemini:Balance>1133.77</gemini:Balance>
+    <gemini:PaidOut>0.8</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-399 (Vaja br 5/2,  Jan  5 2024  5:50PM, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>05/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>942546600</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11393336836</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>06/01/2024</gemini:Date>
+    <gemini:Balance>800.77</gemini:Balance>
+    <gemini:PaidOut>333.0</gemini:PaidOut>
+    <gemini:Description>POS - ORO,  თანხა 333.00 GEL, Jan  5 2024  5:54PM,  რესტორანი, კაფე, ბარი, MCC: 5812, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის VISA ბარათებით  TBC Bank_ის ECOM/POS მერჩანტებში შესრულებულ, TBCBGE22, GE66TB0002511340000000</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>05/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>942547733</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE66TB0002511340000000</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის VISA ბარათებით  TBC Bank_ის ECOM/POS მერჩანტებში შესრულებულ</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>400513533372</gemini:AdditionalDescription>
+    <gemini:TransactionId>11393339300</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>06/01/2024</gemini:Date>
+    <gemini:Balance>723.87</gemini:Balance>
+    <gemini:PaidOut>76.9</gemini:PaidOut>
+    <gemini:Description>POS - SMUGGLERS 20,  თანხა 76.90 GEL, Jan  5 2024  6:03PM,  სასურსათო მაღაზიები, MCC: 5921, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის VISA ბარათებით  TBC Bank_ის ECOM/POS მერჩანტებში შესრულებულ, TBCBGE22, GE66TB0002511340000000</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>05/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>942563465</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE66TB0002511340000000</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის VISA ბარათებით  TBC Bank_ის ECOM/POS მერჩანტებში შესრულებულ</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>400514580489</gemini:AdditionalDescription>
+    <gemini:TransactionId>11393373958</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>07/01/2024</gemini:Date>
+    <gemini:PaidIn>400.0</gemini:PaidIn>
+    <gemini:Balance>1123.87</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>07/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1704608016</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11394256732</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>07/01/2024</gemini:Date>
+    <gemini:Balance>1082.37</gemini:Balance>
+    <gemini:PaidOut>41.5</gemini:PaidOut>
+    <gemini:Description>POS - SHTOSHI,  თანხა 41.50 GEL, Jan  5 2024 12:00AM,  რესტორანი, კაფე, ბარი, MCC: 5462, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>თიბისი ბანკის VISA ბარათებით სავაჭრო ობიექტებში სხვა ბანკის ტერმინალებ, TBCBGE22, GE88TB0000002501034003</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>05/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>943792019</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE88TB0000002501034003</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>თიბისი ბანკის VISA ბარათებით სავაჭრო ობიექტებში სხვა ბანკის ტერმინალებ</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11399342384</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>08/01/2024</gemini:Date>
+    <gemini:Balance>482.37</gemini:Balance>
+    <gemini:PaidOut>600.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-804 (bagebi 2),   ტრანზაქციის თანხა 600.00 GEL, Jan  6 2024  2:46PM, , ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>06/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>944425182</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>400610398465</gemini:AdditionalDescription>
+    <gemini:TransactionId>11402031549</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>08/01/2024</gemini:Date>
+    <gemini:Balance>481.17</gemini:Balance>
+    <gemini:PaidOut>1.2</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-804 (bagebi 2),  Jan  6 2024  2:46PM, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>06/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>944425184</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11402031557</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>08/01/2024</gemini:Date>
+    <gemini:Balance>81.17</gemini:Balance>
+    <gemini:PaidOut>400.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-259 (Vaja 49),   ტრანზაქციის თანხა 400.00 GEL, Jan  7 2024 10:52AM, , ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>07/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>944435706</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>400706138794</gemini:AdditionalDescription>
+    <gemini:TransactionId>11402090441</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>08/01/2024</gemini:Date>
+    <gemini:Balance>80.37</gemini:Balance>
+    <gemini:PaidOut>0.8</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-259 (Vaja 49),  Jan  7 2024 10:52AM, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>07/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>944435708</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11402090449</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>09/01/2024</gemini:Date>
+    <gemini:PaidOut>80.37</gemini:PaidOut>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>09/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1704790983</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11410774994</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>09/01/2024</gemini:Date>
+    <gemini:PaidIn>300.0</gemini:PaidIn>
+    <gemini:Balance>300.00</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>09/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1704809714</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11414471264</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>09/01/2024</gemini:Date>
+    <gemini:PaidIn>1005.41</gemini:PaidIn>
+    <gemini:Balance>1305.41</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>09/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1704810626</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11414499442</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>10/01/2024</gemini:Date>
+    <gemini:Balance>305.41</gemini:Balance>
+    <gemini:PaidOut>1000.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-126 (Chavchavad29),   ტრანზაქციის თანხა 1000.00 GEL, Jan  9 2024  6:35PM, , ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>09/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>948261837</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>400914086465</gemini:AdditionalDescription>
+    <gemini:TransactionId>11419739942</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>10/01/2024</gemini:Date>
+    <gemini:Balance>303.41</gemini:Balance>
+    <gemini:PaidOut>2.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-126 (Chavchavad29),  Jan  9 2024  6:35PM, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>09/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>948261839</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11419739946</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>10/01/2024</gemini:Date>
+    <gemini:Balance>13.41</gemini:Balance>
+    <gemini:PaidOut>290.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-126 (Chavchavad29),   ტრანზაქციის თანხა 290.00 GEL, Jan  9 2024  6:24PM, , ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>09/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>948551332</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>400914031143</gemini:AdditionalDescription>
+    <gemini:TransactionId>11421079524</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>10/01/2024</gemini:Date>
+    <gemini:Balance>12.83</gemini:Balance>
+    <gemini:PaidOut>0.58</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-126 (Chavchavad29),  Jan  9 2024  6:24PM, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>09/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>948551334</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11421079528</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>10/01/2024</gemini:Date>
+    <gemini:PaidIn>1000.0</gemini:PaidIn>
+    <gemini:Balance>1012.83</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>10/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1704893703</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11421963284</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>11/01/2024</gemini:Date>
+    <gemini:Balance>974.58</gemini:Balance>
+    <gemini:PaidOut>38.25</gemini:PaidOut>
+    <gemini:Description>POS - S Market (Urbnisi),  თანხა 38.25 GEL, Jan 10 2024 11:34PM,  სასურსათო მაღაზიები, MCC: 5411, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის VISA ბარათებით  TBC Bank_ის ECOM/POS მერჩანტებში შესრულებულ, TBCBGE22, GE66TB0002511340000000</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>10/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>949935354</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE66TB0002511340000000</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის VISA ბარათებით  TBC Bank_ის ECOM/POS მერჩანტებში შესრულებულ</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>401019959985</gemini:AdditionalDescription>
+    <gemini:TransactionId>11427447004</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>11/01/2024</gemini:Date>
+    <gemini:Balance>904.23</gemini:Balance>
+    <gemini:PaidOut>70.35</gemini:PaidOut>
+    <gemini:Description>POS - SMART (Batumi),  თანხა 70.35 GEL, Jan 10 2024  7:17PM,  სასურსათო მაღაზიები, MCC: 5499, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის VISA ბარათებით  TBC Bank_ის ECOM/POS მერჩანტებში შესრულებულ, TBCBGE22, GE66TB0002511340000000</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>10/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>950149356</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE66TB0002511340000000</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის VISA ბარათებით  TBC Bank_ის ECOM/POS მერჩანტებში შესრულებულ</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>401015055056</gemini:AdditionalDescription>
+    <gemini:TransactionId>11428659826</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/01/2024</gemini:Date>
+    <gemini:Balance>878.03</gemini:Balance>
+    <gemini:PaidOut>26.2</gemini:PaidOut>
+    <gemini:Description>POS - SUBWAY,  თანხა 26.20 GEL, Jan 10 2024 12:00AM,  რესტორანი, კაფე, ბარი, MCC: 5812, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>თიბისი ბანკის VISA ბარათებით სავაჭრო ობიექტებში სხვა ბანკის ტერმინალებ, TBCBGE22, GE88TB0000002501034003</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>10/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>951314423</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE88TB0000002501034003</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>თიბისი ბანკის VISA ბარათებით სავაჭრო ობიექტებში სხვა ბანკის ტერმინალებ</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11433548108</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/01/2024</gemini:Date>
+    <gemini:Balance>829.03</gemini:Balance>
+    <gemini:PaidOut>49.0</gemini:PaidOut>
+    <gemini:Description>POS - 8000 VINTAGES,  თანხა 49.00 GEL, Jan 10 2024 12:00AM,  რესტორანი, კაფე, ბარი, MCC: 5812, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>თიბისი ბანკის VISA ბარათებით სავაჭრო ობიექტებში სხვა ბანკის ტერმინალებ, TBCBGE22, GE88TB0000002501034003</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>10/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>951516247</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE88TB0000002501034003</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>თიბისი ბანკის VISA ბარათებით სავაჭრო ობიექტებში სხვა ბანკის ტერმინალებ</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11434327438</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/01/2024</gemini:Date>
+    <gemini:Balance>579.03</gemini:Balance>
+    <gemini:PaidOut>250.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-546 (Agmash Alley),   ტრანზაქციის თანხა 250.00 GEL, Jan 11 2024 11:47AM, , ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>11/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>951973086</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>401107849327</gemini:AdditionalDescription>
+    <gemini:TransactionId>11436214328</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/01/2024</gemini:Date>
+    <gemini:Balance>578.53</gemini:Balance>
+    <gemini:PaidOut>0.5</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-546 (Agmash Alley),  Jan 11 2024 11:47AM, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>11/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>951973088</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11436214334</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/01/2024</gemini:Date>
+    <gemini:PaidIn>1134.1</gemini:PaidIn>
+    <gemini:Balance>1712.63</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>12/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1705065241</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11437483420</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>13/01/2024</gemini:Date>
+    <gemini:Balance>1151.63</gemini:Balance>
+    <gemini:PaidOut>561.0</gemini:PaidOut>
+    <gemini:Description>POS - ZU-KA LTD,  თანხა 561.00 GEL, Jan 10 2024 12:00AM,  რესტორანი, კაფე, ბარი, MCC: 5812, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>თიბისი ბანკის VISA ბარათებით სავაჭრო ობიექტებში სხვა ბანკის ტერმინალებ, TBCBGE22, GE88TB0000002501034003</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>10/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>953602488</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE88TB0000002501034003</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>თიბისი ბანკის VISA ბარათებით სავაჭრო ობიექტებში სხვა ბანკის ტერმინალებ</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11444238964</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>14/01/2024</gemini:Date>
+    <gemini:Balance>1120.13</gemini:Balance>
+    <gemini:PaidOut>31.5</gemini:PaidOut>
+    <gemini:Description>POS - LTD KERIA chavchavadze,  თანხა 31.50 GEL, Jan 13 2024 12:45PM,  რესტორანი, კაფე, ბარი, MCC: 5812, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის VISA ბარათებით  TBC Bank_ის ECOM/POS მერჩანტებში შესრულებულ, TBCBGE22, GE66TB0002511340000000</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>13/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>954469697</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE66TB0002511340000000</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის VISA ბარათებით  TBC Bank_ის ECOM/POS მერჩანტებში შესრულებულ</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>401308048994</gemini:AdditionalDescription>
+    <gemini:TransactionId>11448830642</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>15/01/2024</gemini:Date>
+    <gemini:Balance>120.13</gemini:Balance>
+    <gemini:PaidOut>1000.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-843(Kavtaradze 1),   ტრანზაქციის თანხა 1000.00 GEL, Jan 13 2024  3:42PM, , ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>13/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>955841264</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>401311891424</gemini:AdditionalDescription>
+    <gemini:TransactionId>11454286005</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>15/01/2024</gemini:Date>
+    <gemini:Balance>118.13</gemini:Balance>
+    <gemini:PaidOut>2.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-843(Kavtaradze 1),  Jan 13 2024  3:42PM, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>13/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>955841267</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11454286017</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>17/01/2024</gemini:Date>
+    <gemini:Balance>54.34</gemini:Balance>
+    <gemini:PaidOut>63.79</gemini:PaidOut>
+    <gemini:Description>POS - SHIRNHOFER LLC,  თანხა 63.79 GEL, Jan 15 2024 12:00AM,  სასურსათო მაღაზიები, MCC: 5411, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>თიბისი ბანკის VISA ბარათებით სავაჭრო ობიექტებში სხვა ბანკის ტერმინალებ, TBCBGE22, GE88TB0000002501034003</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>15/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>960242541</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE88TB0000002501034003</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>თიბისი ბანკის VISA ბარათებით სავაჭრო ობიექტებში სხვა ბანკის ტერმინალებ</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11474091998</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>03/02/2024</gemini:Date>
+    <gemini:PaidIn>446.67</gemini:PaidIn>
+    <gemini:Balance>501.01</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>03/02/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1706907452</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11598282317</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>11/02/2024</gemini:Date>
+    <gemini:PaidIn>106.01</gemini:PaidIn>
+    <gemini:Balance>607.02</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>11/02/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1707574682</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11666021091</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>11/02/2024</gemini:Date>
+    <gemini:Balance>500.00</gemini:Balance>
+    <gemini:PaidOut>107.02</gemini:PaidOut>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>11/02/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1707649061</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11666056819</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/02/2024</gemini:Date>
+    <gemini:Balance>5.00</gemini:Balance>
+    <gemini:PaidOut>495.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-843(Kavtaradze 1),   ტრანზაქციის თანხა 495.00 GEL, Feb 11 2024  3:42PM, , ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>11/02/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>998370499</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>404211242058</gemini:AdditionalDescription>
+    <gemini:TransactionId>11672198958</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/02/2024</gemini:Date>
+    <gemini:Balance>4.01</gemini:Balance>
+    <gemini:PaidOut>0.99</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-843(Kavtaradze 1),  Feb 11 2024  3:42PM, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>11/02/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>998370500</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11672198966</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/02/2024</gemini:Date>
+    <gemini:PaidIn>47.48</gemini:PaidIn>
+    <gemini:Balance>51.49</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>20/02/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1708442921</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11741059579</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>21/02/2024</gemini:Date>
+    <gemini:Balance>1.49</gemini:Balance>
+    <gemini:PaidOut>50.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-227 (Agmash 12Km/1),   ტრანზაქციის თანხა 50.00 GEL, Feb 21 2024  4:47AM, , ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>21/02/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1012044857</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>405200613149</gemini:AdditionalDescription>
+    <gemini:TransactionId>11743200663</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>21/02/2024</gemini:Date>
+    <gemini:Balance>1.29</gemini:Balance>
+    <gemini:PaidOut>0.2</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-227 (Agmash 12Km/1),  Feb 21 2024  4:47AM, ბარათი VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>21/02/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1012044859</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11743200673</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>15/03/2024</gemini:Date>
+    <gemini:PaidIn>133.33</gemini:PaidIn>
+    <gemini:Balance>134.62</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>15/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1710510750</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11942562570</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>21/03/2024</gemini:Date>
+    <gemini:PaidOut>134.62</gemini:PaidOut>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, TBCBGE22, GE52TB7856045067800005</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>21/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1711008275</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB7856045067800005</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11985212314</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>05/04/2024</gemini:Date>
+    <gemini:PaidIn>300.0</gemini:PaidIn>
+    <gemini:Balance>300.00</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>05/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1712335144</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12118525462</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>06/04/2024</gemini:Date>
+    <gemini:Balance>5.00</gemini:Balance>
+    <gemini:PaidOut>295.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-94 (Vaja 5kv), 295.00 GEL, Apr  5 2024  8:41PM, , VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>05/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1085198673</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>409616553685</gemini:AdditionalDescription>
+    <gemini:TransactionId>12124087278</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>06/04/2024</gemini:Date>
+    <gemini:Balance>4.41</gemini:Balance>
+    <gemini:PaidOut>0.59</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-94 (Vaja 5kv),  Apr  5 2024  8:41PM, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>05/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1085198674</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12124087280</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>14/04/2024</gemini:Date>
+    <gemini:PaidIn>450.0</gemini:PaidIn>
+    <gemini:Balance>454.41</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>14/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1713079245</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12188304819</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>15/04/2024</gemini:Date>
+    <gemini:Balance>4.41</gemini:Balance>
+    <gemini:PaidOut>450.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-256 (GoodWill Kazb), 450.00 GEL, Apr 14 2024 11:56AM, , VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>14/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1100160816</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>410507580317</gemini:AdditionalDescription>
+    <gemini:TransactionId>12199648020</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>15/04/2024</gemini:Date>
+    <gemini:Balance>3.51</gemini:Balance>
+    <gemini:PaidOut>0.9</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-256 (GoodWill Kazb),  Apr 14 2024 11:56AM, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>14/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1100160817</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12199648026</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>04/05/2024</gemini:Date>
+    <gemini:PaidIn>620.0</gemini:PaidIn>
+    <gemini:Balance>623.51</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>04/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1714811915</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12369390467</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>06/05/2024</gemini:Date>
+    <gemini:Balance>23.51</gemini:Balance>
+    <gemini:PaidOut>600.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-843(Kavtaradze 1), 600.00 GEL, May  4 2024  1:22PM, , VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>04/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1136140647</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>412509411733</gemini:AdditionalDescription>
+    <gemini:TransactionId>12384277658</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>06/05/2024</gemini:Date>
+    <gemini:Balance>22.31</gemini:Balance>
+    <gemini:PaidOut>1.2</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-843(Kavtaradze 1),  May  4 2024  1:22PM, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>04/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1136140651</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12384277674</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>08/05/2024</gemini:Date>
+    <gemini:PaidIn>554.81</gemini:PaidIn>
+    <gemini:Balance>577.12</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>08/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1715164319</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12399985374</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>09/05/2024</gemini:Date>
+    <gemini:PaidIn>600.0</gemini:PaidIn>
+    <gemini:Balance>1177.12</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>09/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1715234980</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12403336790</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>09/05/2024</gemini:Date>
+    <gemini:PaidIn>400.0</gemini:PaidIn>
+    <gemini:Balance>1577.12</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>09/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1715249718</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12406571966</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>09/05/2024</gemini:Date>
+    <gemini:Balance>1007.12</gemini:Balance>
+    <gemini:PaidOut>570.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-399 (Vaja br 5/2, 570.00 GEL, May  8 2024  6:44PM, , VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>08/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1140749314</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>412914952931</gemini:AdditionalDescription>
+    <gemini:TransactionId>12408385800</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>09/05/2024</gemini:Date>
+    <gemini:Balance>1005.98</gemini:Balance>
+    <gemini:PaidOut>1.14</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-399 (Vaja br 5/2,  May  8 2024  6:44PM, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>08/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1140749316</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12408385806</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>10/05/2024</gemini:Date>
+    <gemini:PaidIn>2000.0</gemini:PaidIn>
+    <gemini:Balance>3005.98</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>10/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1715304483</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12410847870</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>10/05/2024</gemini:Date>
+    <gemini:Balance>2405.98</gemini:Balance>
+    <gemini:PaidOut>600.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-70 (Saburtalo Br.1), 600.00 GEL, May  9 2024 11:28AM, , VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>09/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1141362216</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>413007130255</gemini:AdditionalDescription>
+    <gemini:TransactionId>12412604450</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>10/05/2024</gemini:Date>
+    <gemini:Balance>2404.78</gemini:Balance>
+    <gemini:PaidOut>1.2</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-70 (Saburtalo Br.1),  May  9 2024 11:28AM, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>09/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1141362217</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12412604458</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>10/05/2024</gemini:Date>
+    <gemini:Balance>2004.78</gemini:Balance>
+    <gemini:PaidOut>400.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-218 (Tb. Central), 400.00 GEL, May  9 2024  3:38PM, , VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>09/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1141388114</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>413011266702</gemini:AdditionalDescription>
+    <gemini:TransactionId>12412735242</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>10/05/2024</gemini:Date>
+    <gemini:Balance>2003.98</gemini:Balance>
+    <gemini:PaidOut>0.8</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-218 (Tb. Central),  May  9 2024  3:38PM, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>09/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1141388115</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12412735244</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>10/05/2024</gemini:Date>
+    <gemini:Balance>1003.98</gemini:Balance>
+    <gemini:PaidOut>1000.0</gemini:PaidOut>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>10/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1715331775</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12415239208</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>11/05/2024</gemini:Date>
+    <gemini:PaidIn>1000.0</gemini:PaidIn>
+    <gemini:Balance>2003.98</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>11/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1715404826</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12420133961</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>11/05/2024</gemini:Date>
+    <gemini:Balance>1603.98</gemini:Balance>
+    <gemini:PaidOut>400.0</gemini:PaidOut>
+    <gemini:Description>გადარიცხვა საკუთარ ანგარიშზე</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>11/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1715413105</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMI</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12422931499</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>11/05/2024</gemini:Date>
+    <gemini:Balance>603.98</gemini:Balance>
+    <gemini:PaidOut>1000.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-613 (BatAbashidze), 1000.00 GEL, May 10 2024  9:29AM, , VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>10/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1143508425</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>413105001227</gemini:AdditionalDescription>
+    <gemini:TransactionId>12424205531</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>11/05/2024</gemini:Date>
+    <gemini:Balance>601.98</gemini:Balance>
+    <gemini:PaidOut>2.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-613 (BatAbashidze),  May 10 2024  9:29AM, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>10/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1143508427</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12424205537</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/05/2024</gemini:Date>
+    <gemini:Balance>1.98</gemini:Balance>
+    <gemini:PaidOut>600.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-398 (Vaja br 5), 600.00 GEL, May 11 2024 10:57AM, , VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>11/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1144757357</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>413206976755</gemini:AdditionalDescription>
+    <gemini:TransactionId>12430283255</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/05/2024</gemini:Date>
+    <gemini:Balance>0.78</gemini:Balance>
+    <gemini:PaidOut>1.2</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-398 (Vaja br 5),  May 11 2024 10:57AM, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>11/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1144757359</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12430283261</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>18/05/2024</gemini:Date>
+    <gemini:PaidIn>500.0</gemini:PaidIn>
+    <gemini:Balance>500.78</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>18/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1716013912</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12478614301</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>18/05/2024</gemini:Date>
+    <gemini:PaidIn>13.0</gemini:PaidIn>
+    <gemini:Balance>513.78</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>18/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1716013934</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12478616335</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>19/05/2024</gemini:Date>
+    <gemini:PaidIn>500.0</gemini:PaidIn>
+    <gemini:Balance>1013.78</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>19/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1716107348</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12488891065</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/05/2024</gemini:Date>
+    <gemini:Balance>513.78</gemini:Balance>
+    <gemini:PaidOut>500.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-349 (Tatishvili12), 500.00 GEL, May 18 2024 10:54AM, , VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>18/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1161356529</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>413906374116</gemini:AdditionalDescription>
+    <gemini:TransactionId>12494624968</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/05/2024</gemini:Date>
+    <gemini:Balance>512.78</gemini:Balance>
+    <gemini:PaidOut>1.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-349 (Tatishvili12),  May 18 2024 10:54AM, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>18/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1161356534</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12494624984</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/05/2024</gemini:Date>
+    <gemini:Balance>12.78</gemini:Balance>
+    <gemini:PaidOut>500.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-843(Kavtaradze 1), 500.00 GEL, May 19 2024 12:46PM, , VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>19/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1161506732</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>414008035410</gemini:AdditionalDescription>
+    <gemini:TransactionId>12495160998</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/05/2024</gemini:Date>
+    <gemini:Balance>11.78</gemini:Balance>
+    <gemini:PaidOut>1.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-843(Kavtaradze 1),  May 19 2024 12:46PM, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>19/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1161506733</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12495161002</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>27/05/2024</gemini:Date>
+    <gemini:PaidOut>11.78</gemini:PaidOut>
+    <gemini:Description>ინკასოს ანგარიშზე თანხის შეგროვება, ინკასო # 006243513988, 25/05/2024</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>27/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>900627088</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*INK</gemini:OperationCode>
+    <gemini:TransactionId>12555831246</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>02/08/2024</gemini:Date>
+    <gemini:PaidIn>1169.55</gemini:PaidIn>
+    <gemini:Balance>1169.55</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>02/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1722599001</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>13174732439</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>02/08/2024</gemini:Date>
+    <gemini:Balance>1019.55</gemini:Balance>
+    <gemini:PaidOut>150.0</gemini:PaidOut>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>02/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1722604561</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>13175697567</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>03/08/2024</gemini:Date>
+    <gemini:Balance>519.55</gemini:Balance>
+    <gemini:PaidOut>500.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-37 (Bakuriani), 500.00 GEL, Aug  2 2024  7:09PM, , VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>02/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1352681336</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>421515234566</gemini:AdditionalDescription>
+    <gemini:TransactionId>13180824993</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>03/08/2024</gemini:Date>
+    <gemini:Balance>518.55</gemini:Balance>
+    <gemini:PaidOut>1.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-37 (Bakuriani),  Aug  2 2024  7:09PM, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>02/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1352681339</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>13180824997</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>05/08/2024</gemini:Date>
+    <gemini:Balance>99.06</gemini:Balance>
+    <gemini:PaidOut>419.49</gemini:PaidOut>
+    <gemini:Description>POS - VARTSIKHIS  MARANI, 419.49 GEL, Aug  2 2024 12:00AM,  რესტორანი, კაფე, ბარი, MCC: 5812, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>თიბისი ბანკის VISA ბარათებით სავაჭრო ობიექტებში სხვა ბანკის ტერმინალებ, TBCBGE22, GE88TB0000002501034003</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>02/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1358640995</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE88TB0000002501034003</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>თიბისი ბანკის VISA ბარათებით სავაჭრო ობიექტებში სხვა ბანკის ტერმინალებ</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>13200629174</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>06/08/2024</gemini:Date>
+    <gemini:PaidOut>99.06</gemini:PaidOut>
+    <gemini:Description>ინკასოს ანგარიშზე თანხის შეგროვება, ინკასო # 006243539039, 06/08/2024</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>06/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1003733712</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*INK</gemini:OperationCode>
+    <gemini:TransactionId>13209151577</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>22/08/2024</gemini:Date>
+    <gemini:PaidIn>917.57</gemini:PaidIn>
+    <gemini:Balance>917.57</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>22/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1724327024</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>13349915199</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>23/08/2024</gemini:Date>
+    <gemini:Balance>647.57</gemini:Balance>
+    <gemini:PaidOut>270.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-1054 (Agrohub univ), 270.00 GEL, Aug 22 2024  9:31PM, , VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>22/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1401440096</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>423517341729</gemini:AdditionalDescription>
+    <gemini:TransactionId>13353919935</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>23/08/2024</gemini:Date>
+    <gemini:Balance>647.03</gemini:Balance>
+    <gemini:PaidOut>0.54</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-1054 (Agrohub univ),  Aug 22 2024  9:31PM, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>22/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1401440098</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>13353919939</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>23/08/2024</gemini:Date>
+    <gemini:Balance>437.03</gemini:Balance>
+    <gemini:PaidOut>210.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-2 (perovskaia), 210.00 GEL, Aug 22 2024  3:51PM, , VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>22/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1401451571</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>423511620520</gemini:AdditionalDescription>
+    <gemini:TransactionId>13353957237</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>23/08/2024</gemini:Date>
+    <gemini:Balance>436.61</gemini:Balance>
+    <gemini:PaidOut>0.42</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-2 (perovskaia),  Aug 22 2024  3:51PM, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>22/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1401451573</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>13353957241</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>24/08/2024</gemini:Date>
+    <gemini:Balance>4.73</gemini:Balance>
+    <gemini:PaidOut>431.88</gemini:PaidOut>
+    <gemini:Description>POS - LOLITA-RESTAURANT, 431.88 GEL, Aug 22 2024 12:00AM,  რესტორანი, კაფე, ბარი, MCC: 5812, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>თიბისი ბანკის VISA ბარათებით სავაჭრო ობიექტებში სხვა ბანკის ტერმინალებ, TBCBGE22, GE88TB0000002501034003</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>22/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1405367375</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE88TB0000002501034003</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>თიბისი ბანკის VISA ბარათებით სავაჭრო ობიექტებში სხვა ბანკის ტერმინალებ</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>13367394859</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>02/09/2024</gemini:Date>
+    <gemini:PaidIn>1071.58</gemini:PaidIn>
+    <gemini:Balance>1076.31</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>02/09/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1725291112</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>13446166408</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>09/09/2024</gemini:Date>
+    <gemini:Balance>76.31</gemini:Balance>
+    <gemini:PaidOut>1000.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-1092 (Fresko Sab), 1000.00 GEL, Sep  8 2024  1:39PM, , VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>08/09/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1443843800</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>425209032436</gemini:AdditionalDescription>
+    <gemini:TransactionId>13506017160</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>09/09/2024</gemini:Date>
+    <gemini:Balance>74.31</gemini:Balance>
+    <gemini:PaidOut>2.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-1092 (Fresko Sab),  Sep  8 2024  1:39PM, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>08/09/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1443843801</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>13506017162</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>16/09/2024</gemini:Date>
+    <gemini:Balance>24.31</gemini:Balance>
+    <gemini:PaidOut>50.0</gemini:PaidOut>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>16/09/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1726483940</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>13574545096</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>27/09/2024</gemini:Date>
+    <gemini:PaidIn>998.01</gemini:PaidIn>
+    <gemini:Balance>1022.32</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>27/09/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1727460797</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>13678011881</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>27/09/2024</gemini:Date>
+    <gemini:Balance>322.32</gemini:Balance>
+    <gemini:PaidOut>700.0</gemini:PaidOut>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>27/09/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1727461035</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>13678024739</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>27/09/2024</gemini:Date>
+    <gemini:PaidOut>322.32</gemini:PaidOut>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>27/09/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1727461130</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>13678026521</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>27/09/2024</gemini:Date>
+    <gemini:PaidIn>246.77</gemini:PaidIn>
+    <gemini:Balance>246.77</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>27/09/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1727461200</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>13678029299</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>29/09/2024</gemini:Date>
+    <gemini:Balance>6.77</gemini:Balance>
+    <gemini:PaidOut>240.0</gemini:PaidOut>
+    <gemini:Description>ATM CASH - ATM TBC-325 (Vaja 49/2), 240.00 GEL, Sep 28 2024  5:46PM, , VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან, TBCBGE22, GE08TB0002511345555555</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>28/09/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1495781265</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE08TB0002511345555555</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>TBCBank_ის  VISA/MC ბარათებით TBCBank_ის ბანკომატებში შესრულებული ტრან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>ISSTR</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:AdditionalDescription>427213948823</gemini:AdditionalDescription>
+    <gemini:TransactionId>13691537291</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>29/09/2024</gemini:Date>
+    <gemini:Balance>6.29</gemini:Balance>
+    <gemini:PaidOut>0.48</gemini:PaidOut>
+    <gemini:Description>ATM CASH (comm) - ATM TBC-325 (Vaja 49/2),  Sep 28 2024  5:46PM, VISA, 431572******4842</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან, TBCBGE22, GE29TB0006001031590010</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>28/09/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1495781266</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE29TB0006001031590010</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - VISA ბარათების ბანკომატში განაღდებიდან</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს  თიბისი  ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>FEE</gemini:OperationCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>13691537293</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>11/10/2024</gemini:Date>
+    <gemini:PaidOut>6.29</gemini:PaidOut>
+    <gemini:Description>ინკასოს ანგარიშზე თანხის შეგროვება, ინკასო # 006243562928, 11/10/2024</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>11/10/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1099218216</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*INK</gemini:OperationCode>
+    <gemini:TransactionId>13806293787</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>26/11/2024</gemini:Date>
+    <gemini:PaidIn>1000.0</gemini:PaidIn>
+    <gemini:Balance>1000.00</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>26/11/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1732627093</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>14230070934</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>27/11/2024</gemini:Date>
+    <gemini:Balance>500.00</gemini:Balance>
+    <gemini:PaidOut>500.0</gemini:PaidOut>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>27/11/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1732689440</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>14233491480</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>27/11/2024</gemini:Date>
+    <gemini:PaidOut>500.0</gemini:PaidOut>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>27/11/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1732692535</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>14233874332</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>13/03/2025</gemini:Date>
+    <gemini:PaidIn>1000.0</gemini:PaidIn>
+    <gemini:Balance>1000.00</gemini:Balance>
+    <gemini:Description>გადარიცხვა საკუთარ ანგარიშზე</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>13/03/2025</gemini:DocumentDate>
+    <gemini:DocumentNumber>1741857908</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMI</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>15218730953</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>13/03/2025</gemini:Date>
+    <gemini:PaidOut>1000.0</gemini:PaidOut>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>13/03/2025</gemini:DocumentDate>
+    <gemini:DocumentNumber>1741861411</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>15220301243</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Summary>
+    <gemini:TotalPaidOut>19448.86</gemini:TotalPaidOut>
+    <gemini:TotalPaidIn>19448.86</gemini:TotalPaidIn>
+  </gemini:Summary>
+</gemini:AccountStatement>

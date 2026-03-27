@@ -1,0 +1,75 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<gemini:AccountStatement xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:gemini="http://www.mygemini.com/schemas/mygemini">
+  <gemini:Head>
+    <gemini:AccountFriendlyName>ჩემი ბარათი</gemini:AccountFriendlyName>
+    <gemini:AccountType>ბარათი</gemini:AccountType>
+    <gemini:AccountNo>GE52TB7856045067800005</gemini:AccountNo>
+    <gemini:AccountNameGeorgian>შპს აი-სი-ი;  გიორგი ბახტაძე 01024067298</gemini:AccountNameGeorgian>
+    <gemini:AccountNameEnglish>LTD ICE; Giorgi Bakhtadze 01024067298</gemini:AccountNameEnglish>
+    <gemini:Currency>GEL</gemini:Currency>
+    <gemini:FilterDateFrom>01/01/2024</gemini:FilterDateFrom>
+    <gemini:FilterDateTo>17/03/2026</gemini:FilterDateTo>
+    <gemini:StartingBalance>0.00</gemini:StartingBalance>
+    <gemini:ClosingBalance>0.00</gemini:ClosingBalance>
+  </gemini:Head>
+  <gemini:Record>
+    <gemini:Date>21/03/2024</gemini:Date>
+    <gemini:PaidIn>134.62</gemini:PaidIn>
+    <gemini:Balance>134.62</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE79TB7856045067800004</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>21/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1711008275</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE79TB7856045067800004</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>11985212314</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>05/04/2024</gemini:Date>
+    <gemini:PaidIn>184.61</gemini:PaidIn>
+    <gemini:Balance>319.23</gemini:Balance>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, 400017245, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>05/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1712330781</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი, 400017245</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12118202072</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>05/04/2024</gemini:Date>
+    <gemini:PaidOut>319.23</gemini:PaidOut>
+    <gemini:Description>საკუთარ ანგარიშზე გადარიცხვა</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>საკუთარ ანგარიშებს შორის გადარიცხვა</gemini:TransactionType>
+    <gemini:DocumentDate>05/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1712333398</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>სს "თიბისი ბანკი"</gemini:PartnerBankName>
+    <gemini:OperationCode>GII</gemini:OperationCode>
+    <gemini:PartnerTaxCode>400017245</gemini:PartnerTaxCode>
+    <gemini:TaxpayerCode>400017245</gemini:TaxpayerCode>
+    <gemini:TaxpayerName>შპს აი-სი-ი, 400017245</gemini:TaxpayerName>
+    <gemini:TransactionId>12118409600</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Summary>
+    <gemini:TotalPaidOut>319.23</gemini:TotalPaidOut>
+    <gemini:TotalPaidIn>319.23</gemini:TotalPaidIn>
+  </gemini:Summary>
+</gemini:AccountStatement>

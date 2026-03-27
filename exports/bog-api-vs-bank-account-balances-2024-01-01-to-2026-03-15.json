@@ -1,0 +1,434 @@
+{
+  "dryRun": true,
+  "dbWrites": false,
+  "range": {
+    "from": "2024-01-01",
+    "to": "2026-03-15"
+  },
+  "tolerance": 0.01,
+  "accountsChecked": 9,
+  "apiCalls": 243,
+  "apiFailures": 0,
+  "totals": {
+    "apiDays": 1356,
+    "dbDays": 7236,
+    "matched": 420,
+    "mismatched": 936,
+    "missingInDb": 0,
+    "missingInApi": 5880
+  },
+  "perAccount": [
+    {
+      "accountUuid": "1b7c382d-be0a-4990-a540-e4cc7bd15933",
+      "accountNumber": "GE74BG0000000586388146",
+      "currencyCode": "USD",
+      "apiDayCount": 18,
+      "dbDayCount": 804,
+      "matched": 10,
+      "mismatched": 8,
+      "missingInDb": 0,
+      "missingInApi": 786,
+      "samples": [
+        {
+          "date": "2024-01-12",
+          "apiBalance": 136600,
+          "dbBalance": 741.05,
+          "delta": 135858.95,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-01-15",
+          "apiBalance": 0,
+          "dbBalance": 1154.2,
+          "delta": 1154.2,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-02-07",
+          "apiBalance": 0,
+          "dbBalance": 0.63,
+          "delta": 0.63,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-03-28",
+          "apiBalance": 0,
+          "dbBalance": 15750,
+          "delta": 15750,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-06-05",
+          "apiBalance": 0,
+          "dbBalance": 100,
+          "delta": 100,
+          "kind": "mismatch"
+        }
+      ]
+    },
+    {
+      "accountUuid": "89f92dea-b3f7-434b-b2ef-a89595d95543",
+      "accountNumber": "GE78BG0000000893486000",
+      "currencyCode": "AED",
+      "apiDayCount": 12,
+      "dbDayCount": 804,
+      "matched": 12,
+      "mismatched": 0,
+      "missingInDb": 0,
+      "missingInApi": 792,
+      "samples": [
+        {
+          "date": "2024-01-01",
+          "apiBalance": null,
+          "dbBalance": 0.32,
+          "kind": "missing_in_api"
+        },
+        {
+          "date": "2024-01-02",
+          "apiBalance": null,
+          "dbBalance": 0.32,
+          "kind": "missing_in_api"
+        },
+        {
+          "date": "2024-01-04",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        },
+        {
+          "date": "2024-01-05",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        },
+        {
+          "date": "2024-01-06",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        }
+      ]
+    },
+    {
+      "accountUuid": "7196f2af-cc5a-4325-bcd8-224226939817",
+      "accountNumber": "GE78BG0000000893486000",
+      "currencyCode": "CNY",
+      "apiDayCount": 67,
+      "dbDayCount": 804,
+      "matched": 63,
+      "mismatched": 4,
+      "missingInDb": 0,
+      "missingInApi": 737,
+      "samples": [
+        {
+          "date": "2025-04-16",
+          "apiBalance": 521180.69,
+          "dbBalance": 475946.4,
+          "delta": 45234.28999999998,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2025-04-29",
+          "apiBalance": 360625.84,
+          "dbBalance": 2110.24,
+          "delta": 358515.60000000003,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2025-05-20",
+          "apiBalance": 26616.97,
+          "dbBalance": -0.08,
+          "delta": 26617.050000000003,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2025-06-11",
+          "apiBalance": 54348.94,
+          "dbBalance": 121.08,
+          "delta": 54227.86,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-01-01",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        }
+      ]
+    },
+    {
+      "accountUuid": "a657b7f0-1247-493d-a651-4b87e34939e3",
+      "accountNumber": "GE78BG0000000893486000",
+      "currencyCode": "EUR",
+      "apiDayCount": 145,
+      "dbDayCount": 804,
+      "matched": 0,
+      "mismatched": 145,
+      "missingInDb": 0,
+      "missingInApi": 659,
+      "samples": [
+        {
+          "date": "2024-01-15",
+          "apiBalance": 0,
+          "dbBalance": -63.9,
+          "delta": 63.9,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-01-17",
+          "apiBalance": 81000,
+          "dbBalance": 80936.1,
+          "delta": 63.89999999999418,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-01-18",
+          "apiBalance": 16.34,
+          "dbBalance": -47.56,
+          "delta": 63.900000000000006,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-01-25",
+          "apiBalance": 0,
+          "dbBalance": -63.9,
+          "delta": 63.9,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-01-29",
+          "apiBalance": 0,
+          "dbBalance": -63.9,
+          "delta": 63.9,
+          "kind": "mismatch"
+        }
+      ]
+    },
+    {
+      "accountUuid": "3c8ed7c3-4653-4a9c-af95-2da8a6e7795b",
+      "accountNumber": "GE78BG0000000893486000",
+      "currencyCode": "GBP",
+      "apiDayCount": 0,
+      "dbDayCount": 804,
+      "matched": 0,
+      "mismatched": 0,
+      "missingInDb": 0,
+      "missingInApi": 804,
+      "samples": [
+        {
+          "date": "2024-01-01",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        },
+        {
+          "date": "2024-01-02",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        },
+        {
+          "date": "2024-01-03",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        },
+        {
+          "date": "2024-01-04",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        },
+        {
+          "date": "2024-01-05",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        }
+      ]
+    },
+    {
+      "accountUuid": "60582948-8c5b-4715-b75c-ca03e3d36a4e",
+      "accountNumber": "GE78BG0000000893486000",
+      "currencyCode": "GEL",
+      "apiDayCount": 745,
+      "dbDayCount": 804,
+      "matched": 0,
+      "mismatched": 745,
+      "missingInDb": 0,
+      "missingInApi": 59,
+      "samples": [
+        {
+          "date": "2024-01-01",
+          "apiBalance": 722.8,
+          "dbBalance": 26089.57,
+          "delta": 25366.77,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-01-02",
+          "apiBalance": 678.71,
+          "dbBalance": 26045.48,
+          "delta": 25366.77,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-01-03",
+          "apiBalance": 1243.9,
+          "dbBalance": 26610.67,
+          "delta": 25366.769999999997,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-01-04",
+          "apiBalance": 0,
+          "dbBalance": 25366.77,
+          "delta": 25366.77,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-01-05",
+          "apiBalance": 0,
+          "dbBalance": 25366.77,
+          "delta": 25366.77,
+          "kind": "mismatch"
+        }
+      ]
+    },
+    {
+      "accountUuid": "b9798d09-52f2-4276-bfc5-b93817ff4425",
+      "accountNumber": "GE78BG0000000893486000",
+      "currencyCode": "KZT",
+      "apiDayCount": 0,
+      "dbDayCount": 804,
+      "matched": 0,
+      "mismatched": 0,
+      "missingInDb": 0,
+      "missingInApi": 804,
+      "samples": [
+        {
+          "date": "2024-01-01",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        },
+        {
+          "date": "2024-01-02",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        },
+        {
+          "date": "2024-01-03",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        },
+        {
+          "date": "2024-01-04",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        },
+        {
+          "date": "2024-01-05",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        }
+      ]
+    },
+    {
+      "accountUuid": "c3721863-2127-4383-a080-9ced9fbebf3c",
+      "accountNumber": "GE78BG0000000893486000",
+      "currencyCode": "TRY",
+      "apiDayCount": 5,
+      "dbDayCount": 804,
+      "matched": 4,
+      "mismatched": 1,
+      "missingInDb": 0,
+      "missingInApi": 799,
+      "samples": [
+        {
+          "date": "2024-06-03",
+          "apiBalance": 5000,
+          "dbBalance": 0,
+          "delta": 5000,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-01-01",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        },
+        {
+          "date": "2024-01-02",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        },
+        {
+          "date": "2024-01-03",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        },
+        {
+          "date": "2024-01-04",
+          "apiBalance": null,
+          "dbBalance": 0,
+          "kind": "missing_in_api"
+        }
+      ]
+    },
+    {
+      "accountUuid": "b40d24a8-cd0c-45ff-9711-841c504fbae1",
+      "accountNumber": "GE78BG0000000893486000",
+      "currencyCode": "USD",
+      "apiDayCount": 364,
+      "dbDayCount": 804,
+      "matched": 331,
+      "mismatched": 33,
+      "missingInDb": 0,
+      "missingInApi": 440,
+      "samples": [
+        {
+          "date": "2024-04-02",
+          "apiBalance": 73173,
+          "dbBalance": 19423,
+          "delta": 53750,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-04-03",
+          "apiBalance": 54066.79,
+          "dbBalance": 316.79,
+          "delta": 53750,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-04-11",
+          "apiBalance": 13068.88,
+          "dbBalance": 68.88,
+          "delta": 13000,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-05-20",
+          "apiBalance": 29428,
+          "dbBalance": 1428,
+          "delta": 28000,
+          "kind": "mismatch"
+        },
+        {
+          "date": "2024-05-23",
+          "apiBalance": 19956.42,
+          "dbBalance": 456.42,
+          "delta": 19500,
+          "kind": "mismatch"
+        }
+      ]
+    }
+  ]
+}

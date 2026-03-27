@@ -1,0 +1,167 @@
+{
+  "totals": {
+    "synthetic": 1000,
+    "paired": 0,
+    "unpaired": 1000
+  },
+  "report": [
+    {
+      "table": "GE65TB7856036050100002_TBC_GEL",
+      "syntheticCount": 0,
+      "pairedCount": 0,
+      "unpairedCount": 0,
+      "samples": []
+    },
+    {
+      "table": "GE74BG0000000586388146_BOG_USD",
+      "syntheticCount": 0,
+      "pairedCount": 0,
+      "unpairedCount": 0,
+      "samples": []
+    },
+    {
+      "table": "GE78BG0000000893486000_BOG_AED",
+      "syntheticCount": 0,
+      "pairedCount": 0,
+      "unpairedCount": 0,
+      "samples": []
+    },
+    {
+      "table": "GE78BG0000000893486000_BOG_CNY",
+      "syntheticCount": 0,
+      "pairedCount": 0,
+      "unpairedCount": 0,
+      "samples": []
+    },
+    {
+      "table": "GE78BG0000000893486000_BOG_EUR",
+      "syntheticCount": 0,
+      "pairedCount": 0,
+      "unpairedCount": 0,
+      "samples": []
+    },
+    {
+      "table": "GE78BG0000000893486000_BOG_GBP",
+      "syntheticCount": 0,
+      "pairedCount": 0,
+      "unpairedCount": 0,
+      "samples": []
+    },
+    {
+      "table": "GE78BG0000000893486000_BOG_GEL",
+      "syntheticCount": 1000,
+      "pairedCount": 0,
+      "unpairedCount": 1000,
+      "samples": {
+        "paired": [],
+        "unpaired": [
+          {
+            "synthetic_uuid": "7423aa07-d7eb-5d14-a356-e74f94fd25ec",
+            "synthetic_dockey": "API_DOC_1",
+            "synthetic_entriesid": "1",
+            "has_pair": false,
+            "pair_row": null
+          },
+          {
+            "synthetic_uuid": "089fa250-4af4-5804-86ce-1b3292c66ab6",
+            "synthetic_dockey": "API_DOC_10",
+            "synthetic_entriesid": "10",
+            "has_pair": false,
+            "pair_row": null
+          },
+          {
+            "synthetic_uuid": "5c4ccb31-02a9-5034-b4d5-558edae176d2",
+            "synthetic_dockey": "API_DOC_100",
+            "synthetic_entriesid": "100",
+            "has_pair": false,
+            "pair_row": null
+          },
+          {
+            "synthetic_uuid": "00a426c4-1810-5a23-9a7a-e9e7d6fa0bd4",
+            "synthetic_dockey": "API_DOC_1000",
+            "synthetic_entriesid": "1000",
+            "has_pair": false,
+            "pair_row": null
+          },
+          {
+            "synthetic_uuid": "5a07706c-2509-51fd-9e30-1067c60cefed",
+            "synthetic_dockey": "API_DOC_101",
+            "synthetic_entriesid": "101",
+            "has_pair": false,
+            "pair_row": null
+          },
+          {
+            "synthetic_uuid": "3ec6ca94-885e-5de9-ad99-45e0145bd305",
+            "synthetic_dockey": "API_DOC_102",
+            "synthetic_entriesid": "102",
+            "has_pair": false,
+            "pair_row": null
+          },
+          {
+            "synthetic_uuid": "2155b73b-a285-5483-90f5-5857961a7610",
+            "synthetic_dockey": "API_DOC_103",
+            "synthetic_entriesid": "103",
+            "has_pair": false,
+            "pair_row": null
+          },
+          {
+            "synthetic_uuid": "57e8e348-7122-5b4a-8c74-fcd636784b9d",
+            "synthetic_dockey": "API_DOC_104",
+            "synthetic_entriesid": "104",
+            "has_pair": false,
+            "pair_row": null
+          },
+          {
+            "synthetic_uuid": "8b9d83e4-4270-5345-b897-a7bcfa9de543",
+            "synthetic_dockey": "API_DOC_105",
+            "synthetic_entriesid": "105",
+            "has_pair": false,
+            "pair_row": null
+          },
+          {
+            "synthetic_uuid": "93c91067-b8e7-5ad0-bc2e-37da0d7a03dc",
+            "synthetic_dockey": "API_DOC_106",
+            "synthetic_entriesid": "106",
+            "has_pair": false,
+            "pair_row": null
+          }
+        ]
+      }
+    },
+    {
+      "table": "GE78BG0000000893486000_BOG_KZT",
+      "syntheticCount": 0,
+      "pairedCount": 0,
+      "unpairedCount": 0,
+      "samples": []
+    },
+    {
+      "table": "GE78BG0000000893486000_BOG_TRY",
+      "syntheticCount": 0,
+      "pairedCount": 0,
+      "unpairedCount": 0,
+      "samples": []
+    },
+    {
+      "table": "GE78BG0000000893486000_BOG_USD",
+      "syntheticCount": 0,
+      "pairedCount": 0,
+      "unpairedCount": 0,
+      "samples": []
+    },
+    {
+      "table": "bog_gel_raw_893486000",
+      "syntheticCount": 0,
+      "pairedCount": 0,
+      "unpairedCount": 0,
+      "samples": []
+    },
+    {
+      "table": "conversion_entries",
+      "syntheticCount": 0,
+      "pairedCount": 0,
+      "unpairedCount": 0,
+      "samples": []
+    }
+  ]
+}

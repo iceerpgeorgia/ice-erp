@@ -1,0 +1,123 @@
+{
+  "range": {
+    "start": "2024-01-01",
+    "end": "2026-03-15",
+    "days": 805
+  },
+  "baselineBeforeTotals": {
+    "apiTotal": 23026,
+    "dbTotal": 23713,
+    "totalGap": -687,
+    "apiErrors": 0,
+    "mismatchRows": 177
+  },
+  "afterV3Totals": {
+    "apiTotal": 23275,
+    "dbTotal": 23709,
+    "totalGap": -434,
+    "apiErrors": 0,
+    "mismatchRows": 33
+  },
+  "apply2InitialTotals": {
+    "apiTotal": 23385,
+    "dbTotal": 23709,
+    "totalGap": -324,
+    "apiErrors": 0,
+    "mismatchRows": 29
+  },
+  "apply2Summary": {
+    "attempted": 29,
+    "stillMismatched": 4
+  },
+  "afterV4Totals": {
+    "apiTotal": 23088,
+    "dbTotal": 23713,
+    "totalGap": -625,
+    "apiErrors": 0,
+    "mismatchRows": 33
+  },
+  "deltaFromV3": {
+    "mismatchRowsReduced": 0,
+    "totalGapDelta": 191,
+    "apiTotalDelta": -187,
+    "dbTotalDelta": 4
+  },
+  "deltaFromBefore": {
+    "mismatchRowsReduced": 144,
+    "totalGapDelta": -62
+  },
+  "perAccount": [
+    {
+      "account": "GE74BG0000000586388146",
+      "currency": "USD",
+      "beforeRows": 0,
+      "afterV3Rows": 0,
+      "afterV4Rows": 1,
+      "resolvedSinceV3": -1,
+      "resolvedFromBefore": -1,
+      "beforeAbsGap": 0,
+      "afterV3AbsGap": 0,
+      "afterV4AbsGap": 3
+    },
+    {
+      "account": "GE78BG0000000893486000",
+      "currency": "CNY",
+      "beforeRows": 13,
+      "afterV3Rows": 0,
+      "afterV4Rows": 1,
+      "resolvedSinceV3": -1,
+      "resolvedFromBefore": 12,
+      "beforeAbsGap": 27,
+      "afterV3AbsGap": 0,
+      "afterV4AbsGap": 1
+    },
+    {
+      "account": "GE78BG0000000893486000",
+      "currency": "EUR",
+      "beforeRows": 25,
+      "afterV3Rows": 3,
+      "afterV4Rows": 1,
+      "resolvedSinceV3": 2,
+      "resolvedFromBefore": 24,
+      "beforeAbsGap": 39,
+      "afterV3AbsGap": 11,
+      "afterV4AbsGap": 1
+    },
+    {
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "beforeRows": 55,
+      "afterV3Rows": 23,
+      "afterV4Rows": 21,
+      "resolvedSinceV3": 2,
+      "resolvedFromBefore": 34,
+      "beforeAbsGap": 694,
+      "afterV3AbsGap": 428,
+      "afterV4AbsGap": 594
+    },
+    {
+      "account": "GE78BG0000000893486000",
+      "currency": "TRY",
+      "beforeRows": 2,
+      "afterV3Rows": 0,
+      "afterV4Rows": 0,
+      "resolvedSinceV3": 0,
+      "resolvedFromBefore": 2,
+      "beforeAbsGap": 2,
+      "afterV3AbsGap": 0,
+      "afterV4AbsGap": 0
+    },
+    {
+      "account": "GE78BG0000000893486000",
+      "currency": "USD",
+      "beforeRows": 82,
+      "afterV3Rows": 7,
+      "afterV4Rows": 9,
+      "resolvedSinceV3": -2,
+      "resolvedFromBefore": 73,
+      "beforeAbsGap": 165,
+      "afterV3AbsGap": 19,
+      "afterV4AbsGap": 34
+    }
+  ]
+}

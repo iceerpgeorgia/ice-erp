@@ -1,0 +1,32 @@
+{
+  "meta": {
+    "generatedAt": "2026-03-16T13:13:23.281Z",
+    "range": {
+      "start": "2024-06-03",
+      "end": "2024-06-03"
+    },
+    "accountsCount": 1,
+    "rowsCount": 1,
+    "okRows": 1,
+    "failedRows": 0
+  },
+  "rows": [
+    {
+      "accountUuid": "60582948-8c5b-4715-b75c-ca03e3d36a4e",
+      "accountNumber": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "date": "2024-06-03",
+      "path": "/statement/GE78BG0000000893486000/GEL/2024-06-03/2024-06-03",
+      "status": 200,
+      "ok": true,
+      "correlationId": "65cdb85e-d40d-4083-b236-f878e0bd87e8",
+      "operationsCount": 49,
+      "apiOpeningBalance": null,
+      "apiClosingBalance": null,
+      "derivedOpeningBalance": 27914.71,
+      "derivedClosingBalance": 26290.19,
+      "netChange": -1624.52,
+      "error": null
+    }
+  ]
+}

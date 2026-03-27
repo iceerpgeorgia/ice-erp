@@ -1,0 +1,1477 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<gemini:AccountStatement xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:gemini="http://www.mygemini.com/schemas/mygemini">
+  <gemini:Head>
+    <gemini:AccountFriendlyName>ჩემი მიმდინარე</gemini:AccountFriendlyName>
+    <gemini:AccountType>მიმდინარე</gemini:AccountType>
+    <gemini:AccountNo>GE39TB7856036150100001</gemini:AccountNo>
+    <gemini:AccountNameGeorgian>შპს აი-სი-ი</gemini:AccountNameGeorgian>
+    <gemini:AccountNameEnglish>LTD ICE</gemini:AccountNameEnglish>
+    <gemini:Currency>USD</gemini:Currency>
+    <gemini:FilterDateFrom>01/01/2024</gemini:FilterDateFrom>
+    <gemini:FilterDateTo>17/03/2026</gemini:FilterDateTo>
+    <gemini:StartingBalance>0.0</gemini:StartingBalance>
+    <gemini:ClosingBalance>0.00</gemini:ClosingBalance>
+  </gemini:Head>
+  <gemini:Record>
+    <gemini:Date>31/01/2024</gemini:Date>
+    <gemini:PaidIn>8000.0</gemini:PaidIn>
+    <gemini:Balance>8000.0</gemini:Balance>
+    <gemini:Description>სავალუტო ბაზარზე შეძენილი უცხოური ვალუტის ანგარიშზე შეტანა</gemini:Description>
+    <gemini:AdditionalInformation>გიორგი ბახტაძე 01024067298  07-06-1990</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>31/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>119837758</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE58TB1000000000610111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>გიორგი ბახტაძე 01024067298  07-06-1990</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>26</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01024067298</gemini:PartnerTaxCode>
+    <gemini:TransactionId>11572578441</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>31/01/2024</gemini:Date>
+    <gemini:Balance>1242.15</gemini:Balance>
+    <gemini:PaidOut>6757.85</gemini:PaidOut>
+    <gemini:Description>ძირითადი თანხის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო, TBCBGE22, GE90TB0000240505700111</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>31/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>822272665</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE90TB0000240505700111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPPR</gemini:OperationCode>
+    <gemini:TransactionId>11579726147</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>31/01/2024</gemini:Date>
+    <gemini:Balance>33.34</gemini:Balance>
+    <gemini:PaidOut>1208.81</gemini:PaidOut>
+    <gemini:Description>პროცენტის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო, TBCBGE22, GE09TB0000240505700211</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>31/01/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>822272666</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE09TB0000240505700211</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPIN</gemini:OperationCode>
+    <gemini:TransactionId>11579726149</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>11/02/2024</gemini:Date>
+    <gemini:PaidOut>33.34</gemini:PaidOut>
+    <gemini:Description>კონვერტაცია (კროს-კურსი: 1 USD = 2.6050 GEL)</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>11/02/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1707648999</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>GIC</gemini:OperationCode>
+    <gemini:TransactionId>11666047093</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/02/2024</gemini:Date>
+    <gemini:PaidIn>28020.0</gemini:PaidIn>
+    <gemini:Balance>28020.00</gemini:Balance>
+    <gemini:Description>კონვერტაცია</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>20/02/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>833912214</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*DFX*</gemini:OperationCode>
+    <gemini:TransactionId>11740901431</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/02/2024</gemini:Date>
+    <gemini:PaidIn>10.0</gemini:PaidIn>
+    <gemini:Balance>28030.00</gemini:Balance>
+    <gemini:Description>კონვერტაცია (კროს-კურსი: 1 USD = 2.6900 GEL)</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>20/02/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1708438480</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>GIC</gemini:OperationCode>
+    <gemini:TransactionId>11740917257</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/02/2024</gemini:Date>
+    <gemini:Balance>30.00</gemini:Balance>
+    <gemini:PaidOut>28000.0</gemini:PaidOut>
+    <gemini:Description>PAYMENT FOR ELEVATORS ACCORDING TO CONTRACT K6NC06320633 ROOMIX TSINTSADZE PROJECT</gemini:Description>
+    <gemini:AdditionalInformation>OTIS KAZAKHSTAN LLP, CITIKZKAXXX, KZ4983201D0200436001</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>20/02/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1708438451</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>KZ4983201D0200436001</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>OTIS KAZAKHSTAN LLP</gemini:PartnerName>
+    <gemini:PartnerBankCode>CITIKZKAXXX</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>CJSC CITIBANK KAZAKHSTAN</gemini:PartnerBankName>
+    <gemini:OperationCode>GIF</gemini:OperationCode>
+    <gemini:ChargeDetails>OUR</gemini:ChargeDetails>
+    <gemini:TransactionId>11740919349</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/02/2024</gemini:Date>
+    <gemini:PaidOut>30.0</gemini:PaidOut>
+    <gemini:Description>გადარიცხვის საკომისიო</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - იურიდიული პირების გადარიცხვები, TBCBGE22, GE22TB0006001030220011</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>20/02/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1708438451</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE22TB0006001030220011</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - იურიდიული პირების გადარიცხვები</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>GIF</gemini:OperationCode>
+    <gemini:TransactionId>11740919350</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>01/03/2024</gemini:Date>
+    <gemini:Balance>-953.32</gemini:Balance>
+    <gemini:PaidOut>953.32</gemini:PaidOut>
+    <gemini:Description>ძირითადი თანხის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო, TBCBGE22, GE90TB0000240505700111</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>01/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>840347920</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE90TB0000240505700111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPPR</gemini:OperationCode>
+    <gemini:TransactionId>11825352515</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>01/03/2024</gemini:Date>
+    <gemini:Balance>-2106.75</gemini:Balance>
+    <gemini:PaidOut>1153.43</gemini:PaidOut>
+    <gemini:Description>პროცენტის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო, TBCBGE22, GE09TB0000240505700211</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>01/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>840347923</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE09TB0000240505700211</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPIN</gemini:OperationCode>
+    <gemini:TransactionId>11825352521</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>01/03/2024</gemini:Date>
+    <gemini:Balance>-2265.74</gemini:Balance>
+    <gemini:PaidOut>158.99</gemini:PaidOut>
+    <gemini:Description>ჯარიმის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო, TBCBGE22, GE25TB0000240505700311</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>01/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>840347926</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE25TB0000240505700311</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPO%</gemini:OperationCode>
+    <gemini:TransactionId>11825352525</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>01/03/2024</gemini:Date>
+    <gemini:PaidIn>2265.74</gemini:PaidIn>
+    <gemini:Description>სესხის დაფარვა. სესხის# 6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>01/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>0</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>LFX</gemini:OperationCode>
+    <gemini:TransactionId>11825352861</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>05/03/2024</gemini:Date>
+    <gemini:Balance>-32.87</gemini:Balance>
+    <gemini:PaidOut>32.87</gemini:PaidOut>
+    <gemini:Description>ჯარიმის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო, TBCBGE22, GE25TB0000240505700311</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>05/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>842772077</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE25TB0000240505700311</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPO%</gemini:OperationCode>
+    <gemini:TransactionId>11859490681</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>05/03/2024</gemini:Date>
+    <gemini:PaidIn>32.87</gemini:PaidIn>
+    <gemini:Description>სესხის დაფარვა. სესხის# 6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>05/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>0</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>LFX</gemini:OperationCode>
+    <gemini:TransactionId>11859491035</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>07/03/2024</gemini:Date>
+    <gemini:PaidIn>5880.0</gemini:PaidIn>
+    <gemini:Balance>5880.00</gemini:Balance>
+    <gemini:Description>სავალუტო ბაზარზე შეძენილი უცხოური ვალუტის ანგარიშზე შეტანა</gemini:Description>
+    <gemini:AdditionalInformation>გიორგი ბახტაძე 01024067298  07-06-1990</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>07/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>120522507</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE59TB3900000000639111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>გიორგი ბახტაძე 01024067298  07-06-1990</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>26</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01024067298</gemini:PartnerTaxCode>
+    <gemini:TransactionId>11875143121</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>07/03/2024</gemini:Date>
+    <gemini:Balance>46.84</gemini:Balance>
+    <gemini:PaidOut>5833.16</gemini:PaidOut>
+    <gemini:Description>ძირითადი თანხის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო, TBCBGE22, GE90TB0000240505700111</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>07/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>844011467</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE90TB0000240505700111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPPR</gemini:OperationCode>
+    <gemini:TransactionId>11878359611</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>07/03/2024</gemini:Date>
+    <gemini:Balance>37.20</gemini:Balance>
+    <gemini:PaidOut>9.64</gemini:PaidOut>
+    <gemini:Description>პროცენტის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო, TBCBGE22, GE09TB0000240505700211</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>07/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>844011469</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE09TB0000240505700211</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPIN</gemini:OperationCode>
+    <gemini:TransactionId>11878359615</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>07/03/2024</gemini:Date>
+    <gemini:Balance>-0.28</gemini:Balance>
+    <gemini:PaidOut>37.48</gemini:PaidOut>
+    <gemini:Description>ჯარიმის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო, TBCBGE22, GE25TB0000240505700311</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>07/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>844011472</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE25TB0000240505700311</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPO%</gemini:OperationCode>
+    <gemini:TransactionId>11878359621</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>07/03/2024</gemini:Date>
+    <gemini:PaidIn>0.28</gemini:PaidIn>
+    <gemini:Description>სესხის დაფარვა. სესხის# 6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>07/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>0</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>LFX</gemini:OperationCode>
+    <gemini:TransactionId>11878359809</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>13/03/2024</gemini:Date>
+    <gemini:Balance>-15.49</gemini:Balance>
+    <gemini:PaidOut>15.49</gemini:PaidOut>
+    <gemini:Description>ძირითადი თანხის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო, TBCBGE22, GE90TB0000240505700111</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>13/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>847351395</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE90TB0000240505700111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPPR</gemini:OperationCode>
+    <gemini:TransactionId>11927389818</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>13/03/2024</gemini:Date>
+    <gemini:Balance>-15.53</gemini:Balance>
+    <gemini:PaidOut>0.04</gemini:PaidOut>
+    <gemini:Description>პროცენტის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო, TBCBGE22, GE09TB0000240505700211</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>13/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>847351396</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE09TB0000240505700211</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPIN</gemini:OperationCode>
+    <gemini:TransactionId>11927389824</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>13/03/2024</gemini:Date>
+    <gemini:Balance>-15.87</gemini:Balance>
+    <gemini:PaidOut>0.34</gemini:PaidOut>
+    <gemini:Description>ჯარიმის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო, TBCBGE22, GE25TB0000240505700311</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>13/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>847351397</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE25TB0000240505700311</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPO%</gemini:OperationCode>
+    <gemini:TransactionId>11927389830</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>13/03/2024</gemini:Date>
+    <gemini:PaidIn>15.87</gemini:PaidIn>
+    <gemini:Description>სესხის დაფარვა. სესხის# 6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>13/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>0</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>LFX</gemini:OperationCode>
+    <gemini:TransactionId>11927390070</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>14/03/2024</gemini:Date>
+    <gemini:Balance>-13.27</gemini:Balance>
+    <gemini:PaidOut>13.27</gemini:PaidOut>
+    <gemini:Description>ძირითადი თანხის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო, TBCBGE22, GE90TB0000240505700111</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>14/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>847875752</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE90TB0000240505700111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPPR</gemini:OperationCode>
+    <gemini:TransactionId>11935506930</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>14/03/2024</gemini:Date>
+    <gemini:Balance>-13.28</gemini:Balance>
+    <gemini:PaidOut>0.01</gemini:PaidOut>
+    <gemini:Description>პროცენტის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო, TBCBGE22, GE09TB0000240505700211</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>14/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>847875754</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE09TB0000240505700211</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPIN</gemini:OperationCode>
+    <gemini:TransactionId>11935506934</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>14/03/2024</gemini:Date>
+    <gemini:Balance>-13.31</gemini:Balance>
+    <gemini:PaidOut>0.03</gemini:PaidOut>
+    <gemini:Description>ჯარიმის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო, TBCBGE22, GE25TB0000240505700311</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>14/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>847875755</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE25TB0000240505700311</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPO%</gemini:OperationCode>
+    <gemini:TransactionId>11935506936</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>14/03/2024</gemini:Date>
+    <gemini:PaidIn>13.31</gemini:PaidIn>
+    <gemini:Description>სესხის დაფარვა. სესხის# 6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>14/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>0</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>LFX</gemini:OperationCode>
+    <gemini:TransactionId>11935507078</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/03/2024</gemini:Date>
+    <gemini:Balance>-3990.20</gemini:Balance>
+    <gemini:PaidOut>3990.2</gemini:PaidOut>
+    <gemini:Description>ძირითადი თანხის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო, TBCBGE22, GE90TB0000240505700111</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>20/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>851158490</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE90TB0000240505700111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPPR</gemini:OperationCode>
+    <gemini:TransactionId>11983016848</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/03/2024</gemini:Date>
+    <gemini:Balance>-4997.60</gemini:Balance>
+    <gemini:PaidOut>1007.4</gemini:PaidOut>
+    <gemini:Description>პროცენტის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო, TBCBGE22, GE09TB0000240505700211</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>20/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>851158492</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE09TB0000240505700211</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPIN</gemini:OperationCode>
+    <gemini:TransactionId>11983016854</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/03/2024</gemini:Date>
+    <gemini:PaidIn>4997.6</gemini:PaidIn>
+    <gemini:Description>სესხის დაფარვა. სესხის# 6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>20/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>0</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>LFX</gemini:OperationCode>
+    <gemini:TransactionId>11983017698</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>29/03/2024</gemini:Date>
+    <gemini:PaidIn>3000.0</gemini:PaidIn>
+    <gemini:Balance>3000.00</gemini:Balance>
+    <gemini:Description>სავალუტო ბაზარზე შეძენილი უცხოური ვალუტის ანგარიშზე შეტანა</gemini:Description>
+    <gemini:AdditionalInformation>გიორგი ბახტაძე 01024067298  07-06-1990</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>29/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>120928296</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB1900000000619111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>გიორგი ბახტაძე 01024067298  07-06-1990</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>26</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01024067298</gemini:PartnerTaxCode>
+    <gemini:TransactionId>12055439998</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>29/03/2024</gemini:Date>
+    <gemini:Balance>47.60</gemini:Balance>
+    <gemini:PaidOut>2952.4</gemini:PaidOut>
+    <gemini:Description>ძირითადი თანხის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო, TBCBGE22, GE90TB0000240505700111</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>29/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>856414867</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE90TB0000240505700111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPPR</gemini:OperationCode>
+    <gemini:TransactionId>12055596566</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>29/03/2024</gemini:Date>
+    <gemini:Balance>40.32</gemini:Balance>
+    <gemini:PaidOut>7.28</gemini:PaidOut>
+    <gemini:Description>პროცენტის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო, TBCBGE22, GE09TB0000240505700211</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>29/03/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>856414868</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE09TB0000240505700211</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPIN</gemini:OperationCode>
+    <gemini:TransactionId>12055596568</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/04/2024</gemini:Date>
+    <gemini:PaidIn>28000.0</gemini:PaidIn>
+    <gemini:Balance>28040.32</gemini:Balance>
+    <gemini:Description>კონვერტაცია</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>12/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>864835946</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*DFX*</gemini:OperationCode>
+    <gemini:TransactionId>12176933027</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>15/04/2024</gemini:Date>
+    <gemini:Balance>40.32</gemini:Balance>
+    <gemini:PaidOut>28000.0</gemini:PaidOut>
+    <gemini:Description>PAYMENT FOR ELEVATORS ACCORDING TO CONTRACT K6NC06320633 ROOMIX TSINTSADZE PROJECT</gemini:Description>
+    <gemini:AdditionalInformation>OTIS KAZAKHSTAN LLP, CITIKZKAXXX, KZ4983201D0200436001</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>12/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1712925516</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>KZ4983201D0200436001</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>OTIS KAZAKHSTAN LLP</gemini:PartnerName>
+    <gemini:PartnerBankCode>CITIKZKAXXX</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>CJSC CITIBANK KAZAKHSTAN</gemini:PartnerBankName>
+    <gemini:OperationCode>GIF</gemini:OperationCode>
+    <gemini:ChargeDetails>OUR</gemini:ChargeDetails>
+    <gemini:TransactionId>12177146075</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>15/04/2024</gemini:Date>
+    <gemini:Balance>10.32</gemini:Balance>
+    <gemini:PaidOut>30.0</gemini:PaidOut>
+    <gemini:Description>გადარიცხვის საკომისიო</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - იურიდიული პირების გადარიცხვები, TBCBGE22, GE22TB0006001030220011</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>15/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1712925516</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE22TB0006001030220011</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - იურიდიული პირების გადარიცხვები</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>GIF</gemini:OperationCode>
+    <gemini:TransactionId>12177146076</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>22/04/2024</gemini:Date>
+    <gemini:Balance>-31.28</gemini:Balance>
+    <gemini:PaidOut>41.6</gemini:PaidOut>
+    <gemini:Description>პროცენტის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო, TBCBGE22, GE09TB0000240505700211</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>22/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>870342252</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE09TB0000240505700211</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPIN</gemini:OperationCode>
+    <gemini:TransactionId>12263652551</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>22/04/2024</gemini:Date>
+    <gemini:PaidIn>10.74</gemini:PaidIn>
+    <gemini:Balance>-20.54</gemini:Balance>
+    <gemini:Description>სესხის დაფარვა. სესხის# 6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>22/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>0</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>LFX</gemini:OperationCode>
+    <gemini:TransactionId>12263670305</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>22/04/2024</gemini:Date>
+    <gemini:PaidIn>20.54</gemini:PaidIn>
+    <gemini:Description>სესხის დაფარვა. სესხის# 6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE39TB7856036150100001</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>22/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>0</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE39TB7856036150100001</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>LFX</gemini:OperationCode>
+    <gemini:TransactionId>12263670311</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>25/04/2024</gemini:Date>
+    <gemini:Balance>-28.25</gemini:Balance>
+    <gemini:PaidOut>28.25</gemini:PaidOut>
+    <gemini:Description>ჯარიმის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო, TBCBGE22, GE25TB0000240505700311</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>25/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>872473646</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE25TB0000240505700311</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPO%</gemini:OperationCode>
+    <gemini:TransactionId>12291258083</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>25/04/2024</gemini:Date>
+    <gemini:PaidIn>28.25</gemini:PaidIn>
+    <gemini:Description>სესხის დაფარვა. სესხის# 6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>25/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>0</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>LFX</gemini:OperationCode>
+    <gemini:TransactionId>12291258275</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>30/04/2024</gemini:Date>
+    <gemini:PaidIn>1500.0</gemini:PaidIn>
+    <gemini:Balance>1500.00</gemini:Balance>
+    <gemini:Description>სესხის დაბრუნება</gemini:Description>
+    <gemini:AdditionalInformation>GIORGI NIKABADZE, 01030030896, TBCBGE22, GE52TB0600000361111222</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>30/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1714492097</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB0600000361111222</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>GIORGI NIKABADZE, 01030030896</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>Ss "tibisi banki"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01030030896</gemini:PartnerTaxCode>
+    <gemini:TransactionId>12334735295</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>30/04/2024</gemini:Date>
+    <gemini:PaidIn>1500.0</gemini:PaidIn>
+    <gemini:Balance>3000.00</gemini:Balance>
+    <gemini:Description>სესხის დაბრუნება</gemini:Description>
+    <gemini:AdditionalInformation>GIORGI NIKABADZE, 01030030896, TBCBGE22, GE52TB0600000361111222</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>30/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1714492126</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB0600000361111222</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>GIORGI NIKABADZE, 01030030896</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>Ss "tibisi banki"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01030030896</gemini:PartnerTaxCode>
+    <gemini:TransactionId>12334736271</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>30/04/2024</gemini:Date>
+    <gemini:PaidIn>1500.0</gemini:PaidIn>
+    <gemini:Balance>4500.00</gemini:Balance>
+    <gemini:Description>სესხის დაბრუნება</gemini:Description>
+    <gemini:AdditionalInformation>GIORGI NIKABADZE, 01030030896, TBCBGE22, GE52TB0600000361111222</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>30/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1714492178</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB0600000361111222</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>GIORGI NIKABADZE, 01030030896</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>Ss "tibisi banki"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01030030896</gemini:PartnerTaxCode>
+    <gemini:TransactionId>12334737965</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>30/04/2024</gemini:Date>
+    <gemini:PaidIn>1500.0</gemini:PaidIn>
+    <gemini:Balance>6000.00</gemini:Balance>
+    <gemini:Description>სესხის დაბრუნება</gemini:Description>
+    <gemini:AdditionalInformation>GIORGI NIKABADZE, 01030030896, TBCBGE22, GE52TB0600000361111222</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>30/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1714492361</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB0600000361111222</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>GIORGI NIKABADZE, 01030030896</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>Ss "tibisi banki"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01030030896</gemini:PartnerTaxCode>
+    <gemini:TransactionId>12334757017</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>30/04/2024</gemini:Date>
+    <gemini:PaidIn>1500.0</gemini:PaidIn>
+    <gemini:Balance>7500.00</gemini:Balance>
+    <gemini:Description>სესხის დაბრუნება</gemini:Description>
+    <gemini:AdditionalInformation>GIORGI NIKABADZE, 01030030896, TBCBGE22, GE52TB0600000361111222</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>30/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1714492375</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB0600000361111222</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>GIORGI NIKABADZE, 01030030896</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>Ss "tibisi banki"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01030030896</gemini:PartnerTaxCode>
+    <gemini:TransactionId>12334757387</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>30/04/2024</gemini:Date>
+    <gemini:PaidIn>500.0</gemini:PaidIn>
+    <gemini:Balance>8000.00</gemini:Balance>
+    <gemini:Description>სესხის დაბრუნება</gemini:Description>
+    <gemini:AdditionalInformation>GIORGI NIKABADZE, 01030030896, TBCBGE22, GE52TB0600000361111222</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>30/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1714492390</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB0600000361111222</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>GIORGI NIKABADZE, 01030030896</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>Ss "tibisi banki"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01030030896</gemini:PartnerTaxCode>
+    <gemini:TransactionId>12334757999</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>30/04/2024</gemini:Date>
+    <gemini:Balance>1067.91</gemini:Balance>
+    <gemini:PaidOut>6932.09</gemini:PaidOut>
+    <gemini:Description>ძირითადი თანხის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო, TBCBGE22, GE90TB0000240505700111</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>30/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>875337903</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE90TB0000240505700111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPPR</gemini:OperationCode>
+    <gemini:TransactionId>12334880033</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>30/04/2024</gemini:Date>
+    <gemini:Balance>76.41</gemini:Balance>
+    <gemini:PaidOut>991.5</gemini:PaidOut>
+    <gemini:Description>პროცენტის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო, TBCBGE22, GE09TB0000240505700211</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>30/04/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>875337904</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE09TB0000240505700211</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPIN</gemini:OperationCode>
+    <gemini:TransactionId>12334880043</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>11/05/2024</gemini:Date>
+    <gemini:PaidOut>76.41</gemini:PaidOut>
+    <gemini:Description>ვალუტის კონვერტაცია (კროს-კურსი: 1 USD = 2.6230 GEL)</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>11/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1715417962</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>GMC</gemini:OperationCode>
+    <gemini:TransactionId>12422909331</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/05/2024</gemini:Date>
+    <gemini:Balance>-68.39</gemini:Balance>
+    <gemini:PaidOut>68.39</gemini:PaidOut>
+    <gemini:Description>პროცენტის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო, TBCBGE22, GE09TB0000240505700211</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>20/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>892120429</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE09TB0000240505700211</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPIN</gemini:OperationCode>
+    <gemini:TransactionId>12502140123</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/05/2024</gemini:Date>
+    <gemini:PaidIn>68.39</gemini:PaidIn>
+    <gemini:Description>სესხის დაფარვა. სესხის# 6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>20/05/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>0</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>LFX</gemini:OperationCode>
+    <gemini:TransactionId>12502140589</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>03/06/2024</gemini:Date>
+    <gemini:Balance>-35.96</gemini:Balance>
+    <gemini:PaidOut>35.96</gemini:PaidOut>
+    <gemini:Description>ჯარიმის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო, TBCBGE22, GE25TB0000240505700311</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>03/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>911645200</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE25TB0000240505700311</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPO%</gemini:OperationCode>
+    <gemini:TransactionId>12626443477</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>03/06/2024</gemini:Date>
+    <gemini:PaidIn>35.96</gemini:PaidIn>
+    <gemini:Description>სესხის დაფარვა. სესხის# 6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>03/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>0</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>LFX</gemini:OperationCode>
+    <gemini:TransactionId>12626443981</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>05/06/2024</gemini:Date>
+    <gemini:Balance>-141.27</gemini:Balance>
+    <gemini:PaidOut>141.27</gemini:PaidOut>
+    <gemini:Description>ჯარიმის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო, TBCBGE22, GE25TB0000240505700311</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>05/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>914684848</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE25TB0000240505700311</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPO%</gemini:OperationCode>
+    <gemini:TransactionId>12645988959</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>05/06/2024</gemini:Date>
+    <gemini:PaidIn>141.27</gemini:PaidIn>
+    <gemini:Description>სესხის დაფარვა. სესხის# 6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>05/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>0</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>LFX</gemini:OperationCode>
+    <gemini:TransactionId>12645989239</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>10/06/2024</gemini:Date>
+    <gemini:Balance>-3685.83</gemini:Balance>
+    <gemini:PaidOut>3685.83</gemini:PaidOut>
+    <gemini:Description>ძირითადი თანხის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო, TBCBGE22, GE90TB0000240505700111</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>10/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>921780180</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE90TB0000240505700111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPPR</gemini:OperationCode>
+    <gemini:TransactionId>12692209223</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>10/06/2024</gemini:Date>
+    <gemini:Balance>-4585.94</gemini:Balance>
+    <gemini:PaidOut>900.11</gemini:PaidOut>
+    <gemini:Description>პროცენტის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო, TBCBGE22, GE09TB0000240505700211</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>10/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>921780183</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE09TB0000240505700211</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPIN</gemini:OperationCode>
+    <gemini:TransactionId>12692209231</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>10/06/2024</gemini:Date>
+    <gemini:Balance>-4739.74</gemini:Balance>
+    <gemini:PaidOut>153.8</gemini:PaidOut>
+    <gemini:Description>ჯარიმის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო, TBCBGE22, GE25TB0000240505700311</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>10/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>921780184</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE25TB0000240505700311</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPO%</gemini:OperationCode>
+    <gemini:TransactionId>12692209233</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>10/06/2024</gemini:Date>
+    <gemini:PaidIn>4739.74</gemini:PaidIn>
+    <gemini:Description>სესხის დაფარვა. სესხის# 6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>10/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>0</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>LFX</gemini:OperationCode>
+    <gemini:TransactionId>12692209423</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/06/2024</gemini:Date>
+    <gemini:PaidIn>1500.0</gemini:PaidIn>
+    <gemini:Balance>1500.00</gemini:Balance>
+    <gemini:Description>სესხის დაბრუნება</gemini:Description>
+    <gemini:AdditionalInformation>GIORGI NIKABADZE, 01030030896, TBCBGE22, GE52TB0600000361111222</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>20/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1718885371</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB0600000361111222</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>GIORGI NIKABADZE, 01030030896</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>Ss "tibisi banki"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01030030896</gemini:PartnerTaxCode>
+    <gemini:TransactionId>12780851271</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/06/2024</gemini:Date>
+    <gemini:PaidIn>1500.0</gemini:PaidIn>
+    <gemini:Balance>3000.00</gemini:Balance>
+    <gemini:Description>სესხის დაბრუნება</gemini:Description>
+    <gemini:AdditionalInformation>GIORGI NIKABADZE, 01030030896, TBCBGE22, GE52TB0600000361111222</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>20/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1718885439</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB0600000361111222</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>GIORGI NIKABADZE, 01030030896</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>Ss "tibisi banki"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01030030896</gemini:PartnerTaxCode>
+    <gemini:TransactionId>12780875779</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/06/2024</gemini:Date>
+    <gemini:PaidIn>350.0</gemini:PaidIn>
+    <gemini:Balance>3350.00</gemini:Balance>
+    <gemini:Description>სესხის დაბრუნება</gemini:Description>
+    <gemini:AdditionalInformation>GIORGI NIKABADZE, 01030030896, TBCBGE22, GE52TB0600000361111222</gemini:AdditionalInformation>
+    <gemini:TransactionType>შემოსავალი</gemini:TransactionType>
+    <gemini:DocumentDate>20/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1718885477</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE52TB0600000361111222</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>GIORGI NIKABADZE, 01030030896</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>Ss "tibisi banki"</gemini:PartnerBankName>
+    <gemini:OperationCode>GMB</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01030030896</gemini:PartnerTaxCode>
+    <gemini:TransactionId>12780895495</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/06/2024</gemini:Date>
+    <gemini:Balance>13.93</gemini:Balance>
+    <gemini:PaidOut>3336.07</gemini:PaidOut>
+    <gemini:Description>ძირითადი თანხის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო, TBCBGE22, GE90TB0000240505700111</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>20/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>935986690</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE90TB0000240505700111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPPR</gemini:OperationCode>
+    <gemini:TransactionId>12783888943</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/06/2024</gemini:Date>
+    <gemini:Balance>4.79</gemini:Balance>
+    <gemini:PaidOut>9.14</gemini:PaidOut>
+    <gemini:Description>პროცენტის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო, TBCBGE22, GE09TB0000240505700211</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>20/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>935986695</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE09TB0000240505700211</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPIN</gemini:OperationCode>
+    <gemini:TransactionId>12783888951</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/06/2024</gemini:Date>
+    <gemini:Balance>-61.93</gemini:Balance>
+    <gemini:PaidOut>66.72</gemini:PaidOut>
+    <gemini:Description>ჯარიმის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო, TBCBGE22, GE25TB0000240505700311</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>20/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>935986696</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE25TB0000240505700311</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული ჯარიმა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPO%</gemini:OperationCode>
+    <gemini:TransactionId>12783888971</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/06/2024</gemini:Date>
+    <gemini:PaidIn>61.93</gemini:PaidIn>
+    <gemini:Description>სესხის დაფარვა. სესხის# 6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>20/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>0</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>LFX</gemini:OperationCode>
+    <gemini:TransactionId>12783889687</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>25/06/2024</gemini:Date>
+    <gemini:PaidIn>7100.0</gemini:PaidIn>
+    <gemini:Balance>7100.00</gemini:Balance>
+    <gemini:Description>კონვერტაცია</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>25/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>942890353</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*DFX*</gemini:OperationCode>
+    <gemini:TransactionId>12826063455</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>25/06/2024</gemini:Date>
+    <gemini:Balance>1203.49</gemini:Balance>
+    <gemini:PaidOut>5896.51</gemini:PaidOut>
+    <gemini:Description>ძირითადი თანხის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო, TBCBGE22, GE90TB0000240505700111</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>25/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>942897918</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE90TB0000240505700111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPPR</gemini:OperationCode>
+    <gemini:TransactionId>12826172441</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>25/06/2024</gemini:Date>
+    <gemini:Balance>159.04</gemini:Balance>
+    <gemini:PaidOut>1044.45</gemini:PaidOut>
+    <gemini:Description>პროცენტის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო, TBCBGE22, GE09TB0000240505700211</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>25/06/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>942897919</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE09TB0000240505700211</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPIN</gemini:OperationCode>
+    <gemini:TransactionId>12826172445</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>05/07/2024</gemini:Date>
+    <gemini:PaidOut>159.04</gemini:PaidOut>
+    <gemini:Description>ინკასოს ანგარიშზე თანხის შეგროვება, ინკასო # 006243528825, 05/07/2024</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>05/07/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>0</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*INK</gemini:OperationCode>
+    <gemini:TransactionId>12921442765</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>31/07/2024</gemini:Date>
+    <gemini:PaidIn>905.0</gemini:PaidIn>
+    <gemini:Balance>905.00</gemini:Balance>
+    <gemini:Description>კონვერტაცია (კროს-კურსი: 1 USD = 2.7650 GEL)</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>31/07/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1722424991</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>GIC</gemini:OperationCode>
+    <gemini:TransactionId>13154865885</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>31/07/2024</gemini:Date>
+    <gemini:Balance>0.89</gemini:Balance>
+    <gemini:PaidOut>904.11</gemini:PaidOut>
+    <gemini:Description>პროცენტის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო, TBCBGE22, GE57TB0000240505710211</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>31/07/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>994890358</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE57TB0000240505710211</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPIN</gemini:OperationCode>
+    <gemini:TransactionId>13155120595</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>06/08/2024</gemini:Date>
+    <gemini:PaidOut>0.89</gemini:PaidOut>
+    <gemini:Description>ინკასოს ანგარიშზე თანხის შეგროვება, ინკასო # 006243539039, 06/08/2024</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>06/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>0</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*INK</gemini:OperationCode>
+    <gemini:TransactionId>13209151583</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/08/2024</gemini:Date>
+    <gemini:PaidIn>100400.0</gemini:PaidIn>
+    <gemini:Balance>100400.00</gemini:Balance>
+    <gemini:Description>კონვერტაცია</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>12/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1012023867</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*DFX*</gemini:OperationCode>
+    <gemini:TransactionId>13262469764</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/08/2024</gemini:Date>
+    <gemini:Balance>400.00</gemini:Balance>
+    <gemini:PaidOut>100000.0</gemini:PaidOut>
+    <gemini:Description>ძირითადი თანხის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო, TBCBGE22, GE41TB0000240505710111</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>12/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1012036912</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE41TB0000240505710111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - ძირითადი თანხა - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPPR</gemini:OperationCode>
+    <gemini:TransactionId>13262747128</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>12/08/2024</gemini:Date>
+    <gemini:Balance>43.84</gemini:Balance>
+    <gemini:PaidOut>356.16</gemini:PaidOut>
+    <gemini:Description>პროცენტის დაფარვა;შპს აი-სი-ი;6768560-12640638</gemini:Description>
+    <gemini:AdditionalInformation>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო, TBCBGE22, GE57TB0000240505710211</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>12/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1012036913</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE57TB0000240505710211</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>ბიზნეს სესხები - დარიცხული პროცენტი - მშენებლობის სფერო</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*LPIN</gemini:OperationCode>
+    <gemini:TransactionId>13262747134</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>14/08/2024</gemini:Date>
+    <gemini:PaidIn>410000.0</gemini:PaidIn>
+    <gemini:Balance>410043.84</gemini:Balance>
+    <gemini:Description>კონვერტაცია</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>14/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1014727911</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>*DFX*</gemini:OperationCode>
+    <gemini:TransactionId>13278386567</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>14/08/2024</gemini:Date>
+    <gemini:Balance>169693.84</gemini:Balance>
+    <gemini:PaidOut>240350.0</gemini:PaidOut>
+    <gemini:Description>INVOICE NO ICEKLGJEG PAYMENT FOR ELEVATORS</gemini:Description>
+    <gemini:AdditionalInformation>PATERSON BROTHERS LIMITED, CMFGUS33, 8311016098</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>14/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1723630752</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>8311016098</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>PATERSON BROTHERS LIMITED</gemini:PartnerName>
+    <gemini:PartnerBankCode>CMFGUS33</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>COMMUNITY FEDERAL SAVINGS BANK</gemini:PartnerBankName>
+    <gemini:OperationCode>GIF</gemini:OperationCode>
+    <gemini:ChargeDetails>SHA</gemini:ChargeDetails>
+    <gemini:TransactionId>13280600457</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>14/08/2024</gemini:Date>
+    <gemini:Balance>169683.84</gemini:Balance>
+    <gemini:PaidOut>10.0</gemini:PaidOut>
+    <gemini:Description>გადარიცხვის საკომისიო</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - იურიდიული პირების გადარიცხვები, TBCBGE22, GE22TB0006001030220011</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>14/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1723630752</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE22TB0006001030220011</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - იურიდიული პირების გადარიცხვები</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>GIF</gemini:OperationCode>
+    <gemini:TransactionId>13280600458</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>14/08/2024</gemini:Date>
+    <gemini:Balance>106257.84</gemini:Balance>
+    <gemini:PaidOut>63426.0</gemini:PaidOut>
+    <gemini:Description>PAYMENT FOR ELEVATORS ACCORDING TO CONTRACT K6NC04090416 SPHERA PROJECT</gemini:Description>
+    <gemini:AdditionalInformation>OTIS KAZAKHSTAN LLP, CITIKZKAXXX, KZ4983201D0200436001</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>14/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1723624973</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>KZ4983201D0200436001</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>OTIS KAZAKHSTAN LLP</gemini:PartnerName>
+    <gemini:PartnerBankCode>CITIKZKAXXX</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>CJSC CITIBANK KAZAKHSTAN</gemini:PartnerBankName>
+    <gemini:OperationCode>GIF</gemini:OperationCode>
+    <gemini:ChargeDetails>OUR</gemini:ChargeDetails>
+    <gemini:TransactionId>13280607907</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>14/08/2024</gemini:Date>
+    <gemini:Balance>106227.84</gemini:Balance>
+    <gemini:PaidOut>30.0</gemini:PaidOut>
+    <gemini:Description>გადარიცხვის საკომისიო</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - იურიდიული პირების გადარიცხვები, TBCBGE22, GE22TB0006001030220011</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>14/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1723624973</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE22TB0006001030220011</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - იურიდიული პირების გადარიცხვები</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>GIF</gemini:OperationCode>
+    <gemini:TransactionId>13280607908</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>14/08/2024</gemini:Date>
+    <gemini:Balance>98727.84</gemini:Balance>
+    <gemini:PaidOut>7500.0</gemini:PaidOut>
+    <gemini:Description>PAYMENT FOR ELEVATORS ACCORDING TO INVOICE  144 ORBI D2 BLOCK PROJECT</gemini:Description>
+    <gemini:AdditionalInformation>OTIS KAZAKHSTAN LLP, CITIKZKAXXX, KZ4983201D0200436001</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>14/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1723627637</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>KZ4983201D0200436001</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>OTIS KAZAKHSTAN LLP</gemini:PartnerName>
+    <gemini:PartnerBankCode>CITIKZKAXXX</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>CJSC CITIBANK KAZAKHSTAN</gemini:PartnerBankName>
+    <gemini:OperationCode>GIF</gemini:OperationCode>
+    <gemini:ChargeDetails>OUR</gemini:ChargeDetails>
+    <gemini:TransactionId>13280614513</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>14/08/2024</gemini:Date>
+    <gemini:Balance>98697.84</gemini:Balance>
+    <gemini:PaidOut>30.0</gemini:PaidOut>
+    <gemini:Description>გადარიცხვის საკომისიო</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - იურიდიული პირების გადარიცხვები, TBCBGE22, GE22TB0006001030220011</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>14/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1723627637</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE22TB0006001030220011</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - იურიდიული პირების გადარიცხვები</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>GIF</gemini:OperationCode>
+    <gemini:TransactionId>13280614514</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>14/08/2024</gemini:Date>
+    <gemini:Balance>97697.84</gemini:Balance>
+    <gemini:PaidOut>1000.0</gemini:PaidOut>
+    <gemini:Description>PREPAYMENT FOR ELEVATOR CONTRACT NO K6NC07520752 SHATBERASHVILI 45 PROJECT</gemini:Description>
+    <gemini:AdditionalInformation>OTIS KAZAKHSTAN LLP, CITIKZKAXXX, KZ4983201D0200436001</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>14/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1723627848</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>KZ4983201D0200436001</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>OTIS KAZAKHSTAN LLP</gemini:PartnerName>
+    <gemini:PartnerBankCode>CITIKZKAXXX</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>CJSC CITIBANK KAZAKHSTAN</gemini:PartnerBankName>
+    <gemini:OperationCode>GIF</gemini:OperationCode>
+    <gemini:ChargeDetails>OUR</gemini:ChargeDetails>
+    <gemini:TransactionId>13280624345</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>14/08/2024</gemini:Date>
+    <gemini:Balance>97667.84</gemini:Balance>
+    <gemini:PaidOut>30.0</gemini:PaidOut>
+    <gemini:Description>გადარიცხვის საკომისიო</gemini:Description>
+    <gemini:AdditionalInformation>საკომისიო შემოსავალი - იურიდიული პირების გადარიცხვები, TBCBGE22, GE22TB0006001030220011</gemini:AdditionalInformation>
+    <gemini:TransactionType>სხვა ხარჯები</gemini:TransactionType>
+    <gemini:DocumentDate>14/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1723627848</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE22TB0006001030220011</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>საკომისიო შემოსავალი - იურიდიული პირების გადარიცხვები</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>GIF</gemini:OperationCode>
+    <gemini:TransactionId>13280624346</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>16/08/2024</gemini:Date>
+    <gemini:Balance>81667.84</gemini:Balance>
+    <gemini:PaidOut>16000.0</gemini:PaidOut>
+    <gemini:Description>სალაროს გამაგრება</gemini:Description>
+    <gemini:AdditionalInformation>გიორგი ბახტაძე 01024067298  07-06-1990</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>16/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>123509344</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE53TB5900000000659111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>გიორგი ბახტაძე 01024067298  07-06-1990</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>37</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01024067298</gemini:PartnerTaxCode>
+    <gemini:TransactionId>13299192007</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/08/2024</gemini:Date>
+    <gemini:Balance>27667.84</gemini:Balance>
+    <gemini:PaidOut>54000.0</gemini:PaidOut>
+    <gemini:Description>ეროვნული ვალუტის შესაძენად</gemini:Description>
+    <gemini:AdditionalInformation>გიორგი ბახტაძე 01024067298  07-06-1990</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>20/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>123574955</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE53TB5900000000659111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>გიორგი ბახტაძე 01024067298  07-06-1990</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>41</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01024067298</gemini:PartnerTaxCode>
+    <gemini:TransactionId>13332926865</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/08/2024</gemini:Date>
+    <gemini:Balance>667.84</gemini:Balance>
+    <gemini:PaidOut>27000.0</gemini:PaidOut>
+    <gemini:Description>ეროვნული ვალუტის შესაძენად</gemini:Description>
+    <gemini:AdditionalInformation>გიორგი ბახტაძე 01024067298  07-06-1990</gemini:AdditionalInformation>
+    <gemini:TransactionType>გადარიცხვა თანხის გატანა</gemini:TransactionType>
+    <gemini:DocumentDate>20/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>123576401</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE53TB5900000000659111</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>გიორგი ბახტაძე 01024067298  07-06-1990</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>41</gemini:OperationCode>
+    <gemini:PartnerTaxCode>01024067298</gemini:PartnerTaxCode>
+    <gemini:TransactionId>13333188935</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>20/08/2024</gemini:Date>
+    <gemini:Balance>328.47</gemini:Balance>
+    <gemini:PaidOut>339.37</gemini:PaidOut>
+    <gemini:Description>ვალუტის კონვერტაცია (კროს-კურსი: 1 USD = 2.6520 GEL)</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>20/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1724173134</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>GMC</gemini:OperationCode>
+    <gemini:TransactionId>13334301645</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Record>
+    <gemini:Date>22/08/2024</gemini:Date>
+    <gemini:PaidOut>328.47</gemini:PaidOut>
+    <gemini:Description>კონვერტაცია (კროს-კურსი: 1 USD = 2.6550 GEL)</gemini:Description>
+    <gemini:AdditionalInformation>შპს აი-სი-ი, TBCBGE22, GE65TB7856036050100002</gemini:AdditionalInformation>
+    <gemini:TransactionType>კონვერტაცია</gemini:TransactionType>
+    <gemini:DocumentDate>22/08/2024</gemini:DocumentDate>
+    <gemini:DocumentNumber>1724327003</gemini:DocumentNumber>
+    <gemini:PartnerAccountNumber>GE65TB7856036050100002</gemini:PartnerAccountNumber>
+    <gemini:PartnerName>შპს აი-სი-ი</gemini:PartnerName>
+    <gemini:PartnerBankCode>TBCBGE22</gemini:PartnerBankCode>
+    <gemini:PartnerBankName>ს.ს. თიბისი ბანკი</gemini:PartnerBankName>
+    <gemini:OperationCode>GIC</gemini:OperationCode>
+    <gemini:TransactionId>13349909587</gemini:TransactionId>
+  </gemini:Record>
+  <gemini:Summary>
+    <gemini:TotalPaidOut>615097.49</gemini:TotalPaidOut>
+    <gemini:TotalPaidIn>615097.49</gemini:TotalPaidIn>
+  </gemini:Summary>
+</gemini:AccountStatement>

@@ -1,0 +1,49 @@
+{
+  "meta": {
+    "generatedAt": "2026-03-16T08:39:37.688Z",
+    "range": {
+      "start": "2026-03-13",
+      "end": "2026-03-14"
+    },
+    "accountsCount": 1,
+    "rowsCount": 2,
+    "okRows": 2,
+    "failedRows": 0
+  },
+  "rows": [
+    {
+      "accountUuid": "60582948-8c5b-4715-b75c-ca03e3d36a4e",
+      "accountNumber": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "date": "2026-03-13",
+      "path": "/statement/GE78BG0000000893486000/GEL/2026-03-13/2026-03-13",
+      "status": 200,
+      "ok": true,
+      "correlationId": "e030fda8-f233-4966-8c67-6a322b306466",
+      "operationsCount": 56,
+      "apiOpeningBalance": null,
+      "apiClosingBalance": null,
+      "derivedOpeningBalance": 661815.43,
+      "derivedClosingBalance": 710930.99,
+      "netChange": 49115.56,
+      "error": null
+    },
+    {
+      "accountUuid": "60582948-8c5b-4715-b75c-ca03e3d36a4e",
+      "accountNumber": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "date": "2026-03-14",
+      "path": "/statement/GE78BG0000000893486000/GEL/2026-03-14/2026-03-14",
+      "status": 200,
+      "ok": true,
+      "correlationId": "51ad750a-92e4-4ef6-8cee-949a57ab2cd4",
+      "operationsCount": 20,
+      "apiOpeningBalance": null,
+      "apiClosingBalance": null,
+      "derivedOpeningBalance": 710930.99,
+      "derivedClosingBalance": 659575.95,
+      "netChange": -51355.04,
+      "error": null
+    }
+  ]
+}

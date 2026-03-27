@@ -1,0 +1,2 @@
+id,account_uuid,account_number,currency_code,opening_date,closing_date,days_covered,opening_balance,opening_balance_bank_api,closing_balance,closing_balance_bank_api,inflow,inflow_bank_api,outflow,outflow_bank_api,db_change,api_change,inflow_diff,outflow_diff,change_diff
+30732,60582948-8c5b-4715-b75c-ca03e3d36a4e,GE78BG0000000893486000,GEL,Sun Mar 15 2026 00:00:00 GMT+0400 (Georgia Standard Time),Tue Mar 17 2026 00:00:00 GMT+0400 (Georgia Standard Time),2,655109.90,27938.07,655109.90,27145.92,0.00,0.00,0.00,792.15,0.00,-792.15,0.00,-792.15,792.15

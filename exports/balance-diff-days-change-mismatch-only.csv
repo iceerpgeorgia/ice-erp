@@ -1,0 +1,6 @@
+day,mismatch_rows,inflow_mismatch_rows,outflow_mismatch_rows,change_mismatch_rows,total_abs_inflow_diff,total_abs_outflow_diff,total_abs_change_diff
+2026-01-08,1,1,1,1,257688.49,124448.3,133240.19
+2024-06-02,1,1,1,1,31550.32,31494.37,55.95
+2025-06-08,1,1,1,1,306322.91,306323.91,1
+2026-03-14,1,0,1,1,0,792.15,792.15
+2026-01-12,1,1,1,1,567415.63,73399.73,494015.9

@@ -1,0 +1,89 @@
+{
+  "range": {
+    "start": "2024-01-01",
+    "end": "2026-03-15",
+    "days": 805
+  },
+  "beforeTotals": {
+    "apiTotal": 23026,
+    "dbTotal": 23713,
+    "totalGap": -687,
+    "apiErrors": 0,
+    "mismatchRows": 177
+  },
+  "afterTotals": {
+    "apiTotal": 23275,
+    "dbTotal": 23709,
+    "totalGap": -434,
+    "apiErrors": 0,
+    "mismatchRows": 33
+  },
+  "delta": {
+    "mismatchRowsReduced": 144,
+    "totalGapBefore": -687,
+    "totalGapAfter": -434,
+    "totalGapDelta": -253,
+    "apiTotalBefore": 23026,
+    "apiTotalAfter": 23275,
+    "dbTotalBefore": 23713,
+    "dbTotalAfter": 23709,
+    "apiErrorsBefore": 0,
+    "apiErrorsAfter": 0
+  },
+  "applySummary": {
+    "attempted": 173,
+    "stillMismatched": 48
+  },
+  "perAccount": [
+    {
+      "account": "GE78BG0000000893486000",
+      "currency": "CNY",
+      "beforeRows": 13,
+      "afterRows": 0,
+      "resolvedRows": 13,
+      "beforeAbsGap": 27,
+      "afterAbsGap": 0,
+      "resolvedAbsGap": 27
+    },
+    {
+      "account": "GE78BG0000000893486000",
+      "currency": "EUR",
+      "beforeRows": 25,
+      "afterRows": 3,
+      "resolvedRows": 22,
+      "beforeAbsGap": 39,
+      "afterAbsGap": 11,
+      "resolvedAbsGap": 28
+    },
+    {
+      "account": "GE78BG0000000893486000",
+      "currency": "GEL",
+      "beforeRows": 55,
+      "afterRows": 23,
+      "resolvedRows": 32,
+      "beforeAbsGap": 694,
+      "afterAbsGap": 428,
+      "resolvedAbsGap": 266
+    },
+    {
+      "account": "GE78BG0000000893486000",
+      "currency": "TRY",
+      "beforeRows": 2,
+      "afterRows": 0,
+      "resolvedRows": 2,
+      "beforeAbsGap": 2,
+      "afterAbsGap": 0,
+      "resolvedAbsGap": 2
+    },
+    {
+      "account": "GE78BG0000000893486000",
+      "currency": "USD",
+      "beforeRows": 82,
+      "afterRows": 7,
+      "resolvedRows": 75,
+      "beforeAbsGap": 165,
+      "afterAbsGap": 19,
+      "resolvedAbsGap": 146
+    }
+  ]
+}

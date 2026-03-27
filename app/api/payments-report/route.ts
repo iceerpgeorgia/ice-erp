@@ -47,11 +47,11 @@ export async function GET(request: NextRequest) {
       ),
       jobs_per_project AS (
         SELECT
-          j.project_uuid,
-          COUNT(*) as job_count
-        FROM jobs j
-        WHERE j.is_active = true
-        GROUP BY j.project_uuid
+          jp.project_uuid,
+          COUNT(DISTINCT jp.job_uuid) as job_count
+        FROM job_projects jp
+        INNER JOIN jobs j ON jp.job_uuid = j.job_uuid AND j.is_active = true
+        GROUP BY jp.project_uuid
       ),
       unbound_counteragent AS (
         SELECT

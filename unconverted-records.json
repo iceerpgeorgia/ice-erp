@@ -1,0 +1,29 @@
+[
+  {
+    "table": "GE78BG0000000893486000_BOG_GEL",
+    "id": 1533,
+    "paymentId": "6f15fe_50_864951",
+    "accountCurrency": "GEL",
+    "nominalCurrency": "GEL",
+    "paymentCurrency": "USD",
+    "accountAmount": "-1960",
+    "nominalAmount": "-1960",
+    "exchangeRate": "1",
+    "transactionDate": "2024-03-27",
+    "correctionDate": null,
+    "paymentCurrencyUuid": "0790fb09-2de6-4ea3-a71c-58a007fc62a8"
+  },
+  {
+    "table": "GE78BG0000000893486000_BOG_GEL",
+    "id": 36713,
+    "paymentId": "63810f_23_9be30c",
+    "accountCurrency": "GEL",
+    "nominalCurrency": "GEL",
+    "paymentCurrency": "USD",
+    "accountAmount": "-700",
+    "nominalAmount": "-700",
+    "transactionDate": "2023-11-01",
+    "correctionDate": null,
+    "paymentCurrencyUuid": "0790fb09-2de6-4ea3-a71c-58a007fc62a8"
+  }
+]

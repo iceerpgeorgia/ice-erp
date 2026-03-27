@@ -55,16 +55,15 @@ export type Brand = BrandType;
 export type Job = {
   id: number;
   jobUuid: string;
-  projectUuid: string;
   jobName: string;
   floors: number | null;
   weight: number | null;
   isFf: boolean;
   brandUuid: string | null;
-  projectIndex: string;
-  projectName: string;
   brandName: string;
   jobIndex: string;
+  allProjectIndices: string;
+  projectUuids: string[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -87,11 +86,9 @@ type ColumnConfig = {
 const defaultColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', width: 80, visible: false, sortable: true, filterable: true },
   { key: 'jobUuid', label: 'Job UUID', width: 200, visible: true, sortable: true, filterable: true, responsive: 'xl' },
-  { key: 'projectUuid', label: 'Project UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'brandUuid', label: 'Brand UUID', width: 200, visible: false, sortable: true, filterable: true, responsive: 'xl' },
   { key: 'jobIndex', label: 'Job Index', width: 400, visible: true, sortable: true, filterable: true },
-  { key: 'projectIndex', label: 'Project', width: 150, visible: true, sortable: true, filterable: true },
-  { key: 'projectName', label: 'Project Name', width: 200, visible: false, sortable: true, filterable: true },
+  { key: 'allProjectIndices', label: 'Projects', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'jobName', label: 'Job Name', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'insiderName', label: 'Insider', width: 180, visible: true, sortable: false, filterable: false },
   { key: 'brandName', label: 'Brand', width: 150, visible: true, sortable: true, filterable: true },
@@ -242,16 +239,15 @@ export function JobsTable() {
           ? data.map((job: any) => ({
               id: Number(job.id),
               jobUuid: job.jobUuid || job.job_uuid,
-              projectUuid: job.projectUuid || job.project_uuid,
               jobName: job.jobName || job.job_name,
               floors: job.floors ?? null,
               weight: job.weight ?? null,
               isFf: job.isFf ?? job.is_ff ?? false,
               brandUuid: job.brandUuid || job.brand_uuid || null,
-              projectIndex: job.projectIndex || job.project_index,
-              projectName: job.projectName || job.project_name,
               brandName: job.brandName || job.brand_name,
               jobIndex: job.jobIndex || job.job_index,
+              allProjectIndices: job.allProjectIndices || '-',
+              projectUuids: job.projectUuids || [],
               isActive: job.isActive ?? job.is_active ?? true,
               createdAt: job.createdAt || job.created_at,
               updatedAt: job.updatedAt || job.updated_at,
@@ -396,8 +392,8 @@ export function JobsTable() {
   const openEditDialog = (job: Job) => {
     setEditingJob(job);
     setFormData({
-      projectUuid: job.projectUuid,
-      projectUuids: [job.projectUuid],
+      projectUuid: job.projectUuids?.[0] || '',
+      projectUuids: job.projectUuids || [],
       jobName: job.jobName,
       floors: job.floors ?? '',
       weight: job.weight ?? '',
@@ -713,6 +709,13 @@ export function JobsTable() {
                         <span>{job.weight == null ? '-' : `${job.weight} kg`}</span>
                       ) : column.key === 'insiderName' ? (
                         <span className="text-sm">{requiredInsiderName || '-'}</span>
+                      ) : column.key === 'allProjectIndices' ? (
+                        <span className="text-sm" title={job.allProjectIndices}>
+                          {job.allProjectIndices || '-'}
+                          {job.projectUuids && job.projectUuids.length > 1 && (
+                            <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">{job.projectUuids.length}</Badge>
+                          )}
+                        </span>
                       ) : (
                         <span className="text-sm">{String(job[column.key] ?? '-')}</span>
                       )}
