@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-27 (113)
+- Summary: Add "Only due" checkbox to bank transaction edit dialog and batch split editor.
+- Changes:
+  - Edit dialog: checkbox persisted in localStorage filters payment dropdown to show only payments with due > 0 (from payments report).
+  - Batch editor: receives onlyDue/duePaymentIds props, applies same filter to partition payment combobox.
+- Commit: d8a1738
+- Production: https://ice-j7w01526m-iceerp.vercel.app
+
 ## 2026-03-27 (109)
 - Summary: Add per-day logging to BOG cron import for visibility on empty vs data days.
 - Changes:
