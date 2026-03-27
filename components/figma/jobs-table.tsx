@@ -13,7 +13,8 @@ import {
   Settings,
   Eye,
   EyeOff,
-  Download
+  Download,
+  Link
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -110,6 +111,10 @@ export function JobsTable() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
+  const [selectedJobUuids, setSelectedJobUuids] = useState<Set<string>>(new Set());
+  const [isBulkBindOpen, setIsBulkBindOpen] = useState(false);
+  const [bulkProjectUuids, setBulkProjectUuids] = useState<string[]>([]);
+  const [isBulkBinding, setIsBulkBinding] = useState(false);
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('jobs-table-columns');
@@ -404,6 +409,49 @@ export function JobsTable() {
     setIsEditDialogOpen(true);
   };
 
+  // Selection helpers
+  const toggleSelectJob = (jobUuid: string) => {
+    setSelectedJobUuids(prev => {
+      const next = new Set(prev);
+      if (next.has(jobUuid)) next.delete(jobUuid);
+      else next.add(jobUuid);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedJobUuids.size === paginatedJobs.length) {
+      setSelectedJobUuids(new Set());
+    } else {
+      setSelectedJobUuids(new Set(paginatedJobs.map(j => j.jobUuid)));
+    }
+  };
+
+  const handleBulkBind = async () => {
+    if (selectedJobUuids.size === 0 || bulkProjectUuids.length === 0) return;
+    setIsBulkBinding(true);
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobUuids: Array.from(selectedJobUuids),
+          projectUuids: bulkProjectUuids,
+        }),
+      });
+      if (res.ok) {
+        setSelectedJobUuids(new Set());
+        setBulkProjectUuids([]);
+        setIsBulkBindOpen(false);
+        await fetchJobs();
+      }
+    } catch (error) {
+      console.error('Failed to bulk bind:', error);
+    } finally {
+      setIsBulkBinding(false);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       projectUuid: '',
@@ -502,6 +550,16 @@ export function JobsTable() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {selectedJobUuids.size > 0 && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => { setBulkProjectUuids([]); setIsBulkBindOpen(true); }}
+            >
+              <Link className="h-4 w-4 mr-2" />
+              Bind {selectedJobUuids.size} to Projects
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -606,6 +664,12 @@ export function JobsTable() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10 bg-muted/50">
+                  <Checkbox
+                    checked={paginatedJobs.length > 0 && selectedJobUuids.size === paginatedJobs.length}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
                 {visibleColumns.map(column => (
                   <TableHead 
                     key={column.key}
@@ -692,7 +756,13 @@ export function JobsTable() {
             </TableHeader>
             <TableBody>
               {paginatedJobs.map(job => (
-                <TableRow key={job.id}>
+                <TableRow key={job.id} className={selectedJobUuids.has(job.jobUuid) ? 'bg-muted/30' : ''}>
+                  <TableCell className="w-10">
+                    <Checkbox
+                      checked={selectedJobUuids.has(job.jobUuid)}
+                      onCheckedChange={() => toggleSelectJob(job.jobUuid)}
+                    />
+                  </TableCell>
                   {visibleColumns.map(column => (
                     <TableCell key={column.key} style={{ width: column.width }}>
                       {column.key === 'isFf' ? (
@@ -794,6 +864,44 @@ export function JobsTable() {
             onSubmit={handleEdit}
             onCancel={() => { setIsEditDialogOpen(false); setEditingJob(null); }}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Bind Dialog */}
+      <Dialog open={isBulkBindOpen} onOpenChange={setIsBulkBindOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Bulk Bind to Projects</DialogTitle>
+            <DialogDescription>
+              Add {selectedJobUuids.size} selected job{selectedJobUuids.size !== 1 ? 's' : ''} to projects
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Select Projects to Add</Label>
+              <MultiCombobox
+                options={projects.map(p => ({
+                  value: p.projectUuid,
+                  label: `${p.projectIndex} - ${p.projectName}`,
+                  keywords: `${p.projectIndex} ${p.projectName}`
+                }))}
+                value={bulkProjectUuids}
+                onValueChange={setBulkProjectUuids}
+                placeholder="Select one or more projects..."
+                searchPlaceholder="Search projects..."
+                emptyText="No project found."
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsBulkBindOpen(false)}>Cancel</Button>
+              <Button
+                onClick={handleBulkBind}
+                disabled={isBulkBinding || bulkProjectUuids.length === 0}
+              >
+                {isBulkBinding ? 'Binding...' : `Bind to ${bulkProjectUuids.length} Project${bulkProjectUuids.length !== 1 ? 's' : ''}`}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

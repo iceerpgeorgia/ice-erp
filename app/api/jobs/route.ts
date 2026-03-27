@@ -352,3 +352,38 @@ export async function DELETE(req: NextRequest) {
   }
 }
 
+// PATCH - Bulk add projects to multiple jobs
+export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
+  try {
+    const body = await req.json();
+    const { jobUuids, projectUuids } = body;
+
+    if (!Array.isArray(jobUuids) || jobUuids.length === 0) {
+      return NextResponse.json({ error: 'jobUuids array is required' }, { status: 400 });
+    }
+    if (!Array.isArray(projectUuids) || projectUuids.length === 0) {
+      return NextResponse.json({ error: 'projectUuids array is required' }, { status: 400 });
+    }
+
+    let inserted = 0;
+    for (const jobUuid of jobUuids) {
+      for (const projUuid of projectUuids) {
+        const result = await prisma.$executeRawUnsafe(
+          `INSERT INTO job_projects (job_uuid, project_uuid) VALUES ($1::uuid, $2::uuid) ON CONFLICT (job_uuid, project_uuid) DO NOTHING`,
+          jobUuid, projUuid
+        );
+        inserted += result;
+      }
+    }
+
+    return NextResponse.json({ success: true, inserted, total: jobUuids.length * projectUuids.length });
+  } catch (error: any) {
+    console.error('PATCH /api/jobs error:', error);
+    return NextResponse.json(
+      { error: error?.message || 'Failed to bulk bind projects' },
+      { status: 500 }
+    );
+  }
+}
