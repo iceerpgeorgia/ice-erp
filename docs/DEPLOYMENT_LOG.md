@@ -2334,3 +2334,12 @@
 - Commit: 44a5b02
 - Production: https://ice-n1pfu02fz-iceerp.vercel.app
 
+## 2026-03-27
+- Summary: Show one row per job-project binding in jobs table instead of one row per job.
+- Changes:
+  - Jobs API: query JOINs job_projects to return per-binding rows with projectUuid, projectIndex, projectName.
+  - Jobs table: updated type, columns, normalization, row keys, and edit dialog to support per-binding display.
+  - Header shows "N bindings (M jobs)" count.
+- Commit: ab1ad26
+- Production: https://ice-nmkfjvmuq-iceerp.vercel.app
+
