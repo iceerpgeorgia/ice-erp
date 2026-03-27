@@ -2307,3 +2307,15 @@
 - Commit: 4222952
 - Production: https://ice-7monwh5jg-iceerp.vercel.app
 
+## 2026-02-11
+- Summary: Refactor jobs to use job_projects junction table for multi-project binding.
+- Changes:
+  - Jobs API: GET/POST/PUT/DELETE rewritten to use job_projects junction table instead of duplicate job rows.
+  - Job-projects API: removed legacy jobs.project_uuid fallback.
+  - Payments report API: jobs_per_project CTE now uses job_projects.
+  - Jobs table UI: updated type, columns, edit dialog to support multiple project bindings via projectUuids array.
+  - Prisma schema: project_uuid made optional on jobs model.
+  - DB migration: job_projects backfilled from jobs.project_uuid, payment refs verified.
+- Commit: 140c267
+- Production: https://ice-cltbcyr0v-iceerp.vercel.app
+
