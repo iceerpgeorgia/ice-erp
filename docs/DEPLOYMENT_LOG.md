@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-03-30 (119)
+- Summary: Fix UUID type casting in batch partition INSERT query.
+- Changes:
+  - Added `::uuid` casts to `payment_uuid`, `counteragent_uuid`, `project_uuid`, `financial_code_uuid`, `nominal_currency_uuid` parameters in parameterized INSERT.
+- Commit: 7505c9e
+- Production: https://ice-c0s3ivo3a-iceerp.vercel.app
+
 ## 2026-03-30 (118)
 - Summary: Atomic batch replace in batch split editor + SQL injection fix.
 - Changes:
