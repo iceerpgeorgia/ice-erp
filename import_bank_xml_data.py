@@ -476,30 +476,39 @@ def calculate_nominal_amount(account_currency_amount, account_currency_code, nom
     if account_currency_code == nominal_currency_code:
         return account_currency_amount
     
-    # Get NBG rate for the date
+    # Get NBG rate for the date (with fallback to nearest previous 7 days)
     date_key = transaction_date.strftime('%Y-%m-%d')
-    if date_key not in nbg_rates_map:
-        # No rate available for this date, return original amount
-        return account_currency_amount
+    rates = nbg_rates_map.get(date_key)
+    if not rates:
+        from datetime import timedelta
+        d = transaction_date
+        for i in range(1, 8):
+            d = d - timedelta(days=1) if hasattr(d, 'date') else transaction_date - timedelta(days=i)
+            fallback_key = (d if not hasattr(d, 'date') else d).strftime('%Y-%m-%d')
+            rates = nbg_rates_map.get(fallback_key)
+            if rates:
+                break
+        if not rates:
+            return account_currency_amount
     
     # Case 1: GEL account → Foreign nominal currency (divide by rate)
     if account_currency_code == 'GEL' and nominal_currency_code in ['USD', 'EUR', 'CNY', 'GBP', 'RUB', 'TRY', 'AED', 'KZT']:
-        rate = nbg_rates_map[date_key].get(nominal_currency_code)
+        rate = rates.get(nominal_currency_code)
         if rate and rate > 0:
             # GEL → Foreign: divide by rate
             nominal_amount = account_currency_amount / Decimal(str(rate))
     
     # Case 2: Foreign account → GEL nominal currency (multiply by rate)
     elif account_currency_code in ['USD', 'EUR', 'CNY', 'GBP', 'RUB', 'TRY', 'AED', 'KZT'] and nominal_currency_code == 'GEL':
-        rate = nbg_rates_map[date_key].get(account_currency_code)
+        rate = rates.get(account_currency_code)
         if rate and rate > 0:
             # Foreign → GEL: multiply by rate
             nominal_amount = account_currency_amount * Decimal(str(rate))
     
     # Case 3: Foreign → Different Foreign (convert through GEL)
     elif account_currency_code in ['USD', 'EUR', 'CNY', 'GBP', 'RUB', 'TRY', 'AED', 'KZT'] and nominal_currency_code in ['USD', 'EUR', 'CNY', 'GBP', 'RUB', 'TRY', 'AED', 'KZT']:
-        account_rate = nbg_rates_map[date_key].get(account_currency_code)
-        nominal_rate = nbg_rates_map[date_key].get(nominal_currency_code)
+        account_rate = rates.get(account_currency_code)
+        nominal_rate = rates.get(nominal_currency_code)
         if account_rate and nominal_rate and account_rate > 0 and nominal_rate > 0:
             # Convert to GEL first, then to target currency
             gel_amount = account_currency_amount * Decimal(str(account_rate))
@@ -605,6 +614,83 @@ def evaluate_condition_script(script, row):
     except Exception as exc:
         print(f"⚠️ Error evaluating condition_script: {exc}")
         return False
+
+
+def ensure_nbg_rates_exist(cursor, dates):
+    """
+    Check which dates are missing from nbg_exchange_rates and fetch them from NBG API.
+    dates: list of 'YYYY-MM-DD' strings
+    """
+    import urllib.request
+    import json
+    from datetime import timedelta
+
+    if not dates:
+        return
+
+    unique_dates = list(set(dates))
+    print(f"  🔍 Checking NBG rates for {len(unique_dates)} unique date(s)...")
+    sys.stdout.flush()
+
+    # Check which dates already exist
+    cursor.execute("""
+        SELECT date FROM nbg_exchange_rates WHERE date = ANY(%s)
+    """, ([d for d in unique_dates],))
+    existing_dates = {row[0].strftime('%Y-%m-%d') if hasattr(row[0], 'strftime') else str(row[0]) for row in cursor.fetchall()}
+
+    missing_dates = [d for d in unique_dates if d not in existing_dates]
+
+    if not missing_dates:
+        print(f"  ✅ All {len(unique_dates)} date(s) already have NBG rates")
+        sys.stdout.flush()
+        return
+
+    print(f"  ⚠️ Missing NBG rates for {len(missing_dates)} date(s): {missing_dates}")
+    sys.stdout.flush()
+
+    for date_str in missing_dates:
+        try:
+            url = f"https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json/?date={date_str}"
+            req = urllib.request.Request(url, headers={'Accept': 'application/json'})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+
+            if not data or not isinstance(data, list) or not data[0].get('currencies'):
+                print(f"  ⚠️ No rate data from NBG for {date_str}")
+                continue
+
+            currencies = data[0]['currencies']
+            rate_map = {}
+            for c in currencies:
+                code = c.get('code', '').upper()
+                rate = c.get('rate')
+                quantity = c.get('quantity', 1)
+                if rate and quantity:
+                    rate_map[code] = float(rate) / float(quantity)
+
+            new_uuid = str(uuid_lib.uuid4())
+            cursor.execute("""
+                INSERT INTO nbg_exchange_rates (uuid, date, usd_rate, eur_rate, cny_rate, gbp_rate, rub_rate, try_rate, aed_rate, kzt_rate)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (date) DO NOTHING
+            """, (
+                new_uuid,
+                date_str,
+                rate_map.get('USD'),
+                rate_map.get('EUR'),
+                rate_map.get('CNY'),
+                rate_map.get('GBP'),
+                rate_map.get('RUB'),
+                rate_map.get('TRY'),
+                rate_map.get('AED'),
+                rate_map.get('KZT'),
+            ))
+            print(f"  ✅ Fetched and inserted NBG rate for {date_str}")
+        except Exception as e:
+            print(f"  ⚠️ Failed to fetch NBG rate for {date_str}: {e}")
+
+    sys.stdout.flush()
+
 
 def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_table_name, 
                    remote_conn, _unused_conn):
@@ -820,6 +906,26 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
     else:
         print("⚠️ No new records to insert\n")
         return
+    
+    # Pre-check: ensure NBG exchange rates exist for all transaction dates
+    transaction_dates = set()
+    for detail in details:
+        def _get_text(tag_name):
+            elem = detail.find(tag_name)
+            return elem.text if elem is not None and elem.text else None
+        date_str = _get_text('EntryPDate') or _get_text('DocRecDate') or _get_text('DocActualDate') or _get_text('DocValueDate')
+        if date_str:
+            try:
+                cleaned = date_str.strip()
+                if len(cleaned) == 10:
+                    transaction_dates.add(cleaned)
+                elif len(cleaned) == 8:
+                    transaction_dates.add(f"{cleaned[:4]}-{cleaned[4:6]}-{cleaned[6:8]}")
+            except:
+                pass
+    if transaction_dates:
+        ensure_nbg_rates_exist(remote_cursor, list(transaction_dates))
+        remote_conn.commit()
     
     # ===================
     # STEP 2: Load Dictionaries
@@ -1492,6 +1598,29 @@ def backparse_bog_gel(account_uuid, account_number, currency_code, raw_table_nam
     print(f"💱 Account Currency UUID: {account_currency_uuid}\n")
     
     # Skip Step 1 (XML parsing) - data already in raw table
+
+    # Pre-check: ensure NBG exchange rates exist for all transaction dates in raw table
+    date_query = f"SELECT DISTINCT \"DocValueDate\", \"DocRecDate\" FROM {raw_table}"
+    if batch_id:
+        date_query += f" WHERE import_batch_id = %s"
+        supabase_cursor.execute(date_query, (batch_id,))
+    else:
+        supabase_cursor.execute(date_query)
+    bp_dates = set()
+    for row in supabase_cursor.fetchall():
+        date_val = row[0] or row[1]
+        if date_val:
+            if hasattr(date_val, 'strftime'):
+                bp_dates.add(date_val.strftime('%Y-%m-%d'))
+            else:
+                cleaned = str(date_val).strip()
+                if len(cleaned) == 10:
+                    bp_dates.add(cleaned)
+                elif len(cleaned) == 8:
+                    bp_dates.add(f"{cleaned[:4]}-{cleaned[4:6]}-{cleaned[6:8]}")
+    if bp_dates:
+        ensure_nbg_rates_exist(supabase_cursor, list(bp_dates))
+        supabase_conn.commit()
     
     # ===================
     # STEP 2: Load Dictionaries

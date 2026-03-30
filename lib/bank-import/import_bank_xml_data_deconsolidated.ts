@@ -14,6 +14,7 @@ import {
   loadCurrencyCache,
   normalizeINN,
   extractPaymentID,
+  ensureNBGRatesExist,
 } from './db-utils';
 import { evaluateCondition } from '../formula-compiler';
 import type {
@@ -89,10 +90,20 @@ export function calculateNominalAmount(
   }
 
   const dateKey = transactionDate.toISOString().split('T')[0];
-  const rates = nbgRatesMap.get(dateKey);
+  let rates = nbgRatesMap.get(dateKey);
   if (!rates) {
-    if (missingRateDates) missingRateDates.add(dateKey);
-    return accountCurrencyAmount;
+    // Fallback: search up to 7 previous days for the nearest available rate
+    const d = new Date(dateKey + 'T00:00:00Z');
+    for (let i = 1; i <= 7; i++) {
+      d.setUTCDate(d.getUTCDate() - 1);
+      const fallbackKey = d.toISOString().split('T')[0];
+      rates = nbgRatesMap.get(fallbackKey);
+      if (rates) break;
+    }
+    if (!rates) {
+      if (missingRateDates) missingRateDates.add(dateKey);
+      return accountCurrencyAmount;
+    }
   }
 
   if (accountCurrencyCode === 'GEL' && nominalCurrencyCode in rates) {
@@ -588,6 +599,19 @@ export async function processBOGGELDeconsolidated(
   const detailsContainer = accountInfo.xml_root.DETAILS?.[0] || accountInfo.xml_root;
   const details = detailsContainer.DETAIL || [];
   console.log(`📦 Found ${details.length} transactions in XML\n`);
+
+  // Pre-check: ensure NBG exchange rates exist for all transaction dates
+  const transactionDates = new Set<string>();
+  for (const detail of details) {
+    const getText = (tagName: string) => detail[tagName]?.[0] || null;
+    const date = deriveBOGTransactionDate(getText);
+    if (date) {
+      transactionDates.add(date.toISOString().split('T')[0]);
+    }
+  }
+  if (transactionDates.size > 0) {
+    await ensureNBGRatesExist(supabase, [...transactionDates]);
+  }
 
   console.log('\n' + '='.repeat(80));
   console.log('🔄 STEP 1: LOADING DICTIONARIES');

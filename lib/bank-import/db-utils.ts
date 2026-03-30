@@ -307,6 +307,111 @@ export async function loadCurrencyCache(supabase: ReturnType<typeof getSupabaseC
   return map;
 }
 
+const NBG_API_URL = 'https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json/';
+
+/**
+ * Ensure NBG exchange rates exist for all given dates.
+ * Checks the nbg_exchange_rates table via Supabase; for any missing dates,
+ * fetches rates from the NBG API and inserts them.
+ */
+export async function ensureNBGRatesExist(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  dates: string[]
+): Promise<void> {
+  if (dates.length === 0) return;
+
+  const uniqueDates = [...new Set(dates)].sort();
+  console.log(`  🔍 Checking NBG rates for ${uniqueDates.length} unique date(s)...`);
+
+  // Fetch existing dates from nbg_exchange_rates
+  const { data: existingRows, error } = await supabase
+    .from('nbg_exchange_rates')
+    .select('date')
+    .in('date', uniqueDates);
+
+  if (error) {
+    console.warn(`  ⚠️ Failed to check existing NBG rates: ${error.message}`);
+    return;
+  }
+
+  const existingDates = new Set(
+    (existingRows || []).map((r: any) => new Date(r.date).toISOString().split('T')[0])
+  );
+
+  const missingDates = uniqueDates.filter(d => !existingDates.has(d));
+
+  if (missingDates.length === 0) {
+    console.log(`  ✅ All ${uniqueDates.length} dates have NBG rates`);
+    return;
+  }
+
+  console.log(`  ⏳ Fetching NBG rates for ${missingDates.length} missing date(s): ${missingDates.join(', ')}`);
+
+  const currencyColumns: Record<string, string> = {
+    USD: 'usd_rate', EUR: 'eur_rate', CNY: 'cny_rate', GBP: 'gbp_rate',
+    RUB: 'rub_rate', TRY: 'try_rate', AED: 'aed_rate', KZT: 'kzt_rate',
+  };
+
+  let filled = 0;
+  for (const dateStr of missingDates) {
+    try {
+      const response = await fetch(`${NBG_API_URL}?date=${dateStr}`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      });
+
+      if (!response.ok) {
+        console.warn(`  ⚠️ NBG API returned ${response.status} for ${dateStr}`);
+        continue;
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const body = await response.text();
+      if (!contentType.includes('application/json') || body.trimStart().startsWith('<')) {
+        console.warn(`  ⚠️ NBG API returned non-JSON for ${dateStr}`);
+        continue;
+      }
+
+      const apiData = JSON.parse(body);
+      if (!apiData || !apiData.length || !apiData[0].currencies) {
+        console.warn(`  ⚠️ No rate data from NBG API for ${dateStr}`);
+        continue;
+      }
+
+      const rates: Record<string, number> = {};
+      for (const currency of apiData[0].currencies) {
+        const code = currency.code?.toUpperCase();
+        const quantity = parseFloat(currency.quantity || 1);
+        const rate = parseFloat(currency.rate || 0);
+        if (code && rate > 0 && currencyColumns[code]) {
+          rates[currencyColumns[code]] = rate / quantity;
+        }
+      }
+
+      const { randomUUID } = await import('crypto');
+      const { error: upsertError } = await supabase
+        .from('nbg_exchange_rates')
+        .upsert({
+          uuid: randomUUID(),
+          date: dateStr,
+          ...rates,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'date' });
+
+      if (upsertError) {
+        console.warn(`  ⚠️ Failed to upsert NBG rate for ${dateStr}: ${upsertError.message}`);
+      } else {
+        filled++;
+        console.log(`  ✅ Fetched and saved NBG rates for ${dateStr}`);
+      }
+    } catch (err: any) {
+      console.warn(`  ⚠️ Error fetching NBG rate for ${dateStr}: ${err.message}`);
+    }
+  }
+
+  console.log(`  📊 NBG rate backfill complete: ${filled}/${missingDates.length} dates filled`);
+}
+
 /**
  * Normalize INN: if 10 digits, prepend '0' to make it 11
  */

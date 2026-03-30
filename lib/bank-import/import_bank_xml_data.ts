@@ -24,6 +24,7 @@ import {
   loadCurrencyCache,
   normalizeINN,
   extractPaymentID,
+  ensureNBGRatesExist,
 } from './db-utils';
 import { evaluateCondition } from '../formula-compiler';
 import type {
@@ -140,10 +141,20 @@ export function calculateNominalAmount(
   }
 
   const dateKey = transactionDate.toISOString().split('T')[0];
-  const rates = nbgRatesMap.get(dateKey);
+  let rates = nbgRatesMap.get(dateKey);
   if (!rates) {
-    if (missingRateDates) missingRateDates.add(dateKey);
-    return accountCurrencyAmount;
+    // Fallback: search up to 7 previous days for the nearest available rate
+    const d = new Date(dateKey + 'T00:00:00Z');
+    for (let i = 1; i <= 7; i++) {
+      d.setUTCDate(d.getUTCDate() - 1);
+      const fallbackKey = d.toISOString().split('T')[0];
+      rates = nbgRatesMap.get(fallbackKey);
+      if (rates) break;
+    }
+    if (!rates) {
+      if (missingRateDates) missingRateDates.add(dateKey);
+      return accountCurrencyAmount;
+    }
   }
 
   // Case 1: GEL → Foreign (divide by rate)
@@ -859,6 +870,23 @@ export async function processBOGGEL(
     console.log('⚠️ No new records to insert\n');
   }
 
+  // Pre-check: ensure NBG exchange rates exist for all transaction dates
+  const transactionDates = new Set<string>();
+  for (const detail of details) {
+    const getTextD = (tagName: string) => detail[tagName]?.[0] || null;
+    const date =
+      parseBOGDate(getTextD('EntryPDate') || undefined) ||
+      parseBOGDate(getTextD('DocRecDate') || undefined) ||
+      parseBOGDate(getTextD('DocActualDate') || undefined) ||
+      parseBOGDate(getTextD('DocValueDate') || undefined);
+    if (date) {
+      transactionDates.add(date.toISOString().split('T')[0]);
+    }
+  }
+  if (transactionDates.size > 0) {
+    await ensureNBGRatesExist(supabase, [...transactionDates]);
+  }
+
   // =============================
   // STEP 2: Load Dictionaries
   // =============================
@@ -1314,6 +1342,19 @@ export async function processTBC(
   console.log(`  🔄 Skipped duplicates: ${skippedRawDuplicates}`);
   console.log(`  ⚠️  Skipped missing keys: ${skippedMissingKeys}\n`);
 
+  // Pre-check: ensure NBG exchange rates exist for all transaction dates (TBC format)
+  const tbcTransactionDates = new Set<string>();
+  for (const record of records) {
+    const getTextR = (tagName: string) => record[tagName]?.[0] || null;
+    const date = parseTBCDate(getTextR('Date') || undefined) || parseTBCDate(getTextR('DocumentDate') || undefined);
+    if (date) {
+      tbcTransactionDates.add(date.toISOString().split('T')[0]);
+    }
+  }
+  if (tbcTransactionDates.size > 0) {
+    await ensureNBGRatesExist(supabase, [...tbcTransactionDates]);
+  }
+
   console.log('\n' + '='.repeat(80));
   console.log('🔄 STEP 2: LOADING DICTIONARIES');
   console.log('='.repeat(80) + '\n');
@@ -1720,6 +1761,27 @@ export async function backparseExistingData(
       .single();
 
     const accountCurrencyUuid = accountData?.currency_uuid;
+
+    // Pre-check: ensure NBG exchange rates exist for all transaction dates in raw table
+    {
+      let dateQuery = supabase
+        .from(rawTableName)
+        .select('docvaluedate, docrecdate');
+      if (batchId) {
+        dateQuery = dateQuery.eq('import_batch_id', batchId);
+      }
+      const { data: dateRows } = await dateQuery;
+      const backparseDates = new Set<string>();
+      for (const row of dateRows || []) {
+        const d = parseBOGDate(row.docvaluedate) || parseBOGDate(row.docrecdate);
+        if (d) {
+          backparseDates.add(d.toISOString().split('T')[0]);
+        }
+      }
+      if (backparseDates.size > 0) {
+        await ensureNBGRatesExist(supabase, [...backparseDates]);
+      }
+    }
 
     // =============================
     // STEP 2: Load Dictionaries

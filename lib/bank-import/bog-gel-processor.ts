@@ -20,6 +20,7 @@ import {
   loadCurrencyCache,
   normalizeINN,
   extractPaymentID,
+  ensureNBGRatesExist,
 } from './db-utils';
 import { evaluateCondition } from '../formula-compiler';
 import type {
@@ -82,10 +83,20 @@ function calculateNominalAmount(
   }
 
   const dateKey = transactionDate.toISOString().split('T')[0];
-  const rates = nbgRatesMap.get(dateKey);
+  let rates = nbgRatesMap.get(dateKey);
   if (!rates) {
-    if (missingRateDates) missingRateDates.add(dateKey);
-    return accountCurrencyAmount;
+    // Fallback: search up to 7 previous days for the nearest available rate
+    const d = new Date(dateKey + 'T00:00:00Z');
+    for (let i = 1; i <= 7; i++) {
+      d.setUTCDate(d.getUTCDate() - 1);
+      const fallbackKey = d.toISOString().split('T')[0];
+      rates = nbgRatesMap.get(fallbackKey);
+      if (rates) break;
+    }
+    if (!rates) {
+      if (missingRateDates) missingRateDates.add(dateKey);
+      return accountCurrencyAmount;
+    }
   }
 
   // Case 1: GEL → Foreign (divide by rate)
@@ -702,6 +713,23 @@ export async function processBOGGEL(
   console.log(`  ✅ New records to insert: ${rawRecordsToInsert.length}`);
   console.log(`  🔄 Skipped duplicates: ${skippedRawDuplicates}`);
   console.log(`  ⚠️  Skipped missing keys: ${skippedMissingKeys}\n`);
+
+  // Pre-check: ensure NBG exchange rates exist for all transaction dates
+  const transactionDates = new Set<string>();
+  for (const detail of details) {
+    const getText = (tagName: string) => detail[tagName]?.[0] || null;
+    const date =
+      parseBOGDate(getText('EntryPDate') || undefined) ||
+      parseBOGDate(getText('DocRecDate') || undefined) ||
+      parseBOGDate(getText('DocActualDate') || undefined) ||
+      parseBOGDate(getText('DocValueDate') || undefined);
+    if (date) {
+      transactionDates.add(date.toISOString().split('T')[0]);
+    }
+  }
+  if (transactionDates.size > 0) {
+    await ensureNBGRatesExist(supabase, [...transactionDates]);
+  }
 
   // Insert raw records
   if (rawRecordsToInsert.length > 0) {
