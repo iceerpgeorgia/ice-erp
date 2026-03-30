@@ -1,5 +1,15 @@
 ﻿# Deployment Log
 
+## 2026-03-30 (118)
+- Summary: Atomic batch replace in batch split editor + SQL injection fix.
+- Changes:
+  - Batch editor: replaced non-atomic DELETE+POST with single POST that sends `replaceBatchUuid` for atomic in-transaction replace.
+  - API POST handler: deletes old batch and inserts new partitions within single DB transaction.
+  - Fixed SQL injection: replaced string-interpolated VALUES with parameterized queries ($1..$16).
+  - Removed duplicate `formatBatchId` function from POST handler (already at module level).
+- Commit: 122197d
+- Production: https://ice-mwdwf8279-iceerp.vercel.app
+
 ## 2026-03-30 (117)
 - Summary: Ensure NBG exchange rates exist before bank XML parsing + 7-day rate fallback.
 - Changes:
