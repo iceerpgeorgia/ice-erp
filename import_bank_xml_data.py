@@ -562,9 +562,10 @@ def extract_payment_id(doc_information):
     # Strategy 4: Look for salary accrual payment ID pattern (NP_xxx_NJ_xxx_PRLxxx)
     # This matches the format: NP_{6hex}_NJ_{6hex}_PRL{MMYYYY}
     # Support both uppercase and lowercase hex (a-f, A-F)
-    match = re.search(r'NP_[A-Fa-f0-9]{6}_NJ_[A-Fa-f0-9]{6}_PRL\d{6}', text)
+    # Accept both underscores and spaces as separators
+    match = re.search(r'NP[_ ][A-Fa-f0-9]{6}[_ ]NJ[_ ][A-Fa-f0-9]{6}[_ ]PRL\d{6}', text)
     if match:
-        return match.group(0)
+        return match.group(0).replace(' ', '_')
     
     # Strategy 5: If entire text is alphanumeric and reasonable length (5-50 chars), treat as payment_id
     # Increased limit from 20 to 50 to accommodate longer payment IDs

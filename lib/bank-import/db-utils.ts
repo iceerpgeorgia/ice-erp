@@ -445,8 +445,9 @@ export function extractPaymentID(docInformation: string | null | undefined): str
   if (match) return match[1];
 
   // Strategy 4: Look for salary accrual payment ID pattern (NP_xxx_NJ_xxx_PRLxxx)
-  match = text.match(/NP_[A-Fa-f0-9]{6}_NJ_[A-Fa-f0-9]{6}_PRL\d{6}/);
-  if (match) return match[0];
+  // Accept both underscores and spaces as separators, normalize to underscores
+  match = text.match(/NP[_ ][A-Fa-f0-9]{6}[_ ]NJ[_ ][A-Fa-f0-9]{6}[_ ]PRL\d{6}/);
+  if (match) return match[0].replace(/ /g, '_');
 
   // Strategy 5: If entire text is alphanumeric and reasonable length (5-50 chars), treat as payment_id
   if (/^[A-Z0-9-_]+$/i.test(text) && text.length >= 5 && text.length <= 50) {
