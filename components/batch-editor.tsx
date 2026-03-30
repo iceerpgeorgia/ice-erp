@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
 import { X, Plus, Check, AlertCircle } from 'lucide-react';
 
@@ -56,6 +57,7 @@ interface BatchEditorProps {
   onClose: () => void;
   onSave: () => void;
   onlyDue?: boolean;
+  onOnlyDueChange?: (value: boolean) => void;
   duePaymentIds?: Set<string>;
 }
 
@@ -112,9 +114,11 @@ export function BatchEditor({
   description,
   onClose,
   onSave,
-  onlyDue = false,
+  onlyDue: onlyDueProp = false,
+  onOnlyDueChange,
   duePaymentIds,
 }: BatchEditorProps) {
+  const [onlyDue, setOnlyDueLocal] = useState(onlyDueProp);
   const [partitions, setPartitions] = useState<Partition[]>([
     {
       id: '1',
@@ -778,11 +782,24 @@ export function BatchEditor({
 
         <div className="mb-6 rounded-lg border bg-gray-50 dark:bg-gray-900 p-4">
           <div className="grid grid-cols-1 gap-3">
-            {counteragentLabel && (
-              <div className="text-sm">
-                <span className="font-medium">Counteragent:</span> {counteragentLabel}
+            <div className="flex items-center justify-between">
+              {counteragentLabel && (
+                <div className="text-sm">
+                  <span className="font-medium">Counteragent:</span> {counteragentLabel}
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={onlyDue}
+                  onCheckedChange={(checked) => {
+                    const val = Boolean(checked);
+                    setOnlyDueLocal(val);
+                    onOnlyDueChange?.(val);
+                  }}
+                />
+                <Label className="text-sm">Only due</Label>
               </div>
-            )}
+            </div>
             <div>
               <Label htmlFor="payment-label-select">Add payment by label</Label>
               <Combobox

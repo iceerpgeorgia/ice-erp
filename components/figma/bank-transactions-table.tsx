@@ -3078,6 +3078,10 @@ export function BankTransactionsTable({
                       onClose={handleBatchEditorClose}
                       onSave={handleBatchEditorSaved}
                       onlyDue={onlyDue}
+                      onOnlyDueChange={(val) => {
+                        setOnlyDue(val);
+                        localStorage.setItem('bank-tx-only-due-payments', String(val));
+                      }}
                       duePaymentIds={duePaymentIds}
                     />
                         );
