@@ -308,6 +308,12 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error deleting payment ledger entry:', error);
+    if (error?.meta?.code === '23514') {
+      return NextResponse.json(
+        { error: 'Confirmed ledger entries cannot be deleted. Unconfirm the entry first.' },
+        { status: 403 }
+      );
+    }
     return NextResponse.json(
       { error: error.message || 'Failed to delete ledger entry' },
       { status: 500 }

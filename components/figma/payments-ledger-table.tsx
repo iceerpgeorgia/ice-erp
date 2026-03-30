@@ -215,11 +215,14 @@ export function PaymentsLedgerTable() {
         method: 'DELETE',
       });
 
-      if (!response.ok) throw new Error('Failed to delete ledger entry');
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete ledger entry');
+      }
       fetchEntries();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting ledger entry:', error);
-      alert('Failed to delete ledger entry');
+      alert(error.message || 'Failed to delete ledger entry');
     }
   };
 
