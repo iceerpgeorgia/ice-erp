@@ -699,11 +699,6 @@ export function BatchEditor({
         };
       });
 
-      if (batchUuid) {
-        await fetch(`/api/bank-transaction-batches?batchUuid=${batchUuid}`, {
-          method: 'DELETE',
-        });
-      }
       const response = await fetch('/api/bank-transaction-batches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -712,6 +707,7 @@ export function BatchEditor({
           rawRecordId1,
           rawRecordId2,
           rawRecordUuid,
+          replaceBatchUuid: batchUuid || undefined,
           partitions: normalizedPartitions.map((p) => ({
             partitionAmount: p.partitionAmount,
             paymentUuid: p.paymentUuid,

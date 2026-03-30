@@ -248,16 +248,9 @@ export async function POST(request: Request) {
       rawRecordId1, 
       rawRecordId2, 
       rawRecordUuid,
+      replaceBatchUuid,
       partitions 
     } = body;
-
-    const formatBatchId = (uuid: string) => {
-      const compact = uuid.replace(/-/g, '').toUpperCase();
-      const part1 = compact.slice(0, 6);
-      const part2 = compact.slice(6, 8);
-      const part3 = compact.slice(8, 14);
-      return `BTC_${part1}_${part2}_${part3}`;
-    };
 
     // Validation
     if (!bankAccountUuid || !rawRecordId1 || !rawRecordId2 || !rawRecordUuid || !partitions || partitions.length === 0) {
@@ -274,76 +267,77 @@ export async function POST(request: Request) {
       );
     }
 
-    const existingBatches = await prisma.$queryRawUnsafe<Array<{ batch_id: string }>>(
-      `SELECT DISTINCT batch_id FROM bank_transaction_batches WHERE raw_record_uuid::text = $1::text`,
-      rawRecordUuid
-    );
-
-    if (existingBatches.length > 0) {
-      return NextResponse.json(
-        {
-          error: 'Batch already exists for this transaction.',
-          batchIds: existingBatches.map((row) => row.batch_id),
-        },
-        { status: 409 }
+    // When not replacing, check for existing batches
+    if (!replaceBatchUuid) {
+      const existingBatches = await prisma.$queryRawUnsafe<Array<{ batch_id: string }>>(
+        `SELECT DISTINCT batch_id FROM bank_transaction_batches WHERE raw_record_uuid::text = $1::text`,
+        rawRecordUuid
       );
+
+      if (existingBatches.length > 0) {
+        return NextResponse.json(
+          {
+            error: 'Batch already exists for this transaction.',
+            batchIds: existingBatches.map((row) => row.batch_id),
+          },
+          { status: 409 }
+        );
+      }
     }
 
     // Generate batch UUID
-    const batchUuid = await prisma.$queryRawUnsafe(`SELECT gen_random_uuid()::text as uuid`) as any[];
-    const newBatchUuid = batchUuid[0].uuid;
+    const batchUuidResult = await prisma.$queryRawUnsafe(`SELECT gen_random_uuid()::text as uuid`) as any[];
+    const newBatchUuid = batchUuidResult[0].uuid;
     const batchId = formatBatchId(newBatchUuid);
 
-    const partitionValues = partitions
-      .map((partition: any, index: number) => {
+    await prisma.$transaction(async (tx) => {
+      // If replacing, delete old batch partitions first (atomic)
+      if (replaceBatchUuid) {
+        await tx.$executeRawUnsafe(
+          `DELETE FROM bank_transaction_batches WHERE batch_uuid = $1::uuid`,
+          replaceBatchUuid
+        );
+      }
+
+      // Insert partitions one-by-one with parameterized queries
+      for (let index = 0; index < partitions.length; index++) {
+        const partition = partitions[index];
         const safePartitionAmount = Math.abs(Number(partition.partitionAmount));
         const safeNominalAmount =
           partition.nominalAmount !== null && partition.nominalAmount !== undefined
             ? Math.abs(Number(partition.nominalAmount))
             : null;
-        return `(
-          '${bankAccountUuid}',
-          '${rawRecordId1}',
-          '${rawRecordId2}',
-          '${rawRecordUuid}',
-          '${batchId}',
-          '${newBatchUuid}',
-          ${safePartitionAmount},
-          ${index + 1},
-          ${partition.paymentUuid ? `'${partition.paymentUuid}'` : 'NULL'},
-          ${partition.paymentId ? `'${partition.paymentId}'` : 'NULL'},
-          ${partition.counteragentUuid ? `'${partition.counteragentUuid}'::uuid` : 'NULL'},
-          ${partition.projectUuid ? `'${partition.projectUuid}'::uuid` : 'NULL'},
-          ${partition.financialCodeUuid ? `'${partition.financialCodeUuid}'::uuid` : 'NULL'},
-          ${partition.nominalCurrencyUuid ? `'${partition.nominalCurrencyUuid}'::uuid` : 'NULL'},
-          ${safeNominalAmount ?? 'NULL'},
-          ${partition.partitionNote ? `'${partition.partitionNote.replace(/'/g, "''")}'` : 'NULL'}
-        )`;
-      })
-      .join(',\n');
 
-    await prisma.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe(`
-        INSERT INTO bank_transaction_batches (
-          bank_account_uuid,
-          raw_record_id_1,
-          raw_record_id_2,
-          raw_record_uuid,
-          batch_id,
-          batch_uuid,
-          partition_amount,
-          partition_sequence,
-          payment_uuid,
-          payment_id,
-          counteragent_uuid,
-          project_uuid,
-          financial_code_uuid,
-          nominal_currency_uuid,
-          nominal_amount,
-          partition_note
-        ) VALUES
-        ${partitionValues}
-      `);
+        await tx.$executeRawUnsafe(
+          `INSERT INTO bank_transaction_batches (
+            bank_account_uuid, raw_record_id_1, raw_record_id_2, raw_record_uuid,
+            batch_id, batch_uuid, partition_amount, partition_sequence,
+            payment_uuid, payment_id, counteragent_uuid, project_uuid,
+            financial_code_uuid, nominal_currency_uuid, nominal_amount, partition_note
+          ) VALUES (
+            $1::uuid, $2, $3, $4::uuid,
+            $5, $6::uuid, $7, $8,
+            $9, $10, $11, $12,
+            $13, $14, $15, $16
+          )`,
+          bankAccountUuid,
+          rawRecordId1,
+          rawRecordId2,
+          rawRecordUuid,
+          batchId,
+          newBatchUuid,
+          safePartitionAmount,
+          index + 1,
+          partition.paymentUuid || null,
+          partition.paymentId || null,
+          partition.counteragentUuid || null,
+          partition.projectUuid || null,
+          partition.financialCodeUuid || null,
+          partition.nominalCurrencyUuid || null,
+          safeNominalAmount,
+          partition.partitionNote || null
+        );
+      }
 
       await Promise.all(
         SOURCE_TABLES.map((table) =>
