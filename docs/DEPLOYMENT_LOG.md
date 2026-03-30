@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-30 (124)
+- Summary: Filter TBC insurance file by `დაზღვეულის ტიპი = თანამშრომელი` before processing.
+- Changes:
+  - API: after parsing XLSX headers, find `დაზღვეულის ტიპი` column index. When iterating data rows, skip any row where that column value is not `თანამშრომელი`.
+  - Response includes `skipped_non_employee` count.
+  - UI: shows "Rows in file (თანამშრომელი)" and "Skipped non-employee rows" in the confirmation dialog.
+- Commit: 7f7392b
+- Production: https://ice-3ysw14oig-iceerp.vercel.app
+
 ## 2026-03-30 (123)
 - Summary: Fix salary accruals copy-latest showing blank records after copy.
 - Changes:
