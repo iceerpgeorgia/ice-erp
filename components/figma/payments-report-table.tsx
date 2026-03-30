@@ -1199,6 +1199,8 @@ export function PaymentsReportTable() {
       if (jobUuidParam) {
         handleFilterChange('jobUuid' as ColumnKey, { mode: 'facet', values: new Set([jobUuidParam]) });
       }
+      // Remove query params from URL so they don't re-apply on next mount
+      window.history.replaceState({}, '', window.location.pathname);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
