@@ -1,5 +1,16 @@
 ﻿# Deployment Log
 
+## 2026-03-30 (117)
+- Summary: Ensure NBG exchange rates exist before bank XML parsing + 7-day rate fallback.
+- Changes:
+  - Added ensureNBGRatesExist() to db-utils.ts: checks transaction dates against nbg_exchange_rates, fetches missing from NBG API, upserts.
+  - Added pre-parse NBG rate check to all TS processors: deconsolidated, bog-gel-processor, import_bank_xml_data (3 call sites).
+  - Added 7-day backward fallback in calculateNominalAmount across all 3 TS files + Python script.
+  - Added ensure_nbg_rates_exist() to Python script with same logic (2 call sites: process + backparse).
+  - Fixes incorrect nominal amounts when NBG rate is missing for exact transaction date.
+- Commit: 402f9f1
+- Production: https://ice-3tnio2f9z-iceerp.vercel.app
+
 ## 2026-03-27 (116)
 - Summary: Differential sync for job-project bindings, payment deletion protection.
 - Changes:
