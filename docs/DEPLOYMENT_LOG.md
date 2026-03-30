@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-30 (125)
+- Summary: Show employees in TBC insurance file who have no salary accrual for the selected month.
+- Changes:
+  - API: after matching employees and querying accruals, detect employees present in the file (with matched counteragent) but without a salary_accruals record for the month. Returns `no_accrual_employees` array with name, ID, and insurance cost.
+  - UI: new orange-highlighted section "Employees without salary accrual for this month" in the confirmation dialog showing employee name, ID, and insurance cost.
+- Commit: 901750e
+- Production: https://ice-3suvenh8s-iceerp.vercel.app
+
 ## 2026-03-30 (124)
 - Summary: Filter TBC insurance file by `დაზღვეულის ტიპი = თანამშრომელი` before processing.
 - Changes:
