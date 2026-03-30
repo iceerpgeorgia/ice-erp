@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-30 (128)
+- Summary: Fix payment ID extraction regex to support space-separated NP/NJ/PRL patterns (TBC bank).
+- Changes:
+  - Python (`import_bank_xml_data.py`): Strategy 4 regex updated from `NP_[hex]_NJ_[hex]_PRL\d{6}` to `NP[_ ][hex][_ ]NJ[_ ][hex][_ ]PRL\d{6}` with space-to-underscore normalization.
+  - TypeScript (`lib/bank-import/db-utils.ts`): Same regex fix in `extractPaymentID()`.
+  - Data fix: 22 TBC records and 75 BOG records retroactively updated with extracted payment IDs.
+- Commit: 3d5e22e
+- Production: https://ice-64yiy7p6s-iceerp.vercel.app
+
 ## 2026-03-30 (127)
 - Summary: Make "Only due" checkbox take immediate effect in both payment edit dialog and batch splitter.
 - Changes:
