@@ -191,10 +191,14 @@ export async function POST(request: NextRequest) {
 
     const negativeResults: Array<{ personal_id: string; counteragent_uuid: string; counteragent_name: string | null; graph_amount: number; surplus_insurance: number; deducted_insurance: number; total_insurance: number }> = [];
     const updatedDetails: Array<{ personal_id: string; counteragent_uuid: string; counteragent_name: string | null; graph_amount: number; surplus_insurance: number; deducted_insurance: number; total_insurance: number }> = [];
+    const noAccrualEmployees: Array<{ personal_id: string; counteragent_name: string | null; graph_amount: number }> = [];
     let updatedRecords = 0;
     let matchedInsuranceCost = 0;
     let totalSurplusInsurance = 0;
     let totalDeductedInsurance = 0;
+
+    // Track which matched employees actually have accruals
+    const accrualUuids = new Set(accruals.map((a) => a.counteragent_uuid));
 
     for (const record of accruals) {
       const personalId = uuidToPersonalId.get(record.counteragent_uuid);
@@ -241,6 +245,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Find employees in file who matched counteragents but have no salary accrual for this month
+    matchedEmployees.forEach((employee, personalId) => {
+      if (!accrualUuids.has(employee.counteragent_uuid)) {
+        noAccrualEmployees.push({
+          personal_id: personalId,
+          counteragent_name: employee.name,
+          graph_amount: idAmountMap.get(personalId) || 0,
+        });
+      }
+    });
+
     return NextResponse.json({
       month: monthStart.toISOString().slice(0, 10),
       total_rows: idAmountMap.size,
@@ -255,6 +270,7 @@ export async function POST(request: NextRequest) {
         matched_total_deducted_insurance: totalDeductedInsurance,
       },
       negative_results: negativeResults,
+      no_accrual_employees: noAccrualEmployees,
       updated_details: updatedDetails,
     });
   } catch (error: any) {

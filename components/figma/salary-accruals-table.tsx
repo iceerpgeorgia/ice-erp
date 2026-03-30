@@ -2793,6 +2793,27 @@ export function SalaryAccrualsTable() {
                         </div>
                       </div>
                     )}
+                    {uploadSummary.no_accrual_employees?.length > 0 && (
+                      <div>
+                        <div className="font-medium mb-2 text-orange-600">Employees without salary accrual for this month</div>
+                        <div className="rounded-md border border-orange-200">
+                          <div className="grid grid-cols-3 gap-2 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700">
+                            <div>Employee</div>
+                            <div>ID</div>
+                            <div>Insurance Cost</div>
+                          </div>
+                          <div className="max-h-[200px] overflow-y-auto">
+                            {uploadSummary.no_accrual_employees.map((item: any, idx: number) => (
+                              <div key={`noacc-${item.personal_id}-${idx}`} className="grid grid-cols-3 gap-2 border-t border-orange-100 px-3 py-2 text-xs">
+                                <div className="font-medium">{item.counteragent_name || 'Unknown'}</div>
+                                <div>{item.personal_id}</div>
+                                <div>{item.graph_amount}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" onClick={() => setIsSummaryOpen(false)}>
                         Cancel
