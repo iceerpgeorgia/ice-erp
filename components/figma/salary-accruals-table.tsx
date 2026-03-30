@@ -449,37 +449,47 @@ export function SalaryAccrualsTable() {
   };
 
   const handleCopyLatestMonth = async () => {
-    if (!latestBaseMonthDate || latestBaseRecords.length === 0) return;
+    console.log('[CopyLatest] latestBaseMonthDate:', latestBaseMonthDate, 'latestBaseRecords.length:', latestBaseRecords.length);
+    if (!latestBaseMonthDate || latestBaseRecords.length === 0) {
+      console.warn('[CopyLatest] Aborted: latestBaseMonthDate or latestBaseRecords empty');
+      return;
+    }
 
     const nextDate = new Date(latestBaseMonthDate.getFullYear(), latestBaseMonthDate.getMonth() + 1, 1);
+    const baseMonth = formatSalaryMonth(latestBaseMonthDate);
+    const targetMonth = formatSalaryMonth(nextDate);
     const nextLabel = nextDate.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
     const currentLabel = latestBaseMonthDate.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+    console.log('[CopyLatest] base_month:', baseMonth, 'target_month:', targetMonth);
 
     const confirmed = window.confirm(`Do you want to copy ${currentLabel} to ${nextLabel}?`);
     if (!confirmed) return;
 
     setIsCopyingLatest(true);
     try {
+      const payload = {
+        action: 'copy-latest',
+        base_month: baseMonth,
+        target_month: targetMonth,
+        created_by: 'user',
+      };
+      console.log('[CopyLatest] POST payload:', payload);
       const response = await fetch('/api/salary-accruals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'copy-latest',
-          base_month: formatSalaryMonth(latestBaseMonthDate),
-          target_month: formatSalaryMonth(nextDate),
-          created_by: 'user',
-        }),
+        body: JSON.stringify(payload),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to copy salary accruals');
-      }
       const result = await response.json();
+      console.log('[CopyLatest] Response status:', response.status, 'result:', result);
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to copy salary accruals');
+      }
       if (Array.isArray(result.records)) {
         setData((prev) => applyComputedColumns([...(result.records as SalaryAccrual[]), ...prev]));
       }
     } catch (error: any) {
+      console.error('[CopyLatest] Error:', error);
       alert(error.message || 'Failed to copy salary accruals');
     } finally {
       setIsCopyingLatest(false);

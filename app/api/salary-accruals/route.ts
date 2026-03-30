@@ -414,22 +414,36 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     if (body?.action === 'copy-latest') {
       const { base_month, target_month, created_by } = body;
+      console.log('[copy-latest] Received:', { base_month, target_month, created_by });
       if (!base_month || !target_month) {
         return NextResponse.json({ error: 'Missing base_month or target_month' }, { status: 400 });
       }
 
       const baseStart = new Date(base_month);
       const targetDate = new Date(target_month);
+      console.log('[copy-latest] Parsed dates:', { baseStart: baseStart.toISOString(), targetDate: targetDate.toISOString() });
       if (Number.isNaN(baseStart.getTime()) || Number.isNaN(targetDate.getTime())) {
         return NextResponse.json({ error: 'Invalid base_month or target_month' }, { status: 400 });
       }
 
       const baseEnd = new Date(baseStart.getFullYear(), baseStart.getMonth() + 1, 1);
+      console.log('[copy-latest] Query range:', { gte: baseStart.toISOString(), lt: baseEnd.toISOString() });
+
+      // Also check insider selection
+      const insiderUuids = selection.selectedUuids;
+      console.log('[copy-latest] Insider selection:', insiderUuids.length, 'uuids');
+
       const baseRecords = await prisma.salary_accruals.findMany({
         where: { salary_month: { gte: baseStart, lt: baseEnd } },
       });
+      console.log('[copy-latest] Found', baseRecords.length, 'base records');
 
       if (baseRecords.length === 0) {
+        // Debug: check what months actually exist
+        const allMonths = await prisma.$queryRawUnsafe<any[]>(
+          `SELECT DISTINCT salary_month FROM salary_accruals ORDER BY salary_month DESC LIMIT 5`
+        );
+        console.log('[copy-latest] Latest 5 distinct months in DB:', allMonths.map((r: any) => r.salary_month));
         return NextResponse.json({ inserted: 0, base_count: 0, records: [] });
       }
 
