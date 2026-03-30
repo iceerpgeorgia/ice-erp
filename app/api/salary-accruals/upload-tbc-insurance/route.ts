@@ -120,10 +120,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required columns: პირადი ნომერი and insurance cost value column' }, { status: 400 });
     }
 
+    // Find insured type column (დაზღვეულის ტიპი) to filter employees only
+    const insuredTypeIndex = findFirstIndex(['დაზღვეულის ტიპი']);
+    const employeeTypeValue = normalizeHeaderKey('თანამშრომელი');
+
     const idAmountMap = new Map<string, number>();
+    let skippedNonEmployee = 0;
     for (let i = headerIndex + 1; i < rows.length; i += 1) {
       const row = rows[i];
       if (!row || row.length === 0) continue;
+      // Filter: only include rows with insured type = თანამშრომელი
+      if (insuredTypeIndex >= 0) {
+        const insuredType = normalizeHeaderKey(row[insuredTypeIndex]);
+        if (insuredType !== employeeTypeValue) {
+          skippedNonEmployee += 1;
+          continue;
+        }
+      }
       const personalId = normalizeId(row[idIndex]);
       if (!personalId) continue;
       const amount = parseAmount(row[amountIndex]);
@@ -231,6 +244,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       month: monthStart.toISOString().slice(0, 10),
       total_rows: idAmountMap.size,
+      skipped_non_employee: skippedNonEmployee,
       matched_employees: matchedEmployees.size,
       missing_employees: missingEmployees,
       updated_records: updatedRecords,

@@ -2718,7 +2718,10 @@ export function SalaryAccrualsTable() {
                   <div className="space-y-4 text-sm">
                     <div className="grid gap-1">
                       <div><span className="text-gray-600">Month:</span> {uploadSummary.month}</div>
-                      <div><span className="text-gray-600">Rows in file:</span> {uploadSummary.total_rows}</div>
+                      <div><span className="text-gray-600">Rows in file (თანამშრომელი):</span> {uploadSummary.total_rows}</div>
+                      {uploadSummary.skipped_non_employee > 0 && (
+                        <div><span className="text-gray-600">Skipped non-employee rows:</span> {uploadSummary.skipped_non_employee}</div>
+                      )}
                       <div><span className="text-gray-600">Matched employees:</span> {uploadSummary.matched_employees}</div>
                       <div><span className="text-gray-600">Updated records:</span> {uploadSummary.updated_records}</div>
                       <div><span className="text-gray-600">Missing employees:</span> {uploadSummary.missing_employees?.length || 0}</div>
