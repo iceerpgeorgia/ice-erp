@@ -1,5 +1,16 @@
 ﻿# Deployment Log
 
+## 2026-03-30 (126)
+- Summary: Prevent duplicate salary accrual records + clean up existing March 2026 duplicate.
+- Changes:
+  - API `copy-latest`: added pre-check — if target month already has records, returns 409 error instead of creating duplicates.
+  - API `copy-accrual`: added per-record check — skips months where a record already exists for the same counteragent + financial code combo. Returns `skipped` array.
+  - DB: added unique constraint `salary_accruals_ca_fc_month_unique` on `(counteragent_uuid, financial_code_uuid, salary_month)` to prevent duplicates at the database level.
+  - Cleaned up 1 existing duplicate record (ID 6151) in March 2026.
+  - Prisma schema updated with `@@unique` and migration `20260330191939_add_salary_accruals_unique_constraint`.
+- Commit: cf79494
+- Production: https://ice-bqe4ceund-iceerp.vercel.app
+
 ## 2026-03-30 (125)
 - Summary: Show employees in TBC insurance file who have no salary accrual for the selected month.
 - Changes:
