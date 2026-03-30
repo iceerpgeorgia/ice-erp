@@ -637,6 +637,7 @@ model salary_accruals {
   @@index([insider_uuid])
   @@index([nominal_currency_uuid])
   @@index([salary_month, counteragent_uuid])
+  @@unique([counteragent_uuid, financial_code_uuid, salary_month], name: "salary_accruals_ca_fc_month_unique")
 }
 
 model rs_waybills_in {

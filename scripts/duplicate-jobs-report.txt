@@ -1,0 +1,484 @@
+Found 60 duplicate groups:
+
+--- L0001 | OTIS | 40 jobs ---
+  b3ace415-638a-4c17-915d-0bfc68b0836f: 1 binding(s) [Kvareli Elevators], 4 payment(s)
+  caa2c054-2206-4b4b-9fd8-f52ae6877d72: 1 binding(s) [Deka Digomi], 3 payment(s)
+  c1ed5a20-57d6-43cd-8a6b-6c064adf4c54: 1 binding(s) [Park Home Vake Galleria Elevator], 4 payment(s)
+  6d143f77-4450-4110-9d30-5cd7bd633db2: 1 binding(s) [Arsenal], 3 payment(s)
+  ee07bf10-6b10-48ca-a004-66d0879ef6e3: 1 binding(s) [Simetria Lisi 1 Unit], 5 payment(s)
+  50025164-53ff-4429-a27c-f4fbb9248d48: 1 binding(s) [Kvareli Residence], 3 payment(s)
+  71c327a4-ebeb-4ac8-83d2-20b20f50a61f: 1 binding(s) [Chkonia Elevator], 3 payment(s)
+  40a2dd99-eaf6-4ed6-a449-de1da383d945: 1 binding(s) [Nutsubidze], 1 payment(s)
+  5efb5efb-a795-4942-b6e6-35bfb79350cc: 1 binding(s) [Shatberashvili 45], 3 payment(s)
+  56d4bcbe-c742-4e4e-81cd-4317606a28e1: 1 binding(s) [Sandro Euli], 9 payment(s)
+  2846fd76-5bcc-4ad5-98c7-fa50d883a07e: 1 binding(s) [Hampton], 3 payment(s)
+  74a53d16-15fd-422e-810a-df26f3a30a07: 1 binding(s) [Gumbati Port Line], 5 payment(s)
+  9bd44f5a-4deb-4a98-b926-9a86f8a27a12: 1 binding(s) [Deka Verona], 2 payment(s)
+  43f03da5-da8b-414d-bfa3-2b8b6ae9bb1a: 1 binding(s) [Batumi Central], 1 payment(s)
+  8a347eb8-4e10-4b3c-8d4c-684531bf5130: 1 binding(s) [Accor Avlabari], 3 payment(s)
+  28362526-79a7-4677-8465-a1817897b4ff: 1 binding(s) [Modern Residence], 4 payment(s)
+  65f662b1-1490-40bc-974e-da4a9297fb02: 1 binding(s) [Lisi Veranda 8], 2 payment(s)
+  3330e74c-c779-4b08-be6d-708611da25a6: 1 binding(s) [Kobuleti Garden Key], 3 payment(s)
+  9ea041e0-b2d2-441a-a73b-596ab6712fc3: 1 binding(s) [Sunrise Palace], 1 payment(s)
+  92b9105d-d293-433d-b52d-0479cc79f60a: 1 binding(s) [Kazbegi], 5 payment(s)
+  eeafac7b-f287-412d-b257-9a976cc928ab: 1 binding(s) [Panorama], 3 payment(s)
+  dd9fe225-92c1-4a2e-ba62-93af4b87f586: 1 binding(s) [Nami], 1 payment(s)
+  9e17b682-f021-4111-a78f-0f8defed4c14: 1 binding(s) [Grishashvili], 1 payment(s)
+  9415c53d-fa17-435d-bbc0-8212e032faa1: 1 binding(s) [Basis Bank], 5 payment(s)
+  64aa4893-818a-490b-b19a-40e636ad5153: 1 binding(s) [Archi Digomi Installation], 3 payment(s)
+  e5fe27fb-710f-4699-9a9f-5ef30aa1c5c3: 1 binding(s) [Grande Krtsanisi], 3 payment(s)
+  918de257-4ffb-4d83-b009-fc757df4931e: 1 binding(s) [Lisi Development 6 units], 0 payment(s)
+  6461137b-6285-4887-8e51-08cb6b88fe4e: 1 binding(s) [Golden Beach Kvariati], 3 payment(s)
+  97e60a67-88d5-4231-a420-1307a3bcded5: 1 binding(s) [Grande Krtsanisi D & E Block], 3 payment(s)
+  338ebe09-e590-4173-aa69-0554534e06c4: 1 binding(s) [MTZ], 3 payment(s)
+  e76a9e11-3057-4418-bf80-92aa63c32a7e: 1 binding(s) [Mardi Hills], 4 payment(s)
+  3cd367b4-fd06-4eb6-8f65-c9cdf263d217: 1 binding(s) [Afisha], 4 payment(s)
+  fdc90c60-3df2-4ff7-9329-357a5e07bc69: 1 binding(s) [Roomix Tsintsadze], 3 payment(s)
+  2a3fd8fc-9d17-4619-98f7-27b4f690d461: 1 binding(s) [Millenio], 5 payment(s)
+  2a1f5568-a000-497a-a42d-6fcd4953c826: 1 binding(s) [LUX], 6 payment(s)
+  7a790546-9f62-4cfa-9f5a-bdc471d436e0: 1 binding(s) [Alliance Highline], 2 payment(s)
+  d18bfcae-de1d-4b93-944d-5e460d04b513: 1 binding(s) [Varketili Mall], 2 payment(s)
+  268454e4-5001-458a-9253-a60a7f3e8a70: 1 binding(s) [Marshal Development], 2 payment(s)
+  e3cc81a7-7d5e-4872-b0d8-05056251e293: 1 binding(s) [BILLY MANAGMENT], 1 payment(s)
+  77da3766-ae56-492a-967c-058f4b296a1c: 1 binding(s) [BK  DZOTSI STR], 2 payment(s)
+
+--- L0001 | N/A | 32 jobs ---
+  b6359b95-49b7-4d07-a2d3-d564a00b5b6f: 1 binding(s) [1TV], 1 payment(s)
+  e9d6c51f-861f-44ad-abd1-3481dbad8ba7: 1 binding(s) [Batumi Mall], 4 payment(s)
+  d3de885a-2337-43d9-abe5-a6f5beca75c0: 1 binding(s) [mms group poti], 2 payment(s)
+  4d158aaf-7774-49b4-aa1e-9e6848fed502: 1 binding(s) [Park Home Saburtalo], 6 payment(s)
+  2bbfcf62-3c34-4ff9-9266-5a1eb3c04b0c: 1 binding(s) [Chato di Vere], 0 payment(s)
+  8946c18f-2a7d-4fea-bcd7-3399aa4e27b3: 1 binding(s) [IBIS Airport], 1 payment(s)
+  58315691-f286-43b8-402f-2782e4dc0efd: 1 binding(s) [Orbi city D1 block], 5 payment(s)
+  b08eb4de-a335-426a-959d-67a1dc76d9fc: 1 binding(s) [Orbi City D2 block], 3 payment(s)
+  74e87051-01e6-0dd0-b9c4-86f29a05d47b: 1 binding(s) [Renting BNB], 2 payment(s)
+  3982d8b2-0848-a2d7-9ee1-642648bae6ce: 1 binding(s) [Rumi - batumi], 1 payment(s)
+  f2094d52-0004-8ddc-1600-d9733bd68ffc: 1 binding(s) [Sunrise Batumi], 1 payment(s)
+  9da62ccd-5469-4038-bbce-f01bdadaf5a4: 1 binding(s) [Surmanidzeebi], 4 payment(s)
+  d12e3c4f-0907-40ac-9ec2-7aef4378ad96: 1 binding(s) [TWIN TOWER], 0 payment(s)
+  c19b28f4-e6d7-556b-83bc-a96c47846333: 1 binding(s) [V-JEO Restaurant Platform], 2 payment(s)
+  b54ed568-b95d-962f-b9ea-a996572df021: 1 binding(s) [White square], 0 payment(s)
+  b7b7ebd1-6c72-40fa-a7d1-0a5bb1448f3e: 1 binding(s) [Palm Apartments], 5 payment(s)
+  cccec5a8-ae43-4102-bca6-acc60bb42276: 1 binding(s) [Rehab Elevators], 2 payment(s)
+  67bccd8c-0455-41ce-8dcc-4510e03a219e: 1 binding(s) [Goderdzi EP], 2 payment(s)
+  798fbc02-1819-429d-a569-d6cd6957ef89: 1 binding(s) [Dry Port Elevator], 3 payment(s)
+  c5f6f193-f59a-40a9-9a3d-d8b77e926f7e: 1 binding(s) [Darchidze Home], 1 payment(s)
+  040ca84f-8034-4ff3-907b-8ca4951ad677: 1 binding(s) [Holiday Inn], 3 payment(s)
+  fda18a3d-c38a-3b46-7e3b-967bf0f7e3f3: 1 binding(s) [Makhata], 3 payment(s)
+  35fdf976-6555-501f-3851-9698374d5eb8: 1 binding(s) [Modus Wedding Hall], 1 payment(s)
+  d764d2c8-0957-4263-abed-79fede00e638: 1 binding(s) [Lisi Trio Facade Elevators], 2 payment(s)
+  b68cbb3d-005b-4006-80bb-e5b278f4b629: 1 binding(s) [Kuwait Villa], 2 payment(s)
+  a2d597bf-bdb9-a359-001d-21d4bffafddd: 1 binding(s) [Abuseridze - Batumi], 1 payment(s)
+  adf8bcd4-2ad0-436b-83fb-21c4698ab643: 1 binding(s) [Askaneli Kvareli], 2 payment(s)
+  ef5187ac-d249-4602-867e-b4f37e5299de: 1 binding(s) [Barnovi], 2 payment(s)
+  e2af1a9e-da8e-4cab-90eb-8dba48878781: 1 binding(s) [Summit], 3 payment(s)
+  aaaf8dc8-e4bb-4348-acee-19f973b6d96b: 1 binding(s) [Chato di Vere], 4 payment(s)
+  8c7ef874-277e-9a5e-a9b4-cee6bcc0eb30: 1 binding(s) [Mziuri Garden], 3 payment(s)
+  5d7554b2-1e60-1a8b-f8ac-3a4df3468575: 1 binding(s) [Premium Group], 3 payment(s)
+
+--- L0002 | OTIS | 28 jobs ---
+  b2a9bd9f-b174-4a02-b6b6-a5fd636d393d: 1 binding(s) [BILLY MANAGMENT], 1 payment(s)
+  23a37c07-0c06-44f8-8ea5-4706625fa4af: 1 binding(s) [BK  DZOTSI STR], 1 payment(s)
+  0f44d9fb-e677-48d5-bb6b-5e229369496b: 1 binding(s) [Basis Bank], 2 payment(s)
+  1bcbb875-fe42-418f-879c-6b84b1a50011: 1 binding(s) [Panorama], 2 payment(s)
+  5f17e7cd-16ae-4ece-88de-c9d032d1e9b6: 1 binding(s) [Kvareli Elevators], 2 payment(s)
+  0e26d4c7-f5cd-4721-935a-4391c19bc19b: 1 binding(s) [MTZ], 4 payment(s)
+  9fa33256-4423-4c5c-8101-a1d1cdadf890: 1 binding(s) [Nutsubidze], 1 payment(s)
+  1cd90117-e881-4f72-a91b-77348c50810d: 1 binding(s) [Alliance Highline], 2 payment(s)
+  555991b2-8239-4df7-a4f0-c06ca2b43f4a: 1 binding(s) [LUX], 6 payment(s)
+  3c63dccf-612d-4067-8d8a-007582f368af: 1 binding(s) [Arsenal], 3 payment(s)
+  f4acf999-e300-4c91-9ff1-9f5ad8d0a3e0: 1 binding(s) [Mardi Hills], 2 payment(s)
+  9b8555be-e777-454e-83cb-7798ba21b9a2: 1 binding(s) [Archi Digomi Installation], 3 payment(s)
+  74572f8d-e93f-4491-b323-58e71ebeb32b: 1 binding(s) [Grande Krtsanisi], 3 payment(s)
+  59d9252a-404b-4d44-a45f-1d4d2c4e8f50: 1 binding(s) [Hampton], 3 payment(s)
+  0c51d5be-ac54-44aa-b78f-08f7274eed21: 1 binding(s) [Gumbati Port Line], 4 payment(s)
+  94516544-e56c-45d1-9ebf-d12ad9bac2fd: 1 binding(s) [Accor Avlabari], 4 payment(s)
+  625e361c-ccb5-4a29-a6c7-9e35eda6551b: 1 binding(s) [Lisi Development 6 units], 0 payment(s)
+  fbdec1d4-be74-4d96-acd2-19876ef90703: 1 binding(s) [Modern Residence], 3 payment(s)
+  12a90b48-7a89-4f40-bc14-13ec3fd786fa: 1 binding(s) [Sunrise Palace], 1 payment(s)
+  e5cd544d-97f2-4ffa-be77-c41d18d78762: 1 binding(s) [Golden Beach Kvariati], 3 payment(s)
+  9d1e04d8-a003-4101-8113-b0713011bb3d: 1 binding(s) [Deka Verona], 2 payment(s)
+  d35b34db-daf9-4230-a93d-0a59d9c5570e: 1 binding(s) [Batumi Central], 1 payment(s)
+  28ae0cae-260c-4c98-be8c-2d46429d8664: 1 binding(s) [Roomix Tsintsadze], 3 payment(s)
+  6b343f6c-7320-40c6-9bc9-037ec2948d07: 1 binding(s) [Lisi Veranda 8], 3 payment(s)
+  22ca42bb-10cc-4c0f-8916-6a7ed2f74729: 1 binding(s) [Millenio], 3 payment(s)
+  98be7a4f-faee-42dd-aecf-a5ca4298cab4: 1 binding(s) [Grande Krtsanisi D & E Block], 3 payment(s)
+  c9d517dd-84fd-4f54-bb5f-1591b32da837: 1 binding(s) [Afisha], 3 payment(s)
+  eedd4b51-4e5e-42cf-9490-d09babbe4aef: 1 binding(s) [Varketili Mall], 2 payment(s)
+
+--- L0003 | OTIS | 20 jobs ---
+  cff1e6f3-46ea-4dbe-80d6-013e18b651ed: 1 binding(s) [Varketili Mall], 3 payment(s)
+  f80d9072-4fc3-46a8-9f27-90da8c84b4ae: 1 binding(s) [BILLY MANAGMENT], 1 payment(s)
+  5c48013c-b89b-404f-8563-43637cd6cd17: 1 binding(s) [BK  DZOTSI STR], 3 payment(s)
+  c8f17251-e984-4bed-bcbd-90f31275fb37: 1 binding(s) [Alliance Highline], 1 payment(s)
+  85d5c138-b784-40b9-b67e-5052cf9a60d2: 1 binding(s) [MTZ], 8 payment(s)
+  b7b0c51d-a395-47bc-b1be-746e47f7a8b7: 1 binding(s) [Nutsubidze], 3 payment(s)
+  4611a135-3fbd-46c3-af51-1c2c8c196d78: 1 binding(s) [LUX], 4 payment(s)
+  ea37bd87-73e2-4ff9-922e-9e7c00db5139: 1 binding(s) [Basis Bank], 4 payment(s)
+  45557257-306c-4a63-a355-46727485b319: 1 binding(s) [Arsenal], 5 payment(s)
+  4b633684-c05b-4d42-a624-0e6c22be11c4: 1 binding(s) [Archi Digomi Installation], 4 payment(s)
+  7b46ec5d-f774-43ff-9dda-fe0a866d7671: 1 binding(s) [Accor Avlabari], 4 payment(s)
+  4f0bf19e-4123-4a50-8654-28e6379b7cea: 1 binding(s) [Lisi Development 6 units], 0 payment(s)
+  e7513c06-5e0c-47c3-88e5-822cb0a29678: 1 binding(s) [Roomix Tsintsadze], 3 payment(s)
+  ea113b8d-f87c-4ffe-aa51-65d08fd5ea5f: 1 binding(s) [Modern Residence], 4 payment(s)
+  b0454e48-23f3-4035-ad2f-487f40a4610d: 1 binding(s) [Lisi Veranda 8], 3 payment(s)
+  b9ace515-34e6-4f67-9904-1a4bab1d3b50: 1 binding(s) [Sunrise Palace], 4 payment(s)
+  a35f4efc-5e17-4cdc-9a11-72a939bd2a41: 1 binding(s) [Panorama], 2 payment(s)
+  88985aad-358b-45fd-a7e8-d6b95d04171f: 1 binding(s) [Hampton], 2 payment(s)
+  eea426b0-9012-4eb3-a1b0-547a2b55f25d: 1 binding(s) [Grande Krtsanisi D & E Block], 2 payment(s)
+  0803f15f-a995-42b5-a6b9-32c3bd644aca: 1 binding(s) [Kvareli Elevators], 5 payment(s)
+
+--- L0002 | N/A | 16 jobs ---
+  9bda2705-50f9-4dc0-9089-e629df901701: 1 binding(s) [IBIS Airport], 1 payment(s)
+  4a5a3690-96d2-4148-adfe-7b90a270666d: 1 binding(s) [Holiday Inn], 3 payment(s)
+  0fe2fecb-e38e-5a2a-af59-2707cc11ff5b: 1 binding(s) [Makhata], 3 payment(s)
+  29514922-9716-44c5-8f12-996a62af1f1f: 1 binding(s) [Orbi City D2 block], 3 payment(s)
+  8f8b0e04-d1c5-43b5-9e3a-60462d7a1863: 1 binding(s) [Park Home Saburtalo], 5 payment(s)
+  f02ccae9-85d2-c69a-00b3-b92d02caa544: 1 binding(s) [Premium Group], 3 payment(s)
+  8cd3f99d-4916-473b-4035-e2cc7c71a073: 1 binding(s) [Rumi - batumi], 1 payment(s)
+  13651c18-ba72-4bd0-8725-62c4c307fc76: 1 binding(s) [Summit], 3 payment(s)
+  21965c7f-bb63-ba46-d3fb-fac2c7349159: 1 binding(s) [Sunrise Batumi], 1 payment(s)
+  82db7949-76bb-4bef-be43-91241bd2cdac: 1 binding(s) [TWIN TOWER], 0 payment(s)
+  b3532a15-7ef4-415e-8703-b920c5e5c5a7: 1 binding(s) [Askaneli Kvareli], 2 payment(s)
+  474c3524-01fa-11d5-0e66-e8e1da541609: 1 binding(s) [Mziuri Garden], 2 payment(s)
+  bfa0fa5e-122d-44a6-9dee-a5f3b0f93b2e: 1 binding(s) [Lisi Trio Facade Elevators], 2 payment(s)
+  359d1c28-e62f-83fb-1e12-f50b320661e1: 1 binding(s) [Orbi city D1 block], 4 payment(s)
+  01fb04a0-abce-42dd-b127-f396d4400539: 1 binding(s) [Surmanidzeebi], 3 payment(s)
+  8b671cfd-0643-4a6b-a0e9-895d414c4b56: 1 binding(s) [Batumi Mall], 5 payment(s)
+
+--- L0004 | OTIS | 16 jobs ---
+  adf0d1c5-b227-428f-b769-ce23ac6c11c4: 1 binding(s) [Varketili Mall], 4 payment(s)
+  82304f88-3469-4301-b293-c64718bad026: 1 binding(s) [BK  DZOTSI STR], 2 payment(s)
+  a929084d-a729-4e09-9fb0-863f2dcd8f55: 1 binding(s) [Alliance Highline], 0 payment(s)
+  3a8f9112-e38b-4f39-ade9-b29e161287a7: 1 binding(s) [Sunrise Palace], 4 payment(s)
+  67ed1ee2-7ade-42f4-98f5-7d1e3f409212: 1 binding(s) [MTZ], 6 payment(s)
+  671b4347-3b9f-48c7-8631-34c998ae43d2: 1 binding(s) [LUX], 2 payment(s)
+  c8ca033e-04d5-411d-82c8-3052cbf282ca: 1 binding(s) [Basis Bank], 4 payment(s)
+  b549d082-06ac-442e-b0e3-be751bae7395: 1 binding(s) [Arsenal], 3 payment(s)
+  51d3ca47-31bb-46e6-b620-9fe36de3bc07: 1 binding(s) [Archi Digomi Installation], 4 payment(s)
+  ae0111ba-fdd6-4fba-9330-7c76ae16e75f: 1 binding(s) [Accor Avlabari], 4 payment(s)
+  518a7e85-858d-4caf-a8b6-b8919e182154: 1 binding(s) [Lisi Development 6 units], 0 payment(s)
+  0ef31fd8-ebf0-4cc3-a851-e8fad0ac2000: 1 binding(s) [Roomix Tsintsadze], 3 payment(s)
+  2687078c-7a7b-4099-b0cb-7f3e7806ea8b: 1 binding(s) [Nutsubidze], 3 payment(s)
+  a6eec252-92fc-42e1-ae02-22045f4cc2f6: 1 binding(s) [Panorama], 2 payment(s)
+  62dcd228-b326-4d42-996b-3954777fd4da: 1 binding(s) [Grande Krtsanisi D & E Block], 2 payment(s)
+  96011489-a1fb-4e4a-a73e-b5de1daadc0a: 1 binding(s) [Kvareli Elevators], 4 payment(s)
+
+--- L0003 | N/A | 15 jobs ---
+  b1609908-1a51-40ab-9dce-b692ca8713a9: 1 binding(s) [Holiday Inn], 3 payment(s)
+  4808726e-5cd2-43a1-98c2-efe3e5523c26: 1 binding(s) [IBIS Airport], 2 payment(s)
+  a48f0b30-bf0e-4e70-40fb-ba45fbd86277: 1 binding(s) [Makhata], 3 payment(s)
+  996e2f5e-5542-45b8-a4f4-f744d08a90ce: 1 binding(s) [Mziuri Garden], 0 payment(s)
+  a8a2272c-8c1c-5338-e429-64fe7f70db6b: 1 binding(s) [Orbi city D1 block], 4 payment(s)
+  8a48e604-9c35-4683-b5f2-ca8708e8c0de: 1 binding(s) [Orbi City D2 block], 2 payment(s)
+  0e4e6e14-1a52-0abf-679e-27819ee3192e: 1 binding(s) [Premium Group], 5 payment(s)
+  625a1a88-10c5-dfe7-949e-b487e38a7634: 1 binding(s) [Rumi - batumi], 1 payment(s)
+  b9dedd24-9967-2378-cb49-2d4aca9d1a6d: 1 binding(s) [Sunrise Batumi], 1 payment(s)
+  740ddd51-2dba-486a-bf1e-27dea7569bff: 1 binding(s) [Surmanidzeebi], 4 payment(s)
+  46319e48-02fd-4ef6-adc3-638add078ae4: 1 binding(s) [TWIN TOWER], 0 payment(s)
+  4c342a5c-78d1-4287-9bd7-8aac41533cbe: 1 binding(s) [Askaneli Kvareli], 0 payment(s)
+  39bf85c9-4fba-bfeb-79ed-1aec97f0e476: 1 binding(s) [Mziuri Garden], 3 payment(s)
+  fb064ea8-072c-4e27-8ed4-d2054e7787a4: 1 binding(s) [Park Home Saburtalo], 6 payment(s)
+  d6b76c32-87aa-491d-8bca-9a1d435527ec: 1 binding(s) [Batumi Mall], 5 payment(s)
+
+--- L0004 | N/A | 11 jobs ---
+  0f51f894-25ac-4327-8ccf-f49cf7c3564f: 1 binding(s) [Park Home Saburtalo], 2 payment(s)
+  882e5c86-5045-470c-a9ec-c2df742d463e: 1 binding(s) [Holiday Inn], 2 payment(s)
+  acc7bed8-3623-49a6-83fe-d7e45ff794f5: 1 binding(s) [Makhata], 3 payment(s)
+  0564a8e3-3211-494a-7f97-8196c16e5529: 1 binding(s) [Mziuri Garden], 2 payment(s)
+  8d8d0b6f-1c11-328f-0415-b127ac888878: 1 binding(s) [Orbi city D1 block], 4 payment(s)
+  684e7e4d-f989-d032-078a-cddb02a91a22: 1 binding(s) [Premium Group], 3 payment(s)
+  e05a3895-2c70-0194-b746-2028b09c59ee: 1 binding(s) [Sunrise Batumi], 2 payment(s)
+  497959d8-d7d5-48b3-aaa9-5ed951779cdd: 1 binding(s) [Surmanidzeebi], 4 payment(s)
+  37f4eac8-2d56-49ee-b617-c020b47d28f7: 1 binding(s) [Orbi City D2 block], 4 payment(s)
+  8b48b838-00fa-5626-e974-7c71103707d2: 1 binding(s) [TWIN TOWER], 1 payment(s)
+  6e5c9a53-66ca-424c-9409-75e5ef8e1967: 1 binding(s) [Batumi Mall], 5 payment(s)
+
+--- L0001 | DELFAR | 9 jobs ---
+  aa6bd569-3c69-41fe-bd85-f1c060c6ef69: 1 binding(s) [Lisi Green Apartaments], 7 payment(s)
+  2353bd07-aa9f-47a7-8071-81a7dc77eb49: 1 binding(s) [Shalva Nutsubidze], 2 payment(s)
+  a28eee52-a759-4b1d-baa2-96f083d4b06e: 1 binding(s) [CASA DI BATUMI], 4 payment(s)
+  6a4d4623-688f-4c70-b6aa-6760fb49ad42: 1 binding(s) [Arte Kerchi], 3 payment(s)
+  6683463c-0ddc-4d0f-ad33-891ebc2abaf2: 1 binding(s) [New Group Kavtaradze], 3 payment(s)
+  8fcd1613-9074-467c-9fe2-bb4c7f41d29f: 1 binding(s) [Telavi Mall], 2 payment(s)
+  55b2a7f2-b81e-45df-918f-db2b833a57c2: 1 binding(s) [New Group University], 1 payment(s)
+  ac732495-379c-4b0e-a170-380ba06d4d07: 1 binding(s) [Khabazi Kobuleti], 3 payment(s)
+  048f2792-47b0-9b5e-6760-fc0f9a1c0038: 1 binding(s) [1TV], 7 payment(s)
+
+--- L0005 | N/A | 9 jobs ---
+  975636a9-e9ba-9b22-ee3f-75595e3b37d3: 1 binding(s) [Makhata], 3 payment(s)
+  f4e3da6d-67f0-464c-aa9f-fdfc79d08172: 1 binding(s) [Holiday Inn], 4 payment(s)
+  77d5ba6f-3330-72d5-9965-16a768c2378f: 1 binding(s) [Mziuri Garden], 4 payment(s)
+  ca2518c6-bff0-4f0c-84ba-29280804d451: 1 binding(s) [Mziuri Garden], 0 payment(s)
+  a1eb49ba-a00b-1361-72ed-dad5f479160f: 1 binding(s) [Orbi city D1 block], 4 payment(s)
+  b875cbfb-a468-448e-97a2-d32dc9a2c4c3: 1 binding(s) [Orbi City D2 block], 4 payment(s)
+  1784a564-91fa-4fa6-8557-f2a477f84ed9: 1 binding(s) [Park Home Saburtalo], 4 payment(s)
+  2382b215-d64a-1e6b-f96a-051faa418f23: 1 binding(s) [TWIN TOWER], 1 payment(s)
+  d154da07-a647-48e7-8cd2-113f102d115f: 1 binding(s) [Batumi Mall], 5 payment(s)
+
+--- L0007 | N/A | 8 jobs ---
+  0ffc6674-a09d-49ab-b6a4-00fdd49e3293: 1 binding(s) [Mziuri Garden], 0 payment(s)
+  c0c5068d-f2c2-0c21-361a-cb4c251e2ff8: 1 binding(s) [Orbi city D1 block], 3 payment(s)
+  480a51cb-91ca-4911-9ea5-73d3b475e167: 1 binding(s) [Orbi City D2 block], 4 payment(s)
+  b06b9bb6-b962-4c63-9c82-f0e4a5f38a6d: 1 binding(s) [TWIN TOWER], 1 payment(s)
+  9f5caa99-68f6-4570-afe6-2de94eee0c08: 1 binding(s) [1TV], 1 payment(s)
+  f756118c-6fa5-1c9c-bab1-9a1fb065732d: 1 binding(s) [Makhata], 3 payment(s)
+  2d000909-1b86-5d82-5b93-322960d7bf28: 1 binding(s) [Mziuri Garden], 2 payment(s)
+  8acc7fd0-3240-4366-bd03-2d0a64b61fc2: 1 binding(s) [Holiday Inn], 4 payment(s)
+
+--- L0002 | DELFAR | 7 jobs ---
+  7207f5d6-9bf9-4db9-bd13-3b1326b61035: 1 binding(s) [Lisi Green Apartaments], 5 payment(s)
+  a6d151a0-c76a-488b-b59d-c51c878ef1a5: 1 binding(s) [Shalva Nutsubidze], 2 payment(s)
+  e098086c-d89e-4b7c-9dfc-ec9d2557e1c4: 1 binding(s) [CASA DI BATUMI], 4 payment(s)
+  12a49028-5e59-473b-9bc8-6e8d503f3198: 1 binding(s) [Arte Kerchi], 2 payment(s)
+  084d4eb9-e9e7-452e-941e-28a9660f74f1: 1 binding(s) [Telavi Mall], 2 payment(s)
+  ba6b71c9-a9c5-43df-96e0-81ae025b183a: 1 binding(s) [New Group University], 1 payment(s)
+  3b256352-0737-448a-b6d0-e858118bafe5: 1 binding(s) [1TV], 3 payment(s)
+
+--- P0001 | N/A | 7 jobs ---
+  7877e518-085f-4ae4-af6f-509503848e5f: 1 binding(s) [Gumbati Apart Kvariati], 5 payment(s)
+  b515348c-795d-473f-b579-ff92fbeb16e3: 1 binding(s) [ELT BUILDING], 5 payment(s)
+  d9e7ad74-58e5-4cd1-96eb-a413e23207fa: 1 binding(s) [Gori Mall], 2 payment(s)
+  a887c1bf-a695-4f02-b759-908750ffa434: 1 binding(s) [Areali], 4 payment(s)
+  76f9c599-4df9-4992-8baa-8a69358f557a: 1 binding(s) [Gumbati Boulevard Point], 3 payment(s)
+  5aa27605-be12-4013-bed9-9819eb657a08: 1 binding(s) [Bagrationi], 5 payment(s)
+  6bf710cf-5733-4b50-aa92-ed9ec72491cc: 1 binding(s) [7th sky], 5 payment(s)
+
+--- P0002 | N/A | 7 jobs ---
+  6cd442e4-dc1c-4704-b5a5-30ed2b136473: 1 binding(s) [7th sky], 4 payment(s)
+  eb1e1b58-c255-407f-a2b6-54a022587f6b: 1 binding(s) [Areali], 4 payment(s)
+  9a4d1f14-8564-4ef9-b4d0-552a86a9f9b7: 1 binding(s) [ELT BUILDING], 2 payment(s)
+  fea4d127-2915-4cdc-b0d1-064bd0fffa5d: 1 binding(s) [Gumbati Boulevard Point], 6 payment(s)
+  afc06d3e-9c2b-4159-b049-b4ee411c7571: 1 binding(s) [Gumbati Apart Kvariati], 4 payment(s)
+  9518b3a0-051a-4732-b24d-e59f121af873: 1 binding(s) [Bagrationi], 7 payment(s)
+  f8527dbe-11c5-4a4a-b1ca-5997f543d3cb: 1 binding(s) [Gori Mall], 2 payment(s)
+
+--- L0005 | OTIS | 6 jobs ---
+  a6e1761f-fbb9-4137-b26a-58b4c50d247b: 1 binding(s) [Kvareli Elevators], 2 payment(s)
+  b98e1dc4-6514-4842-8bab-752367ef6926: 1 binding(s) [Nutsubidze], 1 payment(s)
+  e3256505-c9dc-42b7-b772-2c606297d5df: 1 binding(s) [Basis Bank], 4 payment(s)
+  4b7c7eed-1f38-4c57-a825-f0c7c816b739: 1 binding(s) [Archi Digomi Installation], 4 payment(s)
+  aed42111-1ed0-4030-aeb0-f31b6aa24d67: 1 binding(s) [Lisi Development 6 units], 0 payment(s)
+  1fbb4ce0-0f95-41db-8977-9bd84b746a8f: 1 binding(s) [Alliance Highline], 6 payment(s)
+
+--- L0006 | N/A | 6 jobs ---
+  ae51a7d8-481e-4fcd-396e-f0e4a4101ac2: 1 binding(s) [Makhata], 3 payment(s)
+  6c5c23c5-85c5-bfa8-37a6-cf44a9dc92d8: 1 binding(s) [Mziuri Garden], 3 payment(s)
+  d7b512c3-3b2d-a8f0-c1a5-ce6ec6a761c4: 1 binding(s) [Orbi city D1 block], 4 payment(s)
+  5509a6bf-4359-4c1b-9092-ceab8833b2af: 1 binding(s) [Orbi City D2 block], 4 payment(s)
+  1c9bc14b-a5f5-db40-ab35-0372147dcfb7: 1 binding(s) [TWIN TOWER], 1 payment(s)
+  fbc6821c-f2a5-45e8-8c5e-3e0427755385: 1 binding(s) [Holiday Inn], 4 payment(s)
+
+--- L0010 | N/A | 6 jobs ---
+  4b020636-dcdd-cfdc-8be1-c61499ef6b36: 1 binding(s) [Makhata], 4 payment(s)
+  92516884-aa8f-9d3f-1a4f-64440e18f6ef: 1 binding(s) [Mziuri Garden], 3 payment(s)
+  331af0c6-b3b2-49f8-99ff-122d2f8d9ddb: 1 binding(s) [Orbi city D1 block], 0 payment(s)
+  14cd01f9-e598-4539-87fc-7c35c603d2a8: 1 binding(s) [Holiday Inn], 4 payment(s)
+  24b76d06-3705-3c4d-6084-d8962f6181c7: 1 binding(s) [Orbi city D1 block], 2 payment(s)
+  66b562ca-7c68-4f82-934c-6c8b9bc3471f: 1 binding(s) [TWIN TOWER], 0 payment(s)
+
+--- L0001 | Ozinan | 5 jobs ---
+  0c584b19-8fb9-4968-9c8e-636b8c3f2e5d: 1 binding(s) [Tagi], 2 payment(s)
+  ab48e392-0554-43d0-9cea-6085e2ac39f5: 1 binding(s) [Lisi Development 1 UNIT], 2 payment(s)
+  ca67dc94-889a-47af-ac5b-82f752ad65ce: 1 binding(s) [Irigio], 2 payment(s)
+  7ea81a4c-f33b-4bb7-9c92-53fab8943cdb: 1 binding(s) [Gas Co], 3 payment(s)
+  3cc3278d-9fcb-4890-ac3a-7777df66124a: 1 binding(s) [Kvareli Staff House Elevator], 2 payment(s)
+
+--- L0003 | DELFAR | 5 jobs ---
+  5b07972e-02ea-42ee-bf57-ba7df2121f2a: 1 binding(s) [1TV], 4 payment(s)
+  7e591f97-b719-44fc-b688-f2e8a731fd0f: 1 binding(s) [Shalva Nutsubidze], 2 payment(s)
+  10608c5b-ef76-45a2-9955-72c4baa45d2d: 1 binding(s) [CASA DI BATUMI], 3 payment(s)
+  b79cecfd-d715-4183-ab4f-3e1b132808f9: 1 binding(s) [New Group University], 1 payment(s)
+  1b5e23f7-a795-4777-8edc-3b8c5d7f5222: 1 binding(s) [Afisha], 3 payment(s)
+
+--- L0006 | OTIS | 5 jobs ---
+  3678234e-08ae-4a3f-964c-01834a461cb0: 1 binding(s) [Nutsubidze], 2 payment(s)
+  1ac41be7-02b4-4eac-8624-478ad207b49a: 1 binding(s) [Basis Bank], 4 payment(s)
+  8db587db-a85f-4a6c-a022-e3c9f4014806: 1 binding(s) [Archi Digomi Installation], 4 payment(s)
+  25ef6920-8b53-4a49-8cf4-5e386d513686: 1 binding(s) [Lisi Development 6 units], 0 payment(s)
+  dd09899c-e401-4eac-9420-7f56e8347d24: 1 binding(s) [Alliance Highline], 5 payment(s)
+
+--- L0008 | N/A | 5 jobs ---
+  9b8e087d-58ac-dad5-a3e2-0bc197ef5a02: 1 binding(s) [Makhata], 3 payment(s)
+  895aad11-5489-e982-60d4-13fcb8eb6933: 1 binding(s) [Mziuri Garden], 2 payment(s)
+  c8020d68-96b3-9a06-ec73-00686d55f619: 1 binding(s) [TWIN TOWER], 1 payment(s)
+  b986ae2e-ffd0-4cb8-8f48-fb5fe87d473a: 1 binding(s) [1TV], 0 payment(s)
+  cf61c903-d398-46c5-8cfa-2ab8613995e6: 1 binding(s) [Holiday Inn], 6 payment(s)
+
+--- E0001 | N/A | 4 jobs ---
+  e956a1f9-22ba-4235-9890-4e7c4b81fdbc: 1 binding(s) [Gori Mall], 1 payment(s)
+  0fb0d90e-3749-4deb-a8f3-f22fbad5a5f9: 1 binding(s) [Holiday Inn], 3 payment(s)
+  e8d072a8-317f-4c8f-b381-baebd4fc187e: 1 binding(s) [Digomi trade center], 1 payment(s)
+  d52fe137-b70a-44ae-8b2e-dd8dff342c5b: 1 binding(s) [Batumi Mall], 2 payment(s)
+
+--- L0004 | DELFAR | 4 jobs ---
+  0c95719a-3641-4f58-8228-6c8570ac29ec: 1 binding(s) [1TV], 5 payment(s)
+  858020b9-2a28-481a-ac91-ebbb19db5a02: 1 binding(s) [CASA DI BATUMI], 2 payment(s)
+  0b827bdc-557c-47be-9ea7-2b8223fba883: 1 binding(s) [Afisha], 2 payment(s)
+  55bed094-f575-423c-901e-d327b73ce523: 1 binding(s) [New Group University], 1 payment(s)
+
+--- L0009 | N/A | 4 jobs ---
+  85f2678c-e9f1-0543-370f-755a97be4031: 1 binding(s) [Makhata], 3 payment(s)
+  82e2f0fb-a314-42bd-5ea7-b83cff5be396: 1 binding(s) [Mziuri Garden], 1 payment(s)
+  d6a42e8f-eb7e-f7e9-7e30-a9878a9c0da0: 1 binding(s) [TWIN TOWER], 1 payment(s)
+  da3e9562-d1e9-4e9f-bbf5-28336a852eac: 1 binding(s) [Holiday Inn], 5 payment(s)
+
+--- L0011 | N/A | 4 jobs ---
+  a9133d44-a9f1-3ce5-d6f6-3446b38d654f: 1 binding(s) [Makhata], 3 payment(s)
+  b4f83256-8234-1b99-0d7d-bb7ca164aa46: 1 binding(s) [Mziuri Garden], 1 payment(s)
+  8abe9ca4-41d4-473b-aeaa-96e49ed3462d: 1 binding(s) [TWIN TOWER], 0 payment(s)
+  532a5968-da54-4d64-b1d3-a92faba4579b: 1 binding(s) [Holiday Inn], 4 payment(s)
+
+--- L0012 | N/A | 4 jobs ---
+  e84ce413-5351-385f-8a37-e67ca1473b32: 1 binding(s) [Makhata], 3 payment(s)
+  bc7848f4-c0c2-2b86-3eee-6fe596a67d8b: 1 binding(s) [Mziuri Garden], 2 payment(s)
+  0275b00f-701f-4c49-b7c3-3064685aa3d5: 1 binding(s) [TWIN TOWER], 0 payment(s)
+  6915c6f1-9b5d-45df-a7be-687bd50435fe: 1 binding(s) [Holiday Inn], 6 payment(s)
+
+--- P0003 | N/A | 4 jobs ---
+  ea74de5d-0f9b-48ee-82f4-b6fcbf11198d: 1 binding(s) [7th sky], 0 payment(s)
+  fc5fe75c-52a4-4b9b-93b6-97543442ed4c: 1 binding(s) [ELT BUILDING], 4 payment(s)
+  343709f5-c971-4783-958d-485efcb4567f: 1 binding(s) [Gumbati Boulevard Point], 5 payment(s)
+  2c06e550-fb60-40dc-87eb-54acc0e5accc: 1 binding(s) [Bagrationi], 5 payment(s)
+
+--- E0002 | N/A | 3 jobs ---
+  61182326-4728-4d39-a2ea-1a419945279d: 1 binding(s) [Gori Mall], 1 payment(s)
+  729c9937-c219-4b3b-be6c-6cb5d033d5c8: 1 binding(s) [Holiday Inn], 1 payment(s)
+  56b213d1-bd92-46ab-9c90-fc1667cc469e: 1 binding(s) [Batumi Mall], 1 payment(s)
+
+--- L0007 | OTIS | 3 jobs ---
+  d5d631af-2b19-479c-bc4e-274d99d85598: 1 binding(s) [Nutsubidze], 1 payment(s)
+  ea2e25ad-5c3c-4ed8-8663-b1e78ea6fefb: 1 binding(s) [Basis Bank], 4 payment(s)
+  bf794294-86bc-41d7-bce8-29deaa9c0e01: 1 binding(s) [Alliance Highline], 5 payment(s)
+
+--- L0008 | OTIS | 3 jobs ---
+  b5aeed5d-83c2-4aea-aecb-279a307a6421: 1 binding(s) [Alliance Highline], 1 payment(s)
+  611d6359-fb16-4a36-b72f-59205d8d8b23: 1 binding(s) [Nutsubidze], 1 payment(s)
+  dc82bb5e-8485-484c-b7e7-12b3b7f182ba: 1 binding(s) [Basis Bank], 4 payment(s)
+
+--- L0013 | N/A | 3 jobs ---
+  1dbf1bcf-4df9-4d67-a00e-58e816f51b68: 1 binding(s) [TWIN TOWER], 0 payment(s)
+  226c968e-45ab-8494-88db-abdb8b9dc50e: 1 binding(s) [Makhata], 3 payment(s)
+  0c4cb6d4-2c55-4a8b-b250-40d03fb2565f: 1 binding(s) [Holiday Inn], 7 payment(s)
+
+--- L0014 | N/A | 3 jobs ---
+  44b4142f-731c-52ba-fb85-4e33f0138057: 1 binding(s) [Makhata], 3 payment(s)
+  017c5e76-0929-4095-b88a-85ef9ad6ddd9: 1 binding(s) [TWIN TOWER], 1 payment(s)
+  1a1ebe21-c568-40a3-81a6-214e66fdee70: 1 binding(s) [Holiday Inn], 5 payment(s)
+
+--- L0015 | N/A | 3 jobs ---
+  0342f063-9d1c-25b0-adfc-702071043bf9: 1 binding(s) [Makhata], 3 payment(s)
+  86860aa0-7cc0-8724-b6d4-261db4ff485d: 1 binding(s) [TWIN TOWER], 1 payment(s)
+  60f26c3b-74b9-4614-b879-d6a641c8050e: 1 binding(s) [Holiday Inn], 4 payment(s)
+
+--- P0001 | OTIS | 3 jobs ---
+  48c6c247-680f-49f6-ac20-879e05021b5b: 1 binding(s) [Figures], 3 payment(s)
+  69f58c88-11c6-42ec-a4c0-d025628885f9: 1 binding(s) [DAVINCHI], 1 payment(s)
+  23829e66-1c83-4e1a-88a6-5c60f1c29b8f: 1 binding(s) [Khimshiashvili Apartment], 2 payment(s)
+
+--- E0003 | N/A | 2 jobs ---
+  983ab303-3244-49da-8b14-ad5f8d9ef236: 1 binding(s) [Holiday Inn], 1 payment(s)
+  f6200a1e-02dd-4377-b68d-21d7b57af118: 1 binding(s) [Batumi Mall], 1 payment(s)
+
+--- E0004 | N/A | 2 jobs ---
+  07b05aa2-4a21-4f00-974c-c5d468226c27: 1 binding(s) [Holiday Inn], 2 payment(s)
+  c7a295da-2de2-43e0-9d54-3660ebcb71d2: 1 binding(s) [Batumi Mall], 1 payment(s)
+
+--- L0001 | LG | 2 jobs ---
+  5f3d8364-6415-4cc6-89ee-77611c547ff0: 1 binding(s) [Beta Group], 3 payment(s)
+  12730688-0408-4d04-9d1d-3606e951bd5b: 1 binding(s) [Shartava LG], 2 payment(s)
+
+--- L0002 | Ozinan | 2 jobs ---
+  14cc7cde-9413-4094-b97d-34574253721c: 1 binding(s) [Irigio], 2 payment(s)
+  914f89ae-27ff-4593-b245-80c662cb0c82: 1 binding(s) [Gas Co], 2 payment(s)
+
+--- L0002 | LG | 2 jobs ---
+  49f52c61-baf8-421c-953a-eda8e4be3b7b: 1 binding(s) [Shartava LG], 2 payment(s)
+  36fee813-1ccd-45fd-8b02-06e9f31e47f5: 1 binding(s) [Beta Group], 3 payment(s)
+
+--- L0003 | LG | 2 jobs ---
+  b68e835c-791c-41a0-9414-9eb120d171bd: 1 binding(s) [Beta Group], 3 payment(s)
+  018ded48-97b0-441d-a248-6f1f7469a5a4: 1 binding(s) [Shartava LG], 5 payment(s)
+
+--- L0004 | LG | 2 jobs ---
+  3f12a2c6-c4ee-405c-9e56-d16ca7b99a53: 1 binding(s) [Beta Group], 3 payment(s)
+  162b9e51-88fb-480d-bb6f-a379dc50d8c1: 1 binding(s) [Shartava LG], 5 payment(s)
+
+--- L0005 | DELFAR | 2 jobs ---
+  2965f1c7-083b-49eb-827a-f8f5ecfe3737: 1 binding(s) [1TV], 6 payment(s)
+  24ea097c-29d1-40e8-ad0b-c5f8835fdde1: 1 binding(s) [Afisha], 2 payment(s)
+
+--- L0006 | DELFAR | 2 jobs ---
+  79c948f9-9615-415e-874d-06f93920e65b: 1 binding(s) [1TV], 4 payment(s)
+  a8b0f63b-c169-4649-9f5e-7c47e5ff7ef1: 1 binding(s) [Kvareli Elevators], 3 payment(s)
+
+--- L0016 | N/A | 2 jobs ---
+  1520cc81-eb9e-e3e3-e06a-4bd8e494956b: 1 binding(s) [Makhata], 3 payment(s)
+  0e4421a7-2fcc-2978-463d-d0ab902fec42: 1 binding(s) [TWIN TOWER], 1 payment(s)
+
+--- L0017 | N/A | 2 jobs ---
+  c1863a6e-14ad-edc0-6fa5-41a214acaaea: 1 binding(s) [TWIN TOWER], 1 payment(s)
+  43c0e815-31be-2216-4baf-2116849f6cd1: 1 binding(s) [Makhata], 3 payment(s)
+
+--- L0018 | N/A | 2 jobs ---
+  afb164e2-82fb-e9aa-6c07-9d1c8175c93d: 1 binding(s) [TWIN TOWER], 1 payment(s)
+  a9b19227-2944-4159-da1a-428d36c664ce: 1 binding(s) [Makhata], 3 payment(s)
+
+--- L0019 | N/A | 2 jobs ---
+  d647949e-e29f-9529-8a83-18c598c2fff8: 1 binding(s) [TWIN TOWER], 2 payment(s)
+  14d10525-caa0-5170-7a0a-4dbed7d239cc: 1 binding(s) [Makhata], 3 payment(s)
+
+--- L0020 | N/A | 2 jobs ---
+  3ed5a1e7-004c-24ef-1359-6d8e8d96e625: 1 binding(s) [TWIN TOWER], 2 payment(s)
+  03138921-356e-2526-14bd-071b017485cf: 1 binding(s) [Makhata], 3 payment(s)
+
+--- L0021 | N/A | 2 jobs ---
+  3db3a9f2-5989-3f08-6b27-fe7b9fb80c12: 1 binding(s) [TWIN TOWER], 2 payment(s)
+  d476faf8-1f79-04cf-a749-00209578de88: 1 binding(s) [Makhata], 3 payment(s)
+
+--- L0022 | N/A | 2 jobs ---
+  a7343b28-45fe-e10d-cee0-22b996573a47: 1 binding(s) [Makhata], 3 payment(s)
+  09345ce0-94b5-f022-75cb-b3e6cfab0652: 1 binding(s) [TWIN TOWER], 3 payment(s)
+
+--- L0023 | N/A | 2 jobs ---
+  5f90e3c3-f79b-4493-9dd0-1f8f2325db97: 1 binding(s) [TWIN TOWER], 1 payment(s)
+  8b50c67a-d431-6acb-897c-548ad78b7060: 1 binding(s) [Makhata], 3 payment(s)
+
+--- L0024 | N/A | 2 jobs ---
+  590abe14-e3bc-4ef6-a558-d6b083e15709: 1 binding(s) [TWIN TOWER], 0 payment(s)
+  dc9812df-2387-709b-7205-149d967624c1: 1 binding(s) [Makhata], 3 payment(s)
+
+--- L0025 | N/A | 2 jobs ---
+  a768190d-57ac-48cf-9d72-b4e14229e0d1: 1 binding(s) [TWIN TOWER], 0 payment(s)
+  5d5ae455-93b5-83e0-f8c5-fe9433a246ae: 1 binding(s) [Makhata], 3 payment(s)
+
+--- L0026 | N/A | 2 jobs ---
+  0561b023-703f-469c-809b-87c462e11398: 1 binding(s) [TWIN TOWER], 0 payment(s)
+  74db6761-09aa-68fc-748e-0fe754c7d8c3: 1 binding(s) [Makhata], 3 payment(s)
+
+--- L0027 | N/A | 2 jobs ---
+  2cece20c-b148-db85-5954-0a5efadaa7d5: 1 binding(s) [Makhata], 3 payment(s)
+  33edba7e-24e3-4277-888d-255370b9b352: 1 binding(s) [TWIN TOWER], 0 payment(s)
+
+--- L0028 | N/A | 2 jobs ---
+  4e960d2c-9b49-4e12-8841-9bdb422e04a9: 1 binding(s) [TWIN TOWER], 1 payment(s)
+  3c708ae6-34c4-3773-1b44-860415dd15c5: 1 binding(s) [Makhata], 3 payment(s)
+
+--- L0201 | OTIS | 2 jobs ---
+  bae4c9a4-0414-450a-b101-7fa6d78567cf: 2 binding(s) [Chkondideli Repair 2 UNITS, Chkondideli Frame], 2 payment(s)
+  f5634274-707d-4e4e-aba8-ec1c67a17bbd: 1 binding(s) [Chkondideli Frame], 0 payment(s)
+
+--- P0001 | Ozinan | 2 jobs ---
+  bbe30a3d-303f-48bf-a55c-b471bed4068c: 1 binding(s) [DG Construction], 4 payment(s)
+  26c4f4ec-9bef-4199-bed0-ae9d90a95728: 1 binding(s) [Shartava], 2 payment(s)
+
+--- P0002 | OTIS | 2 jobs ---
+  f5c9d0eb-dc5b-4d22-8220-900a5925e608: 1 binding(s) [Figures], 3 payment(s)
+  5a169cc3-bddb-4feb-af38-0e40d11d5483: 1 binding(s) [DAVINCHI], 1 payment(s)
+
+--- P0004 | N/A | 2 jobs ---
+  deb9721f-a9f0-4757-a531-12f8f5385ea6: 1 binding(s) [ELT BUILDING], 4 payment(s)
+  63a32c5d-a094-47a6-870b-fca773275755: 1 binding(s) [7th sky], 0 payment(s)
+
+
+Summary: 60 duplicate groups, 360 total job records, 361 total bindings

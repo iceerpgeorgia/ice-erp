@@ -433,6 +433,18 @@ export async function POST(request: NextRequest) {
       const insiderUuids = selection.selectedUuids;
       console.log('[copy-latest] Insider selection:', insiderUuids.length, 'uuids');
 
+      // Check if records already exist in the target month
+      const targetEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1);
+      const existingTargetCount = await prisma.salary_accruals.count({
+        where: { salary_month: { gte: targetDate, lt: targetEnd } },
+      });
+      if (existingTargetCount > 0) {
+        return NextResponse.json(
+          { error: `Target month already has ${existingTargetCount} records. Delete them first before copying.` },
+          { status: 409 }
+        );
+      }
+
       const baseRecords = await prisma.salary_accruals.findMany({
         where: { salary_month: { gte: baseStart, lt: baseEnd } },
       });
@@ -530,6 +542,7 @@ export async function POST(request: NextRequest) {
       }
 
       const createdIds: bigint[] = [];
+      const skippedMonths: string[] = [];
       for (const month of target_months) {
         // month is expected as YYYY-MM — use the last day of that month
         const [yearStr, monthStr] = month.split('-');
@@ -537,6 +550,21 @@ export async function POST(request: NextRequest) {
         const mon = parseInt(monthStr, 10);
         // Last day of month: day 0 of next month
         const lastDay = new Date(year, mon, 0);
+
+        // Check if record already exists for this counteragent+financial_code+month
+        const monthStart = new Date(year, mon - 1, 1);
+        const monthEnd = new Date(year, mon, 1);
+        const existing = await prisma.salary_accruals.count({
+          where: {
+            counteragent_uuid: sourceRecord.counteragent_uuid,
+            financial_code_uuid: sourceRecord.financial_code_uuid,
+            salary_month: { gte: monthStart, lt: monthEnd },
+          },
+        });
+        if (existing > 0) {
+          skippedMonths.push(month);
+          continue;
+        }
 
         const created = await prisma.salary_accruals.create({
           data: {
@@ -601,7 +629,7 @@ export async function POST(request: NextRequest) {
         deducted_fine: accrual.deducted_fine?.toString() || null,
       }));
 
-      return NextResponse.json({ inserted: createdIds.length, records: formatted });
+      return NextResponse.json({ inserted: createdIds.length, skipped: skippedMonths, records: formatted });
     }
 
     const {
