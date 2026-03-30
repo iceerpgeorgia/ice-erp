@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-30 (121)
+- Summary: Return user-friendly error when deleting confirmed ledger entries.
+- Changes:
+  - API DELETE handler now catches DB trigger constraint violation (code `23514`) and returns 403 with "Confirmed ledger entries cannot be deleted. Unconfirm the entry first."
+  - `payments-ledger-table.tsx` now parses the error response body and shows the server message in the alert.
+- Commit: bdff905
+- Production: https://ice-5fxbqpvbs-iceerp.vercel.app
+
 ## 2026-03-30 (120)
 - Summary: Fix payments report sticky filter override from URL query params.
 - Changes:
