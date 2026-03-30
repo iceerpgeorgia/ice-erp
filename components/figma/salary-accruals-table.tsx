@@ -1232,6 +1232,7 @@ export function SalaryAccrualsTable() {
       let projectedData: SalaryAccrual[] = salaryData;
       if (projectedMonths > 0 && salaryData.length > 0) {
         const parsedDates: { item: SalaryAccrual; date: Date }[] = salaryData
+          .filter((item: SalaryAccrual) => !(item as any).projected)
           .map((item: SalaryAccrual) => ({ item, date: parseSalaryMonth(item.salary_month) }))
           .filter((entry: { item: SalaryAccrual; date: Date | null }): entry is { item: SalaryAccrual; date: Date } => Boolean(entry.date));
 
@@ -1275,6 +1276,7 @@ export function SalaryAccrualsTable() {
 
       if (salaryData.length > 0 && latestBaseMonthDate === null) {
         const parsedDates = salaryData
+          .filter((item: SalaryAccrual) => !(item as any).projected)
           .map((item: SalaryAccrual) => ({ item, date: parseSalaryMonth(item.salary_month) }))
           .filter((entry: { item: SalaryAccrual; date: Date | null }): entry is { item: SalaryAccrual; date: Date } => Boolean(entry.date));
         if (parsedDates.length > 0) {
