@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-03-30 (120)
+- Summary: Fix payments report sticky filter override from URL query params.
+- Changes:
+  - After applying URL query params (`counteragentUuid`, `projectUuid`, `jobUuid`) on mount, clear them from the URL via `history.replaceState` so they don't re-apply on subsequent navigations.
+- Commit: 6bc7dad
+- Production: https://ice-j491t86if-iceerp.vercel.app
+
 ## 2026-03-30 (119)
 - Summary: Fix UUID type casting in batch partition INSERT query.
 - Changes:
