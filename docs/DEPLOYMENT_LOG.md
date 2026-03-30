@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-03-30 (123)
+- Summary: Fix salary accruals copy-latest showing blank records after copy.
+- Changes:
+  - DB records were correct (96 March 2026 records with full data), but the POST response was missing fields (`paid`, `confirmed`, `counteragent_iban`, etc.) that the GET endpoint provides.
+  - Previously: response records were merged directly into table state with incomplete data, appearing blank.
+  - Fix: after successful copy, refetch all data via `fetchData()` instead of merging the incomplete POST response. This ensures new records get full computed columns (paid amounts, balances, etc.).
+- Commit: a63a273
+- Production: https://ice-1spzc93f8-iceerp.vercel.app
+
 ## 2026-03-30 (122)
 - Summary: Fix salary accruals copy-latest-month not working when projected records exist.
 - Changes:
