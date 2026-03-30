@@ -485,9 +485,8 @@ export function SalaryAccrualsTable() {
       if (!response.ok) {
         throw new Error(result.error || 'Failed to copy salary accruals');
       }
-      if (Array.isArray(result.records)) {
-        setData((prev) => applyComputedColumns([...(result.records as SalaryAccrual[]), ...prev]));
-      }
+      // Refetch all data so new records get full computed columns (paid, balance, etc.)
+      await fetchData({ showLoading: false });
     } catch (error: any) {
       console.error('[CopyLatest] Error:', error);
       alert(error.message || 'Failed to copy salary accruals');
