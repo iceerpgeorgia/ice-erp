@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-30 (122)
+- Summary: Fix salary accruals copy-latest-month not working when projected records exist.
+- Changes:
+  - Root cause: server-side projected accruals (virtual records for periods with bank payments but no accrual rows) were included when computing `latestBaseMonthDate`. The copy API then queried for real DB records in that projected month and found none.
+  - Fix: filter out `projected: true` records before computing the latest month and base records for the copy operation (both `projectedMonths > 0` and fallback code paths).
+- Commit: 8558e17
+- Production: https://ice-oe2voso85-iceerp.vercel.app
+
 ## 2026-03-30 (121)
 - Summary: Return user-friendly error when deleting confirmed ledger entries.
 - Changes:
