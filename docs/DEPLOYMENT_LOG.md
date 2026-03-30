@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-03-30 (127)
+- Summary: Make "Only due" checkbox take immediate effect in both payment edit dialog and batch splitter.
+- Changes:
+  - Batch editor: added its own "Only due" checkbox so users can toggle the filter without closing the batch editor overlay. Changes sync back to the parent dialog and localStorage.
+  - Parent wiring: added `onOnlyDueChange` callback prop to `BatchEditor`, connected in `bank-transactions-table.tsx`.
+- Commit: a64609c
+- Production: https://ice-dz7j6z9fq-iceerp.vercel.app
+
 ## 2026-03-30 (126)
 - Summary: Prevent duplicate salary accrual records + clean up existing March 2026 duplicate.
 - Changes:
