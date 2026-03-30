@@ -317,8 +317,8 @@ export async function POST(request: Request) {
           ) VALUES (
             $1::uuid, $2, $3, $4::uuid,
             $5, $6::uuid, $7, $8,
-            $9, $10, $11, $12,
-            $13, $14, $15, $16
+            $9::uuid, $10, $11::uuid, $12::uuid,
+            $13::uuid, $14::uuid, $15, $16
           )`,
           bankAccountUuid,
           rawRecordId1,
