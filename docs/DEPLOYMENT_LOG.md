@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-04-01 (134)
+- Summary: Fix garnishment paid amounts not summed correctly in salary accruals.
+- Changes:
+  - `app/api/salary-accruals/route.ts`: Changed `paidByPaymentOnly` fallback from `if (!paid)` to `if (totalByPaymentId > paid) paid = totalByPaymentId` — when the same salary payment_id appears for both the employee (direct pay) and enforcement bureau (garnishment), the composite-key match previously found only the employee portion. Now the total across all counteragents for a payment_id is used when it exceeds the composite match.
+- Commit: 59468c4
+- Production: https://ice-ngzbmiuia-iceerp.vercel.app
+
 ## 2026-04-01 (133)
 - Summary: Fix salary accruals -0 conditional formatting bug and garnishment paid amount not counted.
 - Changes:
