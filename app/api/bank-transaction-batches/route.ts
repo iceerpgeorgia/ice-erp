@@ -1,10 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-
-const SOURCE_TABLES = [
-  'GE78BG0000000893486000_BOG_GEL',
-  'GE65TB7856036050100002_TBC_GEL',
-];
+import { getSourceTables } from '@/lib/source-tables';
 
 const formatBatchId = (uuid: string) => {
   const compact = uuid.replace(/-/g, '').toUpperCase();
@@ -16,6 +12,7 @@ const formatBatchId = (uuid: string) => {
 
 export async function GET(request: NextRequest) {
   try {
+    const sourceTables = await getSourceTables();
     const { searchParams } = new URL(request.url);
     const batchUuid = searchParams.get('batchUuid');
     const batchId = searchParams.get('batchId');
@@ -167,7 +164,7 @@ export async function GET(request: NextRequest) {
     // Get all batches summary
     const batches = await prisma.$queryRawUnsafe(`
       WITH raw_union AS (
-        ${SOURCE_TABLES.map((table) => `SELECT raw_record_uuid, docnomination, docvaluedate FROM "${table}"`).join(' UNION ALL ')}
+        ${sourceTables.map((table) => `SELECT raw_record_uuid, docnomination, docvaluedate FROM "${table}"`).join(' UNION ALL ')}
       ),
       payment_breakdown AS (
         SELECT
@@ -242,6 +239,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: Request) {
   try {
+    const sourceTables = await getSourceTables();
     const body = await request.json();
     const { 
       bankAccountUuid, 
@@ -340,7 +338,7 @@ export async function POST(request: Request) {
       }
 
       await Promise.all(
-        SOURCE_TABLES.map((table) =>
+        sourceTables.map((table) =>
           tx.$executeRawUnsafe(
             `UPDATE "${table}" SET payment_id = $1, parsing_lock = true, updated_at = NOW() WHERE raw_record_uuid::text = $2::text`,
             batchId,
@@ -366,6 +364,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const sourceTables = await getSourceTables();
     const { searchParams } = new URL(request.url);
     const batchUuid = searchParams.get('batchUuid');
     const partitionUuid = searchParams.get('partitionUuid');
@@ -459,7 +458,7 @@ export async function DELETE(request: Request) {
         const fallbackCounteragentUuid = fallbackCounteragentByRawUuid.get(uuid) ?? null;
 
         await Promise.all(
-          SOURCE_TABLES.map((table) =>
+          sourceTables.map((table) =>
             fallbackCounteragentUuid
               ? prisma.$executeRawUnsafe(
                   `UPDATE "${table}"

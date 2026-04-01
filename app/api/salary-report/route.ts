@@ -1,21 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { getSourceTables } from '@/lib/source-tables';
 
 export const revalidate = 0;
-
-const DECONSOLIDATED_TABLES = [
-  'GE78BG0000000893486000_BOG_GEL',
-  'GE74BG0000000586388146_BOG_USD',
-  'GE78BG0000000893486000_BOG_USD',
-  'GE78BG0000000893486000_BOG_EUR',
-  'GE78BG0000000893486000_BOG_AED',
-  'GE78BG0000000893486000_BOG_GBP',
-  'GE78BG0000000893486000_BOG_KZT',
-  'GE78BG0000000893486000_BOG_CNY',
-  'GE78BG0000000893486000_BOG_TRY',
-  'GE65TB7856036050100002_TBC_GEL',
-] as const;
 
 const normalizePaymentKey = (value: string) => {
   const trimmed = value.trim();
@@ -66,6 +54,7 @@ const parseTxDate = (raw: string): string => {
 
 export async function GET(request: NextRequest) {
   try {
+    const sourceTables = await getSourceTables();
     const searchParams = request.nextUrl.searchParams;
     const counteragentUuid = searchParams.get('counteragentUuid');
     const mode = searchParams.get('mode') || 'total'; // 'total' | 'all'
@@ -128,7 +117,7 @@ export async function GET(request: NextRequest) {
     const allPaymentIds = await prisma.$queryRaw<any[]>`
       SELECT DISTINCT lower(trim(split_part(payment_id, ':', 1))) as payment_id_key
       FROM (
-        ${Prisma.raw(DECONSOLIDATED_TABLES.map((tableName) => `
+        ${Prisma.raw(sourceTables.map((tableName) => `
         SELECT cba.payment_id
         FROM "${tableName}" cba
         WHERE cba.counteragent_uuid = '${counteragentUuid}'
@@ -139,7 +128,7 @@ export async function GET(request: NextRequest) {
           WHERE btb.raw_record_uuid::text = cba.raw_record_uuid::text
         )`).join(' UNION ALL '))}
         UNION ALL
-        ${Prisma.raw(DECONSOLIDATED_TABLES.map((tableName) => `
+        ${Prisma.raw(sourceTables.map((tableName) => `
         SELECT COALESCE(
           CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
           p.payment_id
@@ -236,7 +225,7 @@ export async function GET(request: NextRequest) {
           ABS(nominal_amount)::numeric as amount,
           nominal_currency_uuid
         FROM (
-          ${Prisma.raw(DECONSOLIDATED_TABLES.map((tableName) => `
+          ${Prisma.raw(sourceTables.map((tableName) => `
           SELECT
             cba.transaction_date,
             cba.payment_id,
@@ -251,7 +240,7 @@ export async function GET(request: NextRequest) {
           AND cba.payment_id NOT ILIKE 'BTC_%'
           AND cba.payment_id IS NOT NULL AND cba.payment_id <> ''`).join(' UNION ALL '))}
           UNION ALL
-          ${Prisma.raw(DECONSOLIDATED_TABLES.map((tableName) => `
+          ${Prisma.raw(sourceTables.map((tableName) => `
           SELECT
             cba.transaction_date,
             COALESCE(
@@ -391,7 +380,7 @@ export async function GET(request: NextRequest) {
         nominal_currency_uuid,
         ABS(SUM(nominal_amount))::numeric as paid
       FROM (
-        ${Prisma.raw(DECONSOLIDATED_TABLES.map((tableName) => `
+        ${Prisma.raw(sourceTables.map((tableName) => `
         SELECT
           cba.payment_id,
           cba.counteragent_uuid,
@@ -405,7 +394,7 @@ export async function GET(request: NextRequest) {
         )
         AND cba.payment_id NOT ILIKE 'BTC_%'`).join(' UNION ALL '))}
         UNION ALL
-        ${Prisma.raw(DECONSOLIDATED_TABLES.map((tableName) => `
+        ${Prisma.raw(sourceTables.map((tableName) => `
         SELECT
           COALESCE(
             CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { v5 as uuidv5 } from "uuid";
+import { getSourceTables } from "@/lib/source-tables";
 
 export const dynamic = "force-dynamic";
 
@@ -9,18 +10,15 @@ const DNS_NAMESPACE = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
 const SYSTEM_LEDGER_USER = "system@bank-import";
 const MONTHLY_SOURCE = "cash_based_monthly";
 
-const DECONSOLIDATED_TABLES = [
-  "GE78BG0000000893486000_BOG_GEL",
-  "GE65TB7856036050100002_TBC_GEL",
-] as const;
+
 
 const toDateOnly = (date: Date) => date.toISOString().split("T")[0];
 
 const getMonthEnd = (monthStart: Date) =>
   new Date(Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 0));
 
-const buildMonthlyAggregationQuery = () => {
-  const unionParts = DECONSOLIDATED_TABLES.map(
+const buildMonthlyAggregationQuery = (tables: string[]) => {
+  const unionParts = tables.map(
     (table) =>
       `SELECT payment_id, transaction_date::date AS transaction_date, nominal_amount
        FROM "${table}"
@@ -59,7 +57,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const query = buildMonthlyAggregationQuery();
+    const sourceTables = await getSourceTables();
+    const query = buildMonthlyAggregationQuery(sourceTables);
     const aggregates = (await prisma.$queryRawUnsafe(query, MONTHLY_SOURCE)) as Array<{
       payment_id: string;
       insider_uuid: string | null;

@@ -2,21 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
+import { getSourceTables } from '@/lib/source-tables';
 
 export const revalidate = 0;
-
-const DECONSOLIDATED_TABLES = [
-  'GE78BG0000000893486000_BOG_GEL',
-  'GE74BG0000000586388146_BOG_USD',
-  'GE78BG0000000893486000_BOG_USD',
-  'GE78BG0000000893486000_BOG_EUR',
-  'GE78BG0000000893486000_BOG_AED',
-  'GE78BG0000000893486000_BOG_GBP',
-  'GE78BG0000000893486000_BOG_KZT',
-  'GE78BG0000000893486000_BOG_CNY',
-  'GE78BG0000000893486000_BOG_TRY',
-  'GE65TB7856036050100002_TBC_GEL',
-] as const;
 
 const normalizePaymentKey = (value: string) => {
   const trimmed = value.trim();
@@ -60,11 +48,11 @@ const serializeInsuranceValues = (accrual: {
   };
 };
 
-async function remapPaymentIdBindings(oldPaymentId: string, newPaymentId: string) {
+async function remapPaymentIdBindings(oldPaymentId: string, newPaymentId: string, sourceTables: string[]) {
   if (!oldPaymentId || !newPaymentId) return;
   if (oldPaymentId.trim().toLowerCase() === newPaymentId.trim().toLowerCase()) return;
 
-  for (const tableName of DECONSOLIDATED_TABLES) {
+  for (const tableName of sourceTables) {
     await prisma.$executeRawUnsafe(
       `
         UPDATE "${tableName}"
@@ -125,6 +113,7 @@ const periodToDate = (period: string): string => {
 
 export async function GET(request: NextRequest) {
   try {
+    const sourceTables = await getSourceTables();
     const selection = await resolveInsiderSelection(request);
     const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
     const searchParams = request.nextUrl.searchParams;
@@ -212,7 +201,7 @@ export async function GET(request: NextRequest) {
     const unboundRows = await prisma.$queryRaw<any[]>`
       SELECT counteragent_uuid, COUNT(*) as unbound_count
       FROM (
-        ${Prisma.raw(DECONSOLIDATED_TABLES.map((tableName) => `
+        ${Prisma.raw(sourceTables.map((tableName) => `
         SELECT ru.counteragent_uuid
         FROM "${tableName}" ru
         WHERE ru.counteragent_uuid IS NOT NULL
@@ -239,7 +228,7 @@ export async function GET(request: NextRequest) {
         nominal_currency_uuid,
         ABS(SUM(nominal_amount))::numeric as paid
       FROM (
-        ${Prisma.raw(DECONSOLIDATED_TABLES.map((tableName) => `
+        ${Prisma.raw(sourceTables.map((tableName) => `
         SELECT
           cba.payment_id,
           cba.counteragent_uuid,
@@ -252,7 +241,7 @@ export async function GET(request: NextRequest) {
         )
         AND cba.payment_id NOT ILIKE 'BTC_%'`).join(' UNION ALL '))}
         UNION ALL
-        ${Prisma.raw(DECONSOLIDATED_TABLES.map((tableName) => `
+        ${Prisma.raw(sourceTables.map((tableName) => `
         SELECT
           COALESCE(
             CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
@@ -707,6 +696,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const sourceTables = await getSourceTables();
     const selection = await resolveInsiderSelection(request);
     const body = await request.json();
     const {
@@ -774,7 +764,7 @@ export async function PUT(request: NextRequest) {
 
     const oldPaymentId = existing?.payment_id || null;
     if (oldPaymentId && payment_id) {
-      await remapPaymentIdBindings(oldPaymentId, payment_id);
+      await remapPaymentIdBindings(oldPaymentId, payment_id, sourceTables);
     }
 
     return NextResponse.json({

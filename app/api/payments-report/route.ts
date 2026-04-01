@@ -2,13 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getSourceTables } from '@/lib/source-tables';
 
 export const revalidate = 0;
-
-const SOURCE_TABLES = [
-  "GE78BG0000000893486000_BOG_GEL",
-  "GE65TB7856036050100002_TBC_GEL",
-];
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,6 +13,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const sourceTables = await getSourceTables();
+
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const maxDate = searchParams.get('maxDate');
@@ -24,14 +22,14 @@ export async function GET(request: NextRequest) {
     const ledgerDateFilter = maxDate ? `WHERE pl.effective_date::date <= '${maxDate}'::date` : '';
     const bankDateFilter = maxDate ? `AND transaction_date::date <= '${maxDate}'::date` : '';
 
-    const rawUnionQuery = SOURCE_TABLES.length
-      ? SOURCE_TABLES.map((table) => (
+    const rawUnionQuery = sourceTables.length
+      ? sourceTables.map((table) => (
         `SELECT raw_record_uuid::text AS raw_record_uuid, counteragent_uuid::uuid AS counteragent_uuid, payment_id::text AS payment_id FROM "${table}"`
       )).join(' UNION ALL ')
       : 'SELECT NULL::text AS raw_record_uuid, NULL::uuid AS counteragent_uuid, NULL::text AS payment_id WHERE false';
 
-    const rawUnionBankQuery = SOURCE_TABLES.length
-      ? SOURCE_TABLES.map((table) => (
+    const rawUnionBankQuery = sourceTables.length
+      ? sourceTables.map((table) => (
         `SELECT raw_record_uuid::text AS raw_record_uuid, payment_id::text AS payment_id, nominal_amount::numeric AS nominal_amount, transaction_date::date AS transaction_date, account_currency_amount::numeric AS account_currency_amount, counteragent_uuid::text AS counteragent_uuid FROM "${table}"`
       )).join(' UNION ALL ')
       : 'SELECT NULL::text AS raw_record_uuid, NULL::text AS payment_id, NULL::numeric AS nominal_amount, NULL::date AS transaction_date, NULL::numeric AS account_currency_amount, NULL::text AS counteragent_uuid WHERE false';
