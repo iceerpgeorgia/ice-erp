@@ -2990,7 +2990,7 @@ export function SalaryAccrualsTable() {
               ) : (
                 paginatedAccruals.map((accrual, idx) => {
                   const monthBalance = getRowValue(accrual, 'month_balance') as number | undefined;
-                  const mb = typeof monthBalance === 'number' ? monthBalance : computeBalance(accrual);
+                  const mb = Math.round((typeof monthBalance === 'number' ? monthBalance : computeBalance(accrual)) * 100) / 100;
                   const cumulBal = typeof accrual.cumulative_balance === 'number' ? accrual.cumulative_balance : 0;
                   const isConfirmed = Boolean(accrual.confirmed);
                   const isProjected = Boolean(accrual.projected) || String(accrual.id).startsWith('projected-');
