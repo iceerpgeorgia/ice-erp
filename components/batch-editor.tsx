@@ -145,7 +145,10 @@ export function BatchEditor({
 
   const filteredPayments = (() => {
     let result = counteragentUuid
-      ? payments.filter((payment) => payment.counteragentUuid === counteragentUuid)
+      ? payments.filter((payment) =>
+          payment.counteragentUuid === counteragentUuid ||
+          payment.recordUuid.startsWith('salary__')
+        )
       : payments;
     if (onlyDue && duePaymentIds && duePaymentIds.size > 0) {
       result = result.filter((payment) => duePaymentIds.has(payment.paymentId));
