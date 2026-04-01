@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-04-01 (132)
+- Summary: Batch splitter dialog now shows all salary accruals (including projections) regardless of transaction counteragent.
+- Changes:
+  - `components/batch-editor.tsx`: `filteredPayments` now exempts salary entries (recordUuid starts with `salary__`) from the counteragentUuid filter — regular payments still filter by counteragent, salary accrual and projected salary options always appear.
+- Commit: 14c1c68
+- Production: https://ice-8pckgmmai-iceerp.vercel.app
+
 ## 2026-04-01 (131)
 - Summary: Round month_balance to 2 decimal places before conditional formatting in salary accruals table.
 - Changes:
