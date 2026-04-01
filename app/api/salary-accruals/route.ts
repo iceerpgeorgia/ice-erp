@@ -266,6 +266,7 @@ export async function GET(request: NextRequest) {
     const paidMap = new Map<string, number>();
     const paidByPayment = new Map<string, number>();
     const currencySetMap = new Map<string, Set<string>>();
+    const paidByPaymentOnly = new Map<string, number>(); // fallback: keyed by payment_id only
     for (const row of paidRows) {
       const paymentKey = String(row.payment_id_key || '').trim();
       if (!paymentKey) continue;
@@ -275,6 +276,7 @@ export async function GET(request: NextRequest) {
       const compositeKey = `${paymentKey}|${counteragentKey}`;
       paidMap.set(`${compositeKey}|${currencyKey}`, amount);
       paidByPayment.set(compositeKey, (paidByPayment.get(compositeKey) || 0) + amount);
+      paidByPaymentOnly.set(paymentKey, (paidByPaymentOnly.get(paymentKey) || 0) + amount);
       if (!currencySetMap.has(compositeKey)) {
         currencySetMap.set(compositeKey, new Set());
       }
@@ -370,6 +372,11 @@ export async function GET(request: NextRequest) {
         if (currencySet && currencySet.size <= 1) {
           paid = paidByPayment.get(compositeKey) || 0;
         }
+      }
+      // Fallback: if still 0 and payment_id is unique enough (salary IDs encode counteragent hash),
+      // match by payment_id alone to cover wage garnishments paid to a third-party counteragent
+      if (!paid && paymentKey) {
+        paid = paidByPaymentOnly.get(paymentKey) || 0;
       }
       return {
         paid,
