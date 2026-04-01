@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-04-01 (135)
+- Summary: Batch splitter selector always shows all salary accruals and planned 36-month projections, regardless of transaction counteragent.
+- Changes:
+  - `components/batch-editor.tsx`: Removed per-counteragent filtering on salary entries. Regular payments still filtered by counteragent; all salary accruals (real + projected) always visible for full batch splitting.
+  - `import_bank_xml_data.py`: Case 5 conflict now saves payment_id before returning (previously discarded it).
+- Commit: 8977d38
+- Production: https://ice-i5jn0prqz-iceerp.vercel.app
+
 ## 2026-04-01 (134)
 - Summary: Fix garnishment paid amounts not summed correctly in salary accruals.
 - Changes:
