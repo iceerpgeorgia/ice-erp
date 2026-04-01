@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-04-01 (131)
+- Summary: Round month_balance to 2 decimal places before conditional formatting in salary accruals table.
+- Changes:
+  - `components/figma/salary-accruals-table.tsx`: `mb` now `Math.round(raw * 100) / 100` — row background colors (red/green/gray) are evaluated on the rounded value, matching what's displayed.
+- Commit: 19f7919
+- Production: https://ice-mjcpv4h1b-iceerp.vercel.app
+
 ## 2026-04-02 (130)
 - Summary: Fix `salary_month` stored with inconsistent day values causing "Mar 2026" to appear 3× in filter.
 - Changes:
