@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-04-02 (130)
+- Summary: Fix `salary_month` stored with inconsistent day values causing "Mar 2026" to appear 3× in filter.
+- Changes:
+  - `app/api/salary-accruals/route.ts`: `periodToDate()` now returns first-of-month (`-01`) instead of last-of-month. POST and PUT handlers call `salaryDate.setUTCDate(1)` to normalize before save.
+  - `components/figma/salary-accruals-table.tsx`: `salaryMonthStr` build in import flow changed from last-day-of-month to `01`. Added `getColumnValues` wrapper that deduplicates `salary_month` filter values by YYYY-MM so duplicate months never appear in the filter dropdown.
+  - DB: `UPDATE salary_accruals SET salary_month = DATE_TRUNC('month', salary_month)::date` normalized 2863 existing rows to first-of-month.
+- Commit: d47f23f
+- Production: https://ice-a8t2mx5fz-iceerp.vercel.app
+
 ## 2026-04-01 (129)
 - Summary: Replace all hardcoded raw table lists with dynamic query from bank_accounts.
 - Changes:
