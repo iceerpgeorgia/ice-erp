@@ -76,6 +76,45 @@ export default function BankTransactionsTestTableFigma() {
   const [error, setError] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkPaymentId, setBulkPaymentId] = useState("");
+  const [bulkAssigning, setBulkAssigning] = useState(false);
+  const [bulkResult, setBulkResult] = useState<string | null>(null);
+
+  const handleBulkAssign = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkAssigning(true);
+    setBulkResult(null);
+    let ok = 0, fail = 0;
+    const payloadPaymentId = bulkPaymentId.trim() || null;
+    // Find transactions to get sourceTable/sourceId
+    for (const id of Array.from(selectedIds)) {
+      const tx = transactions.find(t => String(t.id) === id);
+      if (!tx) { fail++; continue; }
+      const params = tx.sourceTable && tx.sourceId != null
+        ? `?sourceTable=${encodeURIComponent(tx.sourceTable)}&sourceId=${encodeURIComponent(String(tx.sourceId))}`
+        : '';
+      try {
+        const res = await fetch(`/api/bank-transactions/${tx.id}${params}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payment_uuid: payloadPaymentId }),
+        });
+        if (res.ok) ok++; else fail++;
+      } catch { fail++; }
+    }
+    setBulkResult(`Done: ${ok} updated${fail ? `, ${fail} failed` : ''}.`);
+    setBulkAssigning(false);
+    // Update local transaction list
+    setTransactions(prev => prev.map(t =>
+      selectedIds.has(String(t.id))
+        ? { ...t, paymentId: payloadPaymentId }
+        : t
+    ));
+    setSelectedIds(new Set());
+  };
+
   // Initialize from localStorage
   const [fromDateDisplay, setFromDateDisplay] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -448,6 +487,38 @@ export default function BankTransactionsTestTableFigma() {
           Showing {transactions.length.toLocaleString()} transactions
         </div>
       </div>
+
+      {/* Bulk assign toolbar — shown whenever rows are selected */}
+      {selectedIds.size > 0 && (
+        <div className="flex gap-3 items-center p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <span className="text-sm font-medium text-blue-800">
+            {selectedIds.size} transaction{selectedIds.size !== 1 ? 's' : ''} selected
+          </span>
+          <input
+            type="text"
+            placeholder="Payment ID (leave blank to clear)"
+            value={bulkPaymentId}
+            onChange={e => { setBulkPaymentId(e.target.value); setBulkResult(null); }}
+            className="flex-1 max-w-xs px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={handleBulkAssign}
+            disabled={bulkAssigning}
+            className="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+          >
+            {bulkAssigning ? 'Assigning…' : 'Assign Payment ID'}
+          </button>
+          <button
+            onClick={() => { setSelectedIds(new Set()); setBulkResult(null); }}
+            className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Clear selection
+          </button>
+          {bulkResult && (
+            <span className="text-sm text-green-700 font-medium">{bulkResult}</span>
+          )}
+        </div>
+      )}
       <BankTransactionsTableDynamic
         data={transactions}
         currencySummaries={currencySummaries}
@@ -455,6 +526,9 @@ export default function BankTransactionsTestTableFigma() {
         apiBasePath="/api/bank-transactions"
         listBasePath="/api/bank-transactions-test"
         filterStorageKey="bank-transactions-test-filters"
+        selectionEnabled={true}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
       />
     </div>
   );

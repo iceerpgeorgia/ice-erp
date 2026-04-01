@@ -247,6 +247,9 @@ export function BankTransactionsTable({
   onDialogClose,
   onTransactionUpdated,
   filterStorageKey,
+  selectionEnabled,
+  selectedIds,
+  onSelectionChange,
 }: {
   data?: BankTransaction[];
   currencySummaries?: any[];
@@ -259,6 +262,9 @@ export function BankTransactionsTable({
   onDialogClose?: () => void;
   onTransactionUpdated?: (transaction: BankTransaction) => void;
   filterStorageKey?: string;
+  selectionEnabled?: boolean;
+  selectedIds?: Set<string>;
+  onSelectionChange?: (ids: Set<string>) => void;
 }) {
   const resolvedFiltersStorageKey = filterStorageKey ?? 'bank-transactions-table-filters';
   const [transactions, setTransactions] = useState<BankTransaction[]>(data ?? []);
@@ -2334,6 +2340,24 @@ export function BankTransactionsTable({
           <table style={{ tableLayout: 'fixed', width: '100%' }}>
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b-2 border-gray-200">
+                {selectionEnabled && (
+                  <th className="px-3 py-3" style={{ width: 40, minWidth: 40 }}>
+                    <input
+                      type="checkbox"
+                      title="Select all on page"
+                      checked={paginatedData.length > 0 && paginatedData.every(r => selectedIds?.has(String(r.id)))}
+                      onChange={(e) => {
+                        if (!onSelectionChange) return;
+                        const next = new Set(selectedIds ?? []);
+                        paginatedData.forEach(r => {
+                          if (e.target.checked) next.add(String(r.id));
+                          else next.delete(String(r.id));
+                        });
+                        onSelectionChange(next);
+                      }}
+                    />
+                  </th>
+                )}
                 {visibleColumns.map((col) => (
                   <th
                     key={col.key}
@@ -2395,13 +2419,28 @@ export function BankTransactionsTable({
             <tbody>
               {paginatedData.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleColumns.length + 1} className="text-center text-gray-500 py-8">
+                  <td colSpan={visibleColumns.length + 1 + (selectionEnabled ? 1 : 0)} className="text-center text-gray-500 py-8">
                     No transactions found
                   </td>
                 </tr>
               ) : (
                 paginatedData.map((row) => (
-                  <tr key={row.id} className="border-b hover:bg-gray-50">
+                  <tr key={row.id} className={`border-b hover:bg-gray-50 ${selectionEnabled && selectedIds?.has(String(row.id)) ? 'bg-blue-50' : ''}`}>
+                    {selectionEnabled && (
+                      <td className="px-3 py-2" style={{ width: 40, minWidth: 40 }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds?.has(String(row.id)) ?? false}
+                          onChange={(e) => {
+                            if (!onSelectionChange) return;
+                            const next = new Set(selectedIds ?? []);
+                            if (e.target.checked) next.add(String(row.id));
+                            else next.delete(String(row.id));
+                            onSelectionChange(next);
+                          }}
+                        />
+                      </td>
+                    )}
                     {visibleColumns.map((col) => (
                       <td
                         key={col.key}
