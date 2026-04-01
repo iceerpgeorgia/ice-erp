@@ -373,10 +373,12 @@ export async function GET(request: NextRequest) {
           paid = paidByPayment.get(compositeKey) || 0;
         }
       }
-      // Fallback: if still 0 and payment_id is unique enough (salary IDs encode counteragent hash),
-      // match by payment_id alone to cover wage garnishments paid to a third-party counteragent
-      if (!paid && paymentKey) {
-        paid = paidByPaymentOnly.get(paymentKey) || 0;
+      // Fallback: match by payment_id alone — covers wage garnishments where the
+      // same salary payment_id is split across employee + enforcement bureau counteragents.
+      // Use the larger of: composite match vs payment_id-only total (which sums all counteragents).
+      if (paymentKey) {
+        const totalByPaymentId = paidByPaymentOnly.get(paymentKey) || 0;
+        if (totalByPaymentId > paid) paid = totalByPaymentId;
       }
       return {
         paid,
