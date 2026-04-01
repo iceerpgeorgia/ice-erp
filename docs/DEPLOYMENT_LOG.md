@@ -1,5 +1,17 @@
 ﻿# Deployment Log
 
+## 2026-04-01 (129)
+- Summary: Replace all hardcoded raw table lists with dynamic query from bank_accounts.
+- Changes:
+  - New `lib/source-tables.ts`: `getSourceTables()` queries `bank_accounts.raw_table_name` at runtime so new bank accounts are automatically included.
+  - `payments-report/route.ts`: removed hardcoded `SOURCE_TABLES` (was BOG_GEL + TBC_GEL only), now uses all 14 configured tables — fixes EUR/USD/TRY/etc. transactions not being counted as paid.
+  - `bank-transaction-batches/route.ts`: same — GET/POST/DELETE all use dynamic tables.
+  - `cron/cash-based-monthly-accruals/route.ts`: same.
+  - `salary-accruals/route.ts`: same — GET, PUT, and `remapPaymentIdBindings` use dynamic tables.
+  - `salary-report/route.ts`: same.
+- Commit: 6d24ac5
+- Production: https://ice-6aoux0hic-iceerp.vercel.app
+
 ## 2026-03-30 (128)
 - Summary: Fix payment ID extraction regex to support space-separated NP/NJ/PRL patterns (TBC bank).
 - Changes:
