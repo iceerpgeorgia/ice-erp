@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-04-01 (133)
+- Summary: Fix salary accruals -0 conditional formatting bug and garnishment paid amount not counted.
+- Changes:
+  - `components/figma/salary-accruals-table.tsx`: Added `|| 0` to `mb` and `cumulBal` to eliminate JavaScript `-0`, preventing false red row backgrounds and red/bold counteragent names.
+  - `app/api/salary-accruals/route.ts`: Added `paidByPaymentOnly` fallback map — when composite `payment_id|counteragent_uuid` lookup yields 0, fall back to matching by `payment_id` alone. Fixes wage garnishment transactions (e.g. to enforcement bureau) that carry a salary payment_id but a different counteragent being incorrectly shown as unpaid.
+- Commit: 29ba879
+- Production: https://ice-rbm8n2uic-iceerp.vercel.app
+
 ## 2026-04-01 (132)
 - Summary: Batch splitter dialog now shows all salary accruals (including projections) regardless of transaction counteragent.
 - Changes:
