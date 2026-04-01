@@ -27,6 +27,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       pension_scheme: data.pension_scheme === true ? "true" : data.pension_scheme === false ? "false" : "",
       is_emploee: data.is_emploee === true ? "true" : data.is_emploee === false ? "false" : "",
       was_emploee: data.was_emploee === true ? "true" : data.was_emploee === false ? "false" : "",
+      department: data.department ?? "",
     };
   };
   
@@ -54,6 +55,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       counteragent: "",
       is_emploee: "",
       was_emploee: "",
+      department: "",
       ...normalized
     };
   });
@@ -87,6 +89,14 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       setV((s:any)=>({ ...s, sex: "", pension_scheme: "" }));
     }
   }, [isNaturalPerson, v.sex, v.pension_scheme]);
+
+  const isEmployee = v.is_emploee === "true";
+
+  React.useEffect(() => {
+    if (!isEmployee && v.department) {
+      setV((s:any) => ({ ...s, department: "" }));
+    }
+  }, [isEmployee]); // eslint-disable-line
 
   function field(label:string, name:string, input:React.ReactNode, req=false) {
     return (
@@ -147,6 +157,15 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       if (v.is_emploee === "true") v.is_emploee = true;
       else if (v.is_emploee === "false") v.is_emploee = false;
       else v.is_emploee = null;
+
+      // Department required when is_emploee = true
+      if (v.is_emploee === true) {
+        if (!v.department) throw new Error("Department is required for employees");
+        const validDepts = ["Tbilisi", "Batumi", "Administration"];
+        if (!validDepts.includes(v.department)) throw new Error("Invalid department value");
+      } else {
+        v.department = null;
+      }
 
       if (v.was_emploee === "true") v.was_emploee = true;
       else if (v.was_emploee === "false") v.was_emploee = false;
@@ -248,6 +267,19 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
         <option value="false">False</option>
       </select>
     ),
+    ...(isEmployee ? [
+      field("Department","department",
+        <select className="w-full border rounded px-3 py-2" value={v.department || ""}
+          onChange={(e)=>setV((s:any)=>({ ...s, department: e.target.value }))}
+          onMouseDown={(e) => e.stopPropagation()}>
+          <option value="">-- select --</option>
+          <option value="Tbilisi">Tbilisi</option>
+          <option value="Batumi">Batumi</option>
+          <option value="Administration">Administration</option>
+        </select>,
+        true  // required
+      ),
+    ] : []),
     field("Was Employee","was_emploee",
       <select className="w-full border rounded px-3 py-2" value={v.was_emploee || ""}
         onChange={(e)=>setV((s:any)=>({ ...s, was_emploee: e.target.value }))}

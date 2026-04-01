@@ -13,6 +13,7 @@ export async function PUT(req: NextRequest) {
     // Special handling for booleans
     if ("is_emploee" in body) updateData.is_emploee = toBool(body.is_emploee);
     if ("was_emploee" in body) updateData.was_emploee = toBool(body.was_emploee);
+    if ("department" in body) updateData.department = body.department ?? null;
     const updated = await prisma.counteragents.update({
       where: { id: BigInt(Number(idParam)) },
       data: updateData,
@@ -103,6 +104,7 @@ const pick = {
   // New boolean flags
   is_emploee: true,
   was_emploee: true,
+  department: true,
 };
 
 function toApi(r: any) {
@@ -139,6 +141,7 @@ function toApi(r: any) {
     // boolean flags
     is_emploee: !!r.is_emploee,
     was_emploee: !!r.was_emploee,
+    department: r.department ?? null,
   };
 }
 
@@ -199,6 +202,7 @@ export async function POST(req: NextRequest) {
 
         ...(isEmp === null ? {} : { is_emploee: isEmp }),
         ...(wasEmp === null ? {} : { was_emploee: wasEmp }),
+        department: b.department ?? null,
       },
       select: pick,
     });

@@ -299,6 +299,7 @@ model counteragents {
   internal_number             String?
   pension_scheme              Boolean?
   is_emploee                  Boolean        @default(false)
+  department                  String?
   is_active                   Boolean        @default(true)
   was_emploee                 Boolean        @default(false)
   insider                     Boolean        @default(false)
