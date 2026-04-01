@@ -304,8 +304,10 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
                     result['case5_payment_id_conflict'] = True
                     stats['case5_payment_id_counteragent_mismatch'] += 1
                     if idx <= 3:
-                        print(f"    ⚠️  [PHASE 3 NEGLECTED] Payment suggests different counteragent - keeping Phase 1/2 counteragent")
-                    # DO NOT set payment_id or apply payment parameters - NEGLECTED due to conflict
+                        print(f"    ⚠️  [PHASE 3 CONFLICT] Payment suggests different counteragent - keeping Phase 1/2 counteragent, but storing payment_id")
+                    # Keep Phase 1/2 counteragent — but still store the payment_id so
+                    # salary accruals and paid-amount lookups can match this transaction.
+                    result['payment_id'] = extracted_payment_id
                     return result
             else:
                 # Neither Phase 1 nor Phase 2 found counteragent - Phase 3 can set it
