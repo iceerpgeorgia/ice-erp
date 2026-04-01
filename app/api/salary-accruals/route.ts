@@ -107,8 +107,7 @@ const extractPeriodFromPaymentId = (paymentId: string): string | null => {
 // Build a last-day-of-month date string for a YYYY-MM period
 const periodToDate = (period: string): string => {
   const [year, month] = period.split('-').map(Number);
-  const lastDay = new Date(year, month, 0).getDate();
-  return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  return `${year}-${String(month).padStart(2, '0')}-01`;
 };
 
 export async function GET(request: NextRequest) {
@@ -652,8 +651,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No insider configured' }, { status: 400 });
     }
 
-    // Generate payment_id
+    // Normalize to first of month to ensure consistent storage
     const salaryDate = new Date(salary_month);
+    salaryDate.setUTCDate(1);
     const payment_id = generatePaymentId(counteragent_uuid, financial_code_uuid, salaryDate);
     const normalizedInsurance = normalizeInsuranceValues(
       parseNullableNumber(surplus_insurance),
@@ -735,8 +735,9 @@ export async function PUT(request: NextRequest) {
       select: { payment_id: true },
     });
 
-    // Regenerate payment_id if key fields changed
+    // Regenerate payment_id if key fields changed; normalize to first of month
     const salaryDate = new Date(salary_month);
+    salaryDate.setUTCDate(1);
     const payment_id = generatePaymentId(counteragent_uuid, financial_code_uuid, salaryDate);
     const normalizedInsurance = normalizeInsuranceValues(
       parseNullableNumber(surplus_insurance),

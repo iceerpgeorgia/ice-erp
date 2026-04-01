@@ -202,7 +202,7 @@ export function SalaryAccrualsTable() {
   const {
     filters, searchTerm, sortColumn, sortDirection, currentPage, pageSize,
     sortedData: hookSortedData,
-    getColumnValues, setSearchTerm, handleSort, setSortColumn, setSortDirection,
+    getColumnValues: rawGetColumnValues, setSearchTerm, handleSort, setSortColumn, setSortDirection,
     setCurrentPage, setPageSize, handleFilterChange, clearFilters, activeFilterCount,
   } = useTableFilters<SalaryAccrual, ColumnKey>({
     data,
@@ -821,8 +821,7 @@ export function SalaryAccrualsTable() {
 
     // Compute last day of the self.ge month (month is YYYY-MM format)
     const [year, month] = selfGeSummary.summary.month.split('-').map(Number);
-    const lastDay = new Date(year, month, 0).getDate();
-    const salaryMonthStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    const salaryMonthStr = `${year}-${String(month).padStart(2, '0')}-01`;
 
     // Determine currency from counteragent's existing salary accruals, fallback to GEL
     const existingAccrual = data.find((a) => a.counteragent_uuid === item.counteragent_uuid);
@@ -1684,6 +1683,19 @@ export function SalaryAccrualsTable() {
       )
     );
   };
+
+  const getColumnValues = useCallback((key: ColumnKey) => {
+    const raw = rawGetColumnValues(key);
+    if (key !== 'salary_month') return raw;
+    // Deduplicate by YYYY-MM so months with different day values don't appear multiple times
+    const seen = new Map<string, any>();
+    for (const v of raw) {
+      const d = parseSalaryMonth(String(v));
+      const normalized = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01T00:00:00.000Z` : String(v);
+      if (!seen.has(normalized)) seen.set(normalized, v);
+    }
+    return Array.from(seen.values());
+  }, [rawGetColumnValues, parseSalaryMonth]);
 
   const applyConditionsFilter = useCallback((rows: SalaryAccrual[]) => {
     if (selectedConditions.size === 0 || selectedConditions.has('ALL')) return rows;
