@@ -1,5 +1,16 @@
 ﻿# Deployment Log
 
+## 2026-04-01 (136)
+- Summary: Add mandatory Department field (Tbilisi/Batumi/Administration) for employee counteragents.
+- Changes:
+  - `prisma/schema.prisma`: Added `department String?` field to `counteragents` model.
+  - `prisma/migrations/20260401135324_add_department_to_counteragents`: ALTER TABLE adds column, check constraints for valid values and mandatory-for-employees rule; existing employees defaulted to Administration.
+  - `app/dictionaries/counteragents/api/route.ts`: `department` added to `pick`, `toApi`, POST create, PUT update.
+  - `app/dictionaries/counteragents/CounteragentForm.tsx`: Department select shown (required) when Is Employee = True; clears on unset; validated on submit.
+  - `app/dictionaries/counteragents/[id]/page.tsx`: `department` passed in `initial` for edit mode.
+- Commit: 49509d2
+- Production: https://ice-ajz5hjh0p-iceerp.vercel.app
+
 ## 2026-04-01 (135)
 - Summary: Batch splitter selector always shows all salary accruals and planned 36-month projections, regardless of transaction counteragent.
 - Changes:
