@@ -2255,6 +2255,14 @@
 - Changes:
   - Bank transactions APIs: include batch_id so Batch ID column renders.
 - Commit: b92ac8b
+
+## 2026-02-16
+- Summary: Bulk payment ID assignment with row checkboxes on bank-transactions-test page.
+- Changes:
+  - bank-transactions-table.tsx: Added selectionEnabled, selectedIds, onSelectionChange props; checkbox column in header (select-all for current page) and rows; selected rows highlighted blue.
+  - BankTransactionsTestTableFigma.tsx: Bulk assign toolbar shown when rows are selected — payment ID input, Assign button PATCHes all selected transactions, local state updated, selection cleared on completion.
+- Commit: 68eb305
+- Production: https://ice-juw5dan8p-iceerp.vercel.app
 - Production: https://ice-h24mttwt0-iceerp.vercel.app
 
 ## 2026-02-15
