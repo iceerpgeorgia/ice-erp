@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { BankTransactionsTable } from '@/components/figma/bank-transactions-table';
+import * as XLSX from 'xlsx';
 
 const formatDate = (date: string | Date): string => {
   const d = new Date(date);
@@ -1332,14 +1333,56 @@ export default function PaymentStatementPage() {
     );
   }
 
+  const handleExportXlsx = () => {
+    const fmtNum = (v: number | null | undefined) => (v == null ? '' : Number(Number(v).toFixed(2)));
+    const fmtDate = (v: string | Date | null | undefined) => {
+      if (!v) return '';
+      const d = new Date(v);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      return `${day}.${month}.${d.getFullYear()}`;
+    };
+    const rows = filteredTransactions.map(row => ({
+      'Date': fmtDate(row.date),
+      'Type': row.type,
+      'Accrual': fmtNum(row.accrual),
+      'Payment': fmtNum(row.payment),
+      'Order': fmtNum(row.order),
+      'PPC': fmtNum(row.ppc),
+      'Paid %': fmtNum(row.paidPercent),
+      'Due': fmtNum(row.due),
+      'Balance': fmtNum(row.balance),
+      'Confirmed': row.confirmed == null ? '' : row.confirmed ? 'Yes' : 'No',
+      'Comment': row.comment ?? '',
+      'User': row.user ?? '',
+      'CA Account': row.caAccount ?? '',
+      'Account': row.account ?? '',
+      'Batch ID': row.batchId ?? '',
+      'ID1': row.id1 ?? '',
+      'ID2': row.id2 ?? '',
+      'Created At': fmtDate(row.createdAt),
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Statement');
+    const payId = statementData.payment.paymentId ?? 'export';
+    const dateStr = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `payment_statement_${payId}_${dateStr}.xlsx`);
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <div className="w-full">
         <div className="space-y-6">
           {/* Header */}
-          <div className="border-b pb-4">
-            <h1 className="text-2xl font-bold">Payment Statement</h1>
-            <p className="text-gray-600 mt-1">Payment ID: {statementData.payment.paymentId}</p>
+          <div className="border-b pb-4 flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Payment Statement</h1>
+              <p className="text-gray-600 mt-1">Payment ID: {statementData.payment.paymentId}</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleExportXlsx}>
+              Export XLSX
+            </Button>
           </div>
 
           {/* Payment Info */}
