@@ -69,6 +69,7 @@ type PaymentReport = {
   floors: number;
   financialCode: string;
   financialCodeDescription?: string | null;
+  financialCodeIsIncome?: boolean;
   incomeTax: boolean;
   currency: string;
   accrual: number;
@@ -2057,25 +2058,32 @@ export function PaymentsReportTable() {
 
   // Calculate totals per currency
   const totalsByCurrency = useMemo(() => {
-    const totalsMap = new Map<string, {
+    type TotalsEntry = {
       accrual: number;
       order: number;
       payment: number;
       due: number;
       balance: number;
       floors: number;
-    }>();
+      incomeAccrual: number;
+      incomeOrder: number;
+      incomePayment: number;
+      incomeDue: number;
+      expenseAccrual: number;
+      expenseOrder: number;
+      expensePayment: number;
+      expenseDue: number;
+    };
+    const totalsMap = new Map<string, TotalsEntry>();
 
     sortedData.forEach((row) => {
       const currency = row.currency || 'N/A';
       const current = totalsMap.get(currency) || {
-        accrual: 0,
-        order: 0,
-        payment: 0,
-        due: 0,
-        balance: 0,
-        floors: 0,
+        accrual: 0, order: 0, payment: 0, due: 0, balance: 0, floors: 0,
+        incomeAccrual: 0, incomeOrder: 0, incomePayment: 0, incomeDue: 0,
+        expenseAccrual: 0, expenseOrder: 0, expensePayment: 0, expenseDue: 0,
       };
+      const isIncome = row.financialCodeIsIncome === true;
       totalsMap.set(currency, {
         accrual: current.accrual + row.accrual,
         order: current.order + row.order,
@@ -2083,6 +2091,14 @@ export function PaymentsReportTable() {
         due: current.due + row.due,
         balance: current.balance + row.balance,
         floors: current.floors + row.floors,
+        incomeAccrual: current.incomeAccrual + (isIncome ? row.accrual : 0),
+        incomeOrder: current.incomeOrder + (isIncome ? row.order : 0),
+        incomePayment: current.incomePayment + (isIncome ? row.payment : 0),
+        incomeDue: current.incomeDue + (isIncome ? row.due : 0),
+        expenseAccrual: current.expenseAccrual + (!isIncome ? row.accrual : 0),
+        expenseOrder: current.expenseOrder + (!isIncome ? row.order : 0),
+        expensePayment: current.expensePayment + (!isIncome ? row.payment : 0),
+        expenseDue: current.expenseDue + (!isIncome ? row.due : 0),
       });
     });
 
@@ -3000,18 +3016,56 @@ export function PaymentsReportTable() {
           ) : (
             totalsByCurrency.map((totals) => (
               <div key={totals.currency} className="rounded-md border border-blue-100 bg-white px-3 py-2">
-                <div className="text-xs font-semibold text-blue-700">{totals.currency}</div>
-                <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                  <div className="text-gray-600">Accrual:</div>
-                  <div className="font-semibold text-blue-900">{formatValue(totals.accrual, 'currency', 'accrual')}</div>
-                  <div className="text-gray-600">Order:</div>
-                  <div className="font-semibold text-blue-900">{formatValue(totals.order, 'currency', 'order')}</div>
-                  <div className="text-gray-600">Payment:</div>
-                  <div className="font-semibold text-blue-900">{formatValue(totals.payment, 'currency', 'payment')}</div>
-                  <div className="text-gray-600">Due:</div>
-                  <div className="font-semibold text-blue-900">{formatValue(totals.due, 'currency', 'due')}</div>
-                  <div className="text-gray-600">Balance:</div>
-                  <div className="font-semibold text-blue-900">{formatValue(totals.balance, 'currency', 'balance')}</div>
+                <div className="text-xs font-semibold text-blue-700 mb-1">{totals.currency}</div>
+                <div className="flex gap-3">
+                  {/* Income */}
+                  <div className="flex-1 min-w-[110px]">
+                    <div className="text-[10px] font-semibold text-green-700 uppercase tracking-wide mb-0.5">Income</div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
+                      <div className="text-gray-500">Accrual:</div>
+                      <div className="font-semibold text-green-800">{formatValue(totals.incomeAccrual, 'currency', 'accrual')}</div>
+                      <div className="text-gray-500">Order:</div>
+                      <div className="font-semibold text-green-800">{formatValue(totals.incomeOrder, 'currency', 'order')}</div>
+                      <div className="text-gray-500">Payment:</div>
+                      <div className="font-semibold text-green-800">{formatValue(totals.incomePayment, 'currency', 'payment')}</div>
+                      <div className="text-gray-500">Due:</div>
+                      <div className="font-semibold text-green-800">{formatValue(totals.incomeDue, 'currency', 'due')}</div>
+                    </div>
+                  </div>
+                  {/* Divider */}
+                  <div className="w-px bg-gray-200 self-stretch" />
+                  {/* Expense */}
+                  <div className="flex-1 min-w-[110px]">
+                    <div className="text-[10px] font-semibold text-red-700 uppercase tracking-wide mb-0.5">Expense</div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
+                      <div className="text-gray-500">Accrual:</div>
+                      <div className="font-semibold text-red-800">{formatValue(totals.expenseAccrual, 'currency', 'accrual')}</div>
+                      <div className="text-gray-500">Order:</div>
+                      <div className="font-semibold text-red-800">{formatValue(totals.expenseOrder, 'currency', 'order')}</div>
+                      <div className="text-gray-500">Payment:</div>
+                      <div className="font-semibold text-red-800">{formatValue(totals.expensePayment, 'currency', 'payment')}</div>
+                      <div className="text-gray-500">Due:</div>
+                      <div className="font-semibold text-red-800">{formatValue(totals.expenseDue, 'currency', 'due')}</div>
+                    </div>
+                  </div>
+                  {/* Divider */}
+                  <div className="w-px bg-gray-200 self-stretch" />
+                  {/* Total */}
+                  <div className="flex-1 min-w-[110px]">
+                    <div className="text-[10px] font-semibold text-blue-700 uppercase tracking-wide mb-0.5">Total</div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
+                      <div className="text-gray-500">Accrual:</div>
+                      <div className="font-semibold text-blue-900">{formatValue(totals.accrual, 'currency', 'accrual')}</div>
+                      <div className="text-gray-500">Order:</div>
+                      <div className="font-semibold text-blue-900">{formatValue(totals.order, 'currency', 'order')}</div>
+                      <div className="text-gray-500">Payment:</div>
+                      <div className="font-semibold text-blue-900">{formatValue(totals.payment, 'currency', 'payment')}</div>
+                      <div className="text-gray-500">Due:</div>
+                      <div className="font-semibold text-blue-900">{formatValue(totals.due, 'currency', 'due')}</div>
+                      <div className="text-gray-500">Balance:</div>
+                      <div className="font-semibold text-blue-900">{formatValue(totals.balance, 'currency', 'balance')}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))
