@@ -1958,15 +1958,75 @@ export function PaymentsReportTable() {
   };
 
   const handleExportXlsx = () => {
-    const rows = sortedData.map((row) => {
-      const out: Record<string, any> = {};
-      visibleColumns.forEach((col) => {
-        out[col.label] = row[col.key];
-      });
-      return out;
-    });
+    const fmtNum = (v: any) => (v == null ? '' : Number(Number(v).toFixed(2)));
+    const fmtDate = (v: any) => {
+      if (!v) return '';
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return String(v);
+      return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+    };
+
+    const rows = sortedData.map((row) => ({
+      'Payment ID': row.paymentId ?? '',
+      'Label': row.label ?? '',
+      'Counteragent': row.counteragent ?? '',
+      'Counteragent ID': row.counteragentId ?? '',
+      'Project': row.project ?? '',
+      'Project Name': row.projectName ?? '',
+      'Job': row.job ?? '',
+      'Job Count': row.jobCount ?? 0,
+      'Job Weight': row.jobWeight ?? '',
+      'Floors': row.floors ?? 0,
+      'Financial Code': row.financialCode ?? '',
+      'FC Description': row.financialCodeDescription ?? '',
+      'Is Income (FC)': row.financialCodeIsIncome ? 'Yes' : 'No',
+      'Income Tax': row.incomeTax ? 'Yes' : 'No',
+      'Currency': row.currency ?? '',
+      'Accrual': fmtNum(row.accrual),
+      'Order': fmtNum(row.order),
+      'Payment': fmtNum(row.payment),
+      'Paid %': row.accrual ? fmtNum((row.payment / row.accrual) * 100) : 0,
+      'Due': fmtNum(row.due),
+      'Balance': fmtNum(row.balance),
+      'Accrual/Floor': fmtNum(row.accrualPerFloor),
+      'Confirmed': row.confirmed ? 'Yes' : 'No',
+      'Auto (Project Derived)': row.isProjectDerived ? 'Yes' : 'No',
+      'Users': row.users ?? '',
+      'Latest Date': fmtDate(row.latestDate),
+    }));
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
+
+    // Column widths
+    worksheet['!cols'] = [
+      { wch: 22 }, // Payment ID
+      { wch: 20 }, // Label
+      { wch: 30 }, // Counteragent
+      { wch: 15 }, // Counteragent ID
+      { wch: 12 }, // Project
+      { wch: 30 }, // Project Name
+      { wch: 20 }, // Job
+      { wch: 10 }, // Job Count
+      { wch: 12 }, // Job Weight
+      { wch: 8 },  // Floors
+      { wch: 20 }, // Financial Code
+      { wch: 30 }, // FC Description
+      { wch: 14 }, // Is Income (FC)
+      { wch: 12 }, // Income Tax
+      { wch: 10 }, // Currency
+      { wch: 14 }, // Accrual
+      { wch: 14 }, // Order
+      { wch: 14 }, // Payment
+      { wch: 10 }, // Paid %
+      { wch: 14 }, // Due
+      { wch: 14 }, // Balance
+      { wch: 14 }, // Accrual/Floor
+      { wch: 12 }, // Confirmed
+      { wch: 18 }, // Auto
+      { wch: 30 }, // Users
+      { wch: 12 }, // Latest Date
+    ];
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Payments Report');
     XLSX.writeFile(workbook, `payments_report_${new Date().toISOString().slice(0, 10)}.xlsx`);
