@@ -2085,11 +2085,11 @@ export function PaymentsReportTable() {
       };
       const isIncome = row.financialCodeIsIncome === true;
       totalsMap.set(currency, {
-        accrual: current.accrual + row.accrual,
-        order: current.order + row.order,
-        payment: current.payment + row.payment,
-        due: current.due + row.due,
-        balance: current.balance + row.balance,
+        accrual: current.accrual + (isIncome ? row.accrual : -row.accrual),
+        order: current.order + (isIncome ? row.order : -row.order),
+        payment: current.payment + (isIncome ? row.payment : -row.payment),
+        due: current.due + (isIncome ? row.due : -row.due),
+        balance: current.balance + (isIncome ? row.balance : -row.balance),
         floors: current.floors + row.floors,
         incomeAccrual: current.incomeAccrual + (isIncome ? row.accrual : 0),
         incomeOrder: current.incomeOrder + (isIncome ? row.order : 0),
