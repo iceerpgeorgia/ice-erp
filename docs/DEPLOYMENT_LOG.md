@@ -2263,6 +2263,14 @@
   - BankTransactionsTestTableFigma.tsx: Bulk assign toolbar shown when rows are selected — payment ID input, Assign button PATCHes all selected transactions, local state updated, selection cleared on completion.
 - Commit: 68eb305
 - Production: https://ice-juw5dan8p-iceerp.vercel.app
+
+## 2026-04-02
+- Summary: Split payments report totals bar by income/expense per currency.
+- Changes:
+  - payments-report API: added fc.is_income to SQL query and financialCodeIsIncome to formatted response.
+  - payments-report-table.tsx: totals bar boxes now show Income / Expense / Total columns side-by-side within each currency, using financial_codes.is_income to classify rows.
+- Commit: 2997922
+- Production: https://ice-oqp4ufudy-iceerp.vercel.app
 - Production: https://ice-h24mttwt0-iceerp.vercel.app
 
 ## 2026-02-15
