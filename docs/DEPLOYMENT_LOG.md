@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-04-02 (139)
+- Summary: Add XLSX export button to Payment Statement page.
+- Changes:
+  - `app/payment-statement/[paymentId]/page.tsx`: Added `import * as XLSX from 'xlsx'`, `handleExportXlsx` function (exports `filteredTransactions` with all columns: date, type, accrual, payment, order, ppc, paid%, due, balance, confirmed, comment, user, CA account, account, batch ID, ID1, ID2, created at), and Export XLSX button in page header.
+- Commit: 04586b5
+- Production: https://ice-7ltv9ovy6-iceerp.vercel.app
+
 ## 2026-04-01 (136)
 - Summary: Add mandatory Department field (Tbilisi/Batumi/Administration) for employee counteragents.
 - Changes:
