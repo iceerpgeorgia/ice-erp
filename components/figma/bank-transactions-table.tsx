@@ -1053,11 +1053,34 @@ export function BankTransactionsTable({
       setExchangeRateDate(effectiveDate);
       console.log('[startEdit] Loaded exchange rates for', effectiveDate, ':', rates);
       
-      console.log('[startEdit] Total allPayments available:', allPayments.length);
-      console.log('[startEdit] Transaction counteragentUuid:', transaction.counteragentUuid);
-      console.log('[startEdit] Sample payment counteragentUuids:', allPayments.slice(0, 3).map((p: any) => ({ paymentId: p.paymentId, counteragentUuid: p.counteragentUuid })));
+      // Always fetch fresh payments when opening edit dialog
+      let freshPayments = allPayments;
+      try {
+        const paymentsRes = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
+        if (paymentsRes.ok) {
+          const paymentsData = await paymentsRes.json();
+          freshPayments = Array.isArray(paymentsData)
+            ? paymentsData.map((payment: any) => ({
+                ...payment,
+                counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
+                projectUuid: payment.projectUuid || payment.project_uuid || null,
+                financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
+                currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
+                paymentId: payment.paymentId || payment.payment_id || null,
+              }))
+            : [];
+          setAllPayments(freshPayments);
+          console.log('[startEdit] Refreshed payments:', freshPayments.length);
+        }
+      } catch (err) {
+        console.warn('[startEdit] Failed to refresh payments, using cached:', err);
+      }
 
-      updatePaymentOptions(transaction, allPayments);
+      console.log('[startEdit] Total allPayments available:', freshPayments.length);
+      console.log('[startEdit] Transaction counteragentUuid:', transaction.counteragentUuid);
+      console.log('[startEdit] Sample payment counteragentUuids:', freshPayments.slice(0, 3).map((p: any) => ({ paymentId: p.paymentId, counteragentUuid: p.counteragentUuid })));
+
+      updatePaymentOptions(transaction, freshPayments);
       
       // Load all reference data
       const [projectsRes, codesRes, currenciesRes] = await Promise.all([
