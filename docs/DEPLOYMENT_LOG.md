@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-04-03 (142)
+- Summary: Fix null-safe conversion_id check in deconsolidated BOG import.
+- Changes:
+  - `lib/bank-import/import_bank_xml_data_deconsolidated.ts`: Added optional chaining (`outRow?.conversion_id || inRow?.conversion_id`) to prevent crash when one side of a conversion pair is null.
+- Commit: 293f050
+- Production: https://ice-ba3d76xts-iceerp.vercel.app
+
 ## 2026-04-03 (141)
 - Summary: Add Job Title text field for employees in counteragents; display in salary accruals table.
 - Changes:
