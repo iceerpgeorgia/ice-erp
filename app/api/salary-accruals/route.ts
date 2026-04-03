@@ -185,6 +185,7 @@ export async function GET(request: NextRequest) {
           c.identification_number,
           c.sex,
           c.pension_scheme,
+          c.department,
           c.iban as counteragent_iban,
           fc.validation as financial_code,
           cur.code as currency_code
@@ -499,6 +500,7 @@ export async function POST(request: NextRequest) {
               c.identification_number,
               c.sex,
               c.pension_scheme,
+              c.department,
               fc.validation as financial_code,
               cur.code as currency_code
             FROM salary_accruals sa
@@ -604,6 +606,7 @@ export async function POST(request: NextRequest) {
               c.identification_number,
               c.sex,
               c.pension_scheme,
+              c.department,
               fc.validation as financial_code,
               cur.code as currency_code
             FROM salary_accruals sa

@@ -281,10 +281,13 @@ export function PaymentsReportTable() {
   } | null>(null);
   const [projects, setProjects] = useState<Array<{ projectUuid?: string; project_uuid?: string; projectIndex?: string; project_index?: string; projectName?: string; project_name?: string }>>([]);
   const [counteragents, setCounteragents] = useState<Array<{ counteragent_uuid?: string; counteragentUuid?: string; counteragent?: string; name?: string; identification_number?: string; identificationNumber?: string }>>([]);
+  const counteragentsLoadedRef = useRef(false);
+  const projectsLoadedRef = useRef(false);
   const [financialCodes, setFinancialCodes] = useState<Array<{ uuid: string; validation: string; code: string }>>([]);
   const [currencies, setCurrencies] = useState<Array<{ uuid: string; code: string; name: string }>>([]);
   const [jobs, setJobs] = useState<Array<{ jobUuid: string; jobName: string; jobDisplay?: string }>>([]);
   const [selectedCounteragentUuid, setSelectedCounteragentUuid] = useState('');
+  const [skipCounteragentFilter, setSkipCounteragentFilter] = useState<{ uuid: string; name: string } | null>(null);
   const [selectedProjectUuid, setSelectedProjectUuid] = useState('');
   const [selectedFinancialCodeUuid, setSelectedFinancialCodeUuid] = useState('');
   const [selectedJobUuid, setSelectedJobUuid] = useState('');
@@ -293,13 +296,14 @@ export function PaymentsReportTable() {
   const [selectedLabel, setSelectedLabel] = useState('');
   const [payments, setPayments] = useState<Array<{ 
     paymentId: string; 
-    counteragentName?: string;
-    projectIndex?: string;
-    projectName?: string;
-    jobName?: string;
-    financialCode?: string;
-    incomeTax?: boolean;
-    currencyCode?: string;
+    counteragentUuid?: string | null;
+    counteragentName?: string | null;
+    projectIndex?: string | null;
+    projectName?: string | null;
+    jobName?: string | null;
+    financialCode?: string | null;
+    incomeTax?: boolean | null;
+    currencyCode?: string | null;
   }>>([]);
   const [selectedPaymentId, setSelectedPaymentId] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
@@ -408,34 +412,54 @@ export function PaymentsReportTable() {
     }
   }, [isInitialized, dateFilterMode, customDate]);
 
-  // Fetch dictionaries for add payment step
+  // Lazy loader for counteragents — called when the payment form opens
+  const fetchCounterAgents = useCallback(async () => {
+    if (counteragentsLoadedRef.current) return;
+    counteragentsLoadedRef.current = true;
+    try {
+      const res = await fetch('/api/counteragents');
+      if (res.ok) {
+        const data = await res.json();
+        setCounteragents(Array.isArray(data) ? data : []);
+      } else {
+        console.error('Error fetching counteragents:', await res.text());
+        counteragentsLoadedRef.current = false;
+      }
+    } catch (error) {
+      console.error('Error fetching counteragents:', error);
+      counteragentsLoadedRef.current = false;
+    }
+  }, []);
+
+  // Lazy loader for projects — called when the ledger form opens
+  const fetchProjects = useCallback(async () => {
+    if (projectsLoadedRef.current) return;
+    projectsLoadedRef.current = true;
+    try {
+      const res = await fetch('/api/projects-v2');
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+        setProjects(list);
+      } else {
+        console.error('Error fetching projects:', await res.text());
+        projectsLoadedRef.current = false;
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      projectsLoadedRef.current = false;
+    }
+  }, []);
+
+  // Fetch dictionaries for add payment step (financial codes + currencies only — counteragents/projects are lazy)
   useEffect(() => {
     const fetchDictionaries = async () => {
       try {
-        const [projectsRes, counteragentsRes, financialCodesRes, currenciesRes] = await Promise.all([
-          fetch('/api/projects-v2'),
-          fetch('/api/counteragents'),
+        const [financialCodesRes, currenciesRes] = await Promise.all([
           fetch('/api/financial-codes?leafOnly=true'),
           fetch('/api/currencies')
         ]);
 
-        if (projectsRes.ok) {
-          const projectsData = await projectsRes.json();
-          const list = Array.isArray(projectsData)
-            ? projectsData
-            : Array.isArray(projectsData?.data)
-              ? projectsData.data
-              : [];
-          setProjects(list);
-        } else {
-          console.error('Error fetching projects:', await projectsRes.text());
-        }
-        if (counteragentsRes.ok) {
-          const counteragentsData = await counteragentsRes.json();
-          setCounteragents(Array.isArray(counteragentsData) ? counteragentsData : []);
-        } else {
-          console.error('Error fetching counteragents:', await counteragentsRes.text());
-        }
         if (financialCodesRes.ok) {
           const financialCodesData = await financialCodesRes.json();
           setFinancialCodes(Array.isArray(financialCodesData) ? financialCodesData : []);
@@ -635,6 +659,7 @@ export function PaymentsReportTable() {
       }
       setPayments(data.map((p: any) => ({
         paymentId: p.paymentId || p.payment_id,
+        counteragentUuid: p.counteragentUuid || p.counteragent_uuid || null,
         counteragentName: p.counteragentName || p.counteragent_name || null,
         projectIndex: p.projectIndex || p.project_index || null,
         projectName: p.projectName || p.project_name || null,
@@ -719,6 +744,7 @@ export function PaymentsReportTable() {
     setIsSubmitting(false);
     setAddLedgerStep('payment');
     setSelectedCounteragentUuid('');
+    setSkipCounteragentFilter(null);
     setSelectedProjectUuid('');
     setSelectedFinancialCodeUuid('');
     setSelectedJobUuid('');
@@ -867,6 +893,15 @@ export function PaymentsReportTable() {
   };
 
   const handleSkipToLedger = () => {
+    if (selectedCounteragentUuid) {
+      const ca = counteragents.find(c => (c.counteragent_uuid || c.counteragentUuid) === selectedCounteragentUuid);
+      setSkipCounteragentFilter({
+        uuid: selectedCounteragentUuid,
+        name: ca?.counteragent || ca?.name || selectedCounteragentUuid,
+      });
+    } else {
+      setSkipCounteragentFilter(null);
+    }
     setAddLedgerStep('ledger');
   };
 
@@ -886,6 +921,8 @@ export function PaymentsReportTable() {
       });
     }
     setAddLedgerStep('ledger');
+    // Lazy-load projects (needed for optional dropdown in payment form if user navigates back)
+    fetchProjects();
     setIsDialogOpen(true);
   };
 
@@ -960,6 +997,9 @@ export function PaymentsReportTable() {
       resetForm();
     } else {
       setAddLedgerStep('payment');
+      // Lazy-load counteragents for the payment form and projects for the project dropdown
+      fetchCounterAgents();
+      fetchProjects();
     }
   };
 
@@ -2584,6 +2624,18 @@ export function PaymentsReportTable() {
                         // Show payment selection dropdown
                         <div className="space-y-2">
                           <Label>Payment</Label>
+                          {skipCounteragentFilter && (
+                            <div className="flex items-center gap-2 rounded-md bg-blue-50 border border-blue-200 px-3 py-1.5 text-sm text-blue-800">
+                              <span className="flex-1">Showing payments for: <strong>{skipCounteragentFilter.name}</strong></span>
+                              <button
+                                type="button"
+                                className="text-blue-500 hover:text-blue-700 font-bold leading-none"
+                                onClick={() => setSkipCounteragentFilter(null)}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          )}
                           <Combobox
                             value={selectedPaymentId}
                             onValueChange={(value) => {
@@ -2612,7 +2664,7 @@ export function PaymentsReportTable() {
                                 return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
                               }
                             }}
-                            options={payments.map(p => {
+                            options={payments.filter(p => !skipCounteragentFilter || p.counteragentUuid === skipCounteragentFilter.uuid).map(p => {
                               // Build label: PaymentID | Counteragent | ProjectName | [JobName |] FinancialCode | Currency
                               const parts = [p.paymentId];
                               if (p.counteragentName) parts.push(p.counteragentName);
