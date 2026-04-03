@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-04-03 (140)
+- Summary: Salary accruals department column; payments report skip-to-ledger counteragent filter; lazy-load counteragents/projects; fix projected salary statement link 404.
+- Changes:
+  - `app/api/salary-accruals/route.ts`: Added `c.department` to all 3 SQL SELECT queries (GET main, POST copy-latest, POST copy-accrual).
+  - `components/figma/salary-accruals-table.tsx`: Added `department?: string | null` to `SalaryAccrual` type; added Department column to `defaultColumns` between Insider and Sex; added `!accrual.projected` guard on statement link.
+  - `components/figma/payments-report-table.tsx`: Added `counteragentUuid` to payments state type and `fetchPayments` map; added `skipCounteragentFilter` state; `handleSkipToLedger` now captures selected counteragent into filter; `resetForm` clears filter; ledger step Combobox pre-filtered by counteragent with dismissible info banner; lazy-load of counteragents/projects on dialog open.
+- Commit: b98936c
+- Production: https://ice-7xfmzb3g2-iceerp.vercel.app
+
 ## 2026-04-02 (139)
 - Summary: Add XLSX export button to Payment Statement page.
 - Changes:
