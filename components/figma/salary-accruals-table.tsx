@@ -898,73 +898,78 @@ export function SalaryAccrualsTable() {
       return;
     }
 
-    const headers = [
-      'გამგზავნის ანგარიშის ნომერი',
-      'დოკუმენტის ნომერი',
-      'მიმღები ბანკის კოდი(არასავალდებულო)',
-      'მიმღების ანგარიშის ნომერი',
-      'მიმღების დასახელება',
-      'მიმღების საიდენტიფიკაციო კოდი',
-      'დანიშნულება',
-      'თანხა',
-      'ხელფასი',
-      'გადარიცხვის მეთოდი',
-      'დამატებითი ინფორმაცია',
-    ];
+    try {
+      const headers = [
+        'გამგზავნის ანგარიშის ნომერი',
+        'დოკუმენტის ნომერი',
+        'მიმღები ბანკის კოდი(არასავალდებულო)',
+        'მიმღების ანგარიშის ნომერი',
+        'მიმღების დასახელება',
+        'მიმღების საიდენტიფიკაციო კოდი',
+        'დანიშნულება',
+        'თანხა',
+        'ხელფასი',
+        'გადარიცხვის მეთოდი',
+        'დამატებითი ინფორმაცია',
+      ];
 
-    const getTbilisiToday = () => {
-      const formatter = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Tbilisi',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      });
-      return formatter.format(new Date());
-    };
+      const getTbilisiToday = () => {
+        const formatter = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Tbilisi',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        });
+        return formatter.format(new Date());
+      };
 
-    const fetchExchangeRate = async (currency: string, date: string) => {
-      const response = await fetch(`/api/exchange-rates?date=${date}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch exchange rates');
-      }
-      const data = await response.json();
-      const rateRow = Array.isArray(data) ? data[0] : null;
-      const rate = rateRow?.rates?.[currency] || rateRow?.[currency];
-      if (!rate) {
-        throw new Error('Exchange rate not available');
-      }
-      return Number(rate);
-    };
+      const fetchExchangeRate = async (currency: string, date: string) => {
+        const response = await fetch(`/api/exchange-rates?date=${date}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch exchange rates');
+        }
+        const data = await response.json();
+        const rateRow = Array.isArray(data) ? data[0] : null;
+        const rate = rateRow?.rates?.[currency] || rateRow?.[currency];
+        if (!rate) {
+          throw new Error('Exchange rate not available');
+        }
+        return Number(rate);
+      };
 
-    const calculateExportAmount = async (record: SalaryAccrual) => {
-      const amount = Number(computeBalance(record) || 0);
-      const currency = (record.currency_code || 'GEL').toUpperCase();
-      if (currency === 'GEL') return Math.round(amount * 100) / 100;
+      const calculateExportAmount = async (record: SalaryAccrual) => {
+        const amount = Number(computeBalance(record) || 0);
+        const currency = (record.currency_code || 'GEL').toUpperCase();
+        if (currency === 'GEL') return Math.round(amount * 100) / 100;
 
-      const rateDate = getTbilisiToday();
-      const rate = await fetchExchangeRate(currency, rateDate);
-      const converted = amount / (1 / rate);
-      return Math.round(converted * 100) / 100;
-    };
+        const rateDate = getTbilisiToday();
+        const rate = await fetchExchangeRate(currency, rateDate);
+        const converted = amount / (1 / rate);
+        return Math.round(converted * 100) / 100;
+      };
 
-    const rows = await Promise.all(selectedRecords.map(async (record) => [
-      'GE78BG0000000893486000',
-      '',
-      '',
-      record.counteragent_iban || '',
-      sanitizeRecipientName(record.counteragent_name || ''),
-      record.identification_number || '',
-      'ხელფასი',
-      await calculateExportAmount(record),
-      '',
-      '',
-      record.payment_id || '',
-    ]));
+      const rows = await Promise.all(selectedRecords.map(async (record) => [
+        'GE78BG0000000893486000',
+        '',
+        '',
+        record.counteragent_iban || '',
+        sanitizeRecipientName(record.counteragent_name || ''),
+        record.identification_number || '',
+        'ხელფასი',
+        await calculateExportAmount(record),
+        '',
+        '',
+        record.payment_id || '',
+      ]));
 
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-    XLSX.writeFile(workbook, 'Bank XLSX.xlsx');
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+      XLSX.writeFile(workbook, 'Bank XLSX.xlsx');
+    } catch (error: any) {
+      console.error('Failed to generate Bank XLSX:', error);
+      alert(error.message || 'Failed to generate Bank XLSX');
+    }
   };
 
   const handleExportXlsx = () => {
