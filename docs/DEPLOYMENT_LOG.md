@@ -1,5 +1,18 @@
 ﻿# Deployment Log
 
+## 2026-04-03 (141)
+- Summary: Add Job Title text field for employees in counteragents; display in salary accruals table.
+- Changes:
+  - `prisma/schema.prisma`: Added `job_title String?` to `counteragents` model.
+  - `prisma/migrations/20260403000000_add_job_title_to_counteragents`: `ALTER TABLE counteragents ADD COLUMN IF NOT EXISTS job_title TEXT`.
+  - `app/dictionaries/counteragents/api/route.ts`: Added `job_title` to `pick`, `toApi`, POST create body, PUT update handler.
+  - `app/dictionaries/counteragents/CounteragentForm.tsx`: Added `job_title` to form state; shows text input field after Department when Is Employee = true.
+  - `app/dictionaries/counteragents/[id]/page.tsx`: Pass `job_title` in `initial` for edit mode.
+  - `app/api/salary-accruals/route.ts`: Added `c.job_title` to all 3 SQL SELECT queries.
+  - `components/figma/salary-accruals-table.tsx`: Added `job_title?: string | null` to `SalaryAccrual` type; added Job Title column after Department.
+- Commit: 23b8d4c
+- Production: https://ice-6mbef5pav-iceerp.vercel.app
+
 ## 2026-04-03 (140)
 - Summary: Salary accruals department column; payments report skip-to-ledger counteragent filter; lazy-load counteragents/projects; fix projected salary statement link 404.
 - Changes:
