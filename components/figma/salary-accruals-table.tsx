@@ -49,6 +49,7 @@ type SalaryAccrual = {
   counteragent_name: string;
   identification_number?: string | null;
   department?: string | null;
+  job_title?: string | null;
   sex?: string | null;
   pension_scheme?: boolean | null;
   financial_code_uuid: string;
@@ -168,6 +169,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'counteragent_name', label: 'Employee', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'insiderName', label: 'Insider', visible: true, sortable: false, filterable: false, width: 180 },
   { key: 'department', label: 'Department', visible: true, sortable: true, filterable: true, width: 140 },
+  { key: 'job_title', label: 'Job Title', visible: true, sortable: true, filterable: true, width: 160 },
   { key: 'sex', label: 'Sex', visible: true, sortable: true, filterable: true, width: 90 },
   { key: 'pension_scheme', label: 'Pension Scheme', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'payment_id', label: 'Payment ID', visible: true, sortable: true, filterable: true, width: 200 },

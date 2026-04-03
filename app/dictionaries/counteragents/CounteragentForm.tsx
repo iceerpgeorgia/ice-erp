@@ -28,6 +28,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       is_emploee: data.is_emploee === true ? "true" : data.is_emploee === false ? "false" : "",
       was_emploee: data.was_emploee === true ? "true" : data.was_emploee === false ? "false" : "",
       department: data.department ?? "",
+      job_title: data.job_title ?? "",
     };
   };
   
@@ -56,6 +57,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       is_emploee: "",
       was_emploee: "",
       department: "",
+      job_title: "",
       ...normalized
     };
   });
@@ -278,6 +280,12 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
           <option value="Administration">Administration</option>
         </select>,
         true  // required
+      ),
+      field("Job Title","job_title",
+        <input className="w-full border rounded px-3 py-2" type="text"
+          value={v.job_title || ""}
+          onChange={(e)=>setV((s:any)=>({ ...s, job_title: e.target.value }))}
+          placeholder="e.g. Software Engineer" />
       ),
     ] : []),
     field("Was Employee","was_emploee",

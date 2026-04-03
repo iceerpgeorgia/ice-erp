@@ -1,0 +1,1 @@
+ALTER TABLE counteragents ADD COLUMN IF NOT EXISTS job_title TEXT;

@@ -14,6 +14,7 @@ export async function PUT(req: NextRequest) {
     if ("is_emploee" in body) updateData.is_emploee = toBool(body.is_emploee);
     if ("was_emploee" in body) updateData.was_emploee = toBool(body.was_emploee);
     if ("department" in body) updateData.department = body.department ?? null;
+    if ("job_title" in body) updateData.job_title = body.job_title ?? null;
     const updated = await prisma.counteragents.update({
       where: { id: BigInt(Number(idParam)) },
       data: updateData,
@@ -105,6 +106,7 @@ const pick = {
   is_emploee: true,
   was_emploee: true,
   department: true,
+  job_title: true,
 };
 
 function toApi(r: any) {
@@ -142,6 +144,7 @@ function toApi(r: any) {
     is_emploee: !!r.is_emploee,
     was_emploee: !!r.was_emploee,
     department: r.department ?? null,
+    job_title: r.job_title ?? null,
   };
 }
 
@@ -203,6 +206,7 @@ export async function POST(req: NextRequest) {
         ...(isEmp === null ? {} : { is_emploee: isEmp }),
         ...(wasEmp === null ? {} : { was_emploee: wasEmp }),
         department: b.department ?? null,
+        job_title: b.job_title ?? null,
       },
       select: pick,
     });
