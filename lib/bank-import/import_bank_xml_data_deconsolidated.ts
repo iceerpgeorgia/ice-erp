@@ -1450,7 +1450,7 @@ export async function processBOGGELDeconsolidated(
       }
 
       if (!outRow && !inRow) continue;
-      if (outRow.conversion_id || inRow.conversion_id) continue;
+      if (outRow?.conversion_id || inRow?.conversion_id) continue;
 
       if (fallbackUsed && (!outRow || !inRow)) {
         console.log(
