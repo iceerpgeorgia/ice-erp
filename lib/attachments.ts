@@ -63,7 +63,7 @@ export async function getPaymentAttachments(paymentId: string): Promise<Attachme
      FROM attachment_links al
      JOIN attachments a ON a.uuid = al.attachment_uuid
      WHERE al.owner_table = 'payments'
-       AND al.owner_uuid = (SELECT record_uuid FROM payments WHERE payment_id = $1 LIMIT 1)
+       AND al.owner_uuid = (SELECT record_uuid FROM payments WHERE payment_id = $1 LIMIT 1)::uuid
        AND a.is_active = true
      ORDER BY al.is_primary DESC, al.created_at DESC`,
     paymentId
