@@ -36,8 +36,14 @@ export async function POST(request: NextRequest) {
       .createSignedUploadUrl(storagePath);
 
     if (error || !data?.signedUrl || !data?.token) {
+      console.error('Supabase Storage error:', error);
+      const errorMessage = error?.message || 'Failed to create signed upload URL';
+      const hint = errorMessage.includes('not found') || errorMessage.includes('does not exist')
+        ? ' The storage bucket "payment-attachments" may not exist. Please create it in the Supabase dashboard (Settings → Storage → New bucket → Name: payment-attachments, Public: OFF).'
+        : '';
+      
       return NextResponse.json(
-        { error: error?.message || 'Failed to create signed upload URL' },
+        { error: errorMessage + hint },
         { status: 500 }
       );
     }

@@ -33,6 +33,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
   const [uploading, setUploading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   const loadAttachments = async () => {
     if (!paymentId) return;
@@ -47,14 +48,21 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
       onAttachmentsChange?.(data.attachments?.length || 0);
     } catch (error) {
       console.error('Error loading attachments:', error);
+      setAttachments([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadAttachments();
-  }, [paymentId]);
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && isDialogOpen) {
+      loadAttachments();
+    }
+  }, [paymentId, mounted, isDialogOpen]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -78,7 +86,8 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
       });
 
       if (!uploadUrlResponse.ok) {
-        throw new Error('Failed to get upload URL');
+        const errorData = await uploadUrlResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to get upload URL. Please ensure the Supabase Storage bucket "payment-attachments" is created.');
       }
 
       const uploadData = await uploadUrlResponse.json();
@@ -118,9 +127,9 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
       await loadAttachments();
       setSelectedFile(null);
       setIsDialogOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading attachment:', error);
-      alert('Failed to upload attachment');
+      alert(error?.message || 'Failed to upload attachment');
     } finally {
       setUploading(false);
     }
@@ -173,7 +182,8 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
 
   return (
     <div className="flex items-center gap-2">
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      {mounted && (
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogTrigger asChild>
           <Button
             variant="outline"
@@ -280,7 +290,8 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
             </div>
           </div>
         </DialogContent>
-      </Dialog>
+        </Dialog>
+      )}
     </div>
   );
 }
