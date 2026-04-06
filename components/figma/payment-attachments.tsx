@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Paperclip, Upload, Trash2, Download, FileText, X } from 'lucide-react';
+import { Paperclip, Upload, Trash2, Download, Eye, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -41,6 +41,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showUploadForm, setShowUploadForm] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedDocumentType, setSelectedDocumentType] = useState<string>('');
   const [documentDate, setDocumentDate] = useState<string>('');
@@ -173,6 +174,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
       setSelectedDocumentType('');
       setDocumentDate('');
       setDocumentNo('');
+      setShowUploadForm(false);
     } catch (error: any) {
       console.error('Error uploading attachment:', error);
       alert(error?.message || 'Failed to upload attachment');
@@ -181,8 +183,70 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
     }
   };
 
+  const handleView = async (attachment: Attachment) => {
+    try {
+      const response = await fetch(
+        `/api/payments/attachments/download?bucket=${encodeURIComponent(attachment.storageBucket || '')}&path=${encodeURIComponent(attachment.storagePath)}`
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to get view URL');
+      }
+
+      const { signedUrl } = await response.json();
+      window.open(signedUrl, '_blank');
+    } catch (error) {
+      console.error('Error viewing attachment:', error);
+      alert('Failed to view attachment');
+    }
+  };
+
+  const handleDownload = async (attachment: Attachment) => {
+    try {
+      const response = await fetch(
+        `/api/payments/attachments/download?bucket=${encodeURIComponent(attachment.storageBucket || '')}&path=${encodeURIComponent(attachment.storagePath)}`
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to get download URL');
+      }
+
+      const { signedUrl } = await response.json();
+      
+      // Create temporary anchor to trigger download
+      const a = document.createElement('a');
+      a.href = signedUrl;
+      a.download = attachment.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading attachment:', error);
+      alert('Failed to download attachment');
+    }
+  };
+
+  const getDocumentTypeName = (uuid: string | null): string => {
+    if (!uuid) return 'Unknown';
+    const type = documentTypes.find(t => t.uuid === uuid);
+    return type?.name || 'Unknown';
+  };
+
+  const formatDate = (dateString: string | null): string => {
+    if (!dateString) return 'No date';
+    try {
+      return new Date(dateString).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
   const handleDelete = async (attachment: Attachment) => {
-    if (!confirm(`Delete attachment "${attachment.fileName}"?`)) return;
+    if (!confirm(`Delete this attachment?`)) return;
 
     try {
       const response = await fetch(
@@ -198,24 +262,6 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
     } catch (error) {
       console.error('Error deleting attachment:', error);
       alert('Failed to delete attachment');
-    }
-  };
-
-  const handleDownload = async (attachment: Attachment) => {
-    try {
-      const response = await fetch(
-        `/api/payments/attachments/download?bucket=${encodeURIComponent(attachment.storageBucket || '')}&path=${encodeURIComponent(attachment.storagePath)}`
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to get download URL');
-      }
-
-      const { signedUrl } = await response.json();
-      window.open(signedUrl, '_blank');
-    } catch (error) {
-      console.error('Error downloading attachment:', error);
-      alert('Failed to download attachment');
     }
   };
 
@@ -242,152 +288,187 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
       
       {dialogMounted && (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Attachments for {paymentId}</DialogTitle>
             <DialogDescription>
-              Upload and manage documents related to this payment
+              View and manage documents related to this payment
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Upload Section */}
-            <div className="border rounded-lg p-4 space-y-3">
-              <Label htmlFor="file-upload" className="text-sm font-medium">
-                Upload New Attachment
-              </Label>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="file-upload"
-                    type="file"
-                    onChange={handleFileSelect}
-                    disabled={uploading}
-                    className="flex-1"
-                  />
+            {/* Attachments List */}
+            {loading ? (
+              <div className="text-sm text-muted-foreground py-8 text-center">Loading...</div>
+            ) : attachments.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-8 text-center">
+                No attachments yet. Click "Add Attachment" to upload a document.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs font-medium text-muted-foreground border-b">
+                  <div className="col-span-2">Date</div>
+                  <div className="col-span-3">Document Type</div>
+                  <div className="col-span-3">Document No</div>
+                  <div className="col-span-4 text-right">Actions</div>
+                </div>
+                {attachments.map((attachment) => (
+                  <div
+                    key={attachment.linkUuid}
+                    className="grid grid-cols-12 gap-2 items-center p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="col-span-2 text-sm">
+                      {formatDate(attachment.documentDate)}
+                    </div>
+                    <div className="col-span-3 text-sm font-medium">
+                      {getDocumentTypeName(attachment.documentTypeUuid)}
+                    </div>
+                    <div className="col-span-3 text-sm text-muted-foreground">
+                      {attachment.documentNo || '—'}
+                    </div>
+                    <div className="col-span-4 flex items-center justify-end gap-3">
+                      <button
+                        onClick={() => handleView(attachment)}
+                        className="text-sm text-primary hover:underline font-medium"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => handleDownload(attachment)}
+                        className="text-sm text-primary hover:underline font-medium"
+                      >
+                        Download
+                      </button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(attachment)}
+                        title="Delete"
+                        className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add Attachment Button */}
+            {!showUploadForm && (
+              <Button
+                onClick={() => setShowUploadForm(true)}
+                variant="outline"
+                className="w-full"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Attachment
+              </Button>
+            )}
+
+            {/* Upload Form (shown when Add Attachment is clicked) */}
+            {showUploadForm && (
+              <div className="border rounded-lg p-4 space-y-4 bg-accent/20">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">New Attachment</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowUploadForm(false);
+                      setSelectedFile(null);
+                      setSelectedDocumentType('');
+                      setDocumentDate('');
+                      setDocumentNo('');
+                    }}
+                    className="h-6 w-6 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {/* File Upload */}
+                  <div className="space-y-2">
+                    <Label htmlFor="file-upload" className="text-sm">
+                      File <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="file-upload"
+                      type="file"
+                      onChange={handleFileSelect}
+                      disabled={uploading}
+                    />
+                    {selectedFile && (
+                      <div className="text-xs text-muted-foreground">
+                        {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Document Type and Date */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="document-type" className="text-sm">
+                        Document Type <span className="text-destructive">*</span>
+                      </Label>
+                      <Select 
+                        value={selectedDocumentType} 
+                        onValueChange={setSelectedDocumentType}
+                        disabled={uploading}
+                      >
+                        <SelectTrigger id="document-type">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {documentTypes.map((type) => (
+                            <SelectItem key={type.uuid} value={type.uuid}>
+                              {type.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="document-date" className="text-sm">
+                        Document Date <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="document-date"
+                        type="date"
+                        value={documentDate}
+                        onChange={(e) => setDocumentDate(e.target.value)}
+                        disabled={uploading}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Document Number */}
+                  <div className="space-y-2">
+                    <Label htmlFor="document-no" className="text-sm">Document Number</Label>
+                    <Input
+                      id="document-no"
+                      type="text"
+                      placeholder="e.g., INV-2024-001"
+                      value={documentNo}
+                      onChange={(e) => setDocumentNo(e.target.value)}
+                      disabled={uploading}
+                    />
+                  </div>
+
+                  {/* Upload Button */}
                   <Button
                     onClick={handleUpload}
                     disabled={!selectedFile || !selectedDocumentType || !documentDate || uploading}
-                    size="sm"
+                    className="w-full"
                   >
-                    <Upload className="h-4 w-4 mr-1" />
-                    {uploading ? 'Uploading...' : 'Upload'}
+                    <Upload className="h-4 w-4 mr-2" />
+                    {uploading ? 'Uploading...' : 'Upload Attachment'}
                   </Button>
                 </div>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="document-type" className="text-sm">
-                      Document Type <span className="text-destructive">*</span>
-                    </Label>
-                    <Select 
-                      value={selectedDocumentType} 
-                      onValueChange={setSelectedDocumentType}
-                      disabled={uploading}
-                      required
-                    >
-                      <SelectTrigger id="document-type">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {documentTypes.map((type) => (
-                          <SelectItem key={type.uuid} value={type.uuid}>
-                            {type.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="document-date" className="text-sm">
-                      Document Date <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="document-date"
-                      type="date"
-                      value={documentDate}
-                      onChange={(e) => setDocumentDate(e.target.value)}
-                      disabled={uploading}
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="document-no" className="text-sm">Document Number</Label>
-                  <Input
-                    id="document-no"
-                    type="text"
-                    placeholder="e.g., INV-2024-001"
-                    value={documentNo}
-                    onChange={(e) => setDocumentNo(e.target.value)}
-                    disabled={uploading}
-                  />
-                </div>
-                
-                {selectedFile && (
-                  <div className="text-xs text-muted-foreground">
-                    Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
-                  </div>
-                )}
               </div>
-            </div>
-
-            {/* Attachments List */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Existing Attachments ({attachments.length})
-              </Label>
-              {loading ? (
-                <div className="text-sm text-muted-foreground">Loading...</div>
-              ) : attachments.length === 0 ? (
-                <div className="text-sm text-muted-foreground">No attachments yet</div>
-              ) : (
-                <div className="space-y-2">
-                  {attachments.map((attachment) => (
-                    <div
-                      key={attachment.linkUuid}
-                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">
-                            {attachment.fileName}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {formatFileSize(attachment.fileSizeBytes)}
-                            {attachment.isPrimary && (
-                              <span className="ml-2 text-blue-600 font-medium">Primary</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDownload(attachment)}
-                          title="Download"
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(attachment)}
-                          title="Delete"
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

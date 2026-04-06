@@ -20,6 +20,10 @@ Browserslist: browsers data (caniuse-lite) is 7 months old. Please run:
   npx update-browserslist-db@latest
   Why you should do it regularly: 
 https://github.com/browserslist/update-db#readme
+Browserslist: caniuse-lite is outdated. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: 
+https://github.com/browserslist/update-db#readme
  Γ£ô Compiled successfully
    Linting and checking validity of types ...
 
@@ -27,12 +31,11 @@ https://github.com/browserslist/update-db#readme
 205:6  Warning: React Hook useEffect has a missing dependency: 'handleFilterChange'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
 
 ./components/figma/payment-attachments.tsx
-92:6  Warning: React Hook useEffect has a missing dependency: 'loadAttachments'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+93:6  Warning: React Hook useEffect has a missing dependency: 'loadAttachments'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
 
 info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules
    Collecting page data ...
    Generating static pages (0/92) ...
-   Generating static pages (23/92) 
 Error computing bank account balances: B [Error]: Dynamic server usage: Route 
 /api/bank-accounts/balance-check couldn't be rendered statically because it 
 used `request.cookies`. See more info here: 
@@ -107,6 +110,7 @@ statically because it used `request.cookies`. See more info here:
 https://nextjs.org/docs/messages/dynamic-server-error",
   digest: 'DYNAMIC_SERVER_USAGE'
 }
+   Generating static pages (23/92) 
 Error creating download URL: B [Error]: Dynamic server usage: Route 
 /api/payments/attachments/download couldn't be rendered statically because it 
 used `request.url`. See more info here: 
@@ -307,7 +311,7 @@ Route (app)                                           Size     First Load JS
 Γö£ Γùï /dictionaries/nbg-rates                           8.1 kB          255 kB
 Γö£ Γùï /dictionaries/parsing-scheme-rules                13.2 kB         294 kB
 Γö£ Γùï /dictionaries/payment-redistribution              9.31 kB         135 kB
-Γö£ Γùï /dictionaries/payments                            14.4 kB         297 kB
+Γö£ Γùï /dictionaries/payments                            14.3 kB         297 kB
 Γö£ Γùï /dictionaries/payments-ledger                     10.3 kB         280 kB
 Γö£ Γùï /dictionaries/payments-report                     19.7 kB         318 kB
 Γö£ Γùï /dictionaries/projects                            2.92 kB        99.8 kB
