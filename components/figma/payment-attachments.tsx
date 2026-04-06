@@ -58,6 +58,29 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
   const [documentValue, setDocumentValue] = useState<string>('');
   const [documentCurrency, setDocumentCurrency] = useState<string>('');
   const [dialogMounted, setDialogMounted] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Load initial count on mount
+  useEffect(() => {
+    setIsMounted(true);
+    loadAttachmentCount();
+  }, [paymentId]);
+
+  const loadAttachmentCount = async () => {
+    if (!paymentId) return;
+    
+    try {
+      const response = await fetch(`/api/payments/attachments?paymentId=${encodeURIComponent(paymentId)}`);
+      if (!response.ok) return;
+      
+      const data = await response.json();
+      const count = data.attachments?.length || 0;
+      setAttachments(data.attachments || []);
+      onAttachmentsChange?.(count);
+    } catch (error) {
+      console.error('Error loading attachment count:', error);
+    }
+  };
 
   const loadAttachments = async () => {
     if (!paymentId) return;
@@ -316,6 +339,10 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  if (!isMounted) {
+    return null; // Prevent hydration mismatch
+  }
+
   return (
     <div className="flex items-center gap-2">
       <Button
@@ -324,10 +351,10 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
         className="flex items-center gap-1"
         onClick={handleOpenDialog}
       >
-        <Paperclip className="h-4 w-4" />
         {attachments.length > 0 && (
-          <span className="text-xs">({attachments.length})</span>
+          <span className="text-xs font-medium">{attachments.length}</span>
         )}
+        <Paperclip className="h-4 w-4" />
       </Button>
       
       {dialogMounted && (
