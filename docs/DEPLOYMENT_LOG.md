@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-04-06 (151)
+- Summary: Fix file upload failures with Unicode/Georgian characters in filenames.
+- Changes:
+  - `app/api/payments/attachments/upload/route.ts`: Added `sanitizeFileName()` helper function to convert Unicode and special characters to ASCII-safe format. Function removes Unicode characters (including Georgian script), replaces spaces with dashes, keeps only alphanumeric, dots, dashes, and underscores. Modified `storagePath` to use sanitized filename for Supabase Storage path while preserving original filename for display in UI. Response now includes both `fileName` (original) and `sanitizedFileName` (sanitized for storage).
+- Issue: Uploading files with Georgian characters (e.g., "ვარკეთილი მოლის პროექტი - ხელმოწერილი (5).pdf") caused 400 errors from Supabase Storage. URL encoding was insufficient - Supabase requires ASCII-safe filenames in storage paths.
+- Solution: Sanitize filenames to ASCII-safe format for storage while preserving original names for UI display. Ensures international character compatibility.
+- Commit: 9d1e327
+- Production: https://ice-k7o52hxhn-iceerp.vercel.app
+
 ## 2026-04-06 (150)
 - Summary: Fix Google OAuth account linking error.
 - Changes:
