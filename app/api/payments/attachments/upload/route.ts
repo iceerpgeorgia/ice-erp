@@ -35,17 +35,26 @@ function sanitizeFileName(fileName: string): string {
  * Body:
  * - paymentId: string (required)
  * - fileName: string (required)
- * - documentTypeUuid?: string
+ * - documentTypeUuid: string (required)
+ * - documentDate: string (required)
+ * - documentNo?: string
  * - isPrimary?: boolean
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { paymentId, fileName, documentTypeUuid, documentDate, isPrimary } = body;
+    const { paymentId, fileName, documentTypeUuid, documentDate, documentNo, isPrimary } = body;
 
     if (!paymentId || !fileName) {
       return NextResponse.json(
         { error: 'paymentId and fileName are required' },
+        { status: 400 }
+      );
+    }
+
+    if (!documentTypeUuid || !documentDate) {
+      return NextResponse.json(
+        { error: 'documentTypeUuid and documentDate are required' },
         { status: 400 }
       );
     }
@@ -87,6 +96,7 @@ export async function POST(request: NextRequest) {
       sanitizedFileName, // Safe filename used in storage
       documentTypeUuid,
       documentDate,
+      documentNo,
       isPrimary,
     });
   } catch (error: any) {

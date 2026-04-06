@@ -4,11 +4,11 @@ async function main() {
   const prisma = new PrismaClient();
   
   try {
-    console.log('Adding document_date column to attachments table...');
+    console.log('Adding document_no column to attachments table...');
     
     await prisma.$executeRawUnsafe(`
       ALTER TABLE attachments 
-      ADD COLUMN IF NOT EXISTS document_date TIMESTAMP(3);
+      ADD COLUMN IF NOT EXISTS document_no TEXT;
     `);
     
     console.log('✅ Migration applied successfully!');

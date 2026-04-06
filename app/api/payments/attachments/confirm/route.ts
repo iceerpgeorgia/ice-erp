@@ -10,9 +10,11 @@ import { createPaymentAttachment } from '@/lib/attachments';
  * - storagePath: string (required)
  * - storageBucket: string (required)
  * - fileName: string (required)
+ * - documentTypeUuid: string (required)
+ * - documentDate: string (required)
+ * - documentNo?: string
  * - mimeType?: string
  * - fileSizeBytes?: number
- * - documentTypeUuid?: string
  * - userId?: string
  * - metadata?: any
  * - isPrimary?: boolean
@@ -29,6 +31,7 @@ export async function POST(request: NextRequest) {
       fileSizeBytes,
       documentTypeUuid,
       documentDate,
+      documentNo,
       userId,
       metadata,
       isPrimary,
@@ -37,6 +40,13 @@ export async function POST(request: NextRequest) {
     if (!paymentId || !storagePath || !storageBucket || !fileName) {
       return NextResponse.json(
         { error: 'paymentId, storagePath, storageBucket, and fileName are required' },
+        { status: 400 }
+      );
+    }
+
+    if (!documentTypeUuid || !documentDate) {
+      return NextResponse.json(
+        { error: 'documentTypeUuid and documentDate are required' },
         { status: 400 }
       );
     }
@@ -50,6 +60,7 @@ export async function POST(request: NextRequest) {
       fileSizeBytes,
       documentTypeUuid,
       documentDate,
+      documentNo,
       userId,
       metadata,
       isPrimary,

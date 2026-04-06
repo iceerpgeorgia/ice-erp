@@ -5,6 +5,7 @@ export type AttachmentDto = {
   uuid: string;
   documentTypeUuid: string | null;
   documentDate: Date | null;
+  documentNo: string | null;
   storageProvider: string;
   storageBucket: string | null;
   storagePath: string;
@@ -50,6 +51,7 @@ export async function getPaymentAttachments(paymentId: string): Promise<Attachme
        a.uuid as attachment_uuid,
        a.document_type_uuid,
        a.document_date,
+       a.document_no,
        a.storage_provider,
        a.storage_bucket,
        a.storage_path,
@@ -85,6 +87,7 @@ export async function getPaymentAttachments(paymentId: string): Promise<Attachme
       uuid: link.attachment_uuid,
       documentTypeUuid: link.document_type_uuid,
       documentDate: link.document_date,
+      documentNo: link.document_no,
       storageProvider: link.storage_provider,
       storageBucket: link.storage_bucket,
       storagePath: link.storage_path,
@@ -113,6 +116,7 @@ export async function createPaymentAttachment(params: {
   fileSizeBytes?: number;
   documentTypeUuid?: string;
   documentDate?: string;
+  documentNo?: string;
   userId?: string;
   metadata?: any;
   isPrimary?: boolean;
@@ -126,6 +130,7 @@ export async function createPaymentAttachment(params: {
     fileSizeBytes,
     documentTypeUuid,
     documentDate,
+    documentNo,
     userId,
     metadata,
     isPrimary = false,
@@ -149,6 +154,7 @@ export async function createPaymentAttachment(params: {
        uuid,
        document_type_uuid,
        document_date,
+       document_no,
        storage_provider,
        storage_bucket,
        storage_path,
@@ -164,20 +170,22 @@ export async function createPaymentAttachment(params: {
        gen_random_uuid(),
        $1::uuid,
        $2::timestamp,
-       'supabase',
        $3,
+       'supabase',
        $4,
        $5,
        $6,
        $7,
-       $8::jsonb,
-       $9,
+       $8,
+       $9::jsonb,
+       $10,
        true,
        NOW(),
        NOW()
      ) RETURNING uuid`,
     documentTypeUuid || null,
     documentDate || null,
+    documentNo || null,
     storageBucket,
     storagePath,
     fileName,

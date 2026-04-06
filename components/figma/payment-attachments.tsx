@@ -18,6 +18,7 @@ type Attachment = {
   storagePath: string;
   documentTypeUuid: string | null;
   documentDate: string | null;
+  documentNo: string | null;
   isPrimary: boolean;
   metadata: any;
   createdAt: string;
@@ -43,6 +44,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedDocumentType, setSelectedDocumentType] = useState<string>('');
   const [documentDate, setDocumentDate] = useState<string>('');
+  const [documentNo, setDocumentNo] = useState<string>('');
   const [dialogMounted, setDialogMounted] = useState(false);
 
   const loadAttachments = async () => {
@@ -98,6 +100,17 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
   const handleUpload = async () => {
     if (!selectedFile || !paymentId) return;
 
+    // Validate required fields
+    if (!selectedDocumentType) {
+      alert('Please select a document type');
+      return;
+    }
+
+    if (!documentDate) {
+      alert('Please select a document date');
+      return;
+    }
+
     setUploading(true);
     try {
       // Step 1: Get signed upload URL
@@ -107,8 +120,9 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
         body: JSON.stringify({
           paymentId,
           fileName: selectedFile.name,
-          documentTypeUuid: selectedDocumentType || undefined,
-          documentDate: documentDate || undefined,
+          documentTypeUuid: selectedDocumentType,
+          documentDate: documentDate,
+          documentNo: documentNo || undefined,
         }),
       });
 
@@ -143,8 +157,9 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
           fileName: selectedFile.name,
           mimeType: selectedFile.type,
           fileSizeBytes: selectedFile.size,
-          documentTypeUuid: selectedDocumentType || undefined,
-          documentDate: documentDate || undefined,
+          documentTypeUuid: selectedDocumentType,
+          documentDate: documentDate,
+          documentNo: documentNo || undefined,
         }),
       });
 
@@ -157,6 +172,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
       setSelectedFile(null);
       setSelectedDocumentType('');
       setDocumentDate('');
+      setDocumentNo('');
     } catch (error: any) {
       console.error('Error uploading attachment:', error);
       alert(error?.message || 'Failed to upload attachment');
@@ -251,7 +267,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
                   />
                   <Button
                     onClick={handleUpload}
-                    disabled={!selectedFile || uploading}
+                    disabled={!selectedFile || !selectedDocumentType || !documentDate || uploading}
                     size="sm"
                   >
                     <Upload className="h-4 w-4 mr-1" />
@@ -261,14 +277,17 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
                 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="document-type" className="text-sm">Document Type</Label>
+                    <Label htmlFor="document-type" className="text-sm">
+                      Document Type <span className="text-destructive">*</span>
+                    </Label>
                     <Select 
                       value={selectedDocumentType} 
                       onValueChange={setSelectedDocumentType}
                       disabled={uploading}
+                      required
                     >
                       <SelectTrigger id="document-type">
-                        <SelectValue placeholder="Select type (optional)" />
+                        <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
                         {documentTypes.map((type) => (
@@ -281,15 +300,30 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="document-date" className="text-sm">Document Date</Label>
+                    <Label htmlFor="document-date" className="text-sm">
+                      Document Date <span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       id="document-date"
                       type="date"
                       value={documentDate}
                       onChange={(e) => setDocumentDate(e.target.value)}
                       disabled={uploading}
+                      required
                     />
                   </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="document-no" className="text-sm">Document Number</Label>
+                  <Input
+                    id="document-no"
+                    type="text"
+                    placeholder="e.g., INV-2024-001"
+                    value={documentNo}
+                    onChange={(e) => setDocumentNo(e.target.value)}
+                    disabled={uploading}
+                  />
                 </div>
                 
                 {selectedFile && (

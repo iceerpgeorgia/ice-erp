@@ -352,6 +352,7 @@ model attachments {
   uuid               String             @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   document_type_uuid String?            @db.Uuid
   document_date      DateTime?
+  document_no        String?
   storage_provider   String             @default("supabase")
   storage_bucket     String?
   storage_path       String
