@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-04-06 (145)
+- Summary: Fix UUID type casting in getPaymentAttachments subquery.
+- Changes:
+  - `lib/attachments.ts`: Added `::uuid` cast to subquery result in WHERE clause — PostgreSQL was interpreting the subquery `(SELECT record_uuid FROM payments WHERE payment_id = $1 LIMIT 1)` as text type, causing "operator does not exist: uuid = text" error when comparing with `al.owner_uuid` (UUID). Now explicitly casts subquery result to UUID.
+- Commit: 3ad4240
+- Production: https://ice-r2qh6ypab-iceerp.vercel.app
+
 ## 2026-04-06 (144)
 - Summary: Fix UUID type comparison error in getPaymentAttachments query.
 - Changes:
