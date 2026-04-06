@@ -1,5 +1,20 @@
 ﻿# Deployment Log
 
+## 2026-04-06 (155)
+- Summary: Add optional value and currency fields to attachments.
+- Changes:
+  - Database: Added `document_value` DECIMAL(15,2) and `document_currency_uuid` UUID columns to `attachments` table with optional foreign key to `currencies`.
+  - `prisma/schema.prisma`: Added `document_value Decimal?` and `document_currency_uuid String?` fields to `attachments` model; added relation to `currencies` model.
+  - `lib/attachments.ts`: Updated `AttachmentDto` type to include `documentValue: number | null` and `documentCurrencyUuid: string | null`; modified `getPaymentAttachments` SQL to select new columns and convert Decimal to float; updated `createPaymentAttachment` to accept and insert optional value/currency with proper type casting ($4::decimal, $5::uuid).
+  - `app/api/payments/attachments/upload/route.ts`: Added optional `documentValue` and `documentCurrencyUuid` parameters to request body and response.
+  - `app/api/payments/attachments/confirm/route.ts`: Added optional `documentValue` and `documentCurrencyUuid` parameters to request body and pass them to `createPaymentAttachment`.
+  - `components/figma/payment-attachments.tsx`: Added Currency type and state; `loadCurrencies()` function to fetch from `/api/currencies`; `getCurrencyCode()` and `formatValue()` helpers for display formatting; updated attachments table grid to show Value column with formatted amounts (e.g., "1,234.56 USD"); added Value (numeric input) and Currency (Select dropdown) fields to upload form; wired to state and API calls.
+- User Experience: Users can now track financial amounts on attachments by specifying an optional value and currency. Values display with proper formatting and currency codes in the attachments table (e.g., "1,234.56 USD"). Useful for invoices, receipts, contracts, and other financial documents.
+- Technical Details: Decimal(15,2) supports values up to 9.9 trillion with 2 decimal places; formatValue() uses toLocaleString for proper thousand separators; pre-existing /api/currencies endpoint provides currency dropdown data.
+- Migration: `20260406220000_add_document_value_currency` applied.
+- Commit: 1d8f2b2
+- Production: https://ice-91la48s4a-iceerp.vercel.app
+
 ## 2026-04-06 (154)
 - Summary: Redesign attachment upload dialog for better UX.
 - Changes:
