@@ -1,5 +1,25 @@
 ﻿# Deployment Log
 
+## 2026-04-06 (143)
+- Summary: Add payment attachments system with upload/download/delete via payment_id binding.
+- Changes:
+  - `prisma/schema.prisma`: Added `attachments` and `attachment_links` models for polymorphic file storage; added `attachments` relation to `document_types`.
+  - `prisma/migrations/20260406150000_add_attachments_base/migration.sql`: Created `attachments` table (file metadata, storage location, document type FK) and `attachment_links` table (polymorphic owner binding).
+  - `lib/attachments.ts`: Service layer functions for CRUD operations: `getPaymentAttachments`, `createPaymentAttachment`, `deletePaymentAttachment`, `getAttachmentDownloadUrl`, `updateAttachment`.
+  - `app/api/payments/attachments/route.ts`: GET endpoint to list attachments for a payment.
+  - `app/api/payments/attachments/upload/route.ts`: POST endpoint to get signed Supabase upload URL.
+  - `app/api/payments/attachments/confirm/route.ts`: POST endpoint to confirm upload and create database records.
+  - `app/api/payments/attachments/download/route.ts`: GET endpoint to get signed download URL.
+  - `app/api/payments/attachments/delete/route.ts`: DELETE endpoint to remove attachment link and storage file.
+  - `components/figma/payment-attachments.tsx`: Reusable UI component with upload dialog, file list, download/delete actions, attachment count badge.
+  - `components/figma/payments-table.tsx`: Integrated `PaymentAttachments` component in Actions column.
+  - `components/figma/payments-report-table.tsx`: Integrated `PaymentAttachments` component in Actions column.
+  - `docs/PAYMENT_ATTACHMENTS.md`: Complete usage guide and Supabase setup instructions.
+  - Applied Phase 1 dictionaries: currencies, document_types, project_states, mi_dimensions.
+- Storage: Supabase Storage bucket `payment-attachments` (private, access via signed URLs).
+- Commit: 5da1420
+- Production: https://ice-kxlz2kjrh-iceerp.vercel.app
+
 ## 2026-04-03 (142)
 - Summary: Fix null-safe conversion_id check in deconsolidated BOG import.
 - Changes:
