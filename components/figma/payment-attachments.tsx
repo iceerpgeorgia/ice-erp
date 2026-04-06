@@ -33,7 +33,6 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
   const [uploading, setUploading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [mounted, setMounted] = useState(false);
 
   const loadAttachments = async () => {
     if (!paymentId) return;
@@ -55,14 +54,10 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
   };
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (mounted && isDialogOpen) {
+    if (isDialogOpen) {
       loadAttachments();
     }
-  }, [paymentId, mounted, isDialogOpen]);
+  }, [isDialogOpen]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -182,8 +177,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
 
   return (
     <div className="flex items-center gap-2">
-      {mounted && (
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogTrigger asChild>
           <Button
             variant="outline"
@@ -290,8 +284,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
             </div>
           </div>
         </DialogContent>
-        </Dialog>
-      )}
+      </Dialog>
     </div>
   );
 }
