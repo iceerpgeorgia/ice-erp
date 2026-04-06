@@ -1,5 +1,20 @@
 ﻿# Deployment Log
 
+## 2026-04-06 (154)
+- Summary: Redesign attachment upload dialog for better UX.
+- Changes:
+  - `components/figma/payment-attachments.tsx`: Complete UI/UX redesign of attachment management dialog.
+    * **Attachments List First**: Display existing attachments in table-like grid layout showing document date, document type, document number, and actions.
+    * **View & Download Links**: Two underlined text links per attachment - "View" (opens in new tab without download) and "Download" (triggers file download with proper filename).
+    * **Hidden Upload Form**: Upload form now hidden by default, replaced with "Add Attachment" button.
+    * **Collapsible Upload Form**: Clicking "Add Attachment" reveals upload form with X button to close.
+    * **Metadata Focus**: UI emphasizes document metadata (date, type, number) over filename.
+    * **Improved Layout**: Wider dialog (max-w-3xl), cleaner spacing, better visual hierarchy.
+- User Experience: More professional document management interface. Users see their attachments first with key metadata, can quickly view or download files, and add new attachments via a clean modal form. View functionality allows previewing documents without downloading.
+- Technical Details: `handleView` opens signed URL in new window; `handleDownload` creates temporary anchor element with download attribute to trigger proper file download with original filename; `getDocumentTypeName` resolves UUID to human-readable type name; `formatDate` formats ISO dates to DD/MM/YYYY format.
+- Commit: c8df0ff
+- Production: https://ice-ay3fgk61k-iceerp.vercel.app
+
 ## 2026-04-06 (153)
 - Summary: Add optional document number field to attachments.
 - Changes:
