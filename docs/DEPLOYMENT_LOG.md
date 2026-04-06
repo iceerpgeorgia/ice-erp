@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-04-06 (146)
+- Summary: Fix React hydration errors in PaymentAttachments component and improve error messages for Supabase Storage.
+- Changes:
+  - `components/figma/payment-attachments.tsx`: Added `mounted` state to prevent SSR/client hydration mismatches; changed to load attachments only when dialog opens (not on every mount); wrapped Dialog in conditional render; improved error messages to mention bucket creation requirement.
+  - `app/api/payments/attachments/upload/route.ts`: Enhanced error handling with actionable hints when storage bucket doesn't exist (e.g., "The storage bucket 'payment-attachments' may not exist. Please create it in the Supabase dashboard...").
+- Notes: React errors #418 and #422 were hydration mismatches caused by immediate data fetching in useEffect. Now deferred until dialog interaction. Upload failures will show helpful guidance to create the Supabase Storage bucket.
+- Commit: 7d8296d
+- Production: https://ice-iskkn4gin-iceerp.vercel.app
+
 ## 2026-04-06 (145)
 - Summary: Fix UUID type casting in getPaymentAttachments subquery.
 - Changes:
