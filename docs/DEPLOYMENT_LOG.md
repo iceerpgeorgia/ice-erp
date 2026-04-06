@@ -1,5 +1,18 @@
 ﻿# Deployment Log
 
+## 2026-04-06 (153)
+- Summary: Add optional document number field to attachments.
+- Changes:
+  - Database: Added `document_no` TEXT column to `attachments` table.
+  - `lib/attachments.ts`: Updated `AttachmentDto` type to include `documentNo` field; modified `getPaymentAttachments` SQL query to select `document_no`; updated `createPaymentAttachment` to accept and insert optional `documentNo` parameter.
+  - `app/api/payments/attachments/upload/route.ts`: Added optional `documentNo` parameter to request body and response.
+  - `app/api/payments/attachments/confirm/route.ts`: Added optional `documentNo` parameter to request body and pass it to `createPaymentAttachment`.
+  - `components/figma/payment-attachments.tsx`: Added optional document number text input field below document type and date fields; passes value to upload/confirm APIs; resets field after successful upload.
+- User Experience: Users can now optionally specify a document number (e.g., invoice number, receipt number, contract ID) when uploading attachments. This field complements the required document type and date for better document organization.
+- Migration: `20260406210000_add_document_no_to_attachments` applied.
+- Commit: 19f3503
+- Production: https://ice-pbhiodjck-iceerp.vercel.app
+
 ## 2026-04-06 (152)
 - Summary: Add document type and date fields to attachment upload.
 - Changes:
