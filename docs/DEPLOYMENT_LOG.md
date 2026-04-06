@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-04-06 (144)
+- Summary: Fix UUID type comparison error in getPaymentAttachments query.
+- Changes:
+  - `lib/attachments.ts`: Removed incorrect `::text` cast from record_uuid in WHERE clause — `al.owner_uuid` (UUID) was being compared to `record_uuid::text` (text), causing PostgreSQL error "operator does not exist: uuid = text". Query now compares UUID to UUID correctly.
+- Commit: 56be0b7
+- Production: https://ice-7ui2mf98r-iceerp.vercel.app
+
 ## 2026-04-06 (143)
 - Summary: Add payment attachments system with upload/download/delete via payment_id binding.
 - Changes:
