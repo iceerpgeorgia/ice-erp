@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Paperclip, Upload, Trash2, Download, FileText, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 
@@ -33,6 +33,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
   const [uploading, setUploading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [dialogMounted, setDialogMounted] = useState(false);
 
   const loadAttachments = async () => {
     if (!paymentId) return;
@@ -53,11 +54,16 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
     }
   };
 
+  const handleOpenDialog = () => {
+    setDialogMounted(true);
+    setIsDialogOpen(true);
+  };
+
   useEffect(() => {
-    if (isDialogOpen) {
+    if (isDialogOpen && dialogMounted) {
       loadAttachments();
     }
-  }, [isDialogOpen]);
+  }, [isDialogOpen, dialogMounted]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -177,19 +183,20 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
 
   return (
     <div className="flex items-center gap-2">
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1"
-          >
-            <Paperclip className="h-4 w-4" />
-            {attachments.length > 0 && (
-              <span className="text-xs">({attachments.length})</span>
-            )}
-          </Button>
-        </DialogTrigger>
+      <Button
+        variant="outline"
+        size="sm"
+        className="flex items-center gap-1"
+        onClick={handleOpenDialog}
+      >
+        <Paperclip className="h-4 w-4" />
+        {attachments.length > 0 && (
+          <span className="text-xs">({attachments.length})</span>
+        )}
+      </Button>
+      
+      {dialogMounted && (
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Attachments for {paymentId}</DialogTitle>
@@ -285,6 +292,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
           </div>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   );
 }
