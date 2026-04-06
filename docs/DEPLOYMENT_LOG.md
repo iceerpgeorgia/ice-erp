@@ -1,5 +1,23 @@
 ﻿# Deployment Log
 
+## 2026-04-06 (157)
+- Summary: Fix attachment count display and hydration errors.
+- Issues:
+  * Attachment count not loading automatically on page load
+  * Count displayed in parentheses after icon instead of before icon
+  * React hydration errors #418 and #422 in console
+- Changes:
+  - `components/figma/payment-attachments.tsx`:
+    * Added `isMounted` state check to prevent hydration mismatches (component returns null until client-side mounted)
+    * Added `loadAttachmentCount()` function to fetch count on component mount
+    * Added `useEffect(() => { setIsMounted(true); loadAttachmentCount(); }, [paymentId])` to load count immediately when component renders
+    * Changed button display: count now shows before icon without parentheses (e.g., "1 📎" instead of "📎 (1)")
+    * Updated JSX: `{attachments.length > 0 && <span>1</span>} <Paperclip />` instead of `<Paperclip /> {attachments.length > 0 && <span>(1)</span>}`
+- User Experience: Attachment count now appears immediately when page loads (not just when dialog opens). Count displays as a number on the left of the paperclip icon without parentheses for cleaner appearance.
+- Technical Details: Hydration errors resolved by preventing server-side rendering of dynamic content (early return null until isMounted=true). This pattern ensures server HTML matches initial client render, then updates with dynamic data after hydration completes.
+- Commit: 7e756dc
+- Production: https://ice-b3knbrbx0-iceerp.vercel.app
+
 ## 2026-04-06 (156)
 - Summary: Fix undefined value error in formatValue function.
 - Issue: React error in production - `TypeError: Cannot read properties of undefined (reading 'toString')` thrown when formatValue function received undefined values. Original null check used strict equality (`value === null`) which didn't catch undefined values.
