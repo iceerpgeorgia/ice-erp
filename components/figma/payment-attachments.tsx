@@ -270,7 +270,8 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
   };
 
   const formatValue = (value: number | null, currencyUuid: string | null): string => {
-    if (value === null) return '—';
+    if (value == null) return '—'; // Checks both null and undefined
+    if (!currencyUuid) return value.toString();
     const currencyCode = getCurrencyCode(currencyUuid);
     return currencyCode ? `${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currencyCode}` : value.toString();
   };
