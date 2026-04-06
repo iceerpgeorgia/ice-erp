@@ -1,5 +1,19 @@
 ﻿# Deployment Log
 
+## 2026-04-06 (152)
+- Summary: Add document type and date fields to attachment upload.
+- Changes:
+  - Database: Added `document_date` TIMESTAMP(3) column to `attachments` table.
+  - `app/api/document-types/route.ts`: New GET endpoint to fetch all active document types for dropdown.
+  - `lib/attachments.ts`: Updated `AttachmentDto` type to include `documentDate` field; modified `getPaymentAttachments` SQL query to select `document_date`; updated `createPaymentAttachment` to accept and insert `documentDate` parameter.
+  - `app/api/payments/attachments/upload/route.ts`: Added `documentTypeUuid` and `documentDate` parameters to request body and response.
+  - `app/api/payments/attachments/confirm/route.ts`: Added `documentDate` parameter to request body and pass it to `createPaymentAttachment`.
+  - `components/figma/payment-attachments.tsx`: Added document type dropdown (Select) and date picker (Input type="date"); loads document types from API on dialog open; passes selected values to upload/confirm APIs; resets form after successful upload.
+- User Experience: When uploading documents to a payment, users can now optionally select a document type (e.g., Invoice, Receipt, Contract) and specify a document date. These fields help categorize and date-stamp attachments independently of upload timestamp.
+- Migration: `20260406200000_add_document_date_to_attachments` applied.
+- Commit: fd28171
+- Production: https://ice-2zuzpcqqh-iceerp.vercel.app
+
 ## 2026-04-06 (151)
 - Summary: Fix file upload failures with Unicode/Georgian characters in filenames.
 - Changes:
