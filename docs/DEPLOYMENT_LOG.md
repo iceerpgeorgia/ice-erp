@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-04-06 (147)
+- Summary: Properly resolve React hydration errors by removing conditional Dialog rendering.
+- Changes:
+  - `components/figma/payment-attachments.tsx`: Removed `mounted` state pattern that caused server/client HTML mismatch; Dialog component now always renders (no conditional wrapping); data fetching deferred until dialog opens via `isDialogOpen` useEffect dependency; fixed duplicate closing tags and syntax errors.
+- Notes: Previous approach conditionally rendered Dialog based on `mounted` state, causing SSR HTML to not match initial client render. New approach always renders the Dialog structure but only fetches data when actually opened, eliminating hydration mismatches while maintaining performance.
+- Commit: ca7f15f
+- Production: https://ice-h0cjiyfsp-iceerp.vercel.app
+
 ## 2026-04-06 (146)
 - Summary: Fix React hydration errors in PaymentAttachments component and improve error messages for Supabase Storage.
 - Changes:
