@@ -1,5 +1,15 @@
 ﻿# Deployment Log
 
+## 2026-04-06 (150)
+- Summary: Fix Google OAuth account linking error.
+- Changes:
+  - `lib/auth.ts`: Added `allowDangerousEmailAccountLinking: true` to GoogleProvider configuration. This allows NextAuth to automatically link Google OAuth accounts to existing email-based accounts when the email matches.
+- Issue: Users encountering "Account linking error. Please use a different sign-in method" (OAuthAccountNotLinked) when trying to sign in with Google if their email already exists in the system from a previous signup or different provider.
+- Solution: Enable automatic account linking for Google OAuth. NextAuth will now merge the Google OAuth profile with the existing user account when emails match.
+- Security Note: This is safe when combined with email verification and the existing isAuthorized check in signIn callback.
+- Commit: 200db8a
+- Production: https://ice-k8d40t38z-iceerp.vercel.app
+
 ## 2026-04-06 (149)
 - Summary: Fix React hydration errors with lazy Dialog mounting strategy.
 - Changes:
