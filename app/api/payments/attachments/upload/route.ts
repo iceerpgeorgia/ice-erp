@@ -38,12 +38,14 @@ function sanitizeFileName(fileName: string): string {
  * - documentTypeUuid: string (required)
  * - documentDate: string (required)
  * - documentNo?: string
+ * - documentValue?: number
+ * - documentCurrencyUuid?: string
  * - isPrimary?: boolean
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { paymentId, fileName, documentTypeUuid, documentDate, documentNo, isPrimary } = body;
+    const { paymentId, fileName, documentTypeUuid, documentDate, documentNo, documentValue, documentCurrencyUuid, isPrimary } = body;
 
     if (!paymentId || !fileName) {
       return NextResponse.json(
@@ -97,6 +99,8 @@ export async function POST(request: NextRequest) {
       documentTypeUuid,
       documentDate,
       documentNo,
+      documentValue,
+      documentCurrencyUuid,
       isPrimary,
     });
   } catch (error: any) {

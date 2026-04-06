@@ -335,6 +335,7 @@ model currencies {
   created_at   DateTime      @default(now())
   updated_at   DateTime      @updatedAt
   bankAccounts BankAccount[]
+  attachments  attachments[]
 }
 
 model document_types {
@@ -348,25 +349,28 @@ model document_types {
 }
 
 model attachments {
-  id                 BigInt             @id @default(autoincrement())
-  uuid               String             @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  document_type_uuid String?            @db.Uuid
-  document_date      DateTime?
-  document_no        String?
-  storage_provider   String             @default("supabase")
-  storage_bucket     String?
-  storage_path       String
-  file_name          String
-  mime_type          String?
-  file_size_bytes    BigInt?
-  file_hash_sha256   String?
-  metadata           Json?
-  uploaded_by_user_id String?
-  is_active          Boolean            @default(true)
-  created_at         DateTime           @default(now())
-  updated_at         DateTime           @updatedAt
-  document_type      document_types?    @relation(fields: [document_type_uuid], references: [uuid], onDelete: SetNull)
-  links              attachment_links[]
+  id                      BigInt             @id @default(autoincrement())
+  uuid                    String             @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_type_uuid      String?            @db.Uuid
+  document_date           DateTime?
+  document_no             String?
+  document_value          Decimal?           @db.Decimal(15, 2)
+  document_currency_uuid  String?            @db.Uuid
+  storage_provider        String             @default("supabase")
+  storage_bucket          String?
+  storage_path            String
+  file_name               String
+  mime_type               String?
+  file_size_bytes         BigInt?
+  file_hash_sha256        String?
+  metadata                Json?
+  uploaded_by_user_id     String?
+  is_active               Boolean            @default(true)
+  created_at              DateTime           @default(now())
+  updated_at              DateTime           @updatedAt
+  document_type           document_types?    @relation(fields: [document_type_uuid], references: [uuid], onDelete: SetNull)
+  document_currency       currencies?        @relation(fields: [document_currency_uuid], references: [uuid], onDelete: SetNull)
+  links                   attachment_links[]
 
   @@unique([storage_provider, storage_bucket, storage_path], map: "uq_attachments_storage_location")
   @@index([document_type_uuid], map: "idx_attachments_document_type_uuid")

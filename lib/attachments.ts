@@ -6,6 +6,8 @@ export type AttachmentDto = {
   documentTypeUuid: string | null;
   documentDate: Date | null;
   documentNo: string | null;
+  documentValue: number | null;
+  documentCurrencyUuid: string | null;
   storageProvider: string;
   storageBucket: string | null;
   storagePath: string;
@@ -52,6 +54,8 @@ export async function getPaymentAttachments(paymentId: string): Promise<Attachme
        a.document_type_uuid,
        a.document_date,
        a.document_no,
+       a.document_value,
+       a.document_currency_uuid,
        a.storage_provider,
        a.storage_bucket,
        a.storage_path,
@@ -88,6 +92,8 @@ export async function getPaymentAttachments(paymentId: string): Promise<Attachme
       documentTypeUuid: link.document_type_uuid,
       documentDate: link.document_date,
       documentNo: link.document_no,
+      documentValue: link.document_value ? parseFloat(link.document_value) : null,
+      documentCurrencyUuid: link.document_currency_uuid,
       storageProvider: link.storage_provider,
       storageBucket: link.storage_bucket,
       storagePath: link.storage_path,
@@ -117,6 +123,8 @@ export async function createPaymentAttachment(params: {
   documentTypeUuid?: string;
   documentDate?: string;
   documentNo?: string;
+  documentValue?: number;
+  documentCurrencyUuid?: string;
   userId?: string;
   metadata?: any;
   isPrimary?: boolean;
@@ -131,6 +139,8 @@ export async function createPaymentAttachment(params: {
     documentTypeUuid,
     documentDate,
     documentNo,
+    documentValue,
+    documentCurrencyUuid,
     userId,
     metadata,
     isPrimary = false,
@@ -155,6 +165,8 @@ export async function createPaymentAttachment(params: {
        document_type_uuid,
        document_date,
        document_no,
+       document_value,
+       document_currency_uuid,
        storage_provider,
        storage_bucket,
        storage_path,
@@ -171,14 +183,16 @@ export async function createPaymentAttachment(params: {
        $1::uuid,
        $2::timestamp,
        $3,
+       $4::decimal,
+       $5::uuid,
        'supabase',
-       $4,
-       $5,
        $6,
        $7,
        $8,
-       $9::jsonb,
+       $9,
        $10,
+       $11::jsonb,
+       $12,
        true,
        NOW(),
        NOW()
@@ -186,6 +200,8 @@ export async function createPaymentAttachment(params: {
     documentTypeUuid || null,
     documentDate || null,
     documentNo || null,
+    documentValue || null,
+    documentCurrencyUuid || null,
     storageBucket,
     storagePath,
     fileName,

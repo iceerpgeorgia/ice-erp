@@ -13,6 +13,8 @@ import { createPaymentAttachment } from '@/lib/attachments';
  * - documentTypeUuid: string (required)
  * - documentDate: string (required)
  * - documentNo?: string
+ * - documentValue?: number
+ * - documentCurrencyUuid?: string
  * - mimeType?: string
  * - fileSizeBytes?: number
  * - userId?: string
@@ -32,6 +34,8 @@ export async function POST(request: NextRequest) {
       documentTypeUuid,
       documentDate,
       documentNo,
+      documentValue,
+      documentCurrencyUuid,
       userId,
       metadata,
       isPrimary,
@@ -61,6 +65,8 @@ export async function POST(request: NextRequest) {
       documentTypeUuid,
       documentDate,
       documentNo,
+      documentValue,
+      documentCurrencyUuid,
       userId,
       metadata,
       isPrimary,

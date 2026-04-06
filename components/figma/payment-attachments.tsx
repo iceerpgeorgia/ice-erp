@@ -19,6 +19,8 @@ type Attachment = {
   documentTypeUuid: string | null;
   documentDate: string | null;
   documentNo: string | null;
+  documentValue: number | null;
+  documentCurrencyUuid: string | null;
   isPrimary: boolean;
   metadata: any;
   createdAt: string;
@@ -30,6 +32,12 @@ type DocumentType = {
   name: string;
 };
 
+type Currency = {
+  uuid: string;
+  code: string;
+  name: string;
+};
+
 type PaymentAttachmentsProps = {
   paymentId: string;
   onAttachmentsChange?: (count: number) => void;
@@ -38,6 +46,7 @@ type PaymentAttachmentsProps = {
 export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAttachmentsProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -46,6 +55,8 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
   const [selectedDocumentType, setSelectedDocumentType] = useState<string>('');
   const [documentDate, setDocumentDate] = useState<string>('');
   const [documentNo, setDocumentNo] = useState<string>('');
+  const [documentValue, setDocumentValue] = useState<string>('');
+  const [documentCurrency, setDocumentCurrency] = useState<string>('');
   const [dialogMounted, setDialogMounted] = useState(false);
 
   const loadAttachments = async () => {
@@ -80,6 +91,19 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
     }
   };
 
+  const loadCurrencies = async () => {
+    try {
+      const response = await fetch('/api/currencies');
+      if (!response.ok) throw new Error('Failed to load currencies');
+      
+      const data = await response.json();
+      setCurrencies(data.currencies || []);
+    } catch (error) {
+      console.error('Error loading currencies:', error);
+      setCurrencies([]);
+    }
+  };
+
   const handleOpenDialog = () => {
     setDialogMounted(true);
     setIsDialogOpen(true);
@@ -89,6 +113,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
     if (isDialogOpen && dialogMounted) {
       loadAttachments();
       loadDocumentTypes();
+      loadCurrencies();
     }
   }, [isDialogOpen, dialogMounted]);
 
@@ -124,6 +149,8 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
           documentTypeUuid: selectedDocumentType,
           documentDate: documentDate,
           documentNo: documentNo || undefined,
+          documentValue: documentValue ? parseFloat(documentValue) : undefined,
+          documentCurrencyUuid: documentCurrency || undefined,
         }),
       });
 
@@ -161,6 +188,8 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
           documentTypeUuid: selectedDocumentType,
           documentDate: documentDate,
           documentNo: documentNo || undefined,
+          documentValue: documentValue ? parseFloat(documentValue) : undefined,
+          documentCurrencyUuid: documentCurrency || undefined,
         }),
       });
 
@@ -174,6 +203,8 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
       setSelectedDocumentType('');
       setDocumentDate('');
       setDocumentNo('');
+      setDocumentValue('');
+      setDocumentCurrency('');
       setShowUploadForm(false);
     } catch (error: any) {
       console.error('Error uploading attachment:', error);
@@ -230,6 +261,18 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
     if (!uuid) return 'Unknown';
     const type = documentTypes.find(t => t.uuid === uuid);
     return type?.name || 'Unknown';
+  };
+
+  const getCurrencyCode = (uuid: string | null): string => {
+    if (!uuid) return '';
+    const currency = currencies.find(c => c.uuid === uuid);
+    return currency?.code || '';
+  };
+
+  const formatValue = (value: number | null, currencyUuid: string | null): string => {
+    if (value === null) return '—';
+    const currencyCode = getCurrencyCode(currencyUuid);
+    return currencyCode ? `${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currencyCode}` : value.toString();
   };
 
   const formatDate = (dateString: string | null): string => {
@@ -308,8 +351,9 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
               <div className="space-y-2">
                 <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs font-medium text-muted-foreground border-b">
                   <div className="col-span-2">Date</div>
-                  <div className="col-span-3">Document Type</div>
-                  <div className="col-span-3">Document No</div>
+                  <div className="col-span-2">Document Type</div>
+                  <div className="col-span-2">Document No</div>
+                  <div className="col-span-2">Value</div>
                   <div className="col-span-4 text-right">Actions</div>
                 </div>
                 {attachments.map((attachment) => (
@@ -320,11 +364,14 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
                     <div className="col-span-2 text-sm">
                       {formatDate(attachment.documentDate)}
                     </div>
-                    <div className="col-span-3 text-sm font-medium">
+                    <div className="col-span-2 text-sm font-medium">
                       {getDocumentTypeName(attachment.documentTypeUuid)}
                     </div>
-                    <div className="col-span-3 text-sm text-muted-foreground">
+                    <div className="col-span-2 text-sm text-muted-foreground">
                       {attachment.documentNo || '—'}
+                    </div>
+                    <div className="col-span-2 text-sm text-muted-foreground">
+                      {formatValue(attachment.documentValue, attachment.documentCurrencyUuid)}
                     </div>
                     <div className="col-span-4 flex items-center justify-end gap-3">
                       <button
@@ -455,6 +502,42 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
                       onChange={(e) => setDocumentNo(e.target.value)}
                       disabled={uploading}
                     />
+                  </div>
+
+                  {/* Value and Currency */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="document-value" className="text-sm">Value</Label>
+                      <Input
+                        id="document-value"
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={documentValue}
+                        onChange={(e) => setDocumentValue(e.target.value)}
+                        disabled={uploading}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="document-currency" className="text-sm">Currency</Label>
+                      <Select 
+                        value={documentCurrency} 
+                        onValueChange={setDocumentCurrency}
+                        disabled={uploading}
+                      >
+                        <SelectTrigger id="document-currency">
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {currencies.map((currency) => (
+                            <SelectItem key={currency.uuid} value={currency.uuid}>
+                              {currency.code} - {currency.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   {/* Upload Button */}
