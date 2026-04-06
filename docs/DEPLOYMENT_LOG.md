@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-04-06 (156)
+- Summary: Fix undefined value error in formatValue function.
+- Issue: React error in production - `TypeError: Cannot read properties of undefined (reading 'toString')` thrown when formatValue function received undefined values. Original null check used strict equality (`value === null`) which didn't catch undefined values.
+- Changes:
+  - `components/figma/payment-attachments.tsx`: Updated `formatValue()` function to use `== null` instead of `=== null` to check for both null and undefined; added explicit check for missing currencyUuid before calling getCurrencyCode.
+- Technical Details: JavaScript's `== null` checks for both null and undefined (loose equality), while `=== null` only checks for null (strict equality). When database returns undefined for optional columns, the strict check failed and code attempted to call `.toString()` on undefined.
+- Commit: 0626326
+- Production: https://ice-1s51dugss-iceerp.vercel.app
+
 ## 2026-04-06 (155)
 - Summary: Add optional value and currency fields to attachments.
 - Changes:
