@@ -42,6 +42,7 @@ import {
 } from './ui/dropdown-menu';
 import * as XLSX from 'xlsx';
 import { AddProjectDialog } from './add-project-dialog';
+import { PaymentAttachments } from './payment-attachments';
 
 
 type PaymentReport = {
@@ -3274,7 +3275,7 @@ export function PaymentsReportTable() {
                 })}
                 <th 
                   className="sticky top-0 bg-white px-4 py-3 text-left text-sm font-semibold border-b-2 border-gray-200"
-                  style={{ width: 80, minWidth: 80, maxWidth: 80 }}
+                  style={{ width: 100, minWidth: 100, maxWidth: 100 }}
                 >
                   Actions
                 </th>
@@ -3513,8 +3514,9 @@ export function PaymentsReportTable() {
                     </td>
                     );
                   })}
-                  <td className="px-4 py-2 text-sm" style={{ width: 80, minWidth: 80, maxWidth: 80 }}>
+                  <td className="px-4 py-2 text-sm" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>
                     <div className="flex items-center justify-center gap-1">
+                      <PaymentAttachments paymentId={row.paymentId} />
                       <button
                         onClick={() => handleOpenBaseInfo(row.paymentId)}
                         className="inline-block text-gray-600 hover:text-gray-800 hover:bg-gray-50 p-1 rounded transition-colors"

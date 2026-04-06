@@ -34,6 +34,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
+import { PaymentAttachments } from './payment-attachments';
 
 export type Payment = {
   id: number;
@@ -1370,7 +1371,7 @@ export function PaymentsTable() {
                 ))}
                 <th 
                   className="sticky top-0 bg-white px-4 py-3 text-left text-sm font-semibold border-b-2 border-gray-200"
-                  style={{ width: 100, minWidth: 100, maxWidth: 100 }}
+                  style={{ width: 150, minWidth: 150, maxWidth: 150 }}
                 >
                   Actions
                 </th>
@@ -1419,20 +1420,23 @@ export function PaymentsTable() {
                         </div>
                       </td>
                     ))}
-                    <td className="px-4 py-2 text-sm" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>
-                      {payment.isProjectDerived ? (
-                        <span className="text-xs text-muted-foreground" title="Project-derived — edit via project">
-                          Auto
-                        </span>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenEditDialog(payment)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                    <td className="px-4 py-2 text-sm" style={{ width: 150, minWidth: 150, maxWidth: 150 }}>
+                      <div className="flex items-center gap-1">
+                        <PaymentAttachments paymentId={payment.paymentId} />
+                        {payment.isProjectDerived ? (
+                          <span className="text-xs text-muted-foreground" title="Project-derived — edit via project">
+                            Auto
+                          </span>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenEditDialog(payment)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

@@ -58,7 +58,8 @@ async function main() {
       CASE WHEN ap.project_fc != fc2.code THEN 'MISMATCH' ELSE 'OK' END as "FC Match",
       CASE WHEN ap.project_currency != cur2.code THEN 'MISMATCH' ELSE 'OK' END as "Currency Match",
       CASE WHEN pay.income_tax = true THEN 'MISMATCH (true vs false)' ELSE 'OK' END as "Income Tax Match",
-      CASE WHEN pay.job_uuid IS NOT NULL THEN 'MISMATCH (has job)' ELSE 'OK' END as "Job Match"
+      CASE WHEN pay.job_uuid IS NOT NULL THEN 'MISMATCH (has job)' ELSE 'OK' END as "Job Match",
+      CASE WHEN ap.project_uuid IN (SELECT project_uuid FROM exact_matches) THEN true ELSE false END as "Has Exact Match"
     FROM auto_projects ap
     JOIN payments pay ON 
       pay.project_uuid = ap.project_uuid
@@ -66,7 +67,13 @@ async function main() {
     LEFT JOIN financial_codes fc2 ON fc2.uuid = pay.financial_code_uuid
     LEFT JOIN currencies cur2 ON cur2.uuid = pay.currency_uuid
     LEFT JOIN jobs j ON j.job_uuid = pay.job_uuid
-    WHERE ap.project_uuid NOT IN (SELECT project_uuid FROM exact_matches)
+    WHERE pay.is_active = true
+    AND (
+      pay.financial_code_uuid != ap.financial_code_uuid
+      OR pay.currency_uuid != ap.currency_uuid
+      OR pay.job_uuid IS NOT NULL
+      OR pay.income_tax = true
+    )
     ORDER BY ap.project_index, pay.payment_id
   `);
 
@@ -93,6 +100,7 @@ async function main() {
     'Currency Match': r['Currency Match'],
     'Income Tax Match': r['Income Tax Match'],
     'Job Match': r['Job Match'],
+    'Has Exact Match': r['Has Exact Match'],
   }));
 
   const wb = XLSX.utils.book_new();
@@ -121,11 +129,12 @@ async function main() {
     { wch: 15 },  // Currency Match
     { wch: 25 },  // Income Tax Match
     { wch: 20 },  // Job Match
+    { wch: 16 },  // Has Exact Match
   ];
 
   XLSX.utils.book_append_sheet(wb, ws, 'Partial Matches');
 
-  const outPath = 'exports/partial_payment_matches.xlsx';
+  const outPath = 'exports/partial_payment_matches_active.xlsx';
   XLSX.writeFile(wb, outPath);
   console.log(`Written ${excelRows.length} rows to ${outPath}`);
 
