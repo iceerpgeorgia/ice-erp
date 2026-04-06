@@ -1,5 +1,14 @@
 ﻿# Deployment Log
 
+## 2026-04-06 (149)
+- Summary: Fix React hydration errors with lazy Dialog mounting strategy.
+- Changes:
+  - `components/figma/payment-attachments.tsx`: Added `dialogMounted` state to conditionally render Dialog only after button click; replaced DialogTrigger pattern with regular Button + onClick handler; removed DialogTrigger import. Dialog now only mounts client-side when user clicks paperclip icon, eliminating pre-rendering of 4785 Dialog components (one per payment row).
+- Root Cause: With 4785 payment records in the table, rendering 4785 Dialog components simultaneously (even when closed) caused React hydration mismatches (#418, #422). The Dialog component has internal state that differs between SSR and initial client render.
+- Solution: Lazy mounting - Dialog only enters the DOM after user interaction, ensuring no SSR/hydration mismatch.
+- Commit: 5f0cec3
+- Production: https://ice-q715ireqe-iceerp.vercel.app
+
 ## 2026-04-06 (148)
 - Summary: Successful deployment of hydration fix (previous deployment #147 failed).
 - Changes: Same as #147 - properly resolve React hydration errors by removing conditional Dialog rendering.
