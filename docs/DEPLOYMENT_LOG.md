@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-04-06 (148)
+- Summary: Successful deployment of hydration fix (previous deployment #147 failed).
+- Changes: Same as #147 - properly resolve React hydration errors by removing conditional Dialog rendering.
+- Notes: Deployment #147 failed silently. This deployment (#148) successfully delivers the fix to production. PaymentAttachments component now always renders Dialog (no conditional wrapping), data fetching only occurs when dialog opens.
+- Commit: ca7f15f (same code as #147)
+- Production: https://ice-72f38vmhn-iceerp.vercel.app
+
 ## 2026-04-06 (147)
 - Summary: Properly resolve React hydration errors by removing conditional Dialog rendering.
 - Changes:
