@@ -1,0 +1,331 @@
+﻿
+> next-postgres-starter@0.1.0 build C:\next-postgres-starter
+> next build
+
+  Γû▓ Next.js 14.2.32
+  - Environments: .env.local, .env.production, .env
+
+   Creating an optimized production build ...
+node.exe : [baseline-browser-mapping] The data in this module is over two 
+months old.  To ensure accurate Baseline data, please update: `npm i 
+baseline-browser-mapping@latest -D`
+At C:\Users\User\AppData\Roaming\npm\pnpm.ps1:24 char:5
++     & "node$exe"  "$basedir/node_modules/pnpm/bin/pnpm.cjs" $args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([baseline-brows...ping@latest -D` 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Browserslist: browsers data (caniuse-lite) is 7 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: 
+https://github.com/browserslist/update-db#readme
+ Γ£ô Compiled successfully
+   Linting and checking validity of types ...
+
+./components/figma/jobs-table.tsx
+205:6  Warning: React Hook useEffect has a missing dependency: 'handleFilterChange'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/figma/payment-attachments.tsx
+90:6  Warning: React Hook useEffect has a missing dependency: 'loadAttachments'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/92) ...
+Error computing bank account balances: B [Error]: Dynamic server usage: Route 
+/api/bank-accounts/balance-check couldn't be rendered statically because it 
+used `request.cookies`. See more info here: 
+https://nextjs.org/docs/messages/dynamic-server-error
+    at V (C:\next-postgres-starter\node_modules\.pnpm\next@14.2.32_@babel+core@
+7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\compiled\next-server
+\app-route.runtime.prod.js:6:21778)
+    at Object.get (C:\next-postgres-starter\node_modules\.pnpm\next@14.2.32_@ba
+bel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\compiled\ne
+xt-server\app-route.runtime.prod.js:6:29465)
+    at u (C:\next-postgres-starter\.next\server\app\api\bank-accounts\balance-c
+heck\route.js:37:359)
+    at async E (C:\next-postgres-starter\.next\server\app\api\bank-accounts\bal
+ance-check\route.js:14:135)
+    at async C:\next-postgres-starter\node_modules\.pnpm\next@14.2.32_@babel+co
+re@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\compiled\next-ser
+ver\app-route.runtime.prod.js:6:38411
+    at async e_.execute (C:\next-postgres-starter\node_modules\.pnpm\next@14.2.
+32_@babel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\compi
+led\next-server\app-route.runtime.prod.js:6:27880)
+    at async e_.handle (C:\next-postgres-starter\node_modules\.pnpm\next@14.2.3
+2_@babel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\compil
+ed\next-server\app-route.runtime.prod.js:6:39943)
+    at async exportAppRoute (C:\next-postgres-starter\node_modules\.pnpm\next@1
+4.2.32_@babel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\e
+xport\routes\app-route.js:77:26)
+    at async exportPageImpl (C:\next-postgres-starter\node_modules\.pnpm\next@1
+4.2.32_@babel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\e
+xport\worker.js:175:20)
+    at async Span.traceAsyncFn (C:\next-postgres-starter\node_modules\.pnpm\nex
+t@14.2.32_@babel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dis
+t\trace\trace.js:154:20) {
+  description: "Route /api/bank-accounts/balance-check couldn't be rendered 
+statically because it used `request.cookies`. See more info here: 
+https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Error fetching daily balances: B [Error]: Dynamic server usage: Route 
+/api/bank-accounts/daily-balances couldn't be rendered statically because it 
+used `request.cookies`. See more info here: 
+https://nextjs.org/docs/messages/dynamic-server-error
+    at V (C:\next-postgres-starter\node_modules\.pnpm\next@14.2.32_@babel+core@
+7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\compiled\next-server
+\app-route.runtime.prod.js:6:21778)
+    at Object.get (C:\next-postgres-starter\node_modules\.pnpm\next@14.2.32_@ba
+bel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\compiled\ne
+xt-server\app-route.runtime.prod.js:6:29465)
+    at s 
+(C:\next-postgres-starter\.next\server\app\api\conversions\route.js:63:359)
+    at async _ (C:\next-postgres-starter\.next\server\app\api\bank-accounts\dai
+ly-balances\route.js:1:792)
+    at async C:\next-postgres-starter\node_modules\.pnpm\next@14.2.32_@babel+co
+re@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\compiled\next-ser
+ver\app-route.runtime.prod.js:6:38411
+    at async e_.execute (C:\next-postgres-starter\node_modules\.pnpm\next@14.2.
+32_@babel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\compi
+led\next-server\app-route.runtime.prod.js:6:27880)
+    at async e_.handle (C:\next-postgres-starter\node_modules\.pnpm\next@14.2.3
+2_@babel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\compil
+ed\next-server\app-route.runtime.prod.js:6:39943)
+    at async exportAppRoute (C:\next-postgres-starter\node_modules\.pnpm\next@1
+4.2.32_@babel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\e
+xport\routes\app-route.js:77:26)
+    at async exportPageImpl (C:\next-postgres-starter\node_modules\.pnpm\next@1
+4.2.32_@babel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\e
+xport\worker.js:175:20)
+    at async Span.traceAsyncFn (C:\next-postgres-starter\node_modules\.pnpm\nex
+t@14.2.32_@babel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dis
+t\trace\trace.js:154:20) {
+  description: "Route /api/bank-accounts/daily-balances couldn't be rendered 
+statically because it used `request.cookies`. See more info here: 
+https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+   Generating static pages (23/92) 
+Error creating download URL: B [Error]: Dynamic server usage: Route 
+/api/payments/attachments/download couldn't be rendered statically because it 
+used `request.url`. See more info here: 
+https://nextjs.org/docs/messages/dynamic-server-error
+    at V (C:\next-postgres-starter\node_modules\.pnpm\next@14.2.32_@babel+core@
+7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\compiled\next-server
+\app-route.runtime.prod.js:6:21778)
+    at Object.get (C:\next-postgres-starter\node_modules\.pnpm\next@14.2.32_@ba
+bel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\compiled\ne
+xt-server\app-route.runtime.prod.js:6:29465)
+    at o (C:\next-postgres-starter\.next\server\app\api\payments\attachments\do
+wnload\route.js:1:831)
+    at C:\next-postgres-starter\node_modules\.pnpm\next@14.2.32_@babel+core@7._
+310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\compiled\next-server\ap
+p-route.runtime.prod.js:6:38417
+    at C:\next-postgres-starter\node_modules\.pnpm\next@14.2.32_@babel+core@7._
+310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\server\lib\trace\tracer
+.js:140:36
+    at NoopContextManager.with (C:\next-postgres-starter\node_modules\.pnpm\nex
+t@14.2.32_@babel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dis
+t\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\next-postgres-starter\node_modules\.pnpm\next@14.2.3
+2_@babel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\compil
+ed\@opentelemetry\api\index.js:1:518)
+    at NoopTracer.startActiveSpan (C:\next-postgres-starter\node_modules\.pnpm\
+next@14.2.32_@babel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next\
+dist\compiled\@opentelemetry\api\index.js:1:18093)
+    at ProxyTracer.startActiveSpan (C:\next-postgres-starter\node_modules\.pnpm
+\next@14.2.32_@babel+core@7._310448d09a057e39bcb5d5a86807fb63\node_modules\next
+\dist\compiled\@opentelemetry\api\index.js:1:18854)
+    at C:\next-postgres-starter\node_modules\.pnpm\next@14.2.32_@babel+core@7._
+310448d09a057e39bcb5d5a86807fb63\node_modules\next\dist\server\lib\trace\tracer
+.js:122:103 {
+  description: "Route /api/payments/attachments/download couldn't be rendered 
+statically because it used `request.url`. See more info here: 
+https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+   Generating static pages (46/92) 
+ParsingSchemeRulesTable: selectedRules size = 0 sortedRules length = 0
+Checkbox component: [Function: i]
+handleToggleAll function: [Function: tm]
+   Generating static pages (69/92) 
+ Γ£ô Generating static pages (92/92)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                           Size     First Load JS
+Γöî Γùï /                                                 1.45 kB         107 kB
+Γö£ Γùï /_not-found                                       876 B          88.4 kB
+Γö£ Γùï /admin/financial-codes                            5.05 kB         231 kB
+Γö£ Γùï /admin/projects                                   2.93 kB        99.8 kB
+Γö£ ╞Æ /admin/users                                      6.05 kB         278 kB
+Γö£ ╞Æ /api/adjustments                                  0 B                0 B
+Γö£ ╞Æ /api/adjustments/preview-nominal                  0 B                0 B
+Γö£ ╞Æ /api/admin/backparse                              0 B                0 B
+Γö£ ╞Æ /api/audit                                        0 B                0 B
+Γö£ ╞Æ /api/auth/[...nextauth]                           0 B                0 B
+Γö£ ╞Æ /api/bank-accounts                                0 B                0 B
+Γö£ ╞Æ /api/bank-accounts/[uuid]                         0 B                0 B
+Γö£ ╞Æ /api/bank-accounts/balance-check                  0 B                0 B
+Γö£ ╞Æ /api/bank-accounts/daily-balances                 0 B                0 B
+Γö£ ╞Æ /api/bank-transaction-batches                     0 B                0 B
+Γö£ ╞Æ /api/bank-transactions                            0 B                0 B
+Γö£ ╞Æ /api/bank-transactions-test                       0 B                0 B
+Γö£ ╞Æ /api/bank-transactions-test/upload                0 B                0 B
+Γö£ ╞Æ /api/bank-transactions/[id]                       0 B                0 B
+Γö£ ╞Æ /api/bank-transactions/[id]/payment-options       0 B                0 B
+Γö£ ╞Æ /api/bank-transactions/backparse                  0 B                0 B
+Γö£ ╞Æ /api/bank-transactions/backparse-preview          0 B                0 B
+Γö£ ╞Æ /api/bank-transactions/backparse-selected         0 B                0 B
+Γö£ ╞Æ /api/bank-transactions/bulk-bind                  0 B                0 B
+Γö£ ╞Æ /api/bank-transactions/import-xlsx                0 B                0 B
+Γö£ ╞Æ /api/bank-transactions/parsing-lock               0 B                0 B
+Γö£ ╞Æ /api/bank-transactions/parsing-lock/[id]          0 B                0 B
+Γö£ ╞Æ /api/bank-transactions/raw-record/[uuid]          0 B                0 B
+Γö£ ╞Æ /api/bank-transactions/reparse                    0 B                0 B
+Γö£ ╞Æ /api/bank-transactions/upload                     0 B                0 B
+Γö£ ╞Æ /api/banks                                        0 B                0 B
+Γö£ ╞Æ /api/banks/[uuid]                                 0 B                0 B
+Γö£ ╞Æ /api/blob/upload                                  0 B                0 B
+Γö£ ╞Æ /api/brands                                       0 B                0 B
+Γö£ ╞Æ /api/clear-sessions                               0 B                0 B
+Γö£ ╞Æ /api/conversions                                  0 B                0 B
+Γö£ ╞Æ /api/counteragent-statement                       0 B                0 B
+Γö£ ╞Æ /api/counteragents                                0 B                0 B
+Γö£ ╞Æ /api/countries                                    0 B                0 B
+Γö£ ╞Æ /api/countries/export                             0 B                0 B
+Γö£ ╞Æ /api/cron/bog-import-last-3-days                  0 B                0 B
+Γö£ ╞Æ /api/cron/cash-based-monthly-accruals             0 B                0 B
+Γö£ ╞Æ /api/cron/sync-nbg-rates                          0 B                0 B
+Γö£ ╞Æ /api/cron/sync-to-sheets                          0 B                0 B
+Γö£ ╞Æ /api/cron/update-nbg-rates                        0 B                0 B
+Γö£ ╞Æ /api/currencies                                   0 B                0 B
+Γö£ ╞Æ /api/debug-session                                0 B                0 B
+Γö£ ╞Æ /api/designs/[slug]                               0 B                0 B
+Γö£ ╞Æ /api/dimensions                                   0 B                0 B
+Γö£ Γùï /api/document-types                               0 B                0 B
+Γö£ ╞Æ /api/entity-types                                 0 B                0 B
+Γö£ ╞Æ /api/entries                                      0 B                0 B
+Γö£ ╞Æ /api/exchange-rates                               0 B                0 B
+Γö£ ╞Æ /api/exchange-rates/sync-sheets                   0 B                0 B
+Γö£ ╞Æ /api/exchange-rates/update                        0 B                0 B
+Γö£ ╞Æ /api/financial-codes                              0 B                0 B
+Γö£ ╞Æ /api/financial-codes/tree                         0 B                0 B
+Γö£ ╞Æ /api/insider-selection                            0 B                0 B
+Γö£ ╞Æ /api/integrations/bog/statements                  0 B                0 B
+Γö£ ╞Æ /api/integrations/bog/test                        0 B                0 B
+Γö£ ╞Æ /api/integrations/openclaw/command                0 B                0 B
+Γö£ ╞Æ /api/integrations/signify/send                    0 B                0 B
+Γö£ ╞Æ /api/integrations/supabase/health                 0 B                0 B
+Γö£ ╞Æ /api/integrations/tbc-id/authorize-url            0 B                0 B
+Γö£ ╞Æ /api/integrations/tbc-id/status                   0 B                0 B
+Γö£ ╞Æ /api/integrations/tbc-id/token                    0 B                0 B
+Γö£ ╞Æ /api/integrations/tbc-id/userinfo                 0 B                0 B
+Γö£ ╞Æ /api/integrations/whatsapp/webhook                0 B                0 B
+Γö£ ╞Æ /api/inventories                                  0 B                0 B
+Γö£ ╞Æ /api/inventory-groups                             0 B                0 B
+Γö£ ╞Æ /api/job-projects                                 0 B                0 B
+Γö£ ╞Æ /api/jobs                                         0 B                0 B
+Γö£ ╞Æ /api/missing-counteragents                        0 B                0 B
+Γö£ ╞Æ /api/parsing-scheme-columns                       0 B                0 B
+Γö£ ╞Æ /api/parsing-scheme-rules                         0 B                0 B
+Γö£ ╞Æ /api/parsing-scheme-rules/[id]                    0 B                0 B
+Γö£ ╞Æ /api/parsing-scheme-rules/batch-run               0 B                0 B
+Γö£ ╞Æ /api/parsing-scheme-rules/test-rule               0 B                0 B
+Γö£ ╞Æ /api/parsing-scheme-rules/toggle-active/[id]      0 B                0 B
+Γö£ ╞Æ /api/parsing-schemes                              0 B                0 B
+Γö£ ╞Æ /api/payment-id-options                           0 B                0 B
+Γö£ ╞Æ /api/payment-redistribution                       0 B                0 B
+Γö£ ╞Æ /api/payment-redistribution/apply                 0 B                0 B
+Γö£ ╞Æ /api/payment-redistribution/fifo                  0 B                0 B
+Γö£ ╞Æ /api/payment-redistribution/fifo/apply            0 B                0 B
+Γö£ ╞Æ /api/payment-redistribution/optimize              0 B                0 B
+Γö£ ╞Æ /api/payment-statement                            0 B                0 B
+Γö£ ╞Æ /api/payments                                     0 B                0 B
+Γö£ ╞Æ /api/payments-ledger                              0 B                0 B
+Γö£ ╞Æ /api/payments-ledger/[id]                         0 B                0 B
+Γö£ ╞Æ /api/payments-ledger/bulk                         0 B                0 B
+Γö£ ╞Æ /api/payments-ledger/confirm                      0 B                0 B
+Γö£ ╞Æ /api/payments-ledger/deconfirm                    0 B                0 B
+Γö£ ╞Æ /api/payments-report                              0 B                0 B
+Γö£ ╞Æ /api/payments/[counteragentUuid]/payment-options  0 B                0 B
+Γö£ ╞Æ /api/payments/attachments                         0 B                0 B
+Γö£ ╞Æ /api/payments/attachments/confirm                 0 B                0 B
+Γö£ ╞Æ /api/payments/attachments/delete                  0 B                0 B
+Γö£ ╞Æ /api/payments/attachments/download                0 B                0 B
+Γö£ ╞Æ /api/payments/attachments/upload                  0 B                0 B
+Γö£ ╞Æ /api/payments/check-duplicates                    0 B                0 B
+Γö£ ╞Æ /api/project-states                               0 B                0 B
+Γö£ ╞Æ /api/projects                                     0 B                0 B
+Γö£ ╞Æ /api/projects-v2                                  0 B                0 B
+Γö£ ╞Æ /api/projects/[id]                                0 B                0 B
+Γö£ ╞Æ /api/projects/import                              0 B                0 B
+Γö£ ╞Æ /api/raw-bog-gel-records                          0 B                0 B
+Γö£ ╞Æ /api/required-insider                             0 B                0 B
+Γö£ ╞Æ /api/salary-accruals                              0 B                0 B
+Γö£ ╞Æ /api/salary-accruals/upload-period                0 B                0 B
+Γö£ ╞Æ /api/salary-accruals/upload-self-ge               0 B                0 B
+Γö£ ╞Æ /api/salary-accruals/upload-tbc-insurance         0 B                0 B
+Γö£ ╞Æ /api/salary-report                                0 B                0 B
+Γö£ ╞Æ /api/services-report                              0 B                0 B
+Γö£ ╞Æ /api/storage/upload-url                           0 B                0 B
+Γö£ ╞Æ /api/test-env                                     0 B                0 B
+Γö£ ╞Æ /api/users                                        0 B                0 B
+Γö£ ╞Æ /api/validate-parsing-formula                     0 B                0 B
+Γö£ ╞Æ /api/waybill-items                                0 B                0 B
+Γö£ ╞Æ /api/waybills                                     0 B                0 B
+Γö£ ╞Æ /api/waybills/bulk                                0 B                0 B
+Γö£ ╞Æ /api/waybills/import                              0 B                0 B
+Γö£ Γùï /auth/error                                       1.66 kB        97.9 kB
+Γö£ Γùï /auth/signin                                      1.54 kB        98.8 kB
+Γö£ Γùï /auth/unauthorized                                168 B          87.7 kB
+Γö£ Γùï /bank-transaction-batches                         4.29 kB         138 kB
+Γö£ Γùï /bank-transactions/missing-counteragents          7.55 kB         143 kB
+Γö£ ╞Æ /counteragent-statement/[counteragentUuid]        11.7 kB         325 kB
+Γö£ ╞Æ /dictionaries                                     182 B          96.4 kB
+Γö£ Γùï /dictionaries/bank-accounts                       10.6 kB         291 kB
+Γö£ Γùï /dictionaries/bank-transactions                   3.61 kB        99.8 kB
+Γö£ Γùï /dictionaries/bank-transactions-test              4.39 kB        91.9 kB
+Γö£ Γùï /dictionaries/banks                               6.38 kB         254 kB
+Γö£ ╞Æ /dictionaries/conversions                         8.14 kB         130 kB
+Γö£ Γùï /dictionaries/counteragents                       2.35 kB        89.9 kB
+Γö£ ╞Æ /dictionaries/counteragents/[id]                  3.07 kB        90.6 kB
+Γö£ ╞Æ /dictionaries/counteragents/api                   0 B                0 B
+Γö£ ╞Æ /dictionaries/counteragents/new                   2.02 kB        89.6 kB
+Γö£ Γùï /dictionaries/countries                           13.8 kB         139 kB
+Γö£ ╞Æ /dictionaries/countries/[id]/edit                 393 B          96.6 kB
+Γö£ ╞Æ /dictionaries/countries/new                       182 B          96.4 kB
+Γö£ Γùï /dictionaries/currencies                          6.99 kB         254 kB
+Γö£ Γùï /dictionaries/dimensions                          4.34 kB         252 kB
+Γö£ Γùï /dictionaries/entity-types                        13.2 kB         138 kB
+Γö£ ╞Æ /dictionaries/entity-types/[id]/edit              393 B          96.6 kB
+Γö£ ╞Æ /dictionaries/entity-types/api                    0 B                0 B
+Γö£ Γùï /dictionaries/inventories                         6.74 kB         254 kB
+Γö£ Γùï /dictionaries/inventory-groups                    4.53 kB         252 kB
+Γö£ Γùï /dictionaries/jobs                                11.9 kB         293 kB
+Γö£ Γùï /dictionaries/nbg-rates                           8.1 kB          255 kB
+Γö£ Γùï /dictionaries/parsing-scheme-rules                13.2 kB         294 kB
+Γö£ Γùï /dictionaries/payment-redistribution              9.31 kB         135 kB
+Γö£ Γùï /dictionaries/payments                            14.4 kB         297 kB
+Γö£ Γùï /dictionaries/payments-ledger                     10.3 kB         280 kB
+Γö£ Γùï /dictionaries/payments-report                     19.7 kB         318 kB
+Γö£ Γùï /dictionaries/projects                            2.92 kB        99.8 kB
+Γö£ Γùï /dictionaries/salary-accruals                     21.1 kB         300 kB
+Γö£ Γùï /dictionaries/services-report                     13 kB           298 kB
+Γö£ Γùï /dictionaries/waybill-items                       5.37 kB         253 kB
+Γö£ ╞Æ /dictionaries/waybills                            30.3 kB         300 kB
+Γö£ ╞Æ /payment-statement/[paymentId]                    12.6 kB         322 kB
+Γö£ ╞Æ /salary-report/[counteragentUuid]                 8.17 kB         234 kB
+Γöö Γùï /voice                                            1.99 kB        89.5 kB
++ First Load JS shared by all                         87.6 kB
+  Γö£ chunks/2545-682d0a06352b6d7f.js                   31.6 kB
+  Γö£ chunks/85d49c90-c47003e5cade22ae.js               53.6 kB
+  Γöö other shared chunks (total)                       2.33 kB
+
+
+╞Æ Middleware                                          49.5 kB
+
+Γùï  (Static)   prerendered as static content
+╞Æ  (Dynamic)  server-rendered on demand
+

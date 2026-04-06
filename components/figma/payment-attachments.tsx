@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Attachment = {
   linkUuid: string;
@@ -16,10 +17,16 @@ type Attachment = {
   storageBucket: string | null;
   storagePath: string;
   documentTypeUuid: string | null;
+  documentDate: string | null;
   isPrimary: boolean;
   metadata: any;
   createdAt: string;
   updatedAt: string;
+};
+
+type DocumentType = {
+  uuid: string;
+  name: string;
 };
 
 type PaymentAttachmentsProps = {
@@ -29,10 +36,13 @@ type PaymentAttachmentsProps = {
 
 export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAttachmentsProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedDocumentType, setSelectedDocumentType] = useState<string>('');
+  const [documentDate, setDocumentDate] = useState<string>('');
   const [dialogMounted, setDialogMounted] = useState(false);
 
   const loadAttachments = async () => {
@@ -54,6 +64,19 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
     }
   };
 
+  const loadDocumentTypes = async () => {
+    try {
+      const response = await fetch('/api/document-types');
+      if (!response.ok) throw new Error('Failed to load document types');
+      
+      const data = await response.json();
+      setDocumentTypes(data.documentTypes || []);
+    } catch (error) {
+      console.error('Error loading document types:', error);
+      setDocumentTypes([]);
+    }
+  };
+
   const handleOpenDialog = () => {
     setDialogMounted(true);
     setIsDialogOpen(true);
@@ -62,6 +85,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
   useEffect(() => {
     if (isDialogOpen && dialogMounted) {
       loadAttachments();
+      loadDocumentTypes();
     }
   }, [isDialogOpen, dialogMounted]);
 
@@ -83,6 +107,8 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
         body: JSON.stringify({
           paymentId,
           fileName: selectedFile.name,
+          documentTypeUuid: selectedDocumentType || undefined,
+          documentDate: documentDate || undefined,
         }),
       });
 
@@ -117,6 +143,8 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
           fileName: selectedFile.name,
           mimeType: selectedFile.type,
           fileSizeBytes: selectedFile.size,
+          documentTypeUuid: selectedDocumentType || undefined,
+          documentDate: documentDate || undefined,
         }),
       });
 
@@ -124,10 +152,11 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
         throw new Error('Failed to confirm upload');
       }
 
-      // Success - reload attachments
+      // Success - reload attachments and reset form
       await loadAttachments();
       setSelectedFile(null);
-      setIsDialogOpen(false);
+      setSelectedDocumentType('');
+      setDocumentDate('');
     } catch (error: any) {
       console.error('Error uploading attachment:', error);
       alert(error?.message || 'Failed to upload attachment');
@@ -211,28 +240,64 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
               <Label htmlFor="file-upload" className="text-sm font-medium">
                 Upload New Attachment
               </Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="file-upload"
-                  type="file"
-                  onChange={handleFileSelect}
-                  disabled={uploading}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={handleUpload}
-                  disabled={!selectedFile || uploading}
-                  size="sm"
-                >
-                  <Upload className="h-4 w-4 mr-1" />
-                  {uploading ? 'Uploading...' : 'Upload'}
-                </Button>
-              </div>
-              {selectedFile && (
-                <div className="text-xs text-muted-foreground">
-                  Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="file-upload"
+                    type="file"
+                    onChange={handleFileSelect}
+                    disabled={uploading}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={handleUpload}
+                    disabled={!selectedFile || uploading}
+                    size="sm"
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    {uploading ? 'Uploading...' : 'Upload'}
+                  </Button>
                 </div>
-              )}
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="document-type" className="text-sm">Document Type</Label>
+                    <Select 
+                      value={selectedDocumentType} 
+                      onValueChange={setSelectedDocumentType}
+                      disabled={uploading}
+                    >
+                      <SelectTrigger id="document-type">
+                        <SelectValue placeholder="Select type (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {documentTypes.map((type) => (
+                          <SelectItem key={type.uuid} value={type.uuid}>
+                            {type.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="document-date" className="text-sm">Document Date</Label>
+                    <Input
+                      id="document-date"
+                      type="date"
+                      value={documentDate}
+                      onChange={(e) => setDocumentDate(e.target.value)}
+                      disabled={uploading}
+                    />
+                  </div>
+                </div>
+                
+                {selectedFile && (
+                  <div className="text-xs text-muted-foreground">
+                    Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Attachments List */}

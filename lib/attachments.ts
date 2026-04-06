@@ -4,6 +4,7 @@ import { getSupabaseServer } from '@/lib/supabase';
 export type AttachmentDto = {
   uuid: string;
   documentTypeUuid: string | null;
+  documentDate: Date | null;
   storageProvider: string;
   storageBucket: string | null;
   storagePath: string;
@@ -48,6 +49,7 @@ export async function getPaymentAttachments(paymentId: string): Promise<Attachme
        al.updated_at,
        a.uuid as attachment_uuid,
        a.document_type_uuid,
+       a.document_date,
        a.storage_provider,
        a.storage_bucket,
        a.storage_path,
@@ -82,6 +84,7 @@ export async function getPaymentAttachments(paymentId: string): Promise<Attachme
     attachment: {
       uuid: link.attachment_uuid,
       documentTypeUuid: link.document_type_uuid,
+      documentDate: link.document_date,
       storageProvider: link.storage_provider,
       storageBucket: link.storage_bucket,
       storagePath: link.storage_path,
@@ -109,6 +112,7 @@ export async function createPaymentAttachment(params: {
   mimeType?: string;
   fileSizeBytes?: number;
   documentTypeUuid?: string;
+  documentDate?: string;
   userId?: string;
   metadata?: any;
   isPrimary?: boolean;
@@ -121,6 +125,7 @@ export async function createPaymentAttachment(params: {
     mimeType,
     fileSizeBytes,
     documentTypeUuid,
+    documentDate,
     userId,
     metadata,
     isPrimary = false,
@@ -143,6 +148,7 @@ export async function createPaymentAttachment(params: {
     `INSERT INTO attachments (
        uuid,
        document_type_uuid,
+       document_date,
        storage_provider,
        storage_bucket,
        storage_path,
@@ -157,19 +163,21 @@ export async function createPaymentAttachment(params: {
      ) VALUES (
        gen_random_uuid(),
        $1::uuid,
+       $2::timestamp,
        'supabase',
-       $2,
        $3,
        $4,
        $5,
        $6,
-       $7::jsonb,
-       $8,
+       $7,
+       $8::jsonb,
+       $9,
        true,
        NOW(),
        NOW()
      ) RETURNING uuid`,
     documentTypeUuid || null,
+    documentDate || null,
     storageBucket,
     storagePath,
     fileName,

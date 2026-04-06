@@ -41,7 +41,7 @@ function sanitizeFileName(fileName: string): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { paymentId, fileName, documentTypeUuid, isPrimary } = body;
+    const { paymentId, fileName, documentTypeUuid, documentDate, isPrimary } = body;
 
     if (!paymentId || !fileName) {
       return NextResponse.json(
@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
       fileName, // Original filename for display
       sanitizedFileName, // Safe filename used in storage
       documentTypeUuid,
+      documentDate,
       isPrimary,
     });
   } catch (error: any) {
