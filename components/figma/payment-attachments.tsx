@@ -59,6 +59,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
   const [documentCurrency, setDocumentCurrency] = useState<string>('');
   const [dialogMounted, setDialogMounted] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [editingAttachment, setEditingAttachment] = useState<Attachment | null>(null);
 
   // Load initial count on mount
   useEffect(() => {
@@ -332,6 +333,70 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
     }
   };
 
+  const handleEdit = (attachment: Attachment) => {
+    setEditingAttachment(attachment);
+    setSelectedDocumentType(attachment.documentTypeUuid || '');
+    setDocumentDate(attachment.documentDate ? new Date(attachment.documentDate).toISOString().split('T')[0] : '');
+    setDocumentNo(attachment.documentNo || '');
+    setDocumentValue(attachment.documentValue?.toString() || '');
+    setDocumentCurrency(attachment.documentCurrencyUuid || '');
+    setShowUploadForm(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingAttachment(null);
+    setSelectedFile(null);
+    setSelectedDocumentType('');
+    setDocumentDate('');
+    setDocumentNo('');
+    setDocumentValue('');
+    setDocumentCurrency('');
+    setShowUploadForm(false);
+  };
+
+  const handleUpdateAttachment = async () => {
+    if (!editingAttachment) return;
+
+    if (!selectedDocumentType) {
+      alert('Please select a document type');
+      return;
+    }
+
+    if (!documentDate) {
+      alert('Please select a document date');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const response = await fetch('/api/payments/attachments/update', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          attachmentUuid: editingAttachment.attachmentUuid,
+          documentTypeUuid: selectedDocumentType,
+          documentDate: documentDate,
+          documentNo: documentNo || null,
+          documentValue: documentValue ? parseFloat(documentValue) : null,
+          documentCurrencyUuid: documentCurrency || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update attachment');
+      }
+
+      await loadAttachments();
+      handleCancelEdit();
+    } catch (error) {
+      console.error('Error updating attachment:', error);
+      alert(`Failed to update attachment: ${error}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return 'Unknown size';
     if (bytes < 1024) return `${bytes} B`;
@@ -359,7 +424,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
       
       {dialogMounted && (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Attachments for {paymentId}</DialogTitle>
             <DialogDescription>
@@ -414,6 +479,12 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
                       >
                         Download
                       </button>
+                      <button
+                        onClick={() => handleEdit(attachment)}
+                        className="text-sm text-primary hover:underline font-medium"
+                      >
+                        Edit
+                      </button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -441,21 +512,17 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
               </Button>
             )}
 
-            {/* Upload Form (shown when Add Attachment is clicked) */}
+            {/* Upload/Edit Form (shown when Add Attachment or Edit is clicked) */}
             {showUploadForm && (
               <div className="border rounded-lg p-4 space-y-4 bg-accent/20">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">New Attachment</Label>
+                  <Label className="text-sm font-medium">
+                    {editingAttachment ? 'Edit Attachment' : 'New Attachment'}
+                  </Label>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      setShowUploadForm(false);
-                      setSelectedFile(null);
-                      setSelectedDocumentType('');
-                      setDocumentDate('');
-                      setDocumentNo('');
-                    }}
+                    onClick={handleCancelEdit}
                     className="h-6 w-6 p-0"
                   >
                     <X className="h-4 w-4" />
@@ -463,23 +530,35 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
                 </div>
 
                 <div className="space-y-3">
-                  {/* File Upload */}
-                  <div className="space-y-2">
-                    <Label htmlFor="file-upload" className="text-sm">
-                      File <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="file-upload"
-                      type="file"
-                      onChange={handleFileSelect}
-                      disabled={uploading}
-                    />
-                    {selectedFile && (
-                      <div className="text-xs text-muted-foreground">
-                        {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                  {/* File Upload (only show when adding new) */}
+                  {!editingAttachment && (
+                    <div className="space-y-2">
+                      <Label htmlFor="file-upload" className="text-sm">
+                        File <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="file-upload"
+                        type="file"
+                        onChange={handleFileSelect}
+                        disabled={uploading}
+                      />
+                      {selectedFile && (
+                        <div className="text-xs text-muted-foreground">
+                          {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Show current file name when editing */}
+                  {editingAttachment && (
+                    <div className="space-y-2">
+                      <Label className="text-sm">File</Label>
+                      <div className="text-sm text-muted-foreground p-2 border rounded bg-muted/30">
+                        {editingAttachment.fileName}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   {/* Document Type and Date */}
                   <div className="grid grid-cols-2 gap-3">
@@ -568,14 +647,21 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
                     </div>
                   </div>
 
-                  {/* Upload Button */}
+                  {/* Upload/Update Button */}
                   <Button
-                    onClick={handleUpload}
-                    disabled={!selectedFile || !selectedDocumentType || !documentDate || uploading}
+                    onClick={editingAttachment ? handleUpdateAttachment : handleUpload}
+                    disabled={
+                      editingAttachment 
+                        ? (!selectedDocumentType || !documentDate || uploading)
+                        : (!selectedFile || !selectedDocumentType || !documentDate || uploading)
+                    }
                     className="w-full"
                   >
                     <Upload className="h-4 w-4 mr-2" />
-                    {uploading ? 'Uploading...' : 'Upload Attachment'}
+                    {uploading 
+                      ? (editingAttachment ? 'Updating...' : 'Uploading...') 
+                      : (editingAttachment ? 'Update Attachment' : 'Upload Attachment')
+                    }
                   </Button>
                 </div>
               </div>
