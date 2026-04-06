@@ -3,6 +3,32 @@ import { getSupabaseServer } from '@/lib/supabase';
 import { createPaymentAttachment } from '@/lib/attachments';
 
 /**
+ * Sanitize filename for safe storage path
+ * - Removes/replaces special characters
+ * - Keeps only ASCII alphanumeric, dots, dashes, underscores
+ * - Preserves file extension
+ */
+function sanitizeFileName(fileName: string): string {
+  // Extract extension
+  const lastDot = fileName.lastIndexOf('.');
+  const name = lastDot > 0 ? fileName.slice(0, lastDot) : fileName;
+  const ext = lastDot > 0 ? fileName.slice(lastDot) : '';
+  
+  // Replace spaces and special chars with dash, remove Unicode, keep only safe chars
+  const safeName = name
+    .replace(/\s+/g, '-')           // Replace spaces with dashes
+    .replace(/[^\w.-]/g, '')        // Remove non-ASCII and special chars
+    .replace(/--+/g, '-')           // Replace multiple dashes with single
+    .replace(/^-+|-+$/g, '')        // Trim dashes from start/end
+    .slice(0, 100);                 // Limit length
+  
+  // Use timestamp if name becomes empty after sanitization
+  const finalName = safeName || `file-${Date.now()}`;
+  
+  return finalName + ext.toLowerCase();
+}
+
+/**
  * POST /api/payments/attachments/upload
  * Upload an attachment for a payment
  * 
@@ -26,7 +52,10 @@ export async function POST(request: NextRequest) {
 
     const bucket = 'payment-attachments';
     const fileSuffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const storagePath = `${paymentId}/${fileSuffix}-${fileName}`;
+    
+    // Sanitize filename for storage path (ASCII-safe)
+    const sanitizedFileName = sanitizeFileName(fileName);
+    const storagePath = `${paymentId}/${fileSuffix}-${sanitizedFileName}`;
 
     const supabase = getSupabaseServer();
     
@@ -54,7 +83,8 @@ export async function POST(request: NextRequest) {
       path: data.path || storagePath,
       bucket,
       paymentId,
-      fileName,
+      fileName, // Original filename for display
+      sanitizedFileName, // Safe filename used in storage
       documentTypeUuid,
       isPrimary,
     });
