@@ -1,5 +1,20 @@
 ﻿# Deployment Log
 
+## 2026-04-07 (160)
+- Summary: Widen attachment dialog and add separate currency column to improve readability.
+- Issue: User requested dialog to be 2.5x wider to fit all information on one line, and wanted currency visible as a separate column instead of combined with value.
+- Changes:
+  - `components/figma/payment-attachments.tsx`:
+    * Changed dialog width from `max-w-6xl` to `max-w-7xl` (approximately 2.5x wider than original max-w-3xl)
+    * Added separate "Currency" column to attachments table
+    * Split the Value column to show only numeric value (formatted with commas and 2 decimals)
+    * Added Currency column showing currency code (USD, GEL, etc.)
+    * Adjusted grid layout: Date(2) + Type(2) + No(2) + Value(2) + Currency(1) + Actions(3) = 12 columns
+- User Experience: Attachment list now displays all information clearly on one line with more breathing room. Value and currency are separate columns for better readability.
+- Technical Details: Dialog widened to max-w-7xl. Currency column uses existing `getCurrencyCode()` helper. Value column now uses direct formatting instead of `formatValue()` which previously combined value and currency.
+- Commit: 5636989
+- Production: https://ice-ceto4yca0-iceerp.vercel.app
+
 ## 2026-04-07 (159)
 - Summary: Fix document types and currencies dropdowns population + create seed data.
 - Issue: Document type and currency dropdowns were empty in attachment add/edit forms. Two problems: (1) Currencies API returned `{ data: [...] }` but component expected `{ currencies: [...] }`, (2) No document types existed in database.
