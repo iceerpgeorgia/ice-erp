@@ -1,5 +1,33 @@
 ﻿# Deployment Log
 
+## 2026-04-07 (165)
+- Summary: Add project delete button and fix salary Bank.xlsx export exchange rate lookup.
+- Issues:
+  1. Users could not delete projects from the UI (delete endpoint and DB triggers already existed but no UI button)
+  2. Salary accruals Bank.xlsx export was throwing "Exchange rate not available" error even when rates existed in database
+- Changes:
+  - `components/figma/projects-table.tsx`:
+    * Added `Trash2` icon import
+    * Implemented `deleteProject()` async function that calls `DELETE /api/projects/[id]` endpoint
+    * Added delete button (red Trash2 icon) to Actions column with confirmation dialog
+    * Shows detailed blocking reasons if deletion fails (ledger entries, adjustments, bank transactions)
+    * Increased Actions column width from 128px to 160px to accommodate 4 buttons
+  - `components/figma/salary-accruals-table.tsx`:
+    * Fixed `handleDownloadBankXlsx` to use salary month date instead of today's date for exchange rate lookup
+    * Replaced `getTbilisiToday()` with `parseSalaryMonthDate()` that extracts date from `record.salary_month`
+    * Fixed currency code case mismatch: API returns lowercase fields (`usd`, `eur`) but code was using uppercase
+    * Updated `fetchExchangeRate()` to convert currency to lowercase before accessing rate
+    * Improved error message to show which currency and date failed
+- User Experience:
+  1. Projects table now has delete button; shows confirmation dialog and clear error messages if deletion is blocked by constraints
+  2. Bank.xlsx export now correctly looks up exchange rates for each salary's actual month (e.g., March 2026 salaries use March rates)
+- Technical Details:
+  1. Database triggers already existed (`trigger_prevent_project_delete_with_transactions`) to block deletion if project has payments with ledger/adjustments/bank transactions
+  2. Root cause of exchange rate error: code was using `getTbilisiToday()` for all records instead of each record's `salary_month` date
+  3. Secondary issue: NBG API returns `{ usd: 2.67, eur: 2.89 }` (lowercase) but code tried `rateRow[currency]` with uppercase `"USD"`
+- Commit: ef6a119
+- Production: https://ice-i3ux526v9-iceerp.vercel.app
+
 ## 2026-04-07 (164)
 - Summary: Add "No Payment (Clear)" option to counteragent statement bulk edit payment selection.
 - Issue: In counteragent statement bulk edit dialog, users could not clear/remove payment assignments from selected bank transactions—only assign/change them.
