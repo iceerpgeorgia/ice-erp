@@ -428,7 +428,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
       
       {dialogMounted && (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-[95vw] max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] w-[95vw] max-h-[80vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Attachments for {paymentId}</DialogTitle>
             <DialogDescription>
@@ -436,8 +436,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {/* Attachments List */}
+          <div className="space-y-4 overflow-x-auto overflow-y-auto max-h-[calc(80vh-120px)]">{/* Attachments List */}
             {loading ? (
               <div className="text-sm text-muted-foreground py-8 text-center">Loading...</div>
             ) : attachments.length === 0 ? (
@@ -445,7 +444,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
                 No attachments yet. Click "Add Attachment" to upload a document.
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-[900px]">
                 <div className="grid grid-cols-[130px_150px_150px_180px_80px_1fr] gap-3 px-3 py-2 text-xs font-medium text-muted-foreground border-b">
                   <div>Date</div>
                   <div>Document Type</div>
