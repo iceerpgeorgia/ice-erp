@@ -1,5 +1,20 @@
 ﻿# Deployment Log
 
+## 2026-04-07 (161)
+- Summary: Expand attachment dialog to near full-screen width with fixed column widths to prevent text truncation.
+- Issue: Dialog at max-w-7xl was still too narrow, causing value and currency text to truncate ("6,011,672..." and "Vale...").
+- Changes:
+  - `components/figma/payment-attachments.tsx`:
+    * Changed dialog width from `max-w-7xl` to `max-w-[95vw]` (95% of viewport width)
+    * Replaced 12-column grid system with explicit fixed widths using CSS Grid template columns
+    * Column widths: Date(130px) + Type(150px) + No(150px) + Value(180px) + Currency(80px) + Actions(1fr)
+    * Increased gap from gap-2 to gap-3 for better spacing
+    * Value column increased from proportional 2/12 to fixed 180px to accommodate large numbers
+- User Experience: Dialog now uses nearly full screen width. All text displays without truncation. Value column has sufficient space for large numbers like "6,011,672.25". Actions column flexibly takes remaining space.
+- Technical Details: Using CSS Grid `grid-cols-[130px_150px_150px_180px_80px_1fr]` for precise column control instead of Tailwind's fraction system. Prevents responsive issues causing text overflow.
+- Commit: 095d9c8
+- Production: https://ice-f75kicd8o-iceerp.vercel.app
+
 ## 2026-04-07 (160)
 - Summary: Widen attachment dialog and add separate currency column to improve readability.
 - Issue: User requested dialog to be 2.5x wider to fit all information on one line, and wanted currency visible as a separate column instead of combined with value.
