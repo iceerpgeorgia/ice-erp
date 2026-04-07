@@ -1,5 +1,21 @@
 ﻿# Deployment Log
 
+## 2026-04-07 (159)
+- Summary: Fix document types and currencies dropdowns population + create seed data.
+- Issue: Document type and currency dropdowns were empty in attachment add/edit forms. Two problems: (1) Currencies API returned `{ data: [...] }` but component expected `{ currencies: [...] }`, (2) No document types existed in database.
+- Changes:
+  - `components/figma/payment-attachments.tsx`: 
+    * Updated `loadCurrencies()` to handle both API response formats: `result.data || result.currencies`
+    * Updated `loadDocumentTypes()` to add console logging for debugging
+    * Both functions now log successful data loads with record counts
+  - Database: Created 7 document types via raw SQL (`gen_random_uuid()` for UUIDs):
+    * Invoice, Receipt, Contract, Agreement, Certificate, Waybill, Act
+  - Database: 9 currencies already existed (GEL, USD, EUR, GBP, CNY, RUB, TRY, AED, KZT)
+- User Experience: Document type and currency dropdowns now populate immediately when opening add/edit attachment form. Users can select from 7 document types and 9 currencies. Console logs confirm data loaded successfully.
+- Technical Details: Currencies API response structure (`{ data: [...] }`) retained for backward compatibility; component now handles both formats. Document types created with `gen_random_uuid()` since Prisma schema doesn't have default UUID generator. Added `ON CONFLICT DO NOTHING` for safe re-runs.
+- Commit: a10eb52
+- Production: https://ice-gs29rrl3w-iceerp.vercel.app
+
 ## 2026-04-06 (158)
 - Summary: Add edit functionality for attachments, fix API to return all fields, widen dialog.
 - Issues:
