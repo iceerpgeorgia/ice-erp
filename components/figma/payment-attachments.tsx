@@ -428,7 +428,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
       
       {dialogMounted && (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-7xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Attachments for {paymentId}</DialogTitle>
             <DialogDescription>
@@ -446,35 +446,35 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
               </div>
             ) : (
               <div className="space-y-2">
-                <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs font-medium text-muted-foreground border-b">
-                  <div className="col-span-2">Date</div>
-                  <div className="col-span-2">Document Type</div>
-                  <div className="col-span-2">Document No</div>
-                  <div className="col-span-2">Value</div>
-                  <div className="col-span-1">Currency</div>
-                  <div className="col-span-3 text-right">Actions</div>
+                <div className="grid grid-cols-[130px_150px_150px_180px_80px_1fr] gap-3 px-3 py-2 text-xs font-medium text-muted-foreground border-b">
+                  <div>Date</div>
+                  <div>Document Type</div>
+                  <div>Document No</div>
+                  <div>Value</div>
+                  <div>Currency</div>
+                  <div className="text-right">Actions</div>
                 </div>
                 {attachments.map((attachment) => (
                   <div
                     key={attachment.linkUuid}
-                    className="grid grid-cols-12 gap-2 items-center p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                    className="grid grid-cols-[130px_150px_150px_180px_80px_1fr] gap-3 items-center p-3 border rounded-lg hover:bg-accent/50 transition-colors"
                   >
-                    <div className="col-span-2 text-sm">
+                    <div className="text-sm">
                       {formatDate(attachment.documentDate)}
                     </div>
-                    <div className="col-span-2 text-sm font-medium">
+                    <div className="text-sm font-medium">
                       {getDocumentTypeName(attachment.documentTypeUuid)}
                     </div>
-                    <div className="col-span-2 text-sm text-muted-foreground">
+                    <div className="text-sm text-muted-foreground">
                       {attachment.documentNo || '—'}
                     </div>
-                    <div className="col-span-2 text-sm text-muted-foreground">
+                    <div className="text-sm text-muted-foreground">
                       {attachment.documentValue != null ? attachment.documentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
                     </div>
-                    <div className="col-span-1 text-sm text-muted-foreground">
+                    <div className="text-sm text-muted-foreground">
                       {getCurrencyCode(attachment.documentCurrencyUuid) || '—'}
                     </div>
-                    <div className="col-span-3 flex items-center justify-end gap-3">
+                    <div className="flex items-center justify-end gap-3">
                       <button
                         onClick={() => handleView(attachment)}
                         className="text-sm text-primary hover:underline font-medium"
