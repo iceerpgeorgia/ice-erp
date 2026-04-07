@@ -428,7 +428,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
       
       {dialogMounted && (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-7xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Attachments for {paymentId}</DialogTitle>
             <DialogDescription>
@@ -451,7 +451,8 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
                   <div className="col-span-2">Document Type</div>
                   <div className="col-span-2">Document No</div>
                   <div className="col-span-2">Value</div>
-                  <div className="col-span-4 text-right">Actions</div>
+                  <div className="col-span-1">Currency</div>
+                  <div className="col-span-3 text-right">Actions</div>
                 </div>
                 {attachments.map((attachment) => (
                   <div
@@ -468,9 +469,12 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
                       {attachment.documentNo || '—'}
                     </div>
                     <div className="col-span-2 text-sm text-muted-foreground">
-                      {formatValue(attachment.documentValue, attachment.documentCurrencyUuid)}
+                      {attachment.documentValue != null ? attachment.documentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
                     </div>
-                    <div className="col-span-4 flex items-center justify-end gap-3">
+                    <div className="col-span-1 text-sm text-muted-foreground">
+                      {getCurrencyCode(attachment.documentCurrencyUuid) || '—'}
+                    </div>
+                    <div className="col-span-3 flex items-center justify-end gap-3">
                       <button
                         onClick={() => handleView(attachment)}
                         className="text-sm text-primary hover:underline font-medium"
