@@ -1,5 +1,19 @@
 ﻿# Deployment Log
 
+## 2026-04-07 (164)
+- Summary: Add "No Payment (Clear)" option to counteragent statement bulk edit payment selection.
+- Issue: In counteragent statement bulk edit dialog, users could not clear/remove payment assignments from selected bank transactions—only assign/change them.
+- Changes:
+  - `app/counteragent-statement/[counteragentUuid]/page.tsx`:
+    * Added `'-- No Payment (Clear) --'` option with value `'__none__'` at top of `bulkPaymentOptions`
+    * Updated `handleBulkBind` to detect `__none__` selection and send empty `payment_uuid` to API
+    * When clearing: sets `paymentId`, `project`, `financialCode`, `job`, `incomeTax`, `currency` to null in local state
+    * Updated button label to dynamically show "Clear Payment from N Transactions" when clear option is selected
+- User Experience: Users can now select "-- No Payment (Clear) --" from the bulk edit payment dropdown to remove payment assignments. Matches the behavior already available in the individual bank transaction edit dialog.
+- Technical Details: The bulk-bind API already supported clearing (when `payment_uuid` is empty/falsy). It sets `payment_id = NULL`, `parsing_lock = false`, clears `project_uuid`, `financial_code_uuid`, `nominal_currency_uuid`, and resets `exchange_rate = 1`, `nominal_amount = account_currency_amount`.
+- Commit: 66ee188
+- Production: https://ice-3zdua4cbd-iceerp.vercel.app
+
 ## 2026-04-07 (163)
 - Summary: Override Dialog component's default max-width constraint with important flags to force 95vw width.
 - Issue: Dialog frame still appeared narrow despite setting `w-[95vw]` because the shadcn/ui Dialog component has built-in `sm:max-w-lg` (512px) class that was overriding our custom width on screens larger than 640px.
