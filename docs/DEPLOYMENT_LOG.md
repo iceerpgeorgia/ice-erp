@@ -1,5 +1,22 @@
 ﻿# Deployment Log
 
+## 2026-04-07 (163)
+- Summary: Override Dialog component's default max-width constraint with important flags to force 95vw width.
+- Issue: Dialog frame still appeared narrow despite setting `w-[95vw]` because the shadcn/ui Dialog component has built-in `sm:max-w-lg` (512px) class that was overriding our custom width on screens larger than 640px.
+- Changes:
+  - `components/figma/payment-attachments.tsx`:
+    * Changed DialogContent className from `w-[95vw]` to `!w-[95vw] !max-w-[95vw]`
+    * The `!` prefix (important flag) forces Tailwind to use `!important` in CSS, overriding Dialog's default `sm:max-w-lg` class
+- Root Cause: The shadcn/ui Dialog component in `components/ui/dialog.tsx` has this default className on DialogContent:
+  ```
+  "w-full max-w-[calc(100%-2rem)] ... sm:max-w-lg"
+  ```
+  The `sm:max-w-lg` (32rem/512px) was limiting dialog width on all screens larger than 640px, regardless of our custom classes.
+- User Experience: Dialog now actually uses 95% of viewport width. Frame is properly expanded and not constrained to 512px.
+- Technical Details: Tailwind's `!` modifier generates CSS with `!important` which has higher specificity than the default Dialog classes. Both `!w-[95vw]` and `!max-w-[95vw]` needed to override both the width and max-width constraints.
+- Commit: 7538d90
+- Production: https://ice-i2dh8zbq4-iceerp.vercel.app
+
 ## 2026-04-07 (162)
 - Summary: Fix dialog content area to utilize full width by forcing width and adding proper overflow handling.
 - Issue: While dialog was set to max-w-[95vw], the content inside was still compressed and cut off. The outer DialogContent had padding constraints preventing content from using full width.
