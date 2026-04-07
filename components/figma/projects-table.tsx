@@ -17,6 +17,7 @@ import {
   Info,
   Download,
   User,
+  Trash2,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -925,8 +926,34 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
     resetForm();
   };
 
-  const deleteProject = (id: number) => {
-    setProjects(projects.filter(p => p.id !== id));
+  const deleteProject = async (project: Project) => {
+    if (!confirm(`Are you sure you want to delete project "${project.projectName}"?\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        if (error.reasons) {
+          alert(`Cannot delete project:\n\n${error.reasons.join('\n')}\n\nPlease remove these attachments before deleting the project.`);
+        } else {
+          alert(error.error || 'Failed to delete project');
+        }
+        return;
+      }
+
+      // Remove from local state
+      setProjects(projects.filter(p => p.id !== project.id));
+      
+      alert('Project deleted successfully');
+    } catch (error: any) {
+      console.error('[Delete] Error:', error);
+      alert(error?.message || 'Failed to delete project');
+    }
   };
 
   const viewAuditLog = async (project: Project) => {
@@ -1015,10 +1042,10 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   // Visible columns only
   const visibleColumns = columns.filter(col => col.visible);
   
-  // Calculate total table width based on column widths + Actions column (128px)
+  // Calculate total table width based on column widths + Actions column (160px)
   const tableWidth = useMemo(() => {
     const columnsWidth = visibleColumns.reduce((sum, col) => sum + col.width, 0);
-    return columnsWidth + 128; // 128px for Actions column (w-32)
+    return columnsWidth + 160; // 160px for Actions column (w-40 = 5 buttons)
   }, [visibleColumns]);
 
   return (
@@ -1796,7 +1823,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                     </div>
                   </TableHead>
                 ))}
-                <TableHead className="w-32 bg-white">Actions</TableHead>
+                <TableHead className="w-40 bg-white">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1871,7 +1898,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                       </div>
                     </TableCell>
                   ))}
-                  <TableCell className="w-32">
+                  <TableCell className="w-40">
                     <div className="flex items-center space-x-1">
                       <Button
                         size="sm"
@@ -1903,6 +1930,15 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                         title="View audit history"
                       >
                         <Info className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => deleteProject(project)}
+                        className="h-7 w-7 p-0 hover:bg-red-50 hover:border-red-300"
+                        title="Delete project"
+                      >
+                        <Trash2 className="h-3 w-3 text-red-600" />
                       </Button>
                     </div>
                   </TableCell>

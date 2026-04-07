@@ -913,14 +913,21 @@ export function SalaryAccrualsTable() {
         'დამატებითი ინფორმაცია',
       ];
 
-      const getTbilisiToday = () => {
-        const formatter = new Intl.DateTimeFormat('en-CA', {
-          timeZone: 'Asia/Tbilisi',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-        });
-        return formatter.format(new Date());
+      const parseSalaryMonthDate = (salaryMonth: string): string => {
+        // salary_month is in format "YYYY-MM-DD" or similar
+        // Extract just the date part and use it
+        const date = new Date(salaryMonth);
+        if (isNaN(date.getTime())) {
+          // Fallback to today if invalid
+          const formatter = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Tbilisi',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          });
+          return formatter.format(new Date());
+        }
+        return date.toISOString().split('T')[0];
       };
 
       const fetchExchangeRate = async (currency: string, date: string) => {
@@ -930,9 +937,11 @@ export function SalaryAccrualsTable() {
         }
         const data = await response.json();
         const rateRow = Array.isArray(data) ? data[0] : null;
-        const rate = rateRow?.rates?.[currency] || rateRow?.[currency];
+        // API returns lowercase field names (usd, eur, etc.)
+        const currencyLower = currency.toLowerCase();
+        const rate = rateRow?.rates?.[currencyLower] || rateRow?.[currencyLower];
         if (!rate) {
-          throw new Error('Exchange rate not available');
+          throw new Error(`Exchange rate not available for ${currency} on ${date}`);
         }
         return Number(rate);
       };
@@ -942,7 +951,8 @@ export function SalaryAccrualsTable() {
         const currency = (record.currency_code || 'GEL').toUpperCase();
         if (currency === 'GEL') return Math.round(amount * 100) / 100;
 
-        const rateDate = getTbilisiToday();
+        // Use salary month date for exchange rate, not today's date
+        const rateDate = parseSalaryMonthDate(record.salary_month);
         const rate = await fetchExchangeRate(currency, rateDate);
         const converted = amount / (1 / rate);
         return Math.round(converted * 100) / 100;
