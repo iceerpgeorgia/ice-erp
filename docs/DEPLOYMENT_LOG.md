@@ -1,5 +1,20 @@
 ﻿# Deployment Log
 
+## 2026-04-07 (162)
+- Summary: Fix dialog content area to utilize full width by forcing width and adding proper overflow handling.
+- Issue: While dialog was set to max-w-[95vw], the content inside was still compressed and cut off. The outer DialogContent had padding constraints preventing content from using full width.
+- Changes:
+  - `components/figma/payment-attachments.tsx`:
+    * Changed DialogContent from `max-w-[95vw]` to `w-[95vw]` to force actual 95vw width instead of just maximum
+    * Changed DialogContent overflow from `overflow-y-auto` to `overflow-hidden` to prevent double scrollbars
+    * Added `overflow-x-auto overflow-y-auto` to inner content div for proper scrolling
+    * Set `max-h-[calc(80vh-120px)]` on scrollable area to account for header space
+    * Added `min-w-[900px]` to grid container to prevent column compression
+- User Experience: Dialog now uses full 95% of viewport width. Content area properly sized with no compression. All columns display their full content without truncation. Horizontal scroll available if needed on smaller screens.
+- Technical Details: Forcing `w-[95vw]` instead of `max-w-[95vw]` ensures dialog doesn't shrink due to internal constraints. Moved scroll handling from DialogContent to inner container for better control. Min-width on grid prevents column collapse.
+- Commit: 2eecd5e
+- Production: https://ice-l2w915hb8-iceerp.vercel.app
+
 ## 2026-04-07 (161)
 - Summary: Expand attachment dialog to near full-screen width with fixed column widths to prevent text truncation.
 - Issue: Dialog at max-w-7xl was still too narrow, causing value and currency text to truncate ("6,011,672..." and "Vale...").
