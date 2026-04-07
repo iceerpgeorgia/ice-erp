@@ -1021,7 +1021,13 @@ export default function CounteragentStatementPage() {
   }, [payments, counteragentUuid]);
 
   const bulkPaymentOptions = useMemo(() => {
-    return counteragentPayments.map((p) => {
+    const noPaymentOption = {
+      value: '__none__',
+      label: '-- No Payment (Clear) --',
+      displayLabel: '-- No Payment (Clear) --',
+      keywords: 'no payment clear none'
+    };
+    return [noPaymentOption, ...counteragentPayments.map((p) => {
       const parts = [p.paymentId];
       if (p.projectName) parts.push(p.projectName);
       if (p.jobName) parts.push(p.jobName);
@@ -1041,7 +1047,7 @@ export default function CounteragentStatementPage() {
         displayLabel: fullLabel,
         keywords: searchKeywords
       };
-    });
+    })];
   }, [counteragentPayments]);
 
   const toggleSelectBank = (bankId: number, checked: boolean) => {
@@ -1076,16 +1082,19 @@ export default function CounteragentStatementPage() {
       return;
     }
 
+    const isClearing = bulkPaymentId === '__none__';
+    const effectivePaymentId = isClearing ? '' : bulkPaymentId;
+
     const targetIds = Array.from(selectedBankIds);
     if (!targetIds.length) return;
 
     setIsBulkSaving(true);
-    const info = getPaymentInfo(bulkPaymentId);
+    const info = isClearing ? null : getPaymentInfo(bulkPaymentId);
     try {
       const response = await fetch('/api/bank-transactions/bulk-bind', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: targetIds, payment_uuid: bulkPaymentId }),
+        body: JSON.stringify({ ids: targetIds, payment_uuid: effectivePaymentId }),
       });
 
       if (!response.ok) {
@@ -1100,14 +1109,25 @@ export default function CounteragentStatementPage() {
         if (!prev) return prev;
         const nextBankTransactions = (prev.bankTransactions || []).map((tx: any) => {
           if (!successIds.includes(Number(tx.id))) return tx;
+          if (isClearing) {
+            return {
+              ...tx,
+              paymentId: null,
+              project: null,
+              financialCode: null,
+              job: null,
+              incomeTax: null,
+              currency: null,
+            };
+          }
           return {
             ...tx,
             paymentId: bulkPaymentId,
-            project: info.project,
-            financialCode: info.financialCode,
-            job: info.job,
-            incomeTax: info.incomeTax,
-            currency: info.currency,
+            project: info?.project,
+            financialCode: info?.financialCode,
+            job: info?.job,
+            incomeTax: info?.incomeTax,
+            currency: info?.currency,
           };
         });
         const nextPaymentIds = prev.paymentIds?.includes(bulkPaymentId)
@@ -1438,7 +1458,7 @@ export default function CounteragentStatementPage() {
                       onClick={handleBulkBind}
                       disabled={isBulkSaving || !bulkPaymentId}
                     >
-                      {isBulkSaving ? 'Saving...' : `Bind ${selectedBankIds.size} Transactions`}
+                      {isBulkSaving ? 'Saving...' : bulkPaymentId === '__none__' ? `Clear Payment from ${selectedBankIds.size} Transactions` : `Bind ${selectedBankIds.size} Transactions`}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
