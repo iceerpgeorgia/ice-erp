@@ -428,7 +428,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
       
       {dialogMounted && (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-[95vw] w-[95vw] max-h-[80vh] overflow-hidden">
+        <DialogContent className="!w-[95vw] !max-w-[95vw] max-h-[80vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Attachments for {paymentId}</DialogTitle>
             <DialogDescription>
