@@ -107,8 +107,9 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
       const response = await fetch('/api/document-types');
       if (!response.ok) throw new Error('Failed to load document types');
       
-      const data = await response.json();
-      setDocumentTypes(data.documentTypes || []);
+      const result = await response.json();
+      console.log('[Attachments] Document types loaded:', result);
+      setDocumentTypes(result.documentTypes || []);
     } catch (error) {
       console.error('Error loading document types:', error);
       setDocumentTypes([]);
@@ -120,8 +121,11 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
       const response = await fetch('/api/currencies');
       if (!response.ok) throw new Error('Failed to load currencies');
       
-      const data = await response.json();
-      setCurrencies(data.currencies || []);
+      const result = await response.json();
+      console.log('[Attachments] Currencies loaded:', result);
+      // API returns { data: [...] }
+      const currenciesData = result.data || result.currencies || [];
+      setCurrencies(currenciesData);
     } catch (error) {
       console.error('Error loading currencies:', error);
       setCurrencies([]);

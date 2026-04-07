@@ -1,5 +1,32 @@
 ﻿# Deployment Log
 
+## 2026-04-06 (158)
+- Summary: Add edit functionality for attachments, fix API to return all fields, widen dialog.
+- Issues:
+  * Attachment data (date, document type, value, currency) not displaying in table - API wasn't returning these fields
+  * No way to edit attachment metadata after upload
+  * Dialog too narrow for all columns
+  * Document type and currency dropdowns already working but needed to be accessible in edit mode
+- Changes:
+  - `app/api/payments/attachments/route.ts`: Added `documentDate`, `documentNo`, `documentValue`, and `documentCurrencyUuid` to the API response mapping. These fields were fetched from database but not returned to client.
+  - `app/api/payments/attachments/update/route.ts`: New PATCH endpoint to update attachment metadata (document type, date, number, value, currency) without changing the file.
+  - `components/figma/payment-attachments.tsx`:
+    * Added `editingAttachment` state to track which attachment is being edited
+    * Added `handleEdit(attachment)` function to populate form with existing values
+    * Added `handleCancelEdit()` function to clear edit state and close form
+    * Added `handleUpdateAttachment()` async function to call update API
+    * Added "Edit" button in actions column (View | Download | Edit | Delete)
+    * Modified upload form to handle both create and edit modes:
+      - Title changes from "New Attachment" to "Edit Attachment"
+      - File upload hidden when editing (shows current filename instead)
+      - Cancel button calls `handleCancelEdit` to reset all state
+      - Submit button switches between `handleUpload` and `handleUpdateAttachment`
+    * Widened dialog from `max-w-3xl` to `max-w-6xl` (2.5x ratio as requested)
+- User Experience: Users can now edit attachment metadata (document type, date, number, value, currency) after upload. All attachment fields properly display in table. Wider dialog provides better view of all columns. Document type and currency dropdowns auto-populate from database tables.
+- Technical Details: Edit mode reuses existing form logic but disables file upload (metadata-only edit). API update endpoint validates required fields (type and date) just like create. Decimal values properly converted from database to float for display.
+- Commit: 6cf8e2d
+- Production: https://ice-i4el69gwx-iceerp.vercel.app
+
 ## 2026-04-06 (157)
 - Summary: Fix attachment count display and hydration errors.
 - Issues:
