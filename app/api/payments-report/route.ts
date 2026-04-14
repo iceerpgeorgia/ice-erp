@@ -199,7 +199,6 @@ export async function GET(request: NextRequest) {
       isActive: row.is_active,
       isProjectDerived: row.is_project_derived ?? false,
       isBundlePayment: row.is_bundle_payment ?? false,
-      isBundlePayment: row.is_bundle_payment ?? false,
       counteragent: row.counteragent_formatted || row.counteragent_name,
       counteragentId: row.counteragent_id,
       counteragentIban: row.counteragent_iban,
