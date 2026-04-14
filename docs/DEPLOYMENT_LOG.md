@@ -2919,3 +2919,15 @@
 - Commit: ab1ad26
 - Production: https://ice-nmkfjvmuq-iceerp.vercel.app
 
+
+## 2026-04-14 — Deployment #166
+- Summary: Add is_bundle flag to financial_codes for auto-creating one payment per child FC when a project is opened.
+- Changes:
+  - prisma/schema.prisma: added is_bundle Boolean @default(false) to financial_codes model.
+  - prisma/migrations/20270101000000_add_is_bundle_to_financial_codes/migration.sql: new migration (column already applied to Supabase).
+  - app/api/financial-codes/route.ts: added isBundle field to validatePayload, POST create, PATCH update.
+  - app/api/projects/route.ts: POST and PATCH now read is_bundle from FC query; create/sync bundle payments per child FC on project open.
+  - app/api/projects/[id]/route.ts: PUT syncs bundle payments; else-branch deactivates non-matching derived payments.
+  - components/financial-codes-table.tsx: added isBundle type, normalization, Bundle column header/cell, colSpan 11, form state, and Bundle checkbox in dialog.
+- Commit: 6f2529e
+- Production: https://ice-n0mycykqe-iceerp.vercel.app
