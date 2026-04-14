@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-04-15 Deployment #170
+- Summary: Fix bundle financial code form expansion in Add and Edit Project dialogs.
+- Changes:
+  - components/figma/projects-table.tsx: Added isBundleFC and bundleDistribution form state.
+  - components/figma/projects-table.tsx: Added bundle detection via /api/financial-codes/[uuid].
+  - components/figma/projects-table.tsx: Added BundleDistributionGrid rendering in both Add and Edit dialogs.
+  - components/figma/projects-table.tsx: Included bundleDistribution in POST/PATCH payloads and edit loading flow.
+- Commit: e0a4230
+- Production: https://ice-1eufg77ck-iceerp.vercel.app
+
 ## 2026-04-15 ?? Deployment #169
 - Summary: Add bundle payment distribution with effective dates and payment IDs for payments ledger integration.
 - Changes:
