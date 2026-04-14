@@ -1,5 +1,28 @@
 # Deployment Log
 
+## 2026-04-15 ?? Deployment #169
+- Summary: Add bundle payment distribution with effective dates and payment IDs for payments ledger integration.
+- Changes:
+  - prisma/schema.prisma: Added project_bundle_payments model with payment_id, accrual_date, order_date columns
+  - prisma/migrations/20260415000000_add_project_bundle_payments/migration.sql: Initial table creation
+  - prisma/migrations/20260415000001_add_dates_to_bundle_payments/migration.sql: Added date columns and payment_id index
+  - components/figma/bundle-distribution-grid.tsx: Created distribution grid with 6 columns (Financial Code, %, Sum, Payment ID, Accrual Date, Order Date)
+  - components/figma/projects-table.tsx: Integrated BundleDistributionGrid into Add/Edit dialogs with bundle FC detection
+  - app/api/projects/bundle-distribution/route.ts: Created GET endpoint to fetch existing distribution with dates
+  - app/api/financial-codes/[uuid]/route.ts: Created GET endpoint to check if FC is bundle
+  - app/api/financial-codes/children/[parentUuid]/route.ts: Created GET endpoint to fetch child FCs
+  - app/api/projects/route.ts: Updated POST/PATCH to save bundle distribution including payment_id, accrual_date, order_date
+- Features:
+  - Automatic sum recalculation when project value changes in percentage mode
+  - Mutual exclusivity between percentage and amount input modes
+  - Real-time validation with visual feedback (red totals for invalid values)
+  - Date inputs for accrual and order tracking
+  - Payment ID field for linking to payments ledger
+  - Distribution loads on edit and persists on save
+- Commit: ff7e02f
+- Production: https://ice-cq7y7clis-iceerp.vercel.app
+
+
 ## 2026-04-14 GÇô Deployment #168
 - Summary: Add is_bundle_payment boolean flag to payments table for tracking bundle-generated payments.
 - Changes:
