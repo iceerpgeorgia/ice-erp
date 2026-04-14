@@ -534,6 +534,7 @@ model payments {
   label               String?           @db.Text
   insider_uuid        String?           @db.Uuid
   is_project_derived  Boolean           @default(false)
+  is_bundle_payment   Boolean           @default(false)
   payments_ledger      payments_ledger[]
   payment_adjustments  payment_adjustments[]
 

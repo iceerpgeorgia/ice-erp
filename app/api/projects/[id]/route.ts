@@ -169,7 +169,7 @@ export async function PUT(
             }
           } else {
             try {
-              await prisma.$queryRawUnsafe(`INSERT INTO payments (project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid, payment_id, record_uuid, is_project_derived, updated_at) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, '', '', true, NOW())`, proj.project_uuid, proj.counteragent_uuid, childFC.uuid, proj.currency_uuid);
+              await prisma.$queryRawUnsafe(`INSERT INTO payments (project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid, payment_id, record_uuid, is_project_derived, is_bundle_payment, updated_at) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, '', '', true, true, NOW())`, proj.project_uuid, proj.counteragent_uuid, childFC.uuid, proj.currency_uuid);
             } catch (bundleErr: any) { console.warn('Bundle sync skipped (PUT):', bundleErr?.message); }
           }
         }

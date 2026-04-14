@@ -366,28 +366,8 @@ export async function POST(req: NextRequest) {
             await prisma.$queryRawUnsafe(
               `INSERT INTO payments (
                 project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax,
-                currency_uuid, payment_id, record_uuid, insider_uuid, is_project_derived, updated_at
-              ) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, '', '', $5::uuid, true, NOW())`,
-              project.project_uuid, counteragentUuid, childFC.uuid, currencyUuid, effectiveInsiderUuid
-            );
-          } catch (bundleErr: any) {
-            console.warn('Bundle payment creation skipped:', bundleErr?.message);
-          }
-        }
-      }
-
-      if (isBundleFC) {
-        const childFCs = await prisma.$queryRawUnsafe<Array<{ uuid: string }>>(
-          `SELECT uuid FROM financial_codes WHERE parent_uuid = $1::uuid AND is_active = true`,
-          financialCodeUuid
-        );
-        for (const childFC of childFCs) {
-          try {
-            await prisma.$queryRawUnsafe(
-              `INSERT INTO payments (
-                project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax,
-                currency_uuid, payment_id, record_uuid, insider_uuid, is_project_derived, updated_at
-              ) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, '', '', $5::uuid, true, NOW())`,
+                currency_uuid, payment_id, record_uuid, insider_uuid, is_project_derived, is_bundle_payment, updated_at
+              ) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, '', '', $5::uuid, true, true, NOW())`,
               project.project_uuid, counteragentUuid, childFC.uuid, currencyUuid, effectiveInsiderUuid
             );
           } catch (bundleErr: any) {
@@ -640,7 +620,7 @@ export async function PATCH(req: NextRequest) {
           } else {
             try {
               await prisma.$queryRawUnsafe(
-                `INSERT INTO payments (project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid, payment_id, record_uuid, insider_uuid, is_project_derived, updated_at) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, '', '', $5::uuid, true, NOW())`,
+                `INSERT INTO payments (project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid, payment_id, record_uuid, insider_uuid, is_project_derived, is_bundle_payment, updated_at) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, '', '', $5::uuid, true, true, NOW())`,
                 project.project_uuid, project.counteragent_uuid, childFC.uuid, project.currency_uuid, project.insider_uuid
               );
             } catch (bundleErr: any) { console.warn('Bundle sync skipped:', bundleErr?.message); }
