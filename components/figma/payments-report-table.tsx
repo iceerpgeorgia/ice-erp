@@ -3418,18 +3418,18 @@ export function PaymentsReportTable() {
                             {formatValue(row[col.key], col.format, col.key)}
                           </span>
                           <a
-                            href={row.counteragentUuid ? `/counteragent-statement/${row.counteragentUuid}` : '#'}
-                            target={row.counteragentUuid ? '_blank' : undefined}
-                            rel={row.counteragentUuid ? 'noopener noreferrer' : undefined}
+                            href={row.counteragent ? `/dictionaries/counteragents?search=${encodeURIComponent(row.counteragent)}` : '#'}
+                            target={row.counteragent ? '_blank' : undefined}
+                            rel={row.counteragent ? 'noopener noreferrer' : undefined}
                             className={`inline-flex items-center justify-center rounded p-1 transition-colors flex-shrink-0 ${
-                              row.counteragentUuid
+                              row.counteragent
                                 ? 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
                                 : 'text-gray-300 cursor-not-allowed'
                             }`}
-                            title="Open counteragent statement"
-                            aria-disabled={!row.counteragentUuid}
+                            title="Open counteragent in Counteragents table"
+                            aria-disabled={!row.counteragent}
                             onClick={(event) => {
-                              if (!row.counteragentUuid) {
+                              if (!row.counteragent) {
                                 event.preventDefault();
                               }
                             }}
