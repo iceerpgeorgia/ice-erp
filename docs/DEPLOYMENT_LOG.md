@@ -1,5 +1,19 @@
 # Deployment Log
 
+## 2026-04-14 GÇô Deployment #168
+- Summary: Add is_bundle_payment boolean flag to payments table for tracking bundle-generated payments.
+- Changes:
+  - prisma/schema.prisma: Added is_bundle_payment Boolean @default(false) column (no directUrl requirement)
+  - prisma/migrations/20270101000001_add_is_bundle_payment_to_payments/migration.sql: Migration with partial index on true values
+  - app/api/projects/route.ts: Set is_bundle_payment=true in POST and PATCH bundle child payment INSERTs
+  - app/api/projects/[id]/route.ts: Set is_bundle_payment=true in PUT bundle child payment INSERT (already present)
+  - app/api/payments-report/route.ts: Added is_bundle_payment to SELECT and mapped to isBundlePayment in response
+  - components/figma/payments-report-table.tsx: Added isBundlePayment boolean field and 'Bundle' column (sortable, filterable, width: 90px)
+  - vercel.json: Removed 'pnpm prisma migrate deploy' from buildCommand to avoid DIRECT_DATABASE_URL dependency
+  - backfill-bundle-payments-fixed.js: Backfilled 1,306 existing bundle payments by checking ALL unique constraint fields before INSERT
+- Commit: f41f8c9
+- Production: https://ice-mq8qlc8i5-iceerp.vercel.app
+
 ## 2026-04-14 — Deployment #167
 - Summary: Fix payments report counteragent link to open dictionary search instead of statement.
 - Changes:
