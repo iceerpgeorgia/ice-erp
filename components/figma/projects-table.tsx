@@ -36,6 +36,7 @@ import {
 } from './ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { MultiCombobox } from '@/components/ui/multi-combobox';
+import { BundleDistributionGrid, type BundleDistributionRow } from './bundle-distribution-grid';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { useTableFilters } from './shared/use-table-filters';
@@ -350,10 +351,12 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
     financialCodeUuid: '',
     currencyUuid: '',
     stateUuid: '',
-    employees: [] as string[]
+    employees: [] as string[],
+    bundleDistribution: [] as BundleDistributionRow[]
   });
   
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [isBundleFC, setIsBundleFC] = useState(false);
   
   const filtersStorageKey = 'projects-table:column-filters';
   const pageSizeOptions = [50, 100, 200, 500, 1000];
@@ -620,6 +623,20 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
     );
   }, [isInsiderFixed, fixedInsider?.insiderUuid]);
 
+  // Bundle FC detection
+  useEffect(() => {
+    if (!formData.financialCodeUuid) {
+      setIsBundleFC(false);
+      return;
+    }
+    fetch(`/api/financial-codes/${formData.financialCodeUuid}`).then(res => res.json()).then(data => {
+      if (data && typeof data.is_bundle === 'boolean') {
+        setIsBundleFC(data.is_bundle);
+        if (!data.is_bundle) setFormData(prev => ({ ...prev, bundleDistribution: [] }));
+      }
+    }).catch(err => console.error('Error checking bundle status:', err));
+  }, [formData.financialCodeUuid]);
+
   // Mouse events for column resizing
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -810,7 +827,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
             financial_code_uuid: formData.financialCodeUuid,
             currency_uuid: formData.currencyUuid,
             state_uuid: formData.stateUuid,
-            employees: formData.employees
+            employees: formData.employees,
+            bundleDistribution: formData.bundleDistribution
           })
         });
         
@@ -848,7 +866,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
             stateUuid: formData.stateUuid,
             insider_uuid: formData.insiderUuid || null,
             insiderUuid: formData.insiderUuid || null,
-            employees: formData.employees
+            employees: formData.employees,
+            bundleDistribution: formData.bundleDistribution
           })
         });
         
@@ -892,9 +911,11 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       financialCodeUuid: '',
       currencyUuid: '',
       stateUuid: '',
-      employees: []
+      employees: [],
+      bundleDistribution: []
     });
     setFormErrors({});
+    setIsBundleFC(false);
   };
 
   const startEdit = (project: Project) => {
@@ -914,10 +935,16 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       financialCodeUuid: project.financialCodeUuid || '',
       currencyUuid: project.currencyUuid || '',
       stateUuid: project.stateUuid || '',
-      employees: (project.employees || []).map(e => e.employeeUuid)
+      employees: (project.employees || []).map(e => e.employeeUuid),
+      bundleDistribution: []
     });
     setFormErrors({});
     setIsEditDialogOpen(true);
+    if (project.projectUuid) {
+      fetch(`/api/projects/bundle-distribution?projectUuid=${project.projectUuid}`).then(res => res.json()).then(data => {
+        if (data && Array.isArray(data)) setFormData(prev => ({ ...prev, bundleDistribution: data }));
+      }).catch(err => console.error('Error loading bundle distribution:', err));
+    }
   };
 
   const cancelEdit = () => {
@@ -1590,6 +1617,20 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                     />
                   </div>
                 </div>
+
+
+                {/* Bundle Distribution */}
+                {isBundleFC && formData.value && parseFloat(formData.value) > 0 && (
+                  <div className="col-span-4 border-t pt-4">
+                    <BundleDistributionGrid
+                      bundleFinancialCodeUuid={formData.financialCodeUuid}
+                      projectValue={parseFloat(formData.value)}
+                      value={formData.bundleDistribution}
+                      onChange={(distribution) => setFormData({ ...formData, bundleDistribution: distribution })}
+                      disabled={isSaving}
+                    />
+                  </div>
+                )}
               </div>
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={cancelEdit} disabled={isSaving}>Cancel</Button>
