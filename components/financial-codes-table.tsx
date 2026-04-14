@@ -19,6 +19,7 @@ type FinancialCode = {
   sortOrder: number;
   isActive: boolean;
   automatedPaymentId: boolean;
+  isBundle: boolean;
   children?: FinancialCode[];
 };
 
@@ -52,6 +53,7 @@ export function FinancialCodesTable() {
             sortOrder: code.sortOrder ?? code.sort_order ?? 0,
             isActive: code.isActive ?? code.is_active ?? true,
             automatedPaymentId: code.automatedPaymentId ?? code.automated_payment_id ?? false,
+            isBundle: code.isBundle ?? code.is_bundle ?? false,
             children: [],
           }))
         : [];
@@ -261,11 +263,14 @@ export function FinancialCodesTable() {
           </td>
           <td className="px-4 py-3 text-center">
             <span className={code.isActive ? "text-green-600" : "text-red-600"}>
-              {code.isActive ? "✓" : "✗"}
+              {code.isActive ? "✓" : "âœ—"}
             </span>
           </td>
           <td className="px-4 py-3 text-center">
             {code.isIncome && code.automatedPaymentId ? "✓" : ""}
+          </td>
+          <td className="px-4 py-3 text-center">
+            {code.isBundle ? "✓" : ""}
           </td>
           <td className="px-4 py-3">
             <div className="flex items-center gap-2">
@@ -302,7 +307,7 @@ export function FinancialCodesTable() {
           <h1 className="text-3xl font-bold text-slate-900">Financial Codes</h1>
           <p className="text-slate-600 mt-2">Hierarchical view of your structure of P&L and Cash Flow</p>
           <p className="text-xs text-slate-500 mt-1">
-            Note: You can use @project and @job_no placeholders in descriptions (e.g., ხელფასი + @project + @job_no).
+            Note: You can use @project and @job_no placeholders in descriptions (e.g., áƒ®áƒ”áƒšáƒ¤áƒáƒ¡áƒ˜ + @project + @job_no).
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -337,13 +342,14 @@ export function FinancialCodesTable() {
               <th className="px-4 py-3 text-center font-semibold text-slate-700">CF</th>
               <th className="px-4 py-3 text-center font-semibold text-slate-700">Active</th>
               <th className="px-4 py-3 text-center font-semibold text-slate-700">Auto Payment</th>
+              <th className="px-4 py-3 text-center font-semibold text-slate-700">Bundle</th>
               <th className="px-4 py-3 text-left font-semibold text-slate-700">Actions</th>
             </tr>
           </thead>
           <tbody>
             {codes.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={11} className="px-4 py-8 text-center text-slate-500">
                   No financial codes found. Click &quot;Add Root Code&quot; to create one.
                 </td>
               </tr>
@@ -386,6 +392,7 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
     appliesToCF: false,
     isActive: true,
     automatedPaymentId: false,
+    isBundle: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -406,6 +413,7 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
         appliesToCF: code.appliesToCF,
         isActive: code.isActive,
         automatedPaymentId: code.automatedPaymentId,
+        isBundle: code.isBundle,
       });
     }
   }, [code, parent]);
@@ -439,6 +447,7 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
         appliesToCF: formData.appliesToCF,
         isActive: formData.isActive,
         automatedPaymentId: formData.automatedPaymentId,
+        isBundle: formData.isBundle,
         parentUuid: parent?.uuid || null,
       };
 
@@ -587,6 +596,19 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
                 />
                 <span className="text-sm font-medium">Automated Payment ID</span>
                 <span className="text-xs text-slate-500">(auto-create payment when project uses this code)</span>
+              </label>
+            )}
+
+            {(!parent || (code?.children && code.children.length > 0)) && (
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.isBundle}
+                  onChange={(e) => setFormData({ ...formData, isBundle: e.target.checked })}
+                  className="rounded"
+                />
+                <span className="text-sm font-medium">Bundle</span>
+                <span className="text-xs text-slate-500">(auto-create one payment per child code when project opens)</span>
               </label>
             )}
           </div>

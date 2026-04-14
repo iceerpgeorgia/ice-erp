@@ -1,0 +1,1 @@
+﻿ALTER TABLE "financial_codes" ADD COLUMN IF NOT EXISTS "is_bundle" BOOLEAN NOT NULL DEFAULT false;

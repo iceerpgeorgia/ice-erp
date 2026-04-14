@@ -425,6 +425,7 @@ model financial_codes {
   sort_order    Int            @default(0)
   is_active             Boolean        @default(true)
   automated_payment_id  Boolean        @default(false)
+  is_bundle             Boolean        @default(false)
   created_at            DateTime       @default(now())
   updated_at            DateTime       @updatedAt
   transactions          transactions[]

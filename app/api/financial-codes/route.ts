@@ -148,6 +148,7 @@ function validatePayload(body: any) {
   const appliesToCF = typeof body?.appliesToCF === "boolean" ? body.appliesToCF : false;
   const isActive = typeof body?.isActive === "boolean" ? body.isActive : true;
   const automatedPaymentId = typeof body?.automatedPaymentId === "boolean" ? body.automatedPaymentId : false;
+  const isBundle = typeof body?.isBundle === "boolean" ? body.isBundle : false;
   
   // Validate parentUuid format if provided
   let parentUuid: string | null = null;
@@ -189,6 +190,7 @@ function validatePayload(body: any) {
       appliesToCF,
       isActive,
       automatedPaymentId,
+      isBundle,
       parentUuid,
     },
   } as const;
@@ -260,6 +262,7 @@ export async function POST(req: NextRequest) {
         applies_to_cf: payload.appliesToCF,
         is_active: payload.isActive,
         automated_payment_id: payload.automatedPaymentId,
+        is_bundle: payload.isBundle ?? false,
         ...(payload.parentUuid && { parent_uuid: payload.parentUuid }),
         depth,
         sort_order: sortOrder,
@@ -344,6 +347,7 @@ export async function PATCH(req: NextRequest) {
     if (existingAny.isActive !== payload.isActive) changes.isActive = { from: existingAny.isActive, to: payload.isActive };
     if (existingAny.parentUuid !== payload.parentUuid) changes.parentUuid = { from: existingAny.parentUuid, to: payload.parentUuid };
     if (existingAny.automated_payment_id !== payload.automatedPaymentId) changes.automatedPaymentId = { from: existingAny.automated_payment_id, to: payload.automatedPaymentId };
+    if ((existingAny.is_bundle ?? false) !== (payload.isBundle ?? false)) changes.isBundle = { from: existingAny.is_bundle ?? false, to: payload.isBundle ?? false };
 
     // Calculate depth if code changed
     let updateData: any = {
@@ -355,6 +359,7 @@ export async function PATCH(req: NextRequest) {
       applies_to_cf: payload.appliesToCF,
       is_active: payload.isActive,
       automated_payment_id: payload.automatedPaymentId,
+      is_bundle: payload.isBundle ?? false,
       parent_uuid: payload.parentUuid,
     };
 

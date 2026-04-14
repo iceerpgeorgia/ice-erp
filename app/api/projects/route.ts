@@ -319,11 +319,12 @@ export async function POST(req: NextRequest) {
 
     // Auto-create project-derived payment only if financial code has automated_payment_id=true
     try {
-      const fcRows = await prisma.$queryRawUnsafe<Array<{ automated_payment_id: boolean }>>(
-        `SELECT automated_payment_id FROM financial_codes WHERE uuid = $1::uuid LIMIT 1`,
+      const fcRows = await prisma.$queryRawUnsafe<Array<{ automated_payment_id: boolean; is_bundle: boolean }>>(
+        `SELECT automated_payment_id, is_bundle FROM financial_codes WHERE uuid = $1::uuid LIMIT 1`,
         financialCodeUuid
       );
       const autoPaymentEnabled = fcRows.length > 0 && fcRows[0].automated_payment_id === true;
+      const isBundleFC = fcRows.length > 0 && fcRows[0].is_bundle === true;
 
       if (autoPaymentEnabled) {
         await prisma.$queryRaw`
@@ -353,6 +354,46 @@ export async function POST(req: NextRequest) {
           NOW()
         )
       `;
+      }
+
+      if (isBundleFC) {
+        const childFCs = await prisma.$queryRawUnsafe<Array<{ uuid: string }>>(
+          `SELECT uuid FROM financial_codes WHERE parent_uuid = $1::uuid AND is_active = true`,
+          financialCodeUuid
+        );
+        for (const childFC of childFCs) {
+          try {
+            await prisma.$queryRawUnsafe(
+              `INSERT INTO payments (
+                project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax,
+                currency_uuid, payment_id, record_uuid, insider_uuid, is_project_derived, updated_at
+              ) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, '', '', $5::uuid, true, NOW())`,
+              project.project_uuid, counteragentUuid, childFC.uuid, currencyUuid, effectiveInsiderUuid
+            );
+          } catch (bundleErr: any) {
+            console.warn('Bundle payment creation skipped:', bundleErr?.message);
+          }
+        }
+      }
+
+      if (isBundleFC) {
+        const childFCs = await prisma.$queryRawUnsafe<Array<{ uuid: string }>>(
+          `SELECT uuid FROM financial_codes WHERE parent_uuid = $1::uuid AND is_active = true`,
+          financialCodeUuid
+        );
+        for (const childFC of childFCs) {
+          try {
+            await prisma.$queryRawUnsafe(
+              `INSERT INTO payments (
+                project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax,
+                currency_uuid, payment_id, record_uuid, insider_uuid, is_project_derived, updated_at
+              ) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, '', '', $5::uuid, true, NOW())`,
+              project.project_uuid, counteragentUuid, childFC.uuid, currencyUuid, effectiveInsiderUuid
+            );
+          } catch (bundleErr: any) {
+            console.warn('Bundle payment creation skipped:', bundleErr?.message);
+          }
+        }
       }
     } catch (paymentError: any) {
       // Log but don't fail project creation if payment already exists (composite unique conflict)
@@ -502,18 +543,20 @@ export async function PATCH(req: NextRequest) {
     // Sync project-derived payment with updated project fields
     try {
       // Check if the financial code has automated_payment_id enabled
-      const fcRows = await prisma.$queryRawUnsafe<Array<{ automated_payment_id: boolean }>>(
-        `SELECT automated_payment_id FROM financial_codes WHERE uuid = $1::uuid LIMIT 1`,
+      const fcRows = await prisma.$queryRawUnsafe<Array<{ automated_payment_id: boolean; is_bundle: boolean }>>(
+        `SELECT automated_payment_id, is_bundle FROM financial_codes WHERE uuid = $1::uuid LIMIT 1`,
         project.financial_code_uuid
       );
       const autoPaymentEnabled = fcRows.length > 0 && fcRows[0].automated_payment_id === true;
+      const isBundleFC = fcRows.length > 0 && fcRows[0].is_bundle === true;
 
       const derivedPayments = await prisma.$queryRawUnsafe<Array<{ id: bigint; payment_id: string; counteragent_uuid: string; financial_code_uuid: string; currency_uuid: string; insider_uuid: string | null }>>(
         `SELECT id, payment_id, counteragent_uuid, financial_code_uuid, currency_uuid, insider_uuid
          FROM payments
-         WHERE project_uuid = $1::uuid AND is_project_derived = true
+         WHERE project_uuid = $1::uuid AND is_project_derived = true AND financial_code_uuid = $2::uuid
          LIMIT 1`,
-        project.project_uuid
+        project.project_uuid,
+        project.financial_code_uuid
       );
 
       if (derivedPayments.length > 0 && autoPaymentEnabled) {
@@ -568,6 +611,45 @@ export async function PATCH(req: NextRequest) {
           project.financial_code_uuid,
           project.currency_uuid,
           project.insider_uuid
+        );
+      }
+
+      // Bundle payments: one per active child FC of the project's FC
+      if (isBundleFC) {
+        const childFCs = await prisma.$queryRawUnsafe<Array<{ uuid: string }>>(
+          `SELECT uuid FROM financial_codes WHERE parent_uuid = $1::uuid AND is_active = true`,
+          project.financial_code_uuid
+        );
+        for (const childFC of childFCs) {
+          const existingBundle = await prisma.$queryRawUnsafe<Array<{ id: bigint; counteragent_uuid: string; currency_uuid: string; insider_uuid: string | null }>>(
+            `SELECT id, counteragent_uuid, currency_uuid, insider_uuid
+             FROM payments
+             WHERE project_uuid = $1::uuid AND is_project_derived = true AND financial_code_uuid = $2::uuid
+             LIMIT 1`,
+            project.project_uuid, childFC.uuid
+          );
+          if (existingBundle.length > 0) {
+            const bp = existingBundle[0];
+            const changed = bp.counteragent_uuid !== project.counteragent_uuid || bp.currency_uuid !== project.currency_uuid || bp.insider_uuid !== project.insider_uuid;
+            if (changed) {
+              await prisma.$queryRawUnsafe(
+                `UPDATE payments SET counteragent_uuid = $1::uuid, currency_uuid = $2::uuid, insider_uuid = $3::uuid, updated_at = NOW() WHERE id = $4`,
+                project.counteragent_uuid, project.currency_uuid, project.insider_uuid, bp.id
+              );
+            }
+          } else {
+            try {
+              await prisma.$queryRawUnsafe(
+                `INSERT INTO payments (project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid, payment_id, record_uuid, insider_uuid, is_project_derived, updated_at) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, '', '', $5::uuid, true, NOW())`,
+                project.project_uuid, project.counteragent_uuid, childFC.uuid, project.currency_uuid, project.insider_uuid
+              );
+            } catch (bundleErr: any) { console.warn('Bundle sync skipped:', bundleErr?.message); }
+          }
+        }
+      } else {
+        await prisma.$queryRawUnsafe(
+          `UPDATE payments SET is_active = false, updated_at = NOW() WHERE project_uuid = $1::uuid AND is_project_derived = true AND financial_code_uuid != $2::uuid`,
+          project.project_uuid, project.financial_code_uuid
         );
       }
     } catch (syncError: any) {
