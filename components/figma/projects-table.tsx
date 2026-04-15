@@ -1356,6 +1356,19 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                     />
                   </div>
                 </div>
+
+                {/* Bundle Distribution */}
+                {isBundleFC && (
+                  <div className="col-span-4 border-t pt-4">
+                    <BundleDistributionGrid
+                      bundleFinancialCodeUuid={formData.financialCodeUuid}
+                      projectValue={parseFloat(formData.value || '0') || 0}
+                      value={formData.bundleDistribution}
+                      onChange={(distribution) => setFormData({ ...formData, bundleDistribution: distribution })}
+                      disabled={isSaving}
+                    />
+                  </div>
+                )}
               </div>
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={isSaving}>Cancel</Button>
@@ -1620,11 +1633,11 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
 
 
                 {/* Bundle Distribution */}
-                {isBundleFC && formData.value && parseFloat(formData.value) > 0 && (
+                {isBundleFC && (
                   <div className="col-span-4 border-t pt-4">
                     <BundleDistributionGrid
                       bundleFinancialCodeUuid={formData.financialCodeUuid}
-                      projectValue={parseFloat(formData.value)}
+                      projectValue={parseFloat(formData.value || '0') || 0}
                       value={formData.bundleDistribution}
                       onChange={(distribution) => setFormData({ ...formData, bundleDistribution: distribution })}
                       disabled={isSaving}
