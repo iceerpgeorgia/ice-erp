@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-15 Deployment #172
+- Summary: Fix projects bundle status lookup 404/JSON parse errors by adding UUID endpoint and resilient client fetch handling.
+- Changes:
+  - app/api/financial-codes/[uuid]/route.ts: Added GET endpoint to fetch a financial code by UUID.
+  - components/figma/projects-table.tsx: Updated bundle status fetch to check response status before parsing JSON and fallback safely on errors.
+- Commit: 5c0c742
+- Production: https://ice-b3rqdcvk1-iceerp.vercel.app
+
 ## 2026-04-15 Deployment #171
 - Summary: Show bundle distribution section immediately after selecting a bundle financial code.
 - Changes:
