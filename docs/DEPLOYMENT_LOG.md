@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-04-15 Deployment #171
+- Summary: Show bundle distribution section immediately after selecting a bundle financial code.
+- Changes:
+  - components/figma/projects-table.tsx: Added missing BundleDistributionGrid block to Add Project dialog.
+  - components/figma/projects-table.tsx: Removed value > 0 visibility gating for bundle section in Edit dialog.
+  - components/figma/projects-table.tsx: Added safe fallback (0) for projectValue so section renders before value input.
+- Commit: cfcd3e5
+- Production: https://ice-iw3h9pzau-iceerp.vercel.app
+
 ## 2026-04-15 Deployment #170
 - Summary: Fix bundle financial code form expansion in Add and Edit Project dialogs.
 - Changes:
