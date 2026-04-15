@@ -629,12 +629,24 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       setIsBundleFC(false);
       return;
     }
-    fetch(`/api/financial-codes/${formData.financialCodeUuid}`).then(res => res.json()).then(data => {
-      if (data && typeof data.is_bundle === 'boolean') {
-        setIsBundleFC(data.is_bundle);
-        if (!data.is_bundle) setFormData(prev => ({ ...prev, bundleDistribution: [] }));
-      }
-    }).catch(err => console.error('Error checking bundle status:', err));
+    fetch(`/api/financial-codes/${formData.financialCodeUuid}`)
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(`Failed to fetch financial code (${res.status})`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        const isBundle = Boolean(data?.is_bundle ?? data?.isBundle ?? false);
+        setIsBundleFC(isBundle);
+        if (!isBundle) {
+          setFormData((prev) => ({ ...prev, bundleDistribution: [] }));
+        }
+      })
+      .catch((err) => {
+        console.error('Error checking bundle status:', err);
+        setIsBundleFC(false);
+      });
   }, [formData.financialCodeUuid]);
 
   // Mouse events for column resizing
@@ -2048,4 +2060,5 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   );
 }
 export default ProjectsTable;
+
 
