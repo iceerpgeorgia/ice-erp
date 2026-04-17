@@ -12,6 +12,8 @@ import { ClearFiltersButton } from './shared/clear-filters-button';
 import { useTableFilters, type FilterableColumn } from './shared/use-table-filters';
 import * as XLSX from 'xlsx';
 import { AddProjectDialog } from './add-project-dialog';
+import { PaymentAttachments } from './payment-attachments';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 
 type FinancialCode = {
   uuid: string;
@@ -305,6 +307,13 @@ export function ServicesReportTable() {
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPaymentIds, setSelectedPaymentIds] = useState<Set<string>>(new Set());
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [isDeconfirmOpen, setIsDeconfirmOpen] = useState(false);
+  const [isDeconfirming, setIsDeconfirming] = useState(false);
+  const [deconfirmError, setDeconfirmError] = useState<string | null>(null);
   const [maxDate, setMaxDate] = useState('');
   const [financialCodeSearch, setFinancialCodeSearch] = useState('');
   const [financialCodes, setFinancialCodes] = useState<FinancialCode[]>([]);
@@ -471,6 +480,60 @@ export function ServicesReportTable() {
     }));
     setFinancialCodes(mapped);
   }, []);
+
+  const handleConfirmSelected = async () => {
+    if (selectedPaymentIds.size === 0) return;
+    setIsConfirming(true);
+    setConfirmError(null);
+    try {
+      const response = await fetch('/api/payments-ledger/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentIds: Array.from(selectedPaymentIds),
+          maxDate: maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate) ? maxDate : null,
+        }),
+      });
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}));
+        throw new Error(errorPayload.error || 'Failed to confirm ledger entries.');
+      }
+      setIsConfirmOpen(false);
+      setSelectedPaymentIds(new Set());
+      await fetchReport();
+    } catch (err: any) {
+      setConfirmError(err.message || 'Failed to confirm ledger entries.');
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  const handleDeconfirmSelected = async () => {
+    if (selectedPaymentIds.size === 0) return;
+    setIsDeconfirming(true);
+    setDeconfirmError(null);
+    try {
+      const response = await fetch('/api/payments-ledger/deconfirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentIds: Array.from(selectedPaymentIds),
+          maxDate: maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate) ? maxDate : null,
+        }),
+      });
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}));
+        throw new Error(errorPayload.error || 'Failed to deconfirm ledger entries.');
+      }
+      setIsDeconfirmOpen(false);
+      setSelectedPaymentIds(new Set());
+      await fetchReport();
+    } catch (err: any) {
+      setDeconfirmError(err.message || 'Failed to deconfirm ledger entries.');
+    } finally {
+      setIsDeconfirming(false);
+    }
+  };
 
   const fetchReport = useCallback(async () => {
     if (selectedFinancialCodeUuids.size === 0) {
@@ -1151,6 +1214,80 @@ export function ServicesReportTable() {
           label="Clear Column Filters"
         />
         <AddProjectDialog onSuccess={fetchReport} />
+        {selectedPaymentIds.size > 0 && (
+          <Dialog open={isConfirmOpen} onOpenChange={(open) => { setIsConfirmOpen(open); if (!open) setConfirmError(null); }}>
+            <DialogTrigger asChild>
+              <Button variant="default">{selectedPaymentIds.size} selected — Confirm</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Confirm selected payments</DialogTitle>
+                <DialogDescription>
+                  You are about to confirm ledger entries for {selectedPaymentIds.size} payment{selectedPaymentIds.size === 1 ? '' : 's'}.
+                  {maxDate && ` Only entries with effective date ≤ ${maxDate} will be confirmed.`}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                {maxDate && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    Only ledger entries with effective date &lt;= {maxDate} will be confirmed.
+                  </div>
+                )}
+                <div className="max-h-48 overflow-y-auto rounded-md border text-sm">
+                  <div className="flex flex-wrap gap-1 p-2">
+                    {Array.from(selectedPaymentIds).map((id) => (
+                      <span key={id} className="rounded bg-gray-100 px-2 py-0.5 text-xs">{id}</span>
+                    ))}
+                  </div>
+                </div>
+                {confirmError && <div className="text-sm text-red-600">{confirmError}</div>}
+                <div className="flex gap-3 pt-1">
+                  <Button onClick={handleConfirmSelected} disabled={isConfirming} className="flex-1">
+                    {isConfirming ? 'Confirming...' : 'Confirm'}
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsConfirmOpen(false)} className="flex-1">Cancel</Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+        {selectedPaymentIds.size > 0 && (
+          <Dialog open={isDeconfirmOpen} onOpenChange={(open) => { setIsDeconfirmOpen(open); if (!open) setDeconfirmError(null); }}>
+            <DialogTrigger asChild>
+              <Button variant="outline">Deconfirm</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Deconfirm selected payments</DialogTitle>
+                <DialogDescription>
+                  You are about to deconfirm ledger entries for {selectedPaymentIds.size} payment{selectedPaymentIds.size === 1 ? '' : 's'}.
+                  {maxDate && ` Only entries with effective date ≤ ${maxDate} will be deconfirmed.`}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                {maxDate && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    Only ledger entries with effective date &lt;= {maxDate} will be deconfirmed.
+                  </div>
+                )}
+                <div className="max-h-48 overflow-y-auto rounded-md border text-sm">
+                  <div className="flex flex-wrap gap-1 p-2">
+                    {Array.from(selectedPaymentIds).map((id) => (
+                      <span key={id} className="rounded bg-gray-100 px-2 py-0.5 text-xs">{id}</span>
+                    ))}
+                  </div>
+                </div>
+                {deconfirmError && <div className="text-sm text-red-600">{deconfirmError}</div>}
+                <div className="flex gap-3 pt-1">
+                  <Button onClick={handleDeconfirmSelected} disabled={isDeconfirming} variant="destructive" className="flex-1">
+                    {isDeconfirming ? 'Deconfirming...' : 'Deconfirm'}
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsDeconfirmOpen(false)} className="flex-1">Cancel</Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
         <Button variant="outline" onClick={fetchReport}>Refresh</Button>
         <Button
           variant="outline"
@@ -1258,7 +1395,31 @@ export function ServicesReportTable() {
                 </colgroup>
                 <thead className="bg-gray-50 text-gray-600 sticky top-0 z-10">
                   <tr>
-                    <th className="px-3 py-2 text-left w-[56px] bg-gray-50">#</th>
+                    <th className="px-3 py-2 text-left w-[56px] bg-gray-50">
+                      {(() => {
+                        const sectionPaymentIds = section.rows.flatMap((r) => r.paymentIds);
+                        const allSelected = sectionPaymentIds.length > 0 && sectionPaymentIds.every((id) => selectedPaymentIds.has(id));
+                        const someSelected = !allSelected && sectionPaymentIds.some((id) => selectedPaymentIds.has(id));
+                        return (
+                          <Checkbox
+                            checked={allSelected}
+                            data-state={someSelected ? 'indeterminate' : undefined}
+                            onCheckedChange={() => {
+                              setSelectedPaymentIds((prev) => {
+                                const next = new Set(prev);
+                                if (allSelected) {
+                                  sectionPaymentIds.forEach((id) => next.delete(id));
+                                } else {
+                                  sectionPaymentIds.forEach((id) => next.add(id));
+                                }
+                                return next;
+                              });
+                            }}
+                            title="Select / deselect all in section"
+                          />
+                        );
+                      })()}
+                    </th>
                     {visibleColumns.map((column) => {
                       const bg = COLUMN_BG[column.key];
                       const isSortable = column.key !== 'actions';
@@ -1329,7 +1490,29 @@ export function ServicesReportTable() {
                         isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : ''
                       }`}
                     >
-                      <td className="px-3 py-2">{index + 1}</td>
+                      <td className="px-3 py-2">
+                        {(() => {
+                          const rowHasAnySelected = row.paymentIds.some((id) => selectedPaymentIds.has(id));
+                          const rowAllSelected = row.paymentIds.length > 0 && row.paymentIds.every((id) => selectedPaymentIds.has(id));
+                          return (
+                            <Checkbox
+                              checked={rowAllSelected}
+                              data-state={rowHasAnySelected && !rowAllSelected ? 'indeterminate' : undefined}
+                              onCheckedChange={() => {
+                                setSelectedPaymentIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (rowAllSelected) {
+                                    row.paymentIds.forEach((id) => next.delete(id));
+                                  } else {
+                                    row.paymentIds.forEach((id) => next.add(id));
+                                  }
+                                  return next;
+                                });
+                              }}
+                            />
+                          );
+                        })()}
+                      </td>
                       {visibleColumns.map((column) => {
                         const rawValue = getColumnValue(row, column.key);
                         const bg = COLUMN_BG[column.key];
@@ -1430,16 +1613,18 @@ export function ServicesReportTable() {
                             ) : column.key === 'actions' ? (
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 {row.paymentIds.map((paymentId) => (
-                                  <a
-                                    key={`${row.projectUuid}-${paymentId}`}
-                                    href={`/payment-statement/${paymentId}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-block text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
-                                    title={`Payment statement: ${paymentId}`}
-                                  >
-                                    <FileText className="w-4 h-4" />
-                                  </a>
+                                  <span key={`${row.projectUuid}-${paymentId}`} className="inline-flex items-center gap-0.5">
+                                    <a
+                                      href={`/payment-statement/${paymentId}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-block text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
+                                      title={`Payment statement: ${paymentId}`}
+                                    >
+                                      <FileText className="w-4 h-4" />
+                                    </a>
+                                    <PaymentAttachments paymentId={paymentId} />
+                                  </span>
                                 ))}
                                 <a
                                   href={row.counteragentUuid ? `/counteragent-statement/${row.counteragentUuid}` : '#'}
