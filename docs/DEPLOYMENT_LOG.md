@@ -1,5 +1,24 @@
 # Deployment Log
 
+## 2026-04-17 Deployment #174
+- Summary: Add module access dialog to user management page for simplified permission assignment.
+- Changes:
+  - components/figma/users-management-table.tsx: Added "Modules" button for each user in the Actions column.
+  - components/figma/users-management-table.tsx: Implemented modal dialog with module checkboxes to grant/revoke access.
+  - components/figma/users-management-table.tsx: Display all active modules with their feature badges in the dialog.
+  - components/figma/users-management-table.tsx: Bulk grant/revoke all features of selected modules per user.
+  - components/figma/users-management-table.tsx: Show selected module count and disable button for unauthorized users.
+  - components/figma/users-management-table.tsx: Added Shield icon for visual clarity.
+- Features:
+  - Click "Modules" button next to any user to open access dialog
+  - Checkbox interface to select/deselect module access
+  - Visual display of all module features as badges
+  - Bulk permission assignment (all features per module)
+  - Simplified workflow: no need to navigate to separate permissions page
+  - Real-time module access management from user table
+- Commit: 9b400f6
+- Production: https://ice-ei0sh3oqb-iceerp.vercel.app
+
 ## 2026-04-17 Deployment #173
 - Summary: Comprehensive permission system enhancements with client hook, caching, hierarchical permissions, and admin UIs.
 - Changes:
