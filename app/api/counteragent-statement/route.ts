@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { resolveInsiderSelection } from '@/lib/insider-selection';
 
 export const revalidate = 0;
 
@@ -51,6 +52,11 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const { selectedUuids: insiderUuids } = await resolveInsiderSelection(request);
+    const insiderFilter = insiderUuids.length > 0
+      ? `AND (ba.insider_uuid IS NULL OR ba.insider_uuid = ANY(ARRAY[${insiderUuids.map((u) => `'${u}'::uuid`).join(', ')}]::uuid[]))`
+      : '';
 
     const { searchParams } = new URL(request.url);
     const counteragentUuid = searchParams.get('counteragentUuid');
@@ -301,6 +307,7 @@ export async function GET(request: NextRequest) {
            WHERE btb.raw_record_uuid::text = cba.raw_record_uuid::text
          )
            AND cba.counteragent_uuid = $1::uuid
+           ${insiderFilter}
 
          UNION ALL
 
@@ -343,6 +350,7 @@ export async function GET(request: NextRequest) {
          LEFT JOIN currencies curr ON cba.account_currency_uuid = curr.uuid
          LEFT JOIN currencies nominal_curr ON COALESCE(btb.nominal_currency_uuid, cba.nominal_currency_uuid) = nominal_curr.uuid
          WHERE btb.counteragent_uuid = $1::uuid
+           ${insiderFilter}
        ) result
        ORDER BY result.transaction_date DESC`,
       counteragentUuid

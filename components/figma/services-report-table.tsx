@@ -205,7 +205,7 @@ const DEFAULT_TOTALS = {
   balance: 0,
 };
 
-const SERVICES_REPORT_COLUMNS_STORAGE_KEY = 'servicesReportSectionColumnsV7';
+const SERVICES_REPORT_COLUMNS_STORAGE_KEY = 'servicesReportColumnsV8';
 
 const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'status', label: 'Status', visible: true, width: 120, align: 'left' },
@@ -349,14 +349,14 @@ export function ServicesReportTable() {
     pageSize: 100000,
   });
 
-  const [sectionColumns, setSectionColumns] = useState<Record<string, SectionColumn[]>>({});
-  const [draggedColumn, setDraggedColumn] = useState<{ sectionId: string; key: SectionColumnKey } | null>(null);
+  const [columns, setColumns] = useState<SectionColumn[]>(DEFAULT_SECTION_COLUMNS);
+  const [draggedColumn, setDraggedColumn] = useState<{ key: SectionColumnKey } | null>(null);
   const [resizing, setResizing] = useState<{
-    sectionId: string;
     key: SectionColumnKey;
     startX: number;
     startWidth: number;
   } | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   const [jobLinkDialog, setJobLinkDialog] = useState<JobLinkDialogState>({
     open: false,
@@ -413,9 +413,9 @@ export function ServicesReportTable() {
 
     if (savedColumns) {
       try {
-        const parsed = JSON.parse(savedColumns) as Record<string, SectionColumn[]>;
-        if (parsed && typeof parsed === 'object') {
-          setSectionColumns(parsed);
+        const parsed = JSON.parse(savedColumns) as SectionColumn[];
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.key) {
+          setColumns(parsed);
         }
       } catch {
         // ignore
@@ -432,8 +432,8 @@ export function ServicesReportTable() {
   }, [maxDate]);
 
   useEffect(() => {
-    localStorage.setItem(SERVICES_REPORT_COLUMNS_STORAGE_KEY, JSON.stringify(sectionColumns));
-  }, [sectionColumns]);
+    localStorage.setItem(SERVICES_REPORT_COLUMNS_STORAGE_KEY, JSON.stringify(columns));
+  }, [columns]);
 
   useEffect(() => {
     if (!resizing) return;
@@ -441,16 +441,11 @@ export function ServicesReportTable() {
     const handleMouseMove = (event: MouseEvent) => {
       const delta = event.clientX - resizing.startX;
       const nextWidth = Math.max(20, resizing.startWidth + delta);
-      setSectionColumns((prev) => {
-        const current = prev[resizing.sectionId] || DEFAULT_SECTION_COLUMNS;
-        const updated = current.map((column) =>
+      setColumns((prev) =>
+        prev.map((column) =>
           column.key === resizing.key ? { ...column, width: nextWidth } : column
-        );
-        return {
-          ...prev,
-          [resizing.sectionId]: updated,
-        };
-      });
+        )
+      );
     };
 
     const handleMouseUp = () => {
@@ -646,35 +641,21 @@ export function ServicesReportTable() {
     setSelectedFinancialCodeUuids(new Set());
   };
 
-  const getColumnsForSection = (sectionId: string) => {
-    return sectionColumns[sectionId] || DEFAULT_SECTION_COLUMNS;
-  };
-
-  const setColumnsForSection = (sectionId: string, updater: (current: SectionColumn[]) => SectionColumn[]) => {
-    setSectionColumns((prev) => {
-      const current = prev[sectionId] || DEFAULT_SECTION_COLUMNS;
-      return {
-        ...prev,
-        [sectionId]: updater(current),
-      };
-    });
-  };
-
-  const toggleColumnVisibility = (sectionId: string, key: SectionColumnKey) => {
-    setColumnsForSection(sectionId, (current) =>
-      current.map((column) =>
+  const toggleColumnVisibility = (key: SectionColumnKey) => {
+    setColumns((prev) =>
+      prev.map((column) =>
         column.key === key ? { ...column, visible: !column.visible } : column
       )
     );
   };
 
-  const handleColumnDrop = (sectionId: string, targetKey: SectionColumnKey) => {
-    if (!draggedColumn || draggedColumn.sectionId !== sectionId || draggedColumn.key === targetKey) return;
-    setColumnsForSection(sectionId, (current) => {
-      const fromIndex = current.findIndex((column) => column.key === draggedColumn.key);
-      const toIndex = current.findIndex((column) => column.key === targetKey);
-      if (fromIndex === -1 || toIndex === -1) return current;
-      const reordered = [...current];
+  const handleColumnDrop = (targetKey: SectionColumnKey) => {
+    if (!draggedColumn || draggedColumn.key === targetKey) return;
+    setColumns((prev) => {
+      const fromIndex = prev.findIndex((column) => column.key === draggedColumn.key);
+      const toIndex = prev.findIndex((column) => column.key === targetKey);
+      if (fromIndex === -1 || toIndex === -1) return prev;
+      const reordered = [...prev];
       const [moved] = reordered.splice(fromIndex, 1);
       reordered.splice(toIndex, 0, moved);
       return reordered;
@@ -1207,6 +1188,28 @@ export function ServicesReportTable() {
             </div>
           </PopoverContent>
         </Popover>
+        {/* Global column selector */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="flex items-center gap-2">
+              <Columns3 className="h-4 w-4" />
+              Columns
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[280px] p-2" align="start">
+            <div className="space-y-1 max-h-72 overflow-y-auto">
+              {columns.map((column) => (
+                <label key={column.key} className="flex items-center gap-2 px-2 py-1 text-sm cursor-pointer">
+                  <Checkbox
+                    checked={column.visible}
+                    onCheckedChange={() => toggleColumnVisibility(column.key)}
+                  />
+                  <span>{column.label}</span>
+                </label>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
         <Input
           type="date"
           value={maxDate}
@@ -1322,36 +1325,27 @@ export function ServicesReportTable() {
         </div>
       ) : (
         sections.map((section) => {
-          const columns = getColumnsForSection(section.financialCodeUuid);
           const visibleColumns = columns.filter((column) => column.visible);
-          const selectorColumns = columns;
+          const isCollapsed = collapsedSections.has(section.financialCodeUuid);
           return (
             <div key={section.financialCodeUuid} className="rounded-lg border">
               {/* Sticky section header + summary */}
               <div className="sticky top-0 z-20 bg-white rounded-t-lg">
               <div className="px-3 py-2 border-b bg-gray-50 flex items-center justify-between">
-                <div className="text-sm font-medium">{section.financialCodeValidation} ({section.rows.length})</div>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 gap-1">
-                      <Columns3 className="h-4 w-4" />
-                      Columns
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[280px] p-2" align="end">
-                    <div className="space-y-1 max-h-72 overflow-y-auto">
-                      {selectorColumns.map((column) => (
-                        <label key={column.key} className="flex items-center gap-2 px-2 py-1 text-sm">
-                          <Checkbox
-                            checked={column.visible}
-                            onCheckedChange={() => toggleColumnVisibility(section.financialCodeUuid, column.key)}
-                          />
-                          <span>{column.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCollapsedSections((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(section.financialCodeUuid)) next.delete(section.financialCodeUuid);
+                      else next.add(section.financialCodeUuid);
+                      return next;
+                    })}
+                    className="w-5 h-5 flex items-center justify-center rounded border text-xs font-bold hover:bg-gray-100"
+                  >
+                    {isCollapsed ? '+' : '−'}
+                  </button>
+                  <div className="text-sm font-medium">{section.financialCodeValidation} ({section.rows.length})</div>
+                </div>
               </div>
               {/* Section totals boxes (active service_state projects only) */}
               {(() => {
@@ -1396,44 +1390,44 @@ export function ServicesReportTable() {
               })()}
               </div>{/* end sticky band */}
 
+              {!isCollapsed && (
               <div className="overflow-x-auto">
               <table className="text-sm min-w-full" style={{ tableLayout: 'fixed' }}>
                 <colgroup>
-                  <col style={{ width: '56px' }} />
+                  <col style={{ width: '32px' }} />
+                  <col style={{ width: '40px' }} />
                   {visibleColumns.map((column) => (
                     <col key={column.key} style={{ width: `${column.width}px` }} />
                   ))}
                 </colgroup>
                 <thead className="bg-gray-50 text-gray-600 sticky top-0 z-10">
                   <tr>
-                    <th className="px-3 py-2 text-left w-[56px] bg-gray-50">
-                      <div className="flex flex-col items-center gap-0.5">
-                        {(() => {
-                          const sectionPaymentIds = section.rows.flatMap((r) => r.paymentIds);
-                          const allSelected = sectionPaymentIds.length > 0 && sectionPaymentIds.every((id) => selectedPaymentIds.has(id));
-                          const someSelected = !allSelected && sectionPaymentIds.some((id) => selectedPaymentIds.has(id));
-                          return (
-                            <Checkbox
-                              checked={allSelected}
-                              data-state={someSelected ? 'indeterminate' : undefined}
-                              onCheckedChange={() => {
-                                setSelectedPaymentIds((prev) => {
-                                  const next = new Set(prev);
-                                  if (allSelected) {
-                                    sectionPaymentIds.forEach((id) => next.delete(id));
-                                  } else {
-                                    sectionPaymentIds.forEach((id) => next.add(id));
-                                  }
-                                  return next;
-                                });
-                              }}
-                              title="Select / deselect all in section"
-                            />
-                          );
-                        })()}
-                        <span className="text-xs text-gray-400">#</span>
-                      </div>
+                    <th className="px-2 py-2 text-center w-[32px] bg-gray-50">
+                      {(() => {
+                        const sectionPaymentIds = section.rows.flatMap((r) => r.paymentIds);
+                        const allSelected = sectionPaymentIds.length > 0 && sectionPaymentIds.every((id) => selectedPaymentIds.has(id));
+                        const someSelected = !allSelected && sectionPaymentIds.some((id) => selectedPaymentIds.has(id));
+                        return (
+                          <Checkbox
+                            checked={allSelected}
+                            data-state={someSelected ? 'indeterminate' : undefined}
+                            onCheckedChange={() => {
+                              setSelectedPaymentIds((prev) => {
+                                const next = new Set(prev);
+                                if (allSelected) {
+                                  sectionPaymentIds.forEach((id) => next.delete(id));
+                                } else {
+                                  sectionPaymentIds.forEach((id) => next.add(id));
+                                }
+                                return next;
+                              });
+                            }}
+                            title="Select / deselect all in section"
+                          />
+                        );
+                      })()}
                     </th>
+                    <th className="px-2 py-2 text-center w-[40px] bg-gray-50 text-xs text-gray-400">#</th>
                     {visibleColumns.map((column) => {
                       const bg = COLUMN_BG[column.key];
                       const isSortable = column.key !== 'actions';
@@ -1442,9 +1436,9 @@ export function ServicesReportTable() {
                       <th
                         key={column.key}
                         draggable
-                        onDragStart={() => setDraggedColumn({ sectionId: section.financialCodeUuid, key: column.key })}
+                        onDragStart={() => setDraggedColumn({ key: column.key })}
                         onDragOver={(event) => event.preventDefault()}
-                        onDrop={() => handleColumnDrop(section.financialCodeUuid, column.key)}
+                        onDrop={() => handleColumnDrop(column.key)}
                         className={`px-3 py-2 relative overflow-hidden ${column.align === 'right' ? 'text-right' : 'text-left'}`}
                         style={{ width: `${column.width}px`, maxWidth: `${column.width}px`, backgroundColor: bg || '#f9fafb' }}
                       >
@@ -1480,7 +1474,6 @@ export function ServicesReportTable() {
                           onMouseDown={(event) => {
                             event.preventDefault();
                             setResizing({
-                              sectionId: section.financialCodeUuid,
                               key: column.key,
                               startX: event.clientX,
                               startWidth: column.width,
@@ -1504,32 +1497,30 @@ export function ServicesReportTable() {
                         isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : ''
                       }`}
                     >
-                      <td className="px-3 py-2">
-                        <div className="flex flex-col items-center gap-0.5">
-                          {(() => {
-                            const rowHasAnySelected = row.paymentIds.some((id) => selectedPaymentIds.has(id));
-                            const rowAllSelected = row.paymentIds.length > 0 && row.paymentIds.every((id) => selectedPaymentIds.has(id));
-                            return (
-                              <Checkbox
-                                checked={rowAllSelected}
-                                data-state={rowHasAnySelected && !rowAllSelected ? 'indeterminate' : undefined}
-                                onCheckedChange={() => {
-                                  setSelectedPaymentIds((prev) => {
-                                    const next = new Set(prev);
-                                    if (rowAllSelected) {
-                                      row.paymentIds.forEach((id) => next.delete(id));
-                                    } else {
-                                      row.paymentIds.forEach((id) => next.add(id));
-                                    }
-                                    return next;
-                                  });
-                                }}
-                              />
-                            );
-                          })()}
-                          <span className="text-xs text-gray-500">{index + 1}</span>
-                        </div>
+                      <td className="px-2 py-2 text-center">
+                        {(() => {
+                          const rowHasAnySelected = row.paymentIds.some((id) => selectedPaymentIds.has(id));
+                          const rowAllSelected = row.paymentIds.length > 0 && row.paymentIds.every((id) => selectedPaymentIds.has(id));
+                          return (
+                            <Checkbox
+                              checked={rowAllSelected}
+                              data-state={rowHasAnySelected && !rowAllSelected ? 'indeterminate' : undefined}
+                              onCheckedChange={() => {
+                                setSelectedPaymentIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (rowAllSelected) {
+                                    row.paymentIds.forEach((id) => next.delete(id));
+                                  } else {
+                                    row.paymentIds.forEach((id) => next.add(id));
+                                  }
+                                  return next;
+                                });
+                              }}
+                            />
+                          );
+                        })()}
                       </td>
+                      <td className="px-2 py-2 text-center text-xs text-gray-500">{index + 1}</td>
                       {visibleColumns.map((column) => {
                         const rawValue = getColumnValue(row, column.key);
                         const bg = COLUMN_BG[column.key];
@@ -1680,7 +1671,8 @@ export function ServicesReportTable() {
                   })}
                 </tbody>
               </table>
-              </div>{/* end overflow-x-auto */}
+              </div>
+              )}
             </div>
           );
         })

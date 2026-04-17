@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getSourceTables } from '@/lib/source-tables';
+import { sqlUuidInList } from '@/lib/insider-selection';
 
 export const revalidate = 0;
 
@@ -13,11 +14,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const sourceTables = await getSourceTables();
-
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const maxDate = searchParams.get('maxDate');
+    const insiderUuidsParam = searchParams.get('insiderUuids');
+    const insiderUuids: string[] = insiderUuidsParam
+      ? insiderUuidsParam.split(',').map((u) => u.trim()).filter(Boolean)
+      : [];
+
+    const sourceTables = await getSourceTables(insiderUuids.length > 0 ? insiderUuids : undefined);
+
+    const insiderWhereClause = insiderUuids.length > 0
+      ? `AND (proj.insider_uuid IS NULL OR proj.insider_uuid = ANY(ARRAY[${sqlUuidInList(insiderUuids)}]::uuid[]))`
+      : '';
 
     const ledgerDateFilter = maxDate ? `WHERE pl.effective_date::date <= '${maxDate}'::date` : '';
     const bankDateFilter = maxDate ? `AND transaction_date::date <= '${maxDate}'::date` : '';
@@ -182,6 +191,7 @@ export async function GET(request: NextRequest) {
         GROUP BY payment_id
       ) bank_agg ON p.payment_id = bank_agg.payment_id
       WHERE p.is_active = true
+      ${insiderWhereClause}
       ORDER BY p.payment_id DESC
     `;
 

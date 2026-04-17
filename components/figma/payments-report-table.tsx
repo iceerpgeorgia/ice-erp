@@ -143,6 +143,7 @@ export function PaymentsReportTable() {
   const filtersStorageKey = 'paymentsReportFiltersV2';
   const [data, setData] = useState<PaymentReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [insiderUuids, setInsiderUuids] = useState<string[]>([]);
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
   const [isResizing, setIsResizing] = useState<{ column: ColumnKey; startX: number; startWidth: number; element: HTMLElement } | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
@@ -409,13 +410,25 @@ export function PaymentsReportTable() {
     setIsInitialized(true);
   }, []);
 
+  // Fetch insider selection on mount
+  useEffect(() => {
+    fetch('/api/insider-selection')
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.selectedUuids && Array.isArray(data.selectedUuids)) {
+          setInsiderUuids(data.selectedUuids);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Fetch data after initialization and when date filter changes
   useEffect(() => {
     if (isInitialized) {
       fetchData();
       fetchPayments(); // Also fetch payments for Add Entry dialog
     }
-  }, [isInitialized, dateFilterMode, customDate]);
+  }, [isInitialized, dateFilterMode, customDate, insiderUuids]);
 
   // Lazy loader for counteragents — called when the payment form opens
   const fetchCounterAgents = useCallback(async () => {
@@ -1051,6 +1064,10 @@ export function PaymentsReportTable() {
       } else {
         console.log('[Payments Report] No date filter applied');
       }
+
+      if (insiderUuids.length > 0) {
+        params.set('insiderUuids', insiderUuids.join(','));
+      }
       
       const url = `/api/payments-report${params.toString() ? '?' + params.toString() : ''}`;
       console.log('[Payments Report] Fetching from:', url);
@@ -1071,7 +1088,7 @@ export function PaymentsReportTable() {
         setLoading(false);
       }
     }
-  }, [dateFilterMode, customDate, getLocalTodayIso]);
+  }, [dateFilterMode, customDate, getLocalTodayIso, insiderUuids]);
 
   // Listen for ledger updates from other tabs
   useEffect(() => {

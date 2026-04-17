@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { resolveInsiderSelection } from '@/lib/insider-selection';
 
 export const revalidate = 0;
 
@@ -116,6 +117,12 @@ export async function GET(request: NextRequest) {
     if (!payment && !salaryPayment) {
       return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
     }
+
+    // Determine insider filter for bank transactions
+    const { selectedUuids: insiderUuids } = await resolveInsiderSelection(request);
+    const insiderFilter = insiderUuids.length > 0
+      ? `AND (ba.insider_uuid IS NULL OR ba.insider_uuid = ANY(ARRAY[${insiderUuids.map((u) => `'${u}'::uuid`).join(', ')}]::uuid[]))`
+      : '';
 
     // Get payment ledger entries
     const ledgerQuery = `
@@ -234,6 +241,7 @@ export async function GET(request: NextRequest) {
         )
           AND cba.payment_id NOT ILIKE 'BTC_%'
           AND (lower(cba.payment_id) = lower($1) OR lower(cba.payment_id) = lower($2))
+          ${insiderFilter}
 
         UNION ALL
 
@@ -300,6 +308,7 @@ export async function GET(request: NextRequest) {
             p.payment_id
           )
         ) = lower($2)
+        ${insiderFilter}
       ) result
       ORDER BY result.transaction_date DESC
     `;
