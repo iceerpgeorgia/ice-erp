@@ -1,5 +1,27 @@
 # Deployment Log
 
+## 2026-04-17 Deployment #175
+- Summary: Add seed-modules API endpoint to populate production database with initial module structure.
+- Changes:
+  - app/api/admin/seed-modules/route.ts: Created POST endpoint to seed 8 modules with features to production.
+  - app/api/admin/seed-modules/route.ts: Implemented upsert logic to safely create or update modules and features.
+  - app/api/admin/seed-modules/route.ts: Returns summary of modules/features created and updated.
+- Modules:
+  - User Management (5 features)
+  - Bank Transactions (6 features)
+  - Payments (6 features)
+  - Counteragents (5 features)
+  - Projects (4 features)
+  - Reports (4 features)
+  - Dictionaries (5 features)
+  - System Settings (3 features)
+- Usage:
+  - Admin must call POST /api/admin/seed-modules to populate production database
+  - Endpoint is admin-only and idempotent (safe to run multiple times)
+  - After running, refresh /admin/users page to see modules in the access dialog
+- Commit: 9d136fe
+- Production: https://ice-8ynxuaxlt-iceerp.vercel.app
+
 ## 2026-04-17 Deployment #174
 - Summary: Add module access dialog to user management page for simplified permission assignment.
 - Changes:
