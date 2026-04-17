@@ -1,5 +1,36 @@
 # Deployment Log
 
+## 2026-04-17 Deployment #173
+- Summary: Comprehensive permission system enhancements with client hook, caching, hierarchical permissions, and admin UIs.
+- Changes:
+  - hooks/usePermissions.tsx: Created client-side React hook for real-time permission checking with caching.
+  - lib/permission-cache.ts: Implemented in-memory permission cache with granular invalidation by user/module.
+  - lib/permissions.ts: Added core permission functions (getUserPermissions, getUserModules, hasPermission, hasModuleAccess).
+  - lib/audit.ts: Extended audit table types to support Module, ModuleFeature, UserPermission tables.
+  - app/admin/modules/page.tsx: Created module management UI for viewing/creating/editing modules and features.
+  - app/admin/permissions/page.tsx: Created permission assignment UI with user search and module/feature selection.
+  - app/admin/analytics/page.tsx: Created permission analytics dashboard with usage metrics and recent changes.
+  - app/api/modules/route.ts: Added CRUD API for Module entities with audit logging.
+  - app/api/module-features/route.ts: Added CRUD API for ModuleFeature entities with audit logging.
+  - app/api/permissions/users/route.ts: Added user permission CRUD with individual permission management.
+  - app/api/permissions/modules/route.ts: Added bulk module permission assignment (grant/revoke all features).
+  - app/api/permissions/me/route.ts: Added endpoint for current user's permissions and accessible modules.
+  - app/api/permissions/analytics/route.ts: Added analytics endpoint with permission distribution and audit history.
+  - Multiple files: Fixed Prisma imports from default to named exports across all new API routes.
+  - Multiple files: Added NextResponse instanceof checks for requireAuth/requireAdmin calls.
+  - app/api/permissions/analytics/route.ts: Fixed AuditLog field names to use snake_case (created_at, user_email).
+- Features:
+  - Hierarchical permission model: Module â†’ ModuleFeature â†’ UserPermission/RolePermission
+  - Real-time client-side permission checking with usePermissions hook
+  - In-memory cache with automatic invalidation on permission changes
+  - Three admin interfaces for comprehensive permission management
+  - System admin bypass (all permissions) with query optimization
+  - Permission expiration support with automatic filtering
+  - Complete audit trail for all permission operations
+  - Permission analytics with distribution metrics and recent changes
+- Commit: a1195bc
+- Production: https://ice-gafurtqju-iceerp.vercel.app
+
 ## 2026-04-15 Deployment #172
 - Summary: Fix projects bundle status lookup 404/JSON parse errors by adding UUID endpoint and resilient client fetch handling.
 - Changes:
@@ -50,7 +81,7 @@
 - Production: https://ice-cq7y7clis-iceerp.vercel.app
 
 
-## 2026-04-14 GÇô Deployment #168
+## 2026-04-14 Gï¿½ï¿½ Deployment #168
 - Summary: Add is_bundle_payment boolean flag to payments table for tracking bundle-generated payments.
 - Changes:
   - prisma/schema.prisma: Added is_bundle_payment Boolean @default(false) column (no directUrl requirement)
@@ -64,7 +95,7 @@
 - Commit: f41f8c9
 - Production: https://ice-mq8qlc8i5-iceerp.vercel.app
 
-## 2026-04-14 — Deployment #167
+## 2026-04-14 ï¿½ Deployment #167
 - Summary: Fix payments report counteragent link to open dictionary search instead of statement.
 - Changes:
   - components/figma/payments-report-table.tsx: counteragent icon link now navigates to /dictionaries/counteragents?search={name} instead of /counteragent-statement/{uuid}.
@@ -101,7 +132,7 @@
 
 ## 2026-04-07 (164)
 - Summary: Add "No Payment (Clear)" option to counteragent statement bulk edit payment selection.
-- Issue: In counteragent statement bulk edit dialog, users could not clear/remove payment assignments from selected bank transactions—only assign/change them.
+- Issue: In counteragent statement bulk edit dialog, users could not clear/remove payment assignments from selected bank transactionsï¿½only assign/change them.
 - Changes:
   - `app/counteragent-statement/[counteragentUuid]/page.tsx`:
     * Added `'-- No Payment (Clear) --'` option with value `'__none__'` at top of `bulkPaymentOptions`
@@ -357,14 +388,14 @@
 ## 2026-04-06 (145)
 - Summary: Fix UUID type casting in getPaymentAttachments subquery.
 - Changes:
-  - `lib/attachments.ts`: Added `::uuid` cast to subquery result in WHERE clause — PostgreSQL was interpreting the subquery `(SELECT record_uuid FROM payments WHERE payment_id = $1 LIMIT 1)` as text type, causing "operator does not exist: uuid = text" error when comparing with `al.owner_uuid` (UUID). Now explicitly casts subquery result to UUID.
+  - `lib/attachments.ts`: Added `::uuid` cast to subquery result in WHERE clause ï¿½ PostgreSQL was interpreting the subquery `(SELECT record_uuid FROM payments WHERE payment_id = $1 LIMIT 1)` as text type, causing "operator does not exist: uuid = text" error when comparing with `al.owner_uuid` (UUID). Now explicitly casts subquery result to UUID.
 - Commit: 3ad4240
 - Production: https://ice-r2qh6ypab-iceerp.vercel.app
 
 ## 2026-04-06 (144)
 - Summary: Fix UUID type comparison error in getPaymentAttachments query.
 - Changes:
-  - `lib/attachments.ts`: Removed incorrect `::text` cast from record_uuid in WHERE clause — `al.owner_uuid` (UUID) was being compared to `record_uuid::text` (text), causing PostgreSQL error "operator does not exist: uuid = text". Query now compares UUID to UUID correctly.
+  - `lib/attachments.ts`: Removed incorrect `::text` cast from record_uuid in WHERE clause ï¿½ `al.owner_uuid` (UUID) was being compared to `record_uuid::text` (text), causing PostgreSQL error "operator does not exist: uuid = text". Query now compares UUID to UUID correctly.
 - Commit: 56be0b7
 - Production: https://ice-7ui2mf98r-iceerp.vercel.app
 
@@ -446,7 +477,7 @@
 ## 2026-04-01 (134)
 - Summary: Fix garnishment paid amounts not summed correctly in salary accruals.
 - Changes:
-  - `app/api/salary-accruals/route.ts`: Changed `paidByPaymentOnly` fallback from `if (!paid)` to `if (totalByPaymentId > paid) paid = totalByPaymentId` — when the same salary payment_id appears for both the employee (direct pay) and enforcement bureau (garnishment), the composite-key match previously found only the employee portion. Now the total across all counteragents for a payment_id is used when it exceeds the composite match.
+  - `app/api/salary-accruals/route.ts`: Changed `paidByPaymentOnly` fallback from `if (!paid)` to `if (totalByPaymentId > paid) paid = totalByPaymentId` ï¿½ when the same salary payment_id appears for both the employee (direct pay) and enforcement bureau (garnishment), the composite-key match previously found only the employee portion. Now the total across all counteragents for a payment_id is used when it exceeds the composite match.
 - Commit: 59468c4
 - Production: https://ice-ngzbmiuia-iceerp.vercel.app
 
@@ -454,26 +485,26 @@
 - Summary: Fix salary accruals -0 conditional formatting bug and garnishment paid amount not counted.
 - Changes:
   - `components/figma/salary-accruals-table.tsx`: Added `|| 0` to `mb` and `cumulBal` to eliminate JavaScript `-0`, preventing false red row backgrounds and red/bold counteragent names.
-  - `app/api/salary-accruals/route.ts`: Added `paidByPaymentOnly` fallback map — when composite `payment_id|counteragent_uuid` lookup yields 0, fall back to matching by `payment_id` alone. Fixes wage garnishment transactions (e.g. to enforcement bureau) that carry a salary payment_id but a different counteragent being incorrectly shown as unpaid.
+  - `app/api/salary-accruals/route.ts`: Added `paidByPaymentOnly` fallback map ï¿½ when composite `payment_id|counteragent_uuid` lookup yields 0, fall back to matching by `payment_id` alone. Fixes wage garnishment transactions (e.g. to enforcement bureau) that carry a salary payment_id but a different counteragent being incorrectly shown as unpaid.
 - Commit: 29ba879
 - Production: https://ice-rbm8n2uic-iceerp.vercel.app
 
 ## 2026-04-01 (132)
 - Summary: Batch splitter dialog now shows all salary accruals (including projections) regardless of transaction counteragent.
 - Changes:
-  - `components/batch-editor.tsx`: `filteredPayments` now exempts salary entries (recordUuid starts with `salary__`) from the counteragentUuid filter — regular payments still filter by counteragent, salary accrual and projected salary options always appear.
+  - `components/batch-editor.tsx`: `filteredPayments` now exempts salary entries (recordUuid starts with `salary__`) from the counteragentUuid filter ï¿½ regular payments still filter by counteragent, salary accrual and projected salary options always appear.
 - Commit: 14c1c68
 - Production: https://ice-8pckgmmai-iceerp.vercel.app
 
 ## 2026-04-01 (131)
 - Summary: Round month_balance to 2 decimal places before conditional formatting in salary accruals table.
 - Changes:
-  - `components/figma/salary-accruals-table.tsx`: `mb` now `Math.round(raw * 100) / 100` — row background colors (red/green/gray) are evaluated on the rounded value, matching what's displayed.
+  - `components/figma/salary-accruals-table.tsx`: `mb` now `Math.round(raw * 100) / 100` ï¿½ row background colors (red/green/gray) are evaluated on the rounded value, matching what's displayed.
 - Commit: 19f7919
 - Production: https://ice-mjcpv4h1b-iceerp.vercel.app
 
 ## 2026-04-02 (130)
-- Summary: Fix `salary_month` stored with inconsistent day values causing "Mar 2026" to appear 3× in filter.
+- Summary: Fix `salary_month` stored with inconsistent day values causing "Mar 2026" to appear 3ï¿½ in filter.
 - Changes:
   - `app/api/salary-accruals/route.ts`: `periodToDate()` now returns first-of-month (`-01`) instead of last-of-month. POST and PUT handlers call `salaryDate.setUTCDate(1)` to normalize before save.
   - `components/figma/salary-accruals-table.tsx`: `salaryMonthStr` build in import flow changed from last-day-of-month to `01`. Added `getColumnValues` wrapper that deduplicates `salary_month` filter values by YYYY-MM so duplicate months never appear in the filter dropdown.
@@ -485,10 +516,10 @@
 - Summary: Replace all hardcoded raw table lists with dynamic query from bank_accounts.
 - Changes:
   - New `lib/source-tables.ts`: `getSourceTables()` queries `bank_accounts.raw_table_name` at runtime so new bank accounts are automatically included.
-  - `payments-report/route.ts`: removed hardcoded `SOURCE_TABLES` (was BOG_GEL + TBC_GEL only), now uses all 14 configured tables — fixes EUR/USD/TRY/etc. transactions not being counted as paid.
-  - `bank-transaction-batches/route.ts`: same — GET/POST/DELETE all use dynamic tables.
+  - `payments-report/route.ts`: removed hardcoded `SOURCE_TABLES` (was BOG_GEL + TBC_GEL only), now uses all 14 configured tables ï¿½ fixes EUR/USD/TRY/etc. transactions not being counted as paid.
+  - `bank-transaction-batches/route.ts`: same ï¿½ GET/POST/DELETE all use dynamic tables.
   - `cron/cash-based-monthly-accruals/route.ts`: same.
-  - `salary-accruals/route.ts`: same — GET, PUT, and `remapPaymentIdBindings` use dynamic tables.
+  - `salary-accruals/route.ts`: same ï¿½ GET, PUT, and `remapPaymentIdBindings` use dynamic tables.
   - `salary-report/route.ts`: same.
 - Commit: 6d24ac5
 - Production: https://ice-6aoux0hic-iceerp.vercel.app
@@ -513,8 +544,8 @@
 ## 2026-03-30 (126)
 - Summary: Prevent duplicate salary accrual records + clean up existing March 2026 duplicate.
 - Changes:
-  - API `copy-latest`: added pre-check — if target month already has records, returns 409 error instead of creating duplicates.
-  - API `copy-accrual`: added per-record check — skips months where a record already exists for the same counteragent + financial code combo. Returns `skipped` array.
+  - API `copy-latest`: added pre-check ï¿½ if target month already has records, returns 409 error instead of creating duplicates.
+  - API `copy-accrual`: added per-record check ï¿½ skips months where a record already exists for the same counteragent + financial code combo. Returns `skipped` array.
   - DB: added unique constraint `salary_accruals_ca_fc_month_unique` on `(counteragent_uuid, financial_code_uuid, salary_month)` to prevent duplicates at the database level.
   - Cleaned up 1 existing duplicate record (ID 6151) in March 2026.
   - Prisma schema updated with `@@unique` and migration `20260330191939_add_salary_accruals_unique_constraint`.
@@ -603,7 +634,7 @@
 - Changes:
   - PUT /api/jobs: Replaced destructive delete-all + re-insert of job_projects with differential sync (only removes/adds changed bindings).
   - DELETE /api/jobs: Added pre-check for active payments, returns 409 if any exist.
-  - POST /api/job-projects: Same differential sync fix — no longer deletes all bindings before re-inserting.
+  - POST /api/job-projects: Same differential sync fix ï¿½ no longer deletes all bindings before re-inserting.
   - DB triggers (applied directly): trg_prevent_job_deactivation_with_payments, trg_prevent_job_project_unbind_with_payments.
 - Commit: 4ab15ef
 - Production: https://ice-hwtpy5iwl-iceerp.vercel.app
@@ -676,7 +707,7 @@
 ## 2026-03-27 (105)
 - Summary: Fix currency conversion date parsing, add weekend/holiday rate fallback, add reusable Add Project dialog to 3 pages.
 - Changes:
-  - `app/api/bank-transactions/[id]/route.ts`: Fix `calculateExchangeRateAndAmount()` — added `toDateStr()` helper to handle Date objects from `$queryRawUnsafe` (was calling `.split('.')` on Date objects causing silent TypeError). Also added weekend/holiday rate fallback: when exact date has no NBG rate, uses latest available rate before that date.
+  - `app/api/bank-transactions/[id]/route.ts`: Fix `calculateExchangeRateAndAmount()` ï¿½ added `toDateStr()` helper to handle Date objects from `$queryRawUnsafe` (was calling `.split('.')` on Date objects causing silent TypeError). Also added weekend/holiday rate fallback: when exact date has no NBG rate, uses latest available rate before that date.
   - `components/figma/add-project-dialog.tsx`: New reusable Add Project dialog component with counteragent locking support.
   - `components/figma/payments-report-table.tsx`: Added Add Project button.
   - `components/figma/services-report-table.tsx`: Added Add Project button.
@@ -709,7 +740,7 @@
 - URL: https://ice-li9q3y4c8-iceerp.vercel.app
 
 ## 2026-03-26 (102)
-- Summary: Fix `recompute_bank_account_balance_periods` — remove invalid `updated_at` reference from `DO UPDATE` clause (column does not exist on `bank_account_balances` table).
+- Summary: Fix `recompute_bank_account_balance_periods` ï¿½ remove invalid `updated_at` reference from `DO UPDATE` clause (column does not exist on `bank_account_balances` table).
 - Changes:
   - `prisma/migrations/20260326074000_fix_recompute_upsert_no_updated_at/migration.sql`: Replaces the function from migration 20260325113000, keeping the `INSERT ... ON CONFLICT DO UPDATE` idempotent logic but without the `updated_at = now()` line that caused `column "updated_at" does not exist` (code 42703) runtime errors on `PATCH /api/bank-transactions/[id]`.
   - Migration was applied directly to production via direct DB connection before this deploy.
@@ -756,7 +787,7 @@
 - Changes:
   - `app/payment-statement/[paymentId]/page.tsx`: Unified add/edit adjustment dialog (Edit2 button on adjustment rows, PATCH for edits); debounced nominal amount preview via API call; state refactored (isAdjustmentDialogOpen, editingAdjustmentId, adjNominalPreview).
   - `components/figma/services-report-table.tsx`: Summary boxes now only aggregate rows with serviceState === 'active'; section header + summary boxes are sticky (top:0 z-20) while scrolling within each financial code grid.
-  - `app/api/adjustments/preview-nominal/route.ts`: New GET endpoint — computes nominal amount from face currency inputs using NBG rates for live dialog preview.
+  - `app/api/adjustments/preview-nominal/route.ts`: New GET endpoint ï¿½ computes nominal amount from face currency inputs using NBG rates for live dialog preview.
 - Commit: 7323ccd
 - URL: https://ice-2sgd0xktf-iceerp.vercel.app
 
@@ -816,7 +847,7 @@
 - URL: https://ice-6k9vc11a8-iceerp.vercel.app
 
 ## 2026-03-24 (91)
-- Summary: Security hardening & code quality audit — auth guards on all mutation API routes, Zod validation, error boundaries, @updatedAt on all Prisma models.
+- Summary: Security hardening & code quality audit ï¿½ auth guards on all mutation API routes, Zod validation, error boundaries, @updatedAt on all Prisma models.
 - Changes:
   - `middleware.ts`: Removed hardcoded NEXTAUTH_SECRET fallback, expanded route matcher to protect all app/API routes.
   - `lib/auth-guard.ts`: New shared requireAuth/requireAdmin/isAuthError helpers.
@@ -980,15 +1011,15 @@
 - Summary: Full-screen job-linking dialog with search/filter/checkboxes/select-all and many-to-many job-project binding via new `job_projects` junction table.
 - Changes:
   - `prisma/schema.prisma`: Added `job_projects` model (job_uuid + project_uuid junction table with unique constraint).
-  - `scripts/create-job-projects-table.js`: Migration script — creates `job_projects` table, indexes, and backfills 520 rows from existing `jobs.project_uuid`.
-  - `app/api/job-projects/route.ts`: New API endpoint — GET returns linked job UUIDs for a project, POST bulk-saves job-project links (replace-all strategy).
+  - `scripts/create-job-projects-table.js`: Migration script ï¿½ creates `job_projects` table, indexes, and backfills 520 rows from existing `jobs.project_uuid`.
+  - `app/api/job-projects/route.ts`: New API endpoint ï¿½ GET returns linked job UUIDs for a project, POST bulk-saves job-project links (replace-all strategy).
   - `app/api/services-report/route.ts`: Jobs count now uses `job_projects` table (correlated subquery) instead of `COUNT(DISTINCT sp.job_uuid)` from payments. Job names also sourced from `job_projects`.
   - `components/figma/services-report-table.tsx`: Dialog redesigned to 95vw x 95vh full-screen. Shows ALL jobs in a searchable table with columns (checkbox, name, project, brand, floors, weight, FF, active). Select-all for filtered results. Bulk bind/unbind jobs to the row's project. Removed Combobox dependency.
 - Commit: e4514e9
 - URL: https://ice-o73hgufjv-iceerp.vercel.app
 
 ## 2026-03-19 (76)
-- Summary: Services Report job-linking feature — Link2 icon in Jobs column opens dialog to bind jobs to payment IDs. Jobs count now reflects only bound jobs.
+- Summary: Services Report job-linking feature ï¿½ Link2 icon in Jobs column opens dialog to bind jobs to payment IDs. Jobs count now reflects only bound jobs.
 - Changes:
   - `app/api/services-report/route.ts`: Changed jobs_count to COUNT(DISTINCT sp.job_uuid) from payment records. Added job_names array via ARRAY_AGG. Removed jobs_per_project CTE.
   - `app/api/payments/route.ts`: Added paymentIds query parameter filter to GET endpoint for fetching specific payments by payment_id.
@@ -997,15 +1028,15 @@
 - URL: https://ice-npre6v9tv-iceerp.vercel.app
 
 ## 2026-03-19 (75)
-- Summary: Services Report grid enhancements — accrual column, colored financial columns, confirmation checkbox with conditional row formatting, dd.mm.yyyy dates. Reverted misapplied Payment Statement styling.
+- Summary: Services Report grid enhancements ï¿½ accrual column, colored financial columns, confirmation checkbox with conditional row formatting, dd.mm.yyyy dates. Reverted misapplied Payment Statement styling.
 - Changes:
   - `components/figma/services-report-table.tsx`: Added Accrual column to grid. Accrual (#ffebee), Order (#fff9e6), Payment (#e8f5e9) background colors on headers and data cells. Confirmed column renders as disabled Checkbox. Rows with confirmed+due>0 highlighted green, confirmed+due=0 highlighted gray. Latest Date now uses dd.mm.yyyy format. Storage key bumped to V4.
-  - `app/payment-statement/[paymentId]/page.tsx`: Reverted deployment 74 changes (column colors, header totals, checkbox, conditional formatting) — those belong to Services Report only.
+  - `app/payment-statement/[paymentId]/page.tsx`: Reverted deployment 74 changes (column colors, header totals, checkbox, conditional formatting) ï¿½ those belong to Services Report only.
 - Commit: 5a2a7a5
 - URL: https://ice-28x4qmykx-iceerp.vercel.app
 
 ## 2026-03-19 (74)
-- Summary: Payment Statement UI enhancements — accrual/order/payment totals in header, column background colors matching Payments Report, confirmation checkbox with conditional row highlighting, dd.mm.yyyy date format.
+- Summary: Payment Statement UI enhancements ï¿½ accrual/order/payment totals in header, column background colors matching Payments Report, confirmation checkbox with conditional row highlighting, dd.mm.yyyy date format.
 - Changes:
   - `app/payment-statement/[paymentId]/page.tsx`: Added total Accrual/Order/Payment summary cards in Payment Info header with matching colors. Accrual (#ffebee), Payment (#e8f5e9), Order (#fff9e6) column backgrounds on headers, data cells, and totals row. Confirmed column now renders as disabled Checkbox instead of Yes/No text. Rows with confirmed+due>0 highlighted green, confirmed+due=0 highlighted gray. CreatedAt date format changed from dd.mm.yyyy HH:MM:SS to dd.mm.yyyy.
 - Commit: c07d34e
@@ -2684,7 +2715,7 @@
 - Summary: Bulk payment ID assignment with row checkboxes on bank-transactions-test page.
 - Changes:
   - bank-transactions-table.tsx: Added selectionEnabled, selectedIds, onSelectionChange props; checkbox column in header (select-all for current page) and rows; selected rows highlighted blue.
-  - BankTransactionsTestTableFigma.tsx: Bulk assign toolbar shown when rows are selected — payment ID input, Assign button PATCHes all selected transactions, local state updated, selection cleared on completion.
+  - BankTransactionsTestTableFigma.tsx: Bulk assign toolbar shown when rows are selected ï¿½ payment ID input, Assign button PATCHes all selected transactions, local state updated, selection cleared on completion.
 - Commit: 68eb305
 - Production: https://ice-juw5dan8p-iceerp.vercel.app
 
@@ -2991,7 +3022,7 @@
 - Production: https://ice-nmkfjvmuq-iceerp.vercel.app
 
 
-## 2026-04-14 — Deployment #166
+## 2026-04-14 ï¿½ Deployment #166
 - Summary: Add is_bundle flag to financial_codes for auto-creating one payment per child FC when a project is opened.
 - Changes:
   - prisma/schema.prisma: added is_bundle Boolean @default(false) to financial_codes model.
