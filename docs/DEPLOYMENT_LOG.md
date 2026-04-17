@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-17 Deployment #179
+- Commit: 2926b98
+- Production: https://ice-p4icx381f-iceerp.vercel.app
+- Summary: Fix services report to filter projects by selected insider(s) from home page.
+- Changes:
+  - components/figma/services-report-table.tsx: Load selectedInsiderUuids from /api/insider-selection on init; pass as insiderUuids param in API request; add to fetchReport dependency array.
+  - app/api/services-report/route.ts: Parse insiderUuids param; add AND proj.insider_uuid IN (...) to selected_payments CTE WHERE clause when insiders are specified.
+
 ## 2026-04-17 Deployment #178
 - Commit: 47040f5
 - Production: https://ice-i8e7tgive-iceerp.vercel.app
