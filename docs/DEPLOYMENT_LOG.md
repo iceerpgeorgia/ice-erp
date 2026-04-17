@@ -1,6 +1,12 @@
 # Deployment Log
 
-## 2026-04-17 Deployment #180
+## 2026-04-17 Deployment #181
+- Commit: fc36c11
+- Production: https://ice-9dn5tj9q5-iceerp.vercel.app
+- Summary: Fix "Too many database connections" error by always caching the Prisma singleton globally and preferring the pgbouncer pooler URL in production.
+- Changes:
+  - lib/prisma.ts: Removed `NODE_ENV !== "production"` guard so the PrismaClient singleton is always stored on `globalForPrisma`; changed URL priority to use `DATABASE_URL` (pooler) in production and `DIRECT_DATABASE_URL` only in development.
+
 - Commit: 09dbd9e
 - Production: https://ice-2oe0j32jk-iceerp.vercel.app
 - Summary: Services report global columns/collapse/split index; fix insider filtering in counteragent statement, payment statement, and payments report.
