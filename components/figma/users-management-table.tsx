@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Download } from 'lucide-react';
+import { Download, Shield } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -36,6 +36,21 @@ type User = {
   emailVerified: Date | null;
 };
 
+type ModuleFeature = {
+  uuid: string;
+  name: string;
+  key: string;
+  isActive: boolean;
+};
+
+type Module = {
+  uuid: string;
+  name: string;
+  key: string;
+  isActive: boolean;
+  ModuleFeature: ModuleFeature[];
+};
+
 export default function UsersManagementTable() {
   const { data: session } = useSession();
   const [users, setUsers] = useState<User[]>([]);
@@ -45,6 +60,13 @@ export default function UsersManagementTable() {
   const [newUser, setNewUser] = useState({ email: '', name: '', role: 'user' });
   const [addingUser, setAddingUser] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  
+  // Module access dialog state
+  const [showModulesDialog, setShowModulesDialog] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [selectedModules, setSelectedModules] = useState<Set<string>>(new Set());
+  const [savingModules, setSavingModules] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -177,6 +199,83 @@ export default function UsersManagementTable() {
     } catch (error) {
       console.error('Failed to update role:', error);
       alert('Failed to update user role');
+    }
+  };
+
+  const handleOpenModulesDialog = async (user: User) => {
+    setSelectedUser(user);
+    setShowModulesDialog(true);
+    
+    try {
+      // Fetch all modules
+      const modulesResponse = await fetch('/api/modules?activeOnly=true');
+      if (modulesResponse.ok) {
+        const modulesData = await modulesResponse.json();
+        setModules(modulesData);
+      }
+      
+      // Fetch user's current permissions
+      const permissionsResponse = await fetch(`/api/permissions/users?userId=${user.id}`);
+      if (permissionsResponse.ok) {
+        const permissions = await permissionsResponse.json();
+        // Extract module UUIDs from permissions
+        const moduleUuids = new Set<string>(
+          permissions
+            .map((p: any) => p.moduleFeature?.moduleUuid)
+            .filter((uuid: any): uuid is string => Boolean(uuid))
+        );
+        setSelectedModules(moduleUuids);
+      }
+    } catch (error) {
+      console.error('Failed to load module data:', error);
+    }
+  };
+
+  const handleToggleModule = (moduleUuid: string) => {
+    const newSelected = new Set(selectedModules);
+    if (newSelected.has(moduleUuid)) {
+      newSelected.delete(moduleUuid);
+    } else {
+      newSelected.add(moduleUuid);
+    }
+    setSelectedModules(newSelected);
+  };
+
+  const handleSaveModuleAccess = async () => {
+    if (!selectedUser) return;
+    
+    setSavingModules(true);
+    try {
+      // Grant access to selected modules (this will grant all features of each module)
+      const grantPromises = Array.from(selectedModules).map(moduleUuid =>
+        fetch('/api/permissions/modules', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: selectedUser.id,
+            moduleUuid,
+          }),
+        })
+      );
+
+      // Revoke access to unselected modules
+      const revokePromises = modules
+        .filter(m => !selectedModules.has(m.uuid))
+        .map(m =>
+          fetch(`/api/permissions/modules?userId=${selectedUser.id}&moduleUuid=${m.uuid}`, {
+            method: 'DELETE',
+          })
+        );
+
+      await Promise.all([...grantPromises, ...revokePromises]);
+      
+      setShowModulesDialog(false);
+      alert('Module access updated successfully!');
+    } catch (error) {
+      console.error('Failed to update module access:', error);
+      alert('Failed to update module access');
+    } finally {
+      setSavingModules(false);
     }
   };
 
@@ -338,6 +437,15 @@ export default function UsersManagementTable() {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenModulesDialog(user)}
+                      disabled={!user.isAuthorized}
+                    >
+                      <Shield className="h-3 w-3 mr-1" />
+                      Modules
+                    </Button>
                     {session?.user?.email === user.email ? (
                       <span className="text-xs text-muted-foreground">(You)</span>
                     ) : (
@@ -360,6 +468,83 @@ export default function UsersManagementTable() {
       <div className="text-sm text-muted-foreground">
         Total users: {filteredUsers.length}
       </div>
+
+      {/* Module Access Dialog */}
+      {showModulesDialog && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold">Module Access</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Select which modules <strong>{selectedUser.name || selectedUser.email}</strong> can access
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {modules.map((module) => (
+                <div
+                  key={module.uuid}
+                  className="border rounded-lg p-4 hover:bg-gray-50 transition"
+                >
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedModules.has(module.uuid)}
+                      onChange={() => handleToggleModule(module.uuid)}
+                      className="mt-1 h-4 w-4 rounded border-gray-300"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{module.name}</span>
+                        <span className="text-xs text-gray-500">({module.key})</span>
+                      </div>
+                      {module.ModuleFeature.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {module.ModuleFeature.map((feature) => (
+                            <span
+                              key={feature.uuid}
+                              className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded"
+                            >
+                              {feature.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                </div>
+              ))}
+
+              {modules.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  No modules available. Create modules first in the Module Management page.
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between items-center mt-6 pt-4 border-t">
+              <div className="text-sm text-gray-600">
+                {selectedModules.size} module(s) selected
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowModulesDialog(false)}
+                  disabled={savingModules}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveModuleAccess}
+                  disabled={savingModules}
+                >
+                  {savingModules ? 'Saving...' : 'Save Access'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
