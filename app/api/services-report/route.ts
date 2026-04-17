@@ -2,21 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getSourceTables } from '@/lib/source-tables';
 
 export const revalidate = 0;
-
-const SOURCE_TABLES = [
-  'GE78BG0000000893486000_BOG_GEL',
-  'GE74BG0000000586388146_BOG_USD',
-  'GE78BG0000000893486000_BOG_USD',
-  'GE78BG0000000893486000_BOG_EUR',
-  'GE78BG0000000893486000_BOG_AED',
-  'GE78BG0000000893486000_BOG_GBP',
-  'GE78BG0000000893486000_BOG_KZT',
-  'GE78BG0000000893486000_BOG_CNY',
-  'GE78BG0000000893486000_BOG_TRY',
-  'GE65TB7856036050100002_TBC_GEL',
-];
 
 const parseUuidList = (value: string | null) => {
   if (!value) return [] as string[];
@@ -43,6 +31,7 @@ export async function GET(request: NextRequest) {
     const financialCodeUuids = parseUuidList(searchParams.get('financialCodeUuids'));
     const insiderUuids = parseUuidList(searchParams.get('insiderUuids'));
     const maxDate = parseIsoDate(searchParams.get('maxDate'));
+    const sourceTables = await getSourceTables(insiderUuids.length > 0 ? insiderUuids : undefined);
 
     if (financialCodeUuids.length === 0) {
       return NextResponse.json({
@@ -72,8 +61,8 @@ export async function GET(request: NextRequest) {
     const ledgerDateFilter = maxDate ? `AND pl.effective_date::date <= '${maxDate}'::date` : '';
     const bankDateFilter = maxDate ? `AND transaction_date::date <= '${maxDate}'::date` : '';
 
-    const rawUnionBankQuery = SOURCE_TABLES.length
-      ? SOURCE_TABLES.map((table) => (
+    const rawUnionBankQuery = sourceTables.length
+      ? sourceTables.map((table) => (
           `SELECT
              raw_record_uuid::text AS raw_record_uuid,
              counteragent_uuid::uuid AS counteragent_uuid,
