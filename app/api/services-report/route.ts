@@ -101,6 +101,7 @@ export async function GET(request: NextRequest) {
           COALESCE(fc.validation, fc.code, '-') as financial_code_validation,
           proj.project_index,
           proj.project_name,
+          proj.address as project_address,
           proj.service_state,
           proj.value as project_amount,
           COALESCE(ps.name, proj.state, 'Unknown') as status_name,
@@ -243,6 +244,7 @@ export async function GET(request: NextRequest) {
         COALESCE(MAX(sp.currency_code), '-') as currency_code,
         COALESCE(MAX(sp.insider_name), '-') as insider_name,
         COALESCE(MAX(sp.department), '-') as department,
+        COALESCE(MAX(sp.project_address), NULL) as project_address,
         ARRAY_REMOVE(ARRAY_AGG(DISTINCT sp.payment_id ORDER BY sp.payment_id), NULL) as payment_ids,
         COUNT(DISTINCT sp.payment_id) as payment_count,
         (SELECT COUNT(*) FROM job_projects jp2 WHERE jp2.project_uuid = sp.project_uuid)::int as jobs_count,
@@ -298,6 +300,7 @@ export async function GET(request: NextRequest) {
         counteragent: row.counteragent_name,
         insiderName: row.insider_name || '-',
         department: row.department || '-',
+        projectAddress: row.project_address || null,
         paymentIds: Array.isArray(row.payment_ids)
           ? row.payment_ids.filter((value: unknown) => typeof value === 'string' && value.trim() !== '')
           : [],

@@ -941,8 +941,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       department: project.department || '',
       serviceState: project.serviceState || '',
       insiderUuid: isInsiderFixed
-        ? (fixedInsider?.insiderUuid || project.insiderUuid || insidersList[0]?.insiderUuid || '')
-        : (project.insiderUuid || insidersList[0]?.insiderUuid || ''),
+        ? (fixedInsider?.insiderUuid || project.insiderUuid || '')
+        : (project.insiderUuid || ''),
       counteragentUuid: project.counteragentUuid || '',
       financialCodeUuid: project.financialCodeUuid || '',
       currencyUuid: project.currencyUuid || '',

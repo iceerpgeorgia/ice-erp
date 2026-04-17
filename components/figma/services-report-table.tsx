@@ -29,6 +29,7 @@ type ServicesRow = {
   serviceState: string;
   project: string;
   projectName: string;
+  projectAddress?: string | null;
   sum: number;
   counteragent: string;
   insiderName: string;
@@ -159,6 +160,7 @@ type SectionColumnKey =
   | 'serviceState'
   | 'financialCodeValidation'
   | 'projectName'
+  | 'projectAddress'
   | 'insiderName'
   | 'department'
   | 'currency'
@@ -201,13 +203,14 @@ const DEFAULT_TOTALS = {
   balance: 0,
 };
 
-const SERVICES_REPORT_COLUMNS_STORAGE_KEY = 'servicesReportSectionColumnsV6';
+const SERVICES_REPORT_COLUMNS_STORAGE_KEY = 'servicesReportSectionColumnsV7';
 
 const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'status', label: 'Status', visible: true, width: 120, align: 'left' },
   { key: 'serviceState', label: 'Service State', visible: true, width: 150, align: 'left' },
   { key: 'financialCodeValidation', label: 'Financial Code', visible: true, width: 220, align: 'left' },
   { key: 'projectName', label: 'Project', visible: true, width: 260, align: 'left' },
+  { key: 'projectAddress', label: 'Project Address', visible: false, width: 220, align: 'left' },
   { key: 'insiderName', label: 'Insider', visible: false, width: 200, align: 'left' },
   { key: 'department', label: 'Department', visible: false, width: 160, align: 'left' },
   { key: 'currency', label: 'Currency', visible: true, width: 110, align: 'left' },
@@ -252,6 +255,7 @@ const COLUMN_FORMAT_MAP: Partial<Record<SectionColumnKey, ColumnFormat>> = {
   serviceState: 'text',
   insiderName: 'text',
   department: 'text',
+  projectAddress: 'text',
   sum: 'currency',
   paymentCount: 'number',
   jobsCount: 'number',
@@ -276,6 +280,8 @@ const getColumnValue = (row: ServicesRow, key: SectionColumnKey) => {
       return row.accrual;
     case 'confirmed':
       return row.confirmed;
+    case 'projectAddress':
+      return row.projectAddress || '';
     case 'paymentIds':
       return row.paymentIds.join(', ');
     case 'actions':
@@ -914,6 +920,7 @@ export function ServicesReportTable() {
         'Service State',
         'Financial Code',
         'Project',
+        'Project Address',
         'Insider',
         'Department',
         'Project UUID',
@@ -1039,6 +1046,7 @@ export function ServicesReportTable() {
           row.serviceState,
           row.financialCodeValidation,
           row.projectName,
+          row.projectAddress || '',
           row.insiderName,
           row.department,
           row.projectUuid,

@@ -65,6 +65,7 @@ type PaymentReport = {
   counteragentIsNaturalPerson?: boolean;
   project: string;
   projectName?: string | null;
+  projectAddress?: string | null;
   job: string;
   jobCount: number;
   jobWeight?: number | null;
@@ -120,6 +121,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'financialCode', label: 'Financial Code', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'incomeTax', label: 'Income Tax', visible: true, sortable: true, filterable: true, format: 'boolean', width: 100 },
   { key: 'project', label: 'Project', visible: true, sortable: true, filterable: true, width: 200 },
+  { key: 'projectAddress', label: 'Project Address', visible: false, sortable: true, filterable: true, width: 220 },
   { key: 'job', label: 'Job', visible: true, sortable: true, filterable: true, width: 150 },
   { key: 'jobCount', label: 'Job Count', visible: true, sortable: true, filterable: true, format: 'number', width: 110 },
   { key: 'jobWeight', label: 'Job Weight', visible: false, sortable: true, filterable: true, format: 'number', width: 120 },
@@ -2016,6 +2018,7 @@ export function PaymentsReportTable() {
       'Counteragent ID': row.counteragentId ?? '',
       'Project': row.project ?? '',
       'Project Name': row.projectName ?? '',
+      'Project Address': row.projectAddress ?? '',
       'Job': row.job ?? '',
       'Job Count': row.jobCount ?? 0,
       'Job Weight': row.jobWeight ?? '',
