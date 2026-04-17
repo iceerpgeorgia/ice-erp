@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-04-17 Deployment #183
+- Commit: bedf4e1
+- Production: https://ice-eipuwjo4p-iceerp.vercel.app
+- Summary: Make services report use insider-scoped raw bank source tables from bank_accounts instead of a hardcoded list.
+- Changes:
+  - app/api/services-report/route.ts: Replaced hardcoded SOURCE_TABLES with getSourceTables(insiderUuids), so raw bank aggregation follows the selected insiders and current bank_accounts configuration.
+
 ## 2026-04-17 Deployment #182
 - Commit: 6ce0390
 - Production: https://ice-3241nafip-iceerp.vercel.app
