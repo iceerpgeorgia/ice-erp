@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const financialCodeUuids = parseUuidList(searchParams.get('financialCodeUuids'));
+    const insiderUuids = parseUuidList(searchParams.get('insiderUuids'));
     const maxDate = parseIsoDate(searchParams.get('maxDate'));
 
     if (financialCodeUuids.length === 0) {
@@ -85,6 +86,12 @@ export async function GET(request: NextRequest) {
       : 'SELECT NULL::text AS raw_record_uuid, NULL::uuid AS counteragent_uuid, NULL::text AS payment_id, NULL::numeric AS nominal_amount, NULL::date AS transaction_date, NULL::numeric AS account_currency_amount WHERE false';
 
     const financialCodePlaceholders = financialCodeUuids.map((_, index) => `$${index + 1}::uuid`).join(', ');
+    const insiderOffset = financialCodeUuids.length;
+    const insiderPlaceholders = insiderUuids.map((_, index) => `$${insiderOffset + index + 1}::uuid`).join(', ');
+    const insiderFilter = insiderUuids.length > 0
+      ? `AND proj.insider_uuid IN (${insiderPlaceholders})`
+      : '';
+    const queryParams = [...financialCodeUuids, ...insiderUuids];
 
     const query = `
       WITH raw_union_bank AS (
@@ -120,6 +127,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
         WHERE p.is_active = true
           AND p.financial_code_uuid IN (${financialCodePlaceholders})
+          ${insiderFilter}
       ),
       unbound_counteragent AS (
         SELECT
@@ -276,7 +284,7 @@ export async function GET(request: NextRequest) {
       ORDER BY financial_code_validation ASC, status_name ASC, project_index ASC
     `;
 
-    const rows = await prisma.$queryRawUnsafe<any[]>(query, ...financialCodeUuids);
+    const rows = await prisma.$queryRawUnsafe<any[]>(query, ...queryParams);
 
     const formattedRows = rows.map((row) => {
       const accrual = Number(row.accrual || 0);

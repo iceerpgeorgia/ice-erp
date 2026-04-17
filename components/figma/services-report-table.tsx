@@ -307,6 +307,7 @@ export function ServicesReportTable() {
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedInsiderUuids, setSelectedInsiderUuids] = useState<string[]>([]);
   const [selectedPaymentIds, setSelectedPaymentIds] = useState<Set<string>>(new Set());
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -465,21 +466,28 @@ export function ServicesReportTable() {
   }, [resizing]);
 
   const fetchFinancialCodes = useCallback(async () => {
-    const response = await fetch('/api/financial-codes?leafOnly=true&isIncome=true');
-    if (!response.ok) throw new Error('Failed to load financial codes');
-    const data = await response.json();
+    const [codesRes, insiderRes] = await Promise.all([
+      fetch('/api/financial-codes?leafOnly=true&isIncome=true'),
+      fetch('/api/insider-selection'),
+    ]);
+    if (!codesRes.ok) throw new Error('Failed to load financial codes');
+    const data = await codesRes.json();
     if (!Array.isArray(data)) {
       setFinancialCodes([]);
-      return;
+    } else {
+      setFinancialCodes(data.map((item: any) => ({
+        uuid: item.uuid,
+        code: item.code,
+        validation: item.validation,
+        name: item.name,
+      })));
     }
-    const mapped = data.map((item: any) => ({
-      uuid: item.uuid,
-      code: item.code,
-      validation: item.validation,
-      name: item.name,
-    }));
-    setFinancialCodes(mapped);
-  }, []);
+    if (insiderRes.ok) {
+      const insiderData = await insiderRes.json();
+      const uuids = Array.isArray(insiderData?.selectedUuids) ? insiderData.selectedUuids : [];
+      setSelectedInsiderUuids(uuids);
+    }
+  }, [])
 
   const handleConfirmSelected = async () => {
     if (selectedPaymentIds.size === 0) return;
@@ -554,6 +562,9 @@ export function ServicesReportTable() {
       if (maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate)) {
         params.set('maxDate', maxDate);
       }
+      if (selectedInsiderUuids.length > 0) {
+        params.set('insiderUuids', selectedInsiderUuids.join(','));
+      }
       const response = await fetch(`/api/services-report?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to load services report');
       const data = (await response.json()) as ServicesReportResponse;
@@ -567,7 +578,7 @@ export function ServicesReportTable() {
     } finally {
       setLoading(false);
     }
-  }, [maxDate, selectedFinancialCodeUuids]);
+  }, [maxDate, selectedFinancialCodeUuids, selectedInsiderUuids]);
 
   useEffect(() => {
     fetchFinancialCodes().catch((fetchError: any) => {
