@@ -3,21 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { resolveInsiderSelection } from '@/lib/insider-selection';
+import { getSourceTables } from '@/lib/source-tables';
 
 export const revalidate = 0;
-
-const SOURCE_TABLES = [
-  { name: 'GE78BG0000000893486000_BOG_GEL', offset: 0 },
-  { name: 'GE74BG0000000586388146_BOG_USD', offset: 300000000000 },
-  { name: 'GE78BG0000000893486000_BOG_USD', offset: 500000000000 },
-  { name: 'GE78BG0000000893486000_BOG_EUR', offset: 600000000000 },
-  { name: 'GE78BG0000000893486000_BOG_AED', offset: 700000000000 },
-  { name: 'GE78BG0000000893486000_BOG_GBP', offset: 800000000000 },
-  { name: 'GE78BG0000000893486000_BOG_KZT', offset: 900000000000 },
-  { name: 'GE78BG0000000893486000_BOG_CNY', offset: 950000000000 },
-  { name: 'GE78BG0000000893486000_BOG_TRY', offset: 980000000000 },
-  { name: 'GE65TB7856036050100002_TBC_GEL', offset: 1000000000000 },
-];
 
 const BATCH_OFFSET = 2000000000000;
 
@@ -120,9 +108,58 @@ export async function GET(request: NextRequest) {
 
     // Determine insider filter for bank transactions
     const { selectedUuids: insiderUuids } = await resolveInsiderSelection(request);
-    const insiderFilter = insiderUuids.length > 0
-      ? `AND (ba.insider_uuid IS NULL OR ba.insider_uuid = ANY(ARRAY[${insiderUuids.map((u) => `'${u}'::uuid`).join(', ')}]::uuid[]))`
-      : '';
+
+    // Load only the raw tables belonging to the selected insiders.
+    const sourceTableNames = await getSourceTables(insiderUuids.length > 0 ? insiderUuids : undefined);
+    const bankAccountRows = await prisma.$queryRawUnsafe<{ raw_table_name: string; id: number }[]>(
+      `SELECT raw_table_name, id FROM bank_accounts WHERE raw_table_name IS NOT NULL AND raw_table_name <> '' ORDER BY id`
+    );
+    const offsetMap = new Map<string, number>();
+    bankAccountRows.forEach((row) => {
+      offsetMap.set(row.raw_table_name, Number(row.id) * 10000000000);
+    });
+    const SOURCE_TABLES = sourceTableNames.map((name) => ({
+      name,
+      offset: offsetMap.get(name) ?? 0,
+    }));
+
+    const rawBankUnionQuery = SOURCE_TABLES.length
+      ? SOURCE_TABLES.map((table) => `SELECT
+            id,
+            uuid,
+            raw_record_uuid,
+            dockey,
+            entriesid,
+            payment_id,
+            account_currency_amount,
+            nominal_amount,
+            transaction_date,
+            counteragent_account_number,
+            description,
+            created_at,
+            bank_account_uuid,
+            account_currency_uuid,
+            '${table.name}' as source_table,
+            ${table.offset}::bigint as source_offset
+          FROM "${table.name}"`).join(' UNION ALL ')
+      : `SELECT
+           NULL::bigint as id,
+           NULL::uuid as uuid,
+           NULL::uuid as raw_record_uuid,
+           NULL::text as dockey,
+           NULL::text as entriesid,
+           NULL::text as payment_id,
+           NULL::numeric as account_currency_amount,
+           NULL::numeric as nominal_amount,
+           NULL::date as transaction_date,
+           NULL::text as counteragent_account_number,
+           NULL::text as description,
+           NULL::timestamptz as created_at,
+           NULL::uuid as bank_account_uuid,
+           NULL::uuid as account_currency_uuid,
+           NULL::text as source_table,
+           NULL::bigint as source_offset
+         WHERE false`;
 
     // Get payment ledger entries
     const ledgerQuery = `
@@ -214,24 +251,7 @@ export async function GET(request: NextRequest) {
           ba.account_number as bank_account_number,
           curr.code as account_currency_code
         FROM (
-          ${SOURCE_TABLES.map((table) => `SELECT
-            id,
-            uuid,
-            raw_record_uuid,
-            dockey,
-            entriesid,
-            payment_id,
-            account_currency_amount,
-            nominal_amount,
-            transaction_date,
-            counteragent_account_number,
-            description,
-            created_at,
-            bank_account_uuid,
-            account_currency_uuid,
-            '${table.name}' as source_table,
-            ${table.offset}::bigint as source_offset
-          FROM "${table.name}"`).join(' UNION ALL ')}
+          ${rawBankUnionQuery}
         ) cba
         LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
         LEFT JOIN currencies curr ON cba.account_currency_uuid = curr.uuid
@@ -241,7 +261,6 @@ export async function GET(request: NextRequest) {
         )
           AND cba.payment_id NOT ILIKE 'BTC_%'
           AND (lower(cba.payment_id) = lower($1) OR lower(cba.payment_id) = lower($2))
-          ${insiderFilter}
 
         UNION ALL
 
@@ -267,24 +286,7 @@ export async function GET(request: NextRequest) {
           ba.account_number as bank_account_number,
           curr.code as account_currency_code
         FROM (
-          ${SOURCE_TABLES.map((table) => `SELECT
-            id,
-            uuid,
-            raw_record_uuid,
-            dockey,
-            entriesid,
-            payment_id,
-            account_currency_amount,
-            nominal_amount,
-            transaction_date,
-            counteragent_account_number,
-            description,
-            created_at,
-            bank_account_uuid,
-            account_currency_uuid,
-            '${table.name}' as source_table,
-            ${table.offset}::bigint as source_offset
-          FROM "${table.name}"`).join(' UNION ALL ')}
+          ${rawBankUnionQuery}
         ) cba
         JOIN bank_transaction_batches btb
           ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
@@ -308,7 +310,6 @@ export async function GET(request: NextRequest) {
             p.payment_id
           )
         ) = lower($2)
-        ${insiderFilter}
       ) result
       ORDER BY result.transaction_date DESC
     `;
