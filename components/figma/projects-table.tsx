@@ -940,9 +940,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       address: project.address || '',
       department: project.department || '',
       serviceState: project.serviceState || '',
-      insiderUuid: isInsiderFixed
-        ? (fixedInsider?.insiderUuid || project.insiderUuid || '')
-        : (project.insiderUuid || ''),
+      insiderUuid: project.insiderUuid || '',
       counteragentUuid: project.counteragentUuid || '',
       financialCodeUuid: project.financialCodeUuid || '',
       currencyUuid: project.currencyUuid || '',

@@ -1396,29 +1396,32 @@ export function ServicesReportTable() {
                 <thead className="bg-gray-50 text-gray-600 sticky top-0 z-10">
                   <tr>
                     <th className="px-3 py-2 text-left w-[56px] bg-gray-50">
-                      {(() => {
-                        const sectionPaymentIds = section.rows.flatMap((r) => r.paymentIds);
-                        const allSelected = sectionPaymentIds.length > 0 && sectionPaymentIds.every((id) => selectedPaymentIds.has(id));
-                        const someSelected = !allSelected && sectionPaymentIds.some((id) => selectedPaymentIds.has(id));
-                        return (
-                          <Checkbox
-                            checked={allSelected}
-                            data-state={someSelected ? 'indeterminate' : undefined}
-                            onCheckedChange={() => {
-                              setSelectedPaymentIds((prev) => {
-                                const next = new Set(prev);
-                                if (allSelected) {
-                                  sectionPaymentIds.forEach((id) => next.delete(id));
-                                } else {
-                                  sectionPaymentIds.forEach((id) => next.add(id));
-                                }
-                                return next;
-                              });
-                            }}
-                            title="Select / deselect all in section"
-                          />
-                        );
-                      })()}
+                      <div className="flex flex-col items-center gap-0.5">
+                        {(() => {
+                          const sectionPaymentIds = section.rows.flatMap((r) => r.paymentIds);
+                          const allSelected = sectionPaymentIds.length > 0 && sectionPaymentIds.every((id) => selectedPaymentIds.has(id));
+                          const someSelected = !allSelected && sectionPaymentIds.some((id) => selectedPaymentIds.has(id));
+                          return (
+                            <Checkbox
+                              checked={allSelected}
+                              data-state={someSelected ? 'indeterminate' : undefined}
+                              onCheckedChange={() => {
+                                setSelectedPaymentIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (allSelected) {
+                                    sectionPaymentIds.forEach((id) => next.delete(id));
+                                  } else {
+                                    sectionPaymentIds.forEach((id) => next.add(id));
+                                  }
+                                  return next;
+                                });
+                              }}
+                              title="Select / deselect all in section"
+                            />
+                          );
+                        })()}
+                        <span className="text-xs text-gray-400">#</span>
+                      </div>
                     </th>
                     {visibleColumns.map((column) => {
                       const bg = COLUMN_BG[column.key];
@@ -1491,27 +1494,30 @@ export function ServicesReportTable() {
                       }`}
                     >
                       <td className="px-3 py-2">
-                        {(() => {
-                          const rowHasAnySelected = row.paymentIds.some((id) => selectedPaymentIds.has(id));
-                          const rowAllSelected = row.paymentIds.length > 0 && row.paymentIds.every((id) => selectedPaymentIds.has(id));
-                          return (
-                            <Checkbox
-                              checked={rowAllSelected}
-                              data-state={rowHasAnySelected && !rowAllSelected ? 'indeterminate' : undefined}
-                              onCheckedChange={() => {
-                                setSelectedPaymentIds((prev) => {
-                                  const next = new Set(prev);
-                                  if (rowAllSelected) {
-                                    row.paymentIds.forEach((id) => next.delete(id));
-                                  } else {
-                                    row.paymentIds.forEach((id) => next.add(id));
-                                  }
-                                  return next;
-                                });
-                              }}
-                            />
-                          );
-                        })()}
+                        <div className="flex flex-col items-center gap-0.5">
+                          {(() => {
+                            const rowHasAnySelected = row.paymentIds.some((id) => selectedPaymentIds.has(id));
+                            const rowAllSelected = row.paymentIds.length > 0 && row.paymentIds.every((id) => selectedPaymentIds.has(id));
+                            return (
+                              <Checkbox
+                                checked={rowAllSelected}
+                                data-state={rowHasAnySelected && !rowAllSelected ? 'indeterminate' : undefined}
+                                onCheckedChange={() => {
+                                  setSelectedPaymentIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (rowAllSelected) {
+                                      row.paymentIds.forEach((id) => next.delete(id));
+                                    } else {
+                                      row.paymentIds.forEach((id) => next.add(id));
+                                    }
+                                    return next;
+                                  });
+                                }}
+                              />
+                            );
+                          })()}
+                          <span className="text-xs text-gray-500">{index + 1}</span>
+                        </div>
                       </td>
                       {visibleColumns.map((column) => {
                         const rawValue = getColumnValue(row, column.key);
