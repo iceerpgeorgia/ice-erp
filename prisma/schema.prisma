@@ -61,18 +61,97 @@ model Session {
 }
 
 model User {
-  id            String    @id
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  role          String    @default("user")
-  isAuthorized  Boolean   @default(false)
-  authorizedAt  DateTime?
-  authorizedBy  String?
-  Account       Account[]
-  Entry         Entry[]
-  Session       Session[]
+  id             String           @id
+  name           String?
+  email          String?          @unique
+  emailVerified  DateTime?
+  image          String?
+  role           String           @default("user")
+  isAuthorized   Boolean          @default(false)
+  authorizedAt   DateTime?
+  authorizedBy   String?
+  Account        Account[]
+  Entry          Entry[]
+  Session        Session[]
+  UserPermission UserPermission[]
+}
+
+model Module {
+  id             BigInt          @id @default(autoincrement())
+  uuid           String          @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String          @db.VarChar(100)
+  key            String          @unique @db.VarChar(100)
+  description    String?
+  icon           String?         @db.VarChar(50)
+  route          String?         @db.VarChar(255)
+  displayOrder   Int             @default(0) @map("display_order")
+  isActive       Boolean         @default(true) @map("is_active")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  ModuleFeature  ModuleFeature[]
+
+  @@index([isActive])
+}
+
+model ModuleFeature {
+  id               BigInt           @id @default(autoincrement())
+  uuid             String           @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  moduleId         BigInt           @map("module_id")
+  moduleUuid       String           @map("module_uuid") @db.Uuid
+  name             String           @db.VarChar(100)
+  key              String           @db.VarChar(100)
+  description      String?
+  featureType      String           @default("action") @map("feature_type") @db.VarChar(50)
+  isActive         Boolean          @default(true) @map("is_active")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  module           Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  UserPermission   UserPermission[]
+  RolePermission   RolePermission[]
+
+  @@unique([moduleId, key])
+  @@index([moduleId])
+  @@index([moduleUuid])
+  @@index([isActive])
+}
+
+model UserPermission {
+  id                BigInt        @id @default(autoincrement())
+  uuid              String        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String        @map("user_id")
+  moduleFeatureId   BigInt        @map("module_feature_id")
+  moduleFeatureUuid String        @map("module_feature_uuid") @db.Uuid
+  grantedBy         String?       @map("granted_by")
+  grantedAt         DateTime      @default(now()) @map("granted_at")
+  expiresAt         DateTime?     @map("expires_at")
+  isActive          Boolean       @default(true) @map("is_active")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleFeature     ModuleFeature @relation(fields: [moduleFeatureId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleFeatureId])
+  @@index([userId])
+  @@index([moduleFeatureId])
+  @@index([isActive])
+  @@index([expiresAt])
+}
+
+model RolePermission {
+  id                BigInt        @id @default(autoincrement())
+  uuid              String        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role              String        @db.VarChar(50)
+  moduleFeatureId   BigInt        @map("module_feature_id")
+  moduleFeatureUuid String        @map("module_feature_uuid") @db.Uuid
+  isActive          Boolean       @default(true) @map("is_active")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  moduleFeature     ModuleFeature @relation(fields: [moduleFeatureId], references: [id], onDelete: Cascade)
+
+  @@unique([role, moduleFeatureId])
+  @@index([role])
+  @@index([moduleFeatureId])
+  @@index([isActive])
 }
 
 model VerificationToken {
