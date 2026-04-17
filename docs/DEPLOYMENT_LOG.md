@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-17 Deployment #178
+- Commit: 47040f5
+- Production: https://ice-i8e7tgive-iceerp.vercel.app
+- Summary: Fix project insider preserved on edit; restore row index numeration in services report.
+- Changes:
+  - components/figma/projects-table.tsx: startEdit now always uses project.insiderUuid — removes isInsiderFixed branch that was overwriting bound insider with active filter insider.
+  - components/figma/services-report-table.tsx: Restore `#` / row index alongside selection checkboxes in header and each row cell.
+
 ## 2026-04-17 Deployment #177
 - Commit: 75b43fc
 - Production: https://ice-d8fzusfyz-iceerp.vercel.app
