@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-17 Deployment #182
+- Commit: 6ce0390
+- Production: https://ice-3241nafip-iceerp.vercel.app
+- Summary: Strictly isolate counteragent and payment statements to insider-owned raw bank tables.
+- Changes:
+  - app/api/counteragent-statement/route.ts: Load only source tables belonging to selected insiders via getSourceTables(insiderUuids); build source offsets dynamically from bank_accounts so other insiders' raw tables never enter the statement union.
+  - app/api/payment-statement/route.ts: Apply the same insider-scoped raw table selection and add a safe rawBankUnionQuery fallback when no insider-owned tables are available.
+
 ## 2026-04-17 Deployment #181
 - Commit: fc36c11
 - Production: https://ice-9dn5tj9q5-iceerp.vercel.app
