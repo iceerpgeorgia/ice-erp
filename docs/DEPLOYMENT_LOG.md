@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-04-17 Deployment #176
+- Commit: 85a7c29
+- Production: https://ice-pck535zrh-iceerp.vercel.app
+- Summary: Add project address column to services/payments report; fix project insider fallback on edit.
+- Changes:
+  - app/api/payments-report/route.ts: Select proj.address and expose as projectAddress in response.
+  - app/api/services-report/route.ts: Select proj.address in CTE and outer SELECT, expose as projectAddress.
+  - components/figma/payments-report-table.tsx: Add projectAddress to type, defaultColumns (hidden), XLSX export.
+  - components/figma/services-report-table.tsx: Add projectAddress to type, SectionColumnKey, DEFAULT_SECTION_COLUMNS (hidden), COLUMN_FORMAT_MAP, getColumnValue, XLSX export; bump storage key to V7.
+  - components/figma/projects-table.tsx: Fix startEdit insider fallback — no longer replaces stored insiderUuid with insidersList[0] when project insider is blank.
+
 ## 2026-04-17 Deployment #175
 - Summary: Add seed-modules API endpoint to populate production database with initial module structure.
 - Changes:
