@@ -1,6 +1,17 @@
 # Deployment Log
 
-## 2026-04-17 Deployment #179
+## 2026-04-17 Deployment #180
+- Commit: 09dbd9e
+- Production: https://ice-2oe0j32jk-iceerp.vercel.app
+- Summary: Services report global columns/collapse/split index; fix insider filtering in counteragent statement, payment statement, and payments report.
+- Changes:
+  - components/figma/services-report-table.tsx: Single global column selector (replaces per-section); column drag/resize applies globally; per-section +/− expand/collapse button; # index column separated from confirmation checkbox into two distinct columns.
+  - lib/source-tables.ts: getSourceTables() now accepts optional insiderUuids[] to filter bank accounts by insider.
+  - app/api/counteragent-statement/route.ts: Resolve insider selection from cookie; filter bank_accounts by ba.insider_uuid in both UNION halves of bank transactions query.
+  - app/api/payment-statement/route.ts: Same insider filter applied to payment statement bank transactions.
+  - app/api/payments-report/route.ts: Accept insiderUuids param; pass to getSourceTables(); add proj.insider_uuid IN (...) WHERE clause.
+  - components/figma/payments-report-table.tsx: Fetch /api/insider-selection on mount; pass insiderUuids param to payments-report API.
+
 - Commit: 2926b98
 - Production: https://ice-p4icx381f-iceerp.vercel.app
 - Summary: Fix services report to filter projects by selected insider(s) from home page.
