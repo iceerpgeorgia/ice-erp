@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-04-17 Deployment #177
+- Commit: 75b43fc
+- Production: https://ice-d8fzusfyz-iceerp.vercel.app
+- Summary: Add attachments dialog and payment confirmation with checkboxes to services report.
+- Changes:
+  - components/figma/services-report-table.tsx: Add PaymentAttachments to actions column per payment ID; add selectedPaymentIds state, per-row and per-section select-all checkboxes, Confirm/Deconfirm dialogs calling /api/payments-ledger/confirm and /api/payments-ledger/deconfirm with conditional formatting (bg-gray-100 for confirmed+paid, bg-[#e8f5e9] for confirmed+due>0).
+
 ## 2026-04-17 Deployment #176
 - Commit: 85a7c29
 - Production: https://ice-pck535zrh-iceerp.vercel.app
