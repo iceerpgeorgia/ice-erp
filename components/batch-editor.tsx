@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
-import { X, Plus, Check, AlertCircle } from 'lucide-react';
+import { X, Plus, Check, AlertCircle, ClipboardPaste } from 'lucide-react';
 
 interface Payment {
   recordUuid: string;
@@ -626,6 +626,43 @@ export function BatchEditor({
     setPaymentIdsInput('');
   };
 
+  const pasteFromReport = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const items: { paymentId: string; amount: number }[] = JSON.parse(text);
+      if (!Array.isArray(items) || items.length === 0) return;
+
+      const paymentById = new Map(payments.map((p) => [normalizePaymentId(p.paymentId), p]));
+      const missing: string[] = [];
+      const next = items.map((item, idx) => {
+        const payment = paymentById.get(normalizePaymentId(item.paymentId)) || null;
+        if (!payment) missing.push(item.paymentId);
+        const isSalary = payment?.recordUuid?.startsWith('salary__');
+        const base: Partition = {
+          id: String(idx + 1),
+          partitionAmount: item.amount || 0,
+          paymentUuid: isSalary ? null : (payment?.recordUuid ?? null),
+          paymentId: payment?.paymentId ?? item.paymentId,
+          paymentLabel: payment?.label ?? null,
+          counteragentUuid: payment?.counteragentUuid ?? null,
+          projectUuid: payment?.projectUuid ?? null,
+          financialCodeUuid: payment?.financialCodeUuid ?? null,
+          nominalCurrencyUuid: payment?.currencyUuid ?? null,
+          nominalAmount: null,
+          partitionNote: '',
+        };
+        return payment ? applyNominalForPartition(base, payment) : base;
+      });
+
+      setMissingPaymentIds(missing);
+      setAutoAddRemaining(false);
+      setPartitions(next);
+      setPaymentIdsInput('');
+    } catch {
+      // Not valid JSON or clipboard access denied – ignore
+    }
+  };
+
   useEffect(() => {
     if (!exchangeRates) return;
     if (payments.length === 0) return;
@@ -863,6 +900,10 @@ export function BatchEditor({
             <div className="flex flex-wrap items-center gap-3">
               <Button type="button" size="sm" onClick={buildPartitionsFromPaymentIds}>
                 Create Partitions from Payment IDs
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={pasteFromReport}>
+                <ClipboardPaste className="mr-2 h-4 w-4" />
+                Paste from Report
               </Button>
               <p className="text-xs text-muted-foreground">
                 Creates one partition per payment ID so you only enter amounts.

@@ -2296,6 +2296,19 @@ export function PaymentsReportTable() {
               </DropdownMenu>
             )}
             {selectedPaymentIds.size > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const records = sortedData.filter((row) => selectedPaymentIds.has(row.paymentId));
+                  const payload = records.map((r) => ({ paymentId: r.paymentId, amount: Math.abs(r.due) }));
+                  navigator.clipboard.writeText(JSON.stringify(payload));
+                }}
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Copy for Batch ({selectedPaymentIds.size})
+              </Button>
+            )}
+            {selectedPaymentIds.size > 0 && (
               <Dialog open={isConfirmOpen} onOpenChange={(open) => {
                 setIsConfirmOpen(open);
                 if (!open) {
