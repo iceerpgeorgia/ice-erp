@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-04-20 Deployment #191
+- Commit: c21ce3c
+- Production: https://ice-crrb250kf-iceerp.vercel.app
+- Summary: Fix paste-from-report with reactive useEffect for nominalAmount → partitionAmount conversion.
+- Changes:
+  - components/batch-editor.tsx: Added new useEffect that reactively converts `nominalAmount` to `partitionAmount` using exchange rates when partitions have nominal amounts but zero partition amounts. Simplified `pasteFromReport()` to just set nominalAmount and let the useEffect handle conversion.
+
 ## 2026-04-20 Deployment #190
 - Commit: e6c63b6
 - Production: https://ice-inhnbnz34-iceerp.vercel.app
