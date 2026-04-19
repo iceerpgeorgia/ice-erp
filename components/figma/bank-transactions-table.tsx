@@ -1012,7 +1012,7 @@ export function BankTransactionsTable({
 
     // Initialize form with transaction data - use paymentId (not UUID) for the Select value
     const initialFormData = {
-      payment_uuid: transaction.paymentIdRaw ?? transaction.paymentId ?? '', // Use stored payment id when available
+      payment_uuid: transaction.paymentId || '',
       project_uuid: transaction.projectUuid || '',
       job_uuid: '', // Will be populated after jobs load
       financial_code_uuid: transaction.financialCodeUuid || '',
@@ -1643,7 +1643,7 @@ export function BankTransactionsTable({
       const updateData: any = {};
       
       // Only include changed fields
-      const storedPaymentId = editingTransaction.paymentIdRaw ?? editingTransaction.paymentId ?? '';
+      const storedPaymentId = editingTransaction.paymentId || '';
       if (formData.payment_uuid !== storedPaymentId) {
         updateData.payment_uuid = formData.payment_uuid || null;
       }
