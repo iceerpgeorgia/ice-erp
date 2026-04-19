@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-04-19 Deployment #184
+- Commit: af164bc
+- Production: https://ice-dnlj92cih-iceerp.vercel.app
+- Summary: Fix unresponsive bank transaction edit dialog caused by payment ID value mismatch.
+- Changes:
+  - components/figma/bank-transactions-table.tsx: Aligned edit form payment_uuid initialization and change detection to use resolved `paymentId` instead of `paymentIdRaw`, fixing controlled Select value mismatch that made the dialog unresponsive.
+
 ## 2026-04-17 Deployment #183
 - Commit: bedf4e1
 - Production: https://ice-eipuwjo4p-iceerp.vercel.app
