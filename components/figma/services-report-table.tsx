@@ -10,7 +10,7 @@ import { ColumnFilterPopover } from './shared/column-filter-popover';
 import type { ColumnFormat } from './shared/table-filters';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { useTableFilters, type FilterableColumn } from './shared/use-table-filters';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { AddProjectDialog } from './add-project-dialog';
 import { PaymentAttachments } from './payment-attachments';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
@@ -1092,7 +1092,31 @@ export function ServicesReportTable() {
           grandTotals.balance,
         ],
       ]);
+      // Style summary header
+      for (let c = 0; c < summaryHeader.length; c++) {
+        const addr = XLSX.utils.encode_cell({ r: 0, c });
+        if (!summaryWorksheet[addr]) continue;
+        summaryWorksheet[addr].s = {
+          font: { bold: true, sz: 10 },
+          fill: { fgColor: { rgb: 'E0E0E0' } },
+          alignment: { horizontal: 'center' },
+        };
+      }
+      // Style summary total row
+      const totalRowIdx = summaryRows.length + 1;
+      for (let c = 0; c < summaryHeader.length; c++) {
+        const addr = XLSX.utils.encode_cell({ r: totalRowIdx, c });
+        if (!summaryWorksheet[addr]) continue;
+        summaryWorksheet[addr].s = { font: { bold: true, sz: 10 } };
+      }
       XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Summary');
+
+      // Column-specific header colors: Accrual(17)=red, Order(18)=yellow, Payment(19)=green
+      const sectionColBg: Record<number, string> = {
+        17: 'FFEBEE', // Accrual
+        18: 'FFF9E6', // Order
+        19: 'E8F5E9', // Payment
+      };
 
       for (const section of sections) {
         const rows = section.rows.map((row, index) => [
@@ -1123,6 +1147,48 @@ export function ServicesReportTable() {
         ]);
 
         const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+
+        // Style header row
+        for (let c = 0; c < header.length; c++) {
+          const addr = XLSX.utils.encode_cell({ r: 0, c });
+          if (!worksheet[addr]) continue;
+          const bg = sectionColBg[c] || 'E0E0E0';
+          worksheet[addr].s = {
+            font: { bold: true, sz: 10 },
+            fill: { fgColor: { rgb: bg } },
+            alignment: { horizontal: 'center' },
+          };
+        }
+
+        // Style data rows
+        section.rows.forEach((row, rIdx) => {
+          const isConfirmedPaid = Boolean(row.confirmed && row.due === 0);
+          const isConfirmedDue = Boolean(row.confirmed && row.due > 0);
+          const isSumMismatch = Math.abs(row.sum - row.latestAccrual) > 0.009;
+
+          let rowFill: any = undefined;
+          if (isConfirmedPaid) rowFill = { fgColor: { rgb: 'F3F4F6' } };
+          else if (isConfirmedDue) rowFill = { fgColor: { rgb: 'E8F5E9' } };
+
+          for (let c = 0; c < header.length; c++) {
+            const addr = XLSX.utils.encode_cell({ r: rIdx + 1, c });
+            if (!worksheet[addr]) continue;
+            const cellStyle: any = {};
+
+            if (rowFill) cellStyle.fill = rowFill;
+            if (sectionColBg[c]) cellStyle.fill = { fgColor: { rgb: sectionColBg[c] } };
+
+            // Red bold for sum mismatch (column 16 = Sum)
+            if (c === 16 && isSumMismatch) {
+              cellStyle.font = { bold: true, color: { rgb: 'DC2626' } };
+            }
+
+            if (Object.keys(cellStyle).length > 0) {
+              worksheet[addr].s = { ...(worksheet[addr].s || {}), ...cellStyle };
+            }
+          }
+        });
+
         XLSX.utils.book_append_sheet(
           workbook,
           worksheet,

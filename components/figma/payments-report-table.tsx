@@ -40,7 +40,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { AddProjectDialog } from './add-project-dialog';
 import { PaymentAttachments } from './payment-attachments';
 
@@ -2028,66 +2028,108 @@ export function PaymentsReportTable() {
       return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
     };
 
-    const rows = sortedData.map((row) => ({
-      'Payment ID': row.paymentId ?? '',
-      'Label': row.label ?? '',
-      'Counteragent': row.counteragent ?? '',
-      'Counteragent ID': row.counteragentId ?? '',
-      'Project': row.project ?? '',
-      'Project Name': row.projectName ?? '',
-      'Project Address': row.projectAddress ?? '',
-      'Job': row.job ?? '',
-      'Job Count': row.jobCount ?? 0,
-      'Job Weight': row.jobWeight ?? '',
-      'Floors': row.floors ?? 0,
-      'Financial Code': row.financialCode ?? '',
-      'FC Description': row.financialCodeDescription ?? '',
-      'Is Income (FC)': row.financialCodeIsIncome ? 'Yes' : 'No',
-      'Income Tax': row.incomeTax ? 'Yes' : 'No',
-      'Currency': row.currency ?? '',
-      'Accrual': fmtNum(row.accrual),
-      'Order': fmtNum(row.order),
-      'Payment': fmtNum(row.payment),
-      'Paid %': row.accrual ? fmtNum((row.payment / row.accrual) * 100) : 0,
-      'Due': fmtNum(row.due),
-      'Balance': fmtNum(row.balance),
-      'Accrual/Floor': fmtNum(row.accrualPerFloor),
-      'Confirmed': row.confirmed ? 'Yes' : 'No',
-      'Auto (Project Derived)': row.isProjectDerived ? 'Yes' : 'No',
-      'Users': row.users ?? '',
-      'Latest Date': fmtDate(row.latestDate),
-    }));
+    const headers = [
+      'Payment ID', 'Label', 'Counteragent', 'Counteragent ID',
+      'Project', 'Project Name', 'Project Address', 'Job',
+      'Job Count', 'Job Weight', 'Floors', 'Financial Code',
+      'FC Description', 'Is Income (FC)', 'Income Tax', 'Currency',
+      'Accrual', 'Order', 'Payment', 'Paid %', 'Due', 'Balance',
+      'Accrual/Floor', 'Confirmed', 'Auto (Project Derived)', 'Users', 'Latest Date',
+    ];
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const colBg: Record<number, string> = {
+      16: 'FFEBEE', // Accrual - light red
+      17: 'FFF9E6', // Order - light yellow
+      18: 'E8F5E9', // Payment - light green
+    };
+
+    const rows = sortedData.map((row) => [
+      row.paymentId ?? '',
+      row.label ?? '',
+      row.counteragent ?? '',
+      row.counteragentId ?? '',
+      row.project ?? '',
+      row.projectName ?? '',
+      row.projectAddress ?? '',
+      row.job ?? '',
+      row.jobCount ?? 0,
+      row.jobWeight ?? '',
+      row.floors ?? 0,
+      row.financialCode ?? '',
+      row.financialCodeDescription ?? '',
+      row.financialCodeIsIncome ? 'Yes' : 'No',
+      row.incomeTax ? 'Yes' : 'No',
+      row.currency ?? '',
+      fmtNum(row.accrual),
+      fmtNum(row.order),
+      fmtNum(row.payment),
+      row.accrual ? fmtNum((row.payment / row.accrual) * 100) : 0,
+      fmtNum(row.due),
+      fmtNum(row.balance),
+      fmtNum(row.accrualPerFloor),
+      row.confirmed ? 'Yes' : 'No',
+      row.isProjectDerived ? 'Yes' : 'No',
+      row.users ?? '',
+      fmtDate(row.latestDate),
+    ]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+    // Style header row
+    for (let c = 0; c < headers.length; c++) {
+      const addr = XLSX.utils.encode_cell({ r: 0, c });
+      if (!worksheet[addr]) continue;
+      const bg = colBg[c] || 'E0E0E0';
+      worksheet[addr].s = {
+        font: { bold: true, sz: 10 },
+        fill: { fgColor: { rgb: bg } },
+        alignment: { horizontal: 'center' },
+      };
+    }
+
+    // Style data rows with conditional formatting
+    for (let r = 0; r < sortedData.length; r++) {
+      const row = sortedData[r];
+      const isEligible = row.isActive !== false;
+      const isConfirmedPaid = Boolean(isEligible && row.confirmed && row.due === 0);
+      const isConfirmedDue = Boolean(isEligible && row.confirmed && row.due > 0);
+      const isFlagged = isEligible && counteragentsWithNegativeBalance.has(row.counteragent);
+      const isJobConflict = isEligible && jobDuplicateKeys.has(buildJobMatchKey(row));
+
+      let rowFill: any = undefined;
+      if (isConfirmedPaid) rowFill = { fgColor: { rgb: 'F3F4F6' } }; // gray
+      else if (isConfirmedDue) rowFill = { fgColor: { rgb: 'E8F5E9' } }; // green
+
+      for (let c = 0; c < headers.length; c++) {
+        const addr = XLSX.utils.encode_cell({ r: r + 1, c });
+        if (!worksheet[addr]) continue;
+        const cellStyle: any = {};
+
+        // Row fill
+        if (rowFill) cellStyle.fill = rowFill;
+        // Column-specific fill (override row fill for accrual/order/payment columns)
+        if (colBg[c]) cellStyle.fill = { fgColor: { rgb: colBg[c] } };
+
+        // Red bold for flagged counteragent or job conflict
+        if ((c === 2 && isFlagged) || (c === 7 && isJobConflict)) {
+          cellStyle.font = { bold: true, color: { rgb: 'DC2626' } };
+        }
+
+        if (Object.keys(cellStyle).length > 0) {
+          worksheet[addr].s = { ...(worksheet[addr].s || {}), ...cellStyle };
+        }
+      }
+    }
 
     // Column widths
     worksheet['!cols'] = [
-      { wch: 22 }, // Payment ID
-      { wch: 20 }, // Label
-      { wch: 30 }, // Counteragent
-      { wch: 15 }, // Counteragent ID
-      { wch: 12 }, // Project
-      { wch: 30 }, // Project Name
-      { wch: 20 }, // Job
-      { wch: 10 }, // Job Count
-      { wch: 12 }, // Job Weight
-      { wch: 8 },  // Floors
-      { wch: 20 }, // Financial Code
-      { wch: 30 }, // FC Description
-      { wch: 14 }, // Is Income (FC)
-      { wch: 12 }, // Income Tax
-      { wch: 10 }, // Currency
-      { wch: 14 }, // Accrual
-      { wch: 14 }, // Order
-      { wch: 14 }, // Payment
-      { wch: 10 }, // Paid %
-      { wch: 14 }, // Due
-      { wch: 14 }, // Balance
-      { wch: 14 }, // Accrual/Floor
-      { wch: 12 }, // Confirmed
-      { wch: 18 }, // Auto
-      { wch: 30 }, // Users
-      { wch: 12 }, // Latest Date
+      { wch: 22 }, { wch: 20 }, { wch: 30 }, { wch: 15 },
+      { wch: 12 }, { wch: 30 }, { wch: 30 }, { wch: 20 },
+      { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 20 },
+      { wch: 30 }, { wch: 14 }, { wch: 12 }, { wch: 10 },
+      { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 10 },
+      { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 },
+      { wch: 18 }, { wch: 30 }, { wch: 12 },
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -2985,7 +3027,7 @@ export function PaymentsReportTable() {
                         className="cursor-pointer"
                       />
                       <label htmlFor="date-today" className="text-sm cursor-pointer flex-1">
-                        Today ({new Date().toLocaleDateString()})
+                        Today
                       </label>
                     </div>
 

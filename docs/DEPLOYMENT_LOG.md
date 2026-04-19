@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-19 Deployment #187
+- Commit: pending
+- Summary: XLSX exports with conditional formatting colors, fix hydration error, fix attachment request flooding.
+- Changes:
+  - components/figma/payments-report-table.tsx: Switched import from `xlsx` to `xlsx-js-style`. Rewrote `handleExportXlsx` to use `aoa_to_sheet` with cell styling: header row colored (accrual=red, order=yellow, payment=green, rest=gray), data rows with conditional fills (confirmed+paid=gray, confirmed+due>0=green), flagged counteragent cells in bold red, job conflict cells in bold red. Removed hydration-causing `new Date().toLocaleDateString()` from "Today" label.
+  - components/figma/services-report-table.tsx: Switched import from `xlsx` to `xlsx-js-style`. Added cell styling to all section sheets: colored headers, conditional row fills (confirmed+paid=gray, confirmed+due>0=green), sum mismatch cells in bold red. Summary sheet gets bold header and total row.
+  - components/figma/payment-attachments.tsx: Replaced eager `loadAttachmentCount()` on mount with IntersectionObserver-based lazy loading (200px rootMargin). Prevents 50+ simultaneous DB requests when payments report loads. Added `containerRef` on root div.
+
 ## 2026-04-19 Deployment #186
 - Commit: 6aaa14b
 - Production: https://ice-8i8n4qozu-iceerp.vercel.app

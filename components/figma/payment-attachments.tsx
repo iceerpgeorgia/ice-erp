@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Paperclip, Upload, Trash2, Download, Eye, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -60,11 +60,27 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
   const [dialogMounted, setDialogMounted] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [editingAttachment, setEditingAttachment] = useState<Attachment | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const hasFetchedRef = useRef(false);
 
-  // Load initial count on mount
+  // Lazy-load attachment count when the component scrolls into view
   useEffect(() => {
     setIsMounted(true);
-    loadAttachmentCount();
+    hasFetchedRef.current = false;
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasFetchedRef.current) {
+          hasFetchedRef.current = true;
+          loadAttachmentCount();
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
   }, [paymentId]);
 
   const loadAttachmentCount = async () => {
@@ -413,7 +429,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div ref={containerRef} className="flex items-center gap-2">
       <Button
         variant="outline"
         size="sm"
