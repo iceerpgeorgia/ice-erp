@@ -1194,13 +1194,14 @@ export default function PaymentStatementPage() {
     }
   };
 
-  const openBankEditDialog = async (bankId: number) => {
+  const openBankEditDialog = async (bankUuid?: string | null) => {
+    if (!bankUuid) return;
     setIsBankEditDialogOpen(true);
     setBankEditLoading(true);
-    setBankEditId(bankId);
+    setBankEditId(null);
     setBankEditData([]);
     try {
-      const response = await fetch(`/api/bank-transactions?ids=${bankId}`);
+      const response = await fetch(`/api/bank-transactions?recordUuid=${encodeURIComponent(bankUuid)}`);
       if (!response.ok) {
         const text = await response.text();
         throw new Error(text || 'Failed to fetch bank transaction');
@@ -1246,6 +1247,9 @@ export default function PaymentStatementPage() {
         nominalCurrencyCode: row.nominal_currency_code || row.nominalCurrencyCode || null,
       }));
       setBankEditData(mapped);
+      if (mapped.length > 0) {
+        setBankEditId(Number(mapped[0].id));
+      }
     } catch (error: any) {
       alert(error?.message || 'Failed to fetch bank transaction');
       setIsBankEditDialogOpen(false);
@@ -1749,9 +1753,9 @@ export default function PaymentStatementPage() {
                                 <Edit2 className="h-4 w-4 text-blue-600" />
                               </button>
                             )}
-                            {row.type === 'bank' && row.bankId && (
+                            {row.type === 'bank' && row.bankUuid && (
                               <button
-                                onClick={() => openBankEditDialog(row.bankId as number)}
+                                onClick={() => openBankEditDialog(row.bankUuid as string)}
                                 className="p-1 hover:bg-gray-200 rounded"
                                 title="Edit bank transaction"
                               >

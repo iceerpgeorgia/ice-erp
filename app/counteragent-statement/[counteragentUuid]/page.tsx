@@ -1258,15 +1258,14 @@ export default function CounteragentStatementPage() {
     }
   };
 
-  const openBankEditDialog = async (bankId?: number | null) => {
-    if (!bankId) return;
-    const resolvedBankId = Number(bankId);
+  const openBankEditDialog = async (bankUuid?: string | null) => {
+    if (!bankUuid) return;
     setIsBankEditDialogOpen(true);
     setBankEditLoading(true);
-    setBankEditId(Number.isFinite(resolvedBankId) ? resolvedBankId : bankId);
+    setBankEditId(null);
     setBankEditData([]);
     try {
-      const response = await fetch(`/api/bank-transactions?ids=${resolvedBankId}`);
+      const response = await fetch(`/api/bank-transactions?recordUuid=${encodeURIComponent(bankUuid)}`);
       if (!response.ok) {
         const text = await response.text();
         throw new Error(text || 'Failed to fetch bank transaction');
@@ -1312,6 +1311,9 @@ export default function CounteragentStatementPage() {
         nominalCurrencyCode: row.nominal_currency_code || row.nominalCurrencyCode || null,
       }));
       setBankEditData(mapped);
+      if (mapped.length > 0) {
+        setBankEditId(Number(mapped[0].id));
+      }
     } catch (err: any) {
       alert(err.message || 'Failed to fetch bank transaction');
       setIsBankEditDialogOpen(false);
@@ -2026,9 +2028,9 @@ export default function CounteragentStatementPage() {
                             <Edit2 className="h-4 w-4 text-blue-600" />
                           </button>
                         ) : null}
-                        {row.type === 'bank' && row.bankId ? (
+                        {row.type === 'bank' && row.bankUuid ? (
                           <button
-                            onClick={() => openBankEditDialog(row.bankId)}
+                            onClick={() => openBankEditDialog(row.bankUuid)}
                             className="p-1 hover:bg-gray-200 rounded"
                             title="Edit bank transaction"
                           >

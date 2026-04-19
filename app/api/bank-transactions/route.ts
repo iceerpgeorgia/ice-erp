@@ -338,12 +338,13 @@ export async function GET(req: NextRequest) {
     const toDate = searchParams.get('toDate');     // dd.mm.yyyy format
     const idsParam = searchParams.get('ids');      // Comma-separated IDs for fetching specific records
     const rawRecordUuid = searchParams.get('rawRecordUuid');
+    const recordUuid = searchParams.get('recordUuid'); // UUID of the raw table record (cba.uuid)
     const limitParam = searchParams.get('limit');  // Optional limit override (default: 1000)
     const offsetParam = searchParams.get('offset'); // Optional offset for pagination (default: 0)
     const debugParam = searchParams.get('debug');
     const includeDebug = debugParam === '1' || debugParam?.toLowerCase() === 'true';
 
-    console.log('[API] Query params:', { fromDate, toDate, idsParam, rawRecordUuid, limitParam, offsetParam, debugParam });
+    console.log('[API] Query params:', { fromDate, toDate, idsParam, rawRecordUuid, recordUuid, limitParam, offsetParam, debugParam });
 
     const toJsonSafe = (value: any): any => {
       if (typeof value === 'bigint') return value.toString();
@@ -397,8 +398,8 @@ export async function GET(req: NextRequest) {
     
     // Limit to recent 1000 records by default unless specific IDs requested
     const defaultLimit = 1000;
-    const isUnfiltered = !fromDate && !toDate && !idsParam && !rawRecordUuid;
-    let limit = idsParam
+    const isUnfiltered = !fromDate && !toDate && !idsParam && !rawRecordUuid && !recordUuid;
+    let limit = (idsParam || recordUuid)
       ? undefined
       : (limitParam ? (limitParam === '0' ? undefined : parseInt(limitParam)) : (isUnfiltered ? undefined : defaultLimit));
     const offset = offsetParam ? parseInt(offsetParam) : 0;
@@ -435,6 +436,29 @@ export async function GET(req: NextRequest) {
          WHERE cba.raw_record_uuid::text = $1::text
          ORDER BY cba.transaction_date DESC, cba.id DESC`,
         rawRecordUuid
+      );
+    } else if (recordUuid) {
+      transactions = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT 
+           cba.*,
+           ba.account_number,
+           b.bank_name,
+           ca.counteragent as counteragent_name,
+           p.project_index,
+           fc.validation as financial_code,
+           curr_acc.code as account_currency_code,
+           curr_nom.code as nominal_currency_code
+         FROM (${UNION_SQL}) cba
+         LEFT JOIN bank_accounts ba ON cba.bank_account_uuid = ba.uuid
+         LEFT JOIN banks b ON ba.bank_uuid = b.uuid
+         LEFT JOIN counteragents ca ON COALESCE(cba.batch_counteragent_uuid, cba.counteragent_uuid) = ca.counteragent_uuid
+         LEFT JOIN projects p ON COALESCE(cba.batch_project_uuid, cba.project_uuid) = p.project_uuid
+         LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid) = fc.uuid
+         LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
+         LEFT JOIN currencies curr_nom ON COALESCE(cba.batch_nominal_currency_uuid, cba.nominal_currency_uuid) = curr_nom.uuid
+         WHERE cba.uuid::text = $1::text
+         ORDER BY cba.transaction_date DESC, cba.id DESC`,
+        recordUuid
       );
     } else if (idsParam) {
       const idsArray = idsParam.split(',').map(id => id.trim());
@@ -487,7 +511,7 @@ export async function GET(req: NextRequest) {
     
     console.log('[API] Step 2: Getting total count...');
     // Get total count for pagination (only when not fetching specific IDs and limit is set)
-    const totalCount = idsParam || !limit
+    const totalCount = idsParam || recordUuid || !limit
       ? undefined
       : (await prisma.$queryRawUnsafe<Array<{count: bigint}>>(
           `SELECT SUM(count)::bigint as count FROM (
