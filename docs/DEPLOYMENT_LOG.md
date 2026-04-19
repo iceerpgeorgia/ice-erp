@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-04-19 Deployment #185
+- Commit: ef84e99
+- Production: https://ice-9jbrhcjo4-iceerp.vercel.app
+- Summary: Fix bank transaction edit dialog in counteragent-statement and payment-statement falling back immediately after loading.
+- Changes:
+  - app/api/bank-transactions/route.ts: Added `recordUuid` query parameter for UUID-based lookup (`WHERE cba.uuid = $1`), avoiding synthetic_id offset mismatch between statement APIs (dynamic offsets) and bank-transactions API (hardcoded offsets).
+  - app/counteragent-statement/[counteragentUuid]/page.tsx: Changed `openBankEditDialog` to pass `bankUuid` instead of `bankId`, fetch via `recordUuid` param, and set `bankEditId` from the response.
+  - app/payment-statement/[paymentId]/page.tsx: Same UUID-based lookup fix for the edit dialog.
+
 ## 2026-04-19 Deployment #184
 - Commit: af164bc
 - Production: https://ice-dnlj92cih-iceerp.vercel.app
