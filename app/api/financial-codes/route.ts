@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, withRetry } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
 
     // Get single code details
     if (singleCode) {
-      const code = await prisma.financial_codes.findUnique({
+      const code = await withRetry(() => prisma.financial_codes.findUnique({
         where: { code: singleCode },
-      });
+      }));
 
       if (!code) {
         return NextResponse.json(
@@ -60,13 +60,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all codes matching filters, ordered by depth and sort_order
-    const codes = await prisma.financial_codes.findMany({
+    const codes = await withRetry(() => prisma.financial_codes.findMany({
       where,
       orderBy: [
         { depth: 'asc' },
         { sort_order: 'asc' },
       ],
-    });
+    }));
 
     // If leafOnly is true, filter out codes that have children and sort properly
     let finalCodes = codes;

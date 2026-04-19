@@ -149,6 +149,7 @@ export function PaymentsReportTable() {
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [insidersLoaded, setInsidersLoaded] = useState(false);
   const [dateFilterMode, setDateFilterMode] = useState<'none' | 'today' | 'custom'>('none');
   const [customDate, setCustomDate] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -410,7 +411,7 @@ export function PaymentsReportTable() {
     setIsInitialized(true);
   }, []);
 
-  // Fetch insider selection on mount
+  // Fetch insider selection on mount — gate data fetch until this completes
   useEffect(() => {
     fetch('/api/insider-selection')
       .then((res) => res.ok ? res.json() : null)
@@ -419,16 +420,16 @@ export function PaymentsReportTable() {
           setInsiderUuids(data.selectedUuids);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setInsidersLoaded(true));
   }, []);
 
-  // Fetch data after initialization and when date filter changes
+  // Fetch data after initialization AND insider selection loaded (avoids double-fetch)
   useEffect(() => {
-    if (isInitialized) {
+    if (isInitialized && insidersLoaded) {
       fetchData();
-      fetchPayments(); // Also fetch payments for Add Entry dialog
     }
-  }, [isInitialized, dateFilterMode, customDate, insiderUuids]);
+  }, [isInitialized, insidersLoaded, dateFilterMode, customDate, insiderUuids]);
 
   // Lazy loader for counteragents — called when the payment form opens
   const fetchCounterAgents = useCallback(async () => {
@@ -469,38 +470,40 @@ export function PaymentsReportTable() {
     }
   }, []);
 
-  // Fetch dictionaries for add payment step (financial codes + currencies only — counteragents/projects are lazy)
-  useEffect(() => {
-    const fetchDictionaries = async () => {
-      try {
-        const [financialCodesRes, currenciesRes] = await Promise.all([
-          fetch('/api/financial-codes?leafOnly=true'),
-          fetch('/api/currencies')
-        ]);
+  // Lazy loader for dictionaries (financial codes + currencies) — called when dialog opens
+  const dictionariesLoadedRef = useRef(false);
+  const fetchDictionaries = useCallback(async () => {
+    if (dictionariesLoadedRef.current) return;
+    dictionariesLoadedRef.current = true;
+    try {
+      const [financialCodesRes, currenciesRes] = await Promise.all([
+        fetch('/api/financial-codes?leafOnly=true'),
+        fetch('/api/currencies')
+      ]);
 
-        if (financialCodesRes.ok) {
-          const financialCodesData = await financialCodesRes.json();
-          setFinancialCodes(Array.isArray(financialCodesData) ? financialCodesData : []);
-        } else {
-          console.error('Error fetching financial codes:', await financialCodesRes.text());
-        }
-        if (currenciesRes.ok) {
-          const currenciesData = await currenciesRes.json();
-          const list = Array.isArray(currenciesData)
-            ? currenciesData
-            : Array.isArray(currenciesData?.data)
-              ? currenciesData.data
-              : [];
-          setCurrencies(list);
-        } else {
-          console.error('Error fetching currencies:', await currenciesRes.text());
-        }
-      } catch (error) {
-        console.error('Error fetching dictionaries:', error);
+      if (financialCodesRes.ok) {
+        const financialCodesData = await financialCodesRes.json();
+        setFinancialCodes(Array.isArray(financialCodesData) ? financialCodesData : []);
+      } else {
+        console.error('Error fetching financial codes:', await financialCodesRes.text());
+        dictionariesLoadedRef.current = false;
       }
-    };
-
-    fetchDictionaries();
+      if (currenciesRes.ok) {
+        const currenciesData = await currenciesRes.json();
+        const list = Array.isArray(currenciesData)
+          ? currenciesData
+          : Array.isArray(currenciesData?.data)
+            ? currenciesData.data
+            : [];
+        setCurrencies(list);
+      } else {
+        console.error('Error fetching currencies:', await currenciesRes.text());
+        dictionariesLoadedRef.current = false;
+      }
+    } catch (error) {
+      console.error('Error fetching dictionaries:', error);
+      dictionariesLoadedRef.current = false;
+    }
   }, []);
 
   useEffect(() => {
@@ -957,6 +960,10 @@ export function PaymentsReportTable() {
     setEditIsActive(row.isActive ?? true);
     setEditPaymentError(null);
     setIsEditPaymentOpen(true);
+    // Lazy-load dictionaries for the dropdowns
+    fetchDictionaries();
+    fetchCounterAgents();
+    fetchProjects();
   };
 
   const handleSavePaymentEdit = async () => {
@@ -1015,9 +1022,11 @@ export function PaymentsReportTable() {
       resetForm();
     } else {
       setAddLedgerStep('payment');
-      // Lazy-load counteragents for the payment form and projects for the project dropdown
+      // Lazy-load all dialog dependencies
       fetchCounterAgents();
       fetchProjects();
+      fetchDictionaries();
+      fetchPayments();
     }
   };
 

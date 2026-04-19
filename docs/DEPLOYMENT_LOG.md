@@ -1,7 +1,18 @@
 # Deployment Log
 
-## 2026-04-19 Deployment #187
+## 2026-04-19 Deployment #188
 - Commit: pending
+- Summary: Fix connection pool exhaustion (MaxClientsInSessionMode) by reducing concurrent API calls and adding retry logic.
+- Changes:
+  - components/figma/payments-report-table.tsx: Added `insidersLoaded` gate to prevent double-fetch of payments-report and payment-id-options. Deferred `fetchPayments()` and dictionaries (financial-codes + currencies) to lazy loading on dialog open instead of page mount. Reduces on-mount API calls from 7 to 2.
+  - lib/prisma.ts: Added `withRetry()` utility that retries on transient connection pool errors (MaxClientsInSessionMode, pool_size, too many connections) with exponential backoff (200ms, 600ms, 1800ms).
+  - app/api/payments-report/route.ts: Wrapped main query in `withRetry()`.
+  - app/api/payment-id-options/route.ts: Wrapped both queries in `withRetry()`.
+  - app/api/financial-codes/route.ts: Wrapped queries in `withRetry()`.
+  - app/api/currencies/route.ts: Wrapped query in `withRetry()`.
+
+## 2026-04-19 Deployment #187
+- Commit: 7bb755e
 - Summary: XLSX exports with conditional formatting colors, fix hydration error, fix attachment request flooding.
 - Changes:
   - components/figma/payments-report-table.tsx: Switched import from `xlsx` to `xlsx-js-style`. Rewrote `handleExportXlsx` to use `aoa_to_sheet` with cell styling: header row colored (accrual=red, order=yellow, payment=green, rest=gray), data rows with conditional fills (confirmed+paid=gray, confirmed+due>0=green), flagged counteragent cells in bold red, job conflict cells in bold red. Removed hydration-causing `new Date().toLocaleDateString()` from "Today" label.

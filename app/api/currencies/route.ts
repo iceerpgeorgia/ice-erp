@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, withRetry } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { requireAuth, isAuthError } from "@/lib/auth-guard";
 
@@ -31,7 +31,7 @@ function validatePayload(body: any) {
 
 export async function GET() {
   try {
-    const rows = await prisma.currencies.findMany({
+    const rows = await withRetry(() => prisma.currencies.findMany({
       orderBy: { code: "asc" },
       select: {
         id: true,
@@ -42,7 +42,7 @@ export async function GET() {
         created_at: true,
         updated_at: true,
       },
-    });
+    }));
 
     console.log(`[API] Currencies fetched: ${rows.length}`);
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma, withRetry } from '@/lib/prisma';
 import { getSourceTables } from '@/lib/source-tables';
 import { sqlUuidInList } from '@/lib/insider-selection';
 
@@ -195,7 +195,7 @@ export async function GET(request: NextRequest) {
       ORDER BY p.payment_id DESC
     `;
 
-    const reportData = await prisma.$queryRawUnsafe(query);
+    const reportData = await withRetry(() => prisma.$queryRawUnsafe(query));
 
     const formattedData = (reportData as any[]).map(row => ({
       paymentId: row.payment_id,

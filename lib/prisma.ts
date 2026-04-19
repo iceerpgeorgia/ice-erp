@@ -55,3 +55,39 @@ export const prisma =
   new PrismaClient(prismaClientOptions);
 
 globalForPrisma.prisma = prisma;
+
+// Retry wrapper for transient connection pool errors (e.g. Supabase session-mode pool exhaustion).
+// Use: const result = await withRetry(() => prisma.someModel.findMany(...));
+const RETRYABLE_PATTERNS = [
+  'MaxClientsInSessionMode',
+  'max clients reached',
+  'pool_size',
+  'remaining connection slots are reserved',
+  'too many connections',
+  'Connection timed out',
+];
+
+function isRetryableError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return RETRYABLE_PATTERNS.some((p) => msg.includes(p));
+}
+
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt < maxRetries && isRetryableError(error)) {
+        // Exponential backoff: 200ms, 600ms, 1800ms
+        await new Promise((r) => setTimeout(r, 200 * Math.pow(3, attempt)));
+        continue;
+      }
+      throw error;
+    }
+  }
+  // Unreachable, but TypeScript needs it
+  throw new Error('withRetry: max retries exceeded');
+}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, withRetry } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     const includeSalary = searchParams.get('includeSalary') !== 'false';
     const projectionMonths = Math.max(0, parseInt(searchParams.get('projectionMonths') || '36', 10) || 36);
 
-    const payments = await prisma.$queryRawUnsafe(`
+    const payments = await withRetry(() => prisma.$queryRawUnsafe(`
       SELECT 
         p.project_uuid,
         p.counteragent_uuid,
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
       WHERE p.is_active = true
       ORDER BY p.created_at DESC
-    `) as any[];
+    `)) as any[];
 
     const paymentOptions: PaymentOption[] = payments
       .filter((p) => p.payment_id)
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(paymentOptions);
     }
 
-    const salaryRows = await prisma.$queryRawUnsafe(`
+    const salaryRows = await withRetry(() => prisma.$queryRawUnsafe(`
       SELECT 
         sa.payment_id,
         sa.counteragent_uuid,
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN currencies curr ON sa.nominal_currency_uuid = curr.uuid
       WHERE sa.payment_id IS NOT NULL AND sa.payment_id <> ''
       ORDER BY sa.salary_month DESC, sa.created_at DESC
-    `) as any[];
+    `)) as any[];
 
     const salaryOptionsById = new Map<string, PaymentOption>();
     salaryRows.forEach((row) => {
