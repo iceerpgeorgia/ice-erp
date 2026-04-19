@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-04-20 Deployment #190
+- Commit: e6c63b6
+- Production: https://ice-inhnbnz34-iceerp.vercel.app
+- Summary: Fix paste-from-report to auto-calculate partitionAmount from nominalAmount using reverse currency conversion.
+- Changes:
+  - components/batch-editor.tsx: `pasteFromReport()` now uses `convertNominalToAccount()` to compute `partitionAmount` (bank account currency) from the pasted `nominalAmount` (payment currency) using exchange rates, instead of leaving it at 0.
+
 ## 2026-04-20 Deployment #189
 - Commit: c86a6c3
 - Production: https://ice-cpgo2xndz-iceerp.vercel.app
