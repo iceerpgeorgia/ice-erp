@@ -1,7 +1,8 @@
 # Deployment Log
 
 ## 2026-04-20 Deployment #189
-- Commit: pending
+- Commit: c86a6c3
+- Production: https://ice-cpgo2xndz-iceerp.vercel.app
 - Summary: Fix paste-from-report to populate nominal amount instead of partition amount.
 - Changes:
   - components/batch-editor.tsx: `pasteFromReport()` now sets `nominalAmount` from clipboard data instead of `partitionAmount`.

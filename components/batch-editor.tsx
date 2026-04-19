@@ -638,9 +638,13 @@ export function BatchEditor({
         const payment = paymentById.get(normalizePaymentId(item.paymentId)) || null;
         if (!payment) missing.push(item.paymentId);
         const isSalary = payment?.recordUuid?.startsWith('salary__');
+        const nominalAmt = item.amount || 0;
+        const accountAmt = payment
+          ? convertNominalToAccount(nominalAmt, payment.currencyUuid, payment.currencyCode)
+          : null;
         const base: Partition = {
           id: String(idx + 1),
-          partitionAmount: 0,
+          partitionAmount: accountAmt !== null ? Number(accountAmt.toFixed(2)) : 0,
           paymentUuid: isSalary ? null : (payment?.recordUuid ?? null),
           paymentId: payment?.paymentId ?? item.paymentId,
           paymentLabel: payment?.label ?? null,
@@ -648,10 +652,10 @@ export function BatchEditor({
           projectUuid: payment?.projectUuid ?? null,
           financialCodeUuid: payment?.financialCodeUuid ?? null,
           nominalCurrencyUuid: payment?.currencyUuid ?? null,
-          nominalAmount: item.amount || null,
+          nominalAmount: nominalAmt || null,
           partitionNote: '',
         };
-        return payment ? applyNominalForPartition(base, payment) : base;
+        return base;
       });
 
       setMissingPaymentIds(missing);
