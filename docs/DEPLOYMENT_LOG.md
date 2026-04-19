@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-19 Deployment #186
+- Commit: 6aaa14b
+- Production: https://ice-8i8n4qozu-iceerp.vercel.app
+- Summary: Copy-for-batch button in payments report + paste-from-report in batch editor.
+- Changes:
+  - components/figma/payments-report-table.tsx: Added "Copy for Batch" button that copies selected rows' payment IDs and due amounts as JSON to clipboard.
+  - components/batch-editor.tsx: Added "Paste from Report" button that reads clipboard JSON and creates partitions with payment IDs, metadata, and amounts pre-filled.
+
 ## 2026-04-19 Deployment #185
 - Commit: ef84e99
 - Production: https://ice-9jbrhcjo4-iceerp.vercel.app
