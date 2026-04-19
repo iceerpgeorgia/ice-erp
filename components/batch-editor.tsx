@@ -638,13 +638,9 @@ export function BatchEditor({
         const payment = paymentById.get(normalizePaymentId(item.paymentId)) || null;
         if (!payment) missing.push(item.paymentId);
         const isSalary = payment?.recordUuid?.startsWith('salary__');
-        const nominalAmt = item.amount || 0;
-        const accountAmt = payment
-          ? convertNominalToAccount(nominalAmt, payment.currencyUuid, payment.currencyCode)
-          : null;
         const base: Partition = {
           id: String(idx + 1),
-          partitionAmount: accountAmt !== null ? Number(accountAmt.toFixed(2)) : 0,
+          partitionAmount: 0,
           paymentUuid: isSalary ? null : (payment?.recordUuid ?? null),
           paymentId: payment?.paymentId ?? item.paymentId,
           paymentLabel: payment?.label ?? null,
@@ -652,7 +648,7 @@ export function BatchEditor({
           projectUuid: payment?.projectUuid ?? null,
           financialCodeUuid: payment?.financialCodeUuid ?? null,
           nominalCurrencyUuid: payment?.currencyUuid ?? null,
-          nominalAmount: nominalAmt || null,
+          nominalAmount: item.amount || null,
           partitionNote: '',
         };
         return base;
@@ -676,6 +672,32 @@ export function BatchEditor({
         const payment = findPaymentForPartition(partition);
         if (!payment) return partition;
         return applyNominalForPartition(partition, payment);
+      })
+    );
+  }, [exchangeRates, payments]);
+
+  // Reverse conversion: nominalAmount → partitionAmount when exchange rates become available
+  useEffect(() => {
+    if (!exchangeRates) return;
+    if (payments.length === 0) return;
+    setPartitions((prev) =>
+      prev.map((partition) => {
+        // Skip if already has meaningful partitionAmount
+        if (partition.partitionAmount && partition.partitionAmount > 0.01) return partition;
+        // Skip if no nominalAmount to convert from
+        if (!partition.nominalAmount || partition.nominalAmount === 0) return partition;
+        const payment = findPaymentForPartition(partition);
+        if (!payment) return partition;
+        const accountAmt = convertNominalToAccount(
+          partition.nominalAmount,
+          payment.currencyUuid,
+          payment.currencyCode
+        );
+        if (accountAmt === null) return partition;
+        return {
+          ...partition,
+          partitionAmount: Number(accountAmt.toFixed(2)),
+        };
       })
     );
   }, [exchangeRates, payments]);
