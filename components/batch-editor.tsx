@@ -640,7 +640,7 @@ export function BatchEditor({
         const isSalary = payment?.recordUuid?.startsWith('salary__');
         const base: Partition = {
           id: String(idx + 1),
-          partitionAmount: item.amount || 0,
+          partitionAmount: 0,
           paymentUuid: isSalary ? null : (payment?.recordUuid ?? null),
           paymentId: payment?.paymentId ?? item.paymentId,
           paymentLabel: payment?.label ?? null,
@@ -648,7 +648,7 @@ export function BatchEditor({
           projectUuid: payment?.projectUuid ?? null,
           financialCodeUuid: payment?.financialCodeUuid ?? null,
           nominalCurrencyUuid: payment?.currencyUuid ?? null,
-          nominalAmount: null,
+          nominalAmount: item.amount || null,
           partitionNote: '',
         };
         return payment ? applyNominalForPartition(base, payment) : base;

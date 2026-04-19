@@ -1,7 +1,14 @@
 # Deployment Log
 
-## 2026-04-19 Deployment #188
+## 2026-04-20 Deployment #189
 - Commit: pending
+- Summary: Fix paste-from-report to populate nominal amount instead of partition amount.
+- Changes:
+  - components/batch-editor.tsx: `pasteFromReport()` now sets `nominalAmount` from clipboard data instead of `partitionAmount`.
+
+## 2026-04-19 Deployment #188
+- Commit: 59af95f
+- Production: https://ice-cirimiv70-iceerp.vercel.app
 - Summary: Fix connection pool exhaustion (MaxClientsInSessionMode) by reducing concurrent API calls and adding retry logic.
 - Changes:
   - components/figma/payments-report-table.tsx: Added `insidersLoaded` gate to prevent double-fetch of payments-report and payment-id-options. Deferred `fetchPayments()` and dictionaries (financial-codes + currencies) to lazy loading on dialog open instead of page mount. Reduces on-mount API calls from 7 to 2.
