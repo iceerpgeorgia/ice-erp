@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-04-20 Deployment #194
+- Commit: 736a684
+- Production: https://ice-r5r4kp71o-iceerp.vercel.app
+- Summary: Fix bulk-bind persistence bug (synthetic ID offset mismatch) + reparse local DB mirror writes.
+- Changes:
+  - app/api/bank-transactions/bulk-bind/route.ts: Replaced hardcoded synthetic ID offsets with dynamic offsets from bank_accounts table (aligned with counteragent-statement). Was silently updating wrong table/record, causing bulk-bind changes to not persist after refresh.
+  - lib/bank-import/reparse.ts: Added local DB mirror writes to reparseRows() — reparse now updates both Supabase and local DB via batch UPDATE...FROM VALUES, preventing data drift.
+  - DB: Fixed 2 stuck records (id=52058, 52642) in BOG_GEL for counteragent 0d51ff0a (INN 406198421) — assigned counteragent_uuid in local DB.
+
 ## 2026-04-20 Deployment #193
 - Commit: 960ff12
 - Production: https://ice-6no5f75ke-iceerp.vercel.app
