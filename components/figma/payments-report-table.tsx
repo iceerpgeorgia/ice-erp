@@ -20,7 +20,8 @@ import {
   FileText,
   Plus,
   Upload,
-  User
+  User,
+  Link2
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -59,6 +60,8 @@ type PaymentReport = {
   isProjectDerived?: boolean;
   isBundlePayment?: boolean;
   isBundleAggregate?: boolean;
+  isCounteragentBundleAggregate?: boolean;
+  paymentBundleUuid?: string | null;
   counteragent: string;
   counteragentId?: string | null;
   counteragentIban?: string | null;
@@ -184,6 +187,10 @@ export function PaymentsReportTable() {
   const [uploadLogOpen, setUploadLogOpen] = useState(false);
   const [uploadLogTitle, setUploadLogTitle] = useState('');
   const [uploadLogText, setUploadLogText] = useState('');
+  const [isBundleDialogOpen, setIsBundleDialogOpen] = useState(false);
+  const [bundleLabel, setBundleLabel] = useState('');
+  const [isBundleCreating, setIsBundleCreating] = useState(false);
+  const [bundleError, setBundleError] = useState<string | null>(null);
   const counteragentsWithNegativeBalance = useMemo(() => {
     const flagged = new Set<string>();
     data.forEach((row) => {
@@ -1285,7 +1292,55 @@ export function PaymentsReportTable() {
       });
     }
 
-    return [...aggregates, ...conditionsFilteredData];
+    // --- Counteragent bundle aggregates ---
+    // Group payments that share the same payment_bundle_uuid
+    const caBundleRows = conditionsFilteredData.filter(r => r.paymentBundleUuid);
+    const caBundleGroups = new Map<string, PaymentReport[]>();
+    for (const row of caBundleRows) {
+      const key = row.paymentBundleUuid!;
+      const arr = caBundleGroups.get(key);
+      if (arr) arr.push(row); else caBundleGroups.set(key, [row]);
+    }
+
+    const caAggregates: PaymentReport[] = [];
+    for (const [bundleUuid, children] of caBundleGroups) {
+      if (children.length < 2) continue;
+      const first = children[0];
+      const totalAccrual = children.reduce((s, r) => s + r.accrual, 0);
+      const totalOrder = children.reduce((s, r) => s + r.order, 0);
+      const totalPayment = children.reduce((s, r) => s + r.payment, 0);
+      const totalFloors = children.reduce((s, r) => s + r.floors, 0);
+      caAggregates.push({
+        ...first,
+        paymentId: '',
+        isBundleAggregate: true,
+        isCounteragentBundleAggregate: true,
+        isBundlePayment: false,
+        isProjectDerived: false,
+        paymentBundleUuid: bundleUuid,
+        counteragent: `Bundle (${children.length})`,
+        counteragentUuid: null,
+        counteragentId: null,
+        counteragentIban: null,
+        job: '',
+        jobUuid: null,
+        jobCount: 0,
+        jobWeight: null,
+        label: null,
+        users: '',
+        accrual: parseFloat(totalAccrual.toFixed(2)),
+        order: parseFloat(totalOrder.toFixed(2)),
+        payment: parseFloat(totalPayment.toFixed(2)),
+        confirmed: children.every(r => r.confirmed),
+        accrualPerFloor: totalFloors > 0 ? parseFloat((totalAccrual / totalFloors).toFixed(2)) : 0,
+        paidPercent: totalAccrual !== 0 ? parseFloat(((Math.abs(totalPayment) / totalAccrual) * 100).toFixed(2)) : 0,
+        due: parseFloat((totalOrder - Math.abs(totalPayment)).toFixed(2)),
+        balance: parseFloat((totalAccrual - Math.abs(totalPayment)).toFixed(2)),
+        latestDate: children.reduce((max, r) => !max ? r.latestDate : (!r.latestDate ? max : r.latestDate > max ? r.latestDate : max), null as string | null),
+      });
+    }
+
+    return [...aggregates, ...caAggregates, ...conditionsFilteredData];
   }, [conditionsFilteredData]);
 
   const {
@@ -2094,6 +2149,32 @@ export function PaymentsReportTable() {
     }
   };
 
+  const handleCreateBundle = async () => {
+    setIsBundleCreating(true);
+    setBundleError(null);
+    try {
+      const paymentIds = Array.from(selectedPaymentIds);
+      const response = await fetch('/api/payment-bundles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: bundleLabel || null, paymentIds }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setBundleError(result.error || 'Failed to create bundle');
+        return;
+      }
+      setIsBundleDialogOpen(false);
+      setBundleLabel('');
+      setSelectedPaymentIds(new Set());
+      fetchData();
+    } catch (err: any) {
+      setBundleError(err.message || 'Failed to create bundle');
+    } finally {
+      setIsBundleCreating(false);
+    }
+  };
+
   const handleExportXlsx = () => {
     const fmtNum = (v: any) => (v == null ? '' : Number(Number(v).toFixed(2)));
     const fmtDate = (v: any) => {
@@ -2423,6 +2504,19 @@ export function PaymentsReportTable() {
               >
                 <Copy className="mr-2 h-4 w-4" />
                 Copy for Batch ({selectedPaymentIds.size})
+              </Button>
+            )}
+            {selectedPaymentIds.size >= 2 && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setBundleError(null);
+                  setBundleLabel('');
+                  setIsBundleDialogOpen(true);
+                }}
+              >
+                <Link2 className="mr-2 h-4 w-4" />
+                Create Bundle ({selectedPaymentIds.size})
               </Button>
             )}
             {selectedPaymentIds.size > 0 && (
@@ -3273,6 +3367,52 @@ export function PaymentsReportTable() {
         </DialogContent>
       </Dialog>
 
+      {/* Create Counteragent Bundle Dialog */}
+      <Dialog open={isBundleDialogOpen} onOpenChange={setIsBundleDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create Counteragent Bundle</DialogTitle>
+            <DialogDescription>
+              Group {selectedPaymentIds.size} selected payments into a counteragent bundle.
+              All members must share the same project, financial code, job, income tax, and currency.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Bundle Label (optional)</label>
+              <Input
+                value={bundleLabel}
+                onChange={(e) => setBundleLabel(e.target.value)}
+                placeholder="e.g. Plumbing contractors"
+                className="mt-1"
+              />
+            </div>
+            <div className="rounded-md border p-3 bg-gray-50 text-sm max-h-48 overflow-y-auto">
+              <div className="font-medium mb-2">Selected Payments ({selectedPaymentIds.size}):</div>
+              {sortedData
+                .filter((row) => selectedPaymentIds.has(row.paymentId))
+                .map((row) => (
+                  <div key={row.paymentId} className="flex items-center justify-between py-1 border-b border-gray-100 last:border-0">
+                    <span className="font-mono text-xs">{row.paymentId}</span>
+                    <span className="text-gray-600 truncate ml-2">{row.counteragent}</span>
+                  </div>
+                ))}
+            </div>
+            {bundleError && (
+              <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{bundleError}</div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsBundleDialogOpen(false)} disabled={isBundleCreating}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateBundle} disabled={isBundleCreating || selectedPaymentIds.size < 2}>
+                {isBundleCreating ? 'Creating...' : 'Create Bundle'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Totals Bar */}
       <div className="sticky top-[60px] z-20 flex-shrink-0 bg-blue-50 border-b border-blue-200 px-4 py-2 border-t border-t-gray-200">
         <div className="flex flex-wrap items-center gap-4 text-sm">
@@ -3452,17 +3592,20 @@ export function PaymentsReportTable() {
                 const isConfirmedDue = Boolean(isConditionalFormattingEligible && row.confirmed && row.due > 0);
                 const isConfirmedPaid = Boolean(isConditionalFormattingEligible && row.confirmed && row.due === 0);
                 const isBundleAgg = Boolean(row.isBundleAggregate);
+                const isCaBundleAgg = Boolean(row.isCounteragentBundleAggregate);
 
                 return (
                 <tr
-                  key={`${row.paymentId || 'agg'}-${row.financialCodeUuid}-${idx}`}
+                  key={`${row.paymentId || 'agg'}-${row.financialCodeUuid}-${row.paymentBundleUuid || ''}-${idx}`}
                   className={`group border-b border-gray-200 hover:bg-gray-50 ${
-                    isBundleAgg ? 'italic bg-blue-50/40' : isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : ''
+                    isCaBundleAgg ? 'italic bg-violet-50/40' : isBundleAgg ? 'italic bg-blue-50/40' : isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : ''
                   }`}
                 >
                   <td
                     className={`sticky left-0 z-10 px-2 py-2 text-sm ${
-                      isBundleAgg
+                      isCaBundleAgg
+                        ? 'bg-violet-50/40 group-hover:bg-violet-50'
+                        : isBundleAgg
                         ? 'bg-blue-50/40 group-hover:bg-blue-50'
                         : isConfirmedPaid
                         ? 'bg-gray-100 group-hover:bg-gray-200'

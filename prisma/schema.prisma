@@ -595,26 +595,38 @@ model parsing_schemes {
   uuid   String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 }
 
+model payment_bundles {
+  id         Int      @id @default(autoincrement())
+  uuid       String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  label      String?  @db.Text
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  payments   payments[]
+}
+
 model payments {
-  id                  BigInt            @id @default(autoincrement())
-  project_uuid        String?           @db.Uuid
-  counteragent_uuid   String            @db.Uuid
-  financial_code_uuid String            @db.Uuid
-  job_uuid            String?           @db.Uuid
-  payment_id          String            @unique
-  record_uuid         String            @unique
-  is_active           Boolean           @default(true)
-  created_at          DateTime          @default(now())
-  updated_at          DateTime          @updatedAt
-  income_tax          Boolean           @default(false)
-  currency_uuid       String            @db.Uuid
-  accrual_source      String?           @db.VarChar(50)
-  label               String?           @db.Text
-  insider_uuid        String?           @db.Uuid
-  is_project_derived  Boolean           @default(false)
-  is_bundle_payment   Boolean           @default(false)
-  payments_ledger      payments_ledger[]
-  payment_adjustments  payment_adjustments[]
+  id                    BigInt              @id @default(autoincrement())
+  project_uuid          String?             @db.Uuid
+  counteragent_uuid     String              @db.Uuid
+  financial_code_uuid   String              @db.Uuid
+  job_uuid              String?             @db.Uuid
+  payment_id            String              @unique
+  record_uuid           String              @unique
+  is_active             Boolean             @default(true)
+  created_at            DateTime            @default(now())
+  updated_at            DateTime            @updatedAt
+  income_tax            Boolean             @default(false)
+  currency_uuid         String              @db.Uuid
+  accrual_source        String?             @db.VarChar(50)
+  label                 String?             @db.Text
+  insider_uuid          String?             @db.Uuid
+  is_project_derived    Boolean             @default(false)
+  is_bundle_payment     Boolean             @default(false)
+  payment_bundle_uuid   String?             @db.Uuid
+  payment_bundle        payment_bundles?    @relation(fields: [payment_bundle_uuid], references: [uuid])
+  payments_ledger       payments_ledger[]
+  payment_adjustments   payment_adjustments[]
 
   @@unique([project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid], map: "payments_project_uuid_counteragent_uuid_financial_code_uu_key")
   @@index([counteragent_uuid])
@@ -623,6 +635,7 @@ model payments {
   @@index([insider_uuid])
   @@index([job_uuid])
   @@index([project_uuid])
+  @@index([payment_bundle_uuid])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
