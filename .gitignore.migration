@@ -1,0 +1,15 @@
+# Google Drive Migration - Add these to your .gitignore
+
+# Google Service Account credentials (NEVER commit!)
+google-credentials.json
+
+# Temporary download directory
+temp-downloads/
+
+# Migration working files (may contain sensitive data)
+gdrive-files-list.xlsx
+my-migration.xlsx
+attachment-migration-*.xlsx
+
+# Reference files are OK to commit (just UUIDs, no secrets)
+# reference-uuids.xlsx

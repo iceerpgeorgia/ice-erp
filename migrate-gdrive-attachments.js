@@ -1,45 +1,56 @@
 /**
- * Google Drive to Supabase Attachments Migration Script
+ * Google Drive to Supabase Attachments Migration Script (Google Drive API)
  * 
  * PREREQUISITES:
- * 1. Excel file with columns mapping files to projects
- * 2. Google Drive files with shareable links
- * 3. Supabase storage bucket "payment-attachments" created
+ * 1. Google Cloud Project with Drive API enabled
+ * 2. Service Account credentials JSON file
+ * 3. Google Drive folder shared with service account email
+ * 4. Excel file with columns mapping files to projects
+ * 5. Supabase storage bucket "payment-attachments" created
+ * 
+ * SETUP:
+ * 1. Go to https://console.cloud.google.com
+ * 2. Create/select project → Enable Google Drive API
+ * 3. Create Service Account → Download JSON key
+ * 4. Save as "google-credentials.json" in project root
+ * 5. Share your Google Drive folder with service account email (found in JSON)
  * 
  * USAGE:
- * node migrate-gdrive-attachments.js <excel-file-path>
+ * node migrate-gdrive-attachments.js <excel-file-path> [--dry-run]
  * 
  * Example Excel columns (adapt COLUMN_MAPPING below):
  * - file_name: Original filename
- * - gdrive_url: Google Drive shareable link
- * - project_name or project_code: Project identifier
- * - document_type: Invoice, Contract, etc.
+ * - gdrive_file_id: Google Drive file ID (or full URL)
+ * - project_uuid or project_name: Project identifier
+ * - document_type_uuid or document_type: Document type
  * - document_date: Date on document
  * - document_no: Document reference number
  * - document_value: Monetary value
- * - currency_code: USD, GEL, EUR, etc.
+ * - currency_uuid or currency_code: Currency
  */
 
 const { PrismaClient } = require('@prisma/client');
 const XLSX = require('xlsx');
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
-const http = require('http');
 const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
-
-const prisma = new PrismaClient();
-
-// ============= CONFIGURATION =============
-
-// Adjust these column names to match your Excel file
-const COLUMN_MAPPING = {
-  fileName: 'file_name',           // Column with filename
-  gdriveUrl: 'gdrive_url',         // Column with Google Drive link
+const { google } = require('googleapis');
+FileId: 'gdrive_file_id',  // Column with Google Drive file ID or URL
   projectUuid: 'project_uuid',     // Column with project UUID (preferred)
   projectName: 'project_name',     // Alternative: project name
   projectCode: 'project_code',     // Alternative: project code
+  documentType: 'document_type',   // Document type name
+  documentDate: 'document_date',   // Document date
+  documentNo: 'document_no',       // Document number
+  documentValue: 'document_value', // Document value
+  currencyCode: 'currency_code',   // Currency code (USD, GEL, etc.)
+  documentTypeUuid: 'document_type_uuid', // Optional: direct document type UUID
+  currencyUuid: 'currency_uuid',   // Optional: direct currency UUID
+};
+
+// Google Drive API configuration
+const CREDENTIALS_PATH = path.join(__dirname, 'google-credentials.json') projectCode: 'project_code',     // Alternative: project code
   documentType: 'document_type',   // Document type name
   documentDate: 'document_date',   // Document date
   documentNo: 'document_no',       // Document number
@@ -53,67 +64,88 @@ const COLUMN_MAPPING = {
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const STORAGE_BUCKET = 'payment-attachments';
-
-// ============= HELPERS =============
-
-function convertGDriveUrlToDirectDownload(url) {
-  // Convert various Google Drive URL formats to direct download
-  if (!url) return null;
-  
-  // Extract file ID from various formats
-  let fileId = null;
-  
-  // Format: https://drive.google.com/file/d/FILE_ID/view
-  const match1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (match1) fileId = match1[1];
-  
-  // Format: https://drive.google.com/open?id=FILE_ID
-  const match2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (match2) fileId = match2[1];
-  
-  if (!fileId) {
-    console.warn(`Could not extract file ID from: ${url}`);
-    return null;
+/**
+ * Initialize Google Drive API client
+ */
+async function initializeDriveClient() {
+  if (!fs.existsSync(CREDENTIALS_PATH)) {
+    throw new Error(
+      `Google credentials not found at: ${CREDENTIALS_PATH}\n` +
+      `Please download Service Account JSON from Google Cloud Console and save it as google-credentials.json`
+    );
   }
+
+  const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
   
-  // Return direct download URL
-  return `https://drive.google.com/uc?export=download&id=${fileId}`;
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+  });
+
+  const authClient = await auth.getClient();
+  const drive = google.drive({ version: 'v3', auth: authClient });
+  
+  console.log(`✓ Authenticated as: ${credentials.client_email}`);
+  return drive;
 }
 
-async function downloadFile(url, tempPath) {
-  return new Promise((resolve, reject) => {
-    const protocol = url.startsWith('https') ? https : http;
-    const file = fs.createWriteStream(tempPath);
+/**
+ * Extract file ID from Google Drive URL or return as-is if already an ID
+ */
+function extractFileId(input) {
+  if (!input) return null;
+  
+  // If it's already a file ID (no slashes, no protocol)
+  if (!input.includes('/') && !input.includes(':')) {
+    return input;
+  }
+  
+  // Extract from various URL formats
+  // Format: https://drive.google.com/file/d/FILE_ID/view
+  const match1 = input.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (match1) return match1[1];
+  
+  // Format: https://drive.google.com/open?id=FILE_ID
+  const match2 = input.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (match2) return match2[1];
+  
+  console.warn(`Could not extract file ID from: ${input}`);
+  return null;
+}
+
+/**
+ * Download file from Google Drive using API
+ */
+async function downloadFileFromDrive(drive, fileId, tempPath) {
+  try {
+    const dest = fs.createWriteStream(tempPath);
     
-    const request = protocol.get(url, (response) => {
-      // Handle redirects
-      if (response.statusCode === 302 || response.statusCode === 301) {
-        file.close();
-        fs.unlinkSync(tempPath);
-        return downloadFile(response.headers.location, tempPath).then(resolve).catch(reject);
-      }
-      
-      if (response.statusCode !== 200) {
-        file.close();
-        fs.unlinkSync(tempPath);
-        return reject(new Error(`HTTP ${response.statusCode}: ${url}`));
-      }
-      
-      response.pipe(file);
-      
-      file.on('finish', () => {
-        file.close();
-        resolve(tempPath);
-      });
+    const response = await drive.files.get(
+      { fileId, alt: 'media' },
+      { responseType: 'stream' }
+    );
+    
+    return new Promise((resolve, reject) => {
+      response.data
+        .on('end', () => {
+          dest.close();
+          resolve(tempPath);
+        })
+        .on('error', (err) => {
+          dest.close();
+          if (fs.existsSync(tempPath)) {
+            fs.unlinkSync(tempPath);
+          }
+          reject(err);
+        })
+        .pipe(dest);
     });
-    
-    request.on('error', (err) => {
+  } catch (error) {
+    if (fs.existsSync(tempPath)) {
       fs.unlinkSync(tempPath);
-      reject(err);
-    });
-    
-    file.on('error', (err) => {
-      fs.unlinkSync(tempPath);
+    }
+    throw error;
+  } fs.unlinkSync(tempPath);
       reject(err);
     });
   });
@@ -185,12 +217,12 @@ function parseExcelDate(excelDate) {
   return null;
 }
 
-async function migrateAttachment(row, refData, supabase, tempDir, dryRun = false) {
+async function migrateAttachment(row, refData, supabase, drive, tempDir, dryRun = false) {
   const col = COLUMN_MAPPING;
   
   // Extract data from row
   const fileName = row[col.fileName];
-  const gdriveUrl = row[col.gdriveUrl];
+  const gdriveInput = row[col.gdriveFileId];
   
   // Project: Try UUID first, then fallback to name/code
   const projectUuid = row[col.projectUuid];
@@ -209,8 +241,8 @@ async function migrateAttachment(row, refData, supabase, tempDir, dryRun = false
   const documentNo = row[col.documentNo];
   const documentValue = row[col.documentValue] ? parseFloat(row[col.documentValue]) : null;
   
-  if (!fileName || !gdriveUrl) {
-    throw new Error('Missing required fields: file_name or gdrive_url');
+  if (!fileName || !gdriveInput) {
+    throw new Error('Missing required fields: file_name or gdrive_file_id');
   }
   
   console.log(`\n📄 Processing: ${fileName}`);
@@ -287,15 +319,26 @@ async function migrateAttachment(row, refData, supabase, tempDir, dryRun = false
     return { success: true, dryRun: true };
   }
   
-  // Download file from Google Drive
-  const downloadUrl = convertGDriveUrlToDirectDownload(gdriveUrl);
-  if (!downloadUrl) {
-    throw new Error('Could not convert Google Drive URL to direct download');
+  // Download file from Google Drive using API
+  const fileId = extractFileId(gdriveInput);
+  if (!fileId) {
+    throw new Error(`Could not extract file ID from: ${gdriveInput}`);
   }
   
   const tempFilePath = path.join(tempDir, fileName);
-  console.log(`  ⬇️  Downloading from Google Drive...`);
-  await downloadFile(downloadUrl, tempFilePath);
+  console.log(`  ⬇️  Downloading from Google Drive (${fileId.substring(0, 10)}...)...`);
+  
+  try {
+    await downloadFileFromDrive(drive, fileId, tempFilePath);
+  } catch (error) {
+    if (error.code === 404) {
+      throw new Error(`File not found in Google Drive: ${fileId}. Make sure the file is shared with your service account.`);
+    }
+    if (error.code === 403) {
+      throw new Error(`Access denied for file: ${fileId}. Make sure the file is shared with your service account email.`);
+    }
+    throw error;
+  }
   
   const fileStats = fs.statSync(tempFilePath);
   const fileHash = calculateFileHash(tempFilePath);
@@ -459,6 +502,11 @@ async function main() {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
   
   try {
+    // Initialize Google Drive API
+    console.log('\nInitializing Google Drive API...');
+    const drive = await initializeDriveClient();
+    console.log('');
+    
     // Load reference data
     const refData = await loadReferenceData();
     
@@ -497,7 +545,7 @@ async function main() {
       console.log(`\n[${i + 1}/${rows.length}] ========================================`);
       
       try {
-        const result = await migrateAttachment(row, refData, supabase, tempDir, dryRun);
+        const result = await migrateAttachment(row, refData, supabase, drive, tempDir, dryRun);
         
         if (result.skipped) {
           results.skipped++;

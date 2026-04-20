@@ -7,7 +7,7 @@ const XLSX = require('xlsx');
 const sampleData = [
   {
     file_name: 'Vake_Mall_Contract.pdf',
-    gdrive_url: 'https://drive.google.com/file/d/1ABC123XYZ456/view?usp=sharing',
+    gdrive_file_id: '1ABC123XYZ456',  // Google Drive file ID or full URL
     project_uuid: '12345678-1234-5678-1234-567812345678',
     document_type_uuid: 'ad073cad-2b77-437b-aa2d-c61d9042d583', // Contract
     document_date: '2025-09-01',
@@ -17,7 +17,7 @@ const sampleData = [
   },
   {
     file_name: 'Saburtalo_Invoice.pdf',
-    gdrive_url: 'https://drive.google.com/file/d/2DEF456ABC789/view',
+    gdrive_file_id: 'https://drive.google.com/file/d/2DEF456ABC789/view',  // Full URL also works
     project_uuid: '87654321-4321-8765-4321-876543218765',
     document_type_uuid: 'ef60f280-59ce-4c19-b7f8-9e7e7f597142', // Invoice
     document_date: '2025-10-15',
@@ -27,7 +27,7 @@ const sampleData = [
   },
   {
     file_name: 'Didi_Dighomi_Agreement.pdf',
-    gdrive_url: 'https://drive.google.com/open?id=3GHI789JKL012',
+    gdrive_file_id: '3GHI789JKL012',
     project_uuid: 'abcdef12-3456-7890-abcd-ef1234567890',
     document_type_uuid: '5eee6b9e-97b2-4a78-b442-355af1e9920c', // Agreement
     document_date: '2025-08-20',
@@ -44,7 +44,7 @@ const ws = XLSX.utils.json_to_sheet(sampleData);
 // Set column widths
 ws['!cols'] = [
   { wch: 35 },  // file_name
-  { wch: 60 },  // gdrive_url
+  { wch: 40 },  // gdrive_file_id
   { wch: 40 },  // project_uuid
   { wch: 40 },  // document_type_uuid
   { wch: 15 },  // document_date
@@ -67,7 +67,7 @@ console.log('⚠️  IMPORTANT: Replace sample UUIDs with your actual UUIDs from
 console.log('');
 console.log('Required columns:');
 console.log('  • file_name (required)');
-console.log('  • gdrive_url (required)');
+console.log('  • gdrive_file_id (required - can be file ID or full URL)');
 console.log('');
 console.log('Recommended columns (use UUIDs for direct binding):');
 console.log('  • project_uuid (project UUID from projects table)');
