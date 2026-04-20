@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, withRetry } from '@/lib/prisma';
 import { reparseByPaymentId } from '@/lib/bank-import/reparse';
 import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    const payments = await prisma.$queryRawUnsafe(`
+    const payments = await withRetry(() => prisma.$queryRawUnsafe(`
       SELECT 
         p.id,
         p.project_uuid,
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       ${paymentIdsClause}
       ORDER BY p.created_at ${orderClause}
       ${limitClause}
-    `) as any[];
+    `)) as any[];
 
     const formattedPayments = payments.map((payment) => ({
       id: Number(payment.id),

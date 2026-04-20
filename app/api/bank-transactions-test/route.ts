@@ -1,6 +1,6 @@
 // app/api/bank-transactions-test/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, withRetry } from "@/lib/prisma";
 
 export const revalidate = 0;
 
@@ -410,7 +410,7 @@ export async function GET(req: NextRequest) {
     let transactions: any[];
 
     if (rawRecordUuid) {
-      transactions = await prisma.$queryRawUnsafe<any[]>(
+      transactions = await withRetry(() => prisma.$queryRawUnsafe<any[]>(
         `SELECT 
            cba.*,
            ba.account_number,
@@ -435,10 +435,10 @@ export async function GET(req: NextRequest) {
          WHERE cba.raw_record_uuid::text = $1::text
          ORDER BY cba.transaction_date DESC, cba.id DESC`,
         rawRecordUuid
-      );
+      ));
     } else if (idsParam) {
       const idsArray = idsParam.split(',').map(id => id.trim());
-      transactions = await prisma.$queryRawUnsafe<any[]>(
+      transactions = await withRetry(() => prisma.$queryRawUnsafe<any[]>(
         `SELECT 
            cba.*,
            ba.account_number,
@@ -463,7 +463,7 @@ export async function GET(req: NextRequest) {
          WHERE cba.synthetic_id = ANY($1::bigint[])
          ORDER BY cba.transaction_date DESC, cba.id DESC`,
         idsArray
-      );
+      ));
     } else {
       const limitSql = typeof limit === 'number' ? ` LIMIT ${limit} OFFSET ${offset || 0}` : '';
       const dateFilters: string[] = [];
@@ -485,7 +485,7 @@ export async function GET(req: NextRequest) {
 
       const whereSql = dateFilters.length ? ` WHERE ${dateFilters.join(' AND ')}` : '';
 
-      transactions = await prisma.$queryRawUnsafe<any[]>(
+      transactions = await withRetry(() => prisma.$queryRawUnsafe<any[]>(
         `SELECT 
            cba.*,
            ba.account_number,
@@ -510,7 +510,7 @@ export async function GET(req: NextRequest) {
          ${whereSql}
          ORDER BY cba.transaction_date DESC, cba.id DESC${limitSql}`,
         ...params
-      );
+      ));
     }
 
     console.log('[API] Step 1 complete: Got', transactions.length, 'transactions with all joins');
@@ -518,11 +518,11 @@ export async function GET(req: NextRequest) {
     console.log('[API] Step 2: Getting total count...');
     const totalCount = idsParam || rawRecordUuid || dateFilterEnabled || typeof limit !== 'number'
       ? undefined
-      : (await prisma.$queryRawUnsafe<Array<{count: bigint}>>(
+      : (await withRetry(() => prisma.$queryRawUnsafe<Array<{count: bigint}>>(
           `SELECT SUM(count)::bigint as count FROM (
             ${SOURCE_TABLES.map(table => `SELECT COUNT(*)::bigint as count FROM "${table.name}"`).join(' UNION ALL ')}
           ) counts`
-        ))[0].count;
+        )))[0].count;
     console.log('[API] Step 2 complete: Total count =', totalCount);
 
     console.log('[API] Step 3: Filtering transactions by date...');
@@ -550,7 +550,7 @@ export async function GET(req: NextRequest) {
 
     if (!idsParam && !rawRecordUuid) {
       const conversionIdBase = 3000000000000;
-      const conversionEntries = await prisma.$queryRawUnsafe<any[]>(
+      const conversionEntries = await withRetry(() => prisma.$queryRawUnsafe<any[]>(
         `SELECT
            (ce.id + ${conversionIdBase})::bigint as synthetic_id,
            ce.id,
@@ -592,7 +592,7 @@ export async function GET(req: NextRequest) {
            ce.source_table
          FROM conversion_entries ce
          ORDER BY ce.transaction_date DESC, ce.id DESC`
-      );
+      ));
 
       const conversionFiltered = (fromComparable || toComparable)
         ? conversionEntries.filter((row) => {
@@ -668,7 +668,7 @@ export async function GET(req: NextRequest) {
     }
 
     console.log('[API] Step 4: Fetching balance records...');
-    const balanceRecords = await prisma.bankAccount.findMany({
+    const balanceRecords = await withRetry(() => prisma.bankAccount.findMany({
       where: {
         balance: { not: null },
         balanceDate: { not: null },
@@ -692,7 +692,7 @@ export async function GET(req: NextRequest) {
           },
         },
       }
-    });
+    }));
     console.log('[API] Step 4 complete: Got', balanceRecords.length, 'balance records');
 
     const rateDates = new Set<string>();
@@ -707,14 +707,14 @@ export async function GET(req: NextRequest) {
 
     const rateDateList = Array.from(rateDates);
     const rateRows = rateDateList.length > 0
-      ? await prisma.nbg_exchange_rates.findMany({
+      ? await withRetry(() => prisma.nbg_exchange_rates.findMany({
           where: {
             date: {
               in: rateDateList.map(dateStr => new Date(dateStr))
             }
           },
           select: { date: true, usd_rate: true }
-        })
+        }))
       : [];
 
     const rateMap = new Map<string, number | null>();
@@ -790,15 +790,15 @@ export async function GET(req: NextRequest) {
 
     if (fetchedIdsArray.length > 0) {
       const idsString = fetchedIdsArray.join(',');
-      unfetchedTransactions = await prisma.$queryRawUnsafe<Array<{account_currency_uuid: string, account_currency_amount: any}>>(
+      unfetchedTransactions = await withRetry(() => prisma.$queryRawUnsafe<Array<{account_currency_uuid: string, account_currency_amount: any}>>(
         `SELECT account_currency_uuid, account_currency_amount 
          FROM (${UNFETCHED_UNION_SQL}) cba
          WHERE cba.synthetic_id NOT IN (${idsString})`
-      );
+      ));
     } else {
-      unfetchedTransactions = await prisma.$queryRawUnsafe<Array<{account_currency_uuid: string, account_currency_amount: any}>>(
+      unfetchedTransactions = await withRetry(() => prisma.$queryRawUnsafe<Array<{account_currency_uuid: string, account_currency_amount: any}>>(
         `SELECT account_currency_uuid, account_currency_amount FROM (${UNFETCHED_UNION_SQL}) cba`
-      );
+      ));
     }
 
     console.log('[API] Fetched transaction IDs count:', fetchedIdsArray.length);
@@ -826,7 +826,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const bankAccountBalances = await prisma.bankAccount.findMany({
+    const bankAccountBalances = await withRetry(() => prisma.bankAccount.findMany({
       where: {
         balance: { not: null },
         isActive: true
@@ -835,7 +835,7 @@ export async function GET(req: NextRequest) {
         currencyUuid: true,
         balance: true
       }
-    });
+    }));
 
     for (const account of bankAccountBalances) {
       const currencyUuid = account.currencyUuid;
@@ -873,10 +873,10 @@ export async function GET(req: NextRequest) {
 
     const currenciesToFetch = Array.from(allCurrencyUuids);
     const currencyData = currenciesToFetch.length > 0
-      ? await prisma.currencies.findMany({
+      ? await withRetry(() => prisma.currencies.findMany({
           where: { uuid: { in: currenciesToFetch } },
           select: { uuid: true, code: true }
-        })
+        }))
       : [];
     const currencyMap = new Map(currencyData.map(c => [c.uuid, c.code]));
 

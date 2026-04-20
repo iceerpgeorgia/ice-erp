@@ -46,6 +46,8 @@ if (pooledUrl) {
   };
 }
 
+export const getPooledDatabaseUrl = () => pooledUrl;
+
 // Always cache the singleton regardless of environment.
 // In serverless (Vercel), the global object is shared across warm invocations
 // within the same container — caching here prevents opening a new connection pool
@@ -74,7 +76,7 @@ function isRetryableError(error: unknown): boolean {
 
 export async function withRetry<T>(
   fn: () => Promise<T>,
-  maxRetries = 3,
+  maxRetries = 4,
 ): Promise<T> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {

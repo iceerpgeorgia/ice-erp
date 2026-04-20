@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, withRetry } from '@/lib/prisma';
 import { getSourceTables } from '@/lib/source-tables';
 
 const formatBatchId = (uuid: string) => {
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     
     if (batchUuid) {
       // Get specific batch with all partitions
-      const partitions = await prisma.$queryRawUnsafe(`
+      const partitions = await withRetry(() => prisma.$queryRawUnsafe(`
         SELECT 
           btb.id,
           btb.uuid,
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN currencies curr ON btb.nominal_currency_uuid = curr.uuid
         WHERE btb.batch_uuid = $1::uuid
         ORDER BY btb.partition_sequence
-      `, batchUuid) as any[];
+      `, batchUuid)) as any[];
 
       const mappedPartitions = partitions.map((partition) => ({
         ...partition,
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (batchId) {
-      const partitions = await prisma.$queryRawUnsafe(`
+      const partitions = await withRetry(() => prisma.$queryRawUnsafe(`
         SELECT 
           btb.id,
           btb.uuid,
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN currencies curr ON btb.nominal_currency_uuid = curr.uuid
         WHERE btb.batch_id = $1
         ORDER BY btb.partition_sequence
-      `, batchId) as any[];
+      `, batchId)) as any[];
 
       const mappedPartitions = partitions.map((partition) => ({
         ...partition,
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
     
     if (rawRecordUuid) {
       // Check if raw record already has batches
-      const batches = await prisma.$queryRawUnsafe(`
+      const batches = await withRetry(() => prisma.$queryRawUnsafe(`
         SELECT
           batch_uuid,
           COUNT(*) as partition_count,
@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
         FROM bank_transaction_batches
         WHERE raw_record_uuid::text = $1::text
         GROUP BY batch_uuid
-      `, rawRecordUuid) as any[];
+      `, rawRecordUuid)) as any[];
 
       const mapped = batches.map((batch) => ({
         batchUuid: batch.batch_uuid,
@@ -162,7 +162,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Get all batches summary
-    const batches = await prisma.$queryRawUnsafe(`
+    const batches = await withRetry(() => prisma.$queryRawUnsafe(`
       WITH raw_union AS (
         ${sourceTables.map((table) => `SELECT raw_record_uuid, docnomination, docvaluedate FROM "${table}"`).join(' UNION ALL ')}
       ),
@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
       GROUP BY btb.batch_uuid, raw.docnomination, raw.docvaluedate, pb.payment_breakdown
       ORDER BY MIN(btb.created_at) DESC
       LIMIT 200
-    `) as any[];
+    `)) as any[];
 
     const mapped = batches.map((batch) => ({
       batchUuid: batch.batch_uuid,

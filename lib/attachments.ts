@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { prisma, withRetry } from '@/lib/prisma';
 import { getSupabaseServer } from '@/lib/supabase';
 
 export type AttachmentDto = {
@@ -39,7 +39,7 @@ export type AttachmentLinkDto = {
  * Get attachments for a specific payment_id
  */
 export async function getPaymentAttachments(paymentId: string): Promise<AttachmentLinkDto[]> {
-  const links = await prisma.$queryRawUnsafe<any[]>(
+  const links = await withRetry(() => prisma.$queryRawUnsafe<any[]>(
     `SELECT 
        al.uuid,
        al.attachment_uuid,
@@ -75,7 +75,7 @@ export async function getPaymentAttachments(paymentId: string): Promise<Attachme
        AND a.is_active = true
      ORDER BY al.is_primary DESC, al.created_at DESC`,
     paymentId
-  );
+  ));
 
   return links.map((link) => ({
     uuid: link.uuid,

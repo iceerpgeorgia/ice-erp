@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma, withRetry } from '@/lib/prisma';
 import { resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 
 export const revalidate = 0;
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     `;
     let rows: any[] = [];
     try {
-      rows = await prisma.$queryRawUnsafe(query);
+      rows = await withRetry(() => prisma.$queryRawUnsafe(query));
     } catch (queryError) {
       console.warn('Conversions query failed, falling back without bank_uuid:', queryError);
       const fallbackQuery = `
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         WHERE c.insider_uuid IN (${insiderUuidListSql})
         ORDER BY c.date DESC, c.id DESC
       `;
-      rows = await prisma.$queryRawUnsafe(fallbackQuery);
+      rows = await withRetry(() => prisma.$queryRawUnsafe(fallbackQuery));
     }
 
     const formatted = (rows as any[]).map((row) => ({

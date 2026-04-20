@@ -250,13 +250,19 @@ export function PaymentsTable() {
   }, [columnConfig, isInitialized]);
 
   useEffect(() => {
-    fetchPayments();
-    fetchProjects();
-    fetchCounteragents();
-    fetchFinancialCodes();
-    fetchJobs();
-    fetchCurrencies();
-    fetchInsiderSelection();
+    const loadInitialData = async () => {
+      await fetchPayments();
+      await fetchInsiderSelection();
+
+      // Stage secondary dictionaries to reduce mount-time connection spikes.
+      await fetchProjects();
+      await fetchCounteragents();
+      await fetchFinancialCodes();
+      await fetchJobs();
+      await fetchCurrencies();
+    };
+
+    void loadInitialData();
   }, []);
 
   useEffect(() => {

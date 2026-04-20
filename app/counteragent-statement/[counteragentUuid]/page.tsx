@@ -426,12 +426,7 @@ export default function CounteragentStatementPage() {
   useEffect(() => {
     const fetchDictionaries = async () => {
       try {
-        const [projectsRes, counteragentsRes, financialCodesRes, currenciesRes] = await Promise.all([
-          fetch('/api/projects-v2', { cache: 'no-store' }),
-          fetch('/api/counteragents'),
-          fetch('/api/financial-codes?leafOnly=true'),
-          fetch('/api/currencies')
-        ]);
+        const projectsRes = await fetch('/api/projects-v2', { cache: 'no-store' });
 
         if (projectsRes.ok) {
           const projectsData = await projectsRes.json();
@@ -446,14 +441,20 @@ export default function CounteragentStatementPage() {
           console.error('Failed to fetch projects:', projectsRes.status, errorPayload);
           setProjects([]);
         }
+
+        const counteragentsRes = await fetch('/api/counteragents');
         if (counteragentsRes.ok) {
           const counteragentsData = await counteragentsRes.json();
           setCounteragents(Array.isArray(counteragentsData) ? counteragentsData : []);
         }
+
+        const financialCodesRes = await fetch('/api/financial-codes?leafOnly=true');
         if (financialCodesRes.ok) {
           const financialCodesData = await financialCodesRes.json();
           setFinancialCodes(Array.isArray(financialCodesData) ? financialCodesData : []);
         }
+
+        const currenciesRes = await fetch('/api/currencies');
         if (currenciesRes.ok) {
           const currenciesData = await currenciesRes.json();
           const list = Array.isArray(currenciesData)

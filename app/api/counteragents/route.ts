@@ -1,6 +1,6 @@
 // app/dictionaries/counteragents/api/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, withRetry } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { reparseByCounteragentInn } from "@/lib/bank-import/reparse";
 import { requireAuth, isAuthError } from "@/lib/auth-guard";
@@ -73,14 +73,14 @@ async function enrichWithInsiderName<T extends { insider_uuid?: string | null; i
     }));
   }
 
-  const insiderRows = await prisma.counteragents.findMany({
+  const insiderRows = await withRetry(() => prisma.counteragents.findMany({
     where: { counteragent_uuid: { in: insiderUuids } },
     select: {
       counteragent_uuid: true,
       counteragent: true,
       name: true,
     },
-  });
+  }));
 
   const insiderMap = new Map<string, string>();
   insiderRows.forEach((row) => {
@@ -114,10 +114,10 @@ async function resolveStoredInsiderName(params: {
 
   if (!insiderUuid) return null;
 
-  const linked = await prisma.counteragents.findFirst({
+  const linked = await withRetry(() => prisma.counteragents.findFirst({
     where: { counteragent_uuid: insiderUuid },
     select: { counteragent: true, name: true },
-  });
+  }));
 
   const label = (linked?.counteragent ?? linked?.name ?? '').trim();
   return label || null;
@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
       where.is_emploee = true;
     }
     
-    const rows = await prisma.counteragents.findMany({
+    const rows = await withRetry(() => prisma.counteragents.findMany({
       where,
       orderBy: { id: "asc" },
       select: {
@@ -172,7 +172,7 @@ export async function GET(req: NextRequest) {
         insider_uuid: true,
         insider_name: true,
       },
-    });
+    }));
     const rowsWithInsiderName = await enrichWithInsiderName(rows);
     return NextResponse.json(rowsWithInsiderName.map(toApi), { status: 200 });
   } catch (err: any) {

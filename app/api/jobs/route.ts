@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, withRetry } from '@/lib/prisma';
 import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     // If projectUuid provided, return jobs linked to that project via job_projects
     if (projectUuid) {
       console.log('[GET /api/jobs] Fetching jobs for project:', projectUuid);
-      const jobs = await prisma.$queryRawUnsafe(`
+      const jobs = await withRetry(() => prisma.$queryRawUnsafe(`
         SELECT 
           j.job_uuid,
           j.job_name,
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
           AND j.insider_uuid IN (${insiderUuidListSql})
           AND j.is_active = true
         ORDER BY j.job_name ASC
-      `, projectUuid);
+      `, projectUuid));
 
       const serialized = (jobs as any[]).map((job: any) => ({
         jobUuid: job.job_uuid,
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Full listing: one row per job-project binding
-    const jobs = await prisma.$queryRawUnsafe(`
+    const jobs = await withRetry(() => prisma.$queryRawUnsafe(`
       SELECT 
         j.id,
         j.job_uuid,
@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
       WHERE j.insider_uuid IN (${insiderUuidListSql})
         AND j.is_active = true
       ORDER BY j.created_at DESC, p.project_index ASC
-    `);
+    `));
 
     const serialized = (jobs as any[]).map((job: any, idx: number) => ({
       id: Number(job.id),

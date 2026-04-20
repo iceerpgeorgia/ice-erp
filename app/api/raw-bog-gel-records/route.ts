@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, withRetry } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '100', 10);
-    const offset = parseInt(searchParams.get('offset') || '0', 10);
+    const requestedLimit = parseInt(searchParams.get('limit') || '100', 10);
+    const requestedOffset = parseInt(searchParams.get('offset') || '0', 10);
+    const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 500) : 100;
+    const offset = Number.isFinite(requestedOffset) ? Math.max(requestedOffset, 0) : 0;
 
-    const result = await prisma.$queryRawUnsafe(`
+    const result = await withRetry(() => prisma.$queryRawUnsafe(`
       SELECT 
         uuid,
         dockey,
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest) {
       WHERE is_processed = false
       ORDER BY docvaluedate DESC
       LIMIT ${limit} OFFSET ${offset}
-    `);
+    `));
 
     return NextResponse.json(result);
   } catch (error) {

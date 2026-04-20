@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma, withRetry } from '@/lib/prisma';
 import { resolveInsiderSelection } from '@/lib/insider-selection';
 import { getSourceTables } from '@/lib/source-tables';
 
@@ -49,9 +49,9 @@ export async function GET(request: NextRequest) {
     const sourceTableNames = await getSourceTables(insiderUuids.length > 0 ? insiderUuids : undefined);
 
     // Build offsets map from bank_accounts so synthetic IDs remain stable.
-    const bankAccountRows = await prisma.$queryRawUnsafe<{ raw_table_name: string; id: number }[]>(
+    const bankAccountRows = await withRetry(() => prisma.$queryRawUnsafe<{ raw_table_name: string; id: number }[]>(
       `SELECT raw_table_name, id FROM bank_accounts WHERE raw_table_name IS NOT NULL AND raw_table_name <> '' ORDER BY id`
-    );
+    ));
     const offsetMap = new Map<string, number>();
     bankAccountRows.forEach((row) => {
       // Use a large-enough spacing so IDs don't collide across tables
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Counteragent UUID is required' }, { status: 400 });
     }
 
-    const counteragentRows = await prisma.$queryRawUnsafe<
+    const counteragentRows = await withRetry(() => prisma.$queryRawUnsafe<
       Array<{ counteragent_uuid: string; counteragent_name: string | null; counteragent_id: string | null }>
     >(
       `SELECT counteragent_uuid, counteragent as counteragent_name, identification_number as counteragent_id
@@ -78,11 +78,11 @@ export async function GET(request: NextRequest) {
        WHERE counteragent_uuid = $1::uuid
        LIMIT 1`,
       counteragentUuid
-    );
+    ));
 
     const counteragent = counteragentRows[0] ?? null;
 
-    const paymentRows = await prisma.$queryRawUnsafe<Array<{
+    const paymentRows = await withRetry(() => prisma.$queryRawUnsafe<Array<{
       payment_id: string;
       project_index: string | null;
       project_name: string | null;
@@ -108,9 +108,9 @@ export async function GET(request: NextRequest) {
        LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
        WHERE p.counteragent_uuid = $1::uuid AND p.is_active = true`,
       counteragentUuid
-    );
+    ));
 
-    const salaryRows = await prisma.$queryRawUnsafe<Array<{
+    const salaryRows = await withRetry(() => prisma.$queryRawUnsafe<Array<{
       payment_id: string;
       financial_code_validation: string | null;
       financial_code: string | null;
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
        LEFT JOIN currencies curr ON sa.nominal_currency_uuid = curr.uuid
        WHERE sa.counteragent_uuid = $1::uuid`,
       counteragentUuid
-    );
+    ));
 
     const normalizePaymentKey = (value: string) => {
       const trimmed = value.trim();
@@ -238,7 +238,7 @@ export async function GET(request: NextRequest) {
            WHERE false`;
 
     const ledgerEntries = paymentIds.length
-      ? await prisma.$queryRawUnsafe<any[]>(
+        ? await withRetry(() => prisma.$queryRawUnsafe<any[]>(
           `SELECT
              id,
              payment_id,
@@ -254,10 +254,10 @@ export async function GET(request: NextRequest) {
              AND (is_deleted = false OR is_deleted IS NULL)
            ORDER BY effective_date DESC`,
           paymentIds
-        )
+        ))
       : [];
 
-    const bankTransactions = await prisma.$queryRawUnsafe<any[]>(
+    const bankTransactions = await withRetry(() => prisma.$queryRawUnsafe<any[]>(
       `SELECT
         result.synthetic_id,
         result.source_id,
@@ -357,20 +357,20 @@ export async function GET(request: NextRequest) {
        ) result
        ORDER BY result.transaction_date DESC`,
       counteragentUuid
-    );
+    ));
 
     console.log(`[counteragent-statement] uuid=${counteragentUuid} paymentIds=${paymentIds.length} ledger=${ledgerEntries.length} bank=${bankTransactions.length}`);
 
     // Get payment adjustments for all payment IDs
     const adjustments = paymentIds.length
-      ? await prisma.$queryRawUnsafe<any[]>(
+      ? await withRetry(() => prisma.$queryRawUnsafe<any[]>(
           `SELECT id, payment_id, effective_date, amount, face_currency_code, face_amount, manual_rate, nominal_amount, comment, user_email, created_at
            FROM payment_adjustments
            WHERE payment_id = ANY($1::text[])
              AND (is_deleted = false OR is_deleted IS NULL)
            ORDER BY effective_date DESC`,
           paymentIds
-        )
+        ))
       : [];
 
     return NextResponse.json({

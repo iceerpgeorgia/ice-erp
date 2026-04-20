@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getPooledDatabaseUrl, prisma, withRetry } from '@/lib/prisma';
 import { Pool } from 'pg';
 
 const ALLOWED_TABLES = new Set([
@@ -29,7 +29,7 @@ export async function GET(
     console.log('Fetching raw record for UUID:', uuid);
 
     if (sourceTable && ALLOWED_TABLES.has(sourceTable)) {
-      const localUrl = process.env.DATABASE_URL;
+      const localUrl = getPooledDatabaseUrl() || process.env.DATABASE_URL;
       if (!localUrl) {
         return NextResponse.json(
           { error: 'Database connection not configured' },
@@ -72,16 +72,16 @@ export async function GET(
     }
 
     // Get the consolidated record to find the raw_record_uuid
-    const consolidated = await prisma.consolidatedBankAccount.findFirst({
+    const consolidated = await withRetry(() => prisma.consolidatedBankAccount.findFirst({
       where: { uuid: uuid },
       select: { rawRecordUuid: true }
-    });
+    }));
 
     console.log('Consolidated record found:', !!consolidated);
     console.log('Raw record UUID:', consolidated?.rawRecordUuid);
 
     if (!consolidated?.rawRecordUuid) {
-      const localUrl = process.env.DATABASE_URL;
+      const localUrl = getPooledDatabaseUrl() || process.env.DATABASE_URL;
       if (!localUrl) {
         return NextResponse.json(
           { error: 'Database connection not configured' },
@@ -122,7 +122,7 @@ export async function GET(
     }
 
     // Fetch from LOCAL database where backparse updates the flags
-    const localUrl = process.env.DATABASE_URL;
+    const localUrl = getPooledDatabaseUrl() || process.env.DATABASE_URL;
     console.log('Local DB URL configured:', !!localUrl);
     
     if (!localUrl) {

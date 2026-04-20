@@ -1053,27 +1053,29 @@ export function BankTransactionsTable({
       setExchangeRateDate(effectiveDate);
       console.log('[startEdit] Loaded exchange rates for', effectiveDate, ':', rates);
       
-      // Always fetch fresh payments when opening edit dialog
+      // Prefer cached payment options; only refresh if we do not have them yet.
       let freshPayments = allPayments;
-      try {
-        const paymentsRes = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
-        if (paymentsRes.ok) {
-          const paymentsData = await paymentsRes.json();
-          freshPayments = Array.isArray(paymentsData)
-            ? paymentsData.map((payment: any) => ({
-                ...payment,
-                counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
-                projectUuid: payment.projectUuid || payment.project_uuid || null,
-                financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
-                currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
-                paymentId: payment.paymentId || payment.payment_id || null,
-              }))
-            : [];
-          setAllPayments(freshPayments);
-          console.log('[startEdit] Refreshed payments:', freshPayments.length);
+      if (freshPayments.length === 0) {
+        try {
+          const paymentsRes = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
+          if (paymentsRes.ok) {
+            const paymentsData = await paymentsRes.json();
+            freshPayments = Array.isArray(paymentsData)
+              ? paymentsData.map((payment: any) => ({
+                  ...payment,
+                  counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
+                  projectUuid: payment.projectUuid || payment.project_uuid || null,
+                  financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
+                  currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
+                  paymentId: payment.paymentId || payment.payment_id || null,
+                }))
+              : [];
+            setAllPayments(freshPayments);
+            console.log('[startEdit] Refreshed payments:', freshPayments.length);
+          }
+        } catch (err) {
+          console.warn('[startEdit] Failed to refresh payments, using cached:', err);
         }
-      } catch (err) {
-        console.warn('[startEdit] Failed to refresh payments, using cached:', err);
       }
 
       console.log('[startEdit] Total allPayments available:', freshPayments.length);
@@ -1082,18 +1084,20 @@ export function BankTransactionsTable({
 
       updatePaymentOptions(transaction, freshPayments);
       
-      // Load all reference data
-      const [projectsRes, codesRes, currenciesRes] = await Promise.all([
-        fetch('/api/projects'),
-        fetch('/api/financial-codes'),
-        fetch('/api/currencies'),
-      ]);
-      
-      const [projectsData, codesData, currenciesData] = await Promise.all([
-        projectsRes.json(),
-        codesRes.json(),
-        currenciesRes.json(),
-      ]);
+      // Load reference data only if missing, and stage the requests to avoid burst traffic.
+      const projectsData = projectOptions.length === 0
+        ? await (await fetch('/api/projects')).json()
+        : projectOptions.map((project: any) => ({
+            project_uuid: project.uuid,
+            project_index: project.projectIndex,
+            project_name: project.projectName,
+          }));
+      const codesData = financialCodeOptions.length === 0
+        ? await (await fetch('/api/financial-codes')).json()
+        : financialCodeOptions;
+      const currenciesData = currencyOptions.length === 0
+        ? await (await fetch('/api/currencies')).json()
+        : currencyOptions;
       
       console.log('Projects API response:', projectsData);
       console.log('Is projects array?', Array.isArray(projectsData));
@@ -1119,11 +1123,17 @@ export function BankTransactionsTable({
       console.log('Mapped projects count:', mappedProjects.length);
       console.log('First mapped project:', mappedProjects[0]);
       
-      setProjectOptions(mappedProjects);
+      if (projectOptions.length === 0) {
+        setProjectOptions(mappedProjects);
+      }
       console.log('Project options count after set:', mappedProjects.length);
       
-      setFinancialCodeOptions(Array.isArray(codesData) ? codesData : (codesData.codes || []));
-      setCurrencyOptions(Array.isArray(currenciesData) ? currenciesData : (currenciesData.currencies || []));
+      if (financialCodeOptions.length === 0) {
+        setFinancialCodeOptions(Array.isArray(codesData) ? codesData : (codesData.codes || []));
+      }
+      if (currencyOptions.length === 0) {
+        setCurrencyOptions(Array.isArray(currenciesData) ? currenciesData : (currenciesData.currencies || []));
+      }
       
       // Load jobs for the current project if present
       if (transaction.projectUuid) {

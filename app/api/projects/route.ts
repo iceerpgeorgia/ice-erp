@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, withRetry } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
 
     if (projectUuid) {
-      const project = await prisma.$queryRawUnsafe(
+      const project = await withRetry(() => prisma.$queryRawUnsafe(
         `SELECT 
           p.*,
           COALESCE(insider_ca.insider, false) as is_insider,
@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
           AND p.insider_uuid IN (${insiderUuidListSql})
         `,
         projectUuid
-      );
+      ));
       const serialized = (project as any[]).map((p: any) => ({
         ...p,
         id: Number(p.id),
@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Query uses project_uuid (not project_id) to join with project_employees table
-    const projects = await prisma.$queryRawUnsafe(`
+    const projects = await withRetry(() => prisma.$queryRawUnsafe(`
       SELECT 
         p.*,
         MAX(COALESCE(insider_ca.insider, false)::int)::boolean as is_insider,
@@ -175,7 +175,7 @@ export async function GET(req: NextRequest) {
       WHERE p.insider_uuid IN (${insiderUuidListSql})
       GROUP BY p.id
       ORDER BY p.created_at DESC
-    `);
+    `));
 
     // Convert BigInt to Number for JSON serialization
     const serialized = (projects as any[]).map((project: any) => ({

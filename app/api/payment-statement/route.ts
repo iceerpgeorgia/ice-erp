@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma, withRetry } from '@/lib/prisma';
 import { resolveInsiderSelection } from '@/lib/insider-selection';
 import { getSourceTables } from '@/lib/source-tables';
 
@@ -60,16 +60,16 @@ export async function GET(request: NextRequest) {
         AND p.is_active = true
     `;
 
-    const paymentResult = await prisma.$queryRawUnsafe(
+    const paymentResult = await withRetry(() => prisma.$queryRawUnsafe(
       paymentQuery,
       paymentId,
       normalizedPaymentId
-    );
+    ));
     const payment = (paymentResult as any[])[0];
 
     // Fallback to salary_accruals if not found in payments
     const salaryResult = !payment
-      ? await prisma.$queryRawUnsafe(
+        ? await withRetry(() => prisma.$queryRawUnsafe(
           `
           SELECT 
             sa.payment_id,
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
           `,
           paymentId,
           normalizedPaymentId
-        )
+        ))
       : [];
     const salaryPayment = (salaryResult as any[])[0];
     const isSalaryPayment = Boolean(salaryPayment);
@@ -111,9 +111,9 @@ export async function GET(request: NextRequest) {
 
     // Load only the raw tables belonging to the selected insiders.
     const sourceTableNames = await getSourceTables(insiderUuids.length > 0 ? insiderUuids : undefined);
-    const bankAccountRows = await prisma.$queryRawUnsafe<{ raw_table_name: string; id: number }[]>(
+    const bankAccountRows = await withRetry(() => prisma.$queryRawUnsafe<{ raw_table_name: string; id: number }[]>(
       `SELECT raw_table_name, id FROM bank_accounts WHERE raw_table_name IS NOT NULL AND raw_table_name <> '' ORDER BY id`
-    );
+    ));
     const offsetMap = new Map<string, number>();
     bankAccountRows.forEach((row) => {
       offsetMap.set(row.raw_table_name, Number(row.id) * 10000000000);
@@ -178,7 +178,7 @@ export async function GET(request: NextRequest) {
       ORDER BY effective_date DESC
     `;
 
-    const ledgerResult = await prisma.$queryRawUnsafe(ledgerQuery, paymentId);
+    const ledgerResult = await withRetry(() => prisma.$queryRawUnsafe(ledgerQuery, paymentId));
 
     const salaryLedgerQuery = `
       SELECT
@@ -199,11 +199,11 @@ export async function GET(request: NextRequest) {
       ORDER BY sa.salary_month DESC
     `;
 
-    const salaryLedgerResult = await prisma.$queryRawUnsafe(
+    const salaryLedgerResult = await withRetry(() => prisma.$queryRawUnsafe(
       salaryLedgerQuery,
       paymentId,
       normalizedPaymentId
-    );
+    ));
 
     // Get bank transactions
     const bankQuery = `
@@ -314,21 +314,21 @@ export async function GET(request: NextRequest) {
       ORDER BY result.transaction_date DESC
     `;
 
-    const bankResult = await prisma.$queryRawUnsafe(
+    const bankResult = await withRetry(() => prisma.$queryRawUnsafe(
       bankQuery,
       paymentId,
       normalizedPaymentId
-    );
+    ));
 
     // Get payment adjustments
-    const adjustmentsResult = await prisma.$queryRawUnsafe<any[]>(
+    const adjustmentsResult = await withRetry(() => prisma.$queryRawUnsafe<any[]>(
       `SELECT id, payment_id, effective_date, amount, face_currency_code, face_amount, manual_rate, nominal_amount, comment, user_email, created_at
        FROM payment_adjustments
        WHERE payment_id = $1
          AND (is_deleted = false OR is_deleted IS NULL)
        ORDER BY effective_date DESC`,
       paymentId
-    );
+    ));
 
     // Format response
     const response = {

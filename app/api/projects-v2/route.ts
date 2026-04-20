@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, withRetry } from '@/lib/prisma';
 import { resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 
 export const dynamic = 'force-dynamic';
@@ -128,7 +128,7 @@ export async function GET(req: NextRequest) {
     `;
 
   try {
-    const projects = await prisma.$queryRawUnsafe(mainQuery);
+    const projects = await withRetry(() => prisma.$queryRawUnsafe(mainQuery));
 
     // Convert BigInt to Number for JSON serialization
     const serialized = (projects as any[]).map((project: any) => ({
@@ -142,7 +142,7 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error('GET /projects-v2 error:', error);
     try {
-      const projects = await prisma.$queryRawUnsafe(fallbackQuery);
+      const projects = await withRetry(() => prisma.$queryRawUnsafe(fallbackQuery));
       const serialized = (projects as any[]).map((project: any) => ({
         ...project,
         id: Number(project.id),
