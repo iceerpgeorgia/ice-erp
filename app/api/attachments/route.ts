@@ -15,12 +15,14 @@ export const revalidate = 0;
  */
 export async function GET(request: NextRequest) {
   try {
+    console.log('[Attachments API] Request received');
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200);
     const ownerTable = searchParams.get('ownerTable');
     const search = searchParams.get('search');
     const offset = (page - 1) * limit;
+    console.log('[Attachments API] Params:', { page, limit, ownerTable, search, offset });
 
     // Build where conditions
     const whereConditions: string[] = ['a.is_active = true'];
@@ -43,6 +45,9 @@ export async function GET(request: NextRequest) {
 
     // Add limit and offset
     params.push(limit, offset);
+
+    console.log('[Attachments API] Executing query with whereClause:', whereClause);
+    console.log('[Attachments API] Params:', params);
 
     // Fetch attachments with all related data
     const attachments = await withRetry(() => prisma.$queryRawUnsafe<any[]>(
