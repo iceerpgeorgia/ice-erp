@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-04-20 Deployment #202
+- Commit: c2ca5d2
+- Production: https://ice-4pmvijxom-iceerp.vercel.app
+- Summary: Enhanced attachments page with full report-style functionality (columns, filters, sorting, view/edit/download dialogs).
+- Changes:
+  - app/admin/attachments/page.tsx: Complete rewrite with report-style table matching payments table. Added 16 configurable columns with visibility toggles, column filters using ColumnFilterPopover, sorting by clicking headers, view/edit/download dialogs, pagination controls. Local state management for filters/sorting instead of useTableFilters hook.
+  - app/admin/attachments/page-old.tsx: Archived original simple page as backup.
+  - app/api/attachments/[uuid]/download/route.ts: New download endpoint for attachment files from Supabase Storage with proper Content-Disposition headers.
+  - Multiple TypeScript fixes: Corrected ColumnFilterPopover props (columnKey not column, activeFilters not filter), ClearFiltersButton props (activeCount not count), FacetFilter property (values not selected), formatValue parameter type to allow 'filesize' format.
+
 ## 2026-04-20 Deployment #201
 - Commit: 2c63577
 - Production: https://ice-f6lcow8v3-iceerp.vercel.app
