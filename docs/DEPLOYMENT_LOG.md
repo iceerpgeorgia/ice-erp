@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-20 Deployment #197
+- Commit: e25dea2
+- Production: https://ice-kya7sfnfg-iceerp.vercel.app
+- Summary: Add aggregated parent financial code rows for bundle payments in payments report.
+- Changes:
+  - app/api/payments-report/route.ts: Added self-join on financial_codes to include parent FC uuid/validation/code in response.
+  - components/figma/payments-report-table.tsx: Added isBundleAggregate/parentFinancialCode fields to type. New dataWithBundleAggregates memo creates synthetic aggregate rows (summed values) grouped by counteragent+project+parent FC+currency. Aggregate rows render in italic with blue-50 background, no checkbox or action buttons.
+
 ## 2026-04-20 Deployment #196
 - Commit: a226e27
 - Production: https://ice-ma1xjhi7v-iceerp.vercel.app
