@@ -24,99 +24,77 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
     console.log('[Attachments API] Params:', { page, limit, ownerTable, search, offset });
 
-    // Build where conditions
-    const whereConditions: string[] = ['a.is_active = true'];
-    const params: any[] = [];
-    let paramIndex = 1;
+    // Build Prisma where clause
+    const where: any = {
+      is_active: true,
+    };
 
     if (search) {
-      whereConditions.push(`a.file_name ILIKE $${paramIndex}`);
-      params.push(`%${search}%`);
-      paramIndex++;
+      where.file_name = {
+        contains: search,
+        mode: 'insensitive',
+      };
     }
 
-    if (ownerTable) {
-      whereConditions.push(`al.owner_table = $${paramIndex}`);
-      params.push(ownerTable);
-      paramIndex++;
-    }
+    // Count total attachments
+    const total = await withRetry(() => prisma.attachments.count({ where }));
+    console.log('[Attachments API] Total count:', total);
 
-    const whereClause = whereConditions.join(' AND ');
+    // Fetch attachments with basic info
+    const attachments = await withRetry(() => prisma.attachments.findMany({
+      where,
+      include: {
+        document_type: {
+          select: {
+            uuid: true,
+            name: true,
+            code: true,
+          },
+        },
+        currency: {
+          select: {
+            uuid: true,
+            code: true,
+            name: true,
+            symbol: true,
+          },
+        },
+        attachment_links: ownerTable ? {
+          where: {
+            owner_table: ownerTable,
+          },
+          select: {
+            uuid: true,
+            owner_table: true,
+            owner_uuid: true,
+            owner_field: true,
+            is_primary: true,
+            created_at: true,
+          },
+        } : {
+          select: {
+            uuid: true,
+            owner_table: true,
+            owner_uuid: true,
+            owner_field: true,
+            is_primary: true,
+            created_at: true,
+          },
+        },
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+      take: limit,
+      skip: offset,
+    }));
 
-    // Add limit and offset
-    params.push(limit, offset);
+    console.log('[Attachments API] Fetched attachments:', attachments.length);
 
-    console.log('[Attachments API] Executing query with whereClause:', whereClause);
-    console.log('[Attachments API] Params:', params);
-
-    // Fetch attachments with all related data
-    const attachments = await withRetry(() => prisma.$queryRawUnsafe<any[]>(
-      `SELECT 
-         a.id,
-         a.uuid,
-         a.document_type_uuid,
-         a.document_date,
-         a.document_no,
-         a.document_value,
-         a.document_currency_uuid,
-         a.storage_provider,
-         a.storage_bucket,
-         a.storage_path,
-         a.file_name,
-         a.mime_type,
-         a.file_size_bytes,
-         a.file_hash_sha256,
-         a.metadata,
-         a.uploaded_by_user_id,
-         a.is_active,
-         a.created_at,
-         a.updated_at,
-         dt.name as document_type_name,
-         dt.code as document_type_code,
-         c.code as currency_code,
-         c.name as currency_name,
-         c.symbol as currency_symbol,
-         json_agg(
-           json_build_object(
-             'link_uuid', al.uuid,
-             'owner_table', al.owner_table,
-             'owner_uuid', al.owner_uuid,
-             'owner_field', al.owner_field,
-             'is_primary', al.is_primary,
-             'created_at', al.created_at
-           )
-         ) FILTER (WHERE al.uuid IS NOT NULL) as links
-       FROM attachments a
-       LEFT JOIN document_types dt ON dt.uuid = a.document_type_uuid
-       LEFT JOIN currencies c ON c.uuid = a.document_currency_uuid
-       LEFT JOIN attachment_links al ON al.attachment_uuid = a.uuid
-       WHERE ${whereClause}
-       GROUP BY a.id, a.uuid, a.document_type_uuid, a.document_date, a.document_no,
-                a.document_value, a.document_currency_uuid, a.storage_provider,
-                a.storage_bucket, a.storage_path, a.file_name, a.mime_type,
-                a.file_size_bytes, a.file_hash_sha256, a.metadata,
-                a.uploaded_by_user_id, a.is_active, a.created_at, a.updated_at,
-                dt.name, dt.code, c.code, c.name, c.symbol
-       ORDER BY a.created_at DESC
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-      ...params
-    ));
-
-    // Get total count for pagination
-    const countResult = await withRetry(() => prisma.$queryRawUnsafe<any[]>(
-      `SELECT COUNT(DISTINCT a.id) as total
-       FROM attachments a
-       LEFT JOIN attachment_links al ON al.attachment_uuid = a.uuid
-       WHERE ${whereClause}`,
-      ...params.slice(0, -2) // Remove limit and offset from count query
-    ));
-
-    const total = parseInt(countResult[0]?.total || '0');
-
-    // Fetch related entity details for each link
+    // Enrich links with entity details
     const enrichedAttachments = await Promise.all(
       attachments.map(async (attachment) => {
-        const links = attachment.links || [];
+        const links = attachment.attachment_links || [];
         
         // Enrich each link with entity details
         const enrichedLinks = await Promise.all(
@@ -173,11 +151,16 @@ export async function GET(request: NextRequest) {
                 entityDetails = counteragent;
               }
             } catch (error) {
-              console.error(`Error fetching entity details for ${link.owner_table}:`, error);
+              console.error(`[Attachments API] Error fetching entity for ${link.owner_table}:`, error);
             }
 
             return {
-              ...link,
+              link_uuid: link.uuid,
+              owner_table: link.owner_table,
+              owner_uuid: link.owner_uuid,
+              owner_field: link.owner_field,
+              is_primary: link.is_primary,
+              created_at: link.created_at,
               entity_details: entityDetails,
             };
           })
@@ -192,20 +175,11 @@ export async function GET(request: NextRequest) {
           storageProvider: attachment.storage_provider,
           storageBucket: attachment.storage_bucket,
           storagePath: attachment.storage_path,
-          documentType: attachment.document_type_uuid ? {
-            uuid: attachment.document_type_uuid,
-            name: attachment.document_type_name,
-            code: attachment.document_type_code,
-          } : null,
+          documentType: attachment.document_type,
           documentDate: attachment.document_date,
           documentNo: attachment.document_no,
-          documentValue: attachment.document_value ? parseFloat(attachment.document_value) : null,
-          currency: attachment.document_currency_uuid ? {
-            uuid: attachment.document_currency_uuid,
-            code: attachment.currency_code,
-            name: attachment.currency_name,
-            symbol: attachment.currency_symbol,
-          } : null,
+          documentValue: attachment.document_value ? parseFloat(attachment.document_value.toString()) : null,
+          currency: attachment.currency,
           metadata: attachment.metadata,
           uploadedByUserId: attachment.uploaded_by_user_id,
           isActive: attachment.is_active,
@@ -215,6 +189,8 @@ export async function GET(request: NextRequest) {
         };
       })
     );
+
+    console.log('[Attachments API] Returning:', enrichedAttachments.length, 'attachments');
 
     return NextResponse.json({
       attachments: enrichedAttachments,
@@ -226,7 +202,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching attachments:', error);
+    console.error('[Attachments API] Error:', error);
+    console.error('[Attachments API] Stack:', error?.stack);
     return NextResponse.json(
       { error: error?.message || 'Failed to fetch attachments' },
       { status: 500 }
