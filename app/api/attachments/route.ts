@@ -48,7 +48,6 @@ export async function GET(request: NextRequest) {
           select: {
             uuid: true,
             name: true,
-            code: true,
           },
         },
         currency: {
@@ -56,10 +55,9 @@ export async function GET(request: NextRequest) {
             uuid: true,
             code: true,
             name: true,
-            symbol: true,
           },
         },
-        attachment_links: ownerTable ? {
+        links: ownerTable ? {
           where: {
             owner_table: ownerTable,
           },
@@ -94,7 +92,7 @@ export async function GET(request: NextRequest) {
     // Enrich links with entity details
     const enrichedAttachments = await Promise.all(
       attachments.map(async (attachment) => {
-        const links = attachment.attachment_links || [];
+        const links = attachment.links || [];
         
         // Enrich each link with entity details
         const enrichedLinks = await Promise.all(
@@ -179,7 +177,7 @@ export async function GET(request: NextRequest) {
           documentDate: attachment.document_date,
           documentNo: attachment.document_no,
           documentValue: attachment.document_value ? parseFloat(attachment.document_value.toString()) : null,
-          currency: attachment.currency,
+          currency: attachment.document_currency,
           metadata: attachment.metadata,
           uploadedByUserId: attachment.uploaded_by_user_id,
           isActive: attachment.is_active,
