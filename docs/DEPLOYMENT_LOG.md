@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-04-20 Deployment #200
+- Commit: a7fd1d3
+- Production: https://ice-91t2qhk3a-iceerp.vercel.app
+- Summary: Reorder dictionaries navigation to group Attachments with Projects.
+- Changes:
+  - app/dictionaries/page.tsx: Moved "Attachments" link to appear directly after "Projects" (previously between Jobs and Payments). Creates logical grouping: Financial Codes → Projects → Attachments → Jobs → Payments, since most attachments are project-related documents.
+
 ## 2026-04-20 Deployment #199
 - Commit: 886c2ed
 - Production: https://ice-kjyj7l7mk-iceerp.vercel.app
