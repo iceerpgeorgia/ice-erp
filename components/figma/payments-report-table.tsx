@@ -1264,6 +1264,7 @@ export function PaymentsReportTable() {
         paymentId: '',
         isBundleAggregate: true,
         isBundlePayment: false,
+        isProjectDerived: false,
         financialCode: first.parentFinancialCode || first.financialCode,
         financialCodeUuid: first.parentFinancialCodeUuid || first.financialCodeUuid,
         job: '',
@@ -3671,8 +3672,9 @@ export function PaymentsReportTable() {
                     );
                   })}
                   <td className="px-4 py-2 text-sm" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>
-                    {!isBundleAgg && (
                     <div className="flex items-center justify-center gap-1">
+                      {!isBundleAgg && (
+                      <>
                       <PaymentAttachments paymentId={row.paymentId} />
                       <button
                         onClick={() => handleOpenBaseInfo(row.paymentId)}
@@ -3704,6 +3706,8 @@ export function PaymentsReportTable() {
                       >
                         <FileText className="w-4 h-4" />
                       </a>
+                      </>
+                      )}
                       <a
                         href={row.counteragentUuid ? `/counteragent-statement/${row.counteragentUuid}` : '#'}
                         target={row.counteragentUuid ? '_blank' : undefined}
@@ -3730,7 +3734,6 @@ export function PaymentsReportTable() {
                         <User className="w-4 h-4" />
                       </a>
                     </div>
-                    )}
                   </td>
                 </tr>
                 );
