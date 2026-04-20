@@ -290,8 +290,8 @@ export default function AttachmentsPage() {
       result = result.filter((row) => {
         const value = getColumnValue(row, col.key);
         
-        if (filter.mode === 'facet' && filter.selected) {
-          return filter.selected.has(value);
+        if (filter.mode === 'facet') {
+          return filter.values.has(value);
         }
         // Add other filter modes as needed
         return true;
