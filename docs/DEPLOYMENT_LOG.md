@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-04-20 Deployment #195
+- Commit: a00862d
+- Production: https://ice-1ebsjlcc6-iceerp.vercel.app
+- Summary: Redesign bundle distribution in project dialog as subdialog with payment ID visibility.
+- Changes:
+  - components/figma/bundle-distribution-grid.tsx: Rewritten from inline grid to button+subdialog pattern. Button shows LayoutGrid icon with filled/total badge. Dialog displays table with Financial Code, %, Amount, Payment ID columns. Local state with Apply/Cancel. BundleDistributionRow type extended with optional paymentId field.
+  - components/figma/projects-table.tsx: Updated Add and Edit dialogs to render distribution as inline form row (Label + button) instead of full-width border section.
+  - app/api/financial-codes/children/[parentUuid]/route.ts: New API returning child financial codes for a parent UUID.
+  - app/api/projects/bundle-distribution/route.ts: New API returning bundle distribution data with existing payment IDs (LEFT JOIN financial_codes with payments).
+
 ## 2026-04-20 Deployment #194
 - Commit: 736a684
 - Production: https://ice-r5r4kp71o-iceerp.vercel.app
