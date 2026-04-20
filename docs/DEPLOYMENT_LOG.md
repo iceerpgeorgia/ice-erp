@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-04-20 Deployment #203
+- Commit: d636462
+- Production: https://ice-kf2nwwwj1-iceerp.vercel.app
+- Summary: Enrich attachments API with financial code, user details, and display in table columns.
+- Changes:
+  - app/api/attachments/route.ts: Added financial_code data fetching from financial_codes table for payment links (code, uuid). Added uploadedByUser query from User model (id, name, email, role). Enriched entity_details with financial_code for payments.
+  - app/admin/attachments/page.tsx: Updated Attachment type to include uploadedByUser field. Modified getColumnValue for uploadedByUserId column to display user name/email instead of raw ID. Added financial_code display to view dialog payments section.
+- Fixes: Resolves missing data display issues reported by user (project, financial code, counteragent, job, uploaded by user names not showing in table columns).
+
 ## 2026-04-20 Deployment #202
 - Commit: c2ca5d2
 - Production: https://ice-4pmvijxom-iceerp.vercel.app
