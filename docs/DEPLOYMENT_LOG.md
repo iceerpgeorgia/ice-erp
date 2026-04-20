@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-04-20 Deployment #198
+- Commit: 7baa4e7
+- Production: https://ice-hwmrysx2s-iceerp.vercel.app
+- Summary: Fix bundle aggregate rows: force isProjectDerived=false, show counteragent statement link.
+- Changes:
+  - components/figma/payments-report-table.tsx: Set isProjectDerived:false on aggregate rows. Moved counteragent statement link outside isBundleAgg guard so it's visible on aggregates.
+
 ## 2026-04-20 Deployment #197
 - Commit: e25dea2
 - Production: https://ice-kya7sfnfg-iceerp.vercel.app
