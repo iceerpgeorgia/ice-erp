@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-04-20 Deployment #193
+- Commit: 960ff12
+- Production: https://ice-6no5f75ke-iceerp.vercel.app
+- Summary: Fix counteragent reparse bug — Case 3 (INN found, counteragent missing) was incorrectly setting counteragent_processed=true, preventing auto-reparse on later counteragent creation.
+- Changes:
+  - lib/bank-import/import_bank_xml_data_deconsolidated.ts: Set counteragent_processed=false when counteragent not found (Case 3).
+  - lib/bank-import/reparse.ts: reparseByCounteragentInn also picks up stuck records (processed=true, uuid=null).
+  - DB: 100 stuck records reset to counteragent_processed=false (excluding INN 00000000000).
+
 ## 2026-04-20 Deployment #192
 - Commit: 256cf3d
 - Production: https://ice-glmb1jncm-iceerp.vercel.app
