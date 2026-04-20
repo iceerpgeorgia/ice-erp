@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
-        currency: {
+        document_currency: {
           select: {
             uuid: true,
             code: true,
