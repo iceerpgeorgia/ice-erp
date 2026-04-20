@@ -1,30 +1,37 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Download,
-  FileText,
   Search,
+  Filter,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Settings,
+  Eye,
+  EyeOff,
+  Download,
+  Edit2,
+  X,
+  FileText,
+  Upload,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
-  Calendar,
-  DollarSign,
-  Hash,
-  Building2,
-  CreditCard,
-  Briefcase,
-  Users,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { Button } from '@/components/figma/ui/button';
+import { Input } from '@/components/figma/ui/input';
+import { Badge } from '@/components/figma/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/figma/ui/popover';
+import { Checkbox } from '@/components/figma/ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/figma/ui/dialog';
+import { Label } from '@/components/figma/ui/label';
+import { ColumnFilterPopover } from '@/components/figma/shared/column-filter-popover';
+import { ClearFiltersButton } from '@/components/figma/shared/clear-filters-button';
+import type { ColumnFilter } from '@/components/figma/shared/table-filters';
+import { useTableFilters } from '@/components/figma/shared/use-table-filters';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/figma/ui/card';
 
-type EntityLink = {
+type AttachmentLink = {
   link_uuid: string;
   owner_table: string;
   owner_uuid: string;
@@ -46,7 +53,6 @@ type Attachment = {
   documentType: {
     uuid: string;
     name: string;
-    code: string;
   } | null;
   documentDate: string | null;
   documentNo: string | null;
@@ -55,400 +61,651 @@ type Attachment = {
     uuid: string;
     code: string;
     name: string;
-    symbol: string;
   } | null;
   metadata: any;
   uploadedByUserId: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-  links: EntityLink[];
+  links: AttachmentLink[];
 };
 
-export default function AttachmentsPage() {
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [search, setSearch] = useState('');
-  const [ownerTable, setOwnerTable] = useState<string>('all');
-  const limit = 50;
+type ColumnKey =
+  | 'fileName'
+  | 'documentType'
+  | 'documentDate'
+  | 'documentNo'
+  | 'documentValue'
+  | 'currency'
+  | 'paymentId'
+  | 'projectName'
+  | 'financialCode'
+  | 'counteragentName'
+  | 'jobName'
+  | 'mimeType'
+  | 'fileSizeBytes'
+  | 'storageProvider'
+  | 'uploadedByUserId'
+  | 'createdAt';
 
-  useEffect(() => {
-    fetchAttachments();
-  }, [page, ownerTable]);
+type ColumnConfig = {
+  key: ColumnKey;
+  label: string;
+  visible: boolean;
+  sortable: boolean;
+  filterable: boolean;
+  format?: 'currency' | 'number' | 'date' | 'filesize';
+  width: number;
+};
+
+const defaultColumns: ColumnConfig[] = [
+  { key: 'fileName', label: 'File Name', visible: true, sortable: true, filterable: true, width: 300 },
+  { key: 'documentType', label: 'Document Type', visible: true, sortable: true, filterable: true, width: 150 },
+  { key: 'documentDate', label: 'Document Date', visible: true, sortable: true, filterable: true, format: 'date', width: 130 },
+  { key: 'documentNo', label: 'Document No', visible: true, sortable: true, filterable: true, width: 150 },
+  { key: 'documentValue', label: 'Value', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },
+  { key: 'currency', label: 'Currency', visible: true, sortable: true, filterable: true, width: 100 },
+  { key: 'paymentId', label: 'Payment ID', visible: true, sortable: true, filterable: true, width: 150 },
+  { key: 'projectName', label: 'Project', visible: true, sortable: true, filterable: true, width: 200 },
+  { key: 'financialCode', label: 'Financial Code', visible: false, sortable: true, filterable: true, width: 150 },
+  { key: 'counteragentName', label: 'Counteragent', visible: false, sortable: true, filterable: true, width: 200 },
+  { key: 'jobName', label: 'Job', visible: false, sortable: true, filterable: true, width: 150 },
+  { key: 'mimeType', label: 'Type', visible: true, sortable: true, filterable: true, width: 150 },
+  { key: 'fileSizeBytes', label: 'Size', visible: true, sortable: true, filterable: true, format: 'filesize', width: 100 },
+  { key: 'storageProvider', label: 'Storage', visible: false, sortable: true, filterable: true, width: 120 },
+  { key: 'uploadedByUserId', label: 'Uploaded By', visible: false, sortable: true, filterable: true, width: 150 },
+  { key: 'createdAt', label: 'Created', visible: true, sortable: true, filterable: true, format: 'date', width: 130 },
+];
+
+export default function AttachmentsPage() {
+  const filtersStorageKey = 'attachmentsFiltersV1';
+  const [data, setData] = useState<Attachment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedOwnerTable, setSelectedOwnerTable] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(50);
+  const [total, setTotal] = useState(0);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editAttachment, setEditAttachment] = useState<Attachment | null>(null);
+
+  // Table filters
+  const {
+    filters,
+    sortBy,
+    sortDirection,
+    setFilter,
+    clearFilter,
+    clearAllFilters,
+    toggleSort,
+    hasActiveFilters,
+  } = useTableFilters<ColumnKey>(filtersStorageKey);
 
   const fetchAttachments = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-      });
-
-      if (search) {
-        params.append('search', search);
-      }
-
-      if (ownerTable && ownerTable !== 'all') {
-        params.append('ownerTable', ownerTable);
-      }
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+      if (searchQuery) params.append('search', searchQuery);
+      if (selectedOwnerTable) params.append('ownerTable', selectedOwnerTable);
 
       const response = await fetch(`/api/attachments?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch attachments');
+      if (!response.ok) {
+        throw new Error('Failed to fetch attachments');
+      }
 
-      const data = await response.json();
-      setAttachments(data.attachments);
-      setTotal(data.pagination.total);
-      setTotalPages(data.pagination.totalPages);
+      const result = await response.json();
+      setData(result.attachments || []);
+      setTotal(result.pagination?.total || 0);
     } catch (error) {
       console.error('Error fetching attachments:', error);
+      setData([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = () => {
-    setPage(1);
+  useEffect(() => {
     fetchAttachments();
-  };
+  }, [page, searchQuery, selectedOwnerTable]);
 
-  const formatFileSize = (bytes: number | null) => {
-    if (!bytes) return 'N/A';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
-  };
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'N/A';
-    try {
-      return format(new Date(dateString), 'MMM d, yyyy');
-    } catch {
-      return 'Invalid date';
-    }
-  };
-
-  const formatDateTime = (dateString: string | null) => {
-    if (!dateString) return 'N/A';
-    try {
-      return format(new Date(dateString), 'MMM d, yyyy HH:mm');
-    } catch {
-      return 'Invalid date';
-    }
-  };
-
-  const getEntityIcon = (ownerTable: string) => {
-    switch (ownerTable) {
-      case 'projects':
-        return <Building2 className="h-4 w-4" />;
-      case 'payments':
-        return <CreditCard className="h-4 w-4" />;
-      case 'jobs':
-        return <Briefcase className="h-4 w-4" />;
-      case 'counteragents':
-        return <Users className="h-4 w-4" />;
-      default:
-        return <FileText className="h-4 w-4" />;
-    }
-  };
-
-  const renderEntityDetails = (link: EntityLink) => {
-    const { owner_table, entity_details } = link;
-
-    if (!entity_details) {
-      return <span className="text-sm text-muted-foreground">No details</span>;
-    }
-
-    switch (owner_table) {
-      case 'projects':
-        return (
-          <div className="space-y-1">
-            <div className="font-medium">{entity_details.project_name}</div>
-            {entity_details.contract_no && (
-              <div className="text-sm text-muted-foreground">Contract: {entity_details.contract_no}</div>
-            )}
-            {entity_details.counteragent && (
-              <div className="text-sm text-muted-foreground">Client: {entity_details.counteragent}</div>
-            )}
-          </div>
-        );
-      case 'payments':
-        return (
-          <div className="space-y-1">
-            <div className="font-medium">ID: {entity_details.payment_id}</div>
-            {entity_details.label && (
-              <div className="text-sm text-muted-foreground">{entity_details.label}</div>
-            )}
-            {entity_details.income_tax && (
-              <div className="text-xs">
-                <Badge variant="secondary">Income Tax</Badge>
-              </div>
-            )}
-          </div>
-        );
-      case 'jobs':
-        return (
-          <div className="space-y-1">
-            <div className="font-medium">{entity_details.job_name}</div>
-            {entity_details.floors && (
-              <div className="text-sm text-muted-foreground">Floors: {entity_details.floors}</div>
-            )}
-            {entity_details.is_ff && (
-              <div className="text-xs">
-                <Badge variant="secondary">FF</Badge>
-              </div>
-            )}
-          </div>
-        );
-      case 'counteragents':
-        return (
-          <div className="space-y-1">
-            <div className="font-medium">{entity_details.name}</div>
-            {entity_details.identification_number && (
-              <div className="text-sm text-muted-foreground">INN: {entity_details.identification_number}</div>
-            )}
-            {entity_details.entity_type && (
-              <div className="text-xs">
-                <Badge variant="outline">{entity_details.entity_type}</Badge>
-              </div>
-            )}
-          </div>
-        );
-      default:
-        return <span className="text-sm text-muted-foreground">{owner_table}</span>;
-    }
-  };
-
-  const handleDownload = async (bucket: string | null, path: string) => {
-    try {
-      const params = new URLSearchParams({
-        bucket: bucket || 'payment-attachments',
-        path: path,
-      });
-      
-      const response = await fetch(`/api/payments/attachments/download?${params}`);
-      if (!response.ok) throw new Error('Failed to get download URL');
-      
-      const data = await response.json();
-      if (data.url) {
-        window.open(data.url, '_blank');
+  // Extract value for filtering/sorting
+  const getColumnValue = (row: Attachment, key: ColumnKey): any => {
+    switch (key) {
+      case 'fileName':
+        return row.fileName;
+      case 'documentType':
+        return row.documentType?.name || null;
+      case 'documentDate':
+        return row.documentDate;
+      case 'documentNo':
+        return row.documentNo;
+      case 'documentValue':
+        return row.documentValue;
+      case 'currency':
+        return row.currency?.code || null;
+      case 'paymentId': {
+        const paymentLink = row.links.find((l) => l.owner_table === 'payments');
+        return paymentLink?.entity_details?.payment_id || null;
       }
+      case 'projectName': {
+        const projectLink = row.links.find((l) => l.owner_table === 'projects');
+        return projectLink?.entity_details?.project_name || null;
+      }
+      case 'financialCode': {
+        const paymentLink = row.links.find((l) => l.owner_table === 'payments');
+        return paymentLink?.entity_details?.financial_code || null;
+      }
+      case 'counteragentName': {
+        const counteragentLink = row.links.find((l) => l.owner_table === 'counteragents');
+        return counteragentLink?.entity_details?.name || null;
+      }
+      case 'jobName': {
+        const jobLink = row.links.find((l) => l.owner_table === 'jobs');
+        return jobLink?.entity_details?.job_name || null;
+      }
+      case 'mimeType':
+        return row.mimeType;
+      case 'fileSizeBytes':
+        return row.fileSizeBytes;
+      case 'storageProvider':
+        return row.storageProvider;
+      case 'uploadedByUserId':
+        return row.uploadedByUserId;
+      case 'createdAt':
+        return row.createdAt;
+      default:
+        return null;
+    }
+  };
+
+  // Format value for display
+  const formatValue = (value: any, format?: ColumnConfig['format']): string => {
+    if (value === null || value === undefined) return '-';
+
+    switch (format) {
+      case 'currency':
+        return new Intl.NumberFormat('en-US', {
+          style: 'decimal',
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(value);
+      case 'number':
+        return new Intl.NumberFormat('en-US').format(value);
+      case 'date':
+        return new Date(value).toLocaleDateString('en-GB');
+      case 'filesize':
+        if (typeof value !== 'number') return '-';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let size = value;
+        let unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+          size /= 1024;
+          unitIndex++;
+        }
+        return `${size.toFixed(1)} ${units[unitIndex]}`;
+      default:
+        return String(value);
+    }
+  };
+
+  // Apply filters and sorting
+  const filteredAndSortedData = useMemo(() => {
+    let result = [...data];
+
+    // Apply column filters
+    columns.forEach((col) => {
+      if (!col.filterable) return;
+      const filter = filters[col.key];
+      if (!filter) return;
+
+      result = result.filter((row) => {
+        const value = getColumnValue(row, col.key);
+        
+        if (filter.mode === 'facet' && filter.selected) {
+          return filter.selected.has(value);
+        }
+        // Add other filter modes as needed
+        return true;
+      });
+    });
+
+    // Apply sorting
+    if (sortBy) {
+      result.sort((a, b) => {
+        const aValue = getColumnValue(a, sortBy as ColumnKey);
+        const bValue = getColumnValue(b, sortBy as ColumnKey);
+
+        if (aValue === null && bValue === null) return 0;
+        if (aValue === null) return 1;
+        if (bValue === null) return -1;
+
+        let comparison = 0;
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          comparison = aValue - bValue;
+        } else {
+          comparison = String(aValue).localeCompare(String(bValue));
+        }
+
+        return sortDirection === 'desc' ? -comparison : comparison;
+      });
+    }
+
+    return result;
+  }, [data, filters, sortBy, sortDirection, columns]);
+
+  // Column visibility toggle
+  const toggleColumnVisibility = (key: ColumnKey) => {
+    setColumns((prev) =>
+      prev.map((col) => (col.key === key ? { ...col, visible: !col.visible } : col))
+    );
+  };
+
+  // Download attachment
+  const downloadAttachment = async (attachment: Attachment) => {
+    try {
+      const response = await fetch(`/api/attachments/${attachment.uuid}/download`);
+      if (!response.ok) throw new Error('Download failed');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = attachment.fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (error) {
-      console.error('Error downloading file:', error);
+      console.error('Error downloading attachment:', error);
       alert('Failed to download file');
     }
   };
 
+  const visibleColumns = columns.filter((col) => col.visible);
+  const totalPages = Math.ceil(total / limit);
+
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Attachments</h1>
-          <p className="text-muted-foreground">
-            Manage and view all system attachments
-          </p>
+    <div className="h-screen flex flex-col bg-background">
+      {/* Header */}
+      <div className="flex-shrink-0 border-b bg-background px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Attachments</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Manage document attachments and links
+            </p>
+          </div>
+          <Badge variant="outline" className="ml-4">
+            {total} total
+          </Badge>
+        </div>
+
+        {/* Toolbar */}
+        <div className="flex items-center gap-3 mt-4">
+          {/* Search */}
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search files..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
+              className="pl-9"
+            />
+          </div>
+
+          {/* Clear Filters */}
+          {hasActiveFilters && (
+            <ClearFiltersButton onClear={clearAllFilters} count={Object.keys(filters).length} />
+          )}
+
+          {/* Columns Settings */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Settings className="h-4 w-4 mr-2" />
+                Columns
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64" align="end">
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Toggle Columns</h4>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {columns.map((col) => (
+                    <div key={col.key} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`col-${col.key}`}
+                        checked={col.visible}
+                        onCheckedChange={() => toggleColumnVisibility(col.key)}
+                      />
+                      <label
+                        htmlFor={`col-${col.key}`}
+                        className="text-sm cursor-pointer flex-1"
+                      >
+                        {col.label}
+                      </label>
+                      {col.visible ? (
+                        <Eye className="h-3 w-3 text-muted-foreground" />
+                      ) : (
+                        <EyeOff className="h-3 w-3 text-muted-foreground" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Refresh */}
+          <Button variant="outline" size="sm" onClick={() => fetchAttachments()}>
+            Refresh
+          </Button>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>Search and filter attachments</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by file name..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  className="pl-9"
-                />
-              </div>
-            </div>
-            <Select value={ownerTable} onValueChange={setOwnerTable}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="projects">Projects</SelectItem>
-                <SelectItem value="payments">Payments</SelectItem>
-                <SelectItem value="jobs">Jobs</SelectItem>
-                <SelectItem value="counteragents">Counteragents</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={handleSearch}>Search</Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Attachments ({total})</CardTitle>
-              <CardDescription>Showing {attachments.length} of {total} attachments</CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1 || loading}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages || loading}
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
+      {/* Table */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full overflow-auto">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-muted-foreground">Loading attachments...</div>
+            <div className="flex items-center justify-center h-64">
+              <div className="text-muted-foreground">Loading...</div>
             </div>
-          ) : attachments.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <FileText className="h-12 w-12 mb-4 opacity-50" />
-              <p>No attachments found</p>
+          ) : filteredAndSortedData.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64">
+              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">No attachments found</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>File</TableHead>
-                    <TableHead>Document Info</TableHead>
-                    <TableHead>Linked To</TableHead>
-                    <TableHead>File Details</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {attachments.map((attachment) => (
-                    <TableRow key={attachment.uuid}>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="font-medium flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                            <span className="max-w-xs truncate">{attachment.fileName}</span>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {attachment.mimeType || 'Unknown type'}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {attachment.documentType && (
-                            <Badge variant="outline" className="mb-1">
-                              {attachment.documentType.name}
-                            </Badge>
-                          )}
-                          {attachment.documentDate && (
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <Calendar className="h-3 w-3" />
-                              {formatDate(attachment.documentDate)}
-                            </div>
-                          )}
-                          {attachment.documentNo && (
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <Hash className="h-3 w-3" />
-                              {attachment.documentNo}
-                            </div>
-                          )}
-                          {attachment.documentValue && attachment.currency && (
-                            <div className="flex items-center gap-1 text-sm font-medium">
-                              <DollarSign className="h-3 w-3" />
-                              {attachment.documentValue.toLocaleString()} {attachment.currency.code}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-2">
-                          {attachment.links.length === 0 ? (
-                            <span className="text-sm text-muted-foreground">No links</span>
-                          ) : (
-                            attachment.links.map((link) => (
-                              <div key={link.link_uuid} className="flex items-start gap-2">
-                                <div className="mt-1">
-                                  {getEntityIcon(link.owner_table)}
-                                </div>
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <Badge variant="secondary" className="text-xs">
-                                      {link.owner_table}
-                                    </Badge>
-                                    {link.is_primary && (
-                                      <Badge variant="default" className="text-xs">
-                                        Primary
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  {renderEntityDetails(link)}
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1 text-sm">
-                          <div className="text-muted-foreground">
-                            Size: {formatFileSize(attachment.fileSizeBytes)}
-                          </div>
-                          {attachment.fileHashSha256 && (
-                            <div className="text-xs text-muted-foreground font-mono truncate max-w-[200px]">
-                              Hash: {attachment.fileHashSha256.substring(0, 16)}...
-                            </div>
-                          )}
-                          <div className="text-xs text-muted-foreground">
-                            {attachment.storageProvider}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm text-muted-foreground">
-                          {formatDateTime(attachment.createdAt)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
+            <table className="w-full border-collapse">
+              <thead className="sticky top-0 bg-muted/50 backdrop-blur-sm z-10">
+                <tr>
+                  <th className="w-12 p-2 text-left border-b">
+                    <span className="text-xs font-medium">#</span>
+                  </th>
+                  {visibleColumns.map((col) => (
+                    <th
+                      key={col.key}
+                      className="p-2 text-left border-b"
+                      style={{ width: col.width }}
+                    >
+                      <div className="flex items-center gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDownload(attachment.storageBucket, attachment.storagePath)}
+                          className="h-auto p-0 hover:bg-transparent"
+                          onClick={() => col.sortable && toggleSort(col.key)}
                         >
-                          <Download className="h-4 w-4" />
+                          <span className="text-xs font-medium">{col.label}</span>
+                          {col.sortable && sortBy === col.key && (
+                            sortDirection === 'asc' ? (
+                              <ArrowUp className="h-3 w-3 ml-1" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3 ml-1" />
+                            )
+                          )}
+                          {col.sortable && sortBy !== col.key && (
+                            <ArrowUpDown className="h-3 w-3 ml-1 opacity-30" />
+                          )}
                         </Button>
-                      </TableCell>
-                    </TableRow>
+                        {col.filterable && (
+                          <ColumnFilterPopover
+                            column={col.key}
+                            columnLabel={col.label}
+                            values={data.map((row) => getColumnValue(row, col.key))}
+                            filter={filters[col.key]}
+                            onFilterChange={(filter) => setFilter(col.key, filter)}
+                            onClearFilter={() => clearFilter(col.key)}
+                            format={col.format}
+                          />
+                        )}
+                      </div>
+                    </th>
                   ))}
-                </TableBody>
-              </Table>
+                  <th className="w-32 p-2 text-left border-b">
+                    <span className="text-xs font-medium">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAndSortedData.map((row, index) => (
+                  <tr
+                    key={row.uuid}
+                    className="hover:bg-muted/30 border-b transition-colors"
+                  >
+                    <td className="p-2 text-xs text-muted-foreground">
+                      {(page - 1) * limit + index + 1}
+                    </td>
+                    {visibleColumns.map((col) => (
+                      <td key={col.key} className="p-2 text-sm">
+                        {formatValue(getColumnValue(row, col.key), col.format)}
+                      </td>
+                    ))}
+                    <td className="p-2">
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedAttachment(row);
+                            setViewDialogOpen(true);
+                          }}
+                        >
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditAttachment(row);
+                            setEditDialogOpen(true);
+                          }}
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => downloadAttachment(row)}
+                        >
+                          <Download className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex-shrink-0 border-t bg-background px-6 py-3">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Showing {(page - 1) * limit + 1} to {Math.min(page * limit, total)} of {total}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            <span className="text-sm">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* View Dialog */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Attachment Details</DialogTitle>
+            <DialogDescription>
+              View complete information about this attachment
+            </DialogDescription>
+          </DialogHeader>
+          {selectedAttachment && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">File Name</Label>
+                  <p className="text-sm font-medium">{selectedAttachment.fileName}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Document Type</Label>
+                  <p className="text-sm">{selectedAttachment.documentType?.name || '-'}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Document Date</Label>
+                  <p className="text-sm">{selectedAttachment.documentDate ? formatValue(selectedAttachment.documentDate, 'date') : '-'}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Document No</Label>
+                  <p className="text-sm">{selectedAttachment.documentNo || '-'}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Value</Label>
+                  <p className="text-sm">
+                    {selectedAttachment.documentValue
+                      ? formatValue(selectedAttachment.documentValue, 'currency')
+                      : '-'}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Currency</Label>
+                  <p className="text-sm">{selectedAttachment.currency?.code || '-'}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">File Size</Label>
+                  <p className="text-sm">{formatValue(selectedAttachment.fileSizeBytes, 'filesize')}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">MIME Type</Label>
+                  <p className="text-sm">{selectedAttachment.mimeType || '-'}</p>
+                </div>
+              </div>
+
+              {selectedAttachment.links.length > 0 && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Linked Entities</Label>
+                  <div className="mt-2 space-y-2">
+                    {selectedAttachment.links.map((link) => (
+                      <Card key={link.link_uuid}>
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <Badge variant="outline" className="mb-2">
+                                {link.owner_table}
+                              </Badge>
+                              {link.entity_details && (
+                                <div className="text-sm space-y-1">
+                                  {link.owner_table === 'payments' && (
+                                    <>
+                                      <p><strong>Payment ID:</strong> {link.entity_details.payment_id}</p>
+                                      <p><strong>Label:</strong> {link.entity_details.label || '-'}</p>
+                                    </>
+                                  )}
+                                  {link.owner_table === 'projects' && (
+                                    <>
+                                      <p><strong>Project:</strong> {link.entity_details.project_name}</p>
+                                      <p><strong>Contract:</strong> {link.entity_details.contract_no || '-'}</p>
+                                    </>
+                                  )}
+                                  {link.owner_table === 'jobs' && (
+                                    <p><strong>Job:</strong> {link.entity_details.job_name}</p>
+                                  )}
+                                  {link.owner_table === 'counteragents' && (
+                                    <p><strong>Counteragent:</strong> {link.entity_details.name}</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            {link.is_primary && (
+                              <Badge>Primary</Badge>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Attachment</DialogTitle>
+            <DialogDescription>
+              Update attachment metadata and document information
+            </DialogDescription>
+          </DialogHeader>
+          {editAttachment && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Document Type</Label>
+                  <Input defaultValue={editAttachment.documentType?.name || ''} />
+                </div>
+                <div>
+                  <Label>Document Date</Label>
+                  <Input type="date" defaultValue={editAttachment.documentDate || ''} />
+                </div>
+                <div>
+                  <Label>Document No</Label>
+                  <Input defaultValue={editAttachment.documentNo || ''} />
+                </div>
+                <div>
+                  <Label>Document Value</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    defaultValue={editAttachment.documentValue || ''}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={() => {
+                  // TODO: Implement save
+                  setEditDialogOpen(false);
+                }}>
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
