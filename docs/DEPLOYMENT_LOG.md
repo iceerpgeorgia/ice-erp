@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-04-20 Deployment #199
+- Commit: 886c2ed
+- Production: https://ice-kjyj7l7mk-iceerp.vercel.app
+- Summary: Add comprehensive attachments management page displaying all attachment metadata and linked entities.
+- Changes:
+  - app/api/attachments/route.ts: New API endpoint to list all attachments with pagination, search, and filtering. Joins with document_types, currencies, attachment_links tables. Enriches links with full entity details (projects, payments, jobs, counteragents).
+  - app/admin/attachments/page.tsx: New admin page at /admin/attachments. Displays file details, document metadata (type, date, number, value, currency), all linked entities with entity-specific icons and details, file size/hash, and download capability. Includes search by filename and filter by owner table type.
+  - app/dictionaries/page.tsx: Added "Attachments" link to navigation.
+  - .gitignore: Added Google Drive API migration security rules (google-credentials.json, temp-downloads/, migration xlsx files).
+  - Google Drive API migration: Converted migration system from public links to Google Drive API with service account authentication. Created list-gdrive-files.js helper, comprehensive documentation (GOOGLE_DRIVE_API_SETUP.md, GDRIVE_API_QUICKSTART.md, MIGRATION_API_SUMMARY.md).
+
 ## 2026-04-20 Deployment #198
 - Commit: 7baa4e7
 - Production: https://ice-hwmrysx2s-iceerp.vercel.app
