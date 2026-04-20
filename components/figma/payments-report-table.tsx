@@ -335,6 +335,24 @@ export function PaymentsReportTable() {
   const [editPaymentError, setEditPaymentError] = useState<string | null>(null);
   const [isEditPaymentSaving, setIsEditPaymentSaving] = useState(false);
 
+  // Resolve payment details when payments load (handles async fetch in openDialogForPayment)
+  useEffect(() => {
+    if (preSelectedPaymentId && payments.length > 0 && !selectedPaymentDetails) {
+      const payment = payments.find(p => p.paymentId === preSelectedPaymentId);
+      if (payment) {
+        setSelectedPaymentDetails({
+          paymentId: payment.paymentId,
+          counteragent: payment.counteragentName || 'N/A',
+          project: payment.projectIndex || 'N/A',
+          job: payment.jobName || 'N/A',
+          financialCode: payment.financialCode || 'N/A',
+          incomeTax: payment.incomeTax || false,
+          currency: payment.currencyCode || 'N/A'
+        });
+      }
+    }
+  }, [preSelectedPaymentId, payments, selectedPaymentDetails]);
+
   // Load saved column configuration and date filter after hydration
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -926,25 +944,18 @@ export function PaymentsReportTable() {
     setAddLedgerStep('ledger');
   };
 
-  const openDialogForPayment = (paymentId: string) => {
-    const payment = payments.find(p => p.paymentId === paymentId);
-    if (payment) {
-      setPreSelectedPaymentId(paymentId);
-      setSelectedPaymentId(paymentId);
-      setSelectedPaymentDetails({
-        paymentId: payment.paymentId,
-        counteragent: payment.counteragentName || 'N/A',
-        project: payment.projectIndex || 'N/A',
-        job: payment.jobName || 'N/A',
-        financialCode: payment.financialCode || 'N/A',
-        incomeTax: payment.incomeTax || false,
-        currency: payment.currencyCode || 'N/A'
-      });
+  const openDialogForPayment = async (paymentId: string) => {
+    // Ensure payments are loaded before lookup
+    if (payments.length === 0) {
+      await fetchPayments();
     }
     setAddLedgerStep('ledger');
     // Lazy-load projects (needed for optional dropdown in payment form if user navigates back)
     fetchProjects();
     setIsDialogOpen(true);
+    // Defer lookup to next render when state is settled
+    setPreSelectedPaymentId(paymentId);
+    setSelectedPaymentId(paymentId);
   };
 
   const openEditPaymentDialog = (row: PaymentReport) => {
