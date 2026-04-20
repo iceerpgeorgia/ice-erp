@@ -121,9 +121,27 @@ export async function GET(request: NextRequest) {
                     income_tax: true,
                     label: true,
                     created_at: true,
+                    financial_code_uuid: true,
                   },
                 });
-                entityDetails = payment;
+                if (payment) {
+                  // Fetch financial code separately
+                  const financialCode = await prisma.financial_codes.findFirst({
+                    where: { uuid: payment.financial_code_uuid },
+                    select: {
+                      uuid: true,
+                      code: true,
+                      validation: true,
+                    },
+                  });
+                  entityDetails = {
+                    ...payment,
+                    financial_code: financialCode?.code || null,
+                    financial_code_uuid: financialCode?.uuid || null,
+                  };
+                } else {
+                  entityDetails = payment;
+                }
               } else if (link.owner_table === 'jobs') {
                 const job = await prisma.jobs.findFirst({
                   where: { job_uuid: link.owner_uuid },
@@ -164,6 +182,24 @@ export async function GET(request: NextRequest) {
           })
         );
 
+        // Enrich uploaded_by_user_id with user details
+        let uploadedByUser = null;
+        if (attachment.uploaded_by_user_id) {
+          try {
+            uploadedByUser = await prisma.user.findUnique({
+              where: { id: attachment.uploaded_by_user_id },
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+              },
+            });
+          } catch (error) {
+            console.error(`[Attachments API] Error fetching user:`, error);
+          }
+        }
+
         return {
           uuid: attachment.uuid,
           fileName: attachment.file_name,
@@ -180,6 +216,7 @@ export async function GET(request: NextRequest) {
           currency: attachment.document_currency,
           metadata: attachment.metadata,
           uploadedByUserId: attachment.uploaded_by_user_id,
+          uploadedByUser: uploadedByUser,
           isActive: attachment.is_active,
           createdAt: attachment.created_at,
           updatedAt: attachment.updated_at,

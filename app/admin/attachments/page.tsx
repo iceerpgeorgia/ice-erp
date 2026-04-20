@@ -63,6 +63,12 @@ type Attachment = {
   } | null;
   metadata: any;
   uploadedByUserId: string | null;
+  uploadedByUser: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    role: string;
+  } | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -239,7 +245,7 @@ export default function AttachmentsPage() {
       case 'storageProvider':
         return row.storageProvider;
       case 'uploadedByUserId':
-        return row.uploadedByUserId;
+        return row.uploadedByUser?.name || row.uploadedByUser?.email || row.uploadedByUserId || null;
       case 'createdAt':
         return row.createdAt;
       default:
@@ -661,6 +667,9 @@ export default function AttachmentsPage() {
                                     <>
                                       <p><strong>Payment ID:</strong> {link.entity_details.payment_id}</p>
                                       <p><strong>Label:</strong> {link.entity_details.label || '-'}</p>
+                                      {link.entity_details.financial_code && (
+                                        <p><strong>Financial Code:</strong> {link.entity_details.financial_code}</p>
+                                      )}
                                     </>
                                   )}
                                   {link.owner_table === 'projects' && (
