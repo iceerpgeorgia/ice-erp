@@ -110,7 +110,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'counteragentName', label: 'Counteragent', visible: false, sortable: true, filterable: true, width: 200 },
   { key: 'jobName', label: 'Job', visible: false, sortable: true, filterable: true, width: 150 },
   { key: 'mimeType', label: 'Type', visible: true, sortable: true, filterable: true, width: 150 },
-  { key: 'fileSizeBytes', label: 'Size', visible: true, sortable: true, filterable: true, format: 'number', width: 100 },
+  { key: 'fileSizeBytes', label: 'Size', visible: true, sortable: true, filterable: true, width: 100 },
   { key: 'storageProvider', label: 'Storage', visible: false, sortable: true, filterable: true, width: 120 },
   { key: 'uploadedByUserId', label: 'Uploaded By', visible: false, sortable: true, filterable: true, width: 150 },
   { key: 'createdAt', label: 'Created', visible: true, sortable: true, filterable: true, format: 'date', width: 130 },
