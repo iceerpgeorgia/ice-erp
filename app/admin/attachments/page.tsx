@@ -248,7 +248,7 @@ export default function AttachmentsPage() {
   };
 
   // Format value for display
-  const formatValue = (value: any, format?: ColumnConfig['format']): string => {
+  const formatValue = (value: any, format?: ColumnConfig['format'] | 'filesize'): string => {
     if (value === null || value === undefined) return '-';
 
     switch (format) {
