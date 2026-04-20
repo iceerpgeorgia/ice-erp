@@ -108,6 +108,9 @@ export async function GET(request: NextRequest) {
         fc.code as financial_code,
         fc.description as financial_code_description,
         fc.is_income as financial_code_is_income,
+        fc.parent_uuid as financial_code_parent_uuid,
+        pfc.validation as parent_financial_code_validation,
+        pfc.code as parent_financial_code,
         j.job_name,
         j.weight as job_weight,
         j.floors,
@@ -126,6 +129,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
       LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
       LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
+      LEFT JOIN financial_codes pfc ON fc.parent_uuid = pfc.uuid
       LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
       LEFT JOIN jobs_per_project jpp ON p.project_uuid = jpp.project_uuid
       LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
@@ -225,6 +229,8 @@ export async function GET(request: NextRequest) {
       financialCode: row.financial_code_validation || row.financial_code,
       financialCodeDescription: row.financial_code_description,
       financialCodeIsIncome: row.financial_code_is_income ?? false,
+      parentFinancialCodeUuid: row.financial_code_parent_uuid ?? null,
+      parentFinancialCode: row.parent_financial_code_validation || row.parent_financial_code || null,
       incomeTax: row.income_tax || false,
       currency: row.currency_code,
       accrual: row.total_accrual ? parseFloat(row.total_accrual) : 0,

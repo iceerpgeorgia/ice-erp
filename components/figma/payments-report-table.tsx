@@ -58,6 +58,7 @@ type PaymentReport = {
   isActive?: boolean;
   isProjectDerived?: boolean;
   isBundlePayment?: boolean;
+  isBundleAggregate?: boolean;
   counteragent: string;
   counteragentId?: string | null;
   counteragentIban?: string | null;
@@ -73,6 +74,8 @@ type PaymentReport = {
   financialCode: string;
   financialCodeDescription?: string | null;
   financialCodeIsIncome?: boolean;
+  parentFinancialCodeUuid?: string | null;
+  parentFinancialCode?: string | null;
   incomeTax: boolean;
   currency: string;
   accrual: number;
@@ -1233,6 +1236,57 @@ export function PaymentsReportTable() {
     });
   }, [data, selectedConditions]);
 
+  // Inject aggregated parent rows for bundle payments
+  const dataWithBundleAggregates = useMemo(() => {
+    // Find bundle payments that have a parent FC
+    const bundleRows = conditionsFilteredData.filter(r => r.isBundlePayment && r.parentFinancialCode);
+    if (bundleRows.length === 0) return conditionsFilteredData;
+
+    // Group by counteragent + project + parent FC + currency
+    const groups = new Map<string, PaymentReport[]>();
+    for (const row of bundleRows) {
+      const key = `${row.counteragentUuid}|${row.projectUuid}|${row.parentFinancialCodeUuid}|${row.currencyUuid}`;
+      const arr = groups.get(key);
+      if (arr) arr.push(row); else groups.set(key, [row]);
+    }
+
+    // Build aggregate rows
+    const aggregates: PaymentReport[] = [];
+    for (const [, children] of groups) {
+      if (children.length < 2) continue; // only aggregate when there are multiple children
+      const first = children[0];
+      const totalAccrual = children.reduce((s, r) => s + r.accrual, 0);
+      const totalOrder = children.reduce((s, r) => s + r.order, 0);
+      const totalPayment = children.reduce((s, r) => s + r.payment, 0);
+      const totalFloors = children.reduce((s, r) => s + r.floors, 0);
+      aggregates.push({
+        ...first,
+        paymentId: '',
+        isBundleAggregate: true,
+        isBundlePayment: false,
+        financialCode: first.parentFinancialCode || first.financialCode,
+        financialCodeUuid: first.parentFinancialCodeUuid || first.financialCodeUuid,
+        job: '',
+        jobUuid: null,
+        jobCount: 0,
+        jobWeight: null,
+        label: null,
+        users: '',
+        accrual: parseFloat(totalAccrual.toFixed(2)),
+        order: parseFloat(totalOrder.toFixed(2)),
+        payment: parseFloat(totalPayment.toFixed(2)),
+        confirmed: children.every(r => r.confirmed),
+        accrualPerFloor: totalFloors > 0 ? parseFloat((totalAccrual / totalFloors).toFixed(2)) : 0,
+        paidPercent: totalAccrual !== 0 ? parseFloat(((Math.abs(totalPayment) / totalAccrual) * 100).toFixed(2)) : 0,
+        due: parseFloat((totalOrder - Math.abs(totalPayment)).toFixed(2)),
+        balance: parseFloat((totalAccrual - Math.abs(totalPayment)).toFixed(2)),
+        latestDate: children.reduce((max, r) => !max ? r.latestDate : (!r.latestDate ? max : r.latestDate > max ? r.latestDate : max), null as string | null),
+      });
+    }
+
+    return [...aggregates, ...conditionsFilteredData];
+  }, [conditionsFilteredData]);
+
   const {
     searchTerm,
     setSearchTerm,
@@ -1255,7 +1309,7 @@ export function PaymentsReportTable() {
     clearFilters,
     getColumnValues,
   } = useTableFilters<PaymentReport, ColumnKey>({
-    data: conditionsFilteredData,
+    data: dataWithBundleAggregates,
     columns: columns as any[],
     defaultSortColumn: 'latestDate' as ColumnKey,
     defaultSortDirection: 'desc',
@@ -3396,17 +3450,20 @@ export function PaymentsReportTable() {
                 const isConditionalFormattingEligible = row.isActive !== false;
                 const isConfirmedDue = Boolean(isConditionalFormattingEligible && row.confirmed && row.due > 0);
                 const isConfirmedPaid = Boolean(isConditionalFormattingEligible && row.confirmed && row.due === 0);
+                const isBundleAgg = Boolean(row.isBundleAggregate);
 
                 return (
                 <tr
-                  key={`${row.paymentId}-${idx}`}
+                  key={`${row.paymentId || 'agg'}-${row.financialCodeUuid}-${idx}`}
                   className={`group border-b border-gray-200 hover:bg-gray-50 ${
-                    isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : ''
+                    isBundleAgg ? 'italic bg-blue-50/40' : isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : ''
                   }`}
                 >
                   <td
                     className={`sticky left-0 z-10 px-2 py-2 text-sm ${
-                      isConfirmedPaid
+                      isBundleAgg
+                        ? 'bg-blue-50/40 group-hover:bg-blue-50'
+                        : isConfirmedPaid
                         ? 'bg-gray-100 group-hover:bg-gray-200'
                         : isConfirmedDue
                           ? 'bg-[#e8f5e9] group-hover:bg-[#dff1e1]'
@@ -3414,12 +3471,14 @@ export function PaymentsReportTable() {
                     }`}
                     style={{ width: 60, minWidth: 60, maxWidth: 60 }}
                   >
+                    {!isBundleAgg && (
                     <div className="flex items-center justify-center">
                       <Checkbox
                         checked={selectedPaymentIds.has(row.paymentId)}
                         onCheckedChange={() => handleToggleSelect(row.paymentId)}
                       />
                     </div>
+                    )}
                   </td>
                   {visibleColumns.map(col => {
                     // Column background colors
@@ -3612,6 +3671,7 @@ export function PaymentsReportTable() {
                     );
                   })}
                   <td className="px-4 py-2 text-sm" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>
+                    {!isBundleAgg && (
                     <div className="flex items-center justify-center gap-1">
                       <PaymentAttachments paymentId={row.paymentId} />
                       <button
@@ -3670,6 +3730,7 @@ export function PaymentsReportTable() {
                         <User className="w-4 h-4" />
                       </a>
                     </div>
+                    )}
                   </td>
                 </tr>
                 );
