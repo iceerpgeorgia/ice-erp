@@ -1,5 +1,17 @@
 # Deployment Log
 
+## 2026-04-20 Deployment #192
+- Commit: 256cf3d
+- Production: https://ice-glmb1jncm-iceerp.vercel.app
+- Summary: Harden 13 API routes with withRetry and reduce client-side fetch bursts to prevent pool exhaustion.
+- Changes:
+  - lib/prisma.ts: Added getPooledDatabaseUrl() export, increased maxRetries from 3 to 4.
+  - 13 API routes wrapped with withRetry: counteragents, projects-v2, attachments, counteragent-statement, bank-transactions-test, raw-record, payment-statement, payments, projects, jobs, conversions, bank-transaction-batches, raw-bog-gel-records.
+  - raw-bog-gel-records: Capped query limit at 500.
+  - components/figma/payments-table.tsx: Changed 7 parallel mount fetches to sequential chain.
+  - app/counteragent-statement/[counteragentUuid]/page.tsx: Changed Promise.all to sequential dictionary fetches.
+  - components/figma/bank-transactions-table.tsx: Conditional caching — only refetch dictionaries if cache is empty.
+
 ## 2026-04-20 Deployment #191
 - Commit: c21ce3c
 - Production: https://ice-crrb250kf-iceerp.vercel.app
