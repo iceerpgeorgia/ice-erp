@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-04-20 Deployment #201
+- Commit: 2c63577
+- Production: https://ice-f6lcow8v3-iceerp.vercel.app
+- Summary: Fix BigInt serialization errors and add diagnostic endpoint for attachments troubleshooting.
+- Changes:
+  - app/api/diagnostic/attachments-check/route.ts: New diagnostic endpoint to check attachments count and samples. Converts BigInt IDs to Number for JSON serialization.
+  - app/api/attachments/route.ts: Added console logging for debugging (params, query execution). Fixed potential BigInt serialization issues.
+  - package.json: Added googleapis and dotenv dependencies for Google Drive API migration support.
+  - pnpm-lock.yaml: Updated lockfile to include new dependencies.
+
 ## 2026-04-20 Deployment #200
 - Commit: a7fd1d3
 - Production: https://ice-91t2qhk3a-iceerp.vercel.app
