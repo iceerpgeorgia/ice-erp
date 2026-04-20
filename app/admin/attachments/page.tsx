@@ -93,7 +93,7 @@ type ColumnConfig = {
   visible: boolean;
   sortable: boolean;
   filterable: boolean;
-  format?: 'currency' | 'number' | 'date' | 'filesize';
+  format?: 'currency' | 'number' | 'date';
   width: number;
 };
 
@@ -110,7 +110,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'counteragentName', label: 'Counteragent', visible: false, sortable: true, filterable: true, width: 200 },
   { key: 'jobName', label: 'Job', visible: false, sortable: true, filterable: true, width: 150 },
   { key: 'mimeType', label: 'Type', visible: true, sortable: true, filterable: true, width: 150 },
-  { key: 'fileSizeBytes', label: 'Size', visible: true, sortable: true, filterable: true, format: 'filesize', width: 100 },
+  { key: 'fileSizeBytes', label: 'Size', visible: true, sortable: true, filterable: true, format: 'number', width: 100 },
   { key: 'storageProvider', label: 'Storage', visible: false, sortable: true, filterable: true, width: 120 },
   { key: 'uploadedByUserId', label: 'Uploaded By', visible: false, sortable: true, filterable: true, width: 150 },
   { key: 'createdAt', label: 'Created', visible: true, sortable: true, filterable: true, format: 'date', width: 130 },
@@ -387,7 +387,7 @@ export default function AttachmentsPage() {
 
           {/* Clear Filters */}
           {hasActiveFilters && (
-            <ClearFiltersButton onClear={clearAllFilters} count={Object.keys(filters).length} />
+            <ClearFiltersButton onClear={clearAllFilters} activeCount={Object.keys(filters).length} />
           )}
 
           {/* Columns Settings */}
@@ -480,13 +480,24 @@ export default function AttachmentsPage() {
                         </Button>
                         {col.filterable && (
                           <ColumnFilterPopover
-                            column={col.key}
+                            columnKey={col.key}
                             columnLabel={col.label}
                             values={data.map((row) => getColumnValue(row, col.key))}
-                            filter={filters[col.key]}
-                            onFilterChange={(filter) => setFilter(col.key, filter)}
-                            onClearFilter={() => clearFilter(col.key)}
-                            format={col.format}
+                            activeFilters={filters[col.key]?.mode === 'facet' ? (filters[col.key] as any).values : new Set()}
+                            activeFilter={filters[col.key]}
+                            columnFormat={col.format}
+                            onAdvancedFilterChange={(filter) => setFilter(col.key, filter as any)}
+                            onFilterChange={(values) => {
+                              if (values.size > 0) {
+                                setFilter(col.key, { mode: 'facet', values });
+                              } else {
+                                clearFilter(col.key);
+                              }
+                            }}
+                            onSort={(direction) => {
+                              setSortColumn(col.key);
+                              setSortDirection(direction);
+                            }}
                           />
                         )}
                       </div>
