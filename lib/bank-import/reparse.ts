@@ -208,6 +208,50 @@ async function reparseRows(
     }
   }
 
+  // Mirror the same updates to local DB so reads via prisma are consistent
+  if (updateRows.length > 0) {
+    const COLUMNS = [
+      'counteragent_processed', 'parsing_rule_processed', 'payment_id_processed',
+      'is_processed', 'counteragent_inn', 'applied_rule_id', 'processing_case',
+      'counteragent_uuid', 'counteragent_account_number', 'project_uuid',
+      'financial_code_uuid', 'payment_id', 'nominal_currency_uuid', 'nominal_amount',
+    ];
+    const setClause = COLUMNS.map((col) => `"${col}" = d."${col}"`).join(', ');
+    // Build VALUES rows: (id, col1, col2, ...)
+    const params: any[] = [];
+    const valueRows: string[] = [];
+    let pi = 1;
+    for (const row of updateRows) {
+      const placeholders = [
+        `$${pi}::bigint`,
+        `$${pi + 1}::boolean`, `$${pi + 2}::boolean`, `$${pi + 3}::boolean`,
+        `$${pi + 4}::boolean`, `$${pi + 5}::text`, `$${pi + 6}::text`, `$${pi + 7}::text`,
+        `$${pi + 8}::uuid`, `$${pi + 9}::text`, `$${pi + 10}::uuid`,
+        `$${pi + 11}::uuid`, `$${pi + 12}::text`, `$${pi + 13}::uuid`, `$${pi + 14}::numeric`,
+      ];
+      valueRows.push(`(${placeholders.join(',')})`);
+      params.push(
+        row.id,
+        row.counteragent_processed, row.parsing_rule_processed, row.payment_id_processed,
+        row.is_processed, row.counteragent_inn, row.applied_rule_id, row.processing_case,
+        row.counteragent_uuid || null, row.counteragent_account_number || null, row.project_uuid || null,
+        row.financial_code_uuid || null, row.payment_id || null, row.nominal_currency_uuid || null, row.nominal_amount,
+      );
+      pi += 15;
+    }
+    const localSql = `
+      UPDATE "${tableName}" AS t SET ${setClause}, updated_at = NOW()
+      FROM (VALUES ${valueRows.join(',')})
+        AS d(id, ${COLUMNS.map((c) => `"${c}"`).join(', ')})
+      WHERE t.id = d.id
+    `;
+    try {
+      await prisma.$queryRawUnsafe(localSql, ...params);
+    } catch (localErr) {
+      console.warn(`[reparse] Local DB mirror update failed for ${tableName}:`, localErr);
+    }
+  }
+
   return updateRows.length;
 }
 

@@ -7,62 +7,51 @@ import { authOptions } from "@/lib/auth";
 
 export const revalidate = 0;
 
-/* ── offset constants (same as [id]/route.ts) ── */
-const BOG_USD_2_OFFSET = 300000000000n;
-const BOG_USD_OFFSET = 500000000000n;
-const BOG_EUR_OFFSET = 600000000000n;
-const BOG_AED_OFFSET = 700000000000n;
-const BOG_GBP_OFFSET = 800000000000n;
-const BOG_KZT_OFFSET = 900000000000n;
-const BOG_CNY_OFFSET = 950000000000n;
-const BOG_TRY_OFFSET = 980000000000n;
-const TBC_OFFSET = 1000000000000n;
+/* ── dynamic offset resolution (aligned with counteragent-statement) ── */
 const BATCH_OFFSET = 2000000000000n;
+const OFFSET_SPACING = 10000000000n; // bank_account.id * 10 billion
 
-type AllowedTable =
-  | "GE78BG0000000893486000_BOG_GEL"
-  | "GE74BG0000000586388146_BOG_USD"
-  | "GE78BG0000000893486000_BOG_USD"
-  | "GE78BG0000000893486000_BOG_EUR"
-  | "GE78BG0000000893486000_BOG_AED"
-  | "GE78BG0000000893486000_BOG_GBP"
-  | "GE78BG0000000893486000_BOG_KZT"
-  | "GE78BG0000000893486000_BOG_CNY"
-  | "GE78BG0000000893486000_BOG_TRY"
-  | "GE65TB7856036050100002_TBC_GEL";
+/** Table name safety: only alphanumeric + underscore */
+const SAFE_TABLE_RE = /^[A-Za-z0-9_]+$/;
+
+async function buildOffsetMap(): Promise<Map<bigint, string>> {
+  const rows = await prisma.$queryRawUnsafe<{ id: number; raw_table_name: string }[]>(
+    `SELECT id, raw_table_name FROM bank_accounts WHERE raw_table_name IS NOT NULL AND raw_table_name <> '' ORDER BY id`
+  );
+  const map = new Map<bigint, string>();
+  for (const row of rows) {
+    map.set(BigInt(row.id) * OFFSET_SPACING, row.raw_table_name);
+  }
+  return map;
+}
 
 function resolveSyntheticId(
-  rawId: bigint
-): { tableName: AllowedTable; recordId: bigint; isBatch: boolean } | null {
+  rawId: bigint,
+  offsetMap: Map<bigint, string>
+): { tableName: string; recordId: bigint; isBatch: boolean } | null {
   if (rawId < 0n) return null;
 
-  const decode = (
-    id: bigint,
-    isBatch: boolean
-  ): { tableName: AllowedTable; recordId: bigint; isBatch: boolean } => {
-    if (id >= TBC_OFFSET)
-      return { tableName: "GE65TB7856036050100002_TBC_GEL", recordId: id - TBC_OFFSET, isBatch };
-    if (id >= BOG_TRY_OFFSET)
-      return { tableName: "GE78BG0000000893486000_BOG_TRY", recordId: id - BOG_TRY_OFFSET, isBatch };
-    if (id >= BOG_CNY_OFFSET)
-      return { tableName: "GE78BG0000000893486000_BOG_CNY", recordId: id - BOG_CNY_OFFSET, isBatch };
-    if (id >= BOG_KZT_OFFSET)
-      return { tableName: "GE78BG0000000893486000_BOG_KZT", recordId: id - BOG_KZT_OFFSET, isBatch };
-    if (id >= BOG_GBP_OFFSET)
-      return { tableName: "GE78BG0000000893486000_BOG_GBP", recordId: id - BOG_GBP_OFFSET, isBatch };
-    if (id >= BOG_AED_OFFSET)
-      return { tableName: "GE78BG0000000893486000_BOG_AED", recordId: id - BOG_AED_OFFSET, isBatch };
-    if (id >= BOG_EUR_OFFSET)
-      return { tableName: "GE78BG0000000893486000_BOG_EUR", recordId: id - BOG_EUR_OFFSET, isBatch };
-    if (id >= BOG_USD_OFFSET)
-      return { tableName: "GE78BG0000000893486000_BOG_USD", recordId: id - BOG_USD_OFFSET, isBatch };
-    if (id >= BOG_USD_2_OFFSET)
-      return { tableName: "GE74BG0000000586388146_BOG_USD", recordId: id - BOG_USD_2_OFFSET, isBatch };
-    return { tableName: "GE78BG0000000893486000_BOG_GEL", recordId: id, isBatch };
-  };
+  let isBatch = false;
+  let id = rawId;
 
-  if (rawId >= BATCH_OFFSET) return decode(rawId - BATCH_OFFSET, true);
-  return decode(rawId, false);
+  if (id >= BATCH_OFFSET) {
+    isBatch = true;
+    id -= BATCH_OFFSET;
+  }
+
+  // Find the largest offset that is <= id
+  let bestOffset = -1n;
+  let bestTable = '';
+  for (const [offset, tableName] of offsetMap) {
+    if (offset <= id && offset > bestOffset) {
+      bestOffset = offset;
+      bestTable = tableName;
+    }
+  }
+
+  if (!bestTable || !SAFE_TABLE_RE.test(bestTable)) return null;
+
+  return { tableName: bestTable, recordId: id - bestOffset, isBatch };
 }
 
 const normalizeDateToISO = (value?: string | null): string | null => {
@@ -104,17 +93,19 @@ export async function PATCH(req: NextRequest) {
 
     console.log(`[bulk-bind] Binding ${ids.length} transactions to payment ${payment_uuid}`);
 
-    /* ── 1. Resolve synthetic IDs → table + real ID ── */
+    /* ── 1. Build dynamic offset map and resolve synthetic IDs ── */
+    const offsetMap = await buildOffsetMap();
+
     type ResolvedEntry = {
       originalId: string;
-      tableName: AllowedTable;
+      tableName: string;
       recordId: bigint;
     };
     const resolved: ResolvedEntry[] = [];
     const batchSkipped: string[] = [];
 
     for (const id of ids) {
-      const synth = resolveSyntheticId(BigInt(id));
+      const synth = resolveSyntheticId(BigInt(id), offsetMap);
       if (!synth) continue;
       if (synth.isBatch) {
         batchSkipped.push(String(id));
@@ -137,7 +128,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     /* ── 2. Group by table ── */
-    const byTable = new Map<AllowedTable, ResolvedEntry[]>();
+    const byTable = new Map<string, ResolvedEntry[]>();
     for (const entry of resolved) {
       let list = byTable.get(entry.tableName);
       if (!list) {
