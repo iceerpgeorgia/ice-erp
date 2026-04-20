@@ -28,7 +28,6 @@ import { Label } from '@/components/figma/ui/label';
 import { ColumnFilterPopover } from '@/components/figma/shared/column-filter-popover';
 import { ClearFiltersButton } from '@/components/figma/shared/clear-filters-button';
 import type { ColumnFilter } from '@/components/figma/shared/table-filters';
-import { useTableFilters } from '@/components/figma/shared/use-table-filters';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/figma/ui/card';
 
 type AttachmentLink = {
@@ -132,17 +131,42 @@ export default function AttachmentsPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editAttachment, setEditAttachment] = useState<Attachment | null>(null);
 
-  // Table filters
-  const {
-    filters,
-    sortBy,
-    sortDirection,
-    setFilter,
-    clearFilter,
-    clearAllFilters,
-    toggleSort,
-    hasActiveFilters,
-  } = useTableFilters<ColumnKey>(filtersStorageKey);
+  // Table filters and sorting
+  const [filters, setFilters] = useState<Record<string, ColumnFilter>>({});
+  const [sortColumn, setSortColumn] = useState<ColumnKey | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const setFilter = (key: ColumnKey, filter: ColumnFilter | null) => {
+    setFilters((prev) => {
+      if (!filter) {
+        const { [key]: removed, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [key]: filter };
+    });
+  };
+
+  const clearFilter = (key: ColumnKey) => {
+    setFilters((prev) => {
+      const { [key]: removed, ...rest } = prev;
+      return rest;
+    });
+  };
+
+  const clearAllFilters = () => {
+    setFilters({});
+  };
+
+  const toggleSort = (key: ColumnKey) => {
+    if (sortColumn === key) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(key);
+      setSortDirection('asc');
+    }
+  };
+
+  const hasActiveFilters = Object.keys(filters).length > 0;
 
   const fetchAttachments = async () => {
     try {
@@ -275,10 +299,10 @@ export default function AttachmentsPage() {
     });
 
     // Apply sorting
-    if (sortBy) {
+    if (sortColumn) {
       result.sort((a, b) => {
-        const aValue = getColumnValue(a, sortBy as ColumnKey);
-        const bValue = getColumnValue(b, sortBy as ColumnKey);
+        const aValue = getColumnValue(a, sortColumn);
+        const bValue = getColumnValue(b, sortColumn);
 
         if (aValue === null && bValue === null) return 0;
         if (aValue === null) return 1;
@@ -296,7 +320,7 @@ export default function AttachmentsPage() {
     }
 
     return result;
-  }, [data, filters, sortBy, sortDirection, columns]);
+  }, [data, filters, sortColumn, sortDirection, columns]);
 
   // Column visibility toggle
   const toggleColumnVisibility = (key: ColumnKey) => {
@@ -443,14 +467,14 @@ export default function AttachmentsPage() {
                           onClick={() => col.sortable && toggleSort(col.key)}
                         >
                           <span className="text-xs font-medium">{col.label}</span>
-                          {col.sortable && sortBy === col.key && (
+                          {col.sortable && sortColumn === col.key && (
                             sortDirection === 'asc' ? (
                               <ArrowUp className="h-3 w-3 ml-1" />
                             ) : (
                               <ArrowDown className="h-3 w-3 ml-1" />
                             )
                           )}
-                          {col.sortable && sortBy !== col.key && (
+                          {col.sortable && sortColumn !== col.key && (
                             <ArrowUpDown className="h-3 w-3 ml-1 opacity-30" />
                           )}
                         </Button>
