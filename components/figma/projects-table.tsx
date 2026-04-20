@@ -1369,14 +1369,17 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
 
                 {/* Bundle Distribution */}
                 {isBundleFC && (
-                  <div className="col-span-4 border-t pt-4">
-                    <BundleDistributionGrid
-                      bundleFinancialCodeUuid={formData.financialCodeUuid}
-                      projectValue={parseFloat(formData.value || '0') || 0}
-                      value={formData.bundleDistribution}
-                      onChange={(distribution) => setFormData({ ...formData, bundleDistribution: distribution })}
-                      disabled={isSaving}
-                    />
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Distribution</Label>
+                    <div className="col-span-3">
+                      <BundleDistributionGrid
+                        bundleFinancialCodeUuid={formData.financialCodeUuid}
+                        projectValue={parseFloat(formData.value || '0') || 0}
+                        value={formData.bundleDistribution}
+                        onChange={(distribution) => setFormData({ ...formData, bundleDistribution: distribution })}
+                        disabled={isSaving}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -1644,14 +1647,17 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
 
                 {/* Bundle Distribution */}
                 {isBundleFC && (
-                  <div className="col-span-4 border-t pt-4">
-                    <BundleDistributionGrid
-                      bundleFinancialCodeUuid={formData.financialCodeUuid}
-                      projectValue={parseFloat(formData.value || '0') || 0}
-                      value={formData.bundleDistribution}
-                      onChange={(distribution) => setFormData({ ...formData, bundleDistribution: distribution })}
-                      disabled={isSaving}
-                    />
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Distribution</Label>
+                    <div className="col-span-3">
+                      <BundleDistributionGrid
+                        bundleFinancialCodeUuid={formData.financialCodeUuid}
+                        projectValue={parseFloat(formData.value || '0') || 0}
+                        value={formData.bundleDistribution}
+                        onChange={(distribution) => setFormData({ ...formData, bundleDistribution: distribution })}
+                        disabled={isSaving}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
