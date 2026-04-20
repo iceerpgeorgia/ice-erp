@@ -281,15 +281,28 @@ export async function reparseByCounteragentInn(
   let total = 0;
 
   for (const tableName of tables) {
-    const { data: rows, error } = await supabase
+    // Fetch records that need (re-)processing:
+    // 1. counteragent_processed = false (normal case after the bug fix)
+    // 2. counteragent_processed = true but counteragent_uuid IS NULL (stuck records from the old bug)
+    const { data: unprocessedRows, error: err1 } = await supabase
       .from(tableName)
       .select(SELECT_COLUMNS)
       .in('counteragent_inn', normalizedInns)
       .eq('counteragent_processed', false);
 
-    if (error) throw error;
+    if (err1) throw err1;
 
-    const updated = await reparseRows(tableName, rows || [], context);
+    const { data: stuckRows, error: err2 } = await supabase
+      .from(tableName)
+      .select(SELECT_COLUMNS)
+      .in('counteragent_inn', normalizedInns)
+      .eq('counteragent_processed', true)
+      .is('counteragent_uuid', null);
+
+    if (err2) throw err2;
+
+    const allRows = [...(unprocessedRows || []), ...(stuckRows || [])];
+    const updated = await reparseRows(tableName, allRows, context);
     byTable[tableName] = updated;
     total += updated;
   }

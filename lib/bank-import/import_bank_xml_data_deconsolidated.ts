@@ -388,7 +388,7 @@ export function processSingleRecord(
       result.case1_counteragent_found = true;
       stats.case1_counteragent_processed++;
     } else {
-      result.case1_counteragent_processed = true;
+      result.case1_counteragent_processed = false;
       result.case3_counteragent_missing = true;
       stats.case3_counteragent_inn_nonblank_no_match++;
 
