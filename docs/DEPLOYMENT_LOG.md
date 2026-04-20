@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-04-20 Deployment #196
+- Commit: a226e27
+- Production: https://ice-ma1xjhi7v-iceerp.vercel.app
+- Summary: Fix missing payment ID when opening add-ledger dialog from payments report row "+" button.
+- Changes:
+  - components/figma/payments-report-table.tsx: openDialogForPayment now awaits fetchPayments() when payments array is empty. Added useEffect to resolve selectedPaymentDetails once payments load. Fixes race condition where payment lookup silently failed on first use.
+
 ## 2026-04-20 Deployment #195
 - Commit: a00862d
 - Production: https://ice-1ebsjlcc6-iceerp.vercel.app
