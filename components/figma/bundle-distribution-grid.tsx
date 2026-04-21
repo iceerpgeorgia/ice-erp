@@ -20,7 +20,7 @@ export type BundleDistributionRow = {
   percentage: string;
   amount: string;
   paymentId?: string | null;
-  distributionDate?: string | null;
+  distributionDate: string;
 };
 
 type BundleDistributionGridProps = {
@@ -48,7 +48,15 @@ export function BundleDistributionGrid({
   const [loading, setLoading] = useState(false);
   const [localValue, setLocalValue] = useState<BundleDistributionRow[]>([]);
   const [distributionMode, setDistributionMode] = useState<'percentage' | 'amount' | 'none'>('none');
-  const [distributionDate, setDistributionDate] = useState<string>('');
+  
+  // Helper to format today's date as dd.mm.yyyy
+  const getTodayFormatted = () => {
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yyyy = today.getFullYear();
+    return `${dd}.${mm}.${yyyy}`;
+  };
 
   // Fetch child financial codes when bundle FC changes
   useEffect(() => {
@@ -72,6 +80,7 @@ export function BundleDistributionGrid({
               percentage: '',
               amount: '',
               paymentId: null,
+              distributionDate: getTodayFormatted(),
             }));
             onChange(initialDistribution);
           }
@@ -87,18 +96,10 @@ export function BundleDistributionGrid({
   // Sync local state when dialog opens
   useEffect(() => {
     if (isOpen) {
-      setLocalValue(value.map(r => ({ ...r })));
-      // Initialize date with current date if not set
-      const existingDate = value[0]?.distributionDate;
-      if (existingDate) {
-        setDistributionDate(existingDate);
-      } else {
-        const today = new Date();
-        const dd = String(today.getDate()).padStart(2, '0');
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const yyyy = today.getFullYear();
-        setDistributionDate(`${dd}.${mm}.${yyyy}`);
-      }
+      setLocalValue(value.map(r => ({
+        ...r,
+        distributionDate: r.distributionDate || getTodayFormatted()
+      })));
     }
   }, [isOpen, value]);
 
@@ -169,13 +170,15 @@ export function BundleDistributionGrid({
   };
 
   const handleApply = () => {
-    // Add distribution date to all rows
-    const updatedValue = localValue.map(row => ({
-      ...row,
-      distributionDate: distributionDate || null
-    }));
-    onChange(updatedValue);
+    onChange(localValue);
     setIsOpen(false);
+  };
+  
+  const handleDateChange = (index: number, newDate: string) => {
+    if (disabled) return;
+    const updated = [...localValue];
+    updated[index] = { ...updated[index], distributionDate: newDate };
+    setLocalValue(updated);
   };
 
   const filledCount = value.filter(r => (r.percentage && parseFloat(r.percentage) > 0) || (r.amount && parseFloat(r.amount) > 0)).length;
@@ -228,23 +231,6 @@ export function BundleDistributionGrid({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="mb-4">
-            <Label htmlFor="distribution-date" className="text-sm font-medium">
-              Distribution Date
-            </Label>
-            <Input
-              id="distribution-date"
-              type="text"
-              placeholder="dd.mm.yyyy"
-              value={distributionDate}
-              onChange={(e) => setDistributionDate(e.target.value)}
-              disabled={disabled}
-              className="mt-1.5 w-40"
-              maxLength={10}
-            />
-            <p className="text-xs text-muted-foreground mt-1">Format: dd.mm.yyyy</p>
-          </div>
-
           {childFinancialCodes.length === 0 ? (
             <div className="flex items-center p-4 text-sm text-gray-500">
               <AlertCircle className="h-4 w-4 mr-2" />
@@ -259,6 +245,7 @@ export function BundleDistributionGrid({
                       <th className="px-3 py-2 text-left font-medium">Financial Code</th>
                       <th className="px-3 py-2 text-left font-medium w-24">%</th>
                       <th className="px-3 py-2 text-left font-medium w-32">Amount</th>
+                      <th className="px-3 py-2 text-left font-medium w-28">Date</th>
                       <th className="px-3 py-2 text-left font-medium w-40">Payment ID</th>
                     </tr>
                   </thead>
@@ -292,6 +279,17 @@ export function BundleDistributionGrid({
                           />
                         </td>
                         <td className="px-3 py-2">
+                          <Input
+                            type="text"
+                            placeholder="dd.mm.yyyy"
+                            value={row.distributionDate}
+                            onChange={(e) => handleDateChange(index, e.target.value)}
+                            disabled={disabled}
+                            className="w-24 h-8 text-xs"
+                            maxLength={10}
+                          />
+                        </td>
+                        <td className="px-3 py-2">
                           {row.paymentId ? (
                             <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded font-mono">
                               {row.paymentId}
@@ -312,6 +310,8 @@ export function BundleDistributionGrid({
                       <td className={`px-3 py-2 ${distributionMode === 'amount' && !amountValid ? 'text-red-600' : ''}`}>
                         {totals.amountSum.toFixed(2)}
                       </td>
+                      <td className="px-3 py-2" />
+                      <td className="px-3 py-2" />
                       <td className="px-3 py-2" />
                     </tr>
                   </tfoot>

@@ -372,13 +372,13 @@ export async function POST(req: NextRequest) {
         if (!distRow.financialCodeUuid) continue;
         
         // Skip rows with no amount/percentage (not distributed)
-        const hasDistribution = (distRow.amount && parseFloat(distRow.amount) > 0) || 
-                               (distRow.percentage && parseFloat(distRow.percentage) > 0);
+        const distributedAmount = distRow.amount && parseFloat(distRow.amount) > 0 ? parseFloat(distRow.amount) : 0;
+        const hasDistribution = distributedAmount > 0 || (distRow.percentage && parseFloat(distRow.percentage) > 0);
         if (!hasDistribution) continue;
 
         // Find the project-derived bundle payment for this child FC
-        const bundlePayments = await prisma.$queryRawUnsafe<Array<{ id: bigint }>>(
-          `SELECT id
+        const bundlePayments = await prisma.$queryRawUnsafe<Array<{ id: bigint; payment_id: string }>>(
+          `SELECT id, payment_id
            FROM payments
            WHERE project_uuid = $1::uuid 
              AND is_project_derived = true 
@@ -389,11 +389,14 @@ export async function POST(req: NextRequest) {
           distRow.financialCodeUuid
         );
 
+        let paymentIdToUse = '';
+
         if (bundlePayments.length > 0) {
           // Payment exists - update it
           const newPaymentId = distRow.paymentId || '';
+          paymentIdToUse = bundlePayments[0].payment_id;
           
-          if (newPaymentId) {
+          if (newPaymentId && bundlePayments[0].payment_id !== newPaymentId) {
             await prisma.$queryRawUnsafe(
               `UPDATE payments 
                SET payment_id = $1, 
@@ -404,6 +407,7 @@ export async function POST(req: NextRequest) {
               newPaymentId,
               bundlePayments[0].id
             );
+            paymentIdToUse = newPaymentId;
 
             // Reparse bank transactions if payment_id was set
             await reparseByPaymentId(newPaymentId);
@@ -412,6 +416,7 @@ export async function POST(req: NextRequest) {
           // Payment doesn't exist - create it
           try {
             const newPaymentId = distRow.paymentId || '';
+            paymentIdToUse = newPaymentId;
             await prisma.$queryRawUnsafe(
               `INSERT INTO payments (
                 project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax,
@@ -427,6 +432,33 @@ export async function POST(req: NextRequest) {
             }
           } catch (createErr: any) {
             console.warn('Bundle child payment creation skipped:', createErr?.message);
+          }
+        }
+
+        // Create payments_ledger entry if amount is distributed and payment_id exists
+        if (distributedAmount > 0 && paymentIdToUse && distRow.distributionDate) {
+          try {
+            // Parse date from dd.mm.yyyy format
+            const dateParts = distRow.distributionDate.split('.');
+            let effectiveDate = new Date();
+            if (dateParts.length === 3) {
+              const [day, month, year] = dateParts;
+              effectiveDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            }
+
+            await prisma.$queryRawUnsafe(
+              `INSERT INTO payments_ledger (
+                payment_id, effective_date, accrual, "order", user_email, comment, insider_uuid
+              ) VALUES ($1, $2, 0, $3, $4, $5, $6::uuid)`,
+              paymentIdToUse,
+              effectiveDate,
+              distributedAmount,
+              auth.user?.email || 'system',
+              `Bundle distribution: ${distRow.financialCodeName}`,
+              effectiveInsiderUuid
+            );
+          } catch (ledgerErr: any) {
+            console.warn('Bundle ledger creation skipped:', ledgerErr?.message);
           }
         }
       }
@@ -573,8 +605,8 @@ export async function PATCH(req: NextRequest) {
         if (!distRow.financialCodeUuid) continue;
         
         // Skip rows with no amount/percentage (not distributed)
-        const hasDistribution = (distRow.amount && parseFloat(distRow.amount) > 0) || 
-                               (distRow.percentage && parseFloat(distRow.percentage) > 0);
+        const distributedAmount = distRow.amount && parseFloat(distRow.amount) > 0 ? parseFloat(distRow.amount) : 0;
+        const hasDistribution = distributedAmount > 0 || (distRow.percentage && parseFloat(distRow.percentage) > 0);
         if (!hasDistribution) continue;
 
         // Find the project-derived bundle payment for this child FC
@@ -590,10 +622,13 @@ export async function PATCH(req: NextRequest) {
           distRow.financialCodeUuid
         );
 
+        let paymentIdToUse = '';
+
         if (bundlePayments.length > 0) {
           // Payment exists - update it
           const bundlePayment = bundlePayments[0];
           const newPaymentId = distRow.paymentId || '';
+          paymentIdToUse = bundlePayment.payment_id;
 
           // Only update if payment_id changed
           if (bundlePayment.payment_id !== newPaymentId) {
@@ -607,6 +642,7 @@ export async function PATCH(req: NextRequest) {
               newPaymentId, // record_uuid should match payment_id for consistency
               bundlePayment.id
             );
+            paymentIdToUse = newPaymentId || bundlePayment.payment_id;
 
             // Reparse bank transactions if payment_id was added or changed
             if (newPaymentId && bundlePayment.payment_id !== newPaymentId) {
@@ -617,6 +653,7 @@ export async function PATCH(req: NextRequest) {
           // Payment doesn't exist - create it
           try {
             const newPaymentId = distRow.paymentId || '';
+            paymentIdToUse = newPaymentId;
             // Need to get counteragent and currency from the project
             const projectData = await prisma.$queryRawUnsafe<Array<{ counteragent_uuid: string; currency_uuid: string; insider_uuid: string | null }>>(
               `SELECT counteragent_uuid, currency_uuid, insider_uuid FROM projects WHERE project_uuid = $1::uuid LIMIT 1`,
@@ -641,6 +678,40 @@ export async function PATCH(req: NextRequest) {
             }
           } catch (createErr: any) {
             console.warn('Bundle child payment creation skipped:', createErr?.message);
+          }
+        }
+
+        // Create payments_ledger entry if amount is distributed and payment_id exists
+        if (distributedAmount > 0 && paymentIdToUse && distRow.distributionDate) {
+          try {
+            // Parse date from dd.mm.yyyy format
+            const dateParts = distRow.distributionDate.split('.');
+            let effectiveDate = new Date();
+            if (dateParts.length === 3) {
+              const [day, month, year] = dateParts;
+              effectiveDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            }
+
+            // Get insider_uuid from project if not already available
+            const projectInsider = await prisma.$queryRawUnsafe<Array<{ insider_uuid: string | null }>>(
+              `SELECT insider_uuid FROM projects WHERE project_uuid = $1::uuid LIMIT 1`,
+              project.project_uuid
+            );
+            const insiderUuid = projectInsider[0]?.insider_uuid || null;
+
+            await prisma.$queryRawUnsafe(
+              `INSERT INTO payments_ledger (
+                payment_id, effective_date, accrual, "order", user_email, comment, insider_uuid
+              ) VALUES ($1, $2, 0, $3, $4, $5, $6::uuid)`,
+              paymentIdToUse,
+              effectiveDate,
+              distributedAmount,
+              auth.user?.email || 'system',
+              `Bundle distribution: ${distRow.financialCodeName}`,
+              insiderUuid
+            );
+          } catch (ledgerErr: any) {
+            console.warn('Bundle ledger creation skipped:', ledgerErr?.message);
           }
         }
       }
