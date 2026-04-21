@@ -1,5 +1,21 @@
 # Deployment Log
 
+## 2026-04-21 Deployment #218
+- Commit: 8789b1c
+- Production: https://ice-7oz0ipx9e-iceerp.vercel.app
+- Summary: Add Delete button to ledger entry edit dialog in counteragent statement.
+- Changes:
+  - app/api/payments-ledger/[id]/route.ts: Added DELETE handler — authenticates session, finds record, hard-deletes by id, logs audit.
+  - app/counteragent-statement/[counteragentUuid]/page.tsx: Added `Trash2` icon import, `isLedgerDeleting` state, `deleteLedgerEntry` async function (DELETE request + remove entry from local state). Added red Delete button on left side of dialog footer; Cancel and Save remain on right.
+
+## 2026-04-21 Deployment #217
+- Commit: b02e823
+- Production: https://ice-8x5ad71j6-iceerp.vercel.app
+- Summary: Fix bundle distribution ledger duplicate — exact comment match was leaving orphan rows.
+- Root Cause: DELETE used `comment = 'Bundle distribution: {FC name}'` exactly. If the FC name differed from what was stored (e.g. prior saves), the old row survived and a duplicate was created.
+- Changes:
+  - app/api/projects/route.ts: Changed all three bundle distribution DELETE statements to use `comment LIKE 'Bundle distribution:%'` keyed on payment_id, eliminating orphan rows regardless of FC name.
+
 ## 2026-04-21 Deployment #216
 - Commit: 0268f5b
 - Production: https://ice-kpd5qcoyg-iceerp.vercel.app
