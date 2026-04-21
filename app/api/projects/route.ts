@@ -835,7 +835,7 @@ export async function PATCH(req: NextRequest) {
           } else {
             try {
               await prisma.$queryRawUnsafe(
-                `INSERT INTO payments (project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid, payment_id, record_uuid, insider_uuid, is_project_derived, is_bundle_payment, updated_at) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, '', '', $5::uuid, true, true, NOW())`,
+                `INSERT INTO payments (project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid, payment_id, record_uuid, insider_uuid, is_project_derived, is_bundle_payment, updated_at) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, '', '', $5::uuid, false, true, NOW())`,
                 project.project_uuid, project.counteragent_uuid, childFC.uuid, project.currency_uuid, project.insider_uuid
               );
             } catch (bundleErr: any) { console.warn('Bundle sync skipped:', bundleErr?.message); }
