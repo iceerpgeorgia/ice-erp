@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-22 Deployment #223
+- Commit: c533fcf
+- Production: https://ice-keah2bfto-iceerp.vercel.app
+- Summary: Fix bundle distribution edit dialog not loading existing data (amounts, percentages, payment IDs all blank on re-open).
+- Changes:
+  - components/figma/bundle-distribution-grid.tsx: Fixed stale closure bug — added `valueRef` updated via `useEffect` so the child-FC fetch callback always checks the current `value` (not stale mount-time empty array) before calling `onChange` with blank rows.
+  - app/api/projects/bundle-distribution/route.ts: Added `is_deleted` filter on both `payments_ledger` subqueries; now computes and returns correct `percentage` values (was always returning `''`).
+
 ## 2026-04-22 Deployment #222
 - Commit: ad32280
 - Production: https://ice-8leor5o8v-iceerp.vercel.app
