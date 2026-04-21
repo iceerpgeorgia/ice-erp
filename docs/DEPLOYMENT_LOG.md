@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-04-21 Deployment #212
+- Commit: 1b94da7
+- Production: https://ice-7ilyrbpl8-iceerp.vercel.app
+- Summary: Fix bundle distribution value prop sync and add bundle distribution access to payments report.
+- Changes:
+  - components/figma/bundle-distribution-grid.tsx: **CRITICAL FIX** - Changed useEffect dependencies from `[isOpen, value]` with conditional sync to just `[value]` without conditional. Previously, localValue only synced when dialog opened (isOpen changed), missing async data fetches that complete after dialog opens. Now syncs whenever value prop changes, fixing issue where fetched distribution data wouldn't display in UI.
+  - components/figma/payments-report-table.tsx: Added bundle distribution dialog access for parent FC financial codes. Added LayoutGrid icon button in actions column next to Edit payment button. Added state management (isBundleDistributionOpen, bundleDistributionData, bundleDistributionProject, bundleDistributionLoading). Added handleOpenBundleDistribution function to fetch project data and bundle distribution data from API. Added Bundle Distribution Dialog using BundleDistributionGrid component. Button shown for all rows with projectUuid and financialCodeUuid (displays regardless of is_bundle flag for convenience).
+- Bug Fix: Resolves root cause of "bundle distribution data not showing in edit dialog". The BundleDistributionGrid component's useEffect only triggered when isOpen changed, but the value prop was updated asynchronously after dialog opened (from fetch). This timing issue meant fetched data arrived but never synced to localValue state. Now syncs immediately when value prop changes.
+- Feature: Users can now access bundle distribution from payments report table in addition to projects table. Clicking the LayoutGrid icon (purple) in any payment row with project and FC opens the bundle distribution dialog, loads existing ledger data, and allows editing distribution amounts and dates.
+
 ## 2026-04-21 Deployment #211 (DEBUG)
 - Commit: 93fe24a
 - Production: https://ice-4rcn8efly-iceerp.vercel.app
