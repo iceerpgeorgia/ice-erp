@@ -198,12 +198,14 @@ export function PaymentsReportTable() {
   const [isBundleDistributionOpen, setIsBundleDistributionOpen] = useState(false);
   const [bundleDistributionData, setBundleDistributionData] = useState<BundleDistributionRow[]>([]);
   const [bundleDistributionProject, setBundleDistributionProject] = useState<{
+    projectId: number;
     projectUuid: string;
     projectName: string;
     financialCodeUuid: string;
     value: number;
   } | null>(null);
   const [bundleDistributionLoading, setBundleDistributionLoading] = useState(false);
+  const [bundleDistributionSaving, setBundleDistributionSaving] = useState(false);
   
   const counteragentsWithNegativeBalance = useMemo(() => {
     const flagged = new Set<string>();
@@ -2205,6 +2207,7 @@ export function PaymentsReportTable() {
       
       const project = projects[0];
       setBundleDistributionProject({
+        projectId: Number(project.id),
         projectUuid: project.project_uuid,
         projectName: project.project_name,
         financialCodeUuid: project.financial_code_uuid,
@@ -4162,6 +4165,34 @@ export function PaymentsReportTable() {
           <Button variant="outline" onClick={() => setIsBundleDistributionOpen(false)}>
             Close
           </Button>
+          {bundleDistributionProject && (
+            <Button
+              onClick={async () => {
+                setBundleDistributionSaving(true);
+                try {
+                  const res = await fetch(`/api/projects?id=${bundleDistributionProject.projectId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bundleDistribution: bundleDistributionData })
+                  });
+                  if (!res.ok) {
+                    const err = await res.json();
+                    alert(`Failed to save: ${err.error || 'Unknown error'}`);
+                  } else {
+                    setIsBundleDistributionOpen(false);
+                    fetchData({ silent: true });
+                  }
+                } catch (e) {
+                  alert('Failed to save distribution');
+                } finally {
+                  setBundleDistributionSaving(false);
+                }
+              }}
+              disabled={bundleDistributionSaving}
+            >
+              {bundleDistributionSaving ? 'Saving...' : 'Save'}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
