@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { useParams } from 'next/navigation';
-import { Edit2, Eye, Filter, Plus, Search, Settings, X } from 'lucide-react';
+import { Edit2, Eye, Filter, Plus, Search, Settings, Trash2, X } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Checkbox } from '../../../components/ui/checkbox';
@@ -128,6 +128,7 @@ export default function CounteragentStatementPage() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isLedgerEditOpen, setIsLedgerEditOpen] = useState(false);
   const [isLedgerSaving, setIsLedgerSaving] = useState(false);
+  const [isLedgerDeleting, setIsLedgerDeleting] = useState(false);
   const [editingLedgerId, setEditingLedgerId] = useState<number | null>(null);
   const [editPaymentId, setEditPaymentId] = useState('');
   const [editEffectiveDate, setEditEffectiveDate] = useState('');
@@ -1185,6 +1186,34 @@ export default function CounteragentStatementPage() {
     }
   };
 
+  const deleteLedgerEntry = async () => {
+    if (!editingLedgerId) return;
+    if (!confirm('Delete this ledger entry? This cannot be undone.')) return;
+    setIsLedgerDeleting(true);
+    try {
+      const response = await fetch(`/api/payments-ledger/${editingLedgerId}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to delete ledger entry');
+      }
+      setStatement((prev: any) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          ledgerEntries: ((prev.ledgerEntries as any[]) || []).filter(
+            (entry) => Number(entry.id) !== editingLedgerId
+          ),
+        };
+      });
+      setIsLedgerEditOpen(false);
+      setEditingLedgerId(null);
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete ledger entry');
+    } finally {
+      setIsLedgerDeleting(false);
+    }
+  };
+
   const openLedgerEditDialog = (row: StatementRow) => {
     if (!row.ledgerId) return;
     setEditingLedgerId(row.ledgerId);
@@ -2109,15 +2138,23 @@ export default function CounteragentStatementPage() {
           </div>
           <DialogFooter>
             <Button
+              variant="destructive"
+              onClick={deleteLedgerEntry}
+              disabled={isLedgerSaving || isLedgerDeleting}
+              className="mr-auto"
+            >
+              {isLedgerDeleting ? 'Deleting...' : <><Trash2 className="h-4 w-4 mr-1" />Delete</>}
+            </Button>
+            <Button
               variant="outline"
               onClick={() => setIsLedgerEditOpen(false)}
-              disabled={isLedgerSaving}
+              disabled={isLedgerSaving || isLedgerDeleting}
             >
               Cancel
             </Button>
             <Button
               onClick={saveLedgerEdit}
-              disabled={isLedgerSaving}
+              disabled={isLedgerSaving || isLedgerDeleting}
               className="bg-blue-600 hover:bg-blue-700"
             >
               {isLedgerSaving ? 'Saving...' : 'Save'}

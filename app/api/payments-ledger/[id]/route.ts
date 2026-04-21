@@ -204,3 +204,48 @@ export async function PATCH(
     );
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const id = parseInt(params.id, 10);
+    if (isNaN(id)) {
+      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
+    }
+
+    const existing = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT * FROM payments_ledger WHERE id = $1 LIMIT 1`,
+      id
+    );
+    if (!existing || existing.length === 0) {
+      return NextResponse.json({ error: 'Record not found' }, { status: 404 });
+    }
+
+    await prisma.$queryRawUnsafe(
+      `DELETE FROM payments_ledger WHERE id = $1`,
+      id
+    );
+
+    await logAudit({
+      recordId: BigInt(id),
+      action: 'delete',
+      userEmail: session.user.email,
+      changes: { before: existing[0], after: null }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting ledger entry:', error);
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
