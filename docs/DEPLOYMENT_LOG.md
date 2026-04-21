@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-22 Deployment #224
+- Commit: 8628a9d
+- Production: https://ice-2h3da4r8l-iceerp.vercel.app
+- Summary: Fix insider field dropping on project edit; only show deconfirm dialog when there are actually confirmed auto-generated ledger entries.
+- Changes:
+  - components/figma/projects-table.tsx: Changed both BundleDistributionGrid `onChange` props from stale-closure `{ ...formData, bundleDistribution }` to functional `prev => ({ ...prev, bundleDistribution })`, preventing the async child-FC callback from wiping the insiderUuid. `handleSave` now calls `/api/projects/confirmed-check` before showing the warning dialog — dialog only appears when confirmed entries exist.
+  - app/api/projects/confirmed-check/route.ts: New GET endpoint. Returns `{ hasConfirmed, count }` for payments where `is_project_derived = true OR is_bundle_payment = true`, `confirmed = true`, and not deleted.
+
 ## 2026-04-22 Deployment #223
 - Commit: c533fcf
 - Production: https://ice-keah2bfto-iceerp.vercel.app
