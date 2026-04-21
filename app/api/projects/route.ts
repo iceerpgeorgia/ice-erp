@@ -437,7 +437,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Upsert payments_ledger: delete existing entries (both old and new payment_ids) then insert fresh one
+        // Upsert payments_ledger: find existing auto-managed entry, update in place; insert if none
         if (distributedAmount > 0 && paymentIdToUse) {
           try {
             // Parse date from dd.mm.yyyy format, use current date if empty or invalid
@@ -450,25 +450,48 @@ export async function POST(req: NextRequest) {
 
             const comment = `Bundle distribution: ${distRow.financialCodeName}`;
 
-            // Delete ALL existing bundle distribution entries for both old and new payment_ids
-            // Use LIKE pattern so FC name changes don't leave orphan rows
-            await prisma.$queryRawUnsafe(
-              `DELETE FROM payments_ledger WHERE comment LIKE 'Bundle distribution:%' AND (payment_id = $1 OR ($2 <> '' AND payment_id = $2))`,
+            // Find all auto-managed ledger entries for this payment (NULL or Bundle distribution comment)
+            // Search both new and old payment_id to handle payment_id changes
+            const existingLedger = await prisma.$queryRawUnsafe<Array<{ id: bigint }>>(
+              `SELECT id FROM payments_ledger
+               WHERE (comment IS NULL OR comment LIKE 'Bundle distribution:%')
+                 AND (payment_id = $1 OR ($2 <> '' AND payment_id = $2))
+               ORDER BY id ASC`,
               paymentIdToUse,
               oldPaymentId
             );
 
-            await prisma.$queryRawUnsafe(
-              `INSERT INTO payments_ledger (
-                payment_id, effective_date, accrual, "order", user_email, comment, insider_uuid
-              ) VALUES ($1, $2, $3, $3, $4, $5, $6::uuid)`,
-              paymentIdToUse,
-              effectiveDate,
-              distributedAmount,
-              auth.user?.email || 'system',
-              comment,
-              effectiveInsiderUuid
-            );
+            if (existingLedger.length > 0) {
+              // Update the oldest matching row in place
+              const keepId = existingLedger[0].id;
+              await prisma.$queryRawUnsafe(
+                `UPDATE payments_ledger
+                 SET payment_id = $1, effective_date = $2, accrual = $3, "order" = $3,
+                     comment = $4, insider_uuid = $5::uuid, user_email = $6, updated_at = NOW()
+                 WHERE id = $7`,
+                paymentIdToUse, effectiveDate, distributedAmount, comment,
+                effectiveInsiderUuid, auth.user?.email || 'system', keepId
+              );
+              // Delete any extra duplicate rows
+              if (existingLedger.length > 1) {
+                const extraIds = existingLedger.slice(1).map(r => r.id.toString()).join(',');
+                await prisma.$queryRawUnsafe(
+                  `DELETE FROM payments_ledger WHERE id IN (${extraIds})`
+                );
+              }
+            } else {
+              await prisma.$queryRawUnsafe(
+                `INSERT INTO payments_ledger (
+                  payment_id, effective_date, accrual, "order", user_email, comment, insider_uuid
+                ) VALUES ($1, $2, $3, $3, $4, $5, $6::uuid)`,
+                paymentIdToUse,
+                effectiveDate,
+                distributedAmount,
+                auth.user?.email || 'system',
+                comment,
+                effectiveInsiderUuid
+              );
+            }
           } catch (ledgerErr: any) {
             console.warn('Bundle ledger upsert skipped:', ledgerErr?.message);
           }
@@ -682,25 +705,45 @@ export async function PATCH(req: NextRequest) {
 
               const comment = `Bundle distribution: ${distRow.financialCodeName}`;
 
-              // Delete ALL existing bundle distribution entries for both old and new payment_ids
-              // Use LIKE pattern so FC name changes don't leave orphan rows
-              await prisma.$queryRawUnsafe(
-                `DELETE FROM payments_ledger WHERE comment LIKE 'Bundle distribution:%' AND (payment_id = $1 OR ($2 <> '' AND payment_id = $2))`,
+              // Find existing auto-managed bundle ledger entries (match on NULL comment OR Bundle distribution prefix)
+              const existingLedger = await prisma.$queryRawUnsafe<Array<{ id: bigint }>>(
+                `SELECT id FROM payments_ledger
+                 WHERE (comment IS NULL OR comment LIKE 'Bundle distribution:%')
+                   AND (payment_id = $1 OR ($2 <> '' AND payment_id = $2))
+                 ORDER BY id ASC`,
                 paymentIdToUse,
                 oldPaymentId
               );
 
-              await prisma.$queryRawUnsafe(
-                `INSERT INTO payments_ledger (
-                  payment_id, effective_date, accrual, "order", user_email, comment, insider_uuid
-                ) VALUES ($1, $2, $3, $3, $4, $5, $6::uuid)`,
-                paymentIdToUse,
-                effectiveDate,
-                distributedAmount,
-                auth.user?.email || 'system',
-                comment,
-                insiderUuid
-              );
+              if (existingLedger.length > 0) {
+                const keepId = existingLedger[0].id;
+                await prisma.$queryRawUnsafe(
+                  `UPDATE payments_ledger
+                   SET payment_id = $1, effective_date = $2, accrual = $3, "order" = $3,
+                       comment = $4, insider_uuid = $5::uuid, user_email = $6, updated_at = NOW()
+                   WHERE id = $7`,
+                  paymentIdToUse, effectiveDate, distributedAmount, comment,
+                  insiderUuid, auth.user?.email || 'system', keepId
+                );
+                if (existingLedger.length > 1) {
+                  const extraIds = existingLedger.slice(1).map(r => r.id.toString()).join(',');
+                  await prisma.$queryRawUnsafe(
+                    `DELETE FROM payments_ledger WHERE id IN (${extraIds})`
+                  );
+                }
+              } else {
+                await prisma.$queryRawUnsafe(
+                  `INSERT INTO payments_ledger (
+                    payment_id, effective_date, accrual, "order", user_email, comment, insider_uuid
+                  ) VALUES ($1, $2, $3, $3, $4, $5, $6::uuid)`,
+                  paymentIdToUse,
+                  effectiveDate,
+                  distributedAmount,
+                  auth.user?.email || 'system',
+                  comment,
+                  insiderUuid
+                );
+              }
             } catch (ledgerErr: any) {
               console.warn('Bundle ledger upsert skipped:', ledgerErr?.message);
             }
@@ -743,21 +786,42 @@ export async function PATCH(req: NextRequest) {
                   effectiveDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
                 }
                 const comment = `Bundle distribution: ${distRow.financialCodeName}`;
-                await prisma.$queryRawUnsafe(
-                  `DELETE FROM payments_ledger WHERE comment LIKE 'Bundle distribution:%' AND payment_id = $1`,
+                const existingLedger = await prisma.$queryRawUnsafe<Array<{ id: bigint }>>(
+                  `SELECT id FROM payments_ledger
+                   WHERE payment_id = $1
+                     AND (comment IS NULL OR comment LIKE 'Bundle distribution:%')
+                   ORDER BY id ASC`,
                   newPaymentId
                 );
-                await prisma.$queryRawUnsafe(
-                  `INSERT INTO payments_ledger (
-                    payment_id, effective_date, accrual, "order", user_email, comment, insider_uuid
-                  ) VALUES ($1, $2, $3, $3, $4, $5, $6::uuid)`,
-                  newPaymentId,
-                  effectiveDate,
-                  distributedAmount,
-                  auth.user?.email || 'system',
-                  comment,
-                  insider_uuid
-                );
+                if (existingLedger.length > 0) {
+                  const keepId = existingLedger[0].id;
+                  await prisma.$queryRawUnsafe(
+                    `UPDATE payments_ledger
+                     SET effective_date = $1, accrual = $2, "order" = $2,
+                         comment = $3, insider_uuid = $4::uuid, user_email = $5, updated_at = NOW()
+                     WHERE id = $6`,
+                    effectiveDate, distributedAmount, comment, insider_uuid,
+                    auth.user?.email || 'system', keepId
+                  );
+                  if (existingLedger.length > 1) {
+                    const extraIds = existingLedger.slice(1).map(r => r.id.toString()).join(',');
+                    await prisma.$queryRawUnsafe(
+                      `DELETE FROM payments_ledger WHERE id IN (${extraIds})`
+                    );
+                  }
+                } else {
+                  await prisma.$queryRawUnsafe(
+                    `INSERT INTO payments_ledger (
+                      payment_id, effective_date, accrual, "order", user_email, comment, insider_uuid
+                    ) VALUES ($1, $2, $3, $3, $4, $5, $6::uuid)`,
+                    newPaymentId,
+                    effectiveDate,
+                    distributedAmount,
+                    auth.user?.email || 'system',
+                    comment,
+                    insider_uuid
+                  );
+                }
               } catch (ledgerErr: any) {
                 console.warn('Bundle ledger insert (new payment) skipped:', ledgerErr?.message);
               }
