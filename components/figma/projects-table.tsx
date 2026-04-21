@@ -295,6 +295,19 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
     [insidersList]
   );
 
+  // For the Edit dialog: ensure the editing project's insider is in the options list
+  // (so the Combobox displays it even if the counteragent is no longer marked insider=true).
+  const editInsiderOptions = useMemo(() => {
+    if (!editingProject?.insiderUuid) return insiderOptions;
+    const exists = insiderOptions.some(opt => opt.value === editingProject.insiderUuid);
+    if (exists) return insiderOptions;
+    const label = editingProject.insiderName || editingProject.insiderUuid;
+    return [
+      { value: editingProject.insiderUuid, label, keywords: label },
+      ...insiderOptions,
+    ];
+  }, [editingProject?.insiderUuid, editingProject?.insiderName, insiderOptions]);
+
   const selectedInsiderNames = useMemo(() => {
     if (insidersList.length === 0) return [] as string[];
     const selected = new Set(selectedInsiderUuids.map((uuid) => uuid.toLowerCase()));
@@ -1437,7 +1450,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                   <Label htmlFor="edit-insider" className="text-right">Insider *</Label>
                   <div className="col-span-3">
                     <Combobox
-                      options={insiderOptions}
+                      options={editInsiderOptions}
                       value={formData.insiderUuid}
                       onValueChange={(value: string) => {
                         setFormData({ ...formData, insiderUuid: value });

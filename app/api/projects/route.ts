@@ -560,10 +560,20 @@ export async function PATCH(req: NextRequest) {
 
     const requestedInsiderUuid = insider_uuid ? String(insider_uuid).trim() : null;
     if (requestedInsiderUuid && !insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
-      return NextResponse.json(
-        { error: 'Selected insider is invalid' },
-        { status: 400 }
+      // Allow keeping the existing project insider_uuid even if the counteragent is no
+      // longer flagged insider=true (the option may have been removed). Only reject if
+      // the user is changing to a UUID that is neither the existing one nor in the options.
+      const existingInsiderRows = await prisma.$queryRawUnsafe<Array<{ insider_uuid: string | null }>>(
+        `SELECT insider_uuid::text FROM projects WHERE id = $1 LIMIT 1`,
+        parseInt(id)
       );
+      const existingInsiderUuid = existingInsiderRows[0]?.insider_uuid || null;
+      if (!existingInsiderUuid || existingInsiderUuid.toLowerCase() !== requestedInsiderUuid.toLowerCase()) {
+        return NextResponse.json(
+          { error: 'Selected insider is invalid' },
+          { status: 400 }
+        );
+      }
     }
 
     const effectiveInsiderUuid = requestedInsiderUuid || selection.primaryInsider?.insiderUuid || null;
