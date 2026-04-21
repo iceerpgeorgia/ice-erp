@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-21 Deployment #216
+- Commit: 0268f5b
+- Production: https://ice-kpd5qcoyg-iceerp.vercel.app
+- Summary: Fix bundle distribution ledger entries — accrual was always 0, and re-saving created duplicate records when payment_id changed.
+- Root Cause: (1) INSERT used `accrual = 0` hardcoded instead of `accrual = distributedAmount`. (2) DELETE before INSERT only targeted the new payment_id, so when payment_id changed the old ledger entry (with old payment_id) survived alongside the new one.
+- Changes:
+  - app/api/projects/route.ts (POST + PATCH bundle distribution blocks): Changed `accrual = 0` to `accrual = distributedAmount` so both accrual and order are set equally. Fixed DELETE to target both old and new payment_ids (`WHERE comment = $1 AND (payment_id = $2 OR ($3 <> '' AND payment_id = $3))`). Also fixed INSERT flags: new bundle child payments now correctly use `is_project_derived=false, is_bundle_payment=true`. Restructured PATCH path so ledger upsert is inside the payment-exists branch (with oldPaymentId tracked) and also handled for newly created payments.
+
 ## 2026-04-21 Deployment #215
 - Commit: cc337b6
 - Production: https://ice-qnuz8gf2i-iceerp.vercel.app
