@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-04-21 Deployment #209
+- Commit: e2f09b9
+- Production: https://ice-jdsn4iq3f-iceerp.vercel.app
+- Summary: Fetch existing ledger data when editing bundle distribution, use current date only as fallback.
+- Changes:
+  - app/api/projects/bundle-distribution/route.ts: GET endpoint now fetches aggregate data from payments_ledger table when loading bundle distribution for editing. Queries SUM(accrual) as total_accrual and MAX(effective_date) as latest_date for each bundle payment. Returns accrual totals in amount field and formatted date (dd.mm.yyyy) in distributionDate field. If no ledger data exists, date is empty string.
+  - components/figma/bundle-distribution-grid.tsx: Removed auto-fill of current date when initializing or syncing dialog data. Distribution dates now start blank if no existing data. Users can leave dates empty during data entry.
+  - app/api/projects/route.ts: Modified both POST and PATCH bundle distribution handlers. Removed distributionDate check from payment_ledger creation condition - now creates ledger entry whenever distributedAmount > 0 and paymentIdToUse exists. Added fallback logic to use current date only when distributionDate is empty or invalid. Changed date parsing to handle empty string: `(distRow.distributionDate || '').split('.')`.
+- Feature: Edit dialog now displays existing distribution amounts and dates from payments_ledger instead of showing empty/default values. Blank dates are preserved, and current date is only used as fallback when user saves without entering a date.
+- UX Improvement: Users can now see historical distribution data when editing bundle projects. System no longer forces current date into empty fields, allowing explicit blank states.
+
 ## 2026-04-21 Deployment #208
 - Commit: 30ce42f
 - Production: https://ice-48rswbq2z-iceerp.vercel.app
