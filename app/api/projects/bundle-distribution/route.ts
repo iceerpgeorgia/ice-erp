@@ -41,10 +41,12 @@ export async function GET(req: NextRequest) {
        p.payment_id,
        (SELECT COALESCE(SUM("order"), 0) 
         FROM payments_ledger 
-        WHERE payment_id = p.payment_id) AS total_order,
+        WHERE payment_id = p.payment_id
+          AND (is_deleted = false OR is_deleted IS NULL)) AS total_order,
        (SELECT MAX(effective_date) 
         FROM payments_ledger 
-        WHERE payment_id = p.payment_id) AS latest_date
+        WHERE payment_id = p.payment_id
+          AND (is_deleted = false OR is_deleted IS NULL)) AS latest_date
      FROM financial_codes fc
      LEFT JOIN payments p
        ON p.project_uuid = $1::uuid
@@ -67,11 +69,19 @@ export async function GET(req: NextRequest) {
       distributionDate = `${day}.${month}.${year}`;
     }
 
+    const amount = row.total_order ? String(row.total_order) : '';
+    const projectValue = Number(project.value) || 0;
+    let percentage = '';
+    if (amount && parseFloat(amount) > 0 && projectValue > 0) {
+      const pct = (parseFloat(amount) / projectValue) * 100;
+      percentage = pct.toFixed(4).replace(/\.?0+$/, '');
+    }
+
     return {
       financialCodeUuid: row.financial_code_uuid,
       financialCodeName: `${row.financial_code_code} - ${row.financial_code_name}`,
-      percentage: '',
-      amount: row.total_order ? String(row.total_order) : '',
+      percentage,
+      amount,
       paymentId: row.payment_id || null,
       distributionDate: distributionDate,
     };

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Button } from './ui/button';
@@ -48,6 +48,13 @@ export function BundleDistributionGrid({
   const [loading, setLoading] = useState(false);
   const [localValue, setLocalValue] = useState<BundleDistributionRow[]>([]);
   const [distributionMode, setDistributionMode] = useState<'percentage' | 'amount' | 'none'>('none');
+
+  // Keep a ref to the latest value so the child-FC fetch callback
+  // always checks the CURRENT value, not the stale closure value
+  const valueRef = useRef(value);
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
   
   // Helper to format today's date as dd.mm.yyyy
   const getTodayFormatted = () => {
@@ -72,15 +79,15 @@ export function BundleDistributionGrid({
         if (Array.isArray(data)) {
           setChildFinancialCodes(data);
 
-          // Initialize distribution if empty
-          if (value.length === 0) {
+          // Only initialize with empty rows if no distribution data has been loaded yet
+          if (valueRef.current.length === 0) {
             const initialDistribution = data.map(fc => ({
               financialCodeUuid: fc.uuid,
               financialCodeName: `${fc.code} - ${fc.name}`,
               percentage: '',
               amount: '',
               paymentId: null,
-              distributionDate: '', // Leave blank, will use current date only if user doesn't fill
+              distributionDate: '',
             }));
             onChange(initialDistribution);
           }
