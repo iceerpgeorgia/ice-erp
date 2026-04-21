@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-22 Deployment #222
+- Commit: ad32280
+- Production: https://ice-8leor5o8v-iceerp.vercel.app
+- Summary: Fix scaling and deconfirm scope — use is_project_derived/is_bundle_payment flags instead of comment-based filtering.
+- Changes:
+  - app/api/projects/route.ts: Both the deconfirm transaction and the scale UPDATE now filter payments by `is_project_derived = true OR is_bundle_payment = true`, ensuring only auto-generated ledger entries are touched. Manually-created payments (costs, salaries, custom entries) are never scaled or deconfirmed.
+  - components/figma/projects-table.tsx: Updated warning dialog description to clarify that scaling only applies to auto-generated entries.
+
 ## 2026-04-22 Deployment #221
 - Commit: 0e9c749
 - Production: https://ice-d9ztv7pu9-iceerp.vercel.app
