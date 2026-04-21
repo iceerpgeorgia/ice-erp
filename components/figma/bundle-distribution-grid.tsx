@@ -93,12 +93,10 @@ export function BundleDistributionGrid({
       });
   }, [bundleFinancialCodeUuid]);
 
-  // Sync local state when dialog opens (don't auto-fill dates)
+  // Sync local state whenever value prop changes
   useEffect(() => {
-    if (isOpen) {
-      setLocalValue(value);
-    }
-  }, [isOpen, value]);
+    setLocalValue(value);
+  }, [value]);
 
   // Detect distribution mode based on entered values
   useEffect(() => {
