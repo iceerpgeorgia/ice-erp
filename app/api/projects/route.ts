@@ -376,12 +376,11 @@ export async function POST(req: NextRequest) {
         const hasDistribution = distributedAmount > 0 || (distRow.percentage && parseFloat(distRow.percentage) > 0);
         if (!hasDistribution) continue;
 
-        // Find the project-derived bundle payment for this child FC
+        // Find the bundle payment for this child FC (regardless of is_project_derived flag)
         const bundlePayments = await prisma.$queryRawUnsafe<Array<{ id: bigint; payment_id: string }>>(
           `SELECT id, payment_id
            FROM payments
            WHERE project_uuid = $1::uuid 
-             AND is_project_derived = true 
              AND is_bundle_payment = true
              AND financial_code_uuid = $2::uuid
            LIMIT 1`,
@@ -609,12 +608,11 @@ export async function PATCH(req: NextRequest) {
         const hasDistribution = distributedAmount > 0 || (distRow.percentage && parseFloat(distRow.percentage) > 0);
         if (!hasDistribution) continue;
 
-        // Find the project-derived bundle payment for this child FC
+        // Find the bundle payment for this child FC (regardless of is_project_derived flag)
         const bundlePayments = await prisma.$queryRawUnsafe<Array<{ id: bigint; payment_id: string }>>(
           `SELECT id, payment_id
            FROM payments
            WHERE project_uuid = $1::uuid 
-             AND is_project_derived = true 
              AND is_bundle_payment = true
              AND financial_code_uuid = $2::uuid
            LIMIT 1`,
