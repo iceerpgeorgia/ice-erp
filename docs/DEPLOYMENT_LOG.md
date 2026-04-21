@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-04-21 Deployment #208
+- Commit: 30ce42f
+- Production: https://ice-48rswbq2z-iceerp.vercel.app
+- Summary: **CRITICAL FIX** - Remove is_project_derived filter from bundle payment query to prevent duplicate creation.
+- Changes:
+  - app/api/projects/route.ts: Removed `is_project_derived = true` condition from bundle payment search queries in both POST and PATCH endpoints. Old bundle payments have is_bundle_payment=true but is_project_derived=false, causing query to miss them and create duplicates. Now searches only by is_bundle_payment=true flag.
+- Bug Fix: Resolves duplicate bundle payment creation. Previously, bundle distribution handler searched for payments with BOTH is_project_derived=true AND is_bundle_payment=true, but existing bundle payments had is_project_derived=false. This caused the query to fail finding existing payments, creating duplicates (IDs 7287-7290). Deleted 4 duplicate payments from test project. Query now finds all bundle payments regardless of is_project_derived value.
+- Database Cleanup: Manually deleted duplicate bundle payments (IDs 7287, 7288, 7289, 7290) created during testing.
+
 ## 2026-04-21 Deployment #207
 - Commit: fc555ff
 - Production: https://ice-1x4hcsg2l-iceerp.vercel.app
