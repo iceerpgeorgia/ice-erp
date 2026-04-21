@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     financial_code_name: string;
     financial_code_code: string;
     payment_id: string | null;
-    total_accrual: number | null;
+    total_order: number | null;
     latest_date: Date | null;
   }>>(
     `SELECT
@@ -39,9 +39,9 @@ export async function GET(req: NextRequest) {
        fc.name AS financial_code_name,
        fc.code AS financial_code_code,
        p.payment_id,
-       (SELECT COALESCE(SUM(accrual), 0) 
+       (SELECT COALESCE(SUM("order"), 0) 
         FROM payments_ledger 
-        WHERE payment_id = p.payment_id) AS total_accrual,
+        WHERE payment_id = p.payment_id) AS total_order,
        (SELECT MAX(effective_date) 
         FROM payments_ledger 
         WHERE payment_id = p.payment_id) AS latest_date
@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
       financialCodeUuid: row.financial_code_uuid,
       financialCodeName: `${row.financial_code_code} - ${row.financial_code_name}`,
       percentage: '',
-      amount: row.total_accrual ? String(row.total_accrual) : '',
+      amount: row.total_order ? String(row.total_order) : '',
       paymentId: row.payment_id || null,
       distributionDate: distributionDate,
     };
