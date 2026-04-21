@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-04-21 Deployment #214
+- Commit: e3a014d
+- Production: https://ice-8ovlf7tbk-iceerp.vercel.app
+- Summary: Fix dual-flag collision on bundle child payments (is_bundle_payment=true AND is_project_derived=true).
+- Root Cause: The PUT route (`[id]/route.ts`) used `is_project_derived=true` to look up existing bundle child payments. Old-style bundle payments have `is_project_derived=false`, so the lookup missed them → silently failed to update counteragent/currency on project edit. Also, both INSERT statements in the routes incorrectly set `is_project_derived=true` for bundle child payments, producing rows with both flags set.
+- Changes:
+  - app/api/projects/[id]/route.ts: Changed bundle child payment lookup from `is_project_derived=true` to `is_bundle_payment=true`. Changed INSERT to set `is_project_derived=false` for bundle child payments.
+  - app/api/projects/route.ts: Changed INSERT to set `is_project_derived=false` for bundle child payments (same fix for PATCH path).
+- Database: Normalized 1,354 bundle child payments that had both flags set (`is_project_derived=false` for all `is_bundle_payment=true` rows).
+- Rule: `is_bundle_payment=true` means it's a bundle child payment (never also project-derived). `is_project_derived=true` means it was auto-created from a FC with `automated_payment_id=true` (never also a bundle child).
+
 ## 2026-04-21 Deployment #213
 - Commit: 2b36356
 - Production: https://ice-4mxrntmhz-iceerp.vercel.app
