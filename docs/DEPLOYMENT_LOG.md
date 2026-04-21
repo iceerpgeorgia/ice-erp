@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-21 Deployment #220
+- Commit: 9c28ddd
+- Production: https://ice-c1p14evmn-iceerp.vercel.app
+- Summary: Scale payment ledger entries when project value changes; align Actions column in payments report.
+- Changes:
+  - app/api/projects/route.ts: Before updating project value, fetch current `value` and `project_uuid`. After update, if value changed, run `UPDATE payments_ledger SET accrual = ROUND(accrual * scaleFactor, 2), "order" = ROUND("order" * scaleFactor, 2)` for all non-deleted ledger entries linked to payments in that project. Scale factor = newValue / oldValue.
+  - components/figma/payments-report-table.tsx: Widened Actions `<th>/<td>` from 100px to 190px; changed flex alignment from `justify-center` to `justify-end` so icons anchor right consistently across bundle aggregate rows (2 icons) and regular payment rows (6 icons).
+
 ## 2026-04-21 Deployment #219
 - Commit: 743d954
 - Production: https://ice-l7i0y7ra5-iceerp.vercel.app
