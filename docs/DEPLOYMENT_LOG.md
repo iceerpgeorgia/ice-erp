@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-22 Deployment #225
+- Commit: 117ab06
+- Production: https://ice-j383j98jb-iceerp.vercel.app
+- Summary: Fix root cause of insider dropping on edit — project's insider counteragent was no longer flagged `insider=true`, so the dropdown filtered it out and PATCH validation rejected the save (causing redistribution to never run).
+- Changes:
+  - components/figma/projects-table.tsx: Added `editInsiderOptions` memo that prepends the editing project's current insider to the dropdown options if it's missing. The Edit dialog Combobox now uses this list, so the insider name is visible even if the counteragent is no longer flagged `insider=true`.
+  - app/api/projects/route.ts: PATCH now accepts an insider_uuid that is not in the active insider options ONLY when it matches the project's existing insider_uuid. Changing to a different invalid UUID still returns 400. This unblocks save (and downstream bundle redistribution) for legacy projects whose insider counteragent has been demoted.
+
 ## 2026-04-22 Deployment #224
 - Commit: 8628a9d
 - Production: https://ice-2h3da4r8l-iceerp.vercel.app
