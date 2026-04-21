@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-04-21 Deployment #211 (DEBUG)
+- Commit: 93fe24a
+- Production: https://ice-4rcn8efly-iceerp.vercel.app
+- Summary: DEBUG deployment with console logging for bundle distribution data flow.
+- Changes:
+  - app/api/projects/bundle-distribution/route.ts: Added console.log showing what data is being returned (amounts, dates, payment IDs for each financial code).
+  - components/figma/projects-table.tsx: Added console.log at fetch initiation, data reception, and form state update to trace the full data flow from API to UI.
+- Purpose: Diagnostic deployment to trace why bundle distribution amounts/dates don't appear in UI despite correct database queries. Logs will show: (1) What API returns, (2) What frontend receives, (3) Whether form state updates correctly.
+
 ## 2026-04-21 Deployment #210
 - Commit: 800f7d7
 - Production: https://ice-nk3qrs1nk-iceerp.vercel.app
