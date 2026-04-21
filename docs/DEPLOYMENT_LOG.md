@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-21 Deployment #205
+- Commit: 1c313eb
+- Production: https://ice-chd8zopo6-iceerp.vercel.app
+- Summary: Fix bundle distribution to update existing payment IDs instead of creating duplicates.
+- Changes:
+  - app/api/projects/route.ts: Added bundleDistribution parameter handling in both POST and PATCH endpoints. When distributing income across bundle child financial codes, the API now finds existing bundle child payments (is_project_derived=true, is_bundle_payment=true) and updates their payment_id instead of creating duplicates. Triggers reparseByPaymentId when payment_id changes to reprocess attached bank transactions.
+- Bug Fix: Resolves issue where editing bundle distribution for project f67cc96b-365f-4a30-9819-a3ee7ad41b1f created duplicate payments (IDs 7283-7286) violating composite unique constraint. Duplicates were deleted post-deployment. API now correctly updates payment_id on existing bundle payments without duplication.
+
 ## 2026-04-21 Deployment #204
 - Commit: 21eb6ad
 - Production: https://ice-ju2pwgtt8-iceerp.vercel.app
