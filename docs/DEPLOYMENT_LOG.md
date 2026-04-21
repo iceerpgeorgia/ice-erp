@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-21 Deployment #215
+- Commit: cc337b6
+- Production: https://ice-qnuz8gf2i-iceerp.vercel.app
+- Summary: Fix bundle distribution dialog in Payments Report — add Save button.
+- Root Cause: Dialog had only a "Close" button. No save handler existed and `bundleDistributionProject` state didn't store the numeric project `id` needed for the PATCH call.
+- Changes:
+  - components/figma/payments-report-table.tsx: Added `projectId` to `bundleDistributionProject` state type. Populated `projectId: Number(project.id)` in `handleOpenBundleDistribution`. Added `bundleDistributionSaving` state. Added Save button that PATCHes `/api/projects?id={projectId}` with `{ bundleDistribution }` and refreshes report on success.
+
 ## 2026-04-21 Deployment #214
 - Commit: e3a014d
 - Production: https://ice-8ovlf7tbk-iceerp.vercel.app
