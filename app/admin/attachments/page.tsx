@@ -136,6 +136,11 @@ export default function AttachmentsPage() {
   const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editAttachment, setEditAttachment] = useState<Attachment | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Column drag and drop state
+  const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
 
   // Table filters and sorting
   const [filters, setFilters] = useState<Record<string, ColumnFilter>>({});
@@ -173,6 +178,106 @@ export default function AttachmentsPage() {
   };
 
   const hasActiveFilters = Object.keys(filters).length > 0;
+
+  // Load saved column configuration from localStorage on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const versionKey = 'attachmentsColumnsVersion';
+    const currentVersion = '1';
+    const savedVersion = localStorage.getItem(versionKey);
+    const shouldLoadSavedColumns = savedVersion === currentVersion;
+
+    if (!shouldLoadSavedColumns) {
+      localStorage.setItem('attachmentsColumns', JSON.stringify(defaultColumns));
+      localStorage.setItem(versionKey, currentVersion);
+      setColumns(defaultColumns);
+    } else {
+      const saved = localStorage.getItem('attachmentsColumns');
+      if (saved) {
+        try {
+          const savedColumns = JSON.parse(saved) as ColumnConfig[];
+          
+          // Create a map of default columns for easy lookup
+          const defaultColumnsMap = new Map(defaultColumns.map(col => [col.key, col]));
+          
+          // Filter out any columns that don't exist in defaultColumns
+          const validSavedColumns = savedColumns.filter(savedCol => defaultColumnsMap.has(savedCol.key));
+          
+          // Update saved columns with latest defaults while preserving user preferences
+          const updatedSavedColumns = validSavedColumns.map(savedCol => {
+            const defaultCol = defaultColumnsMap.get(savedCol.key);
+            if (defaultCol) {
+              return {
+                ...defaultCol,
+                visible: savedCol.visible,
+                width: savedCol.width
+              };
+            }
+            return savedCol;
+          });
+          
+          // Add any new columns from defaults that aren't in saved config
+          const savedKeys = new Set(validSavedColumns.map(col => col.key));
+          const newColumns = defaultColumns.filter(col => !savedKeys.has(col.key));
+          
+          setColumns([...updatedSavedColumns, ...newColumns]);
+        } catch (e) {
+          console.error('Failed to parse saved columns:', e);
+          setColumns(defaultColumns);
+        }
+      }
+    }
+
+    setIsInitialized(true);
+  }, []);
+
+  // Save column configuration to localStorage whenever it changes
+  useEffect(() => {
+    if (isInitialized && typeof window !== 'undefined') {
+      localStorage.setItem('attachmentsColumns', JSON.stringify(columns));
+    }
+  }, [columns, isInitialized]);
+
+  // Column drag handlers for reordering
+  const handleDragStart = (e: React.DragEvent<HTMLTableCellElement>, key: ColumnKey) => {
+    setDraggedColumn(key);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>, key: ColumnKey) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedColumn && draggedColumn !== key) {
+      setDragOverColumn(key);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverColumn(null);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLTableCellElement>, targetKey: ColumnKey) => {
+    e.preventDefault();
+    if (!draggedColumn || draggedColumn === targetKey) return;
+
+    setColumns(prev => {
+      const draggedIndex = prev.findIndex(col => col.key === draggedColumn);
+      const targetIndex = prev.findIndex(col => col.key === targetKey);
+      const newConfig = [...prev];
+      const [draggedItem] = newConfig.splice(draggedIndex, 1);
+      newConfig.splice(targetIndex, 0, draggedItem);
+      return newConfig;
+    });
+
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
 
   const fetchAttachments = async () => {
     try {
@@ -267,7 +372,12 @@ export default function AttachmentsPage() {
       case 'number':
         return new Intl.NumberFormat('en-US').format(value);
       case 'date':
-        return new Date(value).toLocaleDateString('en-GB');
+        if (!value) return '-';
+        const date = new Date(value);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}.${month}.${year}`;
       case 'filesize':
         if (typeof value !== 'number') return '-';
         const units = ['B', 'KB', 'MB', 'GB'];
@@ -462,8 +572,18 @@ export default function AttachmentsPage() {
                   {visibleColumns.map((col) => (
                     <th
                       key={col.key}
-                      className="p-2 text-left border-b"
+                      className={`p-2 text-left border-b cursor-move ${
+                        draggedColumn === col.key ? 'opacity-50' : ''
+                      } ${
+                        dragOverColumn === col.key ? 'border-l-4 border-blue-500' : ''
+                      }`}
                       style={{ width: col.width }}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, col.key)}
+                      onDragOver={(e) => handleDragOver(e, col.key)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, col.key)}
+                      onDragEnd={handleDragEnd}
                     >
                       <div className="flex items-center gap-2">
                         <Button
