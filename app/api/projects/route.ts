@@ -327,7 +327,9 @@ export async function POST(req: NextRequest) {
       const autoPaymentEnabled = fcRows.length > 0 && fcRows[0].automated_payment_id === true;
       const isBundleFC = fcRows.length > 0 && fcRows[0].is_bundle === true;
 
-      if (autoPaymentEnabled) {
+      // Only create parent payment if NOT a bundle FC
+      // Bundle child payments will be created on-demand via bundleDistribution
+      if (autoPaymentEnabled && !isBundleFC) {
         await prisma.$queryRaw`
           INSERT INTO payments (
             project_uuid,
@@ -357,34 +359,22 @@ export async function POST(req: NextRequest) {
       `;
       }
 
-      if (isBundleFC) {
-        const childFCs = await prisma.$queryRawUnsafe<Array<{ uuid: string }>>(
-          `SELECT uuid FROM financial_codes WHERE parent_uuid = $1::uuid AND is_active = true`,
-          financialCodeUuid
-        );
-        for (const childFC of childFCs) {
-          try {
-            await prisma.$queryRawUnsafe(
-              `INSERT INTO payments (
-                project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax,
-                currency_uuid, payment_id, record_uuid, insider_uuid, is_project_derived, is_bundle_payment, updated_at
-              ) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, '', '', $5::uuid, true, true, NOW())`,
-              project.project_uuid, counteragentUuid, childFC.uuid, currencyUuid, effectiveInsiderUuid
-            );
-          } catch (bundleErr: any) {
-            console.warn('Bundle payment creation skipped:', bundleErr?.message);
-          }
-        }
-      }
+      // Bundle child payments are NOT auto-created
+      // They are created on-demand when user enters distribution data
     } catch (paymentError: any) {
       // Log but don't fail project creation if payment already exists (composite unique conflict)
       console.warn('Auto-create project-derived payment skipped:', paymentError?.message);
     }
 
-    // Handle bundle distribution - update payment IDs for bundle child payments (POST)
+    // Handle bundle distribution - create or update payment IDs for bundle child payments (POST)
     if (bundleDistribution && Array.isArray(bundleDistribution) && bundleDistribution.length > 0) {
       for (const distRow of bundleDistribution) {
         if (!distRow.financialCodeUuid) continue;
+        
+        // Skip rows with no amount/percentage (not distributed)
+        const hasDistribution = (distRow.amount && parseFloat(distRow.amount) > 0) || 
+                               (distRow.percentage && parseFloat(distRow.percentage) > 0);
+        if (!hasDistribution) continue;
 
         // Find the project-derived bundle payment for this child FC
         const bundlePayments = await prisma.$queryRawUnsafe<Array<{ id: bigint }>>(
@@ -400,6 +390,7 @@ export async function POST(req: NextRequest) {
         );
 
         if (bundlePayments.length > 0) {
+          // Payment exists - update it
           const newPaymentId = distRow.paymentId || '';
           
           if (newPaymentId) {
@@ -416,6 +407,26 @@ export async function POST(req: NextRequest) {
 
             // Reparse bank transactions if payment_id was set
             await reparseByPaymentId(newPaymentId);
+          }
+        } else {
+          // Payment doesn't exist - create it
+          try {
+            const newPaymentId = distRow.paymentId || '';
+            await prisma.$queryRawUnsafe(
+              `INSERT INTO payments (
+                project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax,
+                currency_uuid, payment_id, record_uuid, insider_uuid, is_project_derived, is_bundle_payment, updated_at
+              ) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, $5, $6, $7::uuid, true, true, NOW())`,
+              project.project_uuid, counteragentUuid, distRow.financialCodeUuid, currencyUuid, 
+              newPaymentId, newPaymentId, effectiveInsiderUuid
+            );
+
+            // Reparse if payment_id was set
+            if (newPaymentId) {
+              await reparseByPaymentId(newPaymentId);
+            }
+          } catch (createErr: any) {
+            console.warn('Bundle child payment creation skipped:', createErr?.message);
           }
         }
       }
@@ -556,10 +567,15 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    // Handle bundle distribution - update payment IDs for bundle child payments
+    // Handle bundle distribution - create or update payment IDs for bundle child payments (PATCH)
     if (bundleDistribution && Array.isArray(bundleDistribution) && bundleDistribution.length > 0) {
       for (const distRow of bundleDistribution) {
         if (!distRow.financialCodeUuid) continue;
+        
+        // Skip rows with no amount/percentage (not distributed)
+        const hasDistribution = (distRow.amount && parseFloat(distRow.amount) > 0) || 
+                               (distRow.percentage && parseFloat(distRow.percentage) > 0);
+        if (!hasDistribution) continue;
 
         // Find the project-derived bundle payment for this child FC
         const bundlePayments = await prisma.$queryRawUnsafe<Array<{ id: bigint; payment_id: string }>>(
@@ -575,6 +591,7 @@ export async function PATCH(req: NextRequest) {
         );
 
         if (bundlePayments.length > 0) {
+          // Payment exists - update it
           const bundlePayment = bundlePayments[0];
           const newPaymentId = distRow.paymentId || '';
 
@@ -595,6 +612,35 @@ export async function PATCH(req: NextRequest) {
             if (newPaymentId && bundlePayment.payment_id !== newPaymentId) {
               await reparseByPaymentId(newPaymentId);
             }
+          }
+        } else {
+          // Payment doesn't exist - create it
+          try {
+            const newPaymentId = distRow.paymentId || '';
+            // Need to get counteragent and currency from the project
+            const projectData = await prisma.$queryRawUnsafe<Array<{ counteragent_uuid: string; currency_uuid: string; insider_uuid: string | null }>>(
+              `SELECT counteragent_uuid, currency_uuid, insider_uuid FROM projects WHERE project_uuid = $1::uuid LIMIT 1`,
+              project.project_uuid
+            );
+            if (projectData.length === 0) continue;
+            
+            const { counteragent_uuid, currency_uuid, insider_uuid } = projectData[0];
+            
+            await prisma.$queryRawUnsafe(
+              `INSERT INTO payments (
+                project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax,
+                currency_uuid, payment_id, record_uuid, insider_uuid, is_project_derived, is_bundle_payment, updated_at
+              ) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, $5, $6, $7::uuid, true, true, NOW())`,
+              project.project_uuid, counteragent_uuid, distRow.financialCodeUuid, currency_uuid, 
+              newPaymentId, newPaymentId, insider_uuid
+            );
+
+            // Reparse if payment_id was set
+            if (newPaymentId) {
+              await reparseByPaymentId(newPaymentId);
+            }
+          } catch (createErr: any) {
+            console.warn('Bundle child payment creation skipped:', createErr?.message);
           }
         }
       }
