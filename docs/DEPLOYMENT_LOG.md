@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-21 Deployment #204
+- Commit: 21eb6ad
+- Production: https://ice-ju2pwgtt8-iceerp.vercel.app
+- Summary: Add column drag/drop reordering, localStorage persistence, and fix date format to match payments report.
+- Changes:
+  - app/admin/attachments/page.tsx: Added column drag/drop reordering functionality with visual feedback (opacity and border indicators). Implemented localStorage persistence for column configuration (visibility, width, order) with version management. Changed date format from `dd/mm/yyyy` to `dd.mm.yyyy` to match payments report. Added isInitialized flag to prevent saving configuration during initial load. Column configuration now persists across page visits.
+- Features: Users can now reorder columns by dragging headers, and their column preferences (visibility, order, width) are automatically saved and restored on next visit.
+
 ## 2026-04-20 Deployment #203
 - Commit: d636462
 - Production: https://ice-kf2nwwwj1-iceerp.vercel.app
