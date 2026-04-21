@@ -77,5 +77,8 @@ export async function GET(req: NextRequest) {
     };
   });
 
+  console.log('[bundle-distribution GET] Returning distribution for', projectUuid, ':', 
+    distribution.map(d => `${d.financialCodeName}: amount=${d.amount}, date=${d.distributionDate}, paymentId=${d.paymentId}`));
+
   return NextResponse.json(distribution);
 }

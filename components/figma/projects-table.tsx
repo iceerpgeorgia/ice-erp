@@ -951,9 +951,19 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
     setFormErrors({});
     setIsEditDialogOpen(true);
     if (project.projectUuid) {
-      fetch(`/api/projects/bundle-distribution?projectUuid=${project.projectUuid}`).then(res => res.json()).then(data => {
-        if (data && Array.isArray(data)) setFormData(prev => ({ ...prev, bundleDistribution: data }));
-      }).catch(err => console.error('Error loading bundle distribution:', err));
+      console.log('[projects-table] Fetching bundle distribution for', project.projectUuid);
+      fetch(`/api/projects/bundle-distribution?projectUuid=${project.projectUuid}`)
+        .then(res => res.json())
+        .then(data => {
+          console.log('[projects-table] Received bundle distribution data:', data);
+          if (data && Array.isArray(data)) {
+            console.log('[projects-table] Setting bundle distribution:', data.length, 'rows');
+            setFormData(prev => ({ ...prev, bundleDistribution: data }));
+          } else {
+            console.warn('[projects-table] Invalid bundle distribution data received:', data);
+          }
+        })
+        .catch(err => console.error('[projects-table] Error loading bundle distribution:', err));
     }
   };
 
