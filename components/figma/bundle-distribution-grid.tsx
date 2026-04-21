@@ -20,6 +20,7 @@ export type BundleDistributionRow = {
   percentage: string;
   amount: string;
   paymentId?: string | null;
+  distributionDate?: string | null;
 };
 
 type BundleDistributionGridProps = {
@@ -47,6 +48,7 @@ export function BundleDistributionGrid({
   const [loading, setLoading] = useState(false);
   const [localValue, setLocalValue] = useState<BundleDistributionRow[]>([]);
   const [distributionMode, setDistributionMode] = useState<'percentage' | 'amount' | 'none'>('none');
+  const [distributionDate, setDistributionDate] = useState<string>('');
 
   // Fetch child financial codes when bundle FC changes
   useEffect(() => {
@@ -86,8 +88,19 @@ export function BundleDistributionGrid({
   useEffect(() => {
     if (isOpen) {
       setLocalValue(value.map(r => ({ ...r })));
+      // Initialize date with current date if not set
+      const existingDate = value[0]?.distributionDate;
+      if (existingDate) {
+        setDistributionDate(existingDate);
+      } else {
+        const today = new Date();
+        const dd = String(today.getDate()).padStart(2, '0');
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const yyyy = today.getFullYear();
+        setDistributionDate(`${dd}.${mm}.${yyyy}`);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, value]);
 
   // Detect distribution mode based on entered values
   useEffect(() => {
@@ -156,7 +169,12 @@ export function BundleDistributionGrid({
   };
 
   const handleApply = () => {
-    onChange(localValue);
+    // Add distribution date to all rows
+    const updatedValue = localValue.map(row => ({
+      ...row,
+      distributionDate: distributionDate || null
+    }));
+    onChange(updatedValue);
     setIsOpen(false);
   };
 
@@ -209,6 +227,23 @@ export function BundleDistributionGrid({
               {distributionMode === 'amount' && ' Enter amounts directly.'}
             </DialogDescription>
           </DialogHeader>
+
+          <div className="mb-4">
+            <Label htmlFor="distribution-date" className="text-sm font-medium">
+              Distribution Date
+            </Label>
+            <Input
+              id="distribution-date"
+              type="text"
+              placeholder="dd.mm.yyyy"
+              value={distributionDate}
+              onChange={(e) => setDistributionDate(e.target.value)}
+              disabled={disabled}
+              className="mt-1.5 w-40"
+              maxLength={10}
+            />
+            <p className="text-xs text-muted-foreground mt-1">Format: dd.mm.yyyy</p>
+          </div>
 
           {childFinancialCodes.length === 0 ? (
             <div className="flex items-center p-4 text-sm text-gray-500">
