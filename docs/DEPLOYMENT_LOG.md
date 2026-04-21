@@ -1,5 +1,18 @@
 # Deployment Log
 
+## 2026-04-21 Deployment #213
+- Commit: 2b36356
+- Production: https://ice-4mxrntmhz-iceerp.vercel.app
+- Summary: Fix 5 bundle distribution bugs + apply DB duplicate payment guards on Supabase.
+- Changes:
+  - app/api/projects/route.ts: (1) Fixed duplicate bundle payments by changing sync block to use `is_bundle_payment = true` instead of `is_project_derived = true AND is_bundle_payment = false` when looking up existing child payments. (2) Fixed payments_ledger to upsert (DELETE existing entry matching payment_id + comment, then INSERT) instead of always INSERT - prevents multiple ledger rows per distribution save.
+  - components/figma/payments-report-table.tsx: (3) Added bundle distribution button (LayoutGrid icon) on aggregate parent FC rows. (4) Removed bundle distribution button from child payment rows (non-aggregate). Aggregate row now shows the single LayoutGrid button instead of being empty in actions column.
+  - components/figma/projects-table.tsx: (5) Fixed insider dropdown in edit dialog - was filtering insiders to only those currently selected in the homepage filter, causing the project's existing insider to disappear. Now always uses ALL available insiders for the form dropdown.
+- Database: Cleaned 52 groups of duplicate bundle payments (104 rows deleted, keeping the one with most ledger entries). Applied two partial unique indexes:
+  - `payments_bundle_child_unique`: UNIQUE (project_uuid, financial_code_uuid) WHERE is_bundle_payment = true
+  - `payments_project_derived_unique`: UNIQUE (project_uuid, financial_code_uuid) WHERE is_project_derived = true AND is_bundle_payment = false
+  These DB-level guards permanently prevent duplicate bundle payments from being created.
+
 ## 2026-04-21 Deployment #212
 - Commit: 1b94da7
 - Production: https://ice-7ilyrbpl8-iceerp.vercel.app
