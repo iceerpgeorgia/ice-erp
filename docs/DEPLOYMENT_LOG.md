@@ -1,5 +1,24 @@
 # Deployment Log
 
+## 2026-04-21 Deployment #207
+- Commit: fc555ff
+- Production: https://ice-1x4hcsg2l-iceerp.vercel.app
+- Summary: **CRITICAL FIX** - Save bundle distribution amounts to payments_ledger table with individual dates per child FC.
+- Changes:
+  - components/figma/bundle-distribution-grid.tsx: Changed distributionDate to individual field per row (not global). Added Date column to table with individual input for each child FC. Added handleDateChange function to update individual row dates. Each distribution row now has its own date in dd.mm.yyyy format.
+  - app/api/projects/route.ts: **MAJOR FIX** - Added payments_ledger creation in both POST and PATCH endpoints when saving bundle distribution. For each distributed amount, creates payments_ledger entry with: accrual=0, order=distributedAmount, effective_date from distributionDate (parsed from dd.mm.yyyy), user_email, comment="Bundle distribution: {financialCodeName}", insider_uuid. This persists distribution amounts to the ledger system instead of leaving them orphaned in payment records.
+- Bug Fix: Resolves critical issue where bundle distribution amounts were never saved to database. Previously, distribution UI allowed entering amounts and payment IDs were updated, but the actual distribution amounts (accruals/orders) were not persisted anywhere - payments_ledger entries were never created. All 6 bundle payments had ledger_count=0, total_accrual=0, total_order=0. Now creates proper ledger entries linking payment_id to distributed amount with individual effective dates per child FC.
+- Architecture: Bundle distribution now follows complete payment data model: payments table (payment record) + payments_ledger table (amounts with dates) + bundleDistribution UI state (user input). Each child FC can have different distribution date, supporting phased payment schedules.
+
+## 2026-04-21 Deployment #206
+- Commit: a8b5eb6, 8f9aeb9
+- Production: https://ice-8x891luln-iceerp.vercel.app
+- Summary: Add distribution date field and change bundle child payments to on-demand creation based on user input.
+- Changes:
+  - components/figma/bundle-distribution-grid.tsx: Added distributionDate field to BundleDistributionRow type. Added date input field in dialog with dd.mm.yyyy format. Defaults to current date if not set. Date is applied to all distribution rows when saving.
+  - app/api/projects/route.ts: **BREAKING CHANGE** - Bundle child payments are NO LONGER automatically created for all child FCs when creating/editing a project with bundle FC. Instead, payments are created on-demand only for child FCs that receive distribution (amount/percentage > 0). Both POST and PATCH endpoints now check if payment exists: if exists, update payment_id; if not, create new payment with distribution data. Skips rows with no distribution to avoid creating unnecessary payments.
+- Behavior Change: Projects with bundle financial codes will NOT have child payments auto-created. Child payments only created when user enters distribution data for specific child FCs. This prevents cluttering the payments table with irrelevant payments for unused child FCs.
+
 ## 2026-04-21 Deployment #205
 - Commit: 1c313eb
 - Production: https://ice-chd8zopo6-iceerp.vercel.app
