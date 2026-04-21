@@ -221,7 +221,8 @@ export async function POST(req: NextRequest) {
       currencyUuid,
       stateUuid,
       insiderUuid,
-      employees // Array of employee UUIDs
+      employees, // Array of employee UUIDs
+      bundleDistribution
     } = body;
     const selection = await resolveInsiderSelection(req);
     const insiderOptions = await getInsiderOptions();
@@ -380,6 +381,46 @@ export async function POST(req: NextRequest) {
       console.warn('Auto-create project-derived payment skipped:', paymentError?.message);
     }
 
+    // Handle bundle distribution - update payment IDs for bundle child payments (POST)
+    if (bundleDistribution && Array.isArray(bundleDistribution) && bundleDistribution.length > 0) {
+      for (const distRow of bundleDistribution) {
+        if (!distRow.financialCodeUuid) continue;
+
+        // Find the project-derived bundle payment for this child FC
+        const bundlePayments = await prisma.$queryRawUnsafe<Array<{ id: bigint }>>(
+          `SELECT id
+           FROM payments
+           WHERE project_uuid = $1::uuid 
+             AND is_project_derived = true 
+             AND is_bundle_payment = true
+             AND financial_code_uuid = $2::uuid
+           LIMIT 1`,
+          project.project_uuid,
+          distRow.financialCodeUuid
+        );
+
+        if (bundlePayments.length > 0) {
+          const newPaymentId = distRow.paymentId || '';
+          
+          if (newPaymentId) {
+            await prisma.$queryRawUnsafe(
+              `UPDATE payments 
+               SET payment_id = $1, 
+                   record_uuid = $2,
+                   updated_at = NOW() 
+               WHERE id = $3`,
+              newPaymentId,
+              newPaymentId,
+              bundlePayments[0].id
+            );
+
+            // Reparse bank transactions if payment_id was set
+            await reparseByPaymentId(newPaymentId);
+          }
+        }
+      }
+    }
+
     await logAudit({
       table: 'projects',
       recordId: Number(project.id),
@@ -431,7 +472,8 @@ export async function PATCH(req: NextRequest) {
       currency_uuid,
       state_uuid,
       insider_uuid,
-      employees
+      employees,
+      bundleDistribution
     } = body;
     const selection = await resolveInsiderSelection(req);
     const insiderOptions = await getInsiderOptions();
@@ -511,6 +553,50 @@ export async function PATCH(req: NextRequest) {
           INSERT INTO project_employees (project_uuid, employee_uuid)
           VALUES (${projectUuid}::uuid, ${employeeUuid}::uuid)
         `;
+      }
+    }
+
+    // Handle bundle distribution - update payment IDs for bundle child payments
+    if (bundleDistribution && Array.isArray(bundleDistribution) && bundleDistribution.length > 0) {
+      for (const distRow of bundleDistribution) {
+        if (!distRow.financialCodeUuid) continue;
+
+        // Find the project-derived bundle payment for this child FC
+        const bundlePayments = await prisma.$queryRawUnsafe<Array<{ id: bigint; payment_id: string }>>(
+          `SELECT id, payment_id
+           FROM payments
+           WHERE project_uuid = $1::uuid 
+             AND is_project_derived = true 
+             AND is_bundle_payment = true
+             AND financial_code_uuid = $2::uuid
+           LIMIT 1`,
+          project.project_uuid,
+          distRow.financialCodeUuid
+        );
+
+        if (bundlePayments.length > 0) {
+          const bundlePayment = bundlePayments[0];
+          const newPaymentId = distRow.paymentId || '';
+
+          // Only update if payment_id changed
+          if (bundlePayment.payment_id !== newPaymentId) {
+            await prisma.$queryRawUnsafe(
+              `UPDATE payments 
+               SET payment_id = $1, 
+                   record_uuid = $2,
+                   updated_at = NOW() 
+               WHERE id = $3`,
+              newPaymentId,
+              newPaymentId, // record_uuid should match payment_id for consistency
+              bundlePayment.id
+            );
+
+            // Reparse bank transactions if payment_id was added or changed
+            if (newPaymentId && bundlePayment.payment_id !== newPaymentId) {
+              await reparseByPaymentId(newPaymentId);
+            }
+          }
+        }
       }
     }
 
