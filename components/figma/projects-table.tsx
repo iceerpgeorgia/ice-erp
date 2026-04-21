@@ -244,6 +244,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isConfirmedWarningOpen, setIsConfirmedWarningOpen] = useState(false);
   
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
@@ -811,11 +812,22 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       : <ArrowDown className="h-3 w-3" />;
   };
 
-  const handleSave = async () => {
+  const handleSave = async (deconfirmBeforeScale = false) => {
     if (isSaving) return;
     setIsSaving(true);
     try {
       if (!(await validateForm())) return;
+
+      // If editing and value changed, warn about confirmed ledger entries
+      if (editingProject && !deconfirmBeforeScale) {
+        const newValue = parseFloat(formData.value);
+        const oldValue = parseFloat(String(editingProject.value));
+        if (!isNaN(newValue) && !isNaN(oldValue) && Math.abs(newValue - oldValue) > 0.001) {
+          setIsSaving(false);
+          setIsConfirmedWarningOpen(true);
+          return;
+        }
+      }
       
       if (editingProject) {
         // Update existing project via API
@@ -837,7 +849,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
             currency_uuid: formData.currencyUuid,
             state_uuid: formData.stateUuid,
             employees: formData.employees,
-            bundleDistribution: formData.bundleDistribution
+            bundleDistribution: formData.bundleDistribution,
+            deconfirmBeforeScale: deconfirmBeforeScale || undefined
           })
         });
         
@@ -1392,7 +1405,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
               </div>
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={isSaving}>Cancel</Button>
-                <Button onClick={handleSave} disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Project'}</Button>
+                <Button onClick={() => handleSave()} disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Project'}</Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -1670,7 +1683,35 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
               </div>
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={cancelEdit} disabled={isSaving}>Cancel</Button>
-                <Button onClick={handleSave} disabled={isSaving}>{isSaving ? 'Saving...' : 'Update Project'}</Button>
+                <Button onClick={() => handleSave()} disabled={isSaving}>{isSaving ? 'Saving...' : 'Update Project'}</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Confirmed Entries Warning Dialog */}
+          <Dialog open={isConfirmedWarningOpen} onOpenChange={setIsConfirmedWarningOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Confirmed Ledger Entries</DialogTitle>
+                <DialogDescription>
+                  You are changing the project value. Some bundle payment ledger entries may be confirmed and will be skipped during proportional scaling.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 py-2 text-sm text-muted-foreground">
+                <p>Choose how to proceed:</p>
+                <ul className="list-disc ml-4 space-y-1">
+                  <li><strong>Deconfirm &amp; Scale All</strong> — deconfirm bundle ledger entries first, then scale all of them proportionally.</li>
+                  <li><strong>Scale Unconfirmed Only</strong> — keep confirmed entries as-is and only scale unconfirmed ones.</li>
+                </ul>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setIsConfirmedWarningOpen(false)}>Cancel</Button>
+                <Button variant="outline" onClick={() => { setIsConfirmedWarningOpen(false); handleSave(false); }}>
+                  Scale Unconfirmed Only
+                </Button>
+                <Button onClick={() => { setIsConfirmedWarningOpen(false); handleSave(true); }}>
+                  Deconfirm &amp; Scale All
+                </Button>
               </div>
             </DialogContent>
           </Dialog>

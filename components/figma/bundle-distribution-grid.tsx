@@ -133,15 +133,9 @@ export function BundleDistributionGrid({
     const updated = [...localValue];
     updated[index] = { ...updated[index], percentage: newPercentage };
 
-    if (newPercentage && parseFloat(newPercentage) > 0) {
+    if (newPercentage && parseFloat(newPercentage) > 0 && projectValue > 0) {
       const pct = parseFloat(newPercentage);
       updated[index].amount = ((projectValue * pct) / 100).toFixed(2);
-
-      updated.forEach((row, i) => {
-        if (i !== index && (!row.percentage || parseFloat(row.percentage) === 0)) {
-          updated[i] = { ...updated[i], amount: '' };
-        }
-      });
     } else {
       updated[index].amount = '';
     }
@@ -155,10 +149,11 @@ export function BundleDistributionGrid({
     const updated = [...localValue];
     updated[index] = { ...updated[index], amount: newAmount };
 
-    if (newAmount && parseFloat(newAmount) > 0) {
-      updated.forEach((row, i) => {
-        updated[i] = { ...updated[i], percentage: '' };
-      });
+    if (newAmount && parseFloat(newAmount) > 0 && projectValue > 0) {
+      const pct = (parseFloat(newAmount) / projectValue) * 100;
+      updated[index].percentage = pct.toFixed(4).replace(/\.?0+$/, '');
+    } else {
+      updated[index].percentage = '';
     }
 
     setLocalValue(updated);
@@ -221,8 +216,7 @@ export function BundleDistributionGrid({
             <DialogTitle>Bundle Distribution</DialogTitle>
             <DialogDescription>
               Distribute the project value ({projectValue.toFixed(2)}) across child financial codes.
-              {distributionMode === 'percentage' && ' Enter percentages — amounts calculate automatically.'}
-              {distributionMode === 'amount' && ' Enter amounts directly.'}
+              Entering % calculates the amount and vice versa.
             </DialogDescription>
           </DialogHeader>
 
@@ -258,7 +252,7 @@ export function BundleDistributionGrid({
                             step="0.01"
                             value={row.percentage}
                             onChange={(e) => handlePercentageChange(index, e.target.value)}
-                            disabled={disabled || distributionMode === 'amount'}
+                            disabled={disabled}
                             className="w-20 h-8 text-xs"
                           />
                         </td>
@@ -269,7 +263,7 @@ export function BundleDistributionGrid({
                             step="0.01"
                             value={row.amount}
                             onChange={(e) => handleAmountChange(index, e.target.value)}
-                            disabled={disabled || distributionMode === 'percentage'}
+                            disabled={disabled}
                             className="w-28 h-8 text-xs"
                           />
                         </td>
@@ -313,17 +307,17 @@ export function BundleDistributionGrid({
                 </table>
               </div>
 
-              {distributionMode === 'percentage' && !percentageValid && (
+              {distributionMode !== 'none' && !percentageValid && (
                 <div className="flex items-center text-sm text-red-600">
                   <AlertCircle className="h-4 w-4 mr-2" />
-                  Total percentage must equal 100%
+                  Total percentage must equal 100% (currently {totals.percentageSum.toFixed(2)}%)
                 </div>
               )}
 
-              {distributionMode === 'amount' && !amountValid && (
+              {distributionMode !== 'none' && !amountValid && (
                 <div className="flex items-center text-sm text-red-600">
                   <AlertCircle className="h-4 w-4 mr-2" />
-                  Total amount must equal project value ({projectValue.toFixed(2)})
+                  Total amount must equal project value ({projectValue.toFixed(2)}) — currently {totals.amountSum.toFixed(2)}
                 </div>
               )}
 

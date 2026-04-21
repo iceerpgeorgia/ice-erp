@@ -551,7 +551,8 @@ export async function PATCH(req: NextRequest) {
       state_uuid,
       insider_uuid,
       employees,
-      bundleDistribution
+      bundleDistribution,
+      deconfirmBeforeScale
     } = body;
     const selection = await resolveInsiderSelection(req);
     const insiderOptions = await getInsiderOptions();
@@ -625,6 +626,23 @@ export async function PATCH(req: NextRequest) {
       const newProjectValue = parseFloat(value);
       if (Math.abs(newProjectValue - oldProjectValue) > 0.001) {
         const scaleFactor = newProjectValue / oldProjectValue;
+
+        // If requested, deconfirm all non-deleted ledger entries for this project first
+        if (deconfirmBeforeScale) {
+          await prisma.$transaction([
+            prisma.$executeRaw`SELECT set_config('app.allow_deconfirm', 'true', true)`,
+            prisma.$executeRawUnsafe(
+              `UPDATE payments_ledger pl
+               SET confirmed = false
+               WHERE pl.payment_id IN (
+                 SELECT payment_id FROM payments WHERE project_uuid = $1::uuid
+               )
+               AND (pl.is_deleted = false OR pl.is_deleted IS NULL)`,
+              oldProjectUuid
+            ),
+          ]);
+        }
+
         await prisma.$queryRawUnsafe(
           `UPDATE payments_ledger pl
            SET accrual = ROUND(pl.accrual * $1::numeric, 2),
@@ -633,7 +651,8 @@ export async function PATCH(req: NextRequest) {
            WHERE pl.payment_id IN (
              SELECT payment_id FROM payments WHERE project_uuid = $2::uuid
            )
-           AND (pl.is_deleted = false OR pl.is_deleted IS NULL)`,
+           AND (pl.is_deleted = false OR pl.is_deleted IS NULL)
+           AND (pl.confirmed IS NULL OR pl.confirmed = false)`,
           scaleFactor,
           oldProjectUuid
         );
