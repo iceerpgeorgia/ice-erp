@@ -389,13 +389,15 @@ export async function POST(req: NextRequest) {
         );
 
         let paymentIdToUse = '';
+        let oldPaymentId = '';
 
         if (bundlePayments.length > 0) {
           // Payment exists - update it
           const newPaymentId = distRow.paymentId || '';
-          paymentIdToUse = bundlePayments[0].payment_id;
+          oldPaymentId = bundlePayments[0].payment_id || '';
+          paymentIdToUse = oldPaymentId;
           
-          if (newPaymentId && bundlePayments[0].payment_id !== newPaymentId) {
+          if (newPaymentId && oldPaymentId !== newPaymentId) {
             await prisma.$queryRawUnsafe(
               `UPDATE payments 
                SET payment_id = $1, 
@@ -416,11 +418,12 @@ export async function POST(req: NextRequest) {
           try {
             const newPaymentId = distRow.paymentId || '';
             paymentIdToUse = newPaymentId;
+            oldPaymentId = '';
             await prisma.$queryRawUnsafe(
               `INSERT INTO payments (
                 project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax,
                 currency_uuid, payment_id, record_uuid, insider_uuid, is_project_derived, is_bundle_payment, updated_at
-              ) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, $5, $6, $7::uuid, true, true, NOW())`,
+              ) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, $5, $6, $7::uuid, false, true, NOW())`,
               project.project_uuid, counteragentUuid, distRow.financialCodeUuid, currencyUuid, 
               newPaymentId, newPaymentId, effectiveInsiderUuid
             );
@@ -434,7 +437,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Upsert payments_ledger: delete existing entry then insert fresh one
+        // Upsert payments_ledger: delete existing entries (both old and new payment_ids) then insert fresh one
         if (distributedAmount > 0 && paymentIdToUse) {
           try {
             // Parse date from dd.mm.yyyy format, use current date if empty or invalid
@@ -445,22 +448,25 @@ export async function POST(req: NextRequest) {
               effectiveDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
             }
 
-            // Delete any existing bundle distribution entry for this payment_id + FC
+            const comment = `Bundle distribution: ${distRow.financialCodeName}`;
+
+            // Delete any existing bundle distribution entry for both old and new payment_ids
             await prisma.$queryRawUnsafe(
-              `DELETE FROM payments_ledger WHERE payment_id = $1 AND comment = $2`,
+              `DELETE FROM payments_ledger WHERE comment = $1 AND (payment_id = $2 OR ($3 <> '' AND payment_id = $3))`,
+              comment,
               paymentIdToUse,
-              `Bundle distribution: ${distRow.financialCodeName}`
+              oldPaymentId
             );
 
             await prisma.$queryRawUnsafe(
               `INSERT INTO payments_ledger (
                 payment_id, effective_date, accrual, "order", user_email, comment, insider_uuid
-              ) VALUES ($1, $2, 0, $3, $4, $5, $6::uuid)`,
+              ) VALUES ($1, $2, $3, $3, $4, $5, $6::uuid)`,
               paymentIdToUse,
               effectiveDate,
               distributedAmount,
               auth.user?.email || 'system',
-              `Bundle distribution: ${distRow.financialCodeName}`,
+              comment,
               effectiveInsiderUuid
             );
           } catch (ledgerErr: any) {
@@ -633,10 +639,11 @@ export async function PATCH(req: NextRequest) {
           // Payment exists - update it
           const bundlePayment = bundlePayments[0];
           const newPaymentId = distRow.paymentId || '';
-          paymentIdToUse = bundlePayment.payment_id;
+          const oldPaymentId = bundlePayment.payment_id || '';
+          paymentIdToUse = oldPaymentId;
 
           // Only update if payment_id changed
-          if (bundlePayment.payment_id !== newPaymentId) {
+          if (oldPaymentId !== newPaymentId) {
             await prisma.$queryRawUnsafe(
               `UPDATE payments 
                SET payment_id = $1, 
@@ -644,14 +651,58 @@ export async function PATCH(req: NextRequest) {
                    updated_at = NOW() 
                WHERE id = $3`,
               newPaymentId,
-              newPaymentId, // record_uuid should match payment_id for consistency
+              newPaymentId,
               bundlePayment.id
             );
-            paymentIdToUse = newPaymentId || bundlePayment.payment_id;
+            paymentIdToUse = newPaymentId || oldPaymentId;
 
             // Reparse bank transactions if payment_id was added or changed
-            if (newPaymentId && bundlePayment.payment_id !== newPaymentId) {
+            if (newPaymentId) {
               await reparseByPaymentId(newPaymentId);
+            }
+          }
+
+          // Create/update payments_ledger entry
+          if (distributedAmount > 0 && paymentIdToUse) {
+            try {
+              // Parse date from dd.mm.yyyy format, use current date if empty or invalid
+              const dateParts = (distRow.distributionDate || '').split('.');
+              let effectiveDate = new Date();
+              if (dateParts.length === 3) {
+                const [day, month, year] = dateParts;
+                effectiveDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+              }
+
+              // Get insider_uuid from project
+              const projectInsider = await prisma.$queryRawUnsafe<Array<{ insider_uuid: string | null }>>(
+                `SELECT insider_uuid FROM projects WHERE project_uuid = $1::uuid LIMIT 1`,
+                project.project_uuid
+              );
+              const insiderUuid = projectInsider[0]?.insider_uuid || null;
+
+              const comment = `Bundle distribution: ${distRow.financialCodeName}`;
+
+              // Upsert: delete existing entries for both old and new payment_ids, then insert
+              await prisma.$queryRawUnsafe(
+                `DELETE FROM payments_ledger WHERE comment = $1 AND (payment_id = $2 OR ($3 <> '' AND payment_id = $3))`,
+                comment,
+                paymentIdToUse,
+                oldPaymentId
+              );
+
+              await prisma.$queryRawUnsafe(
+                `INSERT INTO payments_ledger (
+                  payment_id, effective_date, accrual, "order", user_email, comment, insider_uuid
+                ) VALUES ($1, $2, $3, $3, $4, $5, $6::uuid)`,
+                paymentIdToUse,
+                effectiveDate,
+                distributedAmount,
+                auth.user?.email || 'system',
+                comment,
+                insiderUuid
+              );
+            } catch (ledgerErr: any) {
+              console.warn('Bundle ledger upsert skipped:', ledgerErr?.message);
             }
           }
         } else {
@@ -672,7 +723,7 @@ export async function PATCH(req: NextRequest) {
               `INSERT INTO payments (
                 project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax,
                 currency_uuid, payment_id, record_uuid, insider_uuid, is_project_derived, is_bundle_payment, updated_at
-              ) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, $5, $6, $7::uuid, true, true, NOW())`,
+              ) VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, false, $4::uuid, $5, $6, $7::uuid, false, true, NOW())`,
               project.project_uuid, counteragent_uuid, distRow.financialCodeUuid, currency_uuid, 
               newPaymentId, newPaymentId, insider_uuid
             );
@@ -681,49 +732,39 @@ export async function PATCH(req: NextRequest) {
             if (newPaymentId) {
               await reparseByPaymentId(newPaymentId);
             }
+
+            // Create ledger entry for the newly created payment
+            if (distributedAmount > 0 && newPaymentId) {
+              try {
+                const dateParts = (distRow.distributionDate || '').split('.');
+                let effectiveDate = new Date();
+                if (dateParts.length === 3) {
+                  const [day, month, year] = dateParts;
+                  effectiveDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                }
+                const comment = `Bundle distribution: ${distRow.financialCodeName}`;
+                await prisma.$queryRawUnsafe(
+                  `DELETE FROM payments_ledger WHERE payment_id = $1 AND comment = $2`,
+                  newPaymentId,
+                  comment
+                );
+                await prisma.$queryRawUnsafe(
+                  `INSERT INTO payments_ledger (
+                    payment_id, effective_date, accrual, "order", user_email, comment, insider_uuid
+                  ) VALUES ($1, $2, $3, $3, $4, $5, $6::uuid)`,
+                  newPaymentId,
+                  effectiveDate,
+                  distributedAmount,
+                  auth.user?.email || 'system',
+                  comment,
+                  insider_uuid
+                );
+              } catch (ledgerErr: any) {
+                console.warn('Bundle ledger insert (new payment) skipped:', ledgerErr?.message);
+              }
+            }
           } catch (createErr: any) {
             console.warn('Bundle child payment creation skipped:', createErr?.message);
-          }
-        }
-
-        // Create payments_ledger entry if amount is distributed and payment_id exists
-        if (distributedAmount > 0 && paymentIdToUse) {
-          try {
-            // Parse date from dd.mm.yyyy format, use current date if empty or invalid
-            const dateParts = (distRow.distributionDate || '').split('.');
-            let effectiveDate = new Date();
-            if (dateParts.length === 3) {
-              const [day, month, year] = dateParts;
-              effectiveDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-            }
-
-            // Get insider_uuid from project if not already available
-            const projectInsider = await prisma.$queryRawUnsafe<Array<{ insider_uuid: string | null }>>(
-              `SELECT insider_uuid FROM projects WHERE project_uuid = $1::uuid LIMIT 1`,
-              project.project_uuid
-            );
-            const insiderUuid = projectInsider[0]?.insider_uuid || null;
-
-            // Upsert: delete existing bundle distribution entry for this payment_id + FC, then insert
-            await prisma.$queryRawUnsafe(
-              `DELETE FROM payments_ledger WHERE payment_id = $1 AND comment = $2`,
-              paymentIdToUse,
-              `Bundle distribution: ${distRow.financialCodeName}`
-            );
-
-            await prisma.$queryRawUnsafe(
-              `INSERT INTO payments_ledger (
-                payment_id, effective_date, accrual, "order", user_email, comment, insider_uuid
-              ) VALUES ($1, $2, 0, $3, $4, $5, $6::uuid)`,
-              paymentIdToUse,
-              effectiveDate,
-              distributedAmount,
-              auth.user?.email || 'system',
-              `Bundle distribution: ${distRow.financialCodeName}`,
-              insiderUuid
-            );
-          } catch (ledgerErr: any) {
-            console.warn('Bundle ledger upsert skipped:', ledgerErr?.message);
           }
         }
       }
