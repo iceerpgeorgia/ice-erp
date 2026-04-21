@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-04-21 Deployment #210
+- Commit: 800f7d7
+- Production: https://ice-nk3qrs1nk-iceerp.vercel.app
+- Summary: **CRITICAL FIX** - Query payments_ledger.order column instead of accrual for bundle distribution amounts.
+- Changes:
+  - app/api/projects/bundle-distribution/route.ts: Fixed GET endpoint to query `SUM("order")` instead of `SUM(accrual)` from payments_ledger table. Bundle distribution amounts are stored in the `order` column (with `accrual=0`), but the endpoint was incorrectly querying accrual column, returning 0 for all amounts. Changed variable name from `total_accrual` to `total_order` to match the actual column being queried.
+- Bug Fix: Resolves issue where editing bundle distribution showed empty amounts even when distribution data existed in payments_ledger. Previously saved distribution amounts were stored correctly in `payments_ledger.order` column, but GET endpoint queried wrong column (accrual) which is always 0 for bundle distributions. Now correctly fetches and displays existing distribution amounts when editing.
+- Architecture Note: Bundle distribution data model uses payments_ledger with accrual=0 and order=distributedAmount. This fix aligns the GET endpoint with the POST/PATCH endpoints which already write to the order column correctly.
+
 ## 2026-04-21 Deployment #209
 - Commit: e2f09b9
 - Production: https://ice-jdsn4iq3f-iceerp.vercel.app
