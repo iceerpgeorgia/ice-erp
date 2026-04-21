@@ -621,13 +621,14 @@ export async function PATCH(req: NextRequest) {
 
     const project: any = Array.isArray(result) ? result[0] : result;
 
-    // If value changed, proportionally scale all payment ledger entries for this project
+    // If value changed, proportionally scale auto-generated payment ledger entries for this project
+    // (is_project_derived = true: main project payment; is_bundle_payment = true: bundle child payments)
     if (value && oldProjectValue && oldProjectValue > 0 && oldProjectUuid) {
       const newProjectValue = parseFloat(value);
       if (Math.abs(newProjectValue - oldProjectValue) > 0.001) {
         const scaleFactor = newProjectValue / oldProjectValue;
 
-        // If requested, deconfirm all non-deleted ledger entries for this project first
+        // If requested, deconfirm auto-generated ledger entries first so the scale UPDATE can reach them
         if (deconfirmBeforeScale) {
           await prisma.$transaction([
             prisma.$executeRaw`SELECT set_config('app.allow_deconfirm', 'true', true)`,
@@ -635,7 +636,9 @@ export async function PATCH(req: NextRequest) {
               `UPDATE payments_ledger pl
                SET confirmed = false
                WHERE pl.payment_id IN (
-                 SELECT payment_id FROM payments WHERE project_uuid = $1::uuid
+                 SELECT payment_id FROM payments
+                 WHERE project_uuid = $1::uuid
+                   AND (is_project_derived = true OR is_bundle_payment = true)
                )
                AND (pl.is_deleted = false OR pl.is_deleted IS NULL)`,
               oldProjectUuid
@@ -649,7 +652,9 @@ export async function PATCH(req: NextRequest) {
                "order" = ROUND(pl."order" * $1::numeric, 2),
                updated_at = NOW()
            WHERE pl.payment_id IN (
-             SELECT payment_id FROM payments WHERE project_uuid = $2::uuid
+             SELECT payment_id FROM payments
+             WHERE project_uuid = $2::uuid
+               AND (is_project_derived = true OR is_bundle_payment = true)
            )
            AND (pl.is_deleted = false OR pl.is_deleted IS NULL)
            AND (pl.confirmed IS NULL OR pl.confirmed = false)`,

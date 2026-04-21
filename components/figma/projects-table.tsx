@@ -1698,10 +1698,10 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-3 py-2 text-sm text-muted-foreground">
-                <p>Choose how to proceed:</p>
+                <p>You are changing the project value. Scaling only applies to auto-generated ledger entries (main project payment and bundle child payments). Choose how to proceed:</p>
                 <ul className="list-disc ml-4 space-y-1">
-                  <li><strong>Deconfirm &amp; Scale All</strong> — deconfirm bundle ledger entries first, then scale all of them proportionally.</li>
-                  <li><strong>Scale Unconfirmed Only</strong> — keep confirmed entries as-is and only scale unconfirmed ones.</li>
+                  <li><strong>Deconfirm &amp; Scale All</strong> — deconfirm confirmed auto-generated ledger entries first, then scale all of them proportionally.</li>
+                  <li><strong>Scale Unconfirmed Only</strong> — keep all confirmed entries as-is and only scale unconfirmed ones.</li>
                 </ul>
               </div>
               <div className="flex justify-end gap-2 pt-2">
