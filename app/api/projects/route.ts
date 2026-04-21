@@ -434,7 +434,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Create payments_ledger entry if amount is distributed and payment_id exists
+        // Upsert payments_ledger: delete existing entry then insert fresh one
         if (distributedAmount > 0 && paymentIdToUse) {
           try {
             // Parse date from dd.mm.yyyy format, use current date if empty or invalid
@@ -444,6 +444,13 @@ export async function POST(req: NextRequest) {
               const [day, month, year] = dateParts;
               effectiveDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
             }
+
+            // Delete any existing bundle distribution entry for this payment_id + FC
+            await prisma.$queryRawUnsafe(
+              `DELETE FROM payments_ledger WHERE payment_id = $1 AND comment = $2`,
+              paymentIdToUse,
+              `Bundle distribution: ${distRow.financialCodeName}`
+            );
 
             await prisma.$queryRawUnsafe(
               `INSERT INTO payments_ledger (
@@ -457,7 +464,7 @@ export async function POST(req: NextRequest) {
               effectiveInsiderUuid
             );
           } catch (ledgerErr: any) {
-            console.warn('Bundle ledger creation skipped:', ledgerErr?.message);
+            console.warn('Bundle ledger upsert skipped:', ledgerErr?.message);
           }
         }
       }
@@ -697,6 +704,13 @@ export async function PATCH(req: NextRequest) {
             );
             const insiderUuid = projectInsider[0]?.insider_uuid || null;
 
+            // Upsert: delete existing bundle distribution entry for this payment_id + FC, then insert
+            await prisma.$queryRawUnsafe(
+              `DELETE FROM payments_ledger WHERE payment_id = $1 AND comment = $2`,
+              paymentIdToUse,
+              `Bundle distribution: ${distRow.financialCodeName}`
+            );
+
             await prisma.$queryRawUnsafe(
               `INSERT INTO payments_ledger (
                 payment_id, effective_date, accrual, "order", user_email, comment, insider_uuid
@@ -709,7 +723,7 @@ export async function PATCH(req: NextRequest) {
               insiderUuid
             );
           } catch (ledgerErr: any) {
-            console.warn('Bundle ledger creation skipped:', ledgerErr?.message);
+            console.warn('Bundle ledger upsert skipped:', ledgerErr?.message);
           }
         }
       }
@@ -805,7 +819,7 @@ export async function PATCH(req: NextRequest) {
           const existingBundle = await prisma.$queryRawUnsafe<Array<{ id: bigint; counteragent_uuid: string; currency_uuid: string; insider_uuid: string | null }>>(
             `SELECT id, counteragent_uuid, currency_uuid, insider_uuid
              FROM payments
-             WHERE project_uuid = $1::uuid AND is_project_derived = true AND financial_code_uuid = $2::uuid
+             WHERE project_uuid = $1::uuid AND is_bundle_payment = true AND financial_code_uuid = $2::uuid
              LIMIT 1`,
             project.project_uuid, childFC.uuid
           );

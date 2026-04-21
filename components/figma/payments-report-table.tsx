@@ -3865,6 +3865,15 @@ export function PaymentsReportTable() {
                   })}
                   <td className="px-4 py-2 text-sm" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>
                     <div className="flex items-center justify-center gap-1">
+                      {isBundleAgg && row.projectUuid && row.financialCodeUuid && (
+                        <button
+                          onClick={() => handleOpenBundleDistribution(row.projectUuid!, row.financialCodeUuid!)}
+                          className="inline-block text-purple-600 hover:text-purple-800 hover:bg-purple-50 p-1 rounded transition-colors"
+                          title="Bundle distribution"
+                        >
+                          <LayoutGrid className="w-4 h-4" />
+                        </button>
+                      )}
                       {!isBundleAgg && (
                       <>
                       <PaymentAttachments paymentId={row.paymentId} />
@@ -3882,15 +3891,6 @@ export function PaymentsReportTable() {
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      {row.projectUuid && row.financialCodeUuid && (
-                        <button
-                          onClick={() => handleOpenBundleDistribution(row.projectUuid!, row.financialCodeUuid!)}
-                          className="inline-block text-purple-600 hover:text-purple-800 hover:bg-purple-50 p-1 rounded transition-colors"
-                          title="Bundle distribution (if parent FC)"
-                        >
-                          <LayoutGrid className="w-4 h-4" />
-                        </button>
-                      )}
                       <button
                         onClick={() => openDialogForPayment(row.paymentId)}
                         className="inline-block text-green-600 hover:text-green-800 hover:bg-green-50 p-1 rounded transition-colors"

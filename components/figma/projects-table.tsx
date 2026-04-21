@@ -501,18 +501,15 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
         if (insiderSelectionRes.ok) {
           const insiderSelectionData = await insiderSelectionRes.json();
           const options = Array.isArray(insiderSelectionData?.options) ? insiderSelectionData.options : [];
-          const selectedInsiders = Array.isArray(insiderSelectionData?.selectedInsiders)
-            ? insiderSelectionData.selectedInsiders
-            : [];
           const selectedUuids = Array.isArray(insiderSelectionData?.selectedUuids)
             ? insiderSelectionData.selectedUuids
             : [];
-          const availableInsidersRaw = selectedInsiders.length > 0 ? selectedInsiders : options;
-          const availableInsiders = availableInsidersRaw.map((option: any) => ({
+          // Always use ALL insiders for the form dropdown, regardless of filter selection
+          const allInsiders = options.map((option: any) => ({
             insiderUuid: option.insiderUuid,
             insiderName: option.insiderName,
           }));
-          setInsidersList(availableInsiders);
+          setInsidersList(allInsiders);
           setSelectedInsiderUuids(selectedUuids);
 
           // If homepage has exactly one selected insider, keep it fixed in forms.
@@ -520,8 +517,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
             setFormData((prev) => ({ ...prev, insiderUuid: selectedUuids[0] }));
           } else if (selectedUuids.length > 1) {
             setFormData((prev) => ({ ...prev, insiderUuid: prev.insiderUuid || selectedUuids[0] }));
-          } else if (availableInsiders.length > 0) {
-            setFormData((prev) => ({ ...prev, insiderUuid: prev.insiderUuid || availableInsiders[0].insiderUuid }));
+          } else if (allInsiders.length > 0) {
+            setFormData((prev) => ({ ...prev, insiderUuid: prev.insiderUuid || allInsiders[0].insiderUuid }));
           }
         } else {
           console.error('[ProjectsTable] Failed to load insider selection:', insiderSelectionRes.status);
