@@ -818,14 +818,26 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
     try {
       if (!(await validateForm())) return;
 
-      // If editing and value changed, warn about confirmed ledger entries
+      // If editing and value changed, check for confirmed ledger entries before warning
       if (editingProject && !deconfirmBeforeScale) {
         const newValue = parseFloat(formData.value);
         const oldValue = parseFloat(String(editingProject.value));
         if (!isNaN(newValue) && !isNaN(oldValue) && Math.abs(newValue - oldValue) > 0.001) {
-          setIsSaving(false);
-          setIsConfirmedWarningOpen(true);
-          return;
+          try {
+            const checkRes = await fetch(`/api/projects/confirmed-check?projectUuid=${editingProject.projectUuid}`);
+            const checkData = await checkRes.json();
+            if (checkData.hasConfirmed) {
+              setIsSaving(false);
+              setIsConfirmedWarningOpen(true);
+              return;
+            }
+            // No confirmed entries — proceed directly without dialog
+          } catch {
+            // If check fails, show the dialog to be safe
+            setIsSaving(false);
+            setIsConfirmedWarningOpen(true);
+            return;
+          }
         }
       }
       
@@ -1396,7 +1408,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                         bundleFinancialCodeUuid={formData.financialCodeUuid}
                         projectValue={parseFloat(formData.value || '0') || 0}
                         value={formData.bundleDistribution}
-                        onChange={(distribution) => setFormData({ ...formData, bundleDistribution: distribution })}
+                        onChange={(distribution) => setFormData(prev => ({ ...prev, bundleDistribution: distribution }))}
                         disabled={isSaving}
                       />
                     </div>
@@ -1674,7 +1686,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                         bundleFinancialCodeUuid={formData.financialCodeUuid}
                         projectValue={parseFloat(formData.value || '0') || 0}
                         value={formData.bundleDistribution}
-                        onChange={(distribution) => setFormData({ ...formData, bundleDistribution: distribution })}
+                        onChange={(distribution) => setFormData(prev => ({ ...prev, bundleDistribution: distribution }))}
                         disabled={isSaving}
                       />
                     </div>
