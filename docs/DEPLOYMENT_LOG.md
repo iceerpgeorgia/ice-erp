@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-04-22 Deployment #221
+- Commit: 0e9c749
+- Production: https://ice-d9ztv7pu9-iceerp.vercel.app
+- Summary: Bundle distribution grid bidirectional %↔sum; confirmed-entry warning dialog before project value change; API deconfirmBeforeScale support.
+- Changes:
+  - components/figma/bundle-distribution-grid.tsx: Entering % now auto-calculates amount and vice versa. Both inputs always editable (removed mode-locking). Validation warnings show actual totals.
+  - components/figma/projects-table.tsx: When editing a project and value changes, save is intercepted and a warning dialog appears with options: Cancel, Scale Unconfirmed Only, or Deconfirm & Scale All.
+  - app/api/projects/route.ts: PATCH accepts `deconfirmBeforeScale: boolean`. When true, runs DB transaction to set allow_deconfirm session flag and clears confirmed=false on all non-deleted ledger entries before proportional scaling.
+
 ## 2026-04-21 Deployment #220
 - Commit: 9c28ddd
 - Production: https://ice-c1p14evmn-iceerp.vercel.app
