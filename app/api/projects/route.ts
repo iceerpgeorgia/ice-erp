@@ -450,10 +450,10 @@ export async function POST(req: NextRequest) {
 
             const comment = `Bundle distribution: ${distRow.financialCodeName}`;
 
-            // Delete any existing bundle distribution entry for both old and new payment_ids
+            // Delete ALL existing bundle distribution entries for both old and new payment_ids
+            // Use LIKE pattern so FC name changes don't leave orphan rows
             await prisma.$queryRawUnsafe(
-              `DELETE FROM payments_ledger WHERE comment = $1 AND (payment_id = $2 OR ($3 <> '' AND payment_id = $3))`,
-              comment,
+              `DELETE FROM payments_ledger WHERE comment LIKE 'Bundle distribution:%' AND (payment_id = $1 OR ($2 <> '' AND payment_id = $2))`,
               paymentIdToUse,
               oldPaymentId
             );
@@ -682,10 +682,10 @@ export async function PATCH(req: NextRequest) {
 
               const comment = `Bundle distribution: ${distRow.financialCodeName}`;
 
-              // Upsert: delete existing entries for both old and new payment_ids, then insert
+              // Delete ALL existing bundle distribution entries for both old and new payment_ids
+              // Use LIKE pattern so FC name changes don't leave orphan rows
               await prisma.$queryRawUnsafe(
-                `DELETE FROM payments_ledger WHERE comment = $1 AND (payment_id = $2 OR ($3 <> '' AND payment_id = $3))`,
-                comment,
+                `DELETE FROM payments_ledger WHERE comment LIKE 'Bundle distribution:%' AND (payment_id = $1 OR ($2 <> '' AND payment_id = $2))`,
                 paymentIdToUse,
                 oldPaymentId
               );
@@ -744,9 +744,8 @@ export async function PATCH(req: NextRequest) {
                 }
                 const comment = `Bundle distribution: ${distRow.financialCodeName}`;
                 await prisma.$queryRawUnsafe(
-                  `DELETE FROM payments_ledger WHERE payment_id = $1 AND comment = $2`,
-                  newPaymentId,
-                  comment
+                  `DELETE FROM payments_ledger WHERE comment LIKE 'Bundle distribution:%' AND payment_id = $1`,
+                  newPaymentId
                 );
                 await prisma.$queryRawUnsafe(
                   `INSERT INTO payments_ledger (
