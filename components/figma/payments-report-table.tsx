@@ -3619,7 +3619,7 @@ export function PaymentsReportTable() {
                 })}
                 <th 
                   className="sticky top-0 bg-white px-4 py-3 text-left text-sm font-semibold border-b-2 border-gray-200"
-                  style={{ width: 100, minWidth: 100, maxWidth: 100 }}
+                  style={{ width: 190, minWidth: 190, maxWidth: 190 }}
                 >
                   Actions
                 </th>
@@ -3866,8 +3866,8 @@ export function PaymentsReportTable() {
                     </td>
                     );
                   })}
-                  <td className="px-4 py-2 text-sm" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>
-                    <div className="flex items-center justify-center gap-1">
+                  <td className="px-4 py-2 text-sm" style={{ width: 190, minWidth: 190, maxWidth: 190 }}>
+                    <div className="flex items-center justify-end gap-1">
                       {isBundleAgg && row.projectUuid && row.financialCodeUuid && (
                         <button
                           onClick={() => handleOpenBundleDistribution(row.projectUuid!, row.financialCodeUuid!)}

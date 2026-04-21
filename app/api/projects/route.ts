@@ -589,6 +589,14 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    // Fetch current project value before update so we can scale ledger entries proportionally
+    const currentProjectRows = await prisma.$queryRawUnsafe<Array<{ project_uuid: string; value: any }>>(
+      `SELECT project_uuid, value FROM projects WHERE id = $1 LIMIT 1`,
+      parseInt(id)
+    );
+    const oldProjectValue = currentProjectRows.length > 0 ? parseFloat(currentProjectRows[0].value) : null;
+    const oldProjectUuid = currentProjectRows.length > 0 ? currentProjectRows[0].project_uuid : null;
+
     // Update project
     const result = await prisma.$queryRaw`
       UPDATE projects 
@@ -611,6 +619,26 @@ export async function PATCH(req: NextRequest) {
     `;
 
     const project: any = Array.isArray(result) ? result[0] : result;
+
+    // If value changed, proportionally scale all payment ledger entries for this project
+    if (value && oldProjectValue && oldProjectValue > 0 && oldProjectUuid) {
+      const newProjectValue = parseFloat(value);
+      if (Math.abs(newProjectValue - oldProjectValue) > 0.001) {
+        const scaleFactor = newProjectValue / oldProjectValue;
+        await prisma.$queryRawUnsafe(
+          `UPDATE payments_ledger pl
+           SET accrual = ROUND(pl.accrual * $1::numeric, 2),
+               "order" = ROUND(pl."order" * $1::numeric, 2),
+               updated_at = NOW()
+           WHERE pl.payment_id IN (
+             SELECT payment_id FROM payments WHERE project_uuid = $2::uuid
+           )
+           AND (pl.is_deleted = false OR pl.is_deleted IS NULL)`,
+          scaleFactor,
+          oldProjectUuid
+        );
+      }
+    }
 
     // Update employees if provided
     if (employees && Array.isArray(employees)) {
