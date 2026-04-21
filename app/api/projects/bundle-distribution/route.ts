@@ -25,18 +25,26 @@ export async function GET(req: NextRequest) {
 
   const project = projects[0];
 
-  // Get child FCs with their existing payment info
+  // Get child FCs with their existing payment info and ledger aggregates
   const rows = await prisma.$queryRawUnsafe<Array<{
     financial_code_uuid: string;
     financial_code_name: string;
     financial_code_code: string;
     payment_id: string | null;
+    total_accrual: number | null;
+    latest_date: Date | null;
   }>>(
     `SELECT
        fc.uuid::text AS financial_code_uuid,
        fc.name AS financial_code_name,
        fc.code AS financial_code_code,
-       p.payment_id
+       p.payment_id,
+       (SELECT COALESCE(SUM(accrual), 0) 
+        FROM payments_ledger 
+        WHERE payment_id = p.payment_id) AS total_accrual,
+       (SELECT MAX(effective_date) 
+        FROM payments_ledger 
+        WHERE payment_id = p.payment_id) AS latest_date
      FROM financial_codes fc
      LEFT JOIN payments p
        ON p.project_uuid = $1::uuid
@@ -48,13 +56,26 @@ export async function GET(req: NextRequest) {
     project.financial_code_uuid
   );
 
-  const distribution = rows.map(row => ({
-    financialCodeUuid: row.financial_code_uuid,
-    financialCodeName: `${row.financial_code_code} - ${row.financial_code_name}`,
-    percentage: '',
-    amount: '',
-    paymentId: row.payment_id || null,
-  }));
+  const distribution = rows.map(row => {
+    // Format date as dd.mm.yyyy if exists, otherwise empty string
+    let distributionDate = '';
+    if (row.latest_date) {
+      const d = new Date(row.latest_date);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      distributionDate = `${day}.${month}.${year}`;
+    }
+
+    return {
+      financialCodeUuid: row.financial_code_uuid,
+      financialCodeName: `${row.financial_code_code} - ${row.financial_code_name}`,
+      percentage: '',
+      amount: row.total_accrual ? String(row.total_accrual) : '',
+      paymentId: row.payment_id || null,
+      distributionDate: distributionDate,
+    };
+  });
 
   return NextResponse.json(distribution);
 }

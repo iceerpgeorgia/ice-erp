@@ -80,7 +80,7 @@ export function BundleDistributionGrid({
               percentage: '',
               amount: '',
               paymentId: null,
-              distributionDate: getTodayFormatted(),
+              distributionDate: '', // Leave blank, will use current date only if user doesn't fill
             }));
             onChange(initialDistribution);
           }
@@ -93,13 +93,10 @@ export function BundleDistributionGrid({
       });
   }, [bundleFinancialCodeUuid]);
 
-  // Sync local state when dialog opens
+  // Sync local state when dialog opens (don't auto-fill dates)
   useEffect(() => {
     if (isOpen) {
-      setLocalValue(value.map(r => ({
-        ...r,
-        distributionDate: r.distributionDate || getTodayFormatted()
-      })));
+      setLocalValue(value);
     }
   }, [isOpen, value]);
 

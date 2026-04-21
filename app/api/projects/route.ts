@@ -435,10 +435,10 @@ export async function POST(req: NextRequest) {
         }
 
         // Create payments_ledger entry if amount is distributed and payment_id exists
-        if (distributedAmount > 0 && paymentIdToUse && distRow.distributionDate) {
+        if (distributedAmount > 0 && paymentIdToUse) {
           try {
-            // Parse date from dd.mm.yyyy format
-            const dateParts = distRow.distributionDate.split('.');
+            // Parse date from dd.mm.yyyy format, use current date if empty or invalid
+            const dateParts = (distRow.distributionDate || '').split('.');
             let effectiveDate = new Date();
             if (dateParts.length === 3) {
               const [day, month, year] = dateParts;
@@ -680,10 +680,10 @@ export async function PATCH(req: NextRequest) {
         }
 
         // Create payments_ledger entry if amount is distributed and payment_id exists
-        if (distributedAmount > 0 && paymentIdToUse && distRow.distributionDate) {
+        if (distributedAmount > 0 && paymentIdToUse) {
           try {
-            // Parse date from dd.mm.yyyy format
-            const dateParts = distRow.distributionDate.split('.');
+            // Parse date from dd.mm.yyyy format, use current date if empty or invalid
+            const dateParts = (distRow.distributionDate || '').split('.');
             let effectiveDate = new Date();
             if (dateParts.length === 3) {
               const [day, month, year] = dateParts;
