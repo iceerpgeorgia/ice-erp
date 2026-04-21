@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-04-21 Deployment #219
+- Commit: 743d954
+- Production: https://ice-l7i0y7ra5-iceerp.vercel.app
+- Summary: Bundle distribution still duplicated on save — replace DELETE+INSERT with true upsert.
+- Root Cause: Pre-existing bundle ledger rows had `comment = NULL` (created before #216 added the comment). The `LIKE 'Bundle distribution:%'` filter from #217 missed them, so each save inserted a new row instead of replacing the legacy NULL-comment row. Live DB had up to 6 ledger rows per bundle payment.
+- Changes:
+  - app/api/projects/route.ts (POST and PATCH): Replaced DELETE-then-INSERT in all three bundle ledger spots with true upsert — `SELECT id FROM payments_ledger WHERE (comment IS NULL OR comment LIKE 'Bundle distribution:%') AND (payment_id = $1 OR ($2 <> '' AND payment_id = $2)) ORDER BY id ASC`; if rows exist, UPDATE the oldest in place and DELETE any extras; otherwise INSERT new. The NULL-comment match catches legacy rows; user-edited rows with custom comments stay untouched.
+  - scripts/consolidate-bundle-ledger-duplicates.js: Optional cleanup script that consolidates pre-existing duplicate auto-managed ledger rows for bundle payments (not auto-run; future saves consolidate on demand).
+
 ## 2026-04-21 Deployment #218
 - Commit: 8789b1c
 - Production: https://ice-7oz0ipx9e-iceerp.vercel.app
