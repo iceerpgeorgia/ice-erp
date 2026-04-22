@@ -1,5 +1,17 @@
 # Deployment Log
 
+## 2026-04-22 Deployment #232
+- Commit: 91f41ab
+- Production: https://ice-30idjvloy-iceerp.vercel.app
+- Summary: Three project-attachment fixes / refinements: (1) opening Edit on a project no longer silently drops or overwrites the project's existing insider when the homepage has a single insider selected; (2) the project attachments paperclip in the projects table now shows the live attachment count next to the icon, matching the payments-report behaviour; (3) payment-bound and project-bound attachments are now exposed as a single combined paperclip badge in payments-report and services-report rows, with project upload gated as requested.
+- Changes:
+  - components/figma/projects-table.tsx: The fixed-insider effect now skips when `editingProject` is set, so the project's stored insider is preserved when reopening Edit. The Edit dialog's insider Combobox is no longer disabled by the homepage selection (so users can still change it from Edit) and the "Fixed by homepage selection" hint is removed from the Edit form (it stays in the Add form).
+  - components/figma/project-attachments.tsx: Removed the `iconOnly` gate around the count chip so the attachment count is always shown next to the paperclip when > 0. Added `hideTrigger` and `disableUpload` props to support embedded usage from `RowAttachments`.
+  - components/figma/payment-attachments.tsx: Added `hideTrigger`, `initiallyOpen`, and `onOpenChange` props so the dialog can be opened in a controlled fashion without rendering a trigger button.
+  - components/figma/row-attachments.tsx (new): `RowAttachments` wrapper that lazy-loads payment + project counts and renders ONE paperclip badge with the combined count. On click: if only one source is available it opens directly; if both are present a small chooser opens. Props let callers gate project upload (`canAddProjectAttachment`).
+  - components/figma/payments-report-table.tsx: Replaced the standalone `<PaymentAttachments>` and `<ProjectAttachments>` action-cell badges with a single `<RowAttachments>`. Project upload is allowed only when `isBundleAggregate === true` OR (`isProjectDerived === true && !isBundlePayment`), matching the rule "parent FC if bundle, or automatic and not bundle".
+  - components/figma/services-report-table.tsx: Replaced per-payment `<PaymentAttachments>` and the per-row `<ProjectAttachments>` with a single `<RowAttachments>` per payment, exposing both the payment's attachments and the row's project attachments. Project upload is allowed for every services-report row that carries `projectUuid`.
+
 ## 2026-04-22 Deployment #231
 - Commit: 1263ca6
 - Production: https://ice-6ym4r7wp2-iceerp.vercel.app
