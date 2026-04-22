@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-04-22 Deployment #229
+- Commit: ebc12e8
+- Production: https://ice-cokkq5mio-iceerp.vercel.app
+- Summary: Add `?_t=<timestamp>` cache-buster to every payments-report API call so the ledger/bank aggregation is recomputed on every page load and refresh, bypassing any browser/edge/CDN cache. Filter and column persistence (localStorage) are unchanged.
+- Changes:
+  - components/figma/payments-report-table.tsx: In `fetchData()`, append `params.set('_t', Date.now().toString())` and switch URL building to always use `?${params.toString()}`. The existing `cache: 'no-store'` and `Cache-Control: no-cache` fetch options are kept as defense-in-depth.
+
 ## 2026-04-22 Deployment #228
 - Commit: f8f3e57
 - Production: https://ice-dcz8slxs3-iceerp.vercel.app
