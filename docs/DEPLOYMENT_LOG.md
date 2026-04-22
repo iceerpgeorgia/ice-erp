@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-22 Deployment #230
+- Commit: 7cd4076
+- Production: https://ice-nkyjdnxnw-iceerp.vercel.app
+- Summary: Surface duplicate-bank-account errors as HTTP 409 with a clear message instead of a generic 500. Previously the unique constraint `(account_number, currency_uuid)` on `bank_accounts` raised `23505`, which Prisma `$queryRaw` reports as `P2010` (not `P2002`), so the generic catch returned `"Failed to create bank account"`.
+- Changes:
+  - app/api/bank-accounts/route.ts (POST): catch detects `error.meta.code === '23505'` (and `P2002`) and returns 409 with `"A bank account with this account number and currency already exists."`
+  - app/api/bank-accounts/[uuid]/route.ts (PUT): same handling for updates that would collide with another account.
+
 ## 2026-04-22 Deployment #229
 - Commit: ebc12e8
 - Production: https://ice-cokkq5mio-iceerp.vercel.app
