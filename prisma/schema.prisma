@@ -623,6 +623,7 @@ model payments {
   insider_uuid          String?             @db.Uuid
   is_project_derived    Boolean             @default(false)
   is_bundle_payment     Boolean             @default(false)
+  is_recurring          Boolean             @default(false)
   payment_bundle_uuid   String?             @db.Uuid
   payment_bundle        payment_bundles?    @relation(fields: [payment_bundle_uuid], references: [uuid])
   payments_ledger       payments_ledger[]

@@ -50,6 +50,7 @@ export type Payment = {
   recordUuid: string;
   isActive: boolean;
   isProjectDerived?: boolean;
+  isRecurring?: boolean;
   createdAt: string;
   updatedAt: string;
   projectIndex: string | null;
@@ -95,6 +96,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'jobIdentifier', label: 'Job Identifier', width: 200, visible: false, sortable: true, filterable: true },
   { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'isProjectDerived', label: 'Auto', width: 90, visible: true, sortable: true, filterable: true },
+  { key: 'isRecurring', label: 'Recurring', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true, format: 'date' },
   { key: 'updatedAt', label: 'Updated', width: 140, visible: false, sortable: true, filterable: true, format: 'date' },
 ];
@@ -154,6 +156,7 @@ export function PaymentsTable() {
   const [selectedFinancialCodeUuid, setSelectedFinancialCodeUuid] = useState('');
   const [selectedJobUuid, setSelectedJobUuid] = useState('');
   const [selectedIncomeTax, setSelectedIncomeTax] = useState(false);
+  const [selectedIsRecurring, setSelectedIsRecurring] = useState(false);
   const [selectedCurrencyUuid, setSelectedCurrencyUuid] = useState('');
   const [selectedLabel, setSelectedLabel] = useState('');
   const [selectedInsiderUuid, setSelectedInsiderUuid] = useState('');
@@ -167,6 +170,7 @@ export function PaymentsTable() {
   const [editProjectUuid, setEditProjectUuid] = useState('');
   const [editJobUuid, setEditJobUuid] = useState('');
   const [editIncomeTax, setEditIncomeTax] = useState(false);
+  const [editIsRecurring, setEditIsRecurring] = useState(false);
   const [editPaymentId, setEditPaymentId] = useState('');
   const [editAccrualSource, setEditAccrualSource] = useState('');
   const [editIsActive, setEditIsActive] = useState(true);
@@ -410,6 +414,8 @@ export function PaymentsTable() {
     paymentId: payment.paymentId || payment.payment_id || '',
     recordUuid: payment.recordUuid || payment.record_uuid || '',
     isActive: Boolean(payment.isActive ?? payment.is_active ?? true),
+    isProjectDerived: Boolean(payment.isProjectDerived ?? payment.is_project_derived ?? false),
+    isRecurring: Boolean(payment.isRecurring ?? payment.is_recurring ?? false),
     createdAt: payment.createdAt || payment.created_at || null,
     updatedAt: payment.updatedAt || payment.updated_at || null,
     projectIndex: payment.projectIndex || payment.project_index || null,
@@ -659,6 +665,7 @@ export function PaymentsTable() {
           currencyUuid: selectedCurrencyUuid,
           paymentId: selectedPaymentId || undefined,
           label: selectedLabel || null,
+          isRecurring: selectedIsRecurring,
         }),
       });
 
@@ -714,6 +721,7 @@ export function PaymentsTable() {
     setEditProjectUuid(payment.projectUuid || '');
     setEditJobUuid(payment.jobUuid || '');
     setEditIncomeTax(Boolean(payment.incomeTax));
+    setEditIsRecurring(Boolean(payment.isRecurring));
     setEditPaymentId(payment.paymentId || '');
     setEditLabel(payment.label || '');
     setEditAccrualSource(payment.accrualSource || '');
@@ -784,6 +792,7 @@ export function PaymentsTable() {
           accrualSource: editAccrualSource || null,
           label: editLabel || null,
           isActive: editIsActive,
+          isRecurring: editIsRecurring,
         }),
       });
 
@@ -809,6 +818,7 @@ export function PaymentsTable() {
     setSelectedFinancialCodeUuid('');
     setSelectedJobUuid('');
     setSelectedIncomeTax(false);
+    setSelectedIsRecurring(false);
     setSelectedCurrencyUuid('');
     setSelectedLabel('');
     setSelectedInsiderUuid(fixedInsider?.insiderUuid || insidersList[0]?.insiderUuid || '');
@@ -1079,6 +1089,25 @@ export function PaymentsTable() {
                     className={`cursor-pointer ${!selectedCurrencyUuid ? 'text-muted-foreground' : ''}`}
                   >
                     Income Tax
+                  </Label>
+                </div>
+              </div>
+
+              {/* 4b. Recurring - Auto-create monthly ledger entry on the last day of each month */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={selectedIsRecurring}
+                    onCheckedChange={setSelectedIsRecurring}
+                    id="is-recurring-switch"
+                    disabled={!selectedCurrencyUuid}
+                  />
+                  <Label
+                    htmlFor="is-recurring-switch"
+                    className={`cursor-pointer ${!selectedCurrencyUuid ? 'text-muted-foreground' : ''}`}
+                    title="On the last day of each month, auto-create a payments_ledger entry equal to the previous month's accrual+order total. Skipped if a recurring entry for the current month already exists."
+                  >
+                    Recurring (auto monthly ledger)
                   </Label>
                 </div>
               </div>
@@ -1418,6 +1447,12 @@ export function PaymentsTable() {
                             <span className="text-muted-foreground">
                               {payment.incomeTax ? 'Yes' : 'No'}
                             </span>
+                          ) : col.key === 'isRecurring' ? (
+                            payment.isRecurring ? (
+                              <Badge variant="outline" className="text-green-700 border-green-300">Recurring</Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">No</span>
+                            )
                           ) : col.key === 'insiderName' ? (
                             (requiredInsiderName || '-')
                           ) : (
@@ -1534,6 +1569,21 @@ export function PaymentsTable() {
                   />
                   <Label htmlFor="edit-income-tax" className="cursor-pointer font-semibold">
                     Income Tax
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={editIsRecurring}
+                    onCheckedChange={setEditIsRecurring}
+                    id="edit-is-recurring"
+                  />
+                  <Label
+                    htmlFor="edit-is-recurring"
+                    className="cursor-pointer font-semibold"
+                    title="On the last day of each month, auto-create a payments_ledger entry equal to the previous month's accrual+order total. Skipped if a recurring entry for the current month already exists."
+                  >
+                    Recurring (auto monthly ledger)
                   </Label>
                 </div>
 

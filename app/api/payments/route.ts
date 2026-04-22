@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
         p.insider_uuid,
         p.is_active,
         p.is_project_derived,
+        to_jsonb(p)->>'is_recurring' as is_recurring,
         p.created_at,
         p.updated_at,
         proj.project_index,
@@ -80,6 +81,7 @@ export async function GET(request: NextRequest) {
       insider_uuid: payment.insider_uuid,
       is_active: payment.is_active,
       isProjectDerived: payment.is_project_derived ?? false,
+      isRecurring: payment.is_recurring === true || payment.is_recurring === 'true',
       createdAt: payment.created_at,
       updatedAt: payment.updated_at,
       projectIndex: payment.project_index,
@@ -106,7 +108,7 @@ export async function POST(request: NextRequest) {
   try {
     const selection = await resolveInsiderSelection(request);
     const body = await request.json();
-    const { projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid, paymentId, accrualSource, label, insiderUuid, insider_uuid } = body;
+    const { projectUuid, counteragentUuid, financialCodeUuid, jobUuid, incomeTax, currencyUuid, paymentId, accrualSource, label, insiderUuid, insider_uuid, isRecurring } = body;
 
     const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
     const insiderOptions = await getInsiderOptions();
@@ -196,6 +198,7 @@ export async function POST(request: NextRequest) {
             payment_id,
             record_uuid,
             insider_uuid,
+            is_recurring,
             updated_at
           ) VALUES (
             ${projectUuid || null}::uuid,
@@ -209,6 +212,7 @@ export async function POST(request: NextRequest) {
             ${paymentId || ''},
             '',
             ${effectiveInsiderUuid}::uuid,
+            ${Boolean(isRecurring)}::boolean,
             NOW()
           )
           RETURNING *
@@ -227,6 +231,7 @@ export async function POST(request: NextRequest) {
           payment_id,
           record_uuid,
           insider_uuid,
+          is_recurring,
           updated_at
         ) VALUES (
           ${projectUuid || null}::uuid,
@@ -239,6 +244,7 @@ export async function POST(request: NextRequest) {
           ${paymentId || ''},
           '',
           ${effectiveInsiderUuid}::uuid,
+          ${Boolean(isRecurring)}::boolean,
           NOW()
         )
         RETURNING *
@@ -293,6 +299,7 @@ export async function PATCH(request: NextRequest) {
       isActive,
       insiderUuid,
       insider_uuid,
+      isRecurring,
     } = body;
 
     const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
@@ -347,7 +354,8 @@ export async function PATCH(request: NextRequest) {
       label === undefined &&
       isActive === undefined &&
       insiderUuid === undefined &&
-      insider_uuid === undefined
+      insider_uuid === undefined &&
+      isRecurring === undefined
     ) {
       return NextResponse.json(
         { error: 'At least one field to update is required' },
@@ -499,6 +507,9 @@ export async function PATCH(request: NextRequest) {
       }
       if (isActive !== undefined && isActive !== existing.is_active) {
         pushUpdate('is_active', isActive, '::boolean');
+      }
+      if (isRecurring !== undefined && Boolean(isRecurring) !== Boolean(existing.is_recurring)) {
+        pushUpdate('is_recurring', Boolean(isRecurring), '::boolean');
       }
 
       return { updates, values, paramIndex };
