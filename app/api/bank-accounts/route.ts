@@ -228,7 +228,24 @@ export async function POST(request: NextRequest) {
     `;
 
     return NextResponse.json({ uuid: result[0].uuid });
-  } catch (error) {
+  } catch (error: any) {
+    // Postgres unique violation: account_number + currency_uuid already exists.
+    // Surfaces in Prisma as P2010 with meta.code '23505' for $queryRaw,
+    // or as P2002 for typed model writes — handle both.
+    const pgCode = error?.meta?.code ?? error?.code;
+    const pgMessage: string = error?.meta?.message ?? error?.message ?? '';
+    if (pgCode === '23505' || error?.code === 'P2002') {
+      const isAccountCurrency =
+        pgMessage.includes('account_number') && pgMessage.includes('currency_uuid');
+      return NextResponse.json(
+        {
+          error: isAccountCurrency
+            ? 'A bank account with this account number and currency already exists.'
+            : 'This bank account already exists.',
+        },
+        { status: 409 }
+      );
+    }
     console.error("Error creating bank account:", error);
     return NextResponse.json(
       { error: "Failed to create bank account" },

@@ -47,7 +47,21 @@ export async function PUT(
     `;
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
+    const pgCode = error?.meta?.code ?? error?.code;
+    const pgMessage: string = error?.meta?.message ?? error?.message ?? '';
+    if (pgCode === '23505' || error?.code === 'P2002') {
+      const isAccountCurrency =
+        pgMessage.includes('account_number') && pgMessage.includes('currency_uuid');
+      return NextResponse.json(
+        {
+          error: isAccountCurrency
+            ? 'A bank account with this account number and currency already exists.'
+            : 'This bank account already exists.',
+        },
+        { status: 409 }
+      );
+    }
     console.error("Error updating bank account:", error);
     return NextResponse.json(
       { error: "Failed to update bank account" },
