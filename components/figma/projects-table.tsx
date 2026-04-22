@@ -631,12 +631,15 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
 
   useEffect(() => {
     if (!isInsiderFixed || !fixedInsider?.insiderUuid) return;
+    // When editing an existing project, never override its insider with the
+    // homepage-selected one — the project's own insider must be preserved.
+    if (editingProject) return;
     setFormData((prev) =>
       prev.insiderUuid === fixedInsider.insiderUuid
         ? prev
         : { ...prev, insiderUuid: fixedInsider.insiderUuid }
     );
-  }, [isInsiderFixed, fixedInsider?.insiderUuid]);
+  }, [isInsiderFixed, fixedInsider?.insiderUuid, editingProject]);
 
   // Bundle FC detection
   useEffect(() => {
@@ -1476,18 +1479,11 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                         setFormData({ ...formData, insiderUuid: value });
                         if (formErrors.insiderUuid) setFormErrors({ ...formErrors, insiderUuid: '' });
                       }}
-                      disabled={isInsiderFixed}
                       placeholder="Select insider"
                       searchPlaceholder="Search insiders..."
                       emptyText="No insider found."
-                      triggerClassName={[
-                        formErrors.insiderUuid ? 'border-red-500' : '',
-                        isInsiderFixed ? 'bg-muted text-muted-foreground cursor-not-allowed' : '',
-                      ].filter(Boolean).join(' ')}
+                      triggerClassName={formErrors.insiderUuid ? 'border-red-500' : ''}
                     />
-                    {isInsiderFixed && fixedInsider?.insiderName && (
-                      <p className="text-xs text-muted-foreground mt-1">Fixed by homepage selection: {fixedInsider.insiderName}</p>
-                    )}
                     {formErrors.insiderUuid && <p className="text-xs text-red-500 mt-1">{formErrors.insiderUuid}</p>}
                   </div>
                 </div>

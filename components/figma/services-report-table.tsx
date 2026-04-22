@@ -12,8 +12,7 @@ import { ClearFiltersButton } from './shared/clear-filters-button';
 import { useTableFilters, type FilterableColumn } from './shared/use-table-filters';
 import * as XLSX from 'xlsx-js-style';
 import { AddProjectDialog } from './add-project-dialog';
-import { PaymentAttachments } from './payment-attachments';
-import { ProjectAttachments } from './project-attachments';
+import { RowAttachments } from './row-attachments';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 
 type FinancialCode = {
@@ -1698,7 +1697,12 @@ export function ServicesReportTable() {
                                     >
                                       <FileText className="w-4 h-4" />
                                     </a>
-                                    <PaymentAttachments paymentId={paymentId} />
+                                    <RowAttachments
+                                      paymentId={paymentId}
+                                      projectUuid={row.projectUuid || null}
+                                      projectName={row.projectName || null}
+                                      canAddProjectAttachment={Boolean(row.projectUuid)}
+                                    />
                                   </span>
                                 ))}
                                 <a
@@ -1726,13 +1730,6 @@ export function ServicesReportTable() {
                                 >
                                   <User className="w-4 h-4" />
                                 </a>
-                                {row.projectUuid && (
-                                  <ProjectAttachments
-                                    projectUuid={row.projectUuid}
-                                    projectName={row.projectName || null}
-                                    triggerTitle="Project attachments"
-                                  />
-                                )}
                               </div>
                             ) : (
                               value

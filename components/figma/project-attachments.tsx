@@ -49,6 +49,10 @@ export type ProjectAttachmentsProps = {
   className?: string;
   /** Optional title for the trigger button. */
   triggerTitle?: string;
+  /** When true, render only the dialog (no trigger button). Pair with `initiallyOpen` and `onOpenChange` for controlled use. */
+  hideTrigger?: boolean;
+  /** When true, hide the upload form / "Add" button so users cannot create new project attachments from this surface. */
+  disableUpload?: boolean;
 };
 
 export function ProjectAttachments({
@@ -62,6 +66,8 @@ export function ProjectAttachments({
   initialCount = null,
   className,
   triggerTitle,
+  hideTrigger = false,
+  disableUpload = false,
 }: ProjectAttachmentsProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [count, setCount] = useState<number>(initialCount ?? 0);
@@ -405,16 +411,18 @@ export function ProjectAttachments({
 
   return (
     <div ref={containerRef} className={`flex items-center gap-2 ${className || ''}`}>
-      <Button
-        variant="outline"
-        size="sm"
-        className="flex items-center gap-1"
-        onClick={openDialog}
-        title={triggerTitle || 'Project attachments'}
-      >
-        {!iconOnly && count > 0 && <span className="text-xs font-medium">{count}</span>}
-        <Paperclip className="h-4 w-4" />
-      </Button>
+      {!hideTrigger && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-1"
+          onClick={openDialog}
+          title={triggerTitle || 'Project attachments'}
+        >
+          {count > 0 && <span className="text-xs font-medium">{count}</span>}
+          <Paperclip className="h-4 w-4" />
+        </Button>
+      )}
 
       {dialogMounted && (
         <Dialog open={isDialogOpen} onOpenChange={closeDialog}>
@@ -466,7 +474,7 @@ export function ProjectAttachments({
                 </div>
               )}
 
-              {!showUploadForm && (
+              {!showUploadForm && !disableUpload && (
                 <Button onClick={() => setShowUploadForm(true)} variant="outline" className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Attachment

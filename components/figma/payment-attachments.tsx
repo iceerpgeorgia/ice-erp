@@ -41,15 +41,21 @@ type Currency = {
 type PaymentAttachmentsProps = {
   paymentId: string;
   onAttachmentsChange?: (count: number) => void;
+  /** When true, render only the dialog (no trigger button). Pair with `initiallyOpen` and `onOpenChange` for controlled use. */
+  hideTrigger?: boolean;
+  /** Open the dialog as soon as the component mounts. */
+  initiallyOpen?: boolean;
+  /** Notified whenever the dialog open state changes. */
+  onOpenChange?: (open: boolean) => void;
 };
 
-export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAttachmentsProps) {
+export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger = false, initiallyOpen = false, onOpenChange }: PaymentAttachmentsProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(initiallyOpen);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedDocumentType, setSelectedDocumentType] = useState<string>('');
@@ -57,7 +63,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
   const [documentNo, setDocumentNo] = useState<string>('');
   const [documentValue, setDocumentValue] = useState<string>('');
   const [documentCurrency, setDocumentCurrency] = useState<string>('');
-  const [dialogMounted, setDialogMounted] = useState(false);
+  const [dialogMounted, setDialogMounted] = useState(initiallyOpen);
   const [isMounted, setIsMounted] = useState(false);
   const [editingAttachment, setEditingAttachment] = useState<Attachment | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -430,20 +436,22 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange }: PaymentAt
 
   return (
     <div ref={containerRef} className="flex items-center gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        className="flex items-center gap-1"
-        onClick={handleOpenDialog}
-      >
-        {attachments.length > 0 && (
-          <span className="text-xs font-medium">{attachments.length}</span>
-        )}
-        <Paperclip className="h-4 w-4" />
-      </Button>
-      
+      {!hideTrigger && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-1"
+          onClick={handleOpenDialog}
+        >
+          {attachments.length > 0 && (
+            <span className="text-xs font-medium">{attachments.length}</span>
+          )}
+          <Paperclip className="h-4 w-4" />
+        </Button>
+      )}
+
       {dialogMounted && (
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); onOpenChange?.(open); }}>
         <DialogContent className="!w-[95vw] !max-w-[95vw] max-h-[80vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Attachments for {paymentId}</DialogTitle>

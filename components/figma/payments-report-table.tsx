@@ -44,8 +44,7 @@ import {
 } from './ui/dropdown-menu';
 import * as XLSX from 'xlsx-js-style';
 import { AddProjectDialog } from './add-project-dialog';
-import { PaymentAttachments } from './payment-attachments';
-import { ProjectAttachments } from './project-attachments';
+import { RowAttachments } from './row-attachments';
 import { BundleDistributionGrid, type BundleDistributionRow } from './bundle-distribution-grid';
 
 
@@ -3874,11 +3873,17 @@ export function PaymentsReportTable() {
                   })}
                   <td className="px-4 py-2 text-sm" style={{ width: 190, minWidth: 190, maxWidth: 190 }}>
                     <div className="flex items-center justify-end gap-1">
-                      {row.projectUuid && (
-                        <ProjectAttachments
-                          projectUuid={row.projectUuid}
+                      {(row.projectUuid || (!isBundleAgg && row.paymentId)) && (
+                        <RowAttachments
+                          paymentId={!isBundleAgg ? row.paymentId : null}
+                          projectUuid={row.projectUuid || null}
                           projectName={row.projectName || row.project || null}
-                          triggerTitle="Project attachments"
+                          canAddProjectAttachment={
+                            Boolean(row.projectUuid) && (
+                              isBundleAgg ||
+                              (Boolean(row.isProjectDerived) && !row.isBundlePayment)
+                            )
+                          }
                         />
                       )}
                       {isBundleAgg && row.projectUuid && row.financialCodeUuid && (
@@ -3892,7 +3897,6 @@ export function PaymentsReportTable() {
                       )}
                       {!isBundleAgg && (
                       <>
-                      <PaymentAttachments paymentId={row.paymentId} />
                       <button
                         onClick={() => handleOpenBaseInfo(row.paymentId)}
                         className="inline-block text-gray-600 hover:text-gray-800 hover:bg-gray-50 p-1 rounded transition-colors"
