@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma, withRetry } from '@/lib/prisma';
 import { getSourceTables } from '@/lib/source-tables';
-import { sqlUuidInList } from '@/lib/insider-selection';
+// insider-selection import removed \u2014 payments report is now a global report
 
 export const revalidate = 0;
 
@@ -17,16 +17,14 @@ export async function GET(request: NextRequest) {
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const maxDate = searchParams.get('maxDate');
-    const insiderUuidsParam = searchParams.get('insiderUuids');
-    const insiderUuids: string[] = insiderUuidsParam
-      ? insiderUuidsParam.split(',').map((u) => u.trim()).filter(Boolean)
-      : [];
 
-    const sourceTables = await getSourceTables(insiderUuids.length > 0 ? insiderUuids : undefined);
+    // Load ALL source tables regardless of insider selection — the payments report is a
+    // global cross-entity report. Filtering by the user's current insider cookie caused
+    // colleagues with a narrowed insider selection to see incomplete sums.
+    const sourceTables = await getSourceTables();
 
-    const insiderWhereClause = insiderUuids.length > 0
-      ? `AND (proj.insider_uuid IS NULL OR proj.insider_uuid = ANY(ARRAY[${sqlUuidInList(insiderUuids)}]::uuid[]))`
-      : '';
+    // No insider-based WHERE filter on payment rows — every active user should see all payments.
+    const insiderWhereClause = '';
 
     const ledgerDateFilter = maxDate ? `WHERE pl.effective_date::date <= '${maxDate}'::date` : '';
     const bankDateFilter = maxDate ? `AND transaction_date::date <= '${maxDate}'::date` : '';
