@@ -1114,8 +1114,13 @@ export function PaymentsReportTable() {
       if (insiderUuids.length > 0) {
         params.set('insiderUuids', insiderUuids.join(','));
       }
-      
-      const url = `/api/payments-report${params.toString() ? '?' + params.toString() : ''}`;
+
+      // Cache-buster: forces the ledger/bank aggregation to be recomputed on every fetch,
+      // bypassing any browser/edge/CDN cache. Filter and column settings remain persistent;
+      // only the aggregated data is guaranteed fresh on every page load and refresh.
+      params.set('_t', Date.now().toString());
+
+      const url = `/api/payments-report?${params.toString()}`;
       console.log('[Payments Report] Fetching from:', url);
       const response = await fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
       if (!response.ok) throw new Error('Failed to fetch report data');
