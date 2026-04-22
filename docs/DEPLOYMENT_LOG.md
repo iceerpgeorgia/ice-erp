@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-22 Deployment #228
+- Commit: f8f3e57
+- Production: https://ice-dcz8slxs3-iceerp.vercel.app
+- Summary: Send `Cache-Control: no-store` on every authenticated HTML page via middleware. After a deploy, users now always pull the latest HTML and therefore the latest content-hashed JS bundle, so a colleague can never get stuck on a pre-fix client that ignores no-store on `fetch()`.
+- Changes:
+  - middleware.ts: Wrapped `withAuth` with a custom function that sets `Cache-Control: no-store, no-cache, must-revalidate, max-age=0` (plus `Pragma: no-cache`, `Expires: 0`) on every non-`/api/*` response. API routes continue to set their own cache headers.
+  - app/dictionaries/payments-report/page.tsx: Added `export const dynamic = 'force-dynamic'`, `revalidate = 0`, `fetchCache = 'force-no-store'` for belt-and-suspenders on the report page itself.
+
 ## 2026-04-22 Deployment #227
 - Commit: 2919dd1
 - Production: https://ice-i1jmic9vm-iceerp.vercel.app
