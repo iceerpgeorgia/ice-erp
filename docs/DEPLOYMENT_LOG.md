@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-04-22 Deployment #226
+- Commit: 3b24eed
+- Production: https://ice-qyc9wbwab-iceerp.vercel.app
+- Summary: Fix payments report showing different sums for different users — make the report a global cross-entity report that ignores the per-user `insider-view-selection` cookie.
+- Changes:
+  - app/api/payments-report/route.ts: Removed `getSourceTables(insiderUuids)` filter (now fetches all bank account tables across every insider) and removed the `proj.insider_uuid` `insiderWhereClause` from the payment rows query. Previously, a colleague with a narrowed insider selection cookie would (a) miss bank source tables belonging to other insiders, zeroing out `total_payment` for those transactions, and (b) have entire payment rows hidden when the project belonged to a different insider. The payment-statement page was unaffected because it queries a single payment by id without project-insider filtering. Also dropped the now-unused `sqlUuidInList` import and the `insiderUuids` query-param parsing block.
+
 ## 2026-04-22 Deployment #225
 - Commit: 117ab06
 - Production: https://ice-j383j98jb-iceerp.vercel.app
