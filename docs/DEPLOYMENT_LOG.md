@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-22 Deployment #227
+- Commit: 2919dd1
+- Production: https://ice-i1jmic9vm-iceerp.vercel.app
+- Summary: Force no-store caching on the payments-report API + client fetch. After deploy #226 removed the insider-cookie filter, a colleague still saw zero ledger/bank totals because their browser/edge had a cached response from before the fix.
+- Changes:
+  - app/api/payments-report/route.ts: Added `export const dynamic = 'force-dynamic'` and `export const fetchCache = 'force-no-store'`. Response now sets `Cache-Control: no-store, no-cache, must-revalidate, max-age=0` headers. Confirmed via DB query that the underlying ledger data (accrual=500/order=500 for `5a22f1_9a_56b2ec`, accrual=13500/order=13500 for `d6a0b5_24_2d3430`) is correct and identical for all users.
+  - components/figma/payments-report-table.tsx: Client `fetch('/api/payments-report')` now uses `{ cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }` to bypass any HTTP cache layer.
+
 ## 2026-04-22 Deployment #226
 - Commit: 3b24eed
 - Production: https://ice-qyc9wbwab-iceerp.vercel.app
