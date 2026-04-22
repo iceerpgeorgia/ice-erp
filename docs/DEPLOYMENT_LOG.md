@@ -1,5 +1,20 @@
 # Deployment Log
 
+## 2026-04-22 Deployment #231
+- Commit: 1263ca6
+- Production: https://ice-6ym4r7wp2-iceerp.vercel.app
+- Summary: Add project-scoped attachments. Users can now upload files bound to a project from the projects table actions column and from the create-project flow (the attachments dialog opens automatically right after the project is created). The same project attachments are surfaced as a paperclip badge on every payments-report row (parent bundle aggregate + child rows) and every services-report row that references the project, so income-side rows expose the project's contracts/invoices in one click.
+- Changes:
+  - lib/attachments.ts: Added `getProjectAttachments`, `getProjectAttachmentCounts` (bulk count by `project_uuid` IN (...)), `createProjectAttachment` (validates project, inserts `attachments` + `attachment_links` with `owner_table='projects'`), `deleteAttachmentLink`, plus a shared `PROJECT_LINK_SELECT` and `mapLinkRow` helper.
+  - app/api/projects/attachments/route.ts: GET — `countsOnly=1&projectUuids=u1,u2,...` → bulk counts; otherwise `projectUuid=...` → list of attachment DTOs.
+  - app/api/projects/attachments/upload/route.ts: POST — `requireAuth`, validates payload, sanitizes filename, returns a Supabase signed upload URL under `payment-attachments/projects/{projectUuid}/...`.
+  - app/api/projects/attachments/confirm/route.ts: POST — finalizes the upload by calling `createProjectAttachment`.
+  - app/api/projects/attachments/delete/route.ts: DELETE — removes the attachment link and (if path provided) the storage object.
+  - components/figma/project-attachments.tsx (new): `ProjectAttachments` component cloned from `payment-attachments.tsx`. Lazy-loads the count via IntersectionObserver, opens a dialog with upload/edit/download/delete and document-metadata fields. Reuses `/api/payments/attachments/download` and `/api/payments/attachments/update` (both already polymorphic over bucket+path / attachment uuid).
+  - components/figma/projects-table.tsx: Added a paperclip action button per row and a hidden `<ProjectAttachments initiallyOpen ...>` mount that auto-opens immediately after a new project is POSTed, so the user can upload files without re-finding the row.
+  - components/figma/payments-report-table.tsx: Added a `<ProjectAttachments projectUuid=...>` badge in the actions cell of every row that has `projectUuid` (parent + children, both bundle aggregates and concrete rows).
+  - components/figma/services-report-table.tsx: Added the same badge in the actions cell next to the counteragent (User) button.
+
 ## 2026-04-22 Deployment #230
 - Commit: 7cd4076
 - Production: https://ice-nkyjdnxnw-iceerp.vercel.app
