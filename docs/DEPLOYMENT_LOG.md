@@ -1,5 +1,17 @@
 # Deployment Log
 
+## 2026-04-22 Deployment #233
+- Commit: 4537575
+- Production: https://ice-2m7v8qq3f-iceerp.vercel.app
+- Summary: Add `is_recurring` flag on payments. When enabled, a Vercel cron creates a `payments_ledger` entry on the last day of each month equal to the previous month's accrual+order total. If a non-deleted ledger row already exists for the payment in the current month, the cron does nothing (idempotent via deterministic `record_uuid = uuidv5(\`${payment_id}_recurring_${currentMonthStart}\`)` + `ON CONFLICT (record_uuid) DO NOTHING`).
+- Changes:
+  - prisma/migrations/20260422120000_add_is_recurring_to_payments/migration.sql: `ALTER TABLE payments ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN NOT NULL DEFAULT false` + partial index `WHERE is_recurring = true`. Applied to Supabase.
+  - prisma/schema.prisma: added `is_recurring Boolean @default(false)` to `model payments`.
+  - app/api/payments/route.ts: GET surfaces `isRecurring` (via `to_jsonb(p)->>'is_recurring'`); POST inserts `is_recurring` in both insert branches (with/without label); PATCH accepts `isRecurring` in body, added to undefined-fields guard, and conditionally updates via `pushUpdate('is_recurring', Boolean(isRecurring), '::boolean')`.
+  - components/figma/payments-table.tsx: added `isRecurring` to the `Payment` type, to `defaultColumns` (label "Recurring", with green outline badge in the row), to add/edit form state (`selectedIsRecurring`, `editIsRecurring`), to the fetched-payment normalizer, to the POST/PATCH bodies, to `handleOpenEditDialog`, to `resetForm`, and added a `Switch` to both the Add and Edit dialogs (label "Recurring (auto monthly ledger)").
+  - app/api/cron/recurring-payments-monthly/route.ts (new): Vercel cron handler. Auth via `x-vercel-cron` / `vercel-cron` UA / `Bearer ${CRON_SECRET}`. Computes prev/current month UTC windows. For each `is_recurring=true AND is_active=true` payment: skip if a non-deleted ledger row exists in the current month; else sum prev-month `accrual + "order"`; if both zero, skip; else insert a new ledger row at `effective_date = currentMonthLastDay` with deterministic `record_uuid = uuidv5(payment_id + "_recurring_" + currentMonthStart, DNS_NAMESPACE)`, `user_email = 'system@recurring-monthly'`, `insider_uuid` carried from the payment, and `ON CONFLICT (record_uuid) DO NOTHING`.
+  - vercel.json: registered cron `{ path: "/api/cron/recurring-payments-monthly", schedule: "0 1 1 * *" }` (01:00 UTC on the 1st of each month — Vercel cron doesn't support `L`; the handler back-dates `effective_date` to the previous month's last day so the ledger entry lands on the user-requested "last day of each month").
+
 ## 2026-04-22 Deployment #232
 - Commit: 91f41ab
 - Production: https://ice-30idjvloy-iceerp.vercel.app
