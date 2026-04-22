@@ -6,6 +6,14 @@ import { getSourceTables } from '@/lib/source-tables';
 // insider-selection import removed \u2014 payments report is now a global report
 
 export const revalidate = 0;
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
+const NO_STORE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+} as const;
 
 export async function GET(request: NextRequest) {
   try {
@@ -253,7 +261,7 @@ export async function GET(request: NextRequest) {
       balance: parseFloat((parseFloat(row.total_accrual || 0) - Math.abs(parseFloat(row.total_payment || 0))).toFixed(2)),
     }));
 
-    return NextResponse.json(formattedData);
+    return NextResponse.json(formattedData, { headers: NO_STORE_HEADERS });
   } catch (error: any) {
     console.error('Error fetching payments report:', error);
     return NextResponse.json(

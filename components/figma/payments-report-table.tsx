@@ -1117,7 +1117,7 @@ export function PaymentsReportTable() {
       
       const url = `/api/payments-report${params.toString() ? '?' + params.toString() : ''}`;
       console.log('[Payments Report] Fetching from:', url);
-      const response = await fetch(url);
+      const response = await fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
       if (!response.ok) throw new Error('Failed to fetch report data');
       const result = await response.json();
       if (!Array.isArray(result)) {
