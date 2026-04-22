@@ -45,6 +45,7 @@ import {
 import * as XLSX from 'xlsx-js-style';
 import { AddProjectDialog } from './add-project-dialog';
 import { PaymentAttachments } from './payment-attachments';
+import { ProjectAttachments } from './project-attachments';
 import { BundleDistributionGrid, type BundleDistributionRow } from './bundle-distribution-grid';
 
 
@@ -3873,6 +3874,13 @@ export function PaymentsReportTable() {
                   })}
                   <td className="px-4 py-2 text-sm" style={{ width: 190, minWidth: 190, maxWidth: 190 }}>
                     <div className="flex items-center justify-end gap-1">
+                      {row.projectUuid && (
+                        <ProjectAttachments
+                          projectUuid={row.projectUuid}
+                          projectName={row.projectName || row.project || null}
+                          triggerTitle="Project attachments"
+                        />
+                      )}
                       {isBundleAgg && row.projectUuid && row.financialCodeUuid && (
                         <button
                           onClick={() => handleOpenBundleDistribution(row.projectUuid!, row.financialCodeUuid!)}

@@ -13,6 +13,7 @@ import { useTableFilters, type FilterableColumn } from './shared/use-table-filte
 import * as XLSX from 'xlsx-js-style';
 import { AddProjectDialog } from './add-project-dialog';
 import { PaymentAttachments } from './payment-attachments';
+import { ProjectAttachments } from './project-attachments';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 
 type FinancialCode = {
@@ -1725,6 +1726,13 @@ export function ServicesReportTable() {
                                 >
                                   <User className="w-4 h-4" />
                                 </a>
+                                {row.projectUuid && (
+                                  <ProjectAttachments
+                                    projectUuid={row.projectUuid}
+                                    projectName={row.projectName || null}
+                                    triggerTitle="Project attachments"
+                                  />
+                                )}
                               </div>
                             ) : (
                               value
