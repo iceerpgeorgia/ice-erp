@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-04-23 Deployment #235
+- Commit: 48eb16e
+- Production: https://ice-prq7qjl18-iceerp.vercel.app
+- Summary: Add the "Recurring (auto monthly ledger)" toggle to the Add Payment and Edit Payment dialogs in the Payments Report (it was already wired in the Payments dictionary). Users can now flag a payment as recurring directly from either page.
+- Changes:
+  - components/figma/payments-report-table.tsx: added `selectedIsRecurring`/`editIsRecurring` state, reset in `resetCreatePaymentForm`, populated in `handleOpenEditPaymentDialog` from `row.isRecurring`, sent in the POST body of `handleCreatePayment` and the PATCH body of `handleSavePaymentEdit`, and added a Checkbox+Label next to the existing Income Tax control in both the create-payment step of the Add Ledger Entry dialog and the standalone Edit Payment dialog.
+
 ## 2026-04-23 Deployment #234
 - Commit: 940ae98
 - Production: https://ice-c0dv8q6m8-iceerp.vercel.app
