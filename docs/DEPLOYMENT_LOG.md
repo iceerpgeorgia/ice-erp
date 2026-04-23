@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-04-23 Deployment #237
+- Commit: 9cffd8c
+- Production: https://ice-e0vm8o1gj-iceerp.vercel.app
+- Summary: Rebuilt /admin/document-types as a full counteragents-style table — column selector dialog, drag-to-reorder column headers, drag-to-resize column edges, per-column filter popovers (with text/numeric/date/boolean operators), global search, multi-column sort, pagination with page-size selector, XLSX export, "Show inactive" toggle, and persistent column layout + filter state in localStorage.
+- Changes:
+  - app/admin/document-types/page.tsx: complete rewrite. Uses useTableFilters from components/figma/shared (same hook powering the counteragents table), ColumnFilterPopover, ClearFiltersButton, and the figma Badge (success/error variants). Persists columns to localStorage key "document-types-table-columns-v1" and filters to "document-types-table:column-filters". Add/Edit dialog and smart delete behavior preserved from the previous implementation.
+
 ## 2026-04-23 Deployment #236
 - Commit: 93f3189
 - Production: https://ice-4lf87n44t-iceerp.vercel.app
