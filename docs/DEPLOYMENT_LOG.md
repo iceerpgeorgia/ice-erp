@@ -1,5 +1,15 @@
 # Deployment Log
 
+## Deployment #241 - 2026-04-23
+
+**Commit**: 19ec05c
+**Production URL**: https://ice-oeqtb2a9y-iceerp.vercel.app
+**Inspect URL**: https://vercel.com/iceerp/ice-erp/BmjCvRwmkjKPUSr2W2RKoj9t25ua
+
+### Changes
+- **Payment notifications toggle UX** - Admin > Users:
+  - components/figma/users-management-table.tsx: made the bell icon and status badge clickable alongside the switch, added optimistic updates with per-user saving state, and rolled back plus showed an alert if the PATCH request fails.
+
 ## Deployment #240 - 2026-04-23
 
 **Commit**: 9e691a1
