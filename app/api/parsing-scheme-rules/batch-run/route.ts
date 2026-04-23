@@ -159,7 +159,10 @@ export async function POST(request: NextRequest) {
           let lastId = 0;
           while (true) {
             const batch = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(
-              `SELECT * FROM ${tableRef} WHERE id > $1 ORDER BY id ASC LIMIT $2`,
+              `SELECT * FROM ${tableRef}
+               WHERE id > $1
+                 AND (parsing_lock IS NULL OR parsing_lock = false)
+               ORDER BY id ASC LIMIT $2`,
               lastId,
               RAW_SCAN_BATCH
             );
@@ -222,6 +225,7 @@ export async function POST(request: NextRequest) {
               applied_rule_id = $1,
               updated_at = NOW()
             WHERE uuid = ANY($2::uuid[])
+              AND (parsing_lock IS NULL OR parsing_lock = false)
           `, Number(ruleData.id), tableUuids);
         }
 

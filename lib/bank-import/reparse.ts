@@ -105,6 +105,13 @@ async function reparseRows(
 ): Promise<number> {
   if (!rows || rows.length === 0) return 0;
 
+  // Defensive: never overwrite manually locked rows. Callers SHOULD already filter
+  // these out, but guard here so any future caller that forgets cannot corrupt
+  // user-edited transactions.
+  const filteredRows = rows.filter((r: any) => !r?.parsing_lock);
+  if (filteredRows.length === 0) return 0;
+  rows = filteredRows;
+
   const stats: ProcessingStats = {
     case1_counteragent_processed: 0,
     case2_counteragent_inn_blank: 0,
@@ -289,7 +296,8 @@ export async function reparseByPaymentId(paymentId: string): Promise<{ updated: 
     const { data: rows, error } = await supabase
       .from(tableName)
       .select(SELECT_COLUMNS)
-      .ilike('payment_id', escaped);
+      .ilike('payment_id', escaped)
+      .or('parsing_lock.is.null,parsing_lock.eq.false');
 
     if (error) throw error;
 
@@ -332,7 +340,8 @@ export async function reparseByCounteragentInn(
       .from(tableName)
       .select(SELECT_COLUMNS)
       .in('counteragent_inn', normalizedInns)
-      .eq('counteragent_processed', false);
+      .eq('counteragent_processed', false)
+      .or('parsing_lock.is.null,parsing_lock.eq.false');
 
     if (err1) throw err1;
 
@@ -341,7 +350,8 @@ export async function reparseByCounteragentInn(
       .select(SELECT_COLUMNS)
       .in('counteragent_inn', normalizedInns)
       .eq('counteragent_processed', true)
-      .is('counteragent_uuid', null);
+      .is('counteragent_uuid', null)
+      .or('parsing_lock.is.null,parsing_lock.eq.false');
 
     if (err2) throw err2;
 

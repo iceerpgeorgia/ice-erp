@@ -799,6 +799,7 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
                 UPDATE {raw_table_name}
                 SET EntriesId = %s, uuid = %s
                 WHERE uuid = %s
+                  AND (parsing_lock IS NULL OR parsing_lock = false)
             """, (EntriesId, new_record_uuid, old_uuid))
             updated_pending_to_completed += 1
             print(f"  🔄 [PENDING→COMPLETED] DocKey={DocKey}: EntriesId {old_entries_id} → {EntriesId}")
@@ -1406,6 +1407,7 @@ def process_bog_gel(xml_file, account_uuid, account_number, currency_code, raw_t
                 updated_at = NOW()
             FROM temp_flag_updates AS tmp
             WHERE raw.uuid = tmp.uuid
+              AND (raw.parsing_lock IS NULL OR raw.parsing_lock = false)
         """)
         bulk_time = time.time() - update_start - copy_time
         print(f"  ✅ Bulk update completed in {bulk_time:.2f}s")

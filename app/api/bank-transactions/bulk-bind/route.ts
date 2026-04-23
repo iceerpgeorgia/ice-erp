@@ -322,6 +322,7 @@ export async function PATCH(req: NextRequest) {
           FROM (VALUES ${valueFragments.join(",")})
             AS data(id, er, na, ca)
           WHERE t.id = data.id
+            AND (t.parsing_lock IS NULL OR t.parsing_lock = false)
         `;
         valueParams.push(normalizedPaymentId, paymentCurrencyUuid);
 
@@ -342,7 +343,8 @@ export async function PATCH(req: NextRequest) {
                exchange_rate        = 1,
                nominal_amount       = account_currency_amount,
                updated_at           = NOW()
-           WHERE id IN (${clearPlaceholders})`,
+           WHERE id IN (${clearPlaceholders})
+             AND (parsing_lock IS NULL OR parsing_lock = false)`,
           ...recordIds
         );
         totalUpdated += recordIds.length;
