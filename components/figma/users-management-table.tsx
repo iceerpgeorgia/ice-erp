@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Download, Shield } from 'lucide-react';
+import { Download, Shield, Bell, BellOff } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -34,6 +34,7 @@ type User = {
   authorizedAt: Date | null;
   authorizedBy: string | null;
   emailVerified: Date | null;
+  paymentNotifications: boolean;
 };
 
 type ModuleFeature = {
@@ -199,6 +200,24 @@ export default function UsersManagementTable() {
     } catch (error) {
       console.error('Failed to update role:', error);
       alert('Failed to update user role');
+    }
+  };
+
+  const handlePaymentNotificationsToggle = async (userId: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch(`/api/users?id=${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentNotifications: !currentStatus }),
+      });
+
+      if (response.ok) {
+        const updatedUser = await response.json();
+        setUsers(users.map(u => u.id === userId ? updatedUser : u));
+      }
+    } catch (error) {
+      console.error('Failed to update payment notifications:', error);
+      alert('Failed to update payment notifications');
     }
   };
 
@@ -387,6 +406,7 @@ export default function UsersManagementTable() {
               <TableHead>Name</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Authorized</TableHead>
+              <TableHead>Payment Notifications</TableHead>
               <TableHead>Authorized By</TableHead>
               <TableHead>Authorized At</TableHead>
               <TableHead>Actions</TableHead>
@@ -424,6 +444,27 @@ export default function UsersManagementTable() {
                       <Badge variant="default">Authorized</Badge>
                     ) : (
                       <Badge variant="destructive">Unauthorized</Badge>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-2">
+                    {user.paymentNotifications ? (
+                      <Bell className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <BellOff className="h-4 w-4 text-gray-400" />
+                    )}
+                    <Switch
+                      checked={user.paymentNotifications}
+                      onCheckedChange={() => handlePaymentNotificationsToggle(user.id, user.paymentNotifications)}
+                      disabled={!user.isAuthorized || !user.email}
+                    />
+                    {user.paymentNotifications ? (
+                      <Badge variant="default" className="text-xs">Enabled</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs">
+                        {!user.isAuthorized ? 'Requires Authorization' : !user.email ? 'No Email' : 'Disabled'}
+                      </Badge>
                     )}
                   </div>
                 </TableCell>

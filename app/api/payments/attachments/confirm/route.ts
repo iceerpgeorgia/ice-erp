@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createPaymentAttachment } from '@/lib/attachments';
+import { sendPaymentNotifications } from '@/lib/payment-notifications';
+import { prisma } from '@/lib/prisma';
 
 /**
  * POST /api/payments/attachments/confirm
@@ -72,6 +74,39 @@ export async function POST(request: NextRequest) {
       metadata,
       isPrimary,
       linkedProjectUuid,
+    });
+
+    // Send payment notifications asynchronously when attachment is added
+    prisma.payments.findUnique({
+      where: { payment_id: paymentId },
+      select: { payment_id: true, label: true },
+    }).then(payment => {
+      if (payment) {
+        // Count total attachments
+        prisma.attachments.count({
+          where: {
+            links: {
+              some: {
+                owner_table: 'payments',
+                owner_uuid: paymentId,
+              },
+            },
+            is_active: true,
+          },
+        }).then(attachmentCount => {
+          sendPaymentNotifications({
+            paymentId: payment.payment_id,
+            label: payment.label,
+            attachmentCount,
+          }).catch(err => {
+            console.error('[Attachment Confirm] Error sending notifications:', err);
+          });
+        }).catch(err => {
+          console.error('[Attachment Confirm] Error counting attachments:', err);
+        });
+      }
+    }).catch(err => {
+      console.error('[Attachment Confirm] Error fetching payment:', err);
     });
 
     return NextResponse.json({

@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { prisma, withRetry } from '@/lib/prisma';
 import { reparseByPaymentId } from '@/lib/bank-import/reparse';
 import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
+import { sendPaymentNotifications } from '@/lib/payment-notifications';
 
 export const revalidate = 0;
 
@@ -269,6 +270,34 @@ export async function POST(request: NextRequest) {
       ...payment,
       id: Number((payment as any).id),
     };
+
+    // Send payment notifications asynchronously (don't await to not block response)
+    const paymentIdForNotification = (payment as any).payment_id;
+    if (paymentIdForNotification) {
+      // Count attachments for this payment
+      prisma.attachments.count({
+        where: {
+          links: {
+            some: {
+              owner_table: 'payments',
+              owner_uuid: paymentIdForNotification,
+            },
+          },
+          is_active: true,
+        },
+      }).then(attachmentCount => {
+        // Send notifications without waiting
+        sendPaymentNotifications({
+          paymentId: paymentIdForNotification,
+          label: (payment as any).label,
+          attachmentCount,
+        }).catch(err => {
+          console.error('[Payment Notifications] Error sending notifications:', err);
+        });
+      }).catch(err => {
+        console.error('[Payment Notifications] Error counting attachments:', err);
+      });
+    }
 
     return NextResponse.json({ success: true, data: serializedPayment });
   } catch (error: any) {

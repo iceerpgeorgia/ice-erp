@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
         authorizedAt: true,
         authorizedBy: true,
         emailVerified: true,
+        paymentNotifications: true,
       },
       orderBy: {
         email: 'asc',
@@ -77,6 +78,7 @@ export async function POST(request: NextRequest) {
         authorizedAt: true,
         authorizedBy: true,
         emailVerified: true,
+        paymentNotifications: true,
       },
     });
 
@@ -103,7 +105,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { isAuthorized, role } = body;
+    const { isAuthorized, role, paymentNotifications } = body;
 
     const updateData: any = {};
 
@@ -122,6 +124,10 @@ export async function PATCH(request: NextRequest) {
       updateData.role = role;
     }
 
+    if (typeof paymentNotifications === 'boolean') {
+      updateData.paymentNotifications = paymentNotifications;
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: updateData,
@@ -134,6 +140,7 @@ export async function PATCH(request: NextRequest) {
         authorizedAt: true,
         authorizedBy: true,
         emailVerified: true,
+        paymentNotifications: true,
       },
     });
 
