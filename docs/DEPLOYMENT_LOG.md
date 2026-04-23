@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-04-23 Deployment #234
+- Commit: 940ae98
+- Production: https://ice-c0dv8q6m8-iceerp.vercel.app
+- Summary: Surface the `is_recurring` flag in the Payments Report table (it was already returned by the payments dictionary but not by `/api/payments-report`, so it never appeared in the report UI).
+- Changes:
+  - app/api/payments-report/route.ts: SELECT now includes `to_jsonb(p)->>'is_recurring' as is_recurring` (table column, no Prisma client refresh required) and the DTO maps it to `isRecurring`.
+  - components/figma/payments-report-table.tsx: added `isRecurring?: boolean` to the `PaymentReport` type and registered a new column `{ key: 'isRecurring', label: 'Recurring', format: 'boolean', width: 110 }` right after `incomeTax`. The existing column-merge logic auto-adds the new column to users who already have a saved `paymentsReportColumns` in localStorage.
+
 ## 2026-04-22 Deployment #233
 - Commit: 4537575
 - Production: https://ice-2m7v8qq3f-iceerp.vercel.app
