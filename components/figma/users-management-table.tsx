@@ -61,6 +61,7 @@ export default function UsersManagementTable() {
   const [newUser, setNewUser] = useState({ email: '', name: '', role: 'user' });
   const [addingUser, setAddingUser] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [updatingPaymentNotificationIds, setUpdatingPaymentNotificationIds] = useState<Set<string>>(new Set());
   
   // Module access dialog state
   const [showModulesDialog, setShowModulesDialog] = useState(false);
@@ -204,20 +205,54 @@ export default function UsersManagementTable() {
   };
 
   const handlePaymentNotificationsToggle = async (userId: string, currentStatus: boolean) => {
+    const nextStatus = !currentStatus;
+
+    setUpdatingPaymentNotificationIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+      nextIds.add(userId);
+      return nextIds;
+    });
+    setUsers((currentUsers) =>
+      currentUsers.map((user) =>
+        user.id === userId ? { ...user, paymentNotifications: nextStatus } : user
+      )
+    );
+
     try {
       const response = await fetch(`/api/users?id=${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentNotifications: !currentStatus }),
+        body: JSON.stringify({ paymentNotifications: nextStatus }),
       });
 
       if (response.ok) {
         const updatedUser = await response.json();
-        setUsers(users.map(u => u.id === userId ? updatedUser : u));
+        setUsers((currentUsers) =>
+          currentUsers.map((user) => (user.id === userId ? updatedUser : user))
+        );
+      } else {
+        const error = await response.json().catch(() => null);
+        setUsers((currentUsers) =>
+          currentUsers.map((user) =>
+            user.id === userId ? { ...user, paymentNotifications: currentStatus } : user
+          )
+        );
+        alert(error?.error || 'Failed to update payment notifications');
       }
     } catch (error) {
       console.error('Failed to update payment notifications:', error);
+      setUsers((currentUsers) =>
+        currentUsers.map((user) =>
+          user.id === userId ? { ...user, paymentNotifications: currentStatus } : user
+        )
+      );
       alert('Failed to update payment notifications');
+    } finally {
+      setUpdatingPaymentNotificationIds((currentIds) => {
+        const nextIds = new Set(currentIds);
+        nextIds.delete(userId);
+        return nextIds;
+      });
     }
   };
 
@@ -413,7 +448,11 @@ export default function UsersManagementTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredUsers.map((user) => (
+            {filteredUsers.map((user) => {
+              const canTogglePaymentNotifications = user.isAuthorized && Boolean(user.email);
+              const isUpdatingPaymentNotifications = updatingPaymentNotificationIds.has(user.id);
+
+              return (
               <TableRow key={user.id}>
                 <TableCell className="font-medium">{user.email}</TableCell>
                 <TableCell>{user.name || '-'}</TableCell>
@@ -449,23 +488,39 @@ export default function UsersManagementTable() {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center space-x-2">
-                    {user.paymentNotifications ? (
-                      <Bell className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <BellOff className="h-4 w-4 text-gray-400" />
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => handlePaymentNotificationsToggle(user.id, user.paymentNotifications)}
+                      disabled={!canTogglePaymentNotifications || isUpdatingPaymentNotifications}
+                      className="flex items-center space-x-2 disabled:cursor-not-allowed disabled:opacity-60"
+                      aria-label={user.paymentNotifications ? 'Disable payment notifications' : 'Enable payment notifications'}
+                    >
+                      {user.paymentNotifications ? (
+                        <Bell className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <BellOff className="h-4 w-4 text-gray-400" />
+                      )}
+                      {user.paymentNotifications ? (
+                        <Badge variant="default" className="text-xs">
+                          {isUpdatingPaymentNotifications ? 'Saving...' : 'Enabled'}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs">
+                          {isUpdatingPaymentNotifications
+                            ? 'Saving...'
+                            : !user.isAuthorized
+                              ? 'Requires Authorization'
+                              : !user.email
+                                ? 'No Email'
+                                : 'Disabled'}
+                        </Badge>
+                      )}
+                    </button>
                     <Switch
                       checked={user.paymentNotifications}
                       onCheckedChange={() => handlePaymentNotificationsToggle(user.id, user.paymentNotifications)}
-                      disabled={!user.isAuthorized || !user.email}
+                      disabled={!canTogglePaymentNotifications || isUpdatingPaymentNotifications}
                     />
-                    {user.paymentNotifications ? (
-                      <Badge variant="default" className="text-xs">Enabled</Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-xs">
-                        {!user.isAuthorized ? 'Requires Authorization' : !user.email ? 'No Email' : 'Disabled'}
-                      </Badge>
-                    )}
                   </div>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
@@ -501,7 +556,8 @@ export default function UsersManagementTable() {
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </div>
