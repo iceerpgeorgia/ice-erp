@@ -182,11 +182,6 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
       return;
     }
 
-    if (!documentDate) {
-      alert('Please select a document date');
-      return;
-    }
-
     setUploading(true);
     try {
       // Step 1: Get signed upload URL
@@ -385,11 +380,6 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
 
     if (!selectedDocumentType) {
       alert('Please select a document type');
-      return;
-    }
-
-    if (!documentDate) {
-      alert('Please select a document date');
       return;
     }
 
@@ -617,7 +607,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
                     
                     <div className="space-y-2">
                       <Label htmlFor="document-date" className="text-sm">
-                        Document Date <span className="text-destructive">*</span>
+                        Document Date
                       </Label>
                       <Input
                         id="document-date"

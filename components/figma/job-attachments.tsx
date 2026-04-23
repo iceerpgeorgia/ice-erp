@@ -30,34 +30,24 @@ type Attachment = {
 type DocumentType = { uuid: string; name: string };
 type Currency = { uuid: string; code: string; name: string };
 
-export type ProjectAttachmentsProps = {
-  projectUuid: string;
-  projectName?: string | null;
-  /** Defer fetching the count until the badge scrolls into view (default true). */
+export type JobAttachmentsProps = {
+  jobUuid: string;
+  jobName?: string | null;
   lazyLoad?: boolean;
-  /** Open the dialog automatically on mount (used by the create-project flow). */
   initiallyOpen?: boolean;
-  /** Callback when the dialog open state changes. */
   onOpenChange?: (open: boolean) => void;
-  /** Callback whenever the count changes. */
   onAttachmentsChange?: (count: number) => void;
-  /** If true, render only an icon trigger (no count chip). */
   iconOnly?: boolean;
-  /** Optional initial count (e.g. from a bulk-counts fetch) to skip the per-row API call. */
   initialCount?: number | null;
-  /** Optional className for the trigger button wrapper. */
   className?: string;
-  /** Optional title for the trigger button. */
   triggerTitle?: string;
-  /** When true, render only the dialog (no trigger button). Pair with `initiallyOpen` and `onOpenChange` for controlled use. */
   hideTrigger?: boolean;
-  /** When true, hide the upload form / "Add" button so users cannot create new project attachments from this surface. */
   disableUpload?: boolean;
 };
 
-export function ProjectAttachments({
-  projectUuid,
-  projectName,
+export function JobAttachments({
+  jobUuid,
+  jobName,
   lazyLoad = true,
   initiallyOpen = false,
   onOpenChange,
@@ -68,7 +58,7 @@ export function ProjectAttachments({
   triggerTitle,
   hideTrigger = false,
   disableUpload = false,
-}: ProjectAttachmentsProps) {
+}: JobAttachmentsProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [count, setCount] = useState<number>(initialCount ?? 0);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
@@ -93,7 +83,6 @@ export function ProjectAttachments({
     setIsMounted(true);
   }, []);
 
-  // Sync initialCount changes (when bulk-counts arrive)
   useEffect(() => {
     if (initialCount !== null && initialCount !== undefined) {
       setCount(initialCount);
@@ -101,7 +90,6 @@ export function ProjectAttachments({
     }
   }, [initialCount]);
 
-  // Lazy-load count via IntersectionObserver
   useEffect(() => {
     if (!lazyLoad) return;
     if (initialCount !== null && initialCount !== undefined) return;
@@ -121,13 +109,13 @@ export function ProjectAttachments({
     observer.observe(el);
     return () => observer.disconnect();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectUuid, lazyLoad, initialCount]);
+  }, [jobUuid, lazyLoad, initialCount]);
 
   const loadAttachmentCount = async () => {
-    if (!projectUuid) return;
+    if (!jobUuid) return;
     try {
       const response = await fetch(
-        `/api/projects/attachments?projectUuid=${encodeURIComponent(projectUuid)}`,
+        `/api/jobs/attachments?jobUuid=${encodeURIComponent(jobUuid)}`,
         { cache: 'no-store' },
       );
       if (!response.ok) return;
@@ -137,16 +125,16 @@ export function ProjectAttachments({
       setCount(list.length);
       onAttachmentsChange?.(list.length);
     } catch (error) {
-      console.error('Error loading project attachment count:', error);
+      console.error('Error loading job attachment count:', error);
     }
   };
 
   const loadAttachments = async () => {
-    if (!projectUuid) return;
+    if (!jobUuid) return;
     setLoading(true);
     try {
       const response = await fetch(
-        `/api/projects/attachments?projectUuid=${encodeURIComponent(projectUuid)}`,
+        `/api/jobs/attachments?jobUuid=${encodeURIComponent(jobUuid)}`,
         { cache: 'no-store' },
       );
       if (!response.ok) throw new Error('Failed to load attachments');
@@ -155,7 +143,7 @@ export function ProjectAttachments({
       setCount((data.attachments || []).length);
       onAttachmentsChange?.((data.attachments || []).length);
     } catch (error) {
-      console.error('Error loading project attachments:', error);
+      console.error('Error loading job attachments:', error);
       setAttachments([]);
     } finally {
       setLoading(false);
@@ -203,7 +191,6 @@ export function ProjectAttachments({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDialogOpen, dialogMounted]);
 
-  // Honor initiallyOpen prop changes (e.g. when create-project triggers)
   useEffect(() => {
     if (initiallyOpen && !isDialogOpen) {
       openDialog();
@@ -216,19 +203,19 @@ export function ProjectAttachments({
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !projectUuid) return;
+    if (!selectedFile || !jobUuid) return;
     if (!selectedDocumentType) { alert('Please select a document type'); return; }
 
     setUploading(true);
     try {
-      const uploadUrlResponse = await fetch('/api/projects/attachments/upload', {
+      const uploadUrlResponse = await fetch('/api/jobs/attachments/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectUuid,
+          jobUuid,
           fileName: selectedFile.name,
           documentTypeUuid: selectedDocumentType,
-          documentDate,
+          documentDate: documentDate || undefined,
           documentNo: documentNo || undefined,
           documentValue: documentValue ? parseFloat(documentValue) : undefined,
           documentCurrencyUuid: documentCurrency || undefined,
@@ -247,18 +234,18 @@ export function ProjectAttachments({
       });
       if (!uploadResponse.ok) throw new Error('Failed to upload file');
 
-      const confirmResponse = await fetch('/api/projects/attachments/confirm', {
+      const confirmResponse = await fetch('/api/jobs/attachments/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectUuid,
+          jobUuid,
           storagePath: uploadData.path,
           storageBucket: uploadData.bucket,
           fileName: selectedFile.name,
           mimeType: selectedFile.type,
           fileSizeBytes: selectedFile.size,
           documentTypeUuid: selectedDocumentType,
-          documentDate,
+          documentDate: documentDate || undefined,
           documentNo: documentNo || undefined,
           documentValue: documentValue ? parseFloat(documentValue) : undefined,
           documentCurrencyUuid: documentCurrency || undefined,
@@ -275,7 +262,7 @@ export function ProjectAttachments({
       setDocumentCurrency('');
       setShowUploadForm(false);
     } catch (error: any) {
-      console.error('Error uploading project attachment:', error);
+      console.error('Error uploading job attachment:', error);
       alert(error?.message || 'Failed to upload attachment');
     } finally {
       setUploading(false);
@@ -284,7 +271,6 @@ export function ProjectAttachments({
 
   const handleView = async (attachment: Attachment) => {
     try {
-      // Reuse generic download endpoint (only takes bucket+path)
       const response = await fetch(
         `/api/payments/attachments/download?bucket=${encodeURIComponent(attachment.storageBucket || '')}&path=${encodeURIComponent(attachment.storagePath)}`,
       );
@@ -320,7 +306,7 @@ export function ProjectAttachments({
     if (!confirm('Delete this attachment?')) return;
     try {
       const response = await fetch(
-        `/api/projects/attachments/delete?linkUuid=${encodeURIComponent(attachment.linkUuid)}&storageBucket=${encodeURIComponent(attachment.storageBucket || '')}&storagePath=${encodeURIComponent(attachment.storagePath)}`,
+        `/api/jobs/attachments/delete?linkUuid=${encodeURIComponent(attachment.linkUuid)}&storageBucket=${encodeURIComponent(attachment.storageBucket || '')}&storagePath=${encodeURIComponent(attachment.storagePath)}`,
         { method: 'DELETE' },
       );
       if (!response.ok) throw new Error('Failed to delete attachment');
@@ -357,14 +343,13 @@ export function ProjectAttachments({
     if (!selectedDocumentType) { alert('Please select a document type'); return; }
     setUploading(true);
     try {
-      // Reuse generic payments update endpoint (only updates attachments table by uuid)
       const response = await fetch('/api/payments/attachments/update', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           attachmentUuid: editingAttachment.attachmentUuid,
           documentTypeUuid: selectedDocumentType,
-          documentDate,
+          documentDate: documentDate || null,
           documentNo: documentNo || null,
           documentValue: documentValue ? parseFloat(documentValue) : null,
           documentCurrencyUuid: documentCurrency || null,
@@ -393,7 +378,7 @@ export function ProjectAttachments({
     return currencies.find((c) => c.uuid === uuid)?.code || '';
   };
   const formatDate = (dateString: string | null): string => {
-    if (!dateString) return 'No date';
+    if (!dateString) return '—';
     try {
       return new Date(dateString).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
     } catch { return dateString; }
@@ -415,7 +400,7 @@ export function ProjectAttachments({
           size="sm"
           className="flex items-center gap-1"
           onClick={openDialog}
-          title={triggerTitle || 'Project attachments'}
+          title={triggerTitle || 'Job attachments'}
         >
           {count > 0 && <span className="text-xs font-medium">{count}</span>}
           <Paperclip className="h-4 w-4" />
@@ -426,8 +411,8 @@ export function ProjectAttachments({
         <Dialog open={isDialogOpen} onOpenChange={closeDialog}>
           <DialogContent className="!w-[95vw] !max-w-[95vw] max-h-[80vh] overflow-hidden">
             <DialogHeader>
-              <DialogTitle>Attachments for project {projectName ? `"${projectName}"` : projectUuid}</DialogTitle>
-              <DialogDescription>View and manage documents related to this project.</DialogDescription>
+              <DialogTitle>Attachments for job {jobName ? `"${jobName}"` : jobUuid}</DialogTitle>
+              <DialogDescription>View and manage documents related to this job.</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 overflow-x-auto overflow-y-auto max-h-[calc(80vh-120px)]">
@@ -491,8 +476,8 @@ export function ProjectAttachments({
                   <div className="space-y-3">
                     {!editingAttachment && (
                       <div className="space-y-2">
-                        <Label htmlFor="proj-file-upload" className="text-sm">File <span className="text-destructive">*</span></Label>
-                        <Input id="proj-file-upload" type="file" onChange={handleFileSelect} disabled={uploading} />
+                        <Label htmlFor="job-file-upload" className="text-sm">File <span className="text-destructive">*</span></Label>
+                        <Input id="job-file-upload" type="file" onChange={handleFileSelect} disabled={uploading} />
                         {selectedFile && (
                           <div className="text-xs text-muted-foreground">{selectedFile.name} ({formatFileSize(selectedFile.size)})</div>
                         )}
@@ -507,9 +492,9 @@ export function ProjectAttachments({
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
-                        <Label htmlFor="proj-document-type" className="text-sm">Document Type <span className="text-destructive">*</span></Label>
+                        <Label htmlFor="job-document-type" className="text-sm">Document Type <span className="text-destructive">*</span></Label>
                         <Select value={selectedDocumentType} onValueChange={setSelectedDocumentType} disabled={uploading}>
-                          <SelectTrigger id="proj-document-type"><SelectValue placeholder="Select type" /></SelectTrigger>
+                          <SelectTrigger id="job-document-type"><SelectValue placeholder="Select type" /></SelectTrigger>
                           <SelectContent>
                             {documentTypes.map((type) => (
                               <SelectItem key={type.uuid} value={type.uuid}>{type.name}</SelectItem>
@@ -518,25 +503,25 @@ export function ProjectAttachments({
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="proj-document-date" className="text-sm">Document Date</Label>
-                        <Input id="proj-document-date" type="date" value={documentDate} onChange={(e) => setDocumentDate(e.target.value)} disabled={uploading} />
+                        <Label htmlFor="job-document-date" className="text-sm">Document Date</Label>
+                        <Input id="job-document-date" type="date" value={documentDate} onChange={(e) => setDocumentDate(e.target.value)} disabled={uploading} />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="proj-document-no" className="text-sm">Document Number</Label>
-                      <Input id="proj-document-no" type="text" placeholder="e.g., CTR-2026-001" value={documentNo} onChange={(e) => setDocumentNo(e.target.value)} disabled={uploading} />
+                      <Label htmlFor="job-document-no" className="text-sm">Document Number</Label>
+                      <Input id="job-document-no" type="text" placeholder="e.g., JOB-2026-001" value={documentNo} onChange={(e) => setDocumentNo(e.target.value)} disabled={uploading} />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
-                        <Label htmlFor="proj-document-value" className="text-sm">Value</Label>
-                        <Input id="proj-document-value" type="number" step="0.01" placeholder="0.00" value={documentValue} onChange={(e) => setDocumentValue(e.target.value)} disabled={uploading} />
+                        <Label htmlFor="job-document-value" className="text-sm">Value</Label>
+                        <Input id="job-document-value" type="number" step="0.01" placeholder="0.00" value={documentValue} onChange={(e) => setDocumentValue(e.target.value)} disabled={uploading} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="proj-document-currency" className="text-sm">Currency</Label>
+                        <Label htmlFor="job-document-currency" className="text-sm">Currency</Label>
                         <Select value={documentCurrency} onValueChange={setDocumentCurrency} disabled={uploading}>
-                          <SelectTrigger id="proj-document-currency"><SelectValue placeholder="Select currency" /></SelectTrigger>
+                          <SelectTrigger id="job-document-currency"><SelectValue placeholder="Select currency" /></SelectTrigger>
                           <SelectContent>
                             {currencies.map((c) => (
                               <SelectItem key={c.uuid} value={c.uuid}>{c.code} — {c.name}</SelectItem>
@@ -565,4 +550,4 @@ export function ProjectAttachments({
   );
 }
 
-export default ProjectAttachments;
+export default JobAttachments;

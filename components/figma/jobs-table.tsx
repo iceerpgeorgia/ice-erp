@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { Checkbox } from './ui/checkbox';
+import { JobAttachments } from './job-attachments';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import {
   Select,
@@ -816,7 +817,12 @@ export function JobsTable() {
                     </TableCell>
                   ))}
                   <TableCell>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
+                      <JobAttachments
+                        jobUuid={job.jobUuid}
+                        jobName={job.jobName}
+                        triggerTitle="Job attachments"
+                      />
                       <Button
                         variant="ghost"
                         size="sm"

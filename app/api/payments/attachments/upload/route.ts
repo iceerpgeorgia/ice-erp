@@ -54,9 +54,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!documentTypeUuid || !documentDate) {
+    if (!documentTypeUuid) {
       return NextResponse.json(
-        { error: 'documentTypeUuid and documentDate are required' },
+        { error: 'documentTypeUuid is required' },
         { status: 400 }
       );
     }

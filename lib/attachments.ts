@@ -531,3 +531,133 @@ export async function deleteAttachmentLink(attachmentLinkUuid: string): Promise<
     attachmentLinkUuid
   );
 }
+
+// ---------------------------------------------------------------------------
+// Job attachments (owner_table='jobs', owner_uuid=jobs.job_uuid)
+// ---------------------------------------------------------------------------
+
+const JOB_LINK_SELECT = PROJECT_LINK_SELECT.replace(
+  "WHERE al.owner_table = 'projects'",
+  "WHERE al.owner_table = 'jobs'"
+);
+
+/** Get attachments linked to a job (owner_table='jobs'). */
+export async function getJobAttachments(jobUuid: string): Promise<AttachmentLinkDto[]> {
+  const links = await withRetry(() => prisma.$queryRawUnsafe<any[]>(
+    `${JOB_LINK_SELECT}
+       AND al.owner_uuid = $1::uuid
+     ORDER BY al.is_primary DESC, al.created_at DESC`,
+    jobUuid
+  ));
+  return links.map(mapLinkRow);
+}
+
+/** Bulk fetch: count of job attachments per jobUuid. */
+export async function getJobAttachmentCounts(jobUuids: string[]): Promise<Record<string, number>> {
+  const unique = Array.from(new Set(jobUuids.filter((v) => typeof v === 'string' && v.length > 0)));
+  if (unique.length === 0) return {};
+  const placeholders = unique.map((_, i) => `$${i + 1}::uuid`).join(', ');
+  const rows = await withRetry(() => prisma.$queryRawUnsafe<Array<{ owner_uuid: string; cnt: bigint }>>(
+    `SELECT al.owner_uuid::text AS owner_uuid, COUNT(*)::bigint AS cnt
+     FROM attachment_links al
+     JOIN attachments a ON a.uuid = al.attachment_uuid
+     WHERE al.owner_table = 'jobs'
+       AND a.is_active = true
+       AND al.owner_uuid IN (${placeholders})
+     GROUP BY al.owner_uuid`,
+    ...unique
+  ));
+  const out: Record<string, number> = {};
+  for (const u of unique) out[u] = 0;
+  for (const r of rows) out[r.owner_uuid] = Number(r.cnt);
+  return out;
+}
+
+/** Create attachment row + link to a job. */
+export async function createJobAttachment(params: {
+  jobUuid: string;
+  storagePath: string;
+  storageBucket: string;
+  fileName: string;
+  mimeType?: string;
+  fileSizeBytes?: number;
+  documentTypeUuid?: string;
+  documentDate?: string;
+  documentNo?: string;
+  documentValue?: number;
+  documentCurrencyUuid?: string;
+  userId?: string;
+  metadata?: any;
+  isPrimary?: boolean;
+}): Promise<AttachmentLinkDto> {
+  const {
+    jobUuid,
+    storagePath,
+    storageBucket,
+    fileName,
+    mimeType,
+    fileSizeBytes,
+    documentTypeUuid,
+    documentDate,
+    documentNo,
+    documentValue,
+    documentCurrencyUuid,
+    userId,
+    metadata,
+    isPrimary = false,
+  } = params;
+
+  // Validate the job exists
+  const job = await prisma.$queryRawUnsafe<Array<{ job_uuid: string }>>(
+    `SELECT job_uuid::text AS job_uuid FROM jobs WHERE job_uuid = $1::uuid LIMIT 1`,
+    jobUuid
+  );
+  if (!job || job.length === 0) {
+    throw new Error('Job not found');
+  }
+
+  const attachmentResult = await prisma.$queryRawUnsafe<Array<{ uuid: string }>>(
+    `INSERT INTO attachments (
+       uuid, document_type_uuid, document_date, document_no, document_value,
+       document_currency_uuid, storage_provider, storage_bucket, storage_path,
+       file_name, mime_type, file_size_bytes, metadata, uploaded_by_user_id,
+       is_active, created_at, updated_at
+     ) VALUES (
+       gen_random_uuid(), $1::uuid, $2::timestamp, $3, $4::decimal,
+       $5::uuid, 'supabase', $6, $7,
+       $8, $9, $10, $11::jsonb, $12,
+       true, NOW(), NOW()
+     ) RETURNING uuid`,
+    documentTypeUuid || null,
+    documentDate || null,
+    documentNo || null,
+    documentValue ?? null,
+    documentCurrencyUuid || null,
+    storageBucket,
+    storagePath,
+    fileName,
+    mimeType || null,
+    fileSizeBytes || null,
+    metadata ? JSON.stringify(metadata) : null,
+    userId || null,
+  );
+
+  const attachmentUuid = attachmentResult[0].uuid;
+
+  const linkResult = await prisma.$queryRawUnsafe<Array<{ uuid: string }>>(
+    `INSERT INTO attachment_links (
+       uuid, attachment_uuid, owner_table, owner_uuid, owner_field,
+       is_primary, created_by_user_id, created_at, updated_at
+     ) VALUES (
+       gen_random_uuid(), $1::uuid, 'jobs', $2::uuid, NULL,
+       $3, $4, NOW(), NOW()
+     ) RETURNING uuid`,
+    attachmentUuid,
+    jobUuid,
+    isPrimary,
+    userId || null,
+  );
+
+  const links = await getJobAttachments(jobUuid);
+  return links.find((link) => link.uuid === linkResult[0].uuid)!;
+}

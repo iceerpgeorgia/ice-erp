@@ -17,10 +17,8 @@ function sanitizeFileName(fileName: string): string {
 }
 
 /**
- * POST /api/projects/attachments/upload
+ * POST /api/jobs/attachments/upload
  * Returns a signed URL the client uses to PUT the file directly to Supabase Storage.
- *
- * Body: { projectUuid, fileName, documentTypeUuid, documentDate, documentNo?, documentValue?, documentCurrencyUuid?, isPrimary? }
  */
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
@@ -28,7 +26,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
-      projectUuid,
+      jobUuid,
       fileName,
       documentTypeUuid,
       documentDate,
@@ -38,8 +36,8 @@ export async function POST(request: NextRequest) {
       isPrimary,
     } = body;
 
-    if (!projectUuid || !fileName) {
-      return NextResponse.json({ error: 'projectUuid and fileName are required' }, { status: 400 });
+    if (!jobUuid || !fileName) {
+      return NextResponse.json({ error: 'jobUuid and fileName are required' }, { status: 400 });
     }
     if (!documentTypeUuid) {
       return NextResponse.json(
@@ -51,7 +49,7 @@ export async function POST(request: NextRequest) {
     const bucket = 'payment-attachments';
     const fileSuffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const sanitizedFileName = sanitizeFileName(fileName);
-    const storagePath = `projects/${projectUuid}/${fileSuffix}-${sanitizedFileName}`;
+    const storagePath = `jobs/${jobUuid}/${fileSuffix}-${sanitizedFileName}`;
 
     const supabase = getSupabaseServer();
     const { data, error } = await supabase.storage
@@ -73,7 +71,7 @@ export async function POST(request: NextRequest) {
       token: data.token,
       path: data.path || storagePath,
       bucket,
-      projectUuid,
+      jobUuid,
       fileName,
       sanitizedFileName,
       documentTypeUuid,
@@ -84,7 +82,7 @@ export async function POST(request: NextRequest) {
       isPrimary,
     });
   } catch (error: any) {
-    console.error('Error creating project attachment upload URL:', error);
+    console.error('Error creating job attachment upload URL:', error);
     return NextResponse.json(
       { error: error?.message || 'Failed to create upload URL' },
       { status: 500 },
