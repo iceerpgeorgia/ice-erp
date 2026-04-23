@@ -17,6 +17,8 @@ import {
   Upload,
   ChevronLeft,
   ChevronRight,
+  Trash2,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/figma/ui/button';
 import { Input } from '@/components/figma/ui/input';
@@ -466,6 +468,78 @@ export default function AttachmentsPage() {
     }
   };
 
+  // Preview attachment inline (no download). Loads the file as a blob URL so it
+  // can be rendered in <iframe>/<img>/<embed> regardless of CSP/cookies.
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const openPreview = async (attachment: Attachment) => {
+    setPreviewAttachment(attachment);
+    setPreviewDialogOpen(true);
+    setPreviewError(null);
+    setPreviewBlobUrl(null);
+    setPreviewLoading(true);
+    try {
+      const response = await fetch(`/api/attachments/${attachment.uuid}/view`);
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data?.error || 'Failed to load preview');
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setPreviewBlobUrl(url);
+    } catch (e: any) {
+      setPreviewError(e?.message || 'Failed to load preview');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  // Revoke blob URL when preview closes / changes.
+  useEffect(() => {
+    return () => {
+      if (previewBlobUrl) URL.revokeObjectURL(previewBlobUrl);
+    };
+  }, [previewBlobUrl]);
+
+  const closePreview = () => {
+    setPreviewDialogOpen(false);
+    setPreviewAttachment(null);
+    if (previewBlobUrl) {
+      URL.revokeObjectURL(previewBlobUrl);
+      setPreviewBlobUrl(null);
+    }
+    setPreviewError(null);
+  };
+
+  // Delete attachment (soft delete by default — sets is_active=false; storage retained)
+  const deleteAttachment = async (attachment: Attachment) => {
+    if (
+      !confirm(
+        `Delete attachment "${attachment.fileName}"?\n\nThis hides it from this list. The file is retained in storage and any links to projects/payments are preserved.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const response = await fetch(`/api/attachments/${attachment.uuid}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || 'Delete failed');
+      }
+      // Refresh list
+      fetchAttachments();
+    } catch (e: any) {
+      console.error('Error deleting attachment:', e);
+      alert(e?.message || 'Failed to delete attachment');
+    }
+  };
+
   const visibleColumns = columns.filter((col) => col.visible);
   const totalPages = Math.ceil(total / limit);
 
@@ -673,9 +747,26 @@ export default function AttachmentsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() => openPreview(row)}
+                          title="Preview"
+                        >
+                          <FileText className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => downloadAttachment(row)}
+                          title="Download"
                         >
                           <Download className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteAttachment(row)}
+                          title="Delete"
+                        >
+                          <Trash2 className="h-3 w-3 text-red-600" />
                         </Button>
                       </div>
                     </td>
@@ -718,6 +809,106 @@ export default function AttachmentsPage() {
           </div>
         </div>
       </div>
+
+      {/* Preview Dialog (inline file preview, no download required) */}
+      <Dialog
+        open={previewDialogOpen}
+        onOpenChange={(open) => (open ? setPreviewDialogOpen(true) : closePreview())}
+      >
+        <DialogContent className="max-w-5xl w-[90vw] h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2">
+              <span className="truncate">{previewAttachment?.fileName || 'Preview'}</span>
+              {previewBlobUrl && (
+                <a
+                  href={previewBlobUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                  title="Open in new tab"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Open in new tab
+                </a>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {previewAttachment?.mimeType || 'Inline file preview'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 overflow-hidden border rounded bg-muted/20">
+            {previewLoading && (
+              <div className="h-full w-full flex items-center justify-center text-muted-foreground">
+                Loading preview…
+              </div>
+            )}
+            {!previewLoading && previewError && (
+              <div className="h-full w-full flex flex-col items-center justify-center text-red-600 gap-2 p-4 text-center">
+                <p>{previewError}</p>
+                {previewAttachment && (
+                  <Button variant="outline" size="sm" onClick={() => downloadAttachment(previewAttachment)}>
+                    <Download className="h-3 w-3 mr-1" />
+                    Download instead
+                  </Button>
+                )}
+              </div>
+            )}
+            {!previewLoading && !previewError && previewBlobUrl && previewAttachment && (() => {
+              const mime = previewAttachment.mimeType || '';
+              if (mime.startsWith('image/')) {
+                return (
+                  <div className="h-full w-full overflow-auto flex items-center justify-center bg-checkerboard">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={previewBlobUrl}
+                      alt={previewAttachment.fileName}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+                );
+              }
+              if (mime === 'application/pdf') {
+                return (
+                  <iframe
+                    src={previewBlobUrl}
+                    title={previewAttachment.fileName}
+                    className="h-full w-full"
+                  />
+                );
+              }
+              if (mime.startsWith('text/') || mime === 'application/json' || mime === 'application/xml') {
+                return (
+                  <iframe
+                    src={previewBlobUrl}
+                    title={previewAttachment.fileName}
+                    className="h-full w-full bg-white"
+                  />
+                );
+              }
+              // Fallback: <embed> lets the browser pick a handler if any
+              return (
+                <div className="h-full w-full flex flex-col">
+                  <embed
+                    src={previewBlobUrl}
+                    type={mime || 'application/octet-stream'}
+                    className="flex-1"
+                  />
+                  <div className="p-2 text-xs text-muted-foreground text-center border-t">
+                    Preview may not be supported for this file type.{' '}
+                    <button
+                      type="button"
+                      className="text-blue-600 hover:underline"
+                      onClick={() => downloadAttachment(previewAttachment)}
+                    >
+                      Download instead
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* View Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
