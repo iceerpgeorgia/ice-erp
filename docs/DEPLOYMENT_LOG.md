@@ -1,5 +1,22 @@
 # Deployment Log
 
+## Deployment #239 - 2026-04-23
+
+**Commit**: 47d5e5b
+**Production URL**: https://ice-aex25wlqa-iceerp.vercel.app
+**Inspect URL**: https://vercel.com/iceerp/ice-erp/74kjhjxKujqMjFfzQV2CkRSAderE
+
+### Changes
+- **Attach documents to jobs** (parity with projects/payments):
+  - New `components/figma/job-attachments.tsx` (paperclip + count trigger, full upload/view/edit/delete dialog).
+  - Wired into `components/figma/jobs-table.tsx` row actions.
+  - New API: `GET /api/jobs/attachments` (list / bulk-counts), `POST /api/jobs/attachments/upload` (signed URL), `POST /api/jobs/attachments/confirm` (DB rows), `DELETE /api/jobs/attachments/delete`.
+  - Storage path layout: `payment-attachments/jobs/<job_uuid>/...`.
+  - `lib/attachments.ts`: added `getJobAttachments`, `getJobAttachmentCounts`, `createJobAttachment` using `owner_table='jobs'` + `owner_uuid=jobs.job_uuid`.
+- **Document Date is now optional** for all attachment surfaces (projects, payments, jobs):
+  - Removed required check + UI asterisk in `project-attachments.tsx` and `payment-attachments.tsx`.
+  - Backend validators in projects/payments/jobs upload + confirm now only require `documentTypeUuid` (date, value, currency, document number all optional).
+  - Rationale: some document types (receipts, notes, internal memos) don't have a meaningful date.
 ## Deployment #238 - 2025 (current session)
 
 **Commit**: e85d621
