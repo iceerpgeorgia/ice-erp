@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-04-23 Deployment #236
+- Commit: 93f3189
+- Production: https://ice-4lf87n44t-iceerp.vercel.app
+- Summary: Add a dedicated Document Types admin page with full CRUD (it was previously only a read-only API consumed by the attachments dialogs). Includes smart delete that soft-deactivates types still referenced by attachments.
+- Changes:
+  - app/admin/document-types/page.tsx (new): list view with "Show inactive" toggle, Add / Edit dialog (name + active checkbox), inline delete with confirmation, status badge, and last-updated timestamp.
+  - app/api/document-types/route.ts: kept backward-compatible GET (still returns {uuid, name, ...}); added ?includeInactive=true; added POST (create) with name uniqueness check, manual randomUUID() for the uuid column (no DB default on document_types.uuid), and audit log.
+  - app/api/document-types/[uuid]/route.ts (new): PATCH (rename / toggle active, with uniqueness conflict guard) and DELETE (hard delete if no attachments reference the row, soft-deactivate if attachments.document_type_uuid count > 0). Both emit audit entries.
+  - lib/audit.ts: added "document_types" to the logAudit table union.
+  - app/dictionaries/page.tsx: added "Document Types" link under the existing Attachments link.
+
 ## 2026-04-23 Deployment #235
 - Commit: 48eb16e
 - Production: https://ice-prq7qjl18-iceerp.vercel.app
