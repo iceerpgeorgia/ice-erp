@@ -9,6 +9,11 @@ function serialize(dt: any) {
     uuid: dt.uuid,
     name: dt.name,
     isActive: dt.is_active,
+    requireDate: dt.require_date ?? false,
+    requireValue: dt.require_value ?? false,
+    requireCurrency: dt.require_currency ?? false,
+    requireDocumentNo: dt.require_document_no ?? false,
+    requireProject: dt.require_project ?? false,
     createdAt: dt.created_at,
     updatedAt: dt.updated_at,
   };
@@ -29,7 +34,7 @@ export async function PATCH(
     const { uuid } = params;
     const body = await request.json();
 
-    const data: { name?: string; is_active?: boolean } = {};
+    const data: { name?: string; is_active?: boolean; require_date?: boolean; require_value?: boolean; require_currency?: boolean; require_document_no?: boolean; require_project?: boolean } = {};
     if (typeof body?.name === 'string') {
       const name = body.name.trim();
       if (!name) {
@@ -47,9 +52,12 @@ export async function PATCH(
       }
       data.name = name;
     }
-    if (typeof body?.isActive === 'boolean') {
-      data.is_active = body.isActive;
-    }
+    if (typeof body?.isActive === 'boolean') data.is_active = body.isActive;
+    if (typeof body?.requireDate === 'boolean') data.require_date = body.requireDate;
+    if (typeof body?.requireValue === 'boolean') data.require_value = body.requireValue;
+    if (typeof body?.requireCurrency === 'boolean') data.require_currency = body.requireCurrency;
+    if (typeof body?.requireDocumentNo === 'boolean') data.require_document_no = body.requireDocumentNo;
+    if (typeof body?.requireProject === 'boolean') data.require_project = body.requireProject;
 
     if (Object.keys(data).length === 0) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });

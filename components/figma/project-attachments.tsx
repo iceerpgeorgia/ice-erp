@@ -27,7 +27,15 @@ type Attachment = {
   updatedAt: string;
 };
 
-type DocumentType = { uuid: string; name: string };
+type DocumentType = {
+  uuid: string;
+  name: string;
+  requireDate?: boolean;
+  requireValue?: boolean;
+  requireCurrency?: boolean;
+  requireDocumentNo?: boolean;
+  requireProject?: boolean;
+};
 type Currency = { uuid: string; code: string; name: string };
 
 export type ProjectAttachmentsProps = {
@@ -219,6 +227,12 @@ export function ProjectAttachments({
     if (!selectedFile || !projectUuid) return;
     if (!selectedDocumentType) { alert('Please select a document type'); return; }
 
+    const activeDocType = documentTypes.find(d => d.uuid === selectedDocumentType);
+    if (activeDocType?.requireDate && !documentDate) { alert('Document Date is required for this document type'); return; }
+    if (activeDocType?.requireValue && !documentValue) { alert('Value is required for this document type'); return; }
+    if (activeDocType?.requireCurrency && !documentCurrency) { alert('Currency is required for this document type'); return; }
+    if (activeDocType?.requireDocumentNo && !documentNo) { alert('Document Number is required for this document type'); return; }
+
     setUploading(true);
     try {
       const uploadUrlResponse = await fetch('/api/projects/attachments/upload', {
@@ -355,6 +369,11 @@ export function ProjectAttachments({
   const handleUpdateAttachment = async () => {
     if (!editingAttachment) return;
     if (!selectedDocumentType) { alert('Please select a document type'); return; }
+    const activeDocType = documentTypes.find(d => d.uuid === selectedDocumentType);
+    if (activeDocType?.requireDate && !documentDate) { alert('Document Date is required for this document type'); return; }
+    if (activeDocType?.requireValue && !documentValue) { alert('Value is required for this document type'); return; }
+    if (activeDocType?.requireCurrency && !documentCurrency) { alert('Currency is required for this document type'); return; }
+    if (activeDocType?.requireDocumentNo && !documentNo) { alert('Document Number is required for this document type'); return; }
     setUploading(true);
     try {
       // Reuse generic payments update endpoint (only updates attachments table by uuid)
@@ -518,23 +537,23 @@ export function ProjectAttachments({
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="proj-document-date" className="text-sm">Document Date</Label>
+                        <Label htmlFor="proj-document-date" className="text-sm">Document Date{documentTypes.find(d => d.uuid === selectedDocumentType)?.requireDate && <span className="text-destructive"> *</span>}</Label>
                         <Input id="proj-document-date" type="date" value={documentDate} onChange={(e) => setDocumentDate(e.target.value)} disabled={uploading} />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="proj-document-no" className="text-sm">Document Number</Label>
+                      <Label htmlFor="proj-document-no" className="text-sm">Document Number{documentTypes.find(d => d.uuid === selectedDocumentType)?.requireDocumentNo && <span className="text-destructive"> *</span>}</Label>
                       <Input id="proj-document-no" type="text" placeholder="e.g., CTR-2026-001" value={documentNo} onChange={(e) => setDocumentNo(e.target.value)} disabled={uploading} />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
-                        <Label htmlFor="proj-document-value" className="text-sm">Value</Label>
+                        <Label htmlFor="proj-document-value" className="text-sm">Value{documentTypes.find(d => d.uuid === selectedDocumentType)?.requireValue && <span className="text-destructive"> *</span>}</Label>
                         <Input id="proj-document-value" type="number" step="0.01" placeholder="0.00" value={documentValue} onChange={(e) => setDocumentValue(e.target.value)} disabled={uploading} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="proj-document-currency" className="text-sm">Currency</Label>
+                        <Label htmlFor="proj-document-currency" className="text-sm">Currency{documentTypes.find(d => d.uuid === selectedDocumentType)?.requireCurrency && <span className="text-destructive"> *</span>}</Label>
                         <Select value={documentCurrency} onValueChange={setDocumentCurrency} disabled={uploading}>
                           <SelectTrigger id="proj-document-currency"><SelectValue placeholder="Select currency" /></SelectTrigger>
                           <SelectContent>

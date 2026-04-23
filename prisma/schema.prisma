@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Account {
@@ -417,13 +418,18 @@ model currencies {
 }
 
 model document_types {
-  id         BigInt   @id @default(autoincrement())
-  uuid       String   @unique @db.Uuid
-  name       String   @unique
-  is_active  Boolean  @default(true)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-  attachments attachments[]
+  id                  BigInt   @id @default(autoincrement())
+  uuid                String   @unique @db.Uuid
+  name                String   @unique
+  is_active           Boolean  @default(true)
+  require_date        Boolean  @default(false)
+  require_value       Boolean  @default(false)
+  require_currency    Boolean  @default(false)
+  require_document_no Boolean  @default(false)
+  require_project     Boolean  @default(false)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+  attachments         attachments[]
 }
 
 model attachments {
@@ -922,3 +928,4 @@ model rs_waybills_in_items {
   @@index([goods_code])
   @@map("rs_waybills_in_items")
 }
+

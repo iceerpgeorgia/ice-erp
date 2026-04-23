@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
       userId,
       metadata,
       isPrimary,
+      linkedProjectUuid,
     } = body;
 
     if (!paymentId || !storagePath || !storageBucket || !fileName) {
@@ -70,6 +71,7 @@ export async function POST(request: NextRequest) {
       userId,
       metadata,
       isPrimary,
+      linkedProjectUuid,
     });
 
     return NextResponse.json({

@@ -49,6 +49,11 @@ export type DocumentType = {
   uuid: string;
   name: string;
   isActive: boolean;
+  requireDate: boolean;
+  requireValue: boolean;
+  requireCurrency: boolean;
+  requireDocumentNo: boolean;
+  requireProject: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -189,6 +194,11 @@ export default function DocumentTypesPage() {
         uuid: d.uuid,
         name: d.name,
         isActive: d.isActive ?? d.is_active ?? true,
+        requireDate: d.requireDate ?? false,
+        requireValue: d.requireValue ?? false,
+        requireCurrency: d.requireCurrency ?? false,
+        requireDocumentNo: d.requireDocumentNo ?? false,
+        requireProject: d.requireProject ?? false,
         createdAt: d.createdAt ?? d.created_at ?? "",
         updatedAt: d.updatedAt ?? d.updated_at ?? "",
       })));
@@ -241,6 +251,11 @@ export default function DocumentTypesPage() {
   const [editing, setEditing] = useState<DocumentType | null>(null);
   const [formName, setFormName] = useState("");
   const [formActive, setFormActive] = useState(true);
+  const [formRequireDate, setFormRequireDate] = useState(false);
+  const [formRequireValue, setFormRequireValue] = useState(false);
+  const [formRequireCurrency, setFormRequireCurrency] = useState(false);
+  const [formRequireDocumentNo, setFormRequireDocumentNo] = useState(false);
+  const [formRequireProject, setFormRequireProject] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -250,6 +265,11 @@ export default function DocumentTypesPage() {
     setEditing(null);
     setFormName("");
     setFormActive(true);
+    setFormRequireDate(false);
+    setFormRequireValue(false);
+    setFormRequireCurrency(false);
+    setFormRequireDocumentNo(false);
+    setFormRequireProject(false);
     setFormError(null);
     setDialogOpen(true);
   };
@@ -257,6 +277,11 @@ export default function DocumentTypesPage() {
     setEditing(row);
     setFormName(row.name);
     setFormActive(row.isActive);
+    setFormRequireDate(row.requireDate);
+    setFormRequireValue(row.requireValue);
+    setFormRequireCurrency(row.requireCurrency);
+    setFormRequireDocumentNo(row.requireDocumentNo);
+    setFormRequireProject(row.requireProject);
     setFormError(null);
     setDialogOpen(true);
   };
@@ -273,12 +298,28 @@ export default function DocumentTypesPage() {
         ? await fetch(`/api/document-types/${editing.uuid}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, isActive: formActive }),
+            body: JSON.stringify({
+              name,
+              isActive: formActive,
+              requireDate: formRequireDate,
+              requireValue: formRequireValue,
+              requireCurrency: formRequireCurrency,
+              requireDocumentNo: formRequireDocumentNo,
+              requireProject: formRequireProject,
+            }),
           })
         : await fetch("/api/document-types", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, isActive: formActive }),
+            body: JSON.stringify({
+              name,
+              isActive: formActive,
+              requireDate: formRequireDate,
+              requireValue: formRequireValue,
+              requireCurrency: formRequireCurrency,
+              requireDocumentNo: formRequireDocumentNo,
+              requireProject: formRequireProject,
+            }),
           });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Save failed");
@@ -705,6 +746,23 @@ export default function DocumentTypesPage() {
               />
               Active
             </label>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Required Fields</Label>
+              <div className="space-y-2 pl-1">
+                {([
+                  { key: 'date',    label: 'Document Date',    state: formRequireDate,       set: setFormRequireDate },
+                  { key: 'value',   label: 'Value (Sum)',      state: formRequireValue,      set: setFormRequireValue },
+                  { key: 'curr',    label: 'Currency',         state: formRequireCurrency,   set: setFormRequireCurrency },
+                  { key: 'docno',   label: 'Document Number',  state: formRequireDocumentNo, set: setFormRequireDocumentNo },
+                  { key: 'project', label: 'Project',          state: formRequireProject,    set: setFormRequireProject },
+                ] as Array<{ key: string; label: string; state: boolean; set: (v: boolean) => void }>).map(({ key, label, state, set }) => (
+                  <label key={key} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Checkbox checked={state} onCheckedChange={(v) => set(v === true)} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
             {formError && <div className="text-sm text-red-600">{formError}</div>}
           </div>
           <DialogFooter>

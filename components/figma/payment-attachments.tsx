@@ -30,11 +30,21 @@ type Attachment = {
 type DocumentType = {
   uuid: string;
   name: string;
+  requireDate?: boolean;
+  requireValue?: boolean;
+  requireCurrency?: boolean;
+  requireDocumentNo?: boolean;
+  requireProject?: boolean;
 };
 
 type Currency = {
   uuid: string;
   code: string;
+  name: string;
+};
+
+type Project = {
+  project_uuid: string;
   name: string;
 };
 
@@ -53,6 +63,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(initiallyOpen);
@@ -63,6 +74,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
   const [documentNo, setDocumentNo] = useState<string>('');
   const [documentValue, setDocumentValue] = useState<string>('');
   const [documentCurrency, setDocumentCurrency] = useState<string>('');
+  const [selectedProject, setSelectedProject] = useState<string>('');
   const [dialogMounted, setDialogMounted] = useState(initiallyOpen);
   const [isMounted, setIsMounted] = useState(false);
   const [editingAttachment, setEditingAttachment] = useState<Attachment | null>(null);
@@ -154,6 +166,17 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
     }
   };
 
+  const loadProjects = async () => {
+    try {
+      const response = await fetch('/api/projects');
+      if (!response.ok) return;
+      const data = await response.json();
+      setProjects(Array.isArray(data) ? data : []);
+    } catch {
+      setProjects([]);
+    }
+  };
+
   const handleOpenDialog = () => {
     setDialogMounted(true);
     setIsDialogOpen(true);
@@ -164,6 +187,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
       loadAttachments();
       loadDocumentTypes();
       loadCurrencies();
+      loadProjects();
     }
   }, [isDialogOpen, dialogMounted]);
 
@@ -182,6 +206,13 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
       return;
     }
 
+    const activeDocType = documentTypes.find(d => d.uuid === selectedDocumentType);
+    if (activeDocType?.requireDate && !documentDate) { alert('Document Date is required for this document type'); return; }
+    if (activeDocType?.requireValue && !documentValue) { alert('Value is required for this document type'); return; }
+    if (activeDocType?.requireCurrency && !documentCurrency) { alert('Currency is required for this document type'); return; }
+    if (activeDocType?.requireDocumentNo && !documentNo) { alert('Document Number is required for this document type'); return; }
+    if (activeDocType?.requireProject && !selectedProject) { alert('Project is required for this document type'); return; }
+
     setUploading(true);
     try {
       // Step 1: Get signed upload URL
@@ -196,6 +227,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
           documentNo: documentNo || undefined,
           documentValue: documentValue ? parseFloat(documentValue) : undefined,
           documentCurrencyUuid: documentCurrency || undefined,
+          linkedProjectUuid: selectedProject || undefined,
         }),
       });
 
@@ -235,6 +267,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
           documentNo: documentNo || undefined,
           documentValue: documentValue ? parseFloat(documentValue) : undefined,
           documentCurrencyUuid: documentCurrency || undefined,
+          linkedProjectUuid: selectedProject || undefined,
         }),
       });
 
@@ -250,6 +283,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
       setDocumentNo('');
       setDocumentValue('');
       setDocumentCurrency('');
+      setSelectedProject('');
       setShowUploadForm(false);
     } catch (error: any) {
       console.error('Error uploading attachment:', error);
@@ -372,6 +406,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
     setDocumentNo('');
     setDocumentValue('');
     setDocumentCurrency('');
+    setSelectedProject('');
     setShowUploadForm(false);
   };
 
@@ -382,6 +417,12 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
       alert('Please select a document type');
       return;
     }
+
+    const activeDocType = documentTypes.find(d => d.uuid === selectedDocumentType);
+    if (activeDocType?.requireDate && !documentDate) { alert('Document Date is required for this document type'); return; }
+    if (activeDocType?.requireValue && !documentValue) { alert('Value is required for this document type'); return; }
+    if (activeDocType?.requireCurrency && !documentCurrency) { alert('Currency is required for this document type'); return; }
+    if (activeDocType?.requireDocumentNo && !documentNo) { alert('Document Number is required for this document type'); return; }
 
     setUploading(true);
     try {
@@ -607,7 +648,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
                     
                     <div className="space-y-2">
                       <Label htmlFor="document-date" className="text-sm">
-                        Document Date
+                        Document Date{documentTypes.find(d => d.uuid === selectedDocumentType)?.requireDate && <span className="text-destructive"> *</span>}
                       </Label>
                       <Input
                         id="document-date"
@@ -618,10 +659,27 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
                       />
                     </div>
                   </div>
+
+                  {/* Project selector — shown when document type requires project */}
+                  {documentTypes.find(d => d.uuid === selectedDocumentType)?.requireProject && (
+                    <div className="space-y-2">
+                      <Label htmlFor="document-project" className="text-sm">
+                        Project <span className="text-destructive">*</span>
+                      </Label>
+                      <Select value={selectedProject} onValueChange={setSelectedProject} disabled={uploading}>
+                        <SelectTrigger id="document-project"><SelectValue placeholder="Select project" /></SelectTrigger>
+                        <SelectContent>
+                          {projects.map((p) => (
+                            <SelectItem key={p.project_uuid} value={p.project_uuid}>{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   
                   {/* Document Number */}
                   <div className="space-y-2">
-                    <Label htmlFor="document-no" className="text-sm">Document Number</Label>
+                    <Label htmlFor="document-no" className="text-sm">Document Number{documentTypes.find(d => d.uuid === selectedDocumentType)?.requireDocumentNo && <span className="text-destructive"> *</span>}</Label>
                     <Input
                       id="document-no"
                       type="text"
@@ -635,7 +693,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
                   {/* Value and Currency */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="document-value" className="text-sm">Value</Label>
+                      <Label htmlFor="document-value" className="text-sm">Value{documentTypes.find(d => d.uuid === selectedDocumentType)?.requireValue && <span className="text-destructive"> *</span>}</Label>
                       <Input
                         id="document-value"
                         type="number"
@@ -648,7 +706,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="document-currency" className="text-sm">Currency</Label>
+                      <Label htmlFor="document-currency" className="text-sm">Currency{documentTypes.find(d => d.uuid === selectedDocumentType)?.requireCurrency && <span className="text-destructive"> *</span>}</Label>
                       <Select 
                         value={documentCurrency} 
                         onValueChange={setDocumentCurrency}
@@ -673,8 +731,8 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
                     onClick={editingAttachment ? handleUpdateAttachment : handleUpload}
                     disabled={
                       editingAttachment 
-                        ? (!selectedDocumentType || !documentDate || uploading)
-                        : (!selectedFile || !selectedDocumentType || !documentDate || uploading)
+                        ? (!selectedDocumentType || uploading)
+                        : (!selectedFile || !selectedDocumentType || uploading)
                     }
                     className="w-full"
                   >

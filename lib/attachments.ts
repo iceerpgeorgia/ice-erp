@@ -128,6 +128,7 @@ export async function createPaymentAttachment(params: {
   userId?: string;
   metadata?: any;
   isPrimary?: boolean;
+  linkedProjectUuid?: string;
 }): Promise<AttachmentLinkDto> {
   const {
     paymentId,
@@ -144,9 +145,8 @@ export async function createPaymentAttachment(params: {
     userId,
     metadata,
     isPrimary = false,
+    linkedProjectUuid,
   } = params;
-
-  // Get payment record_uuid
   const payment = await prisma.$queryRawUnsafe<Array<{ record_uuid: string }>>(
     `SELECT record_uuid FROM payments WHERE payment_id = $1 LIMIT 1`,
     paymentId
@@ -241,6 +241,17 @@ export async function createPaymentAttachment(params: {
     isPrimary,
     userId || null
   );
+
+  // Optionally also link to a project
+  if (linkedProjectUuid) {
+    await prisma.$queryRawUnsafe<any[]>(
+      `INSERT INTO attachment_links (uuid, attachment_uuid, owner_table, owner_uuid, owner_field, is_primary, created_by_user_id, created_at, updated_at)
+       VALUES (gen_random_uuid(), $1::uuid, 'projects', $2::uuid, NULL, false, $3, NOW(), NOW())`,
+      attachmentUuid,
+      linkedProjectUuid,
+      userId || null,
+    );
+  }
 
   // Return full link with attachment
   const links = await getPaymentAttachments(paymentId);
@@ -589,6 +600,7 @@ export async function createJobAttachment(params: {
   userId?: string;
   metadata?: any;
   isPrimary?: boolean;
+  linkedProjectUuid?: string;
 }): Promise<AttachmentLinkDto> {
   const {
     jobUuid,
@@ -605,6 +617,7 @@ export async function createJobAttachment(params: {
     userId,
     metadata,
     isPrimary = false,
+    linkedProjectUuid,
   } = params;
 
   // Validate the job exists
@@ -657,6 +670,17 @@ export async function createJobAttachment(params: {
     isPrimary,
     userId || null,
   );
+
+  // Optionally also link to a project
+  if (linkedProjectUuid) {
+    await prisma.$queryRawUnsafe<any[]>(
+      `INSERT INTO attachment_links (uuid, attachment_uuid, owner_table, owner_uuid, owner_field, is_primary, created_by_user_id, created_at, updated_at)
+       VALUES (gen_random_uuid(), $1::uuid, 'projects', $2::uuid, NULL, false, $3, NOW(), NOW())`,
+      attachmentUuid,
+      linkedProjectUuid,
+      userId || null,
+    );
+  }
 
   const links = await getJobAttachments(jobUuid);
   return links.find((link) => link.uuid === linkResult[0].uuid)!;

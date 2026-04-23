@@ -10,6 +10,11 @@ function serialize(dt: any) {
     uuid: dt.uuid,
     name: dt.name,
     isActive: dt.is_active,
+    requireDate: dt.require_date ?? false,
+    requireValue: dt.require_value ?? false,
+    requireCurrency: dt.require_currency ?? false,
+    requireDocumentNo: dt.require_document_no ?? false,
+    requireProject: dt.require_project ?? false,
     createdAt: dt.created_at,
     updatedAt: dt.updated_at,
   };
@@ -52,6 +57,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
     const isActive = body?.isActive !== false;
+    const requireDate = body?.requireDate === true;
+    const requireValue = body?.requireValue === true;
+    const requireCurrency = body?.requireCurrency === true;
+    const requireDocumentNo = body?.requireDocumentNo === true;
+    const requireProject = body?.requireProject === true;
 
     if (!name) {
       return NextResponse.json({ error: 'name is required' }, { status: 400 });
@@ -66,7 +76,16 @@ export async function POST(request: NextRequest) {
     }
 
     const created = await prisma.document_types.create({
-      data: { uuid: randomUUID(), name, is_active: isActive },
+      data: {
+        uuid: randomUUID(),
+        name,
+        is_active: isActive,
+        require_date: requireDate,
+        require_value: requireValue,
+        require_currency: requireCurrency,
+        require_document_no: requireDocumentNo,
+        require_project: requireProject,
+      },
     });
 
     await logAudit({

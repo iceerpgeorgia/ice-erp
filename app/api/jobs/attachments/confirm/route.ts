@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
       documentCurrencyUuid,
       metadata,
       isPrimary,
+      linkedProjectUuid,
     } = body;
 
     if (!jobUuid || !storagePath || !storageBucket || !fileName) {
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
       userId,
       metadata,
       isPrimary,
+      linkedProjectUuid,
     });
 
     return NextResponse.json({
