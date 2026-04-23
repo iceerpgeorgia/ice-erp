@@ -1,5 +1,25 @@
 # Deployment Log
 
+## Deployment #240 - 2026-04-23
+
+**Commit**: 9e691a1
+**Production URL**: https://ice-j9g4jlg2k-iceerp.vercel.app
+**Inspect URL**: https://vercel.com/iceerp/ice-erp/9JgBWXMoPjB2CLNZWCaYzAVZvDd7
+
+### Changes
+- **Per-document-type required fields** — manage from Admin → Document Types:
+  - 5 new boolean columns on `document_types` table: `require_date`, `require_value`, `require_currency`, `require_document_no`, `require_project` (all default `false`). Applied via `add-doc-type-required-fields.js` (ALTER TABLE IF NOT EXISTS).
+  - Prisma schema updated to match.
+  - Admin UI (`/admin/document-types`): "Required Fields" checkbox group in Add/Edit dialog.
+  - API (GET/POST/PATCH) serialises and accepts all 5 flags.
+- **Dynamic validation in attachment forms** (projects, payments, jobs):
+  - Document type flags are fetched with the document-types list.
+  - Upload and Save-Changes handlers check each `requireX` flag and alert if the field is blank.
+  - Field labels show a red asterisk `*` when the flag is set for the selected document type.
+- **Optional project linking from payment/job attachment forms**:
+  - When `requireProject=true` a Project selector appears in the upload form.
+  - `createPaymentAttachment` and `createJobAttachment` in `lib/attachments.ts` accept `linkedProjectUuid`; if provided, an additional `attachment_links` row is inserted with `owner_table='projects'` so the document also appears under the linked project.
+  - Confirm routes for payments and jobs forward `linkedProjectUuid` from the request body.
 ## Deployment #239 - 2026-04-23
 
 **Commit**: 47d5e5b
