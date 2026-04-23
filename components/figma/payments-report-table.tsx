@@ -82,6 +82,7 @@ type PaymentReport = {
   parentFinancialCodeUuid?: string | null;
   parentFinancialCode?: string | null;
   incomeTax: boolean;
+  isRecurring?: boolean;
   currency: string;
   accrual: number;
   order: number;
@@ -128,6 +129,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'currency', label: 'Currency', visible: true, sortable: true, filterable: true, width: 100 },
   { key: 'financialCode', label: 'Financial Code', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'incomeTax', label: 'Income Tax', visible: true, sortable: true, filterable: true, format: 'boolean', width: 100 },
+  { key: 'isRecurring', label: 'Recurring', visible: true, sortable: true, filterable: true, format: 'boolean', width: 110 },
   { key: 'project', label: 'Project', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'projectAddress', label: 'Project Address', visible: false, sortable: true, filterable: true, width: 220 },
   { key: 'job', label: 'Job', visible: true, sortable: true, filterable: true, width: 150 },
