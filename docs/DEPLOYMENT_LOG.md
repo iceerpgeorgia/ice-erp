@@ -1,5 +1,18 @@
 # Deployment Log
 
+## Deployment #238 - 2025 (current session)
+
+**Commit**: e85d621
+**Production URL**: https://ice-ot25qt5lm-iceerp.vercel.app
+**Inspect URL**: https://vercel.com/iceerp/ice-erp/FnRtXbs3VaDKVuGdEnWb82mUzeSH
+
+### Changes
+- New API: `GET /api/attachments/[uuid]/view` returns the file with `Content-Disposition: inline` so PDFs/images/text render in the browser without forcing a download.
+- New API: `GET /api/attachments/[uuid]` (metadata) and `DELETE /api/attachments/[uuid]` (soft delete by default; `?hard=true` removes `attachment_links` and the storage object).
+- Admin attachments page (`/admin/attachments`):
+  - **Preview** button (FileText icon) opens a modal that loads the file via the new view endpoint as a blob URL and renders it inline with `<img>` for images, `<iframe>` for PDF / text / JSON / XML, and `<embed>` for everything else, with a fallback download link.
+  - **Delete** button (Trash2 icon, red) with confirm dialog calls the soft-delete endpoint and refreshes the list. Storage and any links to projects/payments are preserved.
+  - "Open in new tab" link on the preview header.
 ## 2026-04-23 Deployment #237
 - Commit: 9cffd8c
 - Production: https://ice-e0vm8o1gj-iceerp.vercel.app
