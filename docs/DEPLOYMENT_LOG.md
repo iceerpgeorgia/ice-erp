@@ -1,5 +1,19 @@
 # Deployment Log
 
+## Deployment #242 - 2026-04-23
+
+**Commit**: e16411a
+**Production URL**: https://ice-4fvri5m64-iceerp.vercel.app
+**Inspect URL**: https://vercel.com/iceerp/ice-erp/8dvb6p6vMR5Kjt9cpqJU633VRQic
+
+### Changes
+- **Payment notification delivery repair** - Payments/attachments:
+  - lib/payment-notifications.ts, app/api/payments/route.ts, app/api/payments/attachments/confirm/route.ts, and app/api/public/payment-attachments/route.ts now use the payment record UUID for attachment lookups, wait for notification work on serverless routes, accept Vercel SERVICE_ACCOUNT_JSON, fall back to NEXTAUTH_URL for public links, and can fall back to SMTP if it is configured.
+- **Production env updates**:
+  - Added GMAIL_SENDER_EMAIL, GMAIL_USER, and NEXT_PUBLIC_APP_URL to Vercel production.
+- **Operational note**:
+  - The current Google service-account auth for iceerpgeorgia@gmail.com still fails with unauthorized_client. Email delivery will start after adding GMAIL_APP_PASSWORD for SMTP or switching to a Google Workspace sender with delegated service-account access.
+
 ## Deployment #241 - 2026-04-23
 
 **Commit**: 19ec05c
