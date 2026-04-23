@@ -328,6 +328,7 @@ export function PaymentsReportTable() {
   const [selectedJobUuid, setSelectedJobUuid] = useState('');
   const [selectedCurrencyUuid, setSelectedCurrencyUuid] = useState('');
   const [selectedIncomeTax, setSelectedIncomeTax] = useState(false);
+  const [selectedIsRecurring, setSelectedIsRecurring] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState('');
   const [payments, setPayments] = useState<Array<{ 
     paymentId: string; 
@@ -358,6 +359,7 @@ export function PaymentsReportTable() {
   const [editProjectUuid, setEditProjectUuid] = useState('');
   const [editJobUuid, setEditJobUuid] = useState('');
   const [editIncomeTax, setEditIncomeTax] = useState(false);
+  const [editIsRecurring, setEditIsRecurring] = useState(false);
   const [editIsActive, setEditIsActive] = useState(true);
   const [editJobs, setEditJobs] = useState<Array<{ jobUuid: string; jobName: string; jobDisplay?: string }>>([]);
   const [editPaymentError, setEditPaymentError] = useState<string | null>(null);
@@ -817,6 +819,7 @@ export function PaymentsReportTable() {
     setSelectedJobUuid('');
     setSelectedCurrencyUuid('');
     setSelectedIncomeTax(false);
+    setSelectedIsRecurring(false);
     setSelectedLabel('');
     setIsCreatingPayment(false);
   };
@@ -915,7 +918,8 @@ export function PaymentsReportTable() {
           jobUuid: selectedJobUuid || null,
           incomeTax: selectedIncomeTax,
           currencyUuid: selectedCurrencyUuid,
-          label: selectedLabel || null
+          label: selectedLabel || null,
+          isRecurring: selectedIsRecurring,
         })
       });
 
@@ -996,6 +1000,7 @@ export function PaymentsReportTable() {
     setEditProjectUuid(row.projectUuid || '');
     setEditJobUuid(row.jobUuid || '');
     setEditIncomeTax(Boolean(row.incomeTax));
+    setEditIsRecurring(Boolean(row.isRecurring));
     setEditIsActive(row.isActive ?? true);
     setEditPaymentError(null);
     setIsEditPaymentOpen(true);
@@ -1032,6 +1037,7 @@ export function PaymentsReportTable() {
           paymentId: editPaymentId || null,
           label: editLabel || null,
           isActive: editIsActive,
+          isRecurring: editIsRecurring,
         }),
       });
 
@@ -2805,6 +2811,20 @@ export function PaymentsReportTable() {
                         <Label>Income Tax</Label>
                       </div>
 
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={selectedIsRecurring}
+                          onCheckedChange={(checked) => setSelectedIsRecurring(checked as boolean)}
+                          id="create-payment-is-recurring"
+                        />
+                        <Label
+                          htmlFor="create-payment-is-recurring"
+                          title="On the last day of each month, auto-create a payments_ledger entry equal to the previous month's accrual+order total. Skipped if a recurring entry for the current month already exists."
+                        >
+                          Recurring (auto monthly ledger)
+                        </Label>
+                      </div>
+
                       <div className="space-y-2">
                         <Label className={!selectedCurrencyUuid ? 'text-muted-foreground' : ''}>Project (Optional)</Label>
                         <Combobox
@@ -4132,6 +4152,19 @@ export function PaymentsReportTable() {
                 id="edit-income-tax"
               />
               <Label htmlFor="edit-income-tax">Income Tax</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={editIsRecurring}
+                onCheckedChange={(value) => setEditIsRecurring(Boolean(value))}
+                id="edit-is-recurring"
+              />
+              <Label
+                htmlFor="edit-is-recurring"
+                title="On the last day of each month, auto-create a payments_ledger entry equal to the previous month's accrual+order total. Skipped if a recurring entry for the current month already exists."
+              >
+                Recurring
+              </Label>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox
