@@ -48,13 +48,31 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get payment details first because attachment links store the payment record UUID.
+    const payment = await prisma.payments.findUnique({
+      where: { payment_id: tokenRecord.paymentId },
+      select: {
+        payment_id: true,
+        label: true,
+        created_at: true,
+        record_uuid: true,
+      },
+    });
+
+    if (!payment) {
+      return NextResponse.json(
+        { error: 'Payment not found' },
+        { status: 404 }
+      );
+    }
+
     // Get attachments for this payment
     const attachments = await prisma.attachments.findMany({
       where: {
         links: {
           some: {
             owner_table: 'payments',
-            owner_uuid: tokenRecord.paymentId,
+            owner_uuid: payment.record_uuid,
           },
         },
         is_active: true,
@@ -68,7 +86,7 @@ export async function GET(request: NextRequest) {
         links: {
           where: {
             owner_table: 'payments',
-            owner_uuid: tokenRecord.paymentId,
+            owner_uuid: payment.record_uuid,
           },
         },
       },
@@ -76,23 +94,6 @@ export async function GET(request: NextRequest) {
         created_at: 'desc',
       },
     });
-
-    // Get payment details
-    const payment = await prisma.payments.findUnique({
-      where: { payment_id: tokenRecord.paymentId },
-      select: {
-        payment_id: true,
-        label: true,
-        created_at: true,
-      },
-    });
-
-    if (!payment) {
-      return NextResponse.json(
-        { error: 'Payment not found' },
-        { status: 404 }
-      );
-    }
 
     // Generate signed URLs for each attachment
     const attachmentsWithUrls = await Promise.all(

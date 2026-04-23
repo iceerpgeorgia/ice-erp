@@ -4,7 +4,6 @@ import crypto from 'crypto';
 interface PaymentNotificationData {
   paymentId: string;
   label?: string | null;
-  attachmentCount: number;
 }
 
 interface NotificationResult {
@@ -30,7 +29,6 @@ export async function sendPaymentNotifications(
   console.log('[Payment Notifications] Starting notification process');
   console.log('[Payment Notifications] Payment ID:', payment.paymentId);
   console.log('[Payment Notifications] Payment Label:', payment.label || 'N/A');
-  console.log('[Payment Notifications] Attachment Count:', payment.attachmentCount);
   console.log('[Payment Notifications] ================================================');
   
   const result: NotificationResult = {
@@ -68,6 +66,24 @@ export async function sendPaymentNotifications(
       return result;
     }
 
+    console.log('[Payment Notifications] Loading payment record...');
+    const paymentRecord = await prisma.payments.findUnique({
+      where: {
+        payment_id: payment.paymentId,
+      },
+      select: {
+        payment_id: true,
+        record_uuid: true,
+        label: true,
+      },
+    });
+
+    if (!paymentRecord) {
+      throw new Error(`Payment not found for notification: ${payment.paymentId}`);
+    }
+
+    const paymentLabel = payment.label ?? paymentRecord.label;
+
     console.log('[Payment Notifications] Fetching payment attachments...');
     
     // Get attachments for the payment
@@ -76,7 +92,7 @@ export async function sendPaymentNotifications(
         links: {
           some: {
             owner_table: 'payments',
-            owner_uuid: payment.paymentId,
+            owner_uuid: paymentRecord.record_uuid,
           },
         },
         is_active: true,
@@ -99,8 +115,9 @@ export async function sendPaymentNotifications(
       console.log('[Payment Notifications] Attachments:', attachments.map(a => a.file_name).join(', '));
     }
 
-    const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
     console.log('[Payment Notifications] App URL:', APP_URL);
+  console.log('[Payment Notifications] Attachment Count:', attachments.length);
 
     console.log('[Payment Notifications] Starting to send emails to', users.length, 'users...');
     
@@ -142,14 +159,14 @@ export async function sendPaymentNotifications(
         // Prepare email content
         const emailData = {
           to: user.email!,
-          subject: `New Payment Added: ${payment.label || payment.paymentId}`,
+          subject: `New Payment Added: ${paymentLabel || payment.paymentId}`,
           text: `
 Hello ${user.name || user.email},
 
 A new payment has been added to the system:
 
 Payment ID: ${payment.paymentId}
-${payment.label ? `Label: ${payment.label}` : ''}
+${paymentLabel ? `Label: ${paymentLabel}` : ''}
 Attachments: ${attachments.length}
 
 ${attachments.length > 0 ? 'Attachment List:\n' + attachments.map((att, idx) => 
@@ -192,7 +209,7 @@ This is an automated notification from the Payment System.
       
       <div class="payment-info">
         <strong>Payment ID:</strong> ${payment.paymentId}<br>
-        ${payment.label ? `<strong>Label:</strong> ${payment.label}<br>` : ''}
+        ${paymentLabel ? `<strong>Label:</strong> ${paymentLabel}<br>` : ''}
         <strong>Attachments:</strong> ${attachments.length}
       </div>
       
@@ -297,27 +314,36 @@ async function sendEmail(emailData: {
   try {
     const nodemailer = await import('nodemailer');
     console.log('[Email Service] Nodemailer loaded successfully');
+    let serviceAccountFailure: Error | null = null;
     
     // Option 1: Google Service Account JSON (preferred if available)
-    const googleCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-    const gmailSenderEmail = process.env.GMAIL_SENDER_EMAIL;
+    const googleCredentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    const serviceAccountJson = process.env.SERVICE_ACCOUNT_JSON;
+    const gmailSenderEmail = process.env.GMAIL_SENDER_EMAIL || process.env.GMAIL_USER;
     
     console.log('[Email Service] Checking Service Account credentials...');
-    console.log('[Email Service] - GOOGLE_APPLICATION_CREDENTIALS:', googleCredentials ? `✓ (${googleCredentials})` : '✗ not set');
+    console.log('[Email Service] - GOOGLE_APPLICATION_CREDENTIALS:', googleCredentialsPath ? `✓ (${googleCredentialsPath})` : '✗ not set');
+    console.log('[Email Service] - SERVICE_ACCOUNT_JSON:', serviceAccountJson ? '✓ set' : '✗ not set');
     console.log('[Email Service] - GMAIL_SENDER_EMAIL:', gmailSenderEmail ? `✓ (${gmailSenderEmail})` : '✗ not set');
     
-    if (googleCredentials && gmailSenderEmail) {
+    if ((googleCredentialsPath || serviceAccountJson) && gmailSenderEmail) {
       console.log('[Email Service] Using Service Account method');
       
       try {
-        // Use service account with Gmail API
-        const { readFileSync } = await import('fs');
-        console.log('[Email Service] Reading service account file:', googleCredentials);
-        
-        const fileContent = readFileSync(googleCredentials, 'utf-8');
-        console.log('[Email Service] Service account file read successfully, size:', fileContent.length, 'bytes');
-        
-        const credentials = JSON.parse(fileContent);
+        let credentials: any;
+
+        if (serviceAccountJson) {
+          console.log('[Email Service] Loading service account credentials from SERVICE_ACCOUNT_JSON');
+          credentials = JSON.parse(serviceAccountJson);
+        } else {
+          const { readFileSync } = await import('fs');
+          console.log('[Email Service] Reading service account file:', googleCredentialsPath);
+          
+          const fileContent = readFileSync(googleCredentialsPath!, 'utf-8');
+          console.log('[Email Service] Service account file read successfully, size:', fileContent.length, 'bytes');
+          credentials = JSON.parse(fileContent);
+        }
+
         console.log('[Email Service] Service account JSON parsed successfully');
         console.log('[Email Service] - client_email:', credentials.client_email);
         console.log('[Email Service] - project_id:', credentials.project_id);
@@ -356,7 +382,10 @@ async function sendEmail(emailData: {
         console.error('[Email Service] Error code:', serviceAccountError.code);
         console.error('[Email Service] Full error:', serviceAccountError);
         console.error('[Email Service] Stack trace:', serviceAccountError.stack);
-        throw serviceAccountError;
+        serviceAccountFailure = serviceAccountError instanceof Error
+          ? serviceAccountError
+          : new Error(serviceAccountError?.message || 'Unknown service account error');
+        console.warn('[Email Service] Falling back to SMTP if SMTP credentials are configured');
       }
     }
     
@@ -406,16 +435,13 @@ async function sendEmail(emailData: {
       }
     }
     
-    // No credentials configured
-    console.error('[Email Service] ✗ No email credentials configured!');
-    console.error('[Email Service] Email not sent to:', emailData.to);
-    console.warn('[Email Service] Configure either:');
-    console.warn('[Email Service]   Option 1 - Service Account:');
-    console.warn('[Email Service]     - GOOGLE_APPLICATION_CREDENTIALS=./google-service-account.json');
-    console.warn('[Email Service]     - GMAIL_SENDER_EMAIL=your-email@gmail.com');
-    console.warn('[Email Service]   Option 2 - SMTP:');
-    console.warn('[Email Service]     - GMAIL_USER=your-email@gmail.com');
-    console.warn('[Email Service]     - GMAIL_APP_PASSWORD=your-16-char-password');
+    if (serviceAccountFailure) {
+      throw serviceAccountFailure;
+    }
+
+    throw new Error(
+      'No email credentials configured. Configure SERVICE_ACCOUNT_JSON and GMAIL_SENDER_EMAIL, GOOGLE_APPLICATION_CREDENTIALS and GMAIL_SENDER_EMAIL, or GMAIL_USER and GMAIL_APP_PASSWORD.'
+    );
     
   } catch (error: any) {
     console.error('[Email Service] ============================================');

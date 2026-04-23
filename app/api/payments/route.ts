@@ -285,17 +285,17 @@ export async function POST(request: NextRequest) {
           },
           is_active: true,
         },
-      }).then(attachmentCount => {
-        // Send notifications without waiting
-        sendPaymentNotifications({
+      }).then(async () => {
+        const notificationResult = await sendPaymentNotifications({
           paymentId: paymentIdForNotification,
           label: (payment as any).label,
-          attachmentCount,
-        }).catch(err => {
-          console.error('[Payment Notifications] Error sending notifications:', err);
         });
+
+        if (!notificationResult.success) {
+          console.error('[Payment Notifications] Notification completed with errors:', notificationResult.errors);
+        }
       }).catch(err => {
-        console.error('[Payment Notifications] Error counting attachments:', err);
+        console.error('[Payment Notifications] Error sending notifications:', err);
       });
     }
 
