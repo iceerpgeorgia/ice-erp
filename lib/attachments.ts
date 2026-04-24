@@ -124,6 +124,45 @@ export async function getPaymentAttachments(paymentId: string): Promise<Attachme
 }
 
 /**
+ * Bulk fetch: count of payment-visible attachments per paymentId.
+ * Counts both direct payment links and project links for the payment's project_uuid.
+ */
+export async function getPaymentAttachmentCounts(paymentIds: string[]): Promise<Record<string, number>> {
+  const unique = Array.from(new Set(paymentIds.filter((value) => typeof value === 'string' && value.length > 0)));
+  if (unique.length === 0) return {};
+
+  const placeholders = unique.map((_, index) => `$${index + 1}`).join(', ');
+  const rows = await withRetry(() => prisma.$queryRawUnsafe<Array<{ payment_id: string; cnt: bigint }>>(
+    `WITH payment_context AS (
+       SELECT DISTINCT ON (payment_id)
+         payment_id,
+         record_uuid,
+         project_uuid
+       FROM payments
+       WHERE payment_id IN (${placeholders})
+       ORDER BY payment_id
+     )
+     SELECT pc.payment_id, COUNT(a.uuid)::bigint AS cnt
+     FROM payment_context pc
+     JOIN attachment_links al
+       ON (
+         (al.owner_table = 'payments' AND al.owner_uuid = pc.record_uuid::uuid)
+         OR
+         (pc.project_uuid IS NOT NULL AND al.owner_table = 'projects' AND al.owner_uuid = pc.project_uuid::uuid)
+       )
+     JOIN attachments a ON a.uuid = al.attachment_uuid
+     WHERE a.is_active = true
+     GROUP BY pc.payment_id`,
+    ...unique,
+  ));
+
+  const out: Record<string, number> = {};
+  for (const paymentId of unique) out[paymentId] = 0;
+  for (const row of rows) out[row.payment_id] = Number(row.cnt);
+  return out;
+}
+
+/**
  * Create attachment and link it to a payment
  */
 export async function createPaymentAttachment(params: {

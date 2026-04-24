@@ -104,6 +104,7 @@ const defaultColumns: ColumnConfig[] = [
 export function PaymentsTable() {
   const requiredInsiderName = useRequiredInsiderName();
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
   const [projects, setProjects] = useState<Array<{ projectUuid: string; projectIndex: string; projectName: string }>>([]);
   const [counteragents, setCounteragents] = useState<Array<{ counteragentUuid: string; name: string; identificationNumber: string; entityType: string }>>([]);
   const [financialCodes, setFinancialCodes] = useState<Array<{ uuid: string; validation: string; code: string }>>([]);
@@ -476,6 +477,41 @@ export function PaymentsTable() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const paymentIds = Array.from(new Set(payments.map((payment) => payment.paymentId).filter(Boolean)));
+    if (paymentIds.length === 0) {
+      setAttachmentCounts({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchCounts = async () => {
+      try {
+        const response = await fetch(
+          `/api/payments/attachments?paymentIds=${encodeURIComponent(paymentIds.join(','))}&countsOnly=1`,
+          { cache: 'no-store' },
+        );
+        if (!response.ok) throw new Error('Failed to fetch payment attachment counts');
+        const result = await response.json();
+        if (!cancelled) {
+          setAttachmentCounts(result.counts || {});
+        }
+      } catch (error) {
+        console.error('Error fetching payment attachment counts:', error);
+        if (!cancelled) {
+          setAttachmentCounts({});
+        }
+      }
+    };
+
+    void fetchCounts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [payments]);
 
   const fetchProjects = async () => {
     try {
@@ -1471,7 +1507,7 @@ export function PaymentsTable() {
                     ))}
                     <td className="px-4 py-2 text-sm" style={{ width: 150, minWidth: 150, maxWidth: 150 }}>
                       <div className="flex items-center gap-1">
-                        <PaymentAttachments paymentId={payment.paymentId} />
+                        <PaymentAttachments paymentId={payment.paymentId} initialCount={attachmentCounts[payment.paymentId] ?? 0} />
                         {payment.isProjectDerived ? (
                           <span className="text-xs text-muted-foreground" title="Project-derived — edit via project">
                             Auto

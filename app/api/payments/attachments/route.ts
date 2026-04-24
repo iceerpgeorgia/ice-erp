@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPaymentAttachments } from '@/lib/attachments';
+import { getPaymentAttachmentCounts, getPaymentAttachments } from '@/lib/attachments';
 
 export const revalidate = 0;
 
@@ -11,6 +11,14 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const paymentId = searchParams.get('paymentId');
+    const paymentIdsCsv = searchParams.get('paymentIds');
+    const countsOnly = searchParams.get('countsOnly');
+
+    if (countsOnly && paymentIdsCsv) {
+      const paymentIds = paymentIdsCsv.split(',').map((value) => value.trim()).filter(Boolean);
+      const counts = await getPaymentAttachmentCounts(paymentIds);
+      return NextResponse.json({ counts });
+    }
 
     if (!paymentId) {
       return NextResponse.json(

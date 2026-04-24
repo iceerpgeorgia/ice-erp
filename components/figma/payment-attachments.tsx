@@ -52,6 +52,7 @@ type Project = {
 
 type PaymentAttachmentsProps = {
   paymentId: string;
+  initialCount?: number | null;
   onAttachmentsChange?: (count: number) => void;
   /** When true, render only the dialog (no trigger button). Pair with `initiallyOpen` and `onOpenChange` for controlled use. */
   hideTrigger?: boolean;
@@ -61,8 +62,16 @@ type PaymentAttachmentsProps = {
   onOpenChange?: (open: boolean) => void;
 };
 
-export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger = false, initiallyOpen = false, onOpenChange }: PaymentAttachmentsProps) {
+export function PaymentAttachments({
+  paymentId,
+  initialCount = null,
+  onAttachmentsChange,
+  hideTrigger = false,
+  initiallyOpen = false,
+  onOpenChange,
+}: PaymentAttachmentsProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [count, setCount] = useState<number>(initialCount ?? 0);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -85,10 +94,21 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
   const hasFetchedRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Lazy-load attachment count when the component scrolls into view
   useEffect(() => {
     setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (initialCount !== null && initialCount !== undefined) {
+      setCount(initialCount);
+      hasFetchedRef.current = true;
+    }
+  }, [initialCount]);
+
+  // Lazy-load attachment count when the component scrolls into view
+  useEffect(() => {
     hasFetchedRef.current = false;
+    if (initialCount !== null && initialCount !== undefined) return;
     const el = containerRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
@@ -103,7 +123,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [paymentId]);
+  }, [paymentId, initialCount]);
 
   const loadAttachmentCount = async () => {
     if (!paymentId) return;
@@ -113,9 +133,10 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
       if (!response.ok) return;
       
       const data = await response.json();
-      const count = data.attachments?.length || 0;
+      const nextCount = data.attachments?.length || 0;
       setAttachments(data.attachments || []);
-      onAttachmentsChange?.(count);
+      setCount(nextCount);
+      onAttachmentsChange?.(nextCount);
     } catch (error) {
       console.error('Error loading attachment count:', error);
     }
@@ -131,10 +152,12 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
       
       const data = await response.json();
       setAttachments(data.attachments || []);
+      setCount(data.attachments?.length || 0);
       onAttachmentsChange?.(data.attachments?.length || 0);
     } catch (error) {
       console.error('Error loading attachments:', error);
       setAttachments([]);
+      setCount(0);
     } finally {
       setLoading(false);
     }
@@ -584,8 +607,8 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
           className="flex items-center gap-1"
           onClick={handleOpenDialog}
         >
-          {attachments.length > 0 && (
-            <span className="text-xs font-medium">{attachments.length}</span>
+          {count > 0 && (
+            <span className="text-xs font-medium">{count}</span>
           )}
           <Paperclip className="h-4 w-4" />
         </Button>

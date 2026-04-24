@@ -150,6 +150,7 @@ const defaultColumns: ColumnConfig[] = [
 export function PaymentsReportTable() {
   const filtersStorageKey = 'paymentsReportFiltersV2';
   const [data, setData] = useState<PaymentReport[]>([]);
+  const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [insiderUuids, setInsiderUuids] = useState<string[]>([]);
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
@@ -1119,6 +1120,41 @@ export function PaymentsReportTable() {
       }
     }
   }, [dateFilterMode, customDate, getLocalTodayIso, insiderUuids]);
+
+  useEffect(() => {
+    const paymentIds = Array.from(new Set(data.map((row) => row.paymentId).filter(Boolean)));
+    if (paymentIds.length === 0) {
+      setAttachmentCounts({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchAttachmentCounts = async () => {
+      try {
+        const response = await fetch(
+          `/api/payments/attachments?paymentIds=${encodeURIComponent(paymentIds.join(','))}&countsOnly=1`,
+          { cache: 'no-store' },
+        );
+        if (!response.ok) throw new Error('Failed to fetch payment attachment counts');
+        const result = await response.json();
+        if (!cancelled) {
+          setAttachmentCounts(result.counts || {});
+        }
+      } catch (error) {
+        console.error('Error fetching payment attachment counts:', error);
+        if (!cancelled) {
+          setAttachmentCounts({});
+        }
+      }
+    };
+
+    void fetchAttachmentCounts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data]);
 
   // Listen for ledger updates from other tabs
   useEffect(() => {
@@ -3863,7 +3899,7 @@ export function PaymentsReportTable() {
                       )}
                       {!isBundleAgg && (
                       <>
-                      <PaymentAttachments paymentId={row.paymentId} />
+                      <PaymentAttachments paymentId={row.paymentId} initialCount={attachmentCounts[row.paymentId] ?? 0} />
                       <button
                         onClick={() => handleOpenBaseInfo(row.paymentId)}
                         className="inline-block text-gray-600 hover:text-gray-800 hover:bg-gray-50 p-1 rounded transition-colors"
