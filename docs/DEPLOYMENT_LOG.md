@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-04-24 Deployment #243
+- Commit: 6649aa0
+- Production: https://ice-59gqgrvn5-iceerp.vercel.app
+- Summary: Fix payments-report attachments so the paperclip count includes payment-linked and project-linked documents, split those sources inside the dialog, and add drag-and-drop upload support.
+- Changes:
+  - app/api/payments/attachments/route.ts: Include ownerTable and ownerUuid in the response so the client can distinguish attachment source.
+  - lib/attachments.ts: Expand getPaymentAttachments() to fetch both direct payment attachments and attachments linked through the payment's project.
+  - components/figma/payment-attachments.tsx: Separate the dialog into Payment Attachments and Project Attachments sections, refresh counts with cache: 'no-store', and add a drag-and-drop upload zone with click-to-select fallback.
+  - app/api/payments/attachments/delete/route.ts, app/api/projects/attachments/delete/route.ts, app/api/jobs/attachments/delete/route.ts: Only remove storage when the last attachment_links row is deleted, so shared attachments are not purged while another link still exists.
+
 ## Deployment #242 - 2026-04-23
 
 **Commit**: e16411a
