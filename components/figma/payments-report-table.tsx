@@ -1129,14 +1129,21 @@ export function PaymentsReportTable() {
 
     const fetchAttachmentCounts = async () => {
       try {
-        const response = await fetch(
-          `/api/payments/attachments?paymentIds=${encodeURIComponent(paymentIds.join(','))}&countsOnly=1`,
-          { cache: 'no-store' },
-        );
-        if (!response.ok) throw new Error('Failed to fetch payment attachment counts');
-        const result = await response.json();
+        const BATCH_SIZE = 200;
+        const allCounts: Record<string, number> = {};
+        for (let i = 0; i < paymentIds.length; i += BATCH_SIZE) {
+          if (cancelled) return;
+          const batch = paymentIds.slice(i, i + BATCH_SIZE);
+          const response = await fetch(
+            `/api/payments/attachments?paymentIds=${encodeURIComponent(batch.join(','))}&countsOnly=1`,
+            { cache: 'no-store' },
+          );
+          if (!response.ok) throw new Error('Failed to fetch payment attachment counts');
+          const result = await response.json();
+          Object.assign(allCounts, result.counts || {});
+        }
         if (!cancelled) {
-          setAttachmentCounts(result.counts || {});
+          setAttachmentCounts(allCounts);
         }
       } catch (error) {
         console.error('Error fetching payment attachment counts:', error);
