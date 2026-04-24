@@ -74,7 +74,6 @@ export function AddProjectDialog({
     employees: [] as string[],
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [loaded, setLoaded] = useState(false);
 
   const resetForm = useCallback(() => {
     setFormData({
@@ -95,9 +94,9 @@ export function AddProjectDialog({
     setFormErrors({});
   }, [fixedCounteragentUuid, fixedInsider, insidersList]);
 
-  // Load reference data once when dialog first opens
+  // Load reference data each time dialog opens
   useEffect(() => {
-    if (!open || loaded) return;
+    if (!open) return;
     const fetchData = async () => {
       try {
         const [caRes, fcRes, curRes, stRes, empRes, insRes] = await Promise.all([
@@ -176,13 +175,12 @@ export function AddProjectDialog({
           setFormData((prev) => ({ ...prev, insiderUuid: prev.insiderUuid || defaultInsider }));
         }
 
-        setLoaded(true);
       } catch (error) {
         console.error('Failed to fetch project form data:', error);
       }
     };
     fetchData();
-  }, [open, loaded]);
+  }, [open]);
 
   const validateForm = () => {
     const errors: Record<string, string> = {};

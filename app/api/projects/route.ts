@@ -416,7 +416,8 @@ export async function POST(req: NextRequest) {
         } else {
           // Payment doesn't exist - create it
           try {
-            const newPaymentId = distRow.paymentId || '';
+            // Generate a UUID if no paymentId provided so the ledger can link to it
+            const newPaymentId = distRow.paymentId || crypto.randomUUID();
             paymentIdToUse = newPaymentId;
             oldPaymentId = '';
             await prisma.$queryRawUnsafe(

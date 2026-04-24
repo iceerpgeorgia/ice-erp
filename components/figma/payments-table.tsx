@@ -732,6 +732,10 @@ export function PaymentsTable() {
     );
     setEditIsActive(Boolean(payment.isActive));
     
+    fetchCounteragents();
+    fetchFinancialCodes();
+    fetchCurrencies();
+    fetchProjects();
     setEditDialogOpen(true);
   };
 
@@ -981,6 +985,10 @@ export function PaymentsTable() {
               setIsDialogOpen(open);
               if (open) {
                 resetForm();
+                fetchCounteragents();
+                fetchFinancialCodes();
+                fetchCurrencies();
+                fetchProjects();
               }
             }}>
               <DialogTrigger asChild>

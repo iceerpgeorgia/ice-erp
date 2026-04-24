@@ -44,7 +44,7 @@ import {
 } from './ui/dropdown-menu';
 import * as XLSX from 'xlsx-js-style';
 import { AddProjectDialog } from './add-project-dialog';
-import { RowAttachments } from './row-attachments';
+import { PaymentAttachments } from './payment-attachments';
 import { BundleDistributionGrid, type BundleDistributionRow } from './bundle-distribution-grid';
 
 
@@ -82,7 +82,6 @@ type PaymentReport = {
   parentFinancialCodeUuid?: string | null;
   parentFinancialCode?: string | null;
   incomeTax: boolean;
-  isRecurring?: boolean;
   currency: string;
   accrual: number;
   order: number;
@@ -129,7 +128,6 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'currency', label: 'Currency', visible: true, sortable: true, filterable: true, width: 100 },
   { key: 'financialCode', label: 'Financial Code', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'incomeTax', label: 'Income Tax', visible: true, sortable: true, filterable: true, format: 'boolean', width: 100 },
-  { key: 'isRecurring', label: 'Recurring', visible: true, sortable: true, filterable: true, format: 'boolean', width: 110 },
   { key: 'project', label: 'Project', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'projectAddress', label: 'Project Address', visible: false, sortable: true, filterable: true, width: 220 },
   { key: 'job', label: 'Job', visible: true, sortable: true, filterable: true, width: 150 },
@@ -316,8 +314,6 @@ export function PaymentsReportTable() {
   } | null>(null);
   const [projects, setProjects] = useState<Array<{ projectUuid?: string; project_uuid?: string; projectIndex?: string; project_index?: string; projectName?: string; project_name?: string }>>([]);
   const [counteragents, setCounteragents] = useState<Array<{ counteragent_uuid?: string; counteragentUuid?: string; counteragent?: string; name?: string; identification_number?: string; identificationNumber?: string }>>([]);
-  const counteragentsLoadedRef = useRef(false);
-  const projectsLoadedRef = useRef(false);
   const [financialCodes, setFinancialCodes] = useState<Array<{ uuid: string; validation: string; code: string }>>([]);
   const [currencies, setCurrencies] = useState<Array<{ uuid: string; code: string; name: string }>>([]);
   const [jobs, setJobs] = useState<Array<{ jobUuid: string; jobName: string; jobDisplay?: string }>>([]);
@@ -328,7 +324,6 @@ export function PaymentsReportTable() {
   const [selectedJobUuid, setSelectedJobUuid] = useState('');
   const [selectedCurrencyUuid, setSelectedCurrencyUuid] = useState('');
   const [selectedIncomeTax, setSelectedIncomeTax] = useState(false);
-  const [selectedIsRecurring, setSelectedIsRecurring] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState('');
   const [payments, setPayments] = useState<Array<{ 
     paymentId: string; 
@@ -359,7 +354,6 @@ export function PaymentsReportTable() {
   const [editProjectUuid, setEditProjectUuid] = useState('');
   const [editJobUuid, setEditJobUuid] = useState('');
   const [editIncomeTax, setEditIncomeTax] = useState(false);
-  const [editIsRecurring, setEditIsRecurring] = useState(false);
   const [editIsActive, setEditIsActive] = useState(true);
   const [editJobs, setEditJobs] = useState<Array<{ jobUuid: string; jobName: string; jobDisplay?: string }>>([]);
   const [editPaymentError, setEditPaymentError] = useState<string | null>(null);
@@ -481,8 +475,6 @@ export function PaymentsReportTable() {
 
   // Lazy loader for counteragents — called when the payment form opens
   const fetchCounterAgents = useCallback(async () => {
-    if (counteragentsLoadedRef.current) return;
-    counteragentsLoadedRef.current = true;
     try {
       const res = await fetch('/api/counteragents');
       if (res.ok) {
@@ -490,18 +482,14 @@ export function PaymentsReportTable() {
         setCounteragents(Array.isArray(data) ? data : []);
       } else {
         console.error('Error fetching counteragents:', await res.text());
-        counteragentsLoadedRef.current = false;
       }
     } catch (error) {
       console.error('Error fetching counteragents:', error);
-      counteragentsLoadedRef.current = false;
     }
   }, []);
 
   // Lazy loader for projects — called when the ledger form opens
   const fetchProjects = useCallback(async () => {
-    if (projectsLoadedRef.current) return;
-    projectsLoadedRef.current = true;
     try {
       const res = await fetch('/api/projects-v2');
       if (res.ok) {
@@ -510,19 +498,14 @@ export function PaymentsReportTable() {
         setProjects(list);
       } else {
         console.error('Error fetching projects:', await res.text());
-        projectsLoadedRef.current = false;
       }
     } catch (error) {
       console.error('Error fetching projects:', error);
-      projectsLoadedRef.current = false;
     }
   }, []);
 
   // Lazy loader for dictionaries (financial codes + currencies) — called when dialog opens
-  const dictionariesLoadedRef = useRef(false);
   const fetchDictionaries = useCallback(async () => {
-    if (dictionariesLoadedRef.current) return;
-    dictionariesLoadedRef.current = true;
     try {
       const [financialCodesRes, currenciesRes] = await Promise.all([
         fetch('/api/financial-codes?leafOnly=true'),
@@ -534,7 +517,6 @@ export function PaymentsReportTable() {
         setFinancialCodes(Array.isArray(financialCodesData) ? financialCodesData : []);
       } else {
         console.error('Error fetching financial codes:', await financialCodesRes.text());
-        dictionariesLoadedRef.current = false;
       }
       if (currenciesRes.ok) {
         const currenciesData = await currenciesRes.json();
@@ -546,11 +528,9 @@ export function PaymentsReportTable() {
         setCurrencies(list);
       } else {
         console.error('Error fetching currencies:', await currenciesRes.text());
-        dictionariesLoadedRef.current = false;
       }
     } catch (error) {
       console.error('Error fetching dictionaries:', error);
-      dictionariesLoadedRef.current = false;
     }
   }, []);
 
@@ -819,7 +799,6 @@ export function PaymentsReportTable() {
     setSelectedJobUuid('');
     setSelectedCurrencyUuid('');
     setSelectedIncomeTax(false);
-    setSelectedIsRecurring(false);
     setSelectedLabel('');
     setIsCreatingPayment(false);
   };
@@ -918,8 +897,7 @@ export function PaymentsReportTable() {
           jobUuid: selectedJobUuid || null,
           incomeTax: selectedIncomeTax,
           currencyUuid: selectedCurrencyUuid,
-          label: selectedLabel || null,
-          isRecurring: selectedIsRecurring,
+          label: selectedLabel || null
         })
       });
 
@@ -1000,7 +978,6 @@ export function PaymentsReportTable() {
     setEditProjectUuid(row.projectUuid || '');
     setEditJobUuid(row.jobUuid || '');
     setEditIncomeTax(Boolean(row.incomeTax));
-    setEditIsRecurring(Boolean(row.isRecurring));
     setEditIsActive(row.isActive ?? true);
     setEditPaymentError(null);
     setIsEditPaymentOpen(true);
@@ -1037,7 +1014,6 @@ export function PaymentsReportTable() {
           paymentId: editPaymentId || null,
           label: editLabel || null,
           isActive: editIsActive,
-          isRecurring: editIsRecurring,
         }),
       });
 
@@ -1122,15 +1098,10 @@ export function PaymentsReportTable() {
       if (insiderUuids.length > 0) {
         params.set('insiderUuids', insiderUuids.join(','));
       }
-
-      // Cache-buster: forces the ledger/bank aggregation to be recomputed on every fetch,
-      // bypassing any browser/edge/CDN cache. Filter and column settings remain persistent;
-      // only the aggregated data is guaranteed fresh on every page load and refresh.
-      params.set('_t', Date.now().toString());
-
-      const url = `/api/payments-report?${params.toString()}`;
+      
+      const url = `/api/payments-report${params.toString() ? '?' + params.toString() : ''}`;
       console.log('[Payments Report] Fetching from:', url);
-      const response = await fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch report data');
       const result = await response.json();
       if (!Array.isArray(result)) {
@@ -2811,20 +2782,6 @@ export function PaymentsReportTable() {
                         <Label>Income Tax</Label>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          checked={selectedIsRecurring}
-                          onCheckedChange={(checked) => setSelectedIsRecurring(checked as boolean)}
-                          id="create-payment-is-recurring"
-                        />
-                        <Label
-                          htmlFor="create-payment-is-recurring"
-                          title="On the last day of each month, auto-create a payments_ledger entry equal to the previous month's accrual+order total. Skipped if a recurring entry for the current month already exists."
-                        >
-                          Recurring (auto monthly ledger)
-                        </Label>
-                      </div>
-
                       <div className="space-y-2">
                         <Label className={!selectedCurrencyUuid ? 'text-muted-foreground' : ''}>Project (Optional)</Label>
                         <Combobox
@@ -3895,19 +3852,6 @@ export function PaymentsReportTable() {
                   })}
                   <td className="px-4 py-2 text-sm" style={{ width: 190, minWidth: 190, maxWidth: 190 }}>
                     <div className="flex items-center justify-end gap-1">
-                      {(row.projectUuid || (!isBundleAgg && row.paymentId)) && (
-                        <RowAttachments
-                          paymentId={!isBundleAgg ? row.paymentId : null}
-                          projectUuid={row.projectUuid || null}
-                          projectName={row.projectName || row.project || null}
-                          canAddProjectAttachment={
-                            Boolean(row.projectUuid) && (
-                              isBundleAgg ||
-                              (Boolean(row.isProjectDerived) && !row.isBundlePayment)
-                            )
-                          }
-                        />
-                      )}
                       {isBundleAgg && row.projectUuid && row.financialCodeUuid && (
                         <button
                           onClick={() => handleOpenBundleDistribution(row.projectUuid!, row.financialCodeUuid!)}
@@ -3919,6 +3863,7 @@ export function PaymentsReportTable() {
                       )}
                       {!isBundleAgg && (
                       <>
+                      <PaymentAttachments paymentId={row.paymentId} />
                       <button
                         onClick={() => handleOpenBaseInfo(row.paymentId)}
                         className="inline-block text-gray-600 hover:text-gray-800 hover:bg-gray-50 p-1 rounded transition-colors"
@@ -4152,19 +4097,6 @@ export function PaymentsReportTable() {
                 id="edit-income-tax"
               />
               <Label htmlFor="edit-income-tax">Income Tax</Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                checked={editIsRecurring}
-                onCheckedChange={(value) => setEditIsRecurring(Boolean(value))}
-                id="edit-is-recurring"
-              />
-              <Label
-                htmlFor="edit-is-recurring"
-                title="On the last day of each month, auto-create a payments_ledger entry equal to the previous month's accrual+order total. Skipped if a recurring entry for the current month already exists."
-              >
-                Recurring
-              </Label>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox

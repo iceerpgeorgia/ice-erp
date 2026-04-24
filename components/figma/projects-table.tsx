@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Search,
@@ -37,7 +37,6 @@ import {
 import { Combobox } from '@/components/ui/combobox';
 import { MultiCombobox } from '@/components/ui/multi-combobox';
 import { BundleDistributionGrid, type BundleDistributionRow } from './bundle-distribution-grid';
-import { ProjectAttachments } from './project-attachments';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { useTableFilters } from './shared/use-table-filters';
@@ -239,9 +238,6 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  // After a project is created, optionally open the attachments dialog so the
-  // user can immediately upload files for the new project.
-  const [postCreateAttachmentTarget, setPostCreateAttachmentTarget] = useState<{ projectUuid: string; projectName: string } | null>(null);
   const [isAuditDialogOpen, setIsAuditDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -428,9 +424,8 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   }, [data]);
 
 // Fetch dropdown data
-  useEffect(() => {
-    const fetchDropdownData = async () => {
-      try {
+  const fetchDropdownData = useCallback(async () => {
+    try {
         console.log('[ProjectsTable] Fetching dropdown data...');
         
         // Fetch counteragents
@@ -544,10 +539,11 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       } catch (error) {
         console.error('Failed to fetch dropdown data:', error);
       }
-    };
-    
-    fetchDropdownData();
   }, []);
+
+  useEffect(() => {
+    fetchDropdownData();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Measure scroll content width and whether a horizontal scrollbar is needed
   useEffect(() => {
@@ -631,15 +627,12 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
 
   useEffect(() => {
     if (!isInsiderFixed || !fixedInsider?.insiderUuid) return;
-    // When editing an existing project, never override its insider with the
-    // homepage-selected one — the project's own insider must be preserved.
-    if (editingProject) return;
     setFormData((prev) =>
       prev.insiderUuid === fixedInsider.insiderUuid
         ? prev
         : { ...prev, insiderUuid: fixedInsider.insiderUuid }
     );
-  }, [isInsiderFixed, fixedInsider?.insiderUuid, editingProject]);
+  }, [isInsiderFixed, fixedInsider?.insiderUuid]);
 
   // Bundle FC detection
   useEffect(() => {
@@ -931,30 +924,14 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
           alert(`Failed to add: ${error.error || 'Unknown error'}`);
           return;
         }
-
-        // Capture the newly-created project_uuid so we can offer attachment
-        // upload immediately after closing the create dialog.
-        let createdProjectUuid: string | null = null;
-        let createdProjectName: string = formData.projectName;
-        try {
-          const created = await response.json();
-          createdProjectUuid = created?.project_uuid || created?.projectUuid || null;
-          createdProjectName = created?.project_name || created?.projectName || formData.projectName;
-        } catch {
-          // ignore — we'll just skip the auto-open
-        }
-
+        
         // Refresh data
         const refreshResponse = await fetch('/api/projects');
         const refreshedData = await refreshResponse.json();
         const mappedData = refreshedData.map(mapProjectData);
         setProjects(mappedData);
-
+        
         setIsAddDialogOpen(false);
-
-        if (createdProjectUuid) {
-          setPostCreateAttachmentTarget({ projectUuid: createdProjectUuid, projectName: createdProjectName });
-        }
       }
       
       resetForm();
@@ -1479,11 +1456,18 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                         setFormData({ ...formData, insiderUuid: value });
                         if (formErrors.insiderUuid) setFormErrors({ ...formErrors, insiderUuid: '' });
                       }}
+                      disabled={isInsiderFixed}
                       placeholder="Select insider"
                       searchPlaceholder="Search insiders..."
                       emptyText="No insider found."
-                      triggerClassName={formErrors.insiderUuid ? 'border-red-500' : ''}
+                      triggerClassName={[
+                        formErrors.insiderUuid ? 'border-red-500' : '',
+                        isInsiderFixed ? 'bg-muted text-muted-foreground cursor-not-allowed' : '',
+                      ].filter(Boolean).join(' ')}
                     />
+                    {isInsiderFixed && fixedInsider?.insiderName && (
+                      <p className="text-xs text-muted-foreground mt-1">Fixed by homepage selection: {fixedInsider.insiderName}</p>
+                    )}
                     {formErrors.insiderUuid && <p className="text-xs text-red-500 mt-1">{formErrors.insiderUuid}</p>}
                   </div>
                 </div>
@@ -2072,14 +2056,6 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                       >
                         <User className="h-4 w-4" />
                       </Button>
-                      {project.projectUuid && (
-                        <ProjectAttachments
-                          projectUuid={project.projectUuid}
-                          projectName={project.projectName}
-                          iconOnly
-                          triggerTitle="Project attachments"
-                        />
-                      )}
                       <Button
                         size="sm"
                         variant="outline"
@@ -2157,22 +2133,6 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
           className="h-6 px-2 text-xs"
         />
       </div>
-
-      {/* Hidden mount: opens the project attachments dialog right after a new
-          project is created so the user can immediately upload files for it. */}
-      {postCreateAttachmentTarget && (
-        <ProjectAttachments
-          key={`post-create-${postCreateAttachmentTarget.projectUuid}`}
-          projectUuid={postCreateAttachmentTarget.projectUuid}
-          projectName={postCreateAttachmentTarget.projectName}
-          initiallyOpen
-          lazyLoad={false}
-          onOpenChange={(open) => {
-            if (!open) setPostCreateAttachmentTarget(null);
-          }}
-          className="hidden"
-        />
-      )}
     </div>
   );
 }

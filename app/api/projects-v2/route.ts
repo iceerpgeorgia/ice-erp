@@ -41,13 +41,13 @@ export async function GET(req: NextRequest) {
         p.state,
         p.counteragent,
         COALESCE(ca.insider, false) as is_insider,
-        COALESCE(ca.insider_name, insider_ca.counteragent, insider_ca.name) as insider_name,
+        COALESCE(insider_ca.insider_name, insider_ca.counteragent, insider_ca.name, p.insider_uuid::text) as insider_name,
         '[]'::json as employees,
         COALESCE(pp.total_payment, 0) as total_payments,
         (p.value - COALESCE(pp.total_payment, 0)) as balance
       FROM projects p
       LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
-      LEFT JOIN counteragents insider_ca ON ca.insider_uuid = insider_ca.counteragent_uuid
+      LEFT JOIN counteragents insider_ca ON p.insider_uuid = insider_ca.counteragent_uuid
       LEFT JOIN (
         SELECT
           p.project_uuid,
@@ -116,13 +116,13 @@ export async function GET(req: NextRequest) {
         p.state,
         p.counteragent,
         COALESCE(ca.insider, false) as is_insider,
-        COALESCE(ca.insider_name, insider_ca.counteragent, insider_ca.name) as insider_name,
+        COALESCE(insider_ca.insider_name, insider_ca.counteragent, insider_ca.name, p.insider_uuid::text) as insider_name,
         '[]'::json as employees,
         0 as total_payments,
         p.value as balance
       FROM projects p
       LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
-      LEFT JOIN counteragents insider_ca ON ca.insider_uuid = insider_ca.counteragent_uuid
+      LEFT JOIN counteragents insider_ca ON p.insider_uuid = insider_ca.counteragent_uuid
       WHERE p.insider_uuid IN (${insiderUuidListSql})
       ORDER BY p.created_at DESC
     `;
