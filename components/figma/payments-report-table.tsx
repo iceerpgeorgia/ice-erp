@@ -281,23 +281,7 @@ export function PaymentsReportTable() {
     }
     return new Set(allowed);
   }, [allConditions]);
-  const [selectedConditions, setSelectedConditions] = useState<Set<string>>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('paymentsReportConditions');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            return sanitizeConditions(parsed);
-          }
-          return new Set(allConditions);
-        } catch {
-          return new Set(allConditions);
-        }
-      }
-    }
-    return new Set(allConditions);
-  });
+  const [selectedConditions, setSelectedConditions] = useState<Set<string>>(new Set(allConditions));
 
   // Add Entry form states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -448,6 +432,19 @@ export function PaymentsReportTable() {
         console.error('Failed to parse saved date filter:', e);
         setDateFilterMode('none');
         setCustomDate('');
+      }
+    }
+
+    // Load saved conditions filter
+    const savedConditions = localStorage.getItem('paymentsReportConditions');
+    if (savedConditions) {
+      try {
+        const parsed = JSON.parse(savedConditions);
+        if (Array.isArray(parsed)) {
+          setSelectedConditions(sanitizeConditions(parsed));
+        }
+      } catch {
+        // ignore
       }
     }
 
