@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-04-24 Deployment #244
+- Commit: 733705d
+- Production: https://ice-6n2b8bqjp-iceerp.vercel.app
+- Summary: Fix payment attachment paperclip badges so counts render reliably in both payments tables using batched server-side counts.
+- Changes:
+  - lib/attachments.ts: Added getPaymentAttachmentCounts(paymentIds) to count active payment-visible attachments in bulk, including both direct payment links and project-linked attachments.
+  - app/api/payments/attachments/route.ts: Added paymentIds + countsOnly=1 support so the client can fetch badge counts for many payments in one request.
+  - components/figma/payment-attachments.tsx: Added initialCount support and separate local count state so the trigger badge can render immediately without waiting for intersection-based lazy loading.
+  - components/figma/payments-report-table.tsx, components/figma/payments-table.tsx: Preload attachment counts for visible rows and pass them into PaymentAttachments.
+
 ## 2026-04-24 Deployment #243
 - Commit: 6649aa0
 - Production: https://ice-59gqgrvn5-iceerp.vercel.app
