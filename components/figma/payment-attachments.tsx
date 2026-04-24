@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 type Attachment = {
   linkUuid: string;
   attachmentUuid: string;
+  ownerTable: string;
+  ownerUuid: string;
   fileName: string;
   mimeType: string | null;
   fileSizeBytes: number | null;
@@ -77,9 +79,11 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [dialogMounted, setDialogMounted] = useState(initiallyOpen);
   const [isMounted, setIsMounted] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [editingAttachment, setEditingAttachment] = useState<Attachment | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hasFetchedRef = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Lazy-load attachment count when the component scrolls into view
   useEffect(() => {
@@ -105,7 +109,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
     if (!paymentId) return;
     
     try {
-      const response = await fetch(`/api/payments/attachments?paymentId=${encodeURIComponent(paymentId)}`);
+      const response = await fetch(`/api/payments/attachments?paymentId=${encodeURIComponent(paymentId)}`, { cache: 'no-store' });
       if (!response.ok) return;
       
       const data = await response.json();
@@ -122,7 +126,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
     
     setLoading(true);
     try {
-      const response = await fetch(`/api/payments/attachments?paymentId=${encodeURIComponent(paymentId)}`);
+      const response = await fetch(`/api/payments/attachments?paymentId=${encodeURIComponent(paymentId)}`, { cache: 'no-store' });
       if (!response.ok) throw new Error('Failed to load attachments');
       
       const data = await response.json();
@@ -194,6 +198,29 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleDropZoneDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    if (!uploading) setIsDraggingFile(true);
+  };
+
+  const handleDropZoneDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const nextTarget = e.relatedTarget as Node | null;
+    if (nextTarget && e.currentTarget.contains(nextTarget)) return;
+    setIsDraggingFile(false);
+  };
+
+  const handleDropZoneDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDraggingFile(false);
+    if (uploading) return;
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile) {
+      setSelectedFile(droppedFile);
     }
   };
 
@@ -461,6 +488,89 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const paymentLinkedAttachments = attachments.filter((attachment) => attachment.ownerTable === 'payments');
+  const projectLinkedAttachments = attachments.filter((attachment) => attachment.ownerTable === 'projects');
+
+  const renderAttachmentSection = (
+    title: string,
+    items: Attachment[],
+    emptyMessage: string,
+  ) => (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between px-1">
+        <div className="text-sm font-medium">{title}</div>
+        <div className="text-xs text-muted-foreground">{items.length}</div>
+      </div>
+      {items.length === 0 ? (
+        <div className="text-sm text-muted-foreground px-3 py-4 border rounded-lg bg-background">
+          {emptyMessage}
+        </div>
+      ) : (
+        <div className="space-y-2 min-w-[900px]">
+          <div className="grid grid-cols-[130px_150px_150px_180px_80px_1fr] gap-3 px-3 py-2 text-xs font-medium text-muted-foreground border-b">
+            <div>Date</div>
+            <div>Document Type</div>
+            <div>Document No</div>
+            <div>Value</div>
+            <div>Currency</div>
+            <div className="text-right">Actions</div>
+          </div>
+          {items.map((attachment) => (
+            <div
+              key={attachment.linkUuid}
+              className="grid grid-cols-[130px_150px_150px_180px_80px_1fr] gap-3 items-center p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+            >
+              <div className="text-sm">
+                {formatDate(attachment.documentDate)}
+              </div>
+              <div className="text-sm font-medium">
+                {getDocumentTypeName(attachment.documentTypeUuid)}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {attachment.documentNo || '—'}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {attachment.documentValue != null ? attachment.documentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {getCurrencyCode(attachment.documentCurrencyUuid) || '—'}
+              </div>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => handleView(attachment)}
+                  className="text-sm text-primary hover:underline font-medium"
+                >
+                  View
+                </button>
+                <button
+                  onClick={() => handleDownload(attachment)}
+                  className="text-sm text-primary hover:underline font-medium"
+                >
+                  Download
+                </button>
+                <button
+                  onClick={() => handleEdit(attachment)}
+                  className="text-sm text-primary hover:underline font-medium"
+                >
+                  Edit
+                </button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDelete(attachment)}
+                  title="Delete"
+                  className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   if (!isMounted) {
     return null; // Prevent hydration mismatch
   }
@@ -487,7 +597,7 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
           <DialogHeader>
             <DialogTitle>Attachments for {paymentId}</DialogTitle>
             <DialogDescription>
-              View and manage documents related to this payment
+              View and manage documents linked directly to this payment and to its project
             </DialogDescription>
           </DialogHeader>
 
@@ -499,66 +609,9 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
                 No attachments yet. Click "Add Attachment" to upload a document.
               </div>
             ) : (
-              <div className="space-y-2 min-w-[900px]">
-                <div className="grid grid-cols-[130px_150px_150px_180px_80px_1fr] gap-3 px-3 py-2 text-xs font-medium text-muted-foreground border-b">
-                  <div>Date</div>
-                  <div>Document Type</div>
-                  <div>Document No</div>
-                  <div>Value</div>
-                  <div>Currency</div>
-                  <div className="text-right">Actions</div>
-                </div>
-                {attachments.map((attachment) => (
-                  <div
-                    key={attachment.linkUuid}
-                    className="grid grid-cols-[130px_150px_150px_180px_80px_1fr] gap-3 items-center p-3 border rounded-lg hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="text-sm">
-                      {formatDate(attachment.documentDate)}
-                    </div>
-                    <div className="text-sm font-medium">
-                      {getDocumentTypeName(attachment.documentTypeUuid)}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {attachment.documentNo || '—'}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {attachment.documentValue != null ? attachment.documentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {getCurrencyCode(attachment.documentCurrencyUuid) || '—'}
-                    </div>
-                    <div className="flex items-center justify-end gap-3">
-                      <button
-                        onClick={() => handleView(attachment)}
-                        className="text-sm text-primary hover:underline font-medium"
-                      >
-                        View
-                      </button>
-                      <button
-                        onClick={() => handleDownload(attachment)}
-                        className="text-sm text-primary hover:underline font-medium"
-                      >
-                        Download
-                      </button>
-                      <button
-                        onClick={() => handleEdit(attachment)}
-                        className="text-sm text-primary hover:underline font-medium"
-                      >
-                        Edit
-                      </button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(attachment)}
-                        title="Delete"
-                        className="text-destructive hover:text-destructive h-8 w-8 p-0"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              <div className="space-y-4 min-w-[900px]">
+                {renderAttachmentSection('Payment Attachments', paymentLinkedAttachments, 'No attachments are linked directly to this payment.')}
+                {renderAttachmentSection('Project Attachments', projectLinkedAttachments, 'No attachments are linked through this payment\'s project.')}
               </div>
             )}
 
@@ -598,12 +651,37 @@ export function PaymentAttachments({ paymentId, onAttachmentsChange, hideTrigger
                       <Label htmlFor="file-upload" className="text-sm">
                         File <span className="text-destructive">*</span>
                       </Label>
-                      <Input
-                        id="file-upload"
-                        type="file"
-                        onChange={handleFileSelect}
-                        disabled={uploading}
-                      />
+                      <div
+                        className={`rounded-lg border border-dashed p-6 text-center transition-colors ${isDraggingFile ? 'border-primary bg-primary/5' : 'border-border bg-background'} ${uploading ? 'opacity-60' : 'cursor-pointer hover:border-primary/60 hover:bg-accent/30'}`}
+                        onClick={() => !uploading && fileInputRef.current?.click()}
+                        onDragOver={handleDropZoneDragOver}
+                        onDragLeave={handleDropZoneDragLeave}
+                        onDrop={handleDropZoneDrop}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if ((e.key === 'Enter' || e.key === ' ') && !uploading) {
+                            e.preventDefault();
+                            fileInputRef.current?.click();
+                          }
+                        }}
+                      >
+                        <Upload className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
+                        <div className="text-sm font-medium">
+                          Drag and drop a file here, or click to choose from a folder
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          One file per attachment
+                        </div>
+                        <Input
+                          ref={fileInputRef}
+                          id="file-upload"
+                          type="file"
+                          onChange={handleFileSelect}
+                          disabled={uploading}
+                          className="hidden"
+                        />
+                      </div>
                       {selectedFile && (
                         <div className="text-xs text-muted-foreground">
                           {selectedFile.name} ({formatFileSize(selectedFile.size)})

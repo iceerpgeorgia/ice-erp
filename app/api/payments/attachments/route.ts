@@ -26,6 +26,8 @@ export async function GET(request: NextRequest) {
       attachments: attachments.map((link) => ({
         linkUuid: link.uuid,
         attachmentUuid: link.attachmentUuid,
+        ownerTable: link.ownerTable,
+        ownerUuid: link.ownerUuid,
         isPrimary: link.isPrimary,
         fileName: link.attachment?.fileName,
         mimeType: link.attachment?.mimeType,

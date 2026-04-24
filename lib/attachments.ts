@@ -40,7 +40,13 @@ export type AttachmentLinkDto = {
  */
 export async function getPaymentAttachments(paymentId: string): Promise<AttachmentLinkDto[]> {
   const links = await withRetry(() => prisma.$queryRawUnsafe<any[]>(
-    `SELECT 
+    `WITH payment_context AS (
+       SELECT record_uuid, project_uuid
+       FROM payments
+       WHERE payment_id = $1
+       LIMIT 1
+     )
+     SELECT 
        al.uuid,
        al.attachment_uuid,
        al.owner_table,
@@ -70,10 +76,17 @@ export async function getPaymentAttachments(paymentId: string): Promise<Attachme
        a.updated_at as attachment_updated_at
      FROM attachment_links al
      JOIN attachments a ON a.uuid = al.attachment_uuid
-     WHERE al.owner_table = 'payments'
-       AND al.owner_uuid = (SELECT record_uuid FROM payments WHERE payment_id = $1 LIMIT 1)::uuid
+     JOIN payment_context pc ON true
+     WHERE (
+         (al.owner_table = 'payments' AND al.owner_uuid = pc.record_uuid::uuid)
+         OR
+         (pc.project_uuid IS NOT NULL AND al.owner_table = 'projects' AND al.owner_uuid = pc.project_uuid::uuid)
+       )
        AND a.is_active = true
-     ORDER BY al.is_primary DESC, al.created_at DESC`,
+     ORDER BY
+       CASE al.owner_table WHEN 'payments' THEN 0 WHEN 'projects' THEN 1 ELSE 2 END,
+       al.is_primary DESC,
+       al.created_at DESC`,
     paymentId
   ));
 
