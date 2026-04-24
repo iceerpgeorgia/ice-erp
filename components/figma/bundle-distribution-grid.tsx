@@ -217,7 +217,13 @@ export function BundleDistributionGrid({
         )}
       </div>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={(open) => {
+        if (!open) {
+          // Auto-apply local edits whenever the dialog closes (X, Escape, or Cancel)
+          onChange(localValue);
+        }
+        setIsOpen(open);
+      }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Bundle Distribution</DialogTitle>

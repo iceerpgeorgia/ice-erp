@@ -545,6 +545,16 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
     fetchDropdownData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Refresh dropdowns whenever the Add or Edit dialog opens so newly-created
+  // records (counteragents, financial codes, etc.) are always visible.
+  useEffect(() => {
+    if (isAddDialogOpen) fetchDropdownData();
+  }, [isAddDialogOpen, fetchDropdownData]);
+
+  useEffect(() => {
+    if (isEditDialogOpen) fetchDropdownData();
+  }, [isEditDialogOpen, fetchDropdownData]);
+
   // Measure scroll content width and whether a horizontal scrollbar is needed
   useEffect(() => {
     const el = scrollRef.current;
