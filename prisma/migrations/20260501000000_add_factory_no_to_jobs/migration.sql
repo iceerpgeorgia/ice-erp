@@ -1,0 +1,1 @@
+ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "factory_no" VARCHAR(255);

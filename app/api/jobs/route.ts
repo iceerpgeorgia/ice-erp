@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
           j.floors,
           j.weight,
           j.is_ff,
+          j.factory_no,
           j.brand_uuid,
           b.name as brand_name,
           CONCAT(
@@ -49,6 +50,7 @@ export async function GET(req: NextRequest) {
         floors: job.floors,
         weight: job.weight,
         isFf: job.is_ff,
+        factoryNo: job.factory_no,
         brandUuid: job.brand_uuid,
         brandName: job.brand_name,
         jobDisplay: job.job_display,
@@ -68,6 +70,7 @@ export async function GET(req: NextRequest) {
         j.floors,
         j.weight,
         j.is_ff,
+        j.factory_no,
         j.brand_uuid,
         j.is_active,
         j.created_at,
@@ -110,6 +113,7 @@ export async function GET(req: NextRequest) {
       floors: job.floors,
       weight: job.weight,
       isFf: job.is_ff,
+      factoryNo: job.factory_no,
       brandUuid: job.brand_uuid,
       brandName: job.brand_name,
       jobIndex: job.job_index,
@@ -142,9 +146,10 @@ export async function POST(req: NextRequest) {
   try {
     const selection = await resolveInsiderSelection(req);
     const body = await req.json();
-    const { projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid, insider_uuid, insiderUuid } = body;
+    const { projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid, factoryNo, factory_no, insider_uuid, insiderUuid } = body;
 
     const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
+    const normalizedFactoryNo = String(factoryNo ?? factory_no ?? '').trim() || null;
     const insiderOptions = await getInsiderOptions();
     const insiderOptionSet = new Set(insiderOptions.map((option) => option.insiderUuid.toLowerCase()));
     if (requestedInsiderUuid && !insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
@@ -191,8 +196,8 @@ export async function POST(req: NextRequest) {
     } else {
       // Create single job row (no project_uuid on jobs table)
       const result = await prisma.$queryRaw`
-        INSERT INTO jobs (job_name, floors, weight, is_ff, brand_uuid, insider_uuid)
-        VALUES (${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${brandUuid}::uuid, ${effectiveInsiderUuid}::uuid)
+        INSERT INTO jobs (job_name, floors, weight, is_ff, factory_no, brand_uuid, insider_uuid)
+        VALUES (${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${normalizedFactoryNo}, ${brandUuid}::uuid, ${effectiveInsiderUuid}::uuid)
         RETURNING id, job_uuid
       ` as any[];
 
@@ -232,9 +237,10 @@ export async function PUT(req: NextRequest) {
   try {
     const selection = await resolveInsiderSelection(req);
     const body = await req.json();
-    const { id, projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid, insider_uuid, insiderUuid } = body;
+    const { id, projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid, factoryNo, factory_no, insider_uuid, insiderUuid } = body;
 
     const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
+    const normalizedFactoryNo = String(factoryNo ?? factory_no ?? '').trim() || null;
     const insiderOptions = await getInsiderOptions();
     const insiderOptionSet = new Set(insiderOptions.map((option) => option.insiderUuid.toLowerCase()));
     if (requestedInsiderUuid && !insiderOptionSet.has(requestedInsiderUuid.toLowerCase())) {
@@ -280,6 +286,7 @@ export async function PUT(req: NextRequest) {
         floors = ${floors ?? null},
         weight = ${weight ?? null},
         is_ff = ${isFf},
+        factory_no = ${normalizedFactoryNo},
         brand_uuid = ${brandUuid}::uuid,
         insider_uuid = ${effectiveInsiderUuid}::uuid,
         updated_at = CURRENT_TIMESTAMP

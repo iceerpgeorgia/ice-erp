@@ -58,6 +58,7 @@ export type Job = {
   id: number;
   jobUuid: string;
   jobName: string;
+  factoryNo: string | null;
   floors: number | null;
   weight: number | null;
   isFf: boolean;
@@ -95,6 +96,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'jobIndex', label: 'Job Index', width: 400, visible: true, sortable: true, filterable: true },
   { key: 'projectIndex', label: 'Project', width: 300, visible: true, sortable: true, filterable: true },
   { key: 'jobName', label: 'Job Name', width: 200, visible: true, sortable: true, filterable: true },
+  { key: 'factoryNo', label: 'Factory No', width: 160, visible: true, sortable: true, filterable: true },
   { key: 'insiderName', label: 'Insider', width: 180, visible: true, sortable: false, filterable: false },
   { key: 'brandName', label: 'Brand', width: 150, visible: true, sortable: true, filterable: true },
   { key: 'floors', label: 'Floors', width: 100, visible: true, sortable: true, filterable: true },
@@ -123,7 +125,7 @@ export function JobsTable() {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('jobs-table-columns');
       const version = localStorage.getItem('jobs-table-columns-version');
-      const currentVersion = '5'; // Increment this when changing default column visibility
+      const currentVersion = '6'; // Increment this when changing default column visibility
       
       if (saved && version === currentVersion) {
         try {
@@ -163,6 +165,7 @@ export function JobsTable() {
     projectUuid: '',
     projectUuids: [] as string[],
     jobName: '',
+    factoryNo: '',
     floors: '' as string | number,
     weight: '' as string | number,
     isFf: false,
@@ -264,6 +267,7 @@ export function JobsTable() {
               id: Number(job.id),
               jobUuid: job.jobUuid || job.job_uuid,
               jobName: job.jobName || job.job_name,
+              factoryNo: job.factoryNo || job.factory_no || null,
               floors: job.floors ?? null,
               weight: job.weight ?? null,
               isFf: job.isFf ?? job.is_ff ?? false,
@@ -353,6 +357,7 @@ export function JobsTable() {
       const payload = {
         ...formData,
         projectUuids: formData.projectUuids.length > 0 ? formData.projectUuids : (formData.projectUuid ? [formData.projectUuid] : []),
+        factoryNo: formData.factoryNo.trim() || null,
         floors: formData.floors === '' ? null : Number(formData.floors),
         weight: formData.weight === '' ? null : Number(formData.weight),
       };
@@ -380,6 +385,7 @@ export function JobsTable() {
         id: editingJob.id,
         ...formData,
         projectUuids: formData.projectUuids && formData.projectUuids.length > 0 ? formData.projectUuids : (formData.projectUuid ? [formData.projectUuid] : []),
+        factoryNo: formData.factoryNo.trim() || null,
         floors: formData.floors === '' ? null : Number(formData.floors),
         weight: formData.weight === '' ? null : Number(formData.weight),
       };
@@ -425,6 +431,7 @@ export function JobsTable() {
       projectUuid: allProjectUuids[0] || '',
       projectUuids: allProjectUuids,
       jobName: job.jobName,
+      factoryNo: job.factoryNo || '',
       floors: job.floors ?? '',
       weight: job.weight ?? '',
       isFf: job.isFf,
@@ -482,6 +489,7 @@ export function JobsTable() {
       projectUuid: '',
       projectUuids: [],
       jobName: '',
+      factoryNo: '',
       floors: '',
       weight: '',
       isFf: false,
@@ -1011,6 +1019,16 @@ function JobForm({
           value={formData.jobName}
           onChange={(e) => setFormData({ ...formData, jobName: e.target.value })}
           placeholder="Enter job name"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="factoryNo">Factory No</Label>
+        <Input
+          id="factoryNo"
+          value={formData.factoryNo}
+          onChange={(e) => setFormData({ ...formData, factoryNo: e.target.value })}
+          placeholder="Enter factory number"
         />
       </div>
 

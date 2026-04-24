@@ -1,9 +1,8 @@
-'use client';
+﻿'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Search,
-  Filter,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -12,9 +11,7 @@ import {
   EyeOff,
   Download,
   Edit2,
-  X,
   FileText,
-  Upload,
   ChevronLeft,
   ChevronRight,
   Trash2,
@@ -29,8 +26,16 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Label } from '@/components/figma/ui/label';
 import { ColumnFilterPopover } from '@/components/figma/shared/column-filter-popover';
 import { ClearFiltersButton } from '@/components/figma/shared/clear-filters-button';
-import type { ColumnFilter } from '@/components/figma/shared/table-filters';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/figma/ui/card';
+import { useTableFilters } from '@/components/figma/shared/use-table-filters';
+import type { ColumnFormat } from '@/components/figma/shared/table-filters';
+import { Card, CardContent } from '@/components/figma/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/figma/ui/select';
 
 type AttachmentLink = {
   link_uuid: string;
@@ -101,7 +106,7 @@ type ColumnConfig = {
   visible: boolean;
   sortable: boolean;
   filterable: boolean;
-  format?: 'currency' | 'number' | 'date';
+  format?: ColumnFormat;
   width: number;
 };
 
@@ -125,68 +130,30 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 export default function AttachmentsPage() {
-  const filtersStorageKey = 'attachmentsFiltersV1';
+  const filtersStorageKey = 'attachments-table:column-filters';
   const [data, setData] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedOwnerTable, setSelectedOwnerTable] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [limit] = useState(50);
-  const [total, setTotal] = useState(0);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editAttachment, setEditAttachment] = useState<Attachment | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Column drag and drop state
   const [draggedColumn, setDraggedColumn] = useState<ColumnKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnKey | null>(null);
 
-  // Table filters and sorting
-  const [filters, setFilters] = useState<Record<string, ColumnFilter>>({});
-  const [sortColumn, setSortColumn] = useState<ColumnKey | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
-  const setFilter = (key: ColumnKey, filter: ColumnFilter | null) => {
-    setFilters((prev) => {
-      if (!filter) {
-        const { [key]: removed, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [key]: filter };
-    });
-  };
-
-  const clearFilter = (key: ColumnKey) => {
-    setFilters((prev) => {
-      const { [key]: removed, ...rest } = prev;
-      return rest;
-    });
-  };
-
-  const clearAllFilters = () => {
-    setFilters({});
-  };
-
-  const toggleSort = (key: ColumnKey) => {
-    if (sortColumn === key) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortColumn(key);
-      setSortDirection('asc');
-    }
-  };
-
-  const hasActiveFilters = Object.keys(filters).length > 0;
-
-  // Load saved column configuration from localStorage on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const versionKey = 'attachmentsColumnsVersion';
-    const currentVersion = '1';
+    const currentVersion = '2';
     const savedVersion = localStorage.getItem(versionKey);
     const shouldLoadSavedColumns = savedVersion === currentVersion;
 
@@ -199,33 +166,22 @@ export default function AttachmentsPage() {
       if (saved) {
         try {
           const savedColumns = JSON.parse(saved) as ColumnConfig[];
-          
-          // Create a map of default columns for easy lookup
-          const defaultColumnsMap = new Map(defaultColumns.map(col => [col.key, col]));
-          
-          // Filter out any columns that don't exist in defaultColumns
-          const validSavedColumns = savedColumns.filter(savedCol => defaultColumnsMap.has(savedCol.key));
-          
-          // Update saved columns with latest defaults while preserving user preferences
-          const updatedSavedColumns = validSavedColumns.map(savedCol => {
-            const defaultCol = defaultColumnsMap.get(savedCol.key);
-            if (defaultCol) {
-              return {
-                ...defaultCol,
-                visible: savedCol.visible,
-                width: savedCol.width
-              };
-            }
-            return savedCol;
+          const defaultColumnsMap = new Map(defaultColumns.map((column) => [column.key, column]));
+          const validSavedColumns = savedColumns.filter((savedColumn) => defaultColumnsMap.has(savedColumn.key));
+          const updatedSavedColumns = validSavedColumns.map((savedColumn) => {
+            const defaultColumn = defaultColumnsMap.get(savedColumn.key);
+            if (!defaultColumn) return savedColumn;
+            return {
+              ...defaultColumn,
+              visible: savedColumn.visible,
+              width: savedColumn.width,
+            };
           });
-          
-          // Add any new columns from defaults that aren't in saved config
-          const savedKeys = new Set(validSavedColumns.map(col => col.key));
-          const newColumns = defaultColumns.filter(col => !savedKeys.has(col.key));
-          
+          const savedKeys = new Set(validSavedColumns.map((column) => column.key));
+          const newColumns = defaultColumns.filter((column) => !savedKeys.has(column.key));
           setColumns([...updatedSavedColumns, ...newColumns]);
-        } catch (e) {
-          console.error('Failed to parse saved columns:', e);
+        } catch (error) {
+          console.error('Failed to parse saved columns:', error);
           setColumns(defaultColumns);
         }
       }
@@ -234,22 +190,20 @@ export default function AttachmentsPage() {
     setIsInitialized(true);
   }, []);
 
-  // Save column configuration to localStorage whenever it changes
   useEffect(() => {
     if (isInitialized && typeof window !== 'undefined') {
       localStorage.setItem('attachmentsColumns', JSON.stringify(columns));
     }
   }, [columns, isInitialized]);
 
-  // Column drag handlers for reordering
-  const handleDragStart = (e: React.DragEvent<HTMLTableCellElement>, key: ColumnKey) => {
+  const handleDragStart = (event: React.DragEvent<HTMLTableCellElement>, key: ColumnKey) => {
     setDraggedColumn(key);
-    e.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>, key: ColumnKey) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+  const handleDragOver = (event: React.DragEvent<HTMLTableCellElement>, key: ColumnKey) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
     if (draggedColumn && draggedColumn !== key) {
       setDragOverColumn(key);
     }
@@ -259,17 +213,17 @@ export default function AttachmentsPage() {
     setDragOverColumn(null);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLTableCellElement>, targetKey: ColumnKey) => {
-    e.preventDefault();
+  const handleDrop = (event: React.DragEvent<HTMLTableCellElement>, targetKey: ColumnKey) => {
+    event.preventDefault();
     if (!draggedColumn || draggedColumn === targetKey) return;
 
-    setColumns(prev => {
-      const draggedIndex = prev.findIndex(col => col.key === draggedColumn);
-      const targetIndex = prev.findIndex(col => col.key === targetKey);
-      const newConfig = [...prev];
-      const [draggedItem] = newConfig.splice(draggedIndex, 1);
-      newConfig.splice(targetIndex, 0, draggedItem);
-      return newConfig;
+    setColumns((previous) => {
+      const draggedIndex = previous.findIndex((column) => column.key === draggedColumn);
+      const targetIndex = previous.findIndex((column) => column.key === targetKey);
+      const updated = [...previous];
+      const [draggedItem] = updated.splice(draggedIndex, 1);
+      updated.splice(targetIndex, 0, draggedItem);
+      return updated;
     });
 
     setDraggedColumn(null);
@@ -281,38 +235,8 @@ export default function AttachmentsPage() {
     setDragOverColumn(null);
   };
 
-  const fetchAttachments = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      params.append('page', page.toString());
-      params.append('limit', limit.toString());
-      if (searchQuery) params.append('search', searchQuery);
-      if (selectedOwnerTable) params.append('ownerTable', selectedOwnerTable);
-
-      const response = await fetch(`/api/attachments?${params}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch attachments');
-      }
-
-      const result = await response.json();
-      setData(result.attachments || []);
-      setTotal(result.pagination?.total || 0);
-    } catch (error) {
-      console.error('Error fetching attachments:', error);
-      setData([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAttachments();
-  }, [page, searchQuery, selectedOwnerTable]);
-
-  // Extract value for filtering/sorting
-  const getColumnValue = (row: Attachment, key: ColumnKey): any => {
-    switch (key) {
+  const getColumnValue = useCallback((row: Attachment, key: string): any => {
+    switch (key as ColumnKey) {
       case 'fileName':
         return row.fileName;
       case 'documentType':
@@ -326,23 +250,23 @@ export default function AttachmentsPage() {
       case 'currency':
         return row.currency?.code || null;
       case 'paymentId': {
-        const paymentLink = row.links.find((l) => l.owner_table === 'payments');
+        const paymentLink = row.links.find((link) => link.owner_table === 'payments');
         return paymentLink?.entity_details?.payment_id || null;
       }
       case 'projectName': {
-        const projectLink = row.links.find((l) => l.owner_table === 'projects');
+        const projectLink = row.links.find((link) => link.owner_table === 'projects');
         return projectLink?.entity_details?.project_name || null;
       }
       case 'financialCode': {
-        const paymentLink = row.links.find((l) => l.owner_table === 'payments');
+        const paymentLink = row.links.find((link) => link.owner_table === 'payments');
         return paymentLink?.entity_details?.financial_code || null;
       }
       case 'counteragentName': {
-        const counteragentLink = row.links.find((l) => l.owner_table === 'counteragents');
+        const counteragentLink = row.links.find((link) => link.owner_table === 'counteragents');
         return counteragentLink?.entity_details?.name || null;
       }
       case 'jobName': {
-        const jobLink = row.links.find((l) => l.owner_table === 'jobs');
+        const jobLink = row.links.find((link) => link.owner_table === 'jobs');
         return jobLink?.entity_details?.job_name || null;
       }
       case 'mimeType':
@@ -358,9 +282,61 @@ export default function AttachmentsPage() {
       default:
         return null;
     }
-  };
+  }, []);
 
-  // Format value for display
+  const {
+    filters,
+    searchTerm,
+    sortColumn,
+    sortDirection,
+    currentPage,
+    pageSize,
+    filteredData,
+    sortedData,
+    paginatedData,
+    totalPages,
+    getColumnValues,
+    setSearchTerm,
+    handleSort,
+    setSortColumn,
+    setSortDirection,
+    setCurrentPage,
+    setPageSize,
+    handleFilterChange,
+    clearFilters,
+    activeFilterCount,
+  } = useTableFilters<Attachment, ColumnKey>({
+    data,
+    columns,
+    defaultSortColumn: 'createdAt',
+    defaultSortDirection: 'desc',
+    filtersStorageKey,
+    searchColumns: ['fileName', 'documentType', 'documentNo', 'paymentId', 'projectName', 'financialCode', 'counteragentName', 'jobName', 'mimeType', 'storageProvider', 'uploadedByUserId'],
+    getRowValue: getColumnValue,
+    pageSize: 100,
+  });
+
+  const fetchAttachments = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/attachments?all=1', { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error('Failed to fetch attachments');
+      }
+      const result = await response.json();
+      setData(result.attachments || []);
+    } catch (error) {
+      console.error('Error fetching attachments:', error);
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAttachments();
+  }, [fetchAttachments]);
+
   const formatValue = (value: any, format?: ColumnConfig['format'] | 'filesize'): string => {
     if (value === null || value === undefined) return '-';
 
@@ -373,108 +349,54 @@ export default function AttachmentsPage() {
         }).format(value);
       case 'number':
         return new Intl.NumberFormat('en-US').format(value);
-      case 'date':
-        if (!value) return '-';
+      case 'date': {
         const date = new Date(value);
         const day = String(date.getDate()).padStart(2, '0');
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const year = date.getFullYear();
         return `${day}.${month}.${year}`;
-      case 'filesize':
+      }
+      case 'filesize': {
         if (typeof value !== 'number') return '-';
         const units = ['B', 'KB', 'MB', 'GB'];
         let size = value;
         let unitIndex = 0;
         while (size >= 1024 && unitIndex < units.length - 1) {
           size /= 1024;
-          unitIndex++;
+          unitIndex += 1;
         }
         return `${size.toFixed(1)} ${units[unitIndex]}`;
+      }
       default:
         return String(value);
     }
   };
 
-  // Apply filters and sorting
-  const filteredAndSortedData = useMemo(() => {
-    let result = [...data];
-
-    // Apply column filters
-    columns.forEach((col) => {
-      if (!col.filterable) return;
-      const filter = filters[col.key];
-      if (!filter) return;
-
-      result = result.filter((row) => {
-        const value = getColumnValue(row, col.key);
-        
-        if (filter.mode === 'facet') {
-          return filter.values.has(value);
-        }
-        // Add other filter modes as needed
-        return true;
-      });
-    });
-
-    // Apply sorting
-    if (sortColumn) {
-      result.sort((a, b) => {
-        const aValue = getColumnValue(a, sortColumn);
-        const bValue = getColumnValue(b, sortColumn);
-
-        if (aValue === null && bValue === null) return 0;
-        if (aValue === null) return 1;
-        if (bValue === null) return -1;
-
-        let comparison = 0;
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-          comparison = aValue - bValue;
-        } else {
-          comparison = String(aValue).localeCompare(String(bValue));
-        }
-
-        return sortDirection === 'desc' ? -comparison : comparison;
-      });
-    }
-
-    return result;
-  }, [data, filters, sortColumn, sortDirection, columns]);
-
-  // Column visibility toggle
   const toggleColumnVisibility = (key: ColumnKey) => {
-    setColumns((prev) =>
-      prev.map((col) => (col.key === key ? { ...col, visible: !col.visible } : col))
+    setColumns((previous) =>
+      previous.map((column) => (column.key === key ? { ...column, visible: !column.visible } : column))
     );
   };
 
-  // Download attachment
   const downloadAttachment = async (attachment: Attachment) => {
     try {
       const response = await fetch(`/api/attachments/${attachment.uuid}/download`);
       if (!response.ok) throw new Error('Download failed');
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = attachment.fileName;
-      document.body.appendChild(a);
-      a.click();
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = attachment.fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
       window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      document.body.removeChild(anchor);
     } catch (error) {
       console.error('Error downloading attachment:', error);
       alert('Failed to download file');
     }
   };
-
-  // Preview attachment inline (no download). Loads the file as a blob URL so it
-  // can be rendered in <iframe>/<img>/<embed> regardless of CSP/cookies.
-  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
-  const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
-  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const openPreview = async (attachment: Attachment) => {
     setPreviewAttachment(attachment);
@@ -491,14 +413,13 @@ export default function AttachmentsPage() {
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       setPreviewBlobUrl(url);
-    } catch (e: any) {
-      setPreviewError(e?.message || 'Failed to load preview');
+    } catch (error: any) {
+      setPreviewError(error?.message || 'Failed to load preview');
     } finally {
       setPreviewLoading(false);
     }
   };
 
-  // Revoke blob URL when preview closes / changes.
   useEffect(() => {
     return () => {
       if (previewBlobUrl) URL.revokeObjectURL(previewBlobUrl);
@@ -515,15 +436,16 @@ export default function AttachmentsPage() {
     setPreviewError(null);
   };
 
-  // Delete attachment (soft delete by default — sets is_active=false; storage retained)
   const deleteAttachment = async (attachment: Attachment) => {
     if (
       !confirm(
-        `Delete attachment "${attachment.fileName}"?\n\nThis hides it from this list. The file is retained in storage and any links to projects/payments are preserved.`
+        `Delete attachment "${attachment.fileName}"?` +
+          `\n\nThis hides it from this list. The file is retained in storage and any links to projects/payments are preserved.`
       )
     ) {
       return;
     }
+
     try {
       const response = await fetch(`/api/attachments/${attachment.uuid}`, {
         method: 'DELETE',
@@ -532,55 +454,54 @@ export default function AttachmentsPage() {
       if (!response.ok) {
         throw new Error(data?.error || 'Delete failed');
       }
-      // Refresh list
-      fetchAttachments();
-    } catch (e: any) {
-      console.error('Error deleting attachment:', e);
-      alert(e?.message || 'Failed to delete attachment');
+      await fetchAttachments();
+    } catch (error: any) {
+      console.error('Error deleting attachment:', error);
+      alert(error?.message || 'Failed to delete attachment');
     }
   };
 
-  const visibleColumns = columns.filter((col) => col.visible);
-  const totalPages = Math.ceil(total / limit);
+  const visibleColumns = columns.filter((column) => column.visible);
+  const visibleStart = sortedData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const visibleEnd = sortedData.length === 0 ? 0 : Math.min(currentPage * pageSize, sortedData.length);
+  const totalLabel = filteredData.length === data.length
+    ? `${data.length} total`
+    : `${filteredData.length} filtered / ${data.length} total`;
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* Header */}
       <div className="flex-shrink-0 border-b bg-background px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Attachments</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage document attachments and links
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">Manage document attachments and links</p>
           </div>
-          <Badge variant="outline" className="ml-4">
-            {total} total
-          </Badge>
+          <Badge variant="outline" className="ml-4">{totalLabel}</Badge>
         </div>
 
-        {/* Toolbar */}
         <div className="flex items-center gap-3 mt-4">
-          {/* Search */}
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search files..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setPage(1);
+              value={searchTerm}
+              onChange={(event) => {
+                setSearchTerm(event.target.value);
+                setCurrentPage(1);
               }}
               className="pl-9"
             />
           </div>
 
-          {/* Clear Filters */}
-          {hasActiveFilters && (
-            <ClearFiltersButton onClear={clearAllFilters} activeCount={Object.keys(filters).length} />
-          )}
+          <ClearFiltersButton
+            onClear={() => {
+              clearFilters();
+              setSearchTerm('');
+              setCurrentPage(1);
+            }}
+            activeCount={activeFilterCount + (searchTerm.trim() ? 1 : 0)}
+          />
 
-          {/* Columns Settings */}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm">
@@ -592,20 +513,17 @@ export default function AttachmentsPage() {
               <div className="space-y-2">
                 <h4 className="font-medium text-sm">Toggle Columns</h4>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {columns.map((col) => (
-                    <div key={col.key} className="flex items-center space-x-2">
+                  {columns.map((column) => (
+                    <div key={column.key} className="flex items-center space-x-2">
                       <Checkbox
-                        id={`col-${col.key}`}
-                        checked={col.visible}
-                        onCheckedChange={() => toggleColumnVisibility(col.key)}
+                        id={`col-${column.key}`}
+                        checked={column.visible}
+                        onCheckedChange={() => toggleColumnVisibility(column.key)}
                       />
-                      <label
-                        htmlFor={`col-${col.key}`}
-                        className="text-sm cursor-pointer flex-1"
-                      >
-                        {col.label}
+                      <label htmlFor={`col-${column.key}`} className="text-sm cursor-pointer flex-1">
+                        {column.label}
                       </label>
-                      {col.visible ? (
+                      {column.visible ? (
                         <Eye className="h-3 w-3 text-muted-foreground" />
                       ) : (
                         <EyeOff className="h-3 w-3 text-muted-foreground" />
@@ -617,21 +535,29 @@ export default function AttachmentsPage() {
             </PopoverContent>
           </Popover>
 
-          {/* Refresh */}
-          <Button variant="outline" size="sm" onClick={() => fetchAttachments()}>
-            Refresh
-          </Button>
+          <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="25">25 rows</SelectItem>
+              <SelectItem value="50">50 rows</SelectItem>
+              <SelectItem value="100">100 rows</SelectItem>
+              <SelectItem value="200">200 rows</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button variant="outline" size="sm" onClick={fetchAttachments}>Refresh</Button>
         </div>
       </div>
 
-      {/* Table */}
       <div className="flex-1 overflow-hidden">
         <div className="h-full overflow-auto">
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-muted-foreground">Loading...</div>
             </div>
-          ) : filteredAndSortedData.length === 0 ? (
+          ) : sortedData.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64">
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No attachments found</p>
@@ -643,20 +569,20 @@ export default function AttachmentsPage() {
                   <th className="w-12 p-2 text-left border-b">
                     <span className="text-xs font-medium">#</span>
                   </th>
-                  {visibleColumns.map((col) => (
+                  {visibleColumns.map((column) => (
                     <th
-                      key={col.key}
+                      key={column.key}
                       className={`p-2 text-left border-b cursor-move ${
-                        draggedColumn === col.key ? 'opacity-50' : ''
+                        draggedColumn === column.key ? 'opacity-50' : ''
                       } ${
-                        dragOverColumn === col.key ? 'border-l-4 border-blue-500' : ''
+                        dragOverColumn === column.key ? 'border-l-4 border-blue-500' : ''
                       }`}
-                      style={{ width: col.width }}
+                      style={{ width: column.width }}
                       draggable
-                      onDragStart={(e) => handleDragStart(e, col.key)}
-                      onDragOver={(e) => handleDragOver(e, col.key)}
+                      onDragStart={(event) => handleDragStart(event, column.key)}
+                      onDragOver={(event) => handleDragOver(event, column.key)}
                       onDragLeave={handleDragLeave}
-                      onDrop={(e) => handleDrop(e, col.key)}
+                      onDrop={(event) => handleDrop(event, column.key)}
                       onDragEnd={handleDragEnd}
                     >
                       <div className="flex items-center gap-2">
@@ -664,38 +590,32 @@ export default function AttachmentsPage() {
                           variant="ghost"
                           size="sm"
                           className="h-auto p-0 hover:bg-transparent"
-                          onClick={() => col.sortable && toggleSort(col.key)}
+                          onClick={() => column.sortable && handleSort(column.key)}
                         >
-                          <span className="text-xs font-medium">{col.label}</span>
-                          {col.sortable && sortColumn === col.key && (
-                            sortDirection === 'asc' ? (
-                              <ArrowUp className="h-3 w-3 ml-1" />
-                            ) : (
-                              <ArrowDown className="h-3 w-3 ml-1" />
-                            )
+                          <span className="text-xs font-medium">{column.label}</span>
+                          {column.sortable && sortColumn === column.key && (
+                            sortDirection === 'asc'
+                              ? <ArrowUp className="h-3 w-3 ml-1" />
+                              : <ArrowDown className="h-3 w-3 ml-1" />
                           )}
-                          {col.sortable && sortColumn !== col.key && (
+                          {column.sortable && sortColumn !== column.key && (
                             <ArrowUpDown className="h-3 w-3 ml-1 opacity-30" />
                           )}
                         </Button>
-                        {col.filterable && (
+                        {column.filterable && (
                           <ColumnFilterPopover
-                            columnKey={col.key}
-                            columnLabel={col.label}
-                            values={data.map((row) => getColumnValue(row, col.key))}
-                            activeFilters={filters[col.key]?.mode === 'facet' ? (filters[col.key] as any).values : new Set()}
-                            activeFilter={filters[col.key]}
-                            columnFormat={col.format}
-                            onAdvancedFilterChange={(filter) => setFilter(col.key, filter as any)}
+                            columnKey={column.key}
+                            columnLabel={column.label}
+                            values={getColumnValues(column.key)}
+                            activeFilters={filters.get(column.key)?.mode === 'facet' ? (filters.get(column.key) as any).values : new Set()}
+                            activeFilter={filters.get(column.key)}
+                            columnFormat={column.format}
+                            onAdvancedFilterChange={(filter) => handleFilterChange(column.key, filter)}
                             onFilterChange={(values) => {
-                              if (values.size > 0) {
-                                setFilter(col.key, { mode: 'facet', values });
-                              } else {
-                                clearFilter(col.key);
-                              }
+                              handleFilterChange(column.key, values.size > 0 ? { mode: 'facet', values } : null);
                             }}
                             onSort={(direction) => {
-                              setSortColumn(col.key);
+                              setSortColumn(column.key);
                               setSortDirection(direction);
                             }}
                           />
@@ -709,17 +629,19 @@ export default function AttachmentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredAndSortedData.map((row, index) => (
-                  <tr
-                    key={row.uuid}
-                    className="hover:bg-muted/30 border-b transition-colors"
-                  >
+                {paginatedData.map((row, index) => (
+                  <tr key={row.uuid} className="hover:bg-muted/30 border-b transition-colors">
                     <td className="p-2 text-xs text-muted-foreground">
-                      {(page - 1) * limit + index + 1}
+                      {(currentPage - 1) * pageSize + index + 1}
                     </td>
-                    {visibleColumns.map((col) => (
-                      <td key={col.key} className="p-2 text-sm">
-                        {formatValue(getColumnValue(row, col.key), col.format)}
+                    {visibleColumns.map((column) => (
+                      <td key={column.key} className="p-2 text-sm">
+                        {formatValue(
+                          getColumnValue(row, column.key),
+                          column.key === 'fileSizeBytes'
+                            ? 'filesize'
+                            : column.format
+                        )}
                       </td>
                     ))}
                     <td className="p-2">
@@ -744,28 +666,13 @@ export default function AttachmentsPage() {
                         >
                           <Edit2 className="h-3 w-3" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openPreview(row)}
-                          title="Preview"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => openPreview(row)} title="Preview">
                           <FileText className="h-3 w-3" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => downloadAttachment(row)}
-                          title="Download"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => downloadAttachment(row)} title="Download">
                           <Download className="h-3 w-3" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteAttachment(row)}
-                          title="Delete"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => deleteAttachment(row)} title="Delete">
                           <Trash2 className="h-3 w-3 text-red-600" />
                         </Button>
                       </div>
@@ -778,30 +685,29 @@ export default function AttachmentsPage() {
         </div>
       </div>
 
-      {/* Pagination */}
       <div className="flex-shrink-0 border-t bg-background px-6 py-3">
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Showing {(page - 1) * limit + 1} to {Math.min(page * limit, total)} of {total}
+            Showing {visibleStart} to {visibleEnd} of {sortedData.length}
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
             >
               <ChevronLeft className="h-4 w-4" />
               Previous
             </Button>
             <span className="text-sm">
-              Page {page} of {totalPages}
+              Page {currentPage} of {totalPages}
             </span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
             >
               Next
               <ChevronRight className="h-4 w-4" />
@@ -810,7 +716,6 @@ export default function AttachmentsPage() {
         </div>
       </div>
 
-      {/* Preview Dialog (inline file preview, no download required) */}
       <Dialog
         open={previewDialogOpen}
         onOpenChange={(open) => (open ? setPreviewDialogOpen(true) : closePreview())}
@@ -832,14 +737,12 @@ export default function AttachmentsPage() {
                 </a>
               )}
             </DialogTitle>
-            <DialogDescription>
-              {previewAttachment?.mimeType || 'Inline file preview'}
-            </DialogDescription>
+            <DialogDescription>{previewAttachment?.mimeType || 'Inline file preview'}</DialogDescription>
           </DialogHeader>
           <div className="flex-1 min-h-0 overflow-hidden border rounded bg-muted/20">
             {previewLoading && (
               <div className="h-full w-full flex items-center justify-center text-muted-foreground">
-                Loading preview…
+                Loading preview...
               </div>
             )}
             {!previewLoading && previewError && (
@@ -858,7 +761,6 @@ export default function AttachmentsPage() {
               if (mime.startsWith('image/')) {
                 return (
                   <div className="h-full w-full overflow-auto flex items-center justify-center bg-checkerboard">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={previewBlobUrl}
                       alt={previewAttachment.fileName}
@@ -885,7 +787,6 @@ export default function AttachmentsPage() {
                   />
                 );
               }
-              // Fallback: <embed> lets the browser pick a handler if any
               return (
                 <div className="h-full w-full flex flex-col">
                   <embed
@@ -910,14 +811,11 @@ export default function AttachmentsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* View Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Attachment Details</DialogTitle>
-            <DialogDescription>
-              View complete information about this attachment
-            </DialogDescription>
+            <DialogDescription>View complete information about this attachment</DialogDescription>
           </DialogHeader>
           {selectedAttachment && (
             <div className="space-y-4">
@@ -998,9 +896,7 @@ export default function AttachmentsPage() {
                                 </div>
                               )}
                             </div>
-                            {link.is_primary && (
-                              <Badge>Primary</Badge>
-                            )}
+                            {link.is_primary && <Badge>Primary</Badge>}
                           </div>
                         </CardContent>
                       </Card>
@@ -1013,14 +909,11 @@ export default function AttachmentsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Attachment</DialogTitle>
-            <DialogDescription>
-              Update attachment metadata and document information
-            </DialogDescription>
+            <DialogDescription>Update attachment metadata and document information</DialogDescription>
           </DialogHeader>
           {editAttachment && (
             <div className="space-y-4">
@@ -1050,10 +943,7 @@ export default function AttachmentsPage() {
                 <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={() => {
-                  // TODO: Implement save
-                  setEditDialogOpen(false);
-                }}>
+                <Button onClick={() => setEditDialogOpen(false)}>
                   Save Changes
                 </Button>
               </div>

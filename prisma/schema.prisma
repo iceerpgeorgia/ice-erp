@@ -556,6 +556,7 @@ model jobs {
   updated_at   DateTime @updatedAt
   brand_uuid   String?  @db.Uuid
   insider_uuid String?  @db.Uuid
+  factory_no   String?  @db.VarChar(255)
   brands       brands?  @relation(fields: [brand_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "fk_jobs_brand_uuid")
 
   @@index([job_uuid], map: "idx_jobs_job_uuid")
