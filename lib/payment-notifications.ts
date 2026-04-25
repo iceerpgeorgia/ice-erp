@@ -19,6 +19,24 @@ function generateSecureToken(): string {
   return crypto.randomBytes(32).toString('base64url');
 }
 
+function normalizeBaseUrl(value?: string): string | null {
+  const normalized = value?.trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  return normalized.replace(/\/+$/, '');
+}
+
+function getNotificationAppUrl(): string {
+  return (
+    normalizeBaseUrl(process.env.NEXTAUTH_URL) ||
+    normalizeBaseUrl(process.env.NEXT_PUBLIC_APP_URL) ||
+    'http://localhost:3000'
+  );
+}
+
 /**
  * Send payment notifications to all users with paymentNotifications enabled
  */
@@ -115,7 +133,7 @@ export async function sendPaymentNotifications(
       console.log('[Payment Notifications] Attachments:', attachments.map(a => a.file_name).join(', '));
     }
 
-    const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const APP_URL = getNotificationAppUrl();
     console.log('[Payment Notifications] App URL:', APP_URL);
   console.log('[Payment Notifications] Attachment Count:', attachments.length);
 
