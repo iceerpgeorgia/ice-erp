@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma, withRetry } from '@/lib/prisma';
-import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
+import { getInsiderOptions, resolveInsiderSelection } from '@/lib/insider-selection';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 // GET all jobs with project info from job_projects junction table
@@ -8,11 +8,14 @@ export async function GET(req: NextRequest) {
   try {
     const selection = await resolveInsiderSelection(req);
     const insider = selection.primaryInsider;
-    const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
     const { searchParams } = new URL(req.url);
     const projectUuid = searchParams.get('projectUuid');
 
-    // If projectUuid provided, return jobs linked to that project via job_projects
+    // If projectUuid provided, return jobs linked to that project via job_projects.
+    // Insider filter is intentionally NOT applied here — the project itself is the
+    // scoping context, and the Add-Ledger dropdown must show every job that has
+    // been bound to the selected project regardless of which insider(s) are
+    // currently active in the user's cookie selection.
     if (projectUuid) {
       console.log('[GET /api/jobs] Fetching jobs for project:', projectUuid);
       const jobs = await withRetry(() => prisma.$queryRawUnsafe(`
@@ -24,6 +27,7 @@ export async function GET(req: NextRequest) {
           j.is_ff,
           j.factory_no,
           j.brand_uuid,
+          j.insider_uuid,
           b.name as brand_name,
           CONCAT(
             j.job_name,
@@ -39,7 +43,6 @@ export async function GET(req: NextRequest) {
         INNER JOIN job_projects jp ON jp.job_uuid = j.job_uuid
         LEFT JOIN brands b ON j.brand_uuid = b.uuid
         WHERE jp.project_uuid = $1::uuid
-          AND j.insider_uuid IN (${insiderUuidListSql})
           AND j.is_active = true
         ORDER BY j.job_name ASC
       `, projectUuid));
@@ -101,8 +104,7 @@ export async function GET(req: NextRequest) {
       INNER JOIN job_projects jp ON jp.job_uuid = j.job_uuid
       LEFT JOIN projects p ON jp.project_uuid = p.project_uuid
       LEFT JOIN brands b ON j.brand_uuid = b.uuid
-      WHERE j.insider_uuid IN (${insiderUuidListSql})
-        AND j.is_active = true
+      WHERE j.is_active = true
       ORDER BY j.created_at DESC, p.project_index ASC
     `));
 
