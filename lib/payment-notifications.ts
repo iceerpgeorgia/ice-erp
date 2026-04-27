@@ -1,3 +1,4 @@
+import { getAttachmentDownloadUrl } from '@/lib/attachments';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 
@@ -11,6 +12,13 @@ interface NotificationResult {
   notifiedUsers: string[];
   errors: string[];
 }
+
+type EmailAttachmentLink = {
+  fileName: string;
+  documentTypeName: string | null;
+  fileSizeBytes: number | null;
+  directUrl: string | null;
+};
 
 /**
  * Generate a secure token for payment attachment access
@@ -35,6 +43,14 @@ function getNotificationAppUrl(): string {
     normalizeBaseUrl(process.env.NEXT_PUBLIC_APP_URL) ||
     'http://localhost:3000'
   );
+}
+
+function formatAttachmentSize(fileSizeBytes: number | null): string {
+  if (!fileSizeBytes) {
+    return '';
+  }
+
+  return `${(Number(fileSizeBytes) / 1024).toFixed(1)} KB`;
 }
 
 /**
@@ -120,6 +136,8 @@ export async function sendPaymentNotifications(
         file_name: true,
         mime_type: true,
         file_size_bytes: true,
+        storage_bucket: true,
+        storage_path: true,
         document_type: {
           select: {
             name: true,
@@ -136,6 +154,38 @@ export async function sendPaymentNotifications(
     const APP_URL = getNotificationAppUrl();
     console.log('[Payment Notifications] App URL:', APP_URL);
   console.log('[Payment Notifications] Attachment Count:', attachments.length);
+
+    const emailAttachmentLinks: EmailAttachmentLink[] = await Promise.all(
+      attachments.map(async (attachment) => {
+        try {
+          const directUrl = await getAttachmentDownloadUrl(
+            attachment.storage_bucket || 'payment-attachments',
+            attachment.storage_path,
+            60 * 60 * 24 * 30,
+          );
+
+          return {
+            fileName: attachment.file_name,
+            documentTypeName: attachment.document_type?.name || null,
+            fileSizeBytes: attachment.file_size_bytes ? Number(attachment.file_size_bytes) : null,
+            directUrl,
+          };
+        } catch (error) {
+          console.error(
+            '[Payment Notifications] Failed to create signed URL for attachment:',
+            attachment.file_name,
+            error,
+          );
+
+          return {
+            fileName: attachment.file_name,
+            documentTypeName: attachment.document_type?.name || null,
+            fileSizeBytes: attachment.file_size_bytes ? Number(attachment.file_size_bytes) : null,
+            directUrl: null,
+          };
+        }
+      })
+    );
 
     console.log('[Payment Notifications] Starting to send emails to', users.length, 'users...');
     
@@ -187,11 +237,14 @@ Payment ID: ${payment.paymentId}
 ${paymentLabel ? `Label: ${paymentLabel}` : ''}
 Attachments: ${attachments.length}
 
-${attachments.length > 0 ? 'Attachment List:\n' + attachments.map((att, idx) => 
-  `${idx + 1}. ${att.file_name} (${att.document_type?.name || 'No type'})${att.file_size_bytes ? ` - ${(Number(att.file_size_bytes) / 1024).toFixed(1)} KB` : ''}`
-).join('\n') : 'No attachments available.'}
+${emailAttachmentLinks.length > 0 ? 'Attachment List:\n' + emailAttachmentLinks.map((att, idx) => {
+  const sizeText = formatAttachmentSize(att.fileSizeBytes);
+  const metadata = [att.documentTypeName || 'No type', sizeText].filter(Boolean).join(' - ');
+  const linkText = att.directUrl ? `\n   Open: ${att.directUrl}` : `\n   Open all attachments: ${publicLink}`;
+  return `${idx + 1}. ${att.fileName}${metadata ? ` (${metadata})` : ''}${linkText}`;
+}).join('\n') : 'No attachments available.'}
 
-View and download attachments:
+View all attachments:
 ${publicLink}
 
 This link is valid for 30 days and allows you to access payment attachments without logging in.
@@ -234,17 +287,22 @@ This is an automated notification from the Payment System.
       ${attachments.length > 0 ? `
         <div class="attachments">
           <h3 style="margin-top: 0;">Attachment List:</h3>
-          ${attachments.map((att, idx) => `
+          ${emailAttachmentLinks.map((att, idx) => {
+            const sizeText = formatAttachmentSize(att.fileSizeBytes);
+            const metadata = [att.documentTypeName, sizeText].filter(Boolean).join(' - ');
+
+            return `
             <div class="attachment-item">
-              <strong>${idx + 1}.</strong> ${att.file_name}
-              ${att.document_type?.name ? ` <span style="color: #6b7280;">(${att.document_type.name})</span>` : ''}
-              ${att.file_size_bytes ? ` <span style="color: #6b7280;">- ${(Number(att.file_size_bytes) / 1024).toFixed(1)} KB</span>` : ''}
+              <strong>${idx + 1}.</strong>
+              ${att.directUrl ? `<a href="${att.directUrl}" style="color: #2563eb; text-decoration: underline;">${att.fileName}</a>` : att.fileName}
+              ${metadata ? ` <span style="color: #6b7280;">(${metadata})</span>` : ''}
             </div>
-          `).join('')}
+          `;
+          }).join('')}
         </div>
       ` : '<p style="color: #6b7280;"><em>No attachments available.</em></p>'}
       
-      <a href="${publicLink}" class="button">View & Download Attachments</a>
+      <a href="${publicLink}" class="button">View All Attachments</a>
       
       <p style="font-size: 12px; color: #6b7280;">
         This link is valid for 30 days and allows you to access payment attachments without logging in.
