@@ -2044,12 +2044,6 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                           <span className="text-sm">
                             {project.employees && project.employees.length > 0 
                               ? project.employees.map(e => e.employeeName).join(', ')
-                      <ProjectAttachments
-                        projectUuid={project.projectUuid}
-                        projectName={project.projectName}
-                        className="!gap-0"
-                        triggerTitle="Project attachments"
-                      />
                               : '-'}
                           </span>
                         ) : (
@@ -2060,6 +2054,12 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                   ))}
                   <TableCell className="w-40">
                     <div className="flex items-center space-x-1">
+                      <ProjectAttachments
+                        projectUuid={project.projectUuid}
+                        projectName={project.projectName}
+                        className="!gap-0"
+                        triggerTitle="Project attachments"
+                      />
                       <Button
                         size="sm"
                         variant="outline"
