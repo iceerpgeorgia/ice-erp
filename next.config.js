@@ -1,12 +1,4 @@
 // next.config.js
-const fs = require('fs');
-const path = require('path');
-
-const deployLogPath = path.join(__dirname, '_deploy-log');
-if (!fs.existsSync(deployLogPath)) {
-  fs.mkdirSync(deployLogPath, { recursive: true });
-}
-
 /** @type {import('next').NextConfig} */
 const nextConfig = { 
   reactStrictMode: true,
@@ -14,7 +6,7 @@ const nextConfig = {
   webpack: (config, { isServer }) => {
     config.watchOptions = {
       ...config.watchOptions,
-      ignored: ['**/Payments Report Figma/**', '**/node_modules/**', '**/_deploy-log/**'],
+      ignored: ['**/Payments Report Figma/**', '**/node_modules/**'],
     };
     return config;
   },
