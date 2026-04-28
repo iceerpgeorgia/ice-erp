@@ -37,6 +37,7 @@ import {
 import { Combobox } from '@/components/ui/combobox';
 import { MultiCombobox } from '@/components/ui/multi-combobox';
 import { BundleDistributionGrid, type BundleDistributionRow } from './bundle-distribution-grid';
+import { ProjectAttachments } from './project-attachments';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { useTableFilters } from './shared/use-table-filters';
@@ -2043,6 +2044,12 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
                           <span className="text-sm">
                             {project.employees && project.employees.length > 0 
                               ? project.employees.map(e => e.employeeName).join(', ')
+                      <ProjectAttachments
+                        projectUuid={project.projectUuid}
+                        projectName={project.projectName}
+                        className="!gap-0"
+                        triggerTitle="Project attachments"
+                      />
                               : '-'}
                           </span>
                         ) : (
