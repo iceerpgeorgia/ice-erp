@@ -1,5 +1,5 @@
 # Exclude local/untracked artifacts from deploy
-_deploy-log/
+_deploy-log/**
 BatchTransfers_Extended2.xlsx
 File_description_EN.docx
 File_description_EN.mht
