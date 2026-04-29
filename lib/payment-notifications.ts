@@ -151,6 +151,11 @@ export async function sendPaymentNotifications(
       console.log('[Payment Notifications] Attachments:', attachments.map(a => a.file_name).join(', '));
     }
 
+    if (attachments.length === 0) {
+      console.log('[Payment Notifications] No attachments - skipping email notification');
+      return result;
+    }
+
     const APP_URL = getNotificationAppUrl();
     console.log('[Payment Notifications] App URL:', APP_URL);
   console.log('[Payment Notifications] Attachment Count:', attachments.length);

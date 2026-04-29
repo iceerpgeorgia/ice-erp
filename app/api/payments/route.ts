@@ -286,7 +286,11 @@ export async function POST(request: NextRequest) {
           },
           is_active: true,
         },
-      }).then(async () => {
+      }).then(async (count) => {
+        if (count === 0) {
+          console.log('[Payment Notifications] No attachments found - skipping notification');
+          return;
+        }
         const notificationResult = await sendPaymentNotifications({
           paymentId: paymentIdForNotification,
           label: (payment as any).label,
