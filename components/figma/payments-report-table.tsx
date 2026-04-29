@@ -147,6 +147,31 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'latestDate', label: 'Latest Date', visible: true, sortable: true, filterable: true, format: 'date', width: 120 },
 ];
 
+const allConditions = [
+  'ALL',
+  'Confirmed',
+  'Confirmed & Due>0',
+  'Unconfirmed & Due>0',
+  'Accrual>0',
+  'Accrual<0',
+  'Accrual=0',
+  'Order>0',
+  'Order<0',
+  'Order=0',
+  'Paid>0',
+  'Paid<0',
+  'Paid=0',
+  'Due>0',
+  'Due<0',
+  'Due=0',
+  'Balance>0',
+  'Balance<0',
+  'Balance=0',
+  'Current Due>0',
+  'Current Due<0',
+  'Current Due=0',
+] as const;
+
 export function PaymentsReportTable() {
   const filtersStorageKey = 'paymentsReportFiltersV2';
   const [data, setData] = useState<PaymentReport[]>([]);
@@ -248,31 +273,7 @@ export function PaymentsReportTable() {
     }
   }, []);
 
-  // Conditions filter state
-  const allConditions = [
-    'ALL',
-    'Confirmed',
-    'Confirmed & Due>0',
-    'Unconfirmed & Due>0',
-    'Accrual>0',
-    'Accrual<0',
-    'Accrual=0',
-    'Order>0',
-    'Order<0',
-    'Order=0',
-    'Paid>0',
-    'Paid<0',
-    'Paid=0',
-    'Due>0',
-    'Due<0',
-    'Due=0',
-    'Balance>0',
-    'Balance<0',
-    'Balance=0',
-    'Current Due>0',
-    'Current Due<0',
-    'Current Due=0'
-  ] as const;
+  // Conditions filter state (allConditions is module-level constant)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const sanitizeConditions = useCallback((values: string[]) => {
     const allowed = values.filter((value) => allConditions.includes(value as (typeof allConditions)[number]));
