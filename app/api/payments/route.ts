@@ -273,14 +273,15 @@ export async function POST(request: NextRequest) {
 
     // Send payment notifications asynchronously (don't await to not block response)
     const paymentIdForNotification = (payment as any).payment_id;
+    const recordUuidForNotification = (payment as any).record_uuid;
     if (paymentIdForNotification) {
-      // Count attachments for this payment
+      // Count attachments for this payment using record_uuid (owner_uuid is a UUID column, not payment_id)
       prisma.attachments.count({
         where: {
           links: {
             some: {
               owner_table: 'payments',
-              owner_uuid: paymentIdForNotification,
+              owner_uuid: recordUuidForNotification,
             },
           },
           is_active: true,
