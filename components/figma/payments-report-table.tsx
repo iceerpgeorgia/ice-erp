@@ -241,12 +241,12 @@ export function PaymentsReportTable() {
 
 
   // BroadcastChannel for cross-tab updates
-  const [broadcastChannel] = useState(() => {
+  const [broadcastChannel, setBroadcastChannel] = useState<BroadcastChannel | null>(null);
+  useEffect(() => {
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-      return new BroadcastChannel('payments-ledger-updates');
+      setBroadcastChannel(new BroadcastChannel('payments-ledger-updates'));
     }
-    return null;
-  });
+  }, []);
 
   // Conditions filter state
   const allConditions = [
@@ -443,13 +443,11 @@ export function PaymentsReportTable() {
         if (Array.isArray(parsed)) {
           setSelectedConditions(sanitizeConditions(parsed));
         }
-      } catch {
-        // ignore
-      }
+      } catch { /* ignore */ }
     }
 
     setIsInitialized(true);
-  }, []);
+  }, [sanitizeConditions]);
 
   // Fetch insider selection on mount — gate data fetch until this completes
   useEffect(() => {
@@ -1129,21 +1127,14 @@ export function PaymentsReportTable() {
 
     const fetchAttachmentCounts = async () => {
       try {
-        const BATCH_SIZE = 200;
-        const allCounts: Record<string, number> = {};
-        for (let i = 0; i < paymentIds.length; i += BATCH_SIZE) {
-          if (cancelled) return;
-          const batch = paymentIds.slice(i, i + BATCH_SIZE);
-          const response = await fetch(
-            `/api/payments/attachments?paymentIds=${encodeURIComponent(batch.join(','))}&countsOnly=1`,
-            { cache: 'no-store' },
-          );
-          if (!response.ok) throw new Error('Failed to fetch payment attachment counts');
-          const result = await response.json();
-          Object.assign(allCounts, result.counts || {});
-        }
+        const response = await fetch(
+          `/api/payments/attachments?paymentIds=${encodeURIComponent(paymentIds.join(','))}&countsOnly=1`,
+          { cache: 'no-store' },
+        );
+        if (!response.ok) throw new Error('Failed to fetch payment attachment counts');
+        const result = await response.json();
         if (!cancelled) {
-          setAttachmentCounts(allCounts);
+          setAttachmentCounts(result.counts || {});
         }
       } catch (error) {
         console.error('Error fetching payment attachment counts:', error);
@@ -3903,7 +3894,7 @@ export function PaymentsReportTable() {
                       )}
                       {!isBundleAgg && (
                       <>
-                      <PaymentAttachments paymentId={row.paymentId} initialCount={attachmentCounts[row.paymentId] ?? 0} />
+                      <PaymentAttachments paymentId={row.paymentId} initialCount={attachmentCounts[row.paymentId] ?? 0} projectUuid={row.projectUuid} projectName={row.projectName || row.project || undefined} />
                       <button
                         onClick={() => handleOpenBaseInfo(row.paymentId)}
                         className="inline-block text-gray-600 hover:text-gray-800 hover:bg-gray-50 p-1 rounded transition-colors"
