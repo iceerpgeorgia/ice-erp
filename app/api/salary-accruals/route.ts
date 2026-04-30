@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 import { getSourceTables } from '@/lib/source-tables';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
+import { PAYMENT_OPTIONS_TAG } from '@/lib/cache-tags';
 
 export const revalidate = 0;
 
@@ -697,6 +699,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    revalidateTag(PAYMENT_OPTIONS_TAG);
     return NextResponse.json({
       ...accrual,
       id: accrual.id.toString(),
@@ -788,6 +791,7 @@ export async function PUT(request: NextRequest) {
       await remapPaymentIdBindings(oldPaymentId, payment_id, sourceTables);
     }
 
+    revalidateTag(PAYMENT_OPTIONS_TAG);
     return NextResponse.json({
       ...accrual,
       id: accrual.id.toString(),
@@ -817,6 +821,7 @@ export async function DELETE(request: NextRequest) {
       where: { id: BigInt(id) },
     });
 
+    revalidateTag(PAYMENT_OPTIONS_TAG);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error deleting salary accrual:', error);

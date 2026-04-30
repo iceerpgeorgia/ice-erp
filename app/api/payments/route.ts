@@ -1,9 +1,11 @@
 import { NextResponse, NextRequest } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { prisma, withRetry } from '@/lib/prisma';
 import { reparseByPaymentId } from '@/lib/bank-import/reparse';
 import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 import { sendPaymentNotifications } from '@/lib/payment-notifications';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
+import { PAYMENT_OPTIONS_TAG } from '@/lib/cache-tags';
 
 export const revalidate = 0;
 
@@ -302,6 +304,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    revalidateTag(PAYMENT_OPTIONS_TAG);
     return NextResponse.json({ success: true, data: serializedPayment });
   } catch (error: any) {
     console.error('Error creating payment:', error);
@@ -585,6 +588,7 @@ export async function PATCH(request: NextRequest) {
       await reparseByPaymentId(paymentIdToReparse);
     }
 
+    revalidateTag(PAYMENT_OPTIONS_TAG);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error updating payment:', error);

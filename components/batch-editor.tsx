@@ -239,7 +239,7 @@ export function BatchEditor({
     try {
       const [paymentsRes, salaryRes] = await Promise.all([
         fetch('/api/payments'),
-        fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36'),
+        fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12'),
       ]);
       const paymentsData = await paymentsRes.json();
       const normalized: Payment[] = Array.isArray(paymentsData)

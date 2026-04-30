@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 import { prisma, withRetry } from '@/lib/prisma';
+import { PAYMENT_OPTIONS_TAG } from '@/lib/cache-tags';
 
 export const dynamic = 'force-dynamic';
-
-// In-process memoization. Vercel reuses warm Lambdas, so concurrent users on the
-// same instance share a single DB pass for the heavy salary projection.
-const CACHE_TTL_MS = 60_000;
-const responseCache = new Map<string, { expiresAt: number; payload: PaymentOption[] }>();
-const inflight = new Map<string, Promise<PaymentOption[]>>();
 
 type PaymentOption = {
   paymentId: string;
@@ -39,43 +35,32 @@ const updatePaymentIdForMonth = (paymentId: string, date: Date) => {
   return paymentId;
 };
 
+// Persistent, tag-invalidatable cache. Shared across all Lambda instances on a
+// single Vercel deployment. Refreshed on demand when payments / salary_accruals
+// change (see revalidateTag(PAYMENT_OPTIONS_TAG) calls in mutation routes).
+const getCachedPaymentOptions = unstable_cache(
+  async (includeSalary: boolean, projectionMonths: number) =>
+    buildPaymentOptions(includeSalary, projectionMonths),
+  ['payment-id-options-v1'],
+  { tags: [PAYMENT_OPTIONS_TAG], revalidate: 300 },
+);
+
 export async function GET(request: NextRequest) {
+  const t0 = Date.now();
   try {
     const { searchParams } = new URL(request.url);
     const includeSalary = searchParams.get('includeSalary') !== 'false';
-    const projectionMonths = Math.max(0, parseInt(searchParams.get('projectionMonths') || '36', 10) || 36);
+    // Lower default from 36 to 12 months. Callers that genuinely need a wider
+    // window can still pass ?projectionMonths=36 explicitly.
+    const projectionMonths = Math.max(0, parseInt(searchParams.get('projectionMonths') || '12', 10) || 12);
 
-    const cacheKey = `${includeSalary ? 1 : 0}:${projectionMonths}`;
-    const now = Date.now();
-    const cached = responseCache.get(cacheKey);
-    if (cached && cached.expiresAt > now) {
-      return NextResponse.json(cached.payload, {
-        headers: {
-          'Cache-Control': 'private, max-age=60, stale-while-revalidate=300',
-          'X-Cache': 'HIT',
-        },
-      });
-    }
-
-    // Coalesce concurrent requests so they share the same DB work.
-    let pending = inflight.get(cacheKey);
-    if (!pending) {
-      pending = buildPaymentOptions(includeSalary, projectionMonths)
-        .then((payload) => {
-          responseCache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, payload });
-          return payload;
-        })
-        .finally(() => {
-          inflight.delete(cacheKey);
-        });
-      inflight.set(cacheKey, pending);
-    }
-    const result = await pending;
+    const result = await getCachedPaymentOptions(includeSalary, projectionMonths);
+    const dur = Date.now() - t0;
 
     return NextResponse.json(result, {
       headers: {
         'Cache-Control': 'private, max-age=60, stale-while-revalidate=300',
-        'X-Cache': 'MISS',
+        'Server-Timing': `total;dur=${dur}, rows;desc="${result.length}"`,
       },
     });
   } catch (error) {

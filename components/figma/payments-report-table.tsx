@@ -699,7 +699,7 @@ export function PaymentsReportTable() {
 
   const fetchPayments = async () => {
     try {
-      const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
+      const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12');
       if (!response.ok) throw new Error('Failed to fetch payments');
       const data = await response.json();
       if (!Array.isArray(data)) {

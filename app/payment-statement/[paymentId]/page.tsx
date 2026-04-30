@@ -2,6 +2,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import { Edit2, Plus, X, Eye, Info } from 'lucide-react';
 import { ColumnFilterPopover } from '@/components/figma/shared/column-filter-popover';
@@ -13,8 +14,20 @@ import { Combobox } from '@/components/ui/combobox';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { BankTransactionsTable } from '@/components/figma/bank-transactions-table';
 import * as XLSX from 'xlsx';
+
+// Lazy-load the heavy (~150 KB) bank transactions table; only fetched when this page mounts.
+const BankTransactionsTable = dynamic(
+  () => import('@/components/figma/bank-transactions-table').then((m) => m.BankTransactionsTable),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center p-12">
+        <p className="text-muted-foreground">Loading transactions...</p>
+      </div>
+    ),
+  },
+);
 
 const formatDate = (date: string | Date): string => {
   const d = new Date(date);

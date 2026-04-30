@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
 import { 
   Search, 
   ArrowUpDown, 
@@ -426,6 +426,12 @@ export function BankTransactionsTable({
   const [jobSearch, setJobSearch] = useState('');
   const [financialCodeSearch, setFinancialCodeSearch] = useState('');
   const [currencySearch, setCurrencySearch] = useState('');
+  // Deferred copies keep input typing snappy when filtering large option lists (payments can exceed 30k rows).
+  const deferredPaymentSearch = useDeferredValue(paymentSearch);
+  const deferredProjectSearch = useDeferredValue(projectSearch);
+  const deferredJobSearch = useDeferredValue(jobSearch);
+  const deferredFinancialCodeSearch = useDeferredValue(financialCodeSearch);
+  const deferredCurrencySearch = useDeferredValue(currencySearch);
   const [exchangeRates, setExchangeRates] = useState<any>(null); // Store exchange rates for transaction date
   const [exchangeRateDate, setExchangeRateDate] = useState<string>('');
   const [formData, setFormData] = useState<{
@@ -615,7 +621,7 @@ export function BankTransactionsTable({
     const prefetch = async () => {
       try {
         const [paymentsRes, projectsRes, codesRes, currenciesRes] = await Promise.all([
-          fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36'),
+          fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12'),
           fetch('/api/projects'),
           fetch('/api/financial-codes'),
           fetch('/api/currencies'),
@@ -1103,7 +1109,7 @@ export function BankTransactionsTable({
       const [ratesRaw, paymentsRaw, projectsRaw, codesRaw, currenciesRaw, jobsRaw] = await Promise.all([
         fetch(`/api/exchange-rates?date=${effectiveDate}`).then(r => r.ok ? r.json() : null).catch(() => null),
         needsPayments
-          ? fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36').then(r => r.ok ? r.json() : null).catch(() => null)
+          ? fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12').then(r => r.ok ? r.json() : null).catch(() => null)
           : Promise.resolve(null),
         needsProjects ? fetch('/api/projects').then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
         needsCodes ? fetch('/api/financial-codes').then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
@@ -2628,8 +2634,8 @@ export function BankTransactionsTable({
                         {paymentOptions
                           .filter((payment) => {
                             if (onlyDue && duePaymentIds.size > 0 && !duePaymentIds.has(payment.paymentId)) return false;
-                            if (!paymentSearch) return true;
-                            const searchLower = paymentSearch.toLowerCase();
+                            if (!deferredPaymentSearch) return true;
+                            const searchLower = deferredPaymentSearch.toLowerCase();
                             return (
                               payment.paymentId?.toLowerCase().includes(searchLower) ||
                               payment.counteragentName?.toLowerCase().includes(searchLower) ||
@@ -2834,8 +2840,8 @@ export function BankTransactionsTable({
                           <SelectItem value="__none__">-- No Project --</SelectItem>
                           {projectOptions
                             .filter((project) => {
-                              if (!projectSearch) return true;
-                              const searchLower = projectSearch.toLowerCase();
+                              if (!deferredProjectSearch) return true;
+                              const searchLower = deferredProjectSearch.toLowerCase();
                               return (
                                 project.projectIndex?.toLowerCase().includes(searchLower) ||
                                 project.projectName?.toLowerCase().includes(searchLower)
@@ -2876,8 +2882,8 @@ export function BankTransactionsTable({
                           <SelectItem value="__none__">-- No Job --</SelectItem>
                           {jobOptions
                             .filter((job) => {
-                              if (!jobSearch) return true;
-                              const searchLower = jobSearch.toLowerCase();
+                              if (!deferredJobSearch) return true;
+                              const searchLower = deferredJobSearch.toLowerCase();
                               const displayText = job.jobDisplay || job.jobName || '';
                               return displayText.toLowerCase().includes(searchLower);
                             })
@@ -2915,8 +2921,8 @@ export function BankTransactionsTable({
                           <SelectItem value="__none__">-- No Code --</SelectItem>
                           {financialCodeOptions
                             .filter((code) => {
-                              if (!financialCodeSearch) return true;
-                              return code.validation?.toLowerCase().includes(financialCodeSearch.toLowerCase());
+                              if (!deferredFinancialCodeSearch) return true;
+                              return code.validation?.toLowerCase().includes(deferredFinancialCodeSearch.toLowerCase());
                             })
                             .map((code) => (
                               <SelectItem key={code.uuid} value={code.uuid}>
@@ -2953,8 +2959,8 @@ export function BankTransactionsTable({
                             <SelectItem value="__none__">-- No Currency --</SelectItem>
                             {currencyOptions
                               .filter((currency) => {
-                                if (!currencySearch) return true;
-                                const searchLower = currencySearch.toLowerCase();
+                                if (!deferredCurrencySearch) return true;
+                                const searchLower = deferredCurrencySearch.toLowerCase();
                                 return (
                                   currency.code?.toLowerCase().includes(searchLower) ||
                                   currency.name?.toLowerCase().includes(searchLower)
