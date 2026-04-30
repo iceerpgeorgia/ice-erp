@@ -376,13 +376,16 @@ export async function POST(req: NextRequest) {
         const hasDistribution = distributedAmount > 0 || (distRow.percentage && parseFloat(distRow.percentage) > 0);
         if (!hasDistribution) continue;
 
-        // Find the bundle payment for this child FC (regardless of is_project_derived flag)
-        const bundlePayments = await prisma.$queryRawUnsafe<Array<{ id: bigint; payment_id: string }>>(
-          `SELECT id, payment_id
+        // Find existing payment for this child FC. We match ANY payment with the
+        // same (project, FC) — not just is_bundle_payment=true rows — so that
+        // payments created before the bundle flag was set are reused instead
+        // of duplicated. Prefer is_bundle_payment=true when both exist.
+        const bundlePayments = await prisma.$queryRawUnsafe<Array<{ id: bigint; payment_id: string; is_bundle_payment: boolean }>>(
+          `SELECT id, payment_id, COALESCE(is_bundle_payment, false) AS is_bundle_payment
            FROM payments
            WHERE project_uuid = $1::uuid 
-             AND is_bundle_payment = true
              AND financial_code_uuid = $2::uuid
+           ORDER BY is_bundle_payment DESC NULLS LAST, updated_at DESC NULLS LAST
            LIMIT 1`,
           project.project_uuid,
           distRow.financialCodeUuid
@@ -392,7 +395,7 @@ export async function POST(req: NextRequest) {
         let oldPaymentId = '';
 
         if (bundlePayments.length > 0) {
-          // Payment exists - update it
+          // Payment exists - update it (and ensure it's flagged as a bundle payment)
           const newPaymentId = distRow.paymentId || '';
           oldPaymentId = bundlePayments[0].payment_id || '';
           paymentIdToUse = oldPaymentId;
@@ -402,6 +405,7 @@ export async function POST(req: NextRequest) {
               `UPDATE payments 
                SET payment_id = $1, 
                    record_uuid = $2,
+                   is_bundle_payment = true,
                    updated_at = NOW() 
                WHERE id = $3`,
               newPaymentId,
@@ -412,6 +416,12 @@ export async function POST(req: NextRequest) {
 
             // Reparse bank transactions if payment_id was set
             await reparseByPaymentId(newPaymentId);
+          } else if (!bundlePayments[0].is_bundle_payment) {
+            // Existing payment found but not marked as bundle child — flag it now
+            await prisma.$queryRawUnsafe(
+              `UPDATE payments SET is_bundle_payment = true, updated_at = NOW() WHERE id = $1`,
+              bundlePayments[0].id
+            );
           }
         } else {
           // Payment doesn't exist - create it
@@ -707,13 +717,16 @@ export async function PATCH(req: NextRequest) {
         const hasDistribution = distributedAmount > 0 || (distRow.percentage && parseFloat(distRow.percentage) > 0);
         if (!hasDistribution) continue;
 
-        // Find the bundle payment for this child FC (regardless of is_project_derived flag)
-        const bundlePayments = await prisma.$queryRawUnsafe<Array<{ id: bigint; payment_id: string }>>(
-          `SELECT id, payment_id
+        // Find existing payment for this child FC. We match ANY payment with the
+        // same (project, FC) — not just is_bundle_payment=true rows — so that
+        // payments created before the bundle flag was set are reused instead
+        // of duplicated. Prefer is_bundle_payment=true when both exist.
+        const bundlePayments = await prisma.$queryRawUnsafe<Array<{ id: bigint; payment_id: string; is_bundle_payment: boolean }>>(
+          `SELECT id, payment_id, COALESCE(is_bundle_payment, false) AS is_bundle_payment
            FROM payments
            WHERE project_uuid = $1::uuid 
-             AND is_bundle_payment = true
              AND financial_code_uuid = $2::uuid
+           ORDER BY is_bundle_payment DESC NULLS LAST, updated_at DESC NULLS LAST
            LIMIT 1`,
           project.project_uuid,
           distRow.financialCodeUuid
@@ -722,7 +735,7 @@ export async function PATCH(req: NextRequest) {
         let paymentIdToUse = '';
 
         if (bundlePayments.length > 0) {
-          // Payment exists - update it
+          // Payment exists - update it (and ensure it's flagged as a bundle payment)
           const bundlePayment = bundlePayments[0];
           const newPaymentId = distRow.paymentId || '';
           const oldPaymentId = bundlePayment.payment_id || '';
@@ -734,6 +747,7 @@ export async function PATCH(req: NextRequest) {
               `UPDATE payments 
                SET payment_id = $1, 
                    record_uuid = $2,
+                   is_bundle_payment = true,
                    updated_at = NOW() 
                WHERE id = $3`,
               newPaymentId,
@@ -746,6 +760,12 @@ export async function PATCH(req: NextRequest) {
             if (newPaymentId) {
               await reparseByPaymentId(newPaymentId);
             }
+          } else if (!bundlePayment.is_bundle_payment) {
+            // Existing payment found but not marked as bundle child — flag it now
+            await prisma.$queryRawUnsafe(
+              `UPDATE payments SET is_bundle_payment = true, updated_at = NOW() WHERE id = $1`,
+              bundlePayment.id
+            );
           }
 
           // Create/update payments_ledger entry

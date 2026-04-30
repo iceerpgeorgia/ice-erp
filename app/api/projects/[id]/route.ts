@@ -158,14 +158,24 @@ export async function PUT(
           proj.financial_code_uuid
         );
         for (const childFC of childFCs) {
-          const existingBundle = await prisma.$queryRawUnsafe<Array<{ id: bigint; counteragent_uuid: string; currency_uuid: string }>>(
-            `SELECT id, counteragent_uuid, currency_uuid FROM payments WHERE project_uuid = $1::uuid AND is_bundle_payment = true AND financial_code_uuid = $2::uuid LIMIT 1`,
+          // Match ANY existing payment for (project, child FC), not just is_bundle_payment=true,
+          // so payments created before the bundle flag are reused (and re-flagged) instead of duplicated.
+          const existingBundle = await prisma.$queryRawUnsafe<Array<{ id: bigint; counteragent_uuid: string; currency_uuid: string; is_bundle_payment: boolean }>>(
+            `SELECT id, counteragent_uuid::text, currency_uuid::text, COALESCE(is_bundle_payment, false) AS is_bundle_payment
+             FROM payments
+             WHERE project_uuid = $1::uuid AND financial_code_uuid = $2::uuid
+             ORDER BY is_bundle_payment DESC NULLS LAST, updated_at DESC NULLS LAST
+             LIMIT 1`,
             proj.project_uuid, childFC.uuid
           );
           if (existingBundle.length > 0) {
             const bp = existingBundle[0];
-            if (bp.counteragent_uuid !== proj.counteragent_uuid || bp.currency_uuid !== proj.currency_uuid) {
-              await prisma.$queryRawUnsafe(`UPDATE payments SET counteragent_uuid = $1::uuid, currency_uuid = $2::uuid, updated_at = NOW() WHERE id = $3`, proj.counteragent_uuid, proj.currency_uuid, bp.id);
+            const needsContactUpdate = bp.counteragent_uuid !== proj.counteragent_uuid || bp.currency_uuid !== proj.currency_uuid;
+            if (needsContactUpdate || !bp.is_bundle_payment) {
+              await prisma.$queryRawUnsafe(
+                `UPDATE payments SET counteragent_uuid = $1::uuid, currency_uuid = $2::uuid, is_bundle_payment = true, updated_at = NOW() WHERE id = $3`,
+                proj.counteragent_uuid, proj.currency_uuid, bp.id
+              );
             }
           } else {
             try {

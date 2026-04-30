@@ -25,7 +25,11 @@ export async function GET(req: NextRequest) {
 
   const project = projects[0];
 
-  // Get child FCs with their existing payment info and ledger aggregates
+  // Get child FCs with their existing payment info and ledger aggregates.
+  // The LEFT JOIN matches ANY existing payment for the same (project, child FC) pair —
+  // not just rows already flagged is_bundle_payment=true — so payments that were
+  // created before the bundle flag (or via other flows) are still surfaced here.
+  // We prefer is_bundle_payment=true rows when both exist.
   const rows = await prisma.$queryRawUnsafe<Array<{
     financial_code_uuid: string;
     financial_code_name: string;
@@ -48,10 +52,14 @@ export async function GET(req: NextRequest) {
         WHERE payment_id = p.payment_id
           AND (is_deleted = false OR is_deleted IS NULL)) AS latest_date
      FROM financial_codes fc
-     LEFT JOIN payments p
-       ON p.project_uuid = $1::uuid
-       AND p.financial_code_uuid = fc.uuid
-       AND p.is_bundle_payment = true
+     LEFT JOIN LATERAL (
+       SELECT payment_id
+       FROM payments
+       WHERE project_uuid = $1::uuid
+         AND financial_code_uuid = fc.uuid
+       ORDER BY is_bundle_payment DESC NULLS LAST, updated_at DESC NULLS LAST
+       LIMIT 1
+     ) p ON TRUE
      WHERE fc.parent_uuid = $2::uuid AND fc.is_active = true
      ORDER BY fc.sort_order, fc.code`,
     projectUuid,
