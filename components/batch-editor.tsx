@@ -146,16 +146,15 @@ export function BatchEditor({
   const filteredPayments = (() => {
     if (!counteragentUuid) return payments;
 
-    // Regular (non-salary) payments: always filter by counteragent
+    // When a counteragent is known, show ONLY payments for that counteragent.
+    // Salary entries that belong to this counteragent are included naturally;
+    // salary entries for other employees are excluded.
     const counteragentPayments = payments.filter(
-      (p) => !p.recordUuid.startsWith('salary__') && p.counteragentUuid === counteragentUuid
+      (p) => p.counteragentUuid === counteragentUuid ||
+             (p.recordUuid.startsWith('salary__') && p.counteragentUuid === counteragentUuid)
     );
 
-    // Salary accruals + projections (next 36 months): always show all — payroll transactions
-    // typically cover multiple employees and need the full salary ID list for batch splitting.
-    const salaryPayments = payments.filter((p) => p.recordUuid.startsWith('salary__'));
-
-    let result = [...counteragentPayments, ...salaryPayments];
+    let result = counteragentPayments;
     if (onlyDue && duePaymentIds && duePaymentIds.size > 0) {
       result = result.filter((payment) => duePaymentIds.has(payment.paymentId));
     }

@@ -474,25 +474,32 @@ export function BankTransactionsTable({
   const [calculatedExchangeRate, setCalculatedExchangeRate] = useState<string>('');
 
   const updatePaymentOptions = (transaction: BankTransaction, paymentsList: any[]) => {
-    // Filter payments by counteragent if one exists, with casing/name fallback.
+    // If transaction has a counteragent, show only payments for that counteragent.
+    // Fall back to all payments only when no counteragent is assigned at all.
     let payments = paymentsList;
     const counteragentUuid = transaction.counteragentUuid?.toLowerCase() || '';
     const counteragentName = transaction.counteragentName?.toLowerCase() || '';
 
     if (counteragentUuid) {
-      payments = paymentsList.filter((p: any) =>
+      const byUuid = paymentsList.filter((p: any) =>
         String(p.counteragentUuid || '').toLowerCase() === counteragentUuid
       );
-    }
-
-    if (!payments.length && counteragentName) {
-      payments = paymentsList.filter((p: any) =>
+      // Try name match as a secondary fallback (same counteragent, UUID may differ)
+      payments = byUuid.length > 0
+        ? byUuid
+        : paymentsList.filter((p: any) =>
+            String(p.counteragentName || '').toLowerCase() === counteragentName
+          );
+      // Do NOT fall back to all payments — counteragent is known, keep the list scoped.
+    } else if (!counteragentName) {
+      // No counteragent at all: show everything
+      payments = paymentsList;
+    } else {
+      // Name-only match
+      const byName = paymentsList.filter((p: any) =>
         String(p.counteragentName || '').toLowerCase() === counteragentName
       );
-    }
-
-    if (!payments.length) {
-      payments = paymentsList;
+      payments = byName.length > 0 ? byName : paymentsList;
     }
 
     setPaymentOptions(payments);
@@ -1051,7 +1058,6 @@ export function BankTransactionsTable({
       const rates = ratesData && ratesData.length > 0 ? ratesData[0] : null;
       setExchangeRates(rates);
       setExchangeRateDate(effectiveDate);
-      console.log('[startEdit] Loaded exchange rates for', effectiveDate, ':', rates);
       
       // Prefer cached payment options; only refresh if we do not have them yet.
       let freshPayments = allPayments;
@@ -1071,86 +1077,55 @@ export function BankTransactionsTable({
                 }))
               : [];
             setAllPayments(freshPayments);
-            console.log('[startEdit] Refreshed payments:', freshPayments.length);
           }
         } catch (err) {
           console.warn('[startEdit] Failed to refresh payments, using cached:', err);
         }
       }
 
-      console.log('[startEdit] Total allPayments available:', freshPayments.length);
-      console.log('[startEdit] Transaction counteragentUuid:', transaction.counteragentUuid);
-      console.log('[startEdit] Sample payment counteragentUuids:', freshPayments.slice(0, 3).map((p: any) => ({ paymentId: p.paymentId, counteragentUuid: p.counteragentUuid })));
-
       updatePaymentOptions(transaction, freshPayments);
       
-      // Load reference data only if missing, and stage the requests to avoid burst traffic.
-      const projectsData = projectOptions.length === 0
-        ? await (await fetch('/api/projects')).json()
-        : projectOptions.map((project: any) => ({
-            project_uuid: project.uuid,
-            project_index: project.projectIndex,
-            project_name: project.projectName,
-          }));
-      const codesData = financialCodeOptions.length === 0
-        ? await (await fetch('/api/financial-codes')).json()
-        : financialCodeOptions;
-      const currenciesData = currencyOptions.length === 0
-        ? await (await fetch('/api/currencies')).json()
-        : currencyOptions;
-      
-      console.log('Projects API response:', projectsData);
-      console.log('Is projects array?', Array.isArray(projectsData));
-      console.log('Projects length:', Array.isArray(projectsData) ? projectsData.length : 0);
-      console.log('First project:', projectsData[0]);
-      console.log('Codes API response:', codesData);
-      console.log('First code:', codesData[0]);
-      console.log('Currencies API response:', currenciesData);
-      console.log('First currency:', currenciesData[0]);
-      
-      // Transform projects from snake_case to camelCase
-      const mappedProjects = Array.isArray(projectsData) 
-        ? projectsData.map((p: any) => {
-            console.log('Mapping project:', p);
-            return {
+      // Fetch reference data in parallel, using cache when available.
+      const needsProjects = projectOptions.length === 0;
+      const needsCodes = financialCodeOptions.length === 0;
+      const needsCurrencies = currencyOptions.length === 0;
+      const needsJobs = Boolean(transaction.projectUuid);
+
+      const [projectsRaw, codesRaw, currenciesRaw, jobsRaw] = await Promise.all([
+        needsProjects ? fetch('/api/projects').then(r => r.json()) : null,
+        needsCodes ? fetch('/api/financial-codes').then(r => r.json()) : null,
+        needsCurrencies ? fetch('/api/currencies').then(r => r.json()) : null,
+        needsJobs ? fetch(`/api/jobs?projectUuid=${transaction.projectUuid}`).then(r => r.json()) : null,
+      ]);
+
+      // Projects
+      if (needsProjects) {
+        const projectsData = projectsRaw ?? [];
+        const mappedProjects = Array.isArray(projectsData)
+          ? projectsData.map((p: any) => ({
               uuid: p.project_uuid,
               projectIndex: p.project_index,
               projectName: p.project_name,
-            };
-          })
-        : [];
-      
-      console.log('Mapped projects count:', mappedProjects.length);
-      console.log('First mapped project:', mappedProjects[0]);
-      
-      if (projectOptions.length === 0) {
+            }))
+          : [];
         setProjectOptions(mappedProjects);
       }
-      console.log('Project options count after set:', mappedProjects.length);
-      
-      if (financialCodeOptions.length === 0) {
+
+      // Financial codes
+      if (needsCodes) {
+        const codesData = codesRaw ?? [];
         setFinancialCodeOptions(Array.isArray(codesData) ? codesData : (codesData.codes || []));
       }
-      if (currencyOptions.length === 0) {
+
+      // Currencies
+      if (needsCurrencies) {
+        const currenciesData = currenciesRaw ?? [];
         setCurrencyOptions(Array.isArray(currenciesData) ? currenciesData : (currenciesData.currencies || []));
       }
-      
-      // Load jobs for the current project if present
-      if (transaction.projectUuid) {
-        const jobsRes = await fetch(`/api/jobs?projectUuid=${transaction.projectUuid}`);
-        const jobsData = await jobsRes.json();
-        const jobs = Array.isArray(jobsData) ? jobsData : [];
-        console.log('[startEdit] Loaded jobs:', jobs.length);
-        setJobOptions(jobs);
-        
-        // Now set the job_uuid in formData if transaction has one
-        // We need to find the matching job by UUID
-        // Transaction stores jobUuid, jobs array has job_uuid field
-        if (transaction.projectUuid && jobs.length > 0) {
-          // Find if there's a job that matches - need to check transaction for job reference
-          // For now, we'll rely on the payment's job if it exists
-          console.log('[startEdit] Transaction has project, jobs available');
-        }
+
+      // Jobs
+      if (needsJobs) {
+        setJobOptions(Array.isArray(jobsRaw) ? jobsRaw : []);
       } else {
         setJobOptions([]);
       }
@@ -1331,16 +1306,10 @@ export function BankTransactionsTable({
 
   // Handle payment selection - auto-fill related fields
   const handlePaymentChange = (paymentId: string) => {
-    console.log('[handlePaymentChange] START - paymentId:', paymentId);
-    console.log('[handlePaymentChange] exchangeRates:', exchangeRates);
-    console.log('[handlePaymentChange] currencyOptions count:', currencyOptions.length);
-    console.log('[handlePaymentChange] editingTransaction:', editingTransaction);
-    
     const newFormData = { ...formData, payment_uuid: paymentId === '__none__' ? '' : paymentId };
     
     if (paymentId && paymentId !== '__none__') {
       const selectedPayment = paymentOptions.find(p => p.paymentId === paymentId);
-      console.log('[handlePaymentChange] selectedPayment:', selectedPayment);
       
       if (selectedPayment && editingTransaction) {
         newFormData.project_uuid = selectedPayment.projectUuid || '';
@@ -1354,15 +1323,7 @@ export function BankTransactionsTable({
         if (exchangeRates && currencyOptions.length > 0) {
           try {
             const accountAmount = Number(editingTransaction.accountCurrencyAmount);
-            
-            // Get currency codes
-            const accountCurrency = currencyOptions.find(c => c.uuid === editingTransaction.accountCurrencyUuid);
-            const accountCode = accountCurrency?.code || 'GEL';
             const nominalCode = selectedPayment.currencyCode;
-            
-            console.log('[handlePaymentChange] Converting:', accountCode, 'G��', nominalCode, 'Amount:', accountAmount);
-            console.log('[handlePaymentChange] Exchange rates object:', exchangeRates);
-            
             const calculatedRate = getExchangeRateValue(nominalCode);
             if (calculatedRate && Number.isFinite(calculatedRate) && calculatedRate !== 0) {
               const converted = accountAmount * (1 / calculatedRate);
@@ -1377,13 +1338,8 @@ export function BankTransactionsTable({
             const accountAmount = Number(editingTransaction.accountCurrencyAmount);
             const converted = accountAmount / storedRate;
             calculatedAmount = formatAmount(Math.round(converted * 100) / 100);
-            console.log('[handlePaymentChange] Fallback to nominalExchangeRate:', storedRate, '=>', converted);
           }
-        } else {
-          console.warn('[handlePaymentChange] Missing exchangeRates or currencyOptions');
         }
-        
-        console.log('[handlePaymentChange] Final calculatedAmount:', calculatedAmount);
         
         // Store display labels
         setPaymentDisplayValues({

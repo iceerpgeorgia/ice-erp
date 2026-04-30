@@ -424,7 +424,7 @@ export async function DELETE(request: Request) {
       >(
         `SELECT
            btb.raw_record_uuid::text as raw_record_uuid,
-           COALESCE(MAX(btb.counteragent_uuid)::text, MAX(p.counteragent_uuid)::text) as counteragent_uuid
+           COALESCE(MAX(btb.counteragent_uuid::text), MAX(p.counteragent_uuid::text)) as counteragent_uuid
          FROM bank_transaction_batches btb
          LEFT JOIN payments p ON p.record_uuid = btb.payment_uuid
          WHERE btb.raw_record_uuid::text = ANY($1::text[])
