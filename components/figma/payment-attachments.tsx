@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Paperclip, Upload, Trash2, Download, Eye, Plus, X, CreditCard, FolderOpen } from 'lucide-react';
+import { Paperclip, Upload, Trash2, Download, Eye, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -61,10 +60,6 @@ type PaymentAttachmentsProps = {
   initiallyOpen?: boolean;
   /** Notified whenever the dialog open state changes. */
   onOpenChange?: (open: boolean) => void;
-  /** UUID of the project linked to this payment — enables "Bind to Project" option in the upload form. */
-  projectUuid?: string | null;
-  /** Display name for the project (shown in the bind-target selector). */
-  projectName?: string | null;
 };
 
 export function PaymentAttachments({
@@ -74,8 +69,6 @@ export function PaymentAttachments({
   hideTrigger = false,
   initiallyOpen = false,
   onOpenChange,
-  projectUuid,
-  projectName,
 }: PaymentAttachmentsProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [count, setCount] = useState<number>(initialCount ?? 0);
@@ -97,8 +90,6 @@ export function PaymentAttachments({
   const [isMounted, setIsMounted] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [editingAttachment, setEditingAttachment] = useState<Attachment | null>(null);
-  const [bindTarget, setBindTarget] = useState<'payment' | 'project'>('payment');
-  const [menuOpen, setMenuOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const hasFetchedRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -213,12 +204,7 @@ export function PaymentAttachments({
     }
   };
 
-  const handleOpenDialog = (target?: 'payment' | 'project') => {
-    if (target) {
-      setBindTarget(target);
-      setShowUploadForm(true);
-    }
-    setMenuOpen(false);
+  const handleOpenDialog = () => {
     setDialogMounted(true);
     setIsDialogOpen(true);
   };
@@ -262,7 +248,7 @@ export function PaymentAttachments({
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !paymentId) return;
 
     // Validate required fields
     if (!selectedDocumentType) {
@@ -277,75 +263,6 @@ export function PaymentAttachments({
     if (activeDocType?.requireDocumentNo && !documentNo) { alert('Document Number is required for this document type'); return; }
     if (activeDocType?.requireProject && !selectedProject) { alert('Project is required for this document type'); return; }
 
-    // If binding to project, delegate to the project attachment flow
-    if (bindTarget === 'project' && projectUuid) {
-      setUploading(true);
-      try {
-        const uploadUrlResponse = await fetch('/api/projects/attachments/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            projectUuid,
-            fileName: selectedFile.name,
-            documentTypeUuid: selectedDocumentType,
-            documentDate,
-            documentNo: documentNo || undefined,
-            documentValue: documentValue ? parseFloat(documentValue) : undefined,
-            documentCurrencyUuid: documentCurrency || undefined,
-          }),
-        });
-        if (!uploadUrlResponse.ok) {
-          const errorData = await uploadUrlResponse.json().catch(() => ({}));
-          throw new Error(errorData.error || 'Failed to get upload URL.');
-        }
-        const uploadData = await uploadUrlResponse.json();
-
-        const uploadResponse = await fetch(uploadData.signedUrl, {
-          method: 'PUT',
-          body: selectedFile,
-          headers: { 'Content-Type': selectedFile.type || 'application/octet-stream' },
-        });
-        if (!uploadResponse.ok) throw new Error('Failed to upload file');
-
-        const confirmResponse = await fetch('/api/projects/attachments/confirm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            projectUuid,
-            storagePath: uploadData.path,
-            storageBucket: uploadData.bucket,
-            fileName: selectedFile.name,
-            mimeType: selectedFile.type,
-            fileSizeBytes: selectedFile.size,
-            documentTypeUuid: selectedDocumentType,
-            documentDate,
-            documentNo: documentNo || undefined,
-            documentValue: documentValue ? parseFloat(documentValue) : undefined,
-            documentCurrencyUuid: documentCurrency || undefined,
-          }),
-        });
-        if (!confirmResponse.ok) throw new Error('Failed to confirm upload');
-
-        await loadAttachments();
-        setSelectedFile(null);
-        setSelectedDocumentType('');
-        setDocumentDate('');
-        setDocumentNo('');
-        setDocumentValue('');
-        setDocumentCurrency('');
-        setSelectedProject('');
-        setShowUploadForm(false);
-      } catch (error: any) {
-        console.error('Error uploading project attachment:', error);
-        alert(error?.message || 'Failed to upload attachment');
-      } finally {
-        setUploading(false);
-      }
-      return;
-    }
-
-    // Default: bind to payment
-    if (!paymentId) return;
     setUploading(true);
     try {
       // Step 1: Get signed upload URL
@@ -540,7 +457,6 @@ export function PaymentAttachments({
     setDocumentValue('');
     setDocumentCurrency('');
     setSelectedProject('');
-    setBindTarget('payment');
     setShowUploadForm(false);
   };
 
@@ -685,78 +601,21 @@ export function PaymentAttachments({
   return (
     <div ref={containerRef} className="flex items-center gap-2">
       {!hideTrigger && (
-        projectUuid ? (
-          <Popover open={menuOpen} onOpenChange={setMenuOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1"
-              >
-                {count > 0 && (
-                  <span className="text-xs font-medium">{count}</span>
-                )}
-                <Paperclip className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-48 p-1" align="start">
-              <button
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors"
-                onClick={() => handleOpenDialog('payment')}
-              >
-                <CreditCard className="h-4 w-4 shrink-0 text-muted-foreground" />
-                Add to Payment
-              </button>
-              <button
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors"
-                onClick={() => handleOpenDialog('project')}
-              >
-                <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
-                {projectName ? `Add to ${projectName}` : 'Add to Project'}
-              </button>
-              <div className="my-1 border-t" />
-              <button
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors text-muted-foreground"
-                onClick={() => handleOpenDialog()}
-              >
-                <Eye className="h-4 w-4 shrink-0" />
-                View All
-              </button>
-            </PopoverContent>
-          </Popover>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1"
-            onClick={() => handleOpenDialog()}
-          >
-            {count > 0 && (
-              <span className="text-xs font-medium">{count}</span>
-            )}
-            <Paperclip className="h-4 w-4" />
-          </Button>
-        )
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-1"
+          onClick={handleOpenDialog}
+        >
+          {count > 0 && (
+            <span className="text-xs font-medium">{count}</span>
+          )}
+          <Paperclip className="h-4 w-4" />
+        </Button>
       )}
 
       {dialogMounted && (
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          onOpenChange?.(open);
-          if (!open) {
-            // reset form state when dialog closes
-            setShowUploadForm(false);
-            setEditingAttachment(null);
-            setSelectedFile(null);
-            setSelectedDocumentType('');
-            setDocumentDate('');
-            setDocumentNo('');
-            setDocumentValue('');
-            setDocumentCurrency('');
-            setSelectedProject('');
-            setBindTarget('payment');
-          }
-        }}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); onOpenChange?.(open); }}>
         <DialogContent className="!w-[95vw] !max-w-[95vw] max-h-[80vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Attachments for {paymentId}</DialogTitle>
@@ -809,16 +668,6 @@ export function PaymentAttachments({
                 </div>
 
                 <div className="space-y-3">
-                  {/* Bind target indicator (set when opening from the icon menu) */}
-                  {!editingAttachment && projectUuid && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-accent/40 rounded px-2 py-1">
-                      {bindTarget === 'project'
-                        ? <><FolderOpen className="h-3.5 w-3.5 shrink-0" /> Binding to project{projectName ? `: ${projectName}` : ''}</>
-                        : <><CreditCard className="h-3.5 w-3.5 shrink-0" /> Binding to payment</>
-                      }
-                    </div>
-                  )}
-
                   {/* File Upload (only show when adding new) */}
                   {!editingAttachment && (
                     <div className="space-y-2">

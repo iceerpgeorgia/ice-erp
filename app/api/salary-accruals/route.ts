@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 import { getSourceTables } from '@/lib/source-tables';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 export const revalidate = 0;
 
@@ -408,6 +409,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const selection = await resolveInsiderSelection(request);
     const body = await request.json();
@@ -710,6 +713,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const sourceTables = await getSourceTables();
     const selection = await resolveInsiderSelection(request);
@@ -798,6 +803,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');

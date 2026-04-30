@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 const DEFAULT_TABLE = 'GE78BG0000000893486000_BOG_GEL';
 const ALLOWED_TABLES = new Set([
@@ -16,6 +17,8 @@ function resolveTableName(searchParams: URLSearchParams): string {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const { ids, parsing_lock } = await req.json();
     const tableName = resolveTableName(req.nextUrl.searchParams);

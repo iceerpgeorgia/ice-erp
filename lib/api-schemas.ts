@@ -103,3 +103,109 @@ export function formatZodErrors(error: z.ZodError): Record<string, string> {
   }
   return details;
 }
+
+// ── Payments ──────────────────────────────────────────────────────────
+export const createPaymentSchema = z.object({
+  projectUuid: z.string().uuid().optional().nullable(),
+  counteragentUuid: z.string().uuid().optional().nullable(),
+  financialCodeUuid: z.string().uuid().optional().nullable(),
+  jobUuid: z.string().uuid().optional().nullable(),
+  currencyUuid: z.string().uuid().optional().nullable(),
+  paymentId: z.string().min(1).max(255).optional().nullable(),
+  incomeTax: z.coerce.number().nullable().optional(),
+  accrualSource: z.string().max(255).optional().nullable(),
+  label: z.string().max(255).optional().nullable(),
+  insiderUuid: z.string().uuid().optional().nullable(),
+  insider_uuid: z.string().uuid().optional().nullable(),
+  isRecurring: z.boolean().optional(),
+});
+
+export const updatePaymentSchema = createPaymentSchema.partial();
+
+// ── Payments Ledger ───────────────────────────────────────────────────
+export const createLedgerEntrySchema = z.object({
+  payment_uuid: z.string().uuid(),
+  amount: z.coerce.number(),
+  date: z.coerce.date().optional().nullable(),
+  comment: z.string().max(2000).optional().nullable(),
+  insider_uuid: z.string().uuid().optional().nullable(),
+});
+
+export const updateLedgerEntrySchema = createLedgerEntrySchema.partial();
+
+// ── Adjustments ───────────────────────────────────────────────────────
+export const createAdjustmentSchema = z.object({
+  payment_uuid: z.string().uuid().optional().nullable(),
+  amount: z.coerce.number(),
+  comment: z.string().max(2000).optional().nullable(),
+  date: z.coerce.date().optional().nullable(),
+  counteragent_uuid: z.string().uuid().optional().nullable(),
+  financial_code_uuid: z.string().uuid().optional().nullable(),
+  project_uuid: z.string().uuid().optional().nullable(),
+  insider_uuid: z.string().uuid().optional().nullable(),
+});
+
+// ── Jobs ──────────────────────────────────────────────────────────────
+export const createJobSchema = z.object({
+  jobName: z.string().min(1).max(255),
+  brandUuid: z.string().uuid().optional().nullable(),
+  projectUuids: z.array(z.string().uuid()).optional().default([]),
+  insiderUuid: z.string().uuid().optional().nullable(),
+});
+
+// ── Projects ──────────────────────────────────────────────────────────
+export const updateProjectSchema = z.object({
+  projectName: z.string().min(1).max(255).optional(),
+  brandUuid: z.string().uuid().optional().nullable(),
+  jobUuids: z.array(z.string().uuid()).optional(),
+  insiderUuid: z.string().uuid().optional().nullable(),
+  state: z.string().max(50).optional().nullable(),
+  service: z.string().max(255).optional().nullable(),
+  department: z.string().max(255).optional().nullable(),
+});
+
+// ── Salary Accruals ───────────────────────────────────────────────────
+export const createSalaryAccrualSchema = z.object({
+  counteragent_uuid: z.string().uuid(),
+  month: z.string().regex(/^\d{4}-\d{2}$/, "month must be YYYY-MM"),
+  base_salary: z.coerce.number().nullable().optional(),
+  bonus: z.coerce.number().nullable().optional(),
+  income_tax: z.coerce.number().nullable().optional(),
+  pension: z.coerce.number().nullable().optional(),
+  insurance: z.coerce.number().nullable().optional(),
+  other: z.coerce.number().nullable().optional(),
+  comment: z.string().max(2000).optional().nullable(),
+  insider_uuid: z.string().uuid().optional().nullable(),
+});
+
+// ── Bank Transaction Batches ──────────────────────────────────────────
+const partitionSchema = z.object({
+  amount: z.coerce.number(),
+  payment_id: z.string().min(1).max(255).optional().nullable(),
+  payment_uuid: z.string().uuid().optional().nullable(),
+  counteragent_uuid: z.string().uuid().optional().nullable(),
+  financial_code_uuid: z.string().uuid().optional().nullable(),
+  project_uuid: z.string().uuid().optional().nullable(),
+});
+
+export const createBatchSchema = z.object({
+  bankAccountUuid: z.string().uuid(),
+  rawRecordUuid: z.string().uuid(),
+  rawRecordId1: z.coerce.number().int().optional().nullable(),
+  rawRecordId2: z.coerce.number().int().optional().nullable(),
+  replaceBatchUuid: z.string().uuid().optional().nullable(),
+  partitions: z.array(partitionSchema).min(2, "A batch must have at least 2 partitions"),
+});
+
+// ── Users (admin) ─────────────────────────────────────────────────────
+export const createUserSchema = z.object({
+  email: z.string().email().max(255),
+  name: z.string().max(255).optional().nullable(),
+  role: z.enum(["user", "admin", "system_admin"]).optional().default("user"),
+});
+
+export const updateUserSchema = z.object({
+  isAuthorized: z.boolean().optional(),
+  role: z.enum(["user", "admin", "system_admin"]).optional(),
+  paymentNotifications: z.boolean().optional(),
+});

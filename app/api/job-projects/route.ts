@@ -32,6 +32,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { requireAuth, isAuthError } = await import('@/lib/auth-guard');
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const body = await request.json();
     const { projectUuid, jobUuids } = body;

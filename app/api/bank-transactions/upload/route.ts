@@ -4,6 +4,8 @@ import { processBOGGELDeconsolidated } from "@/lib/bank-import/import_bank_xml_d
 import { processTBC } from "@/lib/bank-import/import_bank_xml_data";
 import { getSupabaseClient } from "@/lib/bank-import/db-utils";
 import { ensureTbcAccountProvisioned } from "@/lib/bank-import/tbc-provisioning";
+import { requireAuth, isAuthError } from "@/lib/auth-guard";
+import { uploadRateLimit } from "@/lib/rate-limit";
 
 /**
  * Bank XML Upload API - TypeScript Implementation
@@ -11,6 +13,10 @@ import { ensureTbcAccountProvisioned } from "@/lib/bank-import/tbc-provisioning"
  * Equivalent to Python import_bank_xml_data.py
  */
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
+  const limited = await uploadRateLimit.check(req);
+  if (limited) return limited;
   const importBatchId = uuidv4();
   let allLogs = "";
 

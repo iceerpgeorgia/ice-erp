@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 import { reparseByPaymentId } from '@/lib/bank-import/reparse';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 // PUT update project
 export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const id = parseInt(params.id);
     const body = await req.json();

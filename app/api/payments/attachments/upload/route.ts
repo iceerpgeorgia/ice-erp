@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase';
 import { createPaymentAttachment } from '@/lib/attachments';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 /**
  * Sanitize filename for safe storage path
@@ -43,6 +44,8 @@ function sanitizeFileName(fileName: string): string {
  * - isPrimary?: boolean
  */
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const body = await request.json();
     const { paymentId, fileName, documentTypeUuid, documentDate, documentNo, documentValue, documentCurrencyUuid, isPrimary } = body;

@@ -5,10 +5,16 @@ import { tmpdir } from 'os';
 import { randomUUID } from 'crypto';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
+import { uploadRateLimit } from '@/lib/rate-limit';
 
 const execPromise = promisify(exec);
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
+  const limited = await uploadRateLimit.check(req);
+  if (limited) return limited;
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File;

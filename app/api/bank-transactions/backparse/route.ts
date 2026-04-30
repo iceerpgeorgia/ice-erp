@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { backparseExistingData } from '@/lib/bank-import/import_bank_xml_data';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 /**
  * Backparse API - Reprocess existing raw data without XML upload
@@ -7,6 +8,8 @@ import { backparseExistingData } from '@/lib/bank-import/import_bank_xml_data';
  * to existing raw bank statement records
  */
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   let allLogs = "";
 
   // Capture console.log output

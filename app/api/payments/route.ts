@@ -3,6 +3,7 @@ import { prisma, withRetry } from '@/lib/prisma';
 import { reparseByPaymentId } from '@/lib/bank-import/reparse';
 import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 import { sendPaymentNotifications } from '@/lib/payment-notifications';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 export const revalidate = 0;
 
@@ -106,6 +107,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const selection = await resolveInsiderSelection(request);
     const body = await request.json();
@@ -273,24 +276,19 @@ export async function POST(request: NextRequest) {
 
     // Send payment notifications asynchronously (don't await to not block response)
     const paymentIdForNotification = (payment as any).payment_id;
-    const recordUuidForNotification = (payment as any).record_uuid;
     if (paymentIdForNotification) {
-      // Count attachments for this payment using record_uuid (owner_uuid is a UUID column, not payment_id)
+      // Count attachments for this payment
       prisma.attachments.count({
         where: {
           links: {
             some: {
               owner_table: 'payments',
-              owner_uuid: recordUuidForNotification,
+              owner_uuid: paymentIdForNotification,
             },
           },
           is_active: true,
         },
-      }).then(async (count) => {
-        if (count === 0) {
-          console.log('[Payment Notifications] No attachments found - skipping notification');
-          return;
-        }
+      }).then(async () => {
         const notificationResult = await sendPaymentNotifications({
           paymentId: paymentIdForNotification,
           label: (payment as any).label,
@@ -315,6 +313,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const selection = await resolveInsiderSelection(request);
     const { searchParams } = new URL(request.url);

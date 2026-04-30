@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions, prisma } from '@/lib/auth';
+import { prisma } from '@/lib/auth';
+import { requireAdmin, isAuthError } from '@/lib/auth-guard';
+import { createUserSchema, updateUserSchema, formatZodErrors } from '@/lib/api-schemas';
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAdmin();
+  if (isAuthError(auth)) return auth;
+
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user || session.user.role !== 'system_admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
-
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -35,19 +33,17 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdmin();
+  if (isAuthError(auth)) return auth;
+  const session = auth;
+
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user || session.user.role !== 'system_admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
-
     const body = await request.json();
-    const { email, name, role } = body;
-
-    if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    const parsed = createUserSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid input', details: formatZodErrors(parsed.error) }, { status: 400 });
     }
+    const { email, name, role } = parsed.data;
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -64,7 +60,7 @@ export async function POST(request: NextRequest) {
         id: crypto.randomUUID(),
         email,
         name: name || null,
-        role: role && ['user', 'admin', 'system_admin'].includes(role) ? role : 'user',
+        role,
         isAuthorized: true, // Pre-authorize since admin is creating them
         authorizedAt: new Date(),
         authorizedBy: session.user.email,
@@ -90,13 +86,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const auth = await requireAdmin();
+  if (isAuthError(auth)) return auth;
+  const session = auth;
+
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user || session.user.role !== 'system_admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
-
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('id');
 
@@ -105,7 +99,11 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { isAuthorized, role, paymentNotifications } = body;
+    const parsed = updateUserSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid input', details: formatZodErrors(parsed.error) }, { status: 400 });
+    }
+    const { isAuthorized, role, paymentNotifications } = parsed.data;
 
     const updateData: any = {};
 
@@ -120,7 +118,7 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    if (role && ['user', 'admin', 'system_admin'].includes(role)) {
+    if (role) {
       updateData.role = role;
     }
 
@@ -152,13 +150,11 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const auth = await requireAdmin();
+  if (isAuthError(auth)) return auth;
+  const session = auth;
+
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user || session.user.role !== 'system_admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
-
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('id');
 

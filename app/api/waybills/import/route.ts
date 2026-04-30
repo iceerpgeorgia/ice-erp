@@ -134,6 +134,12 @@ const isDifferent = (existing: any, incoming: any, keys: string[]) =>
   keys.some((key) => toComparable(existing?.[key]) !== toComparable(incoming?.[key]));
 
 export async function POST(req: NextRequest) {
+  const { requireAuth, isAuthError } = await import('@/lib/auth-guard');
+  const { uploadRateLimit } = await import('@/lib/rate-limit');
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
+  const limited = await uploadRateLimit.check(req);
+  if (limited) return limited;
   try {
     if (!(await tableExists('rs_waybills_in'))) {
       return NextResponse.json(

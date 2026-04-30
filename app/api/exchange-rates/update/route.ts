@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
+import { requireAuth, isAuthError } from "@/lib/auth-guard";
 
 const NBG_API_URL = "https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json/";
 
@@ -99,6 +100,8 @@ const upsertRatesForDate = async (dateStr: string, rates: any) => {
 };
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const todayStr = getTbilisiDateStr();
 

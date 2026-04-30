@@ -5,6 +5,7 @@ import {
   resolveInsiderSelection,
   serializeInsiderSelectionCookie,
 } from '@/lib/insider-selection';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +28,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const body = await request.json();
     const selectedUuids = Array.isArray(body?.selectedUuids)

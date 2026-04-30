@@ -3,6 +3,12 @@ import { prisma, withRetry } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
+// In-process memoization. Vercel reuses warm Lambdas, so concurrent users on the
+// same instance share a single DB pass for the heavy salary projection.
+const CACHE_TTL_MS = 60_000;
+const responseCache = new Map<string, { expiresAt: number; payload: PaymentOption[] }>();
+const inflight = new Map<string, Promise<PaymentOption[]>>();
+
 type PaymentOption = {
   paymentId: string;
   counteragentUuid: string | null;
@@ -39,7 +45,53 @@ export async function GET(request: NextRequest) {
     const includeSalary = searchParams.get('includeSalary') !== 'false';
     const projectionMonths = Math.max(0, parseInt(searchParams.get('projectionMonths') || '36', 10) || 36);
 
-    const payments = await withRetry(() => prisma.$queryRawUnsafe(`
+    const cacheKey = `${includeSalary ? 1 : 0}:${projectionMonths}`;
+    const now = Date.now();
+    const cached = responseCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return NextResponse.json(cached.payload, {
+        headers: {
+          'Cache-Control': 'private, max-age=60, stale-while-revalidate=300',
+          'X-Cache': 'HIT',
+        },
+      });
+    }
+
+    // Coalesce concurrent requests so they share the same DB work.
+    let pending = inflight.get(cacheKey);
+    if (!pending) {
+      pending = buildPaymentOptions(includeSalary, projectionMonths)
+        .then((payload) => {
+          responseCache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, payload });
+          return payload;
+        })
+        .finally(() => {
+          inflight.delete(cacheKey);
+        });
+      inflight.set(cacheKey, pending);
+    }
+    const result = await pending;
+
+    return NextResponse.json(result, {
+      headers: {
+        'Cache-Control': 'private, max-age=60, stale-while-revalidate=300',
+        'X-Cache': 'MISS',
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching payment ID options:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch payment ID options' },
+      { status: 500 }
+    );
+  }
+}
+
+async function buildPaymentOptions(
+  includeSalary: boolean,
+  projectionMonths: number,
+): Promise<PaymentOption[]> {
+  const payments = await withRetry(() => prisma.$queryRawUnsafe(`
       SELECT 
         p.project_uuid,
         p.counteragent_uuid,
@@ -86,7 +138,7 @@ export async function GET(request: NextRequest) {
       }));
 
     if (!includeSalary) {
-      return NextResponse.json(paymentOptions);
+      return paymentOptions;
     }
 
     const salaryRows = await withRetry(() => prisma.$queryRawUnsafe(`
@@ -195,12 +247,5 @@ export async function GET(request: NextRequest) {
       a.paymentId.localeCompare(b.paymentId)
     );
 
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error('Error fetching payment ID options:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch payment ID options' },
-      { status: 500 }
-    );
-  }
+    return result;
 }

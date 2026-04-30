@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
+import { uploadRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
+  const limited = await uploadRateLimit.check(req);
+  if (limited) return limited;
   try {
     const body = await req.json();
     const fileName = String(body?.fileName || '').trim();

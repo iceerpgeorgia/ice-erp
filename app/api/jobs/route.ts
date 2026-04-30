@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma, withRetry } from '@/lib/prisma';
-import { getInsiderOptions, resolveInsiderSelection } from '@/lib/insider-selection';
+import { getInsiderOptions, resolveInsiderSelection, sqlUuidInList } from '@/lib/insider-selection';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 // GET all jobs with project info from job_projects junction table
@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
   try {
     const selection = await resolveInsiderSelection(req);
     const insider = selection.primaryInsider;
+    const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
     const { searchParams } = new URL(req.url);
     const projectUuid = searchParams.get('projectUuid');
 
@@ -104,7 +105,8 @@ export async function GET(req: NextRequest) {
       INNER JOIN job_projects jp ON jp.job_uuid = j.job_uuid
       LEFT JOIN projects p ON jp.project_uuid = p.project_uuid
       LEFT JOIN brands b ON j.brand_uuid = b.uuid
-      WHERE j.is_active = true
+      WHERE j.insider_uuid IN (${insiderUuidListSql})
+        AND j.is_active = true
       ORDER BY j.created_at DESC, p.project_index ASC
     `));
 

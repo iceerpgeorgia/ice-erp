@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma, withRetry } from '@/lib/prisma';
 import { getSourceTables } from '@/lib/source-tables';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 const formatBatchId = (uuid: string) => {
   const compact = uuid.replace(/-/g, '').toUpperCase();
@@ -238,6 +239,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const sourceTables = await getSourceTables();
     const body = await request.json();
@@ -363,6 +366,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const sourceTables = await getSourceTables();
     const { searchParams } = new URL(request.url);

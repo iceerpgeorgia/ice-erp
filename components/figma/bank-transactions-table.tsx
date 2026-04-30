@@ -609,30 +609,72 @@ export function BankTransactionsTable({
     if (data) setTransactions(data);
   }, [data]);
 
-  // Fetch all payments on mount
+  // Prefetch all reference data on mount in parallel so the edit dialog opens instantly.
   useEffect(() => {
-    const fetchAllPayments = async () => {
+    let cancelled = false;
+    const prefetch = async () => {
       try {
-        const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
-        if (!response.ok) throw new Error('Failed to fetch payments');
-        const paymentsData = await response.json();
-        const normalizedPayments = Array.isArray(paymentsData)
-          ? paymentsData.map((payment: any) => ({
-              ...payment,
-              counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
-              projectUuid: payment.projectUuid || payment.project_uuid || null,
-              financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
-              currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
-              paymentId: payment.paymentId || payment.payment_id || null,
-            }))
-          : [];
-        setAllPayments(normalizedPayments);
-        console.log('[BankTransactionsTable] Loaded all payments:', normalizedPayments.length);
+        const [paymentsRes, projectsRes, codesRes, currenciesRes] = await Promise.all([
+          fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36'),
+          fetch('/api/projects'),
+          fetch('/api/financial-codes'),
+          fetch('/api/currencies'),
+        ]);
+
+        if (cancelled) return;
+
+        if (paymentsRes.ok) {
+          const paymentsData = await paymentsRes.json();
+          const normalizedPayments = Array.isArray(paymentsData)
+            ? paymentsData.map((payment: any) => ({
+                ...payment,
+                counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
+                projectUuid: payment.projectUuid || payment.project_uuid || null,
+                financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
+                currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
+                paymentId: payment.paymentId || payment.payment_id || null,
+              }))
+            : [];
+          if (!cancelled) setAllPayments(normalizedPayments);
+        }
+
+        if (projectsRes.ok) {
+          const projectsData = await projectsRes.json();
+          const mappedProjects = Array.isArray(projectsData)
+            ? projectsData.map((p: any) => ({
+                uuid: p.project_uuid,
+                projectIndex: p.project_index,
+                projectName: p.project_name,
+              }))
+            : [];
+          if (!cancelled) setProjectOptions(mappedProjects);
+        }
+
+        if (codesRes.ok) {
+          const codesData = await codesRes.json();
+          if (!cancelled) {
+            setFinancialCodeOptions(
+              Array.isArray(codesData) ? codesData : (codesData?.codes || [])
+            );
+          }
+        }
+
+        if (currenciesRes.ok) {
+          const currenciesData = await currenciesRes.json();
+          if (!cancelled) {
+            setCurrencyOptions(
+              Array.isArray(currenciesData) ? currenciesData : (currenciesData?.currencies || [])
+            );
+          }
+        }
       } catch (error) {
-        console.error('[BankTransactionsTable] Error fetching all payments:', error);
+        console.error('[BankTransactionsTable] Reference prefetch error:', error);
       }
     };
-    fetchAllPayments();
+    prefetch();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Fetch due payment IDs from payments report
@@ -1008,7 +1050,6 @@ export function BankTransactionsTable({
   };
 
   const startEdit = async (transaction: BankTransaction) => {
-    console.log('[startEdit] Transaction:', transaction);
     setEditingTransaction(transaction);
     setSaveNotice(null);
     
@@ -1029,7 +1070,6 @@ export function BankTransactionsTable({
       parsing_lock: Boolean(transaction.parsingLock),
       comment: transaction.comment || '',
     };
-    console.log('[startEdit] Initial formData:', initialFormData);
     setFormData(initialFormData);
     if (!transaction.paymentId) {
       setPaymentDisplayValues({
@@ -1051,58 +1091,52 @@ export function BankTransactionsTable({
     setCurrencySearch('');
     
     try {
-      // Fetch exchange rates for the transaction date upfront
+      // Determine which network calls are actually needed (most refs are prefetched on mount).
       const effectiveDate = initialFormData.correction_date || transactionDateInput;
-      const ratesResponse = await fetch(`/api/exchange-rates?date=${effectiveDate}`);
-      const ratesData = await ratesResponse.json();
-      const rates = ratesData && ratesData.length > 0 ? ratesData[0] : null;
-      setExchangeRates(rates);
-      setExchangeRateDate(effectiveDate);
-      
-      // Prefer cached payment options; only refresh if we do not have them yet.
-      let freshPayments = allPayments;
-      if (freshPayments.length === 0) {
-        try {
-          const paymentsRes = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
-          if (paymentsRes.ok) {
-            const paymentsData = await paymentsRes.json();
-            freshPayments = Array.isArray(paymentsData)
-              ? paymentsData.map((payment: any) => ({
-                  ...payment,
-                  counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
-                  projectUuid: payment.projectUuid || payment.project_uuid || null,
-                  financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
-                  currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
-                  paymentId: payment.paymentId || payment.payment_id || null,
-                }))
-              : [];
-            setAllPayments(freshPayments);
-          }
-        } catch (err) {
-          console.warn('[startEdit] Failed to refresh payments, using cached:', err);
-        }
-      }
-
-      updatePaymentOptions(transaction, freshPayments);
-      
-      // Fetch reference data in parallel, using cache when available.
+      const needsPayments = allPayments.length === 0;
       const needsProjects = projectOptions.length === 0;
       const needsCodes = financialCodeOptions.length === 0;
       const needsCurrencies = currencyOptions.length === 0;
       const needsJobs = Boolean(transaction.projectUuid);
 
-      const [projectsRaw, codesRaw, currenciesRaw, jobsRaw] = await Promise.all([
-        needsProjects ? fetch('/api/projects').then(r => r.json()) : null,
-        needsCodes ? fetch('/api/financial-codes').then(r => r.json()) : null,
-        needsCurrencies ? fetch('/api/currencies').then(r => r.json()) : null,
-        needsJobs ? fetch(`/api/jobs?projectUuid=${transaction.projectUuid}`).then(r => r.json()) : null,
+      // Fire every required request in parallel so the slowest one defines latency.
+      const [ratesRaw, paymentsRaw, projectsRaw, codesRaw, currenciesRaw, jobsRaw] = await Promise.all([
+        fetch(`/api/exchange-rates?date=${effectiveDate}`).then(r => r.ok ? r.json() : null).catch(() => null),
+        needsPayments
+          ? fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36').then(r => r.ok ? r.json() : null).catch(() => null)
+          : Promise.resolve(null),
+        needsProjects ? fetch('/api/projects').then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
+        needsCodes ? fetch('/api/financial-codes').then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
+        needsCurrencies ? fetch('/api/currencies').then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
+        needsJobs
+          ? fetch(`/api/jobs?projectUuid=${transaction.projectUuid}`).then(r => r.ok ? r.json() : null).catch(() => null)
+          : Promise.resolve(null),
       ]);
 
+      // Exchange rates
+      const rates = Array.isArray(ratesRaw) && ratesRaw.length > 0 ? ratesRaw[0] : null;
+      setExchangeRates(rates);
+      setExchangeRateDate(effectiveDate);
+
+      // Payments cache (only when not already populated)
+      let freshPayments = allPayments;
+      if (needsPayments && Array.isArray(paymentsRaw)) {
+        freshPayments = paymentsRaw.map((payment: any) => ({
+          ...payment,
+          counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
+          projectUuid: payment.projectUuid || payment.project_uuid || null,
+          financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
+          currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
+          paymentId: payment.paymentId || payment.payment_id || null,
+        }));
+        setAllPayments(freshPayments);
+      }
+      updatePaymentOptions(transaction, freshPayments);
+
       // Projects
-      if (needsProjects) {
-        const projectsData = projectsRaw ?? [];
-        const mappedProjects = Array.isArray(projectsData)
-          ? projectsData.map((p: any) => ({
+      if (needsProjects && projectsRaw) {
+        const mappedProjects = Array.isArray(projectsRaw)
+          ? projectsRaw.map((p: any) => ({
               uuid: p.project_uuid,
               projectIndex: p.project_index,
               projectName: p.project_name,
@@ -1112,23 +1146,17 @@ export function BankTransactionsTable({
       }
 
       // Financial codes
-      if (needsCodes) {
-        const codesData = codesRaw ?? [];
-        setFinancialCodeOptions(Array.isArray(codesData) ? codesData : (codesData.codes || []));
+      if (needsCodes && codesRaw) {
+        setFinancialCodeOptions(Array.isArray(codesRaw) ? codesRaw : (codesRaw.codes || []));
       }
 
       // Currencies
-      if (needsCurrencies) {
-        const currenciesData = currenciesRaw ?? [];
-        setCurrencyOptions(Array.isArray(currenciesData) ? currenciesData : (currenciesData.currencies || []));
+      if (needsCurrencies && currenciesRaw) {
+        setCurrencyOptions(Array.isArray(currenciesRaw) ? currenciesRaw : (currenciesRaw.currencies || []));
       }
 
-      // Jobs
-      if (needsJobs) {
-        setJobOptions(Array.isArray(jobsRaw) ? jobsRaw : []);
-      } else {
-        setJobOptions([]);
-      }
+      // Jobs (per-transaction, never cached)
+      setJobOptions(needsJobs && Array.isArray(jobsRaw) ? jobsRaw : []);
     } catch (error: any) {
       alert(`Failed to load options: ${error.message}`);
       setEditingTransaction(null);

@@ -10,6 +10,15 @@ import {
   createInventorySchema,
   createFinancialCodeSchema,
   createExchangeRateSchema,
+  createPaymentSchema,
+  createLedgerEntrySchema,
+  createAdjustmentSchema,
+  createJobSchema,
+  updateProjectSchema,
+  createSalaryAccrualSchema,
+  createBatchSchema,
+  createUserSchema,
+  updateUserSchema,
   formatZodErrors,
 } from "@/lib/api-schemas";
 
@@ -156,6 +165,108 @@ describe("createExchangeRateSchema", () => {
   it("rejects invalid date", () => {
     const result = createExchangeRateSchema.safeParse({ date: "not-a-date" });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("createPaymentSchema", () => {
+  it("accepts an empty payload (all fields optional)", () => {
+    expect(createPaymentSchema.safeParse({}).success).toBe(true);
+  });
+
+  it("rejects malformed UUIDs", () => {
+    const result = createPaymentSchema.safeParse({ projectUuid: "not-a-uuid" });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("createLedgerEntrySchema", () => {
+  it("requires payment_uuid and amount", () => {
+    expect(createLedgerEntrySchema.safeParse({}).success).toBe(false);
+    expect(
+      createLedgerEntrySchema.safeParse({
+        payment_uuid: "123e4567-e89b-12d3-a456-426614174000",
+        amount: 100,
+      }).success,
+    ).toBe(true);
+  });
+});
+
+describe("createAdjustmentSchema", () => {
+  it("requires amount", () => {
+    expect(createAdjustmentSchema.safeParse({}).success).toBe(false);
+    expect(createAdjustmentSchema.safeParse({ amount: -50 }).success).toBe(true);
+  });
+});
+
+describe("createJobSchema", () => {
+  it("requires jobName", () => {
+    expect(createJobSchema.safeParse({}).success).toBe(false);
+    expect(createJobSchema.safeParse({ jobName: "Build" }).success).toBe(true);
+  });
+});
+
+describe("updateProjectSchema", () => {
+  it("accepts a partial update", () => {
+    expect(updateProjectSchema.safeParse({ projectName: "Renamed" }).success).toBe(true);
+  });
+});
+
+describe("createSalaryAccrualSchema", () => {
+  it("validates YYYY-MM month format", () => {
+    expect(
+      createSalaryAccrualSchema.safeParse({
+        counteragent_uuid: "123e4567-e89b-12d3-a456-426614174000",
+        month: "2026-04",
+      }).success,
+    ).toBe(true);
+    expect(
+      createSalaryAccrualSchema.safeParse({
+        counteragent_uuid: "123e4567-e89b-12d3-a456-426614174000",
+        month: "april",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("createBatchSchema", () => {
+  it("rejects fewer than 2 partitions", () => {
+    const result = createBatchSchema.safeParse({
+      bankAccountUuid: "123e4567-e89b-12d3-a456-426614174000",
+      rawRecordUuid: "123e4567-e89b-12d3-a456-426614174000",
+      partitions: [{ amount: 100 }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts 2+ partitions", () => {
+    const result = createBatchSchema.safeParse({
+      bankAccountUuid: "123e4567-e89b-12d3-a456-426614174000",
+      rawRecordUuid: "123e4567-e89b-12d3-a456-426614174000",
+      partitions: [{ amount: 60 }, { amount: 40 }],
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("createUserSchema", () => {
+  it("requires a valid email", () => {
+    expect(createUserSchema.safeParse({ email: "not-email" }).success).toBe(false);
+    expect(createUserSchema.safeParse({ email: "a@b.co" }).success).toBe(true);
+  });
+
+  it("defaults role to 'user'", () => {
+    const result = createUserSchema.safeParse({ email: "a@b.co" });
+    if (result.success) expect(result.data.role).toBe("user");
+  });
+
+  it("rejects unknown roles", () => {
+    expect(createUserSchema.safeParse({ email: "a@b.co", role: "owner" }).success).toBe(false);
+  });
+});
+
+describe("updateUserSchema", () => {
+  it("accepts an empty patch", () => {
+    expect(updateUserSchema.safeParse({}).success).toBe(true);
   });
 });
 

@@ -155,6 +155,10 @@ const getRecordByIds = async (id1: string, id2: string) => {
 };
 
 export async function POST(request: NextRequest) {
+  // Lazy auth import to keep module side-effects minimal
+  const { requireAuth, isAuthError } = await import('@/lib/auth-guard');
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const body = await request.json();
     const mode = body?.mode === 'apply' ? 'apply' : 'preview';

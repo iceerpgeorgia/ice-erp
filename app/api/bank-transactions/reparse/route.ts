@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { reparseByPaymentId, reparseBySourceId } from '@/lib/bank-import/reparse';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
   try {
     const body = await req.json();
     const paymentId = typeof body?.paymentId === 'string' ? body.paymentId.trim() : '';

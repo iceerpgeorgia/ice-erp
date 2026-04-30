@@ -147,31 +147,6 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'latestDate', label: 'Latest Date', visible: true, sortable: true, filterable: true, format: 'date', width: 120 },
 ];
 
-const allConditions = [
-  'ALL',
-  'Confirmed',
-  'Confirmed & Due>0',
-  'Unconfirmed & Due>0',
-  'Accrual>0',
-  'Accrual<0',
-  'Accrual=0',
-  'Order>0',
-  'Order<0',
-  'Order=0',
-  'Paid>0',
-  'Paid<0',
-  'Paid=0',
-  'Due>0',
-  'Due<0',
-  'Due=0',
-  'Balance>0',
-  'Balance<0',
-  'Balance=0',
-  'Current Due>0',
-  'Current Due<0',
-  'Current Due=0',
-] as const;
-
 export function PaymentsReportTable() {
   const filtersStorageKey = 'paymentsReportFiltersV2';
   const [data, setData] = useState<PaymentReport[]>([]);
@@ -266,14 +241,38 @@ export function PaymentsReportTable() {
 
 
   // BroadcastChannel for cross-tab updates
-  const [broadcastChannel, setBroadcastChannel] = useState<BroadcastChannel | null>(null);
-  useEffect(() => {
+  const [broadcastChannel] = useState(() => {
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-      setBroadcastChannel(new BroadcastChannel('payments-ledger-updates'));
+      return new BroadcastChannel('payments-ledger-updates');
     }
-  }, []);
+    return null;
+  });
 
-  // Conditions filter state (allConditions is module-level constant)
+  // Conditions filter state
+  const allConditions = [
+    'ALL',
+    'Confirmed',
+    'Confirmed & Due>0',
+    'Unconfirmed & Due>0',
+    'Accrual>0',
+    'Accrual<0',
+    'Accrual=0',
+    'Order>0',
+    'Order<0',
+    'Order=0',
+    'Paid>0',
+    'Paid<0',
+    'Paid=0',
+    'Due>0',
+    'Due<0',
+    'Due=0',
+    'Balance>0',
+    'Balance<0',
+    'Balance=0',
+    'Current Due>0',
+    'Current Due<0',
+    'Current Due=0'
+  ] as const;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const sanitizeConditions = useCallback((values: string[]) => {
     const allowed = values.filter((value) => allConditions.includes(value as (typeof allConditions)[number]));
@@ -282,7 +281,23 @@ export function PaymentsReportTable() {
     }
     return new Set(allowed);
   }, [allConditions]);
-  const [selectedConditions, setSelectedConditions] = useState<Set<string>>(new Set(allConditions));
+  const [selectedConditions, setSelectedConditions] = useState<Set<string>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('paymentsReportConditions');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return sanitizeConditions(parsed);
+          }
+          return new Set(allConditions);
+        } catch {
+          return new Set(allConditions);
+        }
+      }
+    }
+    return new Set(allConditions);
+  });
 
   // Add Entry form states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -436,19 +451,8 @@ export function PaymentsReportTable() {
       }
     }
 
-    // Load saved conditions filter
-    const savedConditions = localStorage.getItem('paymentsReportConditions');
-    if (savedConditions) {
-      try {
-        const parsed = JSON.parse(savedConditions);
-        if (Array.isArray(parsed)) {
-          setSelectedConditions(sanitizeConditions(parsed));
-        }
-      } catch { /* ignore */ }
-    }
-
     setIsInitialized(true);
-  }, [sanitizeConditions]);
+  }, []);
 
   // Fetch insider selection on mount — gate data fetch until this completes
   useEffect(() => {
@@ -3895,7 +3899,7 @@ export function PaymentsReportTable() {
                       )}
                       {!isBundleAgg && (
                       <>
-                      <PaymentAttachments paymentId={row.paymentId} initialCount={attachmentCounts[row.paymentId] ?? 0} projectUuid={row.projectUuid} projectName={row.projectName || row.project || undefined} />
+                      <PaymentAttachments paymentId={row.paymentId} initialCount={attachmentCounts[row.paymentId] ?? 0} />
                       <button
                         onClick={() => handleOpenBaseInfo(row.paymentId)}
                         className="inline-block text-gray-600 hover:text-gray-800 hover:bg-gray-50 p-1 rounded transition-colors"
