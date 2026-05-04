@@ -1,5 +1,15 @@
 ﻿# Deployment Log
 
+## 2026-05-04 - fix: bulk-bind parsing_lock guard + audit bigint path
+
+- Commit: bd1a4f0
+- Production: https://ice-ll7tmaosu-iceerp.vercel.app
+- Inspect: https://vercel.com/iceerp/ice-erp/8Zpjg6NrUtfUrdKZXBZuhpwXWDEs
+- Changes:
+  - Removed `parsing_lock` guard from `PATCH /api/bank-transactions/bulk-bind`: bulk-bind is an explicit user action and must always succeed (previously locked records were silently skipped, causing the UI to report success while nothing was updated).
+  - `totalUpdated` now counts actual rows changed via `RETURNING id` instead of rows fetched, so the response count is accurate.
+  - Refactored `logAudit` to go directly to the `::bigint` cast path when `numericRecordId` is non-null, eliminating the spurious `42804` error that appeared on every numeric-ID audit call.
+
 ## 2026-05-04 - fix: bulk-bind audit log bigint crash
 
 - Commit: d3ee0ac
