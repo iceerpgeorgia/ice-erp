@@ -1963,6 +1963,21 @@ export function SalaryAccrualsTable() {
               </Button>
             )}
             {selectedIds.size > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const payload = selectedRecords.map((row) => ({
+                    paymentId: row.payment_id,
+                    amount: Math.abs(Number(row.month_balance ?? row.net_sum ?? 0)),
+                  }));
+                  navigator.clipboard.writeText(JSON.stringify(payload));
+                }}
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Copy for Batch ({selectedIds.size})
+              </Button>
+            )}
+            {selectedIds.size > 0 && (
               <Dialog
                 open={isConfirmOpen}
                 onOpenChange={(open) => {
