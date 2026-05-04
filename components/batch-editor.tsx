@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
 import { X, Plus, Check, AlertCircle, ClipboardPaste } from 'lucide-react';
@@ -239,7 +240,7 @@ export function BatchEditor({
     try {
       const [paymentsRes, salaryRes] = await Promise.all([
         fetch('/api/payments'),
-        fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12'),
+        fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36'),
       ]);
       const paymentsData = await paymentsRes.json();
       const normalized: Payment[] = Array.isArray(paymentsData)
@@ -888,39 +889,17 @@ export function BatchEditor({
               </p>
             </div>
             <div>
-              <Label>Selected Payment IDs</Label>
-              <div className="flex flex-wrap gap-2 min-h-[40px] rounded-md border border-input bg-background px-3 py-2">
-                {paymentIdsInput
-                  .split(/[,;\n]+/)
-                  .map((id) => id.trim())
-                  .filter(Boolean)
-                  .map((id) => (
-                    <span
-                      key={id}
-                      className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-sm font-medium text-primary"
-                    >
-                      {id}
-                      <button
-                        type="button"
-                        className="ml-0.5 rounded-full hover:bg-primary/20 p-0.5"
-                        onClick={() => {
-                          setPaymentIdsInput((prev) =>
-                            prev
-                              .split(/[,;\n]+/)
-                              .map((s) => s.trim())
-                              .filter((s) => s && normalizePaymentId(s) !== normalizePaymentId(id))
-                              .join(', ')
-                          );
-                        }}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                {!paymentIdsInput.trim() && (
-                  <span className="text-sm text-muted-foreground">No payment IDs selected</span>
-                )}
-              </div>
+              <Label htmlFor="payment-ids-input">Payment IDs (comma-separated)</Label>
+              <Textarea
+                id="payment-ids-input"
+                value={paymentIdsInput}
+                onChange={(e) => setPaymentIdsInput(e.target.value)}
+                placeholder="e.g. NP_abc123_NJ_def456_PRL042026"
+                rows={2}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Type or paste payment IDs directly. Use this to add payments not shown in the dropdown above.
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <Button type="button" size="sm" onClick={buildPartitionsFromPaymentIds}>
