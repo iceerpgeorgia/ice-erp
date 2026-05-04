@@ -49,50 +49,52 @@ export async function logAudit(params: {
         return value;
       }));
     // Use raw SQL to avoid Prisma binary protocol issues with BigInt id + Json? column (22P03).
-    // Some environments still have AuditLog.record_id as bigint; retry with bigint cast on type mismatch.
+    // When record_id is numeric use ::bigint cast directly to avoid a spurious 42804 error on
+    // environments where AuditLog.record_id is bigint (no retry needed).
     let result: Array<{ id: bigint }> = [];
-    try {
+    if (numericRecordId !== null) {
+      // Numeric ID — insert with explicit ::bigint cast (no retry needed).
       result = await prisma.$queryRawUnsafe<Array<{ id: bigint }>>(
         `INSERT INTO "AuditLog" ("table", "record_id", "action", "user_email", "user_id", "changes")
-         VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+         VALUES ($1, $2::bigint, $3, $4, $5, $6::jsonb)
          RETURNING id`,
         params.table,
-        recordIdStr,
+        numericRecordId.toString(),
         params.action,
         email,
         userId,
         safeChanges ? JSON.stringify(safeChanges) : null
       );
-    } catch (insertErr: any) {
-      const isBigintTypeMismatch =
-        insertErr?.code === 'P2010' &&
-        insertErr?.meta?.code === '42804' &&
-        String(insertErr?.meta?.message || '').includes('record_id');
-
-      if (!isBigintTypeMismatch) {
-        throw insertErr;
-      }
-
-      if (numericRecordId === null) {
-        // Mixed-schema deployments may keep AuditLog.record_id as bigint while some
-        // audit events naturally use composite/text IDs (for example bulk updates).
+    } else {
+      // Non-numeric (text) ID — try text first, fall back to NULL on bigint-column deployments.
+      try {
         result = await prisma.$queryRawUnsafe<Array<{ id: bigint }>>(
           `INSERT INTO "AuditLog" ("table", "record_id", "action", "user_email", "user_id", "changes")
-           VALUES ($1, NULL, $2, $3, $4, $5::jsonb)
+           VALUES ($1, $2, $3, $4, $5, $6::jsonb)
            RETURNING id`,
           params.table,
+          recordIdStr,
           params.action,
           email,
           userId,
           safeChanges ? JSON.stringify(safeChanges) : null
         );
-      } else {
+      } catch (insertErr: any) {
+        const isBigintTypeMismatch =
+          insertErr?.code === 'P2010' &&
+          insertErr?.meta?.code === '42804' &&
+          String(insertErr?.meta?.message || '').includes('record_id');
+
+        if (!isBigintTypeMismatch) {
+          throw insertErr;
+        }
+
+        // Mixed-schema deployment: AuditLog.record_id is bigint but ID is non-numeric text.
         result = await prisma.$queryRawUnsafe<Array<{ id: bigint }>>(
           `INSERT INTO "AuditLog" ("table", "record_id", "action", "user_email", "user_id", "changes")
-           VALUES ($1, $2::bigint, $3, $4, $5, $6::jsonb)
+           VALUES ($1, NULL, $2, $3, $4, $5::jsonb)
            RETURNING id`,
           params.table,
-          numericRecordId.toString(),
           params.action,
           email,
           userId,

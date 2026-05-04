@@ -309,7 +309,10 @@ export async function PATCH(req: NextRequest) {
           pi += 4;
         }
 
-        // 4e. Single UPDATE … FROM (VALUES …)
+        // 4e. Single UPDATE … FROM (VALUES …).
+        // No parsing_lock guard: bulk-bind is an explicit user action and must
+        // always succeed, regardless of whether the record is already locked
+        // (same behaviour as the individual PATCH /api/bank-transactions/[id]).
         const updateQuery = `
           UPDATE "${tableName}" AS t
           SET payment_id       = $${pi},
@@ -322,18 +325,19 @@ export async function PATCH(req: NextRequest) {
           FROM (VALUES ${valueFragments.join(",")})
             AS data(id, er, na, ca)
           WHERE t.id = data.id
-            AND (t.parsing_lock IS NULL OR t.parsing_lock = false)
+          RETURNING t.id
         `;
         valueParams.push(normalizedPaymentId, paymentCurrencyUuid);
 
-        await prisma.$queryRawUnsafe(updateQuery, ...valueParams);
-        totalUpdated += rows.length;
+        const updatedRows = await prisma.$queryRawUnsafe<{ id: bigint }[]>(updateQuery, ...valueParams);
+        totalUpdated += updatedRows.length;
       } else {
         /* ── payment is being CLEARED ── */
+        // No parsing_lock guard: explicit user clear must always succeed.
         const clearPlaceholders = recordIds
           .map((_, i) => `$${i + 1}`)
           .join(",");
-        await prisma.$queryRawUnsafe(
+        const clearedRows = await prisma.$queryRawUnsafe<{ id: bigint }[]>(
           `UPDATE "${tableName}"
            SET payment_id           = NULL,
                parsing_lock         = false,
@@ -344,10 +348,10 @@ export async function PATCH(req: NextRequest) {
                nominal_amount       = account_currency_amount,
                updated_at           = NOW()
            WHERE id IN (${clearPlaceholders})
-             AND (parsing_lock IS NULL OR parsing_lock = false)`,
+           RETURNING id`,
           ...recordIds
         );
-        totalUpdated += recordIds.length;
+        totalUpdated += clearedRows.length;
       }
 
       // Audit log per table (one entry instead of N).
