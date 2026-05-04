@@ -350,16 +350,19 @@ export async function PATCH(req: NextRequest) {
         totalUpdated += recordIds.length;
       }
 
-      // Audit log per table (one entry instead of N)
+      // Audit log per table (one entry instead of N).
+      // record_id is bigint NOT NULL, so pass the first numeric record ID and
+      // store the full list in changes to avoid a type-cast failure.
       try {
         await logAudit({
           table: tableName as any,
-          recordId: entries.map((e) => e.originalId).join(","),
+          recordId: entries[0]?.recordId ?? 0,
           action: "update",
           changes: {
             bulkBind: true,
             payment_uuid: normalizedPaymentId,
             recordCount: entries.length,
+            recordIds: entries.map((e) => e.originalId),
           },
         });
       } catch (auditErr) {
