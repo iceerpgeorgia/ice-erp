@@ -72,6 +72,8 @@ type PaymentReport = {
   project: string;
   projectName?: string | null;
   projectAddress?: string | null;
+  insiderUuid?: string | null;
+  insiderName?: string | null;
   job: string;
   jobCount: number;
   jobWeight?: number | null;
@@ -129,6 +131,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'financialCode', label: 'Financial Code', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'incomeTax', label: 'Income Tax', visible: true, sortable: true, filterable: true, format: 'boolean', width: 100 },
   { key: 'project', label: 'Project', visible: true, sortable: true, filterable: true, width: 200 },
+  { key: 'insiderName', label: 'Insider', visible: true, sortable: true, filterable: true, width: 160 },
   { key: 'projectAddress', label: 'Project Address', visible: false, sortable: true, filterable: true, width: 220 },
   { key: 'job', label: 'Job', visible: true, sortable: true, filterable: true, width: 150 },
   { key: 'jobCount', label: 'Job Count', visible: true, sortable: true, filterable: true, format: 'number', width: 110 },
@@ -699,7 +702,7 @@ export function PaymentsReportTable() {
 
   const fetchPayments = async () => {
     try {
-      const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12');
+      const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
       if (!response.ok) throw new Error('Failed to fetch payments');
       const data = await response.json();
       if (!Array.isArray(data)) {

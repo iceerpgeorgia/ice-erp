@@ -106,6 +106,8 @@ export async function GET(request: NextRequest) {
         proj.project_index,
         proj.project_name,
         proj.address as project_address,
+        proj.insider_uuid::text as insider_uuid,
+        ins.name as insider_name,
         ca.counteragent as counteragent_formatted,
         ca.name as counteragent_name,
         ca.identification_number as counteragent_id,
@@ -135,6 +137,7 @@ export async function GET(request: NextRequest) {
         COALESCE(GREATEST(ledger_agg.latest_ledger_date, bank_agg.latest_bank_date), ledger_agg.latest_ledger_date, bank_agg.latest_bank_date) as latest_date
       FROM payments p
       LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
+      LEFT JOIN counteragents ins ON ins.counteragent_uuid = proj.insider_uuid
       LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
       LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
       LEFT JOIN financial_codes pfc ON fc.parent_uuid = pfc.uuid
@@ -231,6 +234,8 @@ export async function GET(request: NextRequest) {
       project: row.project_index,
       projectName: row.project_name,
       projectAddress: row.project_address ?? null,
+      insiderUuid: row.insider_uuid ?? null,
+      insiderName: row.insider_name ?? null,
       job: row.job_name,
       jobCount: row.job_count ? Number(row.job_count) : 0,
       jobWeight: row.job_weight !== null && row.job_weight !== undefined ? Number(row.job_weight) : null,
