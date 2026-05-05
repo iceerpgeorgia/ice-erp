@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 type Attachment = {
   linkUuid: string;
@@ -86,6 +87,7 @@ export function PaymentAttachments({
   const [documentValue, setDocumentValue] = useState<string>('');
   const [documentCurrency, setDocumentCurrency] = useState<string>('');
   const [selectedProject, setSelectedProject] = useState<string>('');
+  const [attachTarget, setAttachTarget] = useState<'payment' | 'project'>('payment');
   const [dialogMounted, setDialogMounted] = useState(initiallyOpen);
   const [isMounted, setIsMounted] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
@@ -261,7 +263,7 @@ export function PaymentAttachments({
     if (activeDocType?.requireValue && !documentValue) { alert('Value is required for this document type'); return; }
     if (activeDocType?.requireCurrency && !documentCurrency) { alert('Currency is required for this document type'); return; }
     if (activeDocType?.requireDocumentNo && !documentNo) { alert('Document Number is required for this document type'); return; }
-    if (activeDocType?.requireProject && !selectedProject) { alert('Project is required for this document type'); return; }
+    if ((attachTarget === 'project' || activeDocType?.requireProject) && !selectedProject) { alert('Project is required'); return; }
 
     setUploading(true);
     try {
@@ -334,6 +336,7 @@ export function PaymentAttachments({
       setDocumentValue('');
       setDocumentCurrency('');
       setSelectedProject('');
+      setAttachTarget('payment');
       setShowUploadForm(false);
     } catch (error: any) {
       console.error('Error uploading attachment:', error);
@@ -457,6 +460,7 @@ export function PaymentAttachments({
     setDocumentValue('');
     setDocumentCurrency('');
     setSelectedProject('');
+    setAttachTarget('payment');
     setShowUploadForm(false);
   };
 
@@ -598,20 +602,31 @@ export function PaymentAttachments({
     return null; // Prevent hydration mismatch
   }
 
+  const openWithTarget = (target: 'payment' | 'project') => {
+    setAttachTarget(target);
+    setSelectedProject('');
+    setShowUploadForm(true);
+    setDialogMounted(true);
+    setIsDialogOpen(true);
+  };
+
   return (
     <div ref={containerRef} className="flex items-center gap-2">
       {!hideTrigger && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-1"
-          onClick={handleOpenDialog}
-        >
-          {count > 0 && (
-            <span className="text-xs font-medium">{count}</span>
-          )}
-          <Paperclip className="h-4 w-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="flex items-center gap-1">
+              {count > 0 && <span className="text-xs font-medium">{count}</span>}
+              <Paperclip className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleOpenDialog}>View attachments</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => openWithTarget('payment')}>Attach to Payment</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openWithTarget('project')}>Attach to Project</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
 
       {dialogMounted && (
@@ -761,11 +776,25 @@ export function PaymentAttachments({
                     </div>
                   </div>
 
-                  {/* Project selector — shown when document type requires project */}
-                  {documentTypes.find(d => d.uuid === selectedDocumentType)?.requireProject && (
+                  {/* Attach to: Payment or Project */}
+                  {!editingAttachment && (
+                    <div className="space-y-2">
+                      <Label className="text-sm">Attach to</Label>
+                      <Select value={attachTarget} onValueChange={(v) => { setAttachTarget(v as 'payment' | 'project'); setSelectedProject(''); }} disabled={uploading}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="payment">Payment</SelectItem>
+                          <SelectItem value="project">Project</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Project selector — shown when binding to project, or when doc type requires project */}
+                  {!editingAttachment && (attachTarget === 'project' || documentTypes.find(d => d.uuid === selectedDocumentType)?.requireProject) && (
                     <div className="space-y-2">
                       <Label htmlFor="document-project" className="text-sm">
-                        Project <span className="text-destructive">*</span>
+                        Project {(attachTarget === 'project' || documentTypes.find(d => d.uuid === selectedDocumentType)?.requireProject) && <span className="text-destructive">*</span>}
                       </Label>
                       <Select value={selectedProject} onValueChange={setSelectedProject} disabled={uploading}>
                         <SelectTrigger id="document-project"><SelectValue placeholder="Select project" /></SelectTrigger>
