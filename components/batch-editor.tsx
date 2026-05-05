@@ -760,6 +760,8 @@ export function BatchEditor({
           return {
             ...partition,
             paymentId: sanitizedPaymentId,
+            // Fall back to the transaction-level counteragent when the partition has no payment
+            counteragentUuid: partition.counteragentUuid || counteragentUuid || null,
           };
         }
         const payment = payments.find((p) => p.recordUuid === partition.paymentUuid) || null;
@@ -768,7 +770,7 @@ export function BatchEditor({
         return {
           ...partition,
           paymentId: sanitizedPaymentId || payment.paymentId,
-          counteragentUuid: partition.counteragentUuid || payment.counteragentUuid || null,
+          counteragentUuid: partition.counteragentUuid || payment.counteragentUuid || counteragentUuid || null,
           projectUuid: partition.projectUuid || payment.projectUuid || null,
           financialCodeUuid: partition.financialCodeUuid || payment.financialCodeUuid || null,
           nominalCurrencyUuid: partition.nominalCurrencyUuid || payment.currencyUuid || null,
