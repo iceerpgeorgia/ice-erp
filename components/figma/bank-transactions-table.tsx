@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/exhaustive-deps */
+﻿/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, 
@@ -323,10 +323,10 @@ export function BankTransactionsTable({
     accountCurrencyCode: row.account_currency_code || row.accountCurrencyCode || fallback?.accountCurrencyCode || null,
     accountCurrencyAmount: row.account_currency_amount || fallback?.accountCurrencyAmount || "0",
     paymentUuid: null,
-    counteragentUuid: row.counteragent_uuid || fallback?.counteragentUuid || null,
-    projectUuid: row.project_uuid || fallback?.projectUuid || null,
-    financialCodeUuid: row.financial_code_uuid || fallback?.financialCodeUuid || null,
-    nominalCurrencyUuid: row.nominal_currency_uuid || fallback?.nominalCurrencyUuid || null,
+    counteragentUuid: row.counteragent_uuid !== undefined ? (row.counteragent_uuid ?? null) : (fallback?.counteragentUuid ?? null),
+    projectUuid: row.project_uuid !== undefined ? (row.project_uuid ?? null) : (fallback?.projectUuid ?? null),
+    financialCodeUuid: row.financial_code_uuid !== undefined ? (row.financial_code_uuid ?? null) : (fallback?.financialCodeUuid ?? null),
+    nominalCurrencyUuid: row.nominal_currency_uuid !== undefined ? (row.nominal_currency_uuid ?? null) : (fallback?.nominalCurrencyUuid ?? null),
     nominalAmount: row.nominal_amount ?? fallback?.nominalAmount ?? null,
     date: row.transaction_date || fallback?.date || "",
     correctionDate: row.correction_date ?? row.correctionDate ?? fallback?.correctionDate ?? null,
@@ -346,10 +346,10 @@ export function BankTransactionsTable({
     isBalanceRecord: row.is_balance_record ?? fallback?.isBalanceRecord ?? false,
     accountNumber: row.account_number ?? fallback?.accountNumber ?? null,
     bankName: row.bank_name ?? fallback?.bankName ?? null,
-    counteragentName: row.counteragent_name ?? fallback?.counteragentName ?? null,
+    counteragentName: row.counteragent_name !== undefined ? (row.counteragent_name ?? null) : (fallback?.counteragentName ?? null),
     projectIndex: row.project_index ?? fallback?.projectIndex ?? null,
     financialCode: row.financial_code ?? fallback?.financialCode ?? null,
-    paymentId: row.payment_id ?? fallback?.paymentId ?? null,
+    paymentId: row.payment_id !== undefined ? (row.payment_id ?? null) : (fallback?.paymentId ?? null),
     paymentIdRaw: row.payment_id_raw ?? row.paymentIdRaw ?? fallback?.paymentIdRaw ?? null,
     batchId: row.batch_id ?? row.batchId ?? fallback?.batchId ?? null,
     nominalCurrencyCode: row.nominal_currency_code ?? fallback?.nominalCurrencyCode ?? null,
@@ -490,7 +490,7 @@ export function BankTransactionsTable({
         : paymentsList.filter((p: any) =>
             String(p.counteragentName || '').toLowerCase() === counteragentName
           );
-      // Do NOT fall back to all payments — counteragent is known, keep the list scoped.
+      // Do NOT fall back to all payments â€” counteragent is known, keep the list scoped.
     } else if (!counteragentName) {
       // No counteragent at all: show everything
       payments = paymentsList;
@@ -886,13 +886,13 @@ export function BankTransactionsTable({
         const fileNames = oversizedFiles.map(file => file.name).join(', ');
         const maxSizeLabel = formatBytes(MAX_DIRECT_UPLOAD_BYTES);
         const sizeError = `File too large for direct upload (${maxSizeLabel} limit): ${fileNames}. Use smaller files or split the XML export.`;
-        writeLog(`✗ ${sizeError}`);
+        writeLog(`âœ— ${sizeError}`);
         throw new Error(sizeError);
       }
 
       const formData = new FormData();
       selectedFiles.forEach((file) => {
-        writeLog(`→ Attaching ${file.name} (${file.size.toLocaleString()} bytes)`);
+        writeLog(`â†’ Attaching ${file.name} (${file.size.toLocaleString()} bytes)`);
         formData.append('file', file, file.name);
       });
 
@@ -956,10 +956,10 @@ export function BankTransactionsTable({
           details = `${details}\nThe upload request exceeded server limits. Split the XML into smaller files.`;
         }
 
-        writeLog(`✗ Import API error: ${errorMessage}`);
-        writeLog(`↳ ${statusLine}`);
+        writeLog(`âœ— Import API error: ${errorMessage}`);
+        writeLog(`â†³ ${statusLine}`);
         if (details) {
-          writeLog(`↳ ${details}`);
+          writeLog(`â†³ ${details}`);
         }
 
         if (useDialogFallback) {
@@ -969,7 +969,7 @@ export function BankTransactionsTable({
         }
       }
     } catch (error: any) {
-      writeLog(`✗ Upload failed: ${error.message}`);
+      writeLog(`âœ— Upload failed: ${error.message}`);
       if (useDialogFallback) {
         setUploadLogTitle('Upload failed');
       } else {
@@ -1300,7 +1300,7 @@ export function BankTransactionsTable({
       setFormData((prev) => ({ ...prev, payment_uuid: '', project_uuid: '', financial_code_uuid: '' }));
       updatePaymentOptions(clearedTransaction, allPayments);
       if (editingTransaction.recordUuid) {
-        await refreshTransactionsByRawRecordUuid(editingTransaction.recordUuid, editingTransaction);
+        await refreshTransactionsByRawRecordUuid(editingTransaction.recordUuid, clearedTransaction);
       }
     } catch (error: any) {
       alert(error?.message || 'Failed to deassign counteragent');
@@ -3328,7 +3328,7 @@ export function BankTransactionsTable({
 
               {importSummary && (
                 <div className="text-sm text-muted-foreground">
-                  Total rows: {importSummary.total ?? 0} � Missing records: {importSummary.missingRecords ?? 0} � Batch groups: {importSummary.batchGroups ?? 0}
+                  Total rows: {importSummary.total ?? 0} ï¿½ Missing records: {importSummary.missingRecords ?? 0} ï¿½ Batch groups: {importSummary.batchGroups ?? 0}
                 </div>
               )}
 
