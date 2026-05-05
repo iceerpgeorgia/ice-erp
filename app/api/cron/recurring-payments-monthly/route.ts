@@ -108,9 +108,9 @@ export async function GET(req: NextRequest) {
           DNS_NAMESPACE
         );
 
-        const comment = `Auto-recurring carry-over from ${prevMonthStart
-          .toISOString()
-          .split("T")[0]} (prev-month accrual+order)`;
+        const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
+        const yyyy = String(now.getUTCFullYear());
+        const comment = `Auto-recurring carry-over ${mm}_${yyyy}`;
 
         const result = await prisma.$executeRaw(
           Prisma.sql`

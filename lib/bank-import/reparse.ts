@@ -232,7 +232,7 @@ async function reparseRows(
       const placeholders = [
         `$${pi}::bigint`,
         `$${pi + 1}::boolean`, `$${pi + 2}::boolean`, `$${pi + 3}::boolean`,
-        `$${pi + 4}::boolean`, `$${pi + 5}::text`, `$${pi + 6}::text`, `$${pi + 7}::text`,
+        `$${pi + 4}::boolean`, `$${pi + 5}::text`, `$${pi + 6}::integer`, `$${pi + 7}::text`,
         `$${pi + 8}::uuid`, `$${pi + 9}::text`, `$${pi + 10}::uuid`,
         `$${pi + 11}::uuid`, `$${pi + 12}::text`, `$${pi + 13}::uuid`, `$${pi + 14}::numeric`,
       ];
