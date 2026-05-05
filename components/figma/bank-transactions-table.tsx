@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, 
   ArrowUpDown, 
@@ -426,12 +426,6 @@ export function BankTransactionsTable({
   const [jobSearch, setJobSearch] = useState('');
   const [financialCodeSearch, setFinancialCodeSearch] = useState('');
   const [currencySearch, setCurrencySearch] = useState('');
-  // Deferred copies keep input typing snappy when filtering large option lists (payments can exceed 30k rows).
-  const deferredPaymentSearch = useDeferredValue(paymentSearch);
-  const deferredProjectSearch = useDeferredValue(projectSearch);
-  const deferredJobSearch = useDeferredValue(jobSearch);
-  const deferredFinancialCodeSearch = useDeferredValue(financialCodeSearch);
-  const deferredCurrencySearch = useDeferredValue(currencySearch);
   const [exchangeRates, setExchangeRates] = useState<any>(null); // Store exchange rates for transaction date
   const [exchangeRateDate, setExchangeRateDate] = useState<string>('');
   const [formData, setFormData] = useState<{
@@ -615,72 +609,30 @@ export function BankTransactionsTable({
     if (data) setTransactions(data);
   }, [data]);
 
-  // Prefetch all reference data on mount in parallel so the edit dialog opens instantly.
+  // Fetch all payments on mount
   useEffect(() => {
-    let cancelled = false;
-    const prefetch = async () => {
+    const fetchAllPayments = async () => {
       try {
-        const [paymentsRes, projectsRes, codesRes, currenciesRes] = await Promise.all([
-          fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12'),
-          fetch('/api/projects'),
-          fetch('/api/financial-codes'),
-          fetch('/api/currencies'),
-        ]);
-
-        if (cancelled) return;
-
-        if (paymentsRes.ok) {
-          const paymentsData = await paymentsRes.json();
-          const normalizedPayments = Array.isArray(paymentsData)
-            ? paymentsData.map((payment: any) => ({
-                ...payment,
-                counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
-                projectUuid: payment.projectUuid || payment.project_uuid || null,
-                financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
-                currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
-                paymentId: payment.paymentId || payment.payment_id || null,
-              }))
-            : [];
-          if (!cancelled) setAllPayments(normalizedPayments);
-        }
-
-        if (projectsRes.ok) {
-          const projectsData = await projectsRes.json();
-          const mappedProjects = Array.isArray(projectsData)
-            ? projectsData.map((p: any) => ({
-                uuid: p.project_uuid,
-                projectIndex: p.project_index,
-                projectName: p.project_name,
-              }))
-            : [];
-          if (!cancelled) setProjectOptions(mappedProjects);
-        }
-
-        if (codesRes.ok) {
-          const codesData = await codesRes.json();
-          if (!cancelled) {
-            setFinancialCodeOptions(
-              Array.isArray(codesData) ? codesData : (codesData?.codes || [])
-            );
-          }
-        }
-
-        if (currenciesRes.ok) {
-          const currenciesData = await currenciesRes.json();
-          if (!cancelled) {
-            setCurrencyOptions(
-              Array.isArray(currenciesData) ? currenciesData : (currenciesData?.currencies || [])
-            );
-          }
-        }
+        const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
+        if (!response.ok) throw new Error('Failed to fetch payments');
+        const paymentsData = await response.json();
+        const normalizedPayments = Array.isArray(paymentsData)
+          ? paymentsData.map((payment: any) => ({
+              ...payment,
+              counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
+              projectUuid: payment.projectUuid || payment.project_uuid || null,
+              financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
+              currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
+              paymentId: payment.paymentId || payment.payment_id || null,
+            }))
+          : [];
+        setAllPayments(normalizedPayments);
+        console.log('[BankTransactionsTable] Loaded all payments:', normalizedPayments.length);
       } catch (error) {
-        console.error('[BankTransactionsTable] Reference prefetch error:', error);
+        console.error('[BankTransactionsTable] Error fetching all payments:', error);
       }
     };
-    prefetch();
-    return () => {
-      cancelled = true;
-    };
+    fetchAllPayments();
   }, []);
 
   // Fetch due payment IDs from payments report
@@ -1056,6 +1008,7 @@ export function BankTransactionsTable({
   };
 
   const startEdit = async (transaction: BankTransaction) => {
+    console.log('[startEdit] Transaction:', transaction);
     setEditingTransaction(transaction);
     setSaveNotice(null);
     
@@ -1076,6 +1029,7 @@ export function BankTransactionsTable({
       parsing_lock: Boolean(transaction.parsingLock),
       comment: transaction.comment || '',
     };
+    console.log('[startEdit] Initial formData:', initialFormData);
     setFormData(initialFormData);
     if (!transaction.paymentId) {
       setPaymentDisplayValues({
@@ -1097,52 +1051,58 @@ export function BankTransactionsTable({
     setCurrencySearch('');
     
     try {
-      // Determine which network calls are actually needed (most refs are prefetched on mount).
+      // Fetch exchange rates for the transaction date upfront
       const effectiveDate = initialFormData.correction_date || transactionDateInput;
-      const needsPayments = allPayments.length === 0;
+      const ratesResponse = await fetch(`/api/exchange-rates?date=${effectiveDate}`);
+      const ratesData = await ratesResponse.json();
+      const rates = ratesData && ratesData.length > 0 ? ratesData[0] : null;
+      setExchangeRates(rates);
+      setExchangeRateDate(effectiveDate);
+      
+      // Prefer cached payment options; only refresh if we do not have them yet.
+      let freshPayments = allPayments;
+      if (freshPayments.length === 0) {
+        try {
+          const paymentsRes = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
+          if (paymentsRes.ok) {
+            const paymentsData = await paymentsRes.json();
+            freshPayments = Array.isArray(paymentsData)
+              ? paymentsData.map((payment: any) => ({
+                  ...payment,
+                  counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
+                  projectUuid: payment.projectUuid || payment.project_uuid || null,
+                  financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
+                  currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
+                  paymentId: payment.paymentId || payment.payment_id || null,
+                }))
+              : [];
+            setAllPayments(freshPayments);
+          }
+        } catch (err) {
+          console.warn('[startEdit] Failed to refresh payments, using cached:', err);
+        }
+      }
+
+      updatePaymentOptions(transaction, freshPayments);
+      
+      // Fetch reference data in parallel, using cache when available.
       const needsProjects = projectOptions.length === 0;
       const needsCodes = financialCodeOptions.length === 0;
       const needsCurrencies = currencyOptions.length === 0;
       const needsJobs = Boolean(transaction.projectUuid);
 
-      // Fire every required request in parallel so the slowest one defines latency.
-      const [ratesRaw, paymentsRaw, projectsRaw, codesRaw, currenciesRaw, jobsRaw] = await Promise.all([
-        fetch(`/api/exchange-rates?date=${effectiveDate}`).then(r => r.ok ? r.json() : null).catch(() => null),
-        needsPayments
-          ? fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12').then(r => r.ok ? r.json() : null).catch(() => null)
-          : Promise.resolve(null),
-        needsProjects ? fetch('/api/projects').then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
-        needsCodes ? fetch('/api/financial-codes').then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
-        needsCurrencies ? fetch('/api/currencies').then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
-        needsJobs
-          ? fetch(`/api/jobs?projectUuid=${transaction.projectUuid}`).then(r => r.ok ? r.json() : null).catch(() => null)
-          : Promise.resolve(null),
+      const [projectsRaw, codesRaw, currenciesRaw, jobsRaw] = await Promise.all([
+        needsProjects ? fetch('/api/projects').then(r => r.json()) : null,
+        needsCodes ? fetch('/api/financial-codes').then(r => r.json()) : null,
+        needsCurrencies ? fetch('/api/currencies').then(r => r.json()) : null,
+        needsJobs ? fetch(`/api/jobs?projectUuid=${transaction.projectUuid}`).then(r => r.json()) : null,
       ]);
 
-      // Exchange rates
-      const rates = Array.isArray(ratesRaw) && ratesRaw.length > 0 ? ratesRaw[0] : null;
-      setExchangeRates(rates);
-      setExchangeRateDate(effectiveDate);
-
-      // Payments cache (only when not already populated)
-      let freshPayments = allPayments;
-      if (needsPayments && Array.isArray(paymentsRaw)) {
-        freshPayments = paymentsRaw.map((payment: any) => ({
-          ...payment,
-          counteragentUuid: payment.counteragentUuid || payment.counteragent_uuid || null,
-          projectUuid: payment.projectUuid || payment.project_uuid || null,
-          financialCodeUuid: payment.financialCodeUuid || payment.financial_code_uuid || null,
-          currencyUuid: payment.currencyUuid || payment.currency_uuid || null,
-          paymentId: payment.paymentId || payment.payment_id || null,
-        }));
-        setAllPayments(freshPayments);
-      }
-      updatePaymentOptions(transaction, freshPayments);
-
       // Projects
-      if (needsProjects && projectsRaw) {
-        const mappedProjects = Array.isArray(projectsRaw)
-          ? projectsRaw.map((p: any) => ({
+      if (needsProjects) {
+        const projectsData = projectsRaw ?? [];
+        const mappedProjects = Array.isArray(projectsData)
+          ? projectsData.map((p: any) => ({
               uuid: p.project_uuid,
               projectIndex: p.project_index,
               projectName: p.project_name,
@@ -1152,17 +1112,23 @@ export function BankTransactionsTable({
       }
 
       // Financial codes
-      if (needsCodes && codesRaw) {
-        setFinancialCodeOptions(Array.isArray(codesRaw) ? codesRaw : (codesRaw.codes || []));
+      if (needsCodes) {
+        const codesData = codesRaw ?? [];
+        setFinancialCodeOptions(Array.isArray(codesData) ? codesData : (codesData.codes || []));
       }
 
       // Currencies
-      if (needsCurrencies && currenciesRaw) {
-        setCurrencyOptions(Array.isArray(currenciesRaw) ? currenciesRaw : (currenciesRaw.currencies || []));
+      if (needsCurrencies) {
+        const currenciesData = currenciesRaw ?? [];
+        setCurrencyOptions(Array.isArray(currenciesData) ? currenciesData : (currenciesData.currencies || []));
       }
 
-      // Jobs (per-transaction, never cached)
-      setJobOptions(needsJobs && Array.isArray(jobsRaw) ? jobsRaw : []);
+      // Jobs
+      if (needsJobs) {
+        setJobOptions(Array.isArray(jobsRaw) ? jobsRaw : []);
+      } else {
+        setJobOptions([]);
+      }
     } catch (error: any) {
       alert(`Failed to load options: ${error.message}`);
       setEditingTransaction(null);
@@ -1309,6 +1275,31 @@ export function BankTransactionsTable({
       refreshTransactionsByRawRecordUuid(editingTransaction.recordUuid, editingTransaction);
     }
     cancelEdit();
+  };
+
+  const deassignCounteragent = async () => {
+    if (!editingTransaction) return;
+    if (!confirm('Remove the counteragent from this transaction? The payment, project, and financial code will also be cleared.')) return;
+
+    try {
+      const params = editingTransaction.sourceTable && editingTransaction.sourceId !== undefined
+        ? `?sourceTable=${encodeURIComponent(editingTransaction.sourceTable)}&sourceId=${encodeURIComponent(String(editingTransaction.sourceId))}`
+        : '';
+      const response = await fetch(`/api/bank-transactions/${editingTransaction.id}${params}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ counteragent_uuid: null }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err?.error || 'Failed to deassign counteragent');
+      }
+      if (editingTransaction.recordUuid) {
+        await refreshTransactionsByRawRecordUuid(editingTransaction.recordUuid, editingTransaction);
+      }
+    } catch (error: any) {
+      alert(error?.message || 'Failed to deassign counteragent');
+    }
   };
 
   const deassignBatchForPayment = async () => {
@@ -2634,8 +2625,8 @@ export function BankTransactionsTable({
                         {paymentOptions
                           .filter((payment) => {
                             if (onlyDue && duePaymentIds.size > 0 && !duePaymentIds.has(payment.paymentId)) return false;
-                            if (!deferredPaymentSearch) return true;
-                            const searchLower = deferredPaymentSearch.toLowerCase();
+                            if (!paymentSearch) return true;
+                            const searchLower = paymentSearch.toLowerCase();
                             return (
                               payment.paymentId?.toLowerCase().includes(searchLower) ||
                               payment.counteragentName?.toLowerCase().includes(searchLower) ||
@@ -2725,6 +2716,15 @@ export function BankTransactionsTable({
                       disabled={!editingTransaction?.recordUuid}
                     >
                       Deassign batch
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={deassignCounteragent}
+                      disabled={!editingTransaction?.counteragentUuid}
+                    >
+                      Deassign counteragent
                     </Button>
                     {batchEditorError && (
                       <p className="mt-2 text-xs text-red-600">{batchEditorError}</p>
@@ -2840,8 +2840,8 @@ export function BankTransactionsTable({
                           <SelectItem value="__none__">-- No Project --</SelectItem>
                           {projectOptions
                             .filter((project) => {
-                              if (!deferredProjectSearch) return true;
-                              const searchLower = deferredProjectSearch.toLowerCase();
+                              if (!projectSearch) return true;
+                              const searchLower = projectSearch.toLowerCase();
                               return (
                                 project.projectIndex?.toLowerCase().includes(searchLower) ||
                                 project.projectName?.toLowerCase().includes(searchLower)
@@ -2882,8 +2882,8 @@ export function BankTransactionsTable({
                           <SelectItem value="__none__">-- No Job --</SelectItem>
                           {jobOptions
                             .filter((job) => {
-                              if (!deferredJobSearch) return true;
-                              const searchLower = deferredJobSearch.toLowerCase();
+                              if (!jobSearch) return true;
+                              const searchLower = jobSearch.toLowerCase();
                               const displayText = job.jobDisplay || job.jobName || '';
                               return displayText.toLowerCase().includes(searchLower);
                             })
@@ -2921,8 +2921,8 @@ export function BankTransactionsTable({
                           <SelectItem value="__none__">-- No Code --</SelectItem>
                           {financialCodeOptions
                             .filter((code) => {
-                              if (!deferredFinancialCodeSearch) return true;
-                              return code.validation?.toLowerCase().includes(deferredFinancialCodeSearch.toLowerCase());
+                              if (!financialCodeSearch) return true;
+                              return code.validation?.toLowerCase().includes(financialCodeSearch.toLowerCase());
                             })
                             .map((code) => (
                               <SelectItem key={code.uuid} value={code.uuid}>
@@ -2959,8 +2959,8 @@ export function BankTransactionsTable({
                             <SelectItem value="__none__">-- No Currency --</SelectItem>
                             {currencyOptions
                               .filter((currency) => {
-                                if (!deferredCurrencySearch) return true;
-                                const searchLower = deferredCurrencySearch.toLowerCase();
+                                if (!currencySearch) return true;
+                                const searchLower = currencySearch.toLowerCase();
                                 return (
                                   currency.code?.toLowerCase().includes(searchLower) ||
                                   currency.name?.toLowerCase().includes(searchLower)

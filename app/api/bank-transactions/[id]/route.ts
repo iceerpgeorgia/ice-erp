@@ -430,6 +430,23 @@ export async function PATCH(
     if (counteragent_uuid !== undefined && counteragent_uuid !== current.counteragent_uuid) {
       updateData.counteragentUuid = counteragent_uuid;
       changes.push(`counteragent: ${current.counteragent_uuid} → ${counteragent_uuid}`);
+      // Clearing the counteragent — also reset processing flag and clear payment
+      if (counteragent_uuid === null) {
+        updateData.counteragentProcessed = false;
+        changes.push('counteragent_processed: reset to false (counteragent cleared)');
+        // Force-clear payment when counteragent is deassigned
+        if (payment_uuid === undefined && current.payment_id) {
+          updateData.paymentId = null;
+          updateData.projectUuid = null;
+          updateData.financialCodeUuid = null;
+          updateData.nominalCurrencyUuid = current.account_currency_uuid;
+          updateData.exchangeRate = new Decimal(1);
+          updateData.nominalAmount = new Decimal(current.account_currency_amount?.toString?.() ?? current.account_currency_amount);
+          updateData.parsingLock = false;
+          changes.push('payment_id: cleared (counteragent deassigned)');
+          changes.push('parsing_lock: reset to false (counteragent deassigned)');
+        }
+      }
     }
     
     // Handle payment_uuid change - this triggers currency and amount recalculation
@@ -627,6 +644,7 @@ export async function PATCH(
     };
 
     if (updateData.counteragentUuid !== undefined) pushUpdate('counteragent_uuid', updateData.counteragentUuid);
+    if (updateData.counteragentProcessed !== undefined) pushUpdate('counteragent_processed', updateData.counteragentProcessed);
     if (updateData.paymentId !== undefined) pushUpdate('payment_id', updateData.paymentId);
     if (updateData.projectUuid !== undefined) pushUpdate('project_uuid', updateData.projectUuid);
     if (updateData.financialCodeUuid !== undefined) pushUpdate('financial_code_uuid', updateData.financialCodeUuid);
