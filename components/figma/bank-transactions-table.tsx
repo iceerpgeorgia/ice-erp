@@ -2748,7 +2748,11 @@ export function BankTransactionsTable({
                       <Label className="text-xs text-gray-600">Counteragent</Label>
                       <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center">
                         <span className="font-bold" style={{ color: '#000' }}>
-                          {editingTransaction?.counteragentName || 'N/A'}
+                          {(formData.payment_uuid
+                            ? paymentOptions.find(p => p.paymentId === formData.payment_uuid)?.counteragentName
+                            : null)
+                            || editingTransaction?.counteragentName
+                            || 'N/A'}
                         </span>
                       </div>
                     </div>
