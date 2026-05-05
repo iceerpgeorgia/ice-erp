@@ -61,10 +61,12 @@ type PaymentReport = {
   isActive?: boolean;
   isProjectDerived?: boolean;
   isBundlePayment?: boolean;
+  isRecurring?: boolean;
   isBundleAggregate?: boolean;
   isCounteragentBundleAggregate?: boolean;
   paymentBundleUuid?: string | null;
   counteragent: string;
+  counteragentName?: string | null;
   counteragentId?: string | null;
   counteragentIban?: string | null;
   counteragentEntityName?: string | null;
@@ -147,6 +149,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'balance', label: 'Balance', visible: true, sortable: true, filterable: true, format: 'currency', width: 120 },
   { key: 'isProjectDerived', label: 'Auto', visible: true, sortable: true, filterable: true, format: 'boolean', width: 90 },
   { key: 'isBundlePayment', label: 'Bundle', visible: true, sortable: true, filterable: true, format: 'boolean', width: 90 },
+  { key: 'isRecurring', label: 'Recurring', visible: true, sortable: true, filterable: true, format: 'boolean', width: 100 },
   { key: 'latestDate', label: 'Latest Date', visible: true, sortable: true, filterable: true, format: 'date', width: 120 },
 ];
 
@@ -358,6 +361,7 @@ export function PaymentsReportTable() {
   const [editProjectUuid, setEditProjectUuid] = useState('');
   const [editJobUuid, setEditJobUuid] = useState('');
   const [editIncomeTax, setEditIncomeTax] = useState(false);
+  const [editIsRecurring, setEditIsRecurring] = useState(false);
   const [editIsActive, setEditIsActive] = useState(true);
   const [editJobs, setEditJobs] = useState<Array<{ jobUuid: string; jobName: string; jobDisplay?: string }>>([]);
   const [editPaymentError, setEditPaymentError] = useState<string | null>(null);
@@ -385,7 +389,7 @@ export function PaymentsReportTable() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const versionKey = 'paymentsReportColumnsVersion';
-    const currentVersion = '3';
+    const currentVersion = '4';
     const savedVersion = localStorage.getItem(versionKey);
     const shouldLoadSavedColumns = savedVersion === currentVersion;
     if (!shouldLoadSavedColumns) {
@@ -982,6 +986,7 @@ export function PaymentsReportTable() {
     setEditProjectUuid(row.projectUuid || '');
     setEditJobUuid(row.jobUuid || '');
     setEditIncomeTax(Boolean(row.incomeTax));
+    setEditIsRecurring(Boolean(row.isRecurring));
     setEditIsActive(row.isActive ?? true);
     setEditPaymentError(null);
     setIsEditPaymentOpen(true);
@@ -1018,6 +1023,7 @@ export function PaymentsReportTable() {
           paymentId: editPaymentId || null,
           label: editLabel || null,
           isActive: editIsActive,
+          isRecurring: editIsRecurring,
         }),
       });
 
@@ -1513,12 +1519,7 @@ export function PaymentsReportTable() {
   };
 
   const buildCounteragentExportName = (record: PaymentReport) => {
-    const baseName = record.counteragent || '';
-    if (record.counteragentIsNaturalPerson) return baseName;
-
-    const entityName = record.counteragentEntityName || '';
-    if (!entityName) return baseName;
-    return `${entityName} ${baseName}`.trim();
+    return record.counteragentName || record.counteragent || '';
   };
 
   const buildPaymentDescription = (template: string | null | undefined, row: PaymentReport) => {
@@ -4136,6 +4137,14 @@ export function PaymentsReportTable() {
                 id="edit-income-tax"
               />
               <Label htmlFor="edit-income-tax">Income Tax</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={editIsRecurring}
+                onCheckedChange={(value) => setEditIsRecurring(Boolean(value))}
+                id="edit-is-recurring"
+              />
+              <Label htmlFor="edit-is-recurring">Recurring</Label>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox
