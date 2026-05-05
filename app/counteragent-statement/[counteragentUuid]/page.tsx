@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import dynamic from 'next/dynamic';
 import * as XLSX from 'xlsx';
 import { useParams } from 'next/navigation';
 import { Edit2, Eye, Filter, Plus, Search, Settings, Trash2, X } from 'lucide-react';
@@ -18,6 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '../../../components/ui/dialog';
+import { BankTransactionsTable } from '../../../components/figma/bank-transactions-table';
 import type { BankTransaction } from '../../../components/figma/bank-transactions-table';
 import { AddProjectDialog } from '../../../components/figma/add-project-dialog';
 import { Combobox } from '../../../components/ui/combobox';
@@ -25,19 +25,6 @@ import { Label } from '../../../components/ui/label';
 import { ColumnFilterPopover } from '../../../components/figma/shared/column-filter-popover';
 import { ClearFiltersButton } from '../../../components/figma/shared/clear-filters-button';
 import type { FilterState, ColumnFilter, ColumnFormat } from '../../../components/figma/shared/table-filters';
-
-// Lazy-load the heavy (~150 KB) bank transactions table; only fetched when this page mounts.
-const BankTransactionsTable = dynamic(
-  () => import('../../../components/figma/bank-transactions-table').then((m) => m.BankTransactionsTable),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center p-12">
-        <p className="text-muted-foreground">Loading transactions...</p>
-      </div>
-    ),
-  },
-);
 import { matchesFilter, buildFacetBaseData, buildUniqueValuesCache } from '../../../components/figma/shared/table-filters';
 
 const formatDate = (date: string | Date): string => {
@@ -365,6 +352,22 @@ export default function CounteragentStatementPage() {
     [getPaymentInfo]
   );
 
+  const handleBankDialogClose = useCallback(async () => {
+    setIsBankEditDialogOpen(false);
+    // Silently refresh the statement so the edited row reflects the latest data
+    try {
+      const response = await fetch(
+        `/api/counteragent-statement?counteragentUuid=${encodeURIComponent(counteragentUuid)}`
+      );
+      if (response.ok) {
+        const result = await response.json();
+        setStatement(result);
+      }
+    } catch {
+      // silent — optimistic update from handleBankTransactionUpdated is still visible
+    }
+  }, [counteragentUuid]);
+
   useEffect(() => {
     const saved = localStorage.getItem('counteragentStatementColumns');
     if (saved) {
@@ -489,7 +492,7 @@ export default function CounteragentStatementPage() {
   useEffect(() => {
     const fetchPayments = async () => {
       try {
-        const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=12');
+        const response = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
         if (!response.ok) throw new Error('Failed to fetch payments');
         const data = await response.json();
         if (!Array.isArray(data)) {
@@ -2237,7 +2240,7 @@ export default function CounteragentStatementPage() {
               data={bankEditData}
               renderMode="dialog-only"
               autoEditId={bankEditId ?? undefined}
-              onDialogClose={() => setIsBankEditDialogOpen(false)}
+              onDialogClose={handleBankDialogClose}
               onTransactionUpdated={handleBankTransactionUpdated}
             />
           )}
