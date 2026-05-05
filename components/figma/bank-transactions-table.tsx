@@ -1294,6 +1294,11 @@ export function BankTransactionsTable({
         const err = await response.json().catch(() => ({}));
         throw new Error(err?.error || 'Failed to deassign counteragent');
       }
+      // Update editingTransaction to reflect cleared counteragent, then refresh payment options
+      const clearedTransaction = { ...editingTransaction, counteragentUuid: null, counteragentName: null, paymentId: null };
+      setEditingTransaction(clearedTransaction);
+      setFormData((prev) => ({ ...prev, payment_uuid: '', project_uuid: '', financial_code_uuid: '' }));
+      updatePaymentOptions(clearedTransaction, allPayments);
       if (editingTransaction.recordUuid) {
         await refreshTransactionsByRawRecordUuid(editingTransaction.recordUuid, editingTransaction);
       }
