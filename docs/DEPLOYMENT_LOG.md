@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-05-05 Deployment #253
+- Commit: 0c8d854
+- Production: https://ice-1o8r9v8t0-iceerp.vercel.app
+- Summary: Fix applied_rule_id type cast in local DB mirror, add deadlock retry in reparse, and use MM_YYYY format in recurring payment comments.
+- Changes:
+  - lib/bank-import/reparse.ts: Cast applied_rule_id as ::integer (was ::text) in local mirror UPDATE VALUES clause; reduce Supabase chunk size 20->5; retry once on Postgres deadlock (40P01) with jitter.
+  - app/api/cron/recurring-payments-monthly/route.ts: Comment format changed to 'Auto-recurring carry-over MM_YYYY'.
+
+
 ## 2026-05-05 Deployment #252
 - Commit: 0cf2ea5
 - Production: https://ice-j6hvozjja-iceerp.vercel.app
