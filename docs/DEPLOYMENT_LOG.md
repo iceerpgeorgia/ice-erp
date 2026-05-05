@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-05-05 Deployment #254
+- Commit: 57ce7e9
+- Production: https://ice-d6hib7vop-iceerp.vercel.app
+- Summary: Only reparse bank transactions when binding fields (payment_id, counteragent, financial code, currency, project) actually change — not on label/isRecurring/isActive edits.
+- Changes:
+  - app/api/payments/route.ts: Added bindingFieldChanged guard before reparseByPaymentId call.
+
+
 ## 2026-05-05 Deployment #253
 - Commit: 0c8d854
 - Production: https://ice-1o8r9v8t0-iceerp.vercel.app
