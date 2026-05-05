@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-05-05 Deployment #252
+- Commit: 0cf2ea5
+- Production: https://ice-j6hvozjja-iceerp.vercel.app
+- Summary: Add Recurring column and Recurring checkbox to Edit Payment dialog in Payments Report.
+- Changes:
+  - components/figma/payments-report-table.tsx: Added isRecurring to PaymentReport type, Recurring column in defaultColumns (visible, boolean format), editIsRecurring state initialized from row data, isRecurring sent on PATCH save, Recurring checkbox in edit dialog between Income Tax and Active. Bumped column version to 4.
+
+
 ## 2026-05-05 Deployment #251
 - Commit: c436c16
 - Production: https://ice-iw51tun84-iceerp.vercel.app
