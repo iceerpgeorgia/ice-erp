@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-05-06 Deployment #262
+- Commit: f0c2e07
+- Production: https://ice-lmfraueke-iceerp.vercel.app
+- Summary: Fix bundle-distribution ledger date UTC drift (-1 day) and HTTP 414 on attachment counts.
+- Changes:
+  - app/api/projects/route.ts: All 4 bundle-distribution ledger writers now build YYYY-MM-DD strings and cast ::date in SQL instead of passing JS Date objects (Prisma UTC serialization caused -1 day shift in UTC+ zones)
+  - app/api/payments/attachments/route.ts: Added POST handler accepting { paymentIds, countsOnly } body to avoid HTTP 414 on very large ID lists
+  - components/figma/payments-report-table.tsx: Switch attachment-count fetch to POST with JSON body
+  - components/figma/payments-table.tsx: Switch attachment-count fetch to POST with JSON body
+
 ## 2026-05-06 Deployment #261
 - Commit: 0ddf156
 - Production: https://ice-jmidmd0vd-iceerp.vercel.app
