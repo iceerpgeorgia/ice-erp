@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-05-06 Deployment #263
+- Commit: 3873a07
+- Production: https://ice-i0ef5yxl9-iceerp.vercel.app
+- Summary: Fix React hydration errors #418/#422 and bundle-distribution date read UTC drift.
+- Changes:
+  - components/figma/payments-report-table.tsx: Moved BroadcastChannel creation from useState to useEffect so the channel only opens after hydration; a broadcast message arriving mid-hydration triggered React errors #418/#422
+  - app/api/projects/bundle-distribution/route.ts: Use getUTCDate/getUTCMonth/getUTCFullYear when formatting effective_date back to dd.mm.yyyy; getDate() on a UTC server returns the wrong calendar day for timestamps with offset (e.g. 2025-01-18T20:00 UTC = UTC+4 midnight Jan 19), perpetuating the -1 day shift on every re-save
+
 ## 2026-05-06 Deployment #262
 - Commit: f0c2e07
 - Production: https://ice-lmfraueke-iceerp.vercel.app
