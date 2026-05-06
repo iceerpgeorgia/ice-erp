@@ -94,6 +94,18 @@ export function PaymentAttachments({
   const [editingAttachment, setEditingAttachment] = useState<Attachment | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [ocrFilled, setOcrFilled] = useState(false);
+  // Payment metadata (currency + counteragent INN) fetched on dialog open
+  const [paymentCurrencyCode, setPaymentCurrencyCode] = useState<string | null>(null);
+  const [counteragentInn, setCounterAgentInn] = useState<string | null>(null);
+  // INN mismatch from OCR: null=unchecked, false=ok/unknown, true=mismatch
+  const [innMismatch, setInnMismatch] = useState<boolean | null>(null);
+  const [extractedInn, setExtractedInn] = useState<string | null>(null);
+  // Ledger entry dialog state (shown after successful upload when documentValue > 0)
+  const [ledgerDialogOpen, setLedgerDialogOpen] = useState(false);
+  const [pendingLedgerAccrual, setPendingLedgerAccrual] = useState<number | null>(null);
+  const [pendingLedgerDate, setPendingLedgerDate] = useState<string>('');
+  const [ledgerOrderInput, setLedgerOrderInput] = useState<string>('');
+  const [creatingLedger, setCreatingLedger] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const hasFetchedRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -213,12 +225,33 @@ export function PaymentAttachments({
     setIsDialogOpen(true);
   };
 
+  // Auto-set currency to payment's currency once both are loaded
+  useEffect(() => {
+    if (paymentCurrencyCode && currencies.length > 0 && !documentCurrency) {
+      const match = currencies.find((c) => c.code === paymentCurrencyCode);
+      if (match) setDocumentCurrency(match.uuid);
+    }
+  }, [paymentCurrencyCode, currencies]);
+
+  const loadPaymentMeta = async () => {
+    try {
+      const res = await fetch(`/api/payments/meta?paymentId=${encodeURIComponent(paymentId)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setPaymentCurrencyCode(data.currencyCode ?? null);
+      setCounterAgentInn(data.counteragentInn ?? null);
+    } catch {
+      // non-critical
+    }
+  };
+
   useEffect(() => {
     if (isDialogOpen && dialogMounted) {
       loadAttachments();
       loadDocumentTypes();
       loadCurrencies();
       loadProjects();
+      loadPaymentMeta();
     }
   }, [isDialogOpen, dialogMounted]);
 
@@ -226,6 +259,8 @@ export function PaymentAttachments({
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0]);
       setOcrFilled(false);
+      setInnMismatch(null);
+      setExtractedInn(null);
     }
   };
 
@@ -250,6 +285,8 @@ export function PaymentAttachments({
     if (droppedFile) {
       setSelectedFile(droppedFile);
       setOcrFilled(false);
+      setInnMismatch(null);
+      setExtractedInn(null);
     }
   };
 
@@ -257,9 +294,14 @@ export function PaymentAttachments({
     if (!selectedFile) return;
     setIsScanning(true);
     setOcrFilled(false);
+    setInnMismatch(null);
+    setExtractedInn(null);
     try {
       const form = new FormData();
       form.append('file', selectedFile);
+      // Pass payment context so OCR uses payment currency and checks issuer INN
+      if (paymentCurrencyCode) form.append('paymentCurrencyCode', paymentCurrencyCode);
+      if (counteragentInn) form.append('counteragentInn', counteragentInn);
       const response = await fetch('/api/payments/attachments/ocr', {
         method: 'POST',
         body: form,
@@ -272,9 +314,15 @@ export function PaymentAttachments({
       if (result.date) { setDocumentDate(result.date); anyFilled = true; }
       if (result.invoiceNo) { setDocumentNo(result.invoiceNo); anyFilled = true; }
       if (result.amount != null) { setDocumentValue(String(result.amount)); anyFilled = true; }
+      // Currency: always use payment's currency (result.currency already reflects this)
       if (result.currency) {
         const match = currencies.find((c) => c.code === result.currency);
         if (match) { setDocumentCurrency(match.uuid); anyFilled = true; }
+      }
+      // INN verification
+      if (result.extractedInn) {
+        setExtractedInn(result.extractedInn);
+        setInnMismatch(result.innMatch === false ? true : false);
       }
       if (anyFilled) {
         setOcrFilled(true);
@@ -286,6 +334,34 @@ export function PaymentAttachments({
       alert(error?.message || 'Document scan failed. Please fill in the fields manually.');
     } finally {
       setIsScanning(false);
+    }
+  };
+
+  const handleCreateLedger = async (orderAmount: number | null) => {
+    if (!pendingLedgerAccrual) { setLedgerDialogOpen(false); return; }
+    setCreatingLedger(true);
+    try {
+      const res = await fetch('/api/payments-ledger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentId,
+          effectiveDate: pendingLedgerDate,
+          accrual: pendingLedgerAccrual,
+          order: orderAmount,
+          comment: 'Auto-created from attachment upload',
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Failed to create ledger entry');
+      }
+    } catch (e: any) {
+      alert(e?.message || 'Failed to create ledger entry');
+    } finally {
+      setCreatingLedger(false);
+      setLedgerDialogOpen(false);
+      setPendingLedgerAccrual(null);
     }
   };
 
@@ -369,6 +445,8 @@ export function PaymentAttachments({
 
       // Success - reload attachments and reset form
       await loadAttachments();
+      const uploadedValue = documentValue ? parseFloat(documentValue) : 0;
+      const uploadedDate = documentDate || new Date().toISOString().split('T')[0];
       setSelectedFile(null);
       setSelectedDocumentType('');
       setDocumentDate('');
@@ -379,6 +457,15 @@ export function PaymentAttachments({
       setAttachTarget('payment');
       setShowUploadForm(false);
       setOcrFilled(false);
+      setInnMismatch(null);
+      setExtractedInn(null);
+      // If the attachment has a value, offer to create a ledger entry
+      if (uploadedValue > 0) {
+        setPendingLedgerAccrual(uploadedValue);
+        setPendingLedgerDate(uploadedDate);
+        setLedgerOrderInput(String(uploadedValue));
+        setLedgerDialogOpen(true);
+      }
     } catch (error: any) {
       console.error('Error uploading attachment:', error);
       alert(error?.message || 'Failed to upload attachment');
@@ -504,6 +591,8 @@ export function PaymentAttachments({
     setAttachTarget('payment');
     setShowUploadForm(false);
     setOcrFilled(false);
+    setInnMismatch(null);
+    setExtractedInn(null);
   };
 
   const handleUpdateAttachment = async () => {
@@ -795,6 +884,11 @@ export function PaymentAttachments({
                               Fields auto-filled from document — review and adjust if needed
                             </div>
                           )}
+                          {innMismatch && extractedInn && (
+                            <div className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                              ⚠️ Issuer ID ({extractedInn}) does not match counteragent ID ({counteragentInn ?? '—'}). Please verify.
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -908,7 +1002,10 @@ export function PaymentAttachments({
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="document-currency" className="text-sm">Currency{documentTypes.find(d => d.uuid === selectedDocumentType)?.requireCurrency && <span className="text-destructive"> *</span>}</Label>
+                      <Label htmlFor="document-currency" className="text-sm">
+                        Currency{documentTypes.find(d => d.uuid === selectedDocumentType)?.requireCurrency && <span className="text-destructive"> *</span>}
+                        {paymentCurrencyCode && <span className="ml-1 text-xs text-muted-foreground">(payment: {paymentCurrencyCode})</span>}
+                      </Label>
                       <Select 
                         value={documentCurrency} 
                         onValueChange={setDocumentCurrency}
@@ -950,6 +1047,52 @@ export function PaymentAttachments({
           </div>
         </DialogContent>
       </Dialog>
+      )}
+
+      {/* Ledger entry dialog — shown after successful attachment upload with a value */}
+      {ledgerDialogOpen && pendingLedgerAccrual != null && (
+        <Dialog open={ledgerDialogOpen} onOpenChange={(open) => { if (!open && !creatingLedger) setLedgerDialogOpen(false); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Create Ledger Entry</DialogTitle>
+              <DialogDescription>
+                Attachment uploaded with value <strong>{pendingLedgerAccrual.toLocaleString()} {paymentCurrencyCode || ''}</strong>.
+                A ledger entry will be created with this accrual. Specify the order amount.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label htmlFor="ledger-order">Order Amount</Label>
+                <Input
+                  id="ledger-order"
+                  type="number"
+                  step="0.01"
+                  value={ledgerOrderInput}
+                  onChange={(e) => setLedgerOrderInput(e.target.value)}
+                  disabled={creatingLedger}
+                  placeholder={String(pendingLedgerAccrual)}
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLedgerDialogOpen(false)}
+                  disabled={creatingLedger}
+                >
+                  Skip
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleCreateLedger(ledgerOrderInput ? parseFloat(ledgerOrderInput) : pendingLedgerAccrual)}
+                  disabled={creatingLedger}
+                >
+                  {creatingLedger ? 'Creating...' : 'Create Entry'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

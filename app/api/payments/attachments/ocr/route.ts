@@ -154,10 +154,17 @@ export interface OcrResult {
   invoiceNo: string | null;
   amount: number | null;
   currency: string | null;
+  /** INN/ID code extracted from the document */
+  extractedInn: string | null;
+  /** true = INN matches counteragent, false = mismatch, null = couldn't verify */
+  innMatch: boolean | null;
   rawText: string;
 }
 
-function extractInvoiceFields(text: string): OcrResult {
+function extractInvoiceFields(
+  text: string,
+  opts: { paymentCurrencyCode?: string | null; counteragentInn?: string | null } = {}
+): OcrResult {
   let date: string | null = null;
   let invoiceNo: string | null = null;
   let amount: number | null = null;
@@ -291,10 +298,34 @@ function extractInvoiceFields(text: string): OcrResult {
   }
 
   // ── Currency: prefer from total line, then whole doc ─────────────────
-  currency = (totalLine ? detectCurrencyInText(totalLine) : null)
+  // Always override with payment currency if provided (invoice must match payment)
+  const detectedCurrency = (totalLine ? detectCurrencyInText(totalLine) : null)
     ?? detectCurrencyInText(text);
+  currency = opts.paymentCurrencyCode ?? detectedCurrency;
 
-  return { date, invoiceNo, amount, currency, rawText: text.slice(0, 3000) };
+  // ── INN / Company ID extraction ───────────────────────────────────────
+  // Georgian company IDs are typically 9-11 digits; often labelled with
+  // "ID:", "INN:", "საიდენტიფიკაციო კოდი:", "ID code:", etc.
+  let extractedInn: string | null = null;
+  let innMatch: boolean | null = null;
+
+  const innPatterns = [
+    /(?:საიდენტიფიკაციო\s+კოდი|ID\s*:?|INN\s*:?|S\/N\s*:?)\s*(\d{9,11})/i,
+    /\b(\d{9})\b/,   // 9-digit standalone
+    /\b(\d{11})\b/,  // 11-digit standalone
+  ];
+  for (const p of innPatterns) {
+    const innM = text.match(p);
+    if (innM) { extractedInn = innM[1]; break; }
+  }
+
+  if (extractedInn && opts.counteragentInn) {
+    // Normalize both: strip leading zeros for comparison
+    const norm = (s: string) => s.replace(/^0+/, '');
+    innMatch = norm(extractedInn) === norm(opts.counteragentInn);
+  }
+
+  return { date, invoiceNo, amount, currency, extractedInn, innMatch, rawText: text.slice(0, 3000) };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -324,6 +355,8 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
+    const paymentCurrencyCode = (formData.get('paymentCurrencyCode') as string | null) || null;
+    const counteragentInn     = (formData.get('counteragentInn')     as string | null) || null;
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -349,12 +382,13 @@ export async function POST(request: NextRequest) {
     if (!rawText.trim()) {
       return NextResponse.json({
         success: true,
-        date: null, invoiceNo: null, amount: null, currency: null, rawText: '',
+        date: null, invoiceNo: null, amount: null, currency: null,
+        extractedInn: null, innMatch: null, rawText: '',
         message: 'No text detected in the document.',
       });
     }
 
-    const fields = extractInvoiceFields(rawText);
+    const fields = extractInvoiceFields(rawText, { paymentCurrencyCode, counteragentInn });
     return NextResponse.json({ success: true, ...fields });
 
   } catch (error: any) {
