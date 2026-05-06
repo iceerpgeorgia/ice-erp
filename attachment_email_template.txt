@@ -1,0 +1,15 @@
+მოგესალმებით,
+
+გაცნობებთ, რომ დაემატა ახალი გადახდა:
+
+
+პროექტი                	: projects.project_index
+
+კონტრაგენტი       		: payments.counteragent_uuid>counteragents.counteragent
+
+თანხა                      	: Attachments.sum +" "+ payments.currency
+
+გადახდის ნაშთი		: payments_report.payment_id.due + payments.currency
+
+პასუხისმგებელი		: user.counteragent>counteragents.name
+

@@ -1823,7 +1823,10 @@ export function PaymentsReportTable() {
     }
 
     if (value instanceof Date && !Number.isNaN(value.getTime())) {
-      return { date: value.toISOString().split('T')[0] };
+      const y = value.getFullYear();
+      const m = String(value.getMonth() + 1).padStart(2, '0');
+      const d = String(value.getDate()).padStart(2, '0');
+      return { date: `${y}-${m}-${d}` };
     }
 
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -1862,7 +1865,10 @@ export function PaymentsReportTable() {
 
     const parsed = new Date(raw);
     if (!Number.isNaN(parsed.getTime())) {
-      return { date: parsed.toISOString().split('T')[0] };
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, '0');
+      const d = String(parsed.getDate()).padStart(2, '0');
+      return { date: `${y}-${m}-${d}` };
     }
 
     return { date: '', error: `Invalid date: ${raw}` };

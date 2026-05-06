@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
     try {
       const notificationResult = await sendPaymentNotifications({
         paymentId,
+        uploaderUserId: userId ?? null,
       });
 
       if (!notificationResult.success) {

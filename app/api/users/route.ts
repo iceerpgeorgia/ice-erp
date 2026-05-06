@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
         authorizedBy: true,
         emailVerified: true,
         paymentNotifications: true,
+        counteragentUuid: true,
       },
       orderBy: {
         email: 'asc',
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
         authorizedBy: true,
         emailVerified: true,
         paymentNotifications: true,
+        counteragentUuid: true,
       },
     });
 
@@ -103,7 +105,7 @@ export async function PATCH(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid input', details: formatZodErrors(parsed.error) }, { status: 400 });
     }
-    const { isAuthorized, role, paymentNotifications } = parsed.data;
+    const { isAuthorized, role, paymentNotifications, counteragentUuid } = parsed.data;
 
     const updateData: any = {};
 
@@ -126,6 +128,10 @@ export async function PATCH(request: NextRequest) {
       updateData.paymentNotifications = paymentNotifications;
     }
 
+    if (counteragentUuid !== undefined) {
+      updateData.counteragentUuid = counteragentUuid ?? null;
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: updateData,
@@ -139,6 +145,7 @@ export async function PATCH(request: NextRequest) {
         authorizedBy: true,
         emailVerified: true,
         paymentNotifications: true,
+        counteragentUuid: true,
       },
     });
 

@@ -72,6 +72,7 @@ model User {
   authorizedAt          DateTime?
   authorizedBy          String?
   paymentNotifications  Boolean                    @default(false) @map("payment_notifications")
+  counteragentUuid      String?                    @map("counteragent_uuid") @db.Uuid
   Account               Account[]
   Entry                 Entry[]
   Session               Session[]

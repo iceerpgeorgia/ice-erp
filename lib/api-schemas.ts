@@ -208,4 +208,5 @@ export const updateUserSchema = z.object({
   isAuthorized: z.boolean().optional(),
   role: z.enum(["user", "admin", "system_admin"]).optional(),
   paymentNotifications: z.boolean().optional(),
+  counteragentUuid: z.string().uuid().nullable().optional(),
 });

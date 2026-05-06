@@ -35,6 +35,13 @@ type User = {
   authorizedBy: string | null;
   emailVerified: Date | null;
   paymentNotifications: boolean;
+  counteragentUuid: string | null;
+};
+
+type CounterAgent = {
+  counteragent_uuid: string;
+  name: string | null;
+  counteragent: string | null;
 };
 
 type ModuleFeature = {
@@ -63,6 +70,10 @@ export default function UsersManagementTable() {
   const [isExporting, setIsExporting] = useState(false);
   const [updatingPaymentNotificationIds, setUpdatingPaymentNotificationIds] = useState<Set<string>>(new Set());
   
+  // Counteragents list for binding
+  const [counteragents, setCounterAgents] = useState<CounterAgent[]>([]);
+  const [updatingCounterAgentIds, setUpdatingCounterAgentIds] = useState<Set<string>>(new Set());
+
   // Module access dialog state
   const [showModulesDialog, setShowModulesDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -72,7 +83,20 @@ export default function UsersManagementTable() {
 
   useEffect(() => {
     fetchUsers();
+    fetchCounterAgents();
   }, []);
+
+  const fetchCounterAgents = async () => {
+    try {
+      const response = await fetch('/api/counteragents?is_emploee=true');
+      if (response.ok) {
+        const data = await response.json();
+        setCounterAgents(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch counteragents:', error);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -253,6 +277,35 @@ export default function UsersManagementTable() {
         nextIds.delete(userId);
         return nextIds;
       });
+    }
+  };
+
+  const handleCounterAgentChange = async (userId: string, counteragentUuid: string | null) => {
+    setUpdatingCounterAgentIds((ids) => { const next = new Set(ids); next.add(userId); return next; });
+    setUsers((current) =>
+      current.map((u) => (u.id === userId ? { ...u, counteragentUuid } : u))
+    );
+    try {
+      const response = await fetch(`/api/users?id=${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ counteragentUuid }),
+      });
+      if (response.ok) {
+        const updatedUser = await response.json();
+        setUsers((current) => current.map((u) => (u.id === userId ? updatedUser : u)));
+      } else {
+        const err = await response.json().catch(() => null);
+        alert(err?.error || 'Failed to update counteragent binding');
+        setUsers((current) =>
+          current.map((u) => (u.id === userId ? { ...u, counteragentUuid: u.counteragentUuid } : u))
+        );
+      }
+    } catch (error) {
+      console.error('Failed to update counteragent binding:', error);
+      alert('Failed to update counteragent binding');
+    } finally {
+      setUpdatingCounterAgentIds((ids) => { const next = new Set(ids); next.delete(userId); return next; });
     }
   };
 
@@ -439,6 +492,7 @@ export default function UsersManagementTable() {
             <TableRow>
               <TableHead>Email</TableHead>
               <TableHead>Name</TableHead>
+              <TableHead>Counteragent</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Authorized</TableHead>
               <TableHead>Payment Notifications</TableHead>
@@ -456,6 +510,27 @@ export default function UsersManagementTable() {
               <TableRow key={user.id}>
                 <TableCell className="font-medium">{user.email}</TableCell>
                 <TableCell>{user.name || '-'}</TableCell>
+                <TableCell>
+                  <Select
+                    value={user.counteragentUuid ?? '__none__'}
+                    onValueChange={(value) =>
+                      handleCounterAgentChange(user.id, value === '__none__' ? null : value)
+                    }
+                    disabled={updatingCounterAgentIds.has(user.id)}
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="— none —" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— none —</SelectItem>
+                      {counteragents.map((ca) => (
+                        <SelectItem key={ca.counteragent_uuid} value={ca.counteragent_uuid}>
+                          {ca.counteragent || ca.name || ca.counteragent_uuid}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </TableCell>
                 <TableCell>
                   <Select
                     value={user.role}

@@ -227,6 +227,7 @@ export async function GET(request: NextRequest) {
       isBundlePayment: row.is_bundle_payment ?? false,
       paymentBundleUuid: row.payment_bundle_uuid ?? null,
       counteragent: row.counteragent_formatted || row.counteragent_name,
+      counteragentName: row.counteragent_name ?? null,
       counteragentId: row.counteragent_id,
       counteragentIban: row.counteragent_iban,
       counteragentEntityName: row.counteragent_entity_name ?? null,

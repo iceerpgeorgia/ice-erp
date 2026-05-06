@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
       // Fetch related data
       const [counteragent, financial_code, currency] = await Promise.all([
         prisma.$queryRaw<any[]>`
-          SELECT counteragent_uuid, counteragent FROM counteragents WHERE counteragent_uuid = ${accrual.counteragent_uuid}::uuid LIMIT 1
+          SELECT counteragent_uuid, name FROM counteragents WHERE counteragent_uuid = ${accrual.counteragent_uuid}::uuid LIMIT 1
         `,
         prisma.$queryRaw<any[]>`
           SELECT uuid, validation FROM financial_codes WHERE uuid = ${accrual.financial_code_uuid}::uuid LIMIT 1
@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         ...accrual,
         id: accrual.id.toString(),
-        counteragent_name: counteragent[0]?.counteragent || 'Unknown',
+        counteragent_name: counteragent[0]?.name || 'Unknown',
         counteragent_iban: counteragent[0]?.iban || null,
         financial_code: financial_code[0]?.validation || 'Unknown',
         currency_code: currency[0]?.code || 'Unknown',
@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
           sa.confirmed,
           sa.created_at,
           sa.updated_at,
-          c.counteragent as counteragent_name,
+          c.name as counteragent_name,
           c.identification_number,
           c.sex,
           c.pension_scheme,
@@ -502,7 +502,7 @@ export async function POST(request: NextRequest) {
               sa.deducted_fine,
               sa.created_at,
               sa.updated_at,
-              c.counteragent as counteragent_name,
+              c.name as counteragent_name,
               c.identification_number,
               c.sex,
               c.pension_scheme,
@@ -609,7 +609,7 @@ export async function POST(request: NextRequest) {
               sa.deducted_fine,
               sa.created_at,
               sa.updated_at,
-              c.counteragent as counteragent_name,
+              c.name as counteragent_name,
               c.identification_number,
               c.sex,
               c.pension_scheme,

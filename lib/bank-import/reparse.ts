@@ -196,16 +196,23 @@ async function reparseRows(
   });
 
   const supabase = getSupabaseClient();
-  const updateChunkSize = 20;
+  const updateChunkSize = 5;
   for (let i = 0; i < updateRows.length; i += updateChunkSize) {
     const chunk = updateRows.slice(i, i + updateChunkSize);
     const results = await Promise.all(
-      chunk.map((updateRow) =>
-        supabase
-          .from(tableName)
-          .update(updateRow)
-          .eq('id', updateRow.id)
-      )
+      chunk.map(async (updateRow) => {
+        // Retry once on deadlock (Supabase/Postgres code 40P01)
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const result = await supabase
+            .from(tableName)
+            .update(updateRow)
+            .eq('id', updateRow.id);
+          if (!result.error || (result.error as any)?.code !== '40P01') return result;
+          // Brief jitter before retry
+          await new Promise((res) => setTimeout(res, 50 + Math.random() * 100));
+        }
+        return supabase.from(tableName).update(updateRow).eq('id', updateRow.id);
+      })
     );
 
     for (const result of results) {
