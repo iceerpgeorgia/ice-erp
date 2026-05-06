@@ -164,15 +164,23 @@ function extractInvoiceFields(text: string): OcrResult {
   let currency: string | null = null;
 
   // ── Currency ────────────────────────────────────────────────────────
+  // Detect per-line to avoid false positives from footer notes
+  // (e.g. "300 EUR at GEL rate" should yield EUR, not GEL)
   const currencyMap: Array<[RegExp, string]> = [
     [/\bGEL\b|\bლარი\b|₾/,    'GEL'],
     [/\bUSD\b|\bდოლარი\b|\$/,  'USD'],
     [/\bEUR\b|\bევრო\b|€/,     'EUR'],
     [/\bGBP\b|£/,              'GBP'],
   ];
-  for (const [pattern, code] of currencyMap) {
-    if (pattern.test(text)) { currency = code; break; }
-  }
+
+  const detectCurrencyInText = (haystack: string): string | null => {
+    for (const [pattern, code] of currencyMap) {
+      if (pattern.test(haystack)) return code;
+    }
+    return null;
+  };
+
+  // Will be resolved after amount detection (prefer currency from total line)
 
   // ── Date ────────────────────────────────────────────────────────────
   // dd.mm.yyyy or dd/mm/yyyy
@@ -211,22 +219,24 @@ function extractInvoiceFields(text: string): OcrResult {
 
   // ── Invoice number ──────────────────────────────────────────────────
   const invoicePatterns = [
-    // "Invoice No: INV-001" / "Invoice #001" / "Invoice Number: 001"
-    /Invoice\s*(?:No\.?|#|Number)?:?\s*([\w/-]+)/i,
-    // Georgian: "ინვოისი N 001" / "ინვოისი №001" / "ანგარიშ-ფაქტურა №001"
-    /(?:ინვოისი|ანგარიშ-ფაქტურა)\s*(?:N|№|#)?\s*([\w/-]+)/i,
-    // Standalone №/N followed by alphanumeric
-    /(?:№|No\.?)\s*([\w/-]+)/i,
+    // "Invoice NR 12760" / "Invoice No: INV-001" / "Invoice #001"
+    /Invoice\s*(?:No\.?|NR\.?|#|Number)?[:\s]+([\w-]+)/i,
+    // Georgian: "ინვოისი NR 001" / "ინვოისი №001" / "ანგარიშ-ფაქტურა №001"
+    /(?:ინვოისი|ანგარიშ-ფაქტურა)\s+(?:(?:NR|N|№|#)[.\s]*)?([\d][\w-]*)/i,
+    // Standalone №/NR followed by digits
+    /(?:№|NR\.?|No\.?)\s*([\d][\w-]*)/i,
     // INV- prefix anywhere
     /\b(INV[-/][\w/-]+)/i,
   ];
   for (const p of invoicePatterns) {
     m = text.match(p);
     if (m) {
-      invoiceNo = (m[1] ?? m[0]).trim().replace(/^[:.\s]+|[:.\s]+$/g, '');
-      // Reject very short/generic matches
-      if (invoiceNo.length >= 1) break;
-      invoiceNo = null;
+      const candidate = (m[1] ?? '').trim().replace(/^[:.\s\/]+|[:.\s\/]+$/g, '');
+      // Must contain at least one digit and be non-trivial
+      if (candidate.length >= 1 && /\d/.test(candidate)) {
+        invoiceNo = candidate;
+        break;
+      }
     }
   }
 
@@ -244,24 +254,34 @@ function extractInvoiceFields(text: string): OcrResult {
     return !isNaN(num) && num > 0 && num < 1e9 ? num : null;
   };
 
+  let totalLine: string | null = null;
+
   for (const kw of totalKeywords) {
     const kwEsc = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // Match keyword then optional chars then a number (possibly with decimals)
+    // Capture the whole line so we can also extract currency from it
     const lineRe = new RegExp(
-      `${kwEsc}[^\\n]{0,60}?([\\d][\\d\\s,\u00a0]*(?:\\.\\d{1,2})?)`,
+      `([^\\n]*${kwEsc}[^\\n]{0,120})`,
       'i'
     );
     m = text.match(lineRe);
     if (m) {
-      const parsed = parseAmount(m[1]);
-      if (parsed !== null) { amount = parsed; break; }
+      totalLine = m[1];
+      // Extract number from that line
+      const numRe = /([\d][\d\s,\u00a0]*(?:\.\d{1,2})?)/;
+      const numM = totalLine.match(numRe);
+      if (numM) {
+        const parsed = parseAmount(numM[1]);
+        if (parsed !== null) { amount = parsed; break; }
+      }
     }
   }
 
-  // Fallback: largest number with exactly 2 decimal places
+  // Fallback: largest number with 1-2 decimal places
+  // Exclude numbers that are part of a date (dd.mm or mm.yyyy patterns)
   if (amount === null) {
     const allAmounts: number[] = [];
-    const decRe = /\b(\d[\d\s,\u00a0]*\.\d{2})\b/g;
+    // (?![.\d]) ensures not followed by another dot or digit (avoids matching dd.mm from dd.mm.yyyy)
+    const decRe = /\b(\d[\d\s,\u00a0]*\.\d{1,2})(?![.\d])/g;
     let dm: RegExpExecArray | null;
     while ((dm = decRe.exec(text)) !== null) {
       const parsed = parseAmount(dm[1]);
@@ -269,6 +289,10 @@ function extractInvoiceFields(text: string): OcrResult {
     }
     if (allAmounts.length > 0) amount = Math.max(...allAmounts);
   }
+
+  // ── Currency: prefer from total line, then whole doc ─────────────────
+  currency = (totalLine ? detectCurrencyInText(totalLine) : null)
+    ?? detectCurrencyInText(text);
 
   return { date, invoiceNo, amount, currency, rawText: text.slice(0, 3000) };
 }
