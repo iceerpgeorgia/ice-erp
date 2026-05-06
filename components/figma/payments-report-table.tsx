@@ -1142,8 +1142,13 @@ export function PaymentsReportTable() {
     const fetchAttachmentCounts = async () => {
       try {
         const response = await fetch(
-          `/api/payments/attachments?paymentIds=${encodeURIComponent(paymentIds.join(','))}&countsOnly=1`,
-          { cache: 'no-store' },
+          `/api/payments/attachments`,
+          {
+            method: 'POST',
+            cache: 'no-store',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paymentIds, countsOnly: true }),
+          },
         );
         if (!response.ok) throw new Error('Failed to fetch payment attachment counts');
         const result = await response.json();

@@ -60,3 +60,46 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+/**
+ * POST /api/payments/attachments
+ * Body: { paymentIds: string[], countsOnly?: boolean }
+ *
+ * Used as a body-based alternative to GET when the paymentIds list is too large
+ * for a query string (HTTP 414). Currently supports the counts-only mode used
+ * by the payments report tables.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => null) as
+      | { paymentIds?: unknown; countsOnly?: unknown }
+      | null;
+
+    if (!body || !Array.isArray(body.paymentIds)) {
+      return NextResponse.json(
+        { error: 'paymentIds (string[]) is required' },
+        { status: 400 }
+      );
+    }
+
+    const paymentIds = body.paymentIds
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .filter(Boolean);
+
+    if (body.countsOnly) {
+      const counts = await getPaymentAttachmentCounts(paymentIds);
+      return NextResponse.json({ counts });
+    }
+
+    return NextResponse.json(
+      { error: 'Only countsOnly mode is supported via POST' },
+      { status: 400 }
+    );
+  } catch (error: any) {
+    console.error('Error fetching attachments (POST):', error);
+    return NextResponse.json(
+      { error: error?.message || 'Failed to fetch attachments' },
+      { status: 500 }
+    );
+  }
+}

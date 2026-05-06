@@ -451,12 +451,23 @@ export async function POST(req: NextRequest) {
         // Upsert payments_ledger: find existing auto-managed entry, update in place; insert if none
         if (distributedAmount > 0 && paymentIdToUse) {
           try {
-            // Parse date from dd.mm.yyyy format, use current date if empty or invalid
+            // Parse date from dd.mm.yyyy format, use current local date if empty or invalid.
+            // IMPORTANT: build a calendar-only YYYY-MM-DD string and cast to ::date in SQL so
+            // we never round-trip through UTC (which previously shifted dates by -1 in UTC+).
             const dateParts = (distRow.distributionDate || '').split('.');
-            let effectiveDate = new Date();
+            let effectiveDate: string;
             if (dateParts.length === 3) {
               const [day, month, year] = dateParts;
-              effectiveDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+              const y = String(parseInt(year)).padStart(4, '0');
+              const m = String(parseInt(month)).padStart(2, '0');
+              const d = String(parseInt(day)).padStart(2, '0');
+              effectiveDate = `${y}-${m}-${d}`;
+            } else {
+              const today = new Date();
+              const y = today.getFullYear();
+              const m = String(today.getMonth() + 1).padStart(2, '0');
+              const d = String(today.getDate()).padStart(2, '0');
+              effectiveDate = `${y}-${m}-${d}`;
             }
 
             const comment = `Bundle distribution: ${distRow.financialCodeName}`;
@@ -477,7 +488,7 @@ export async function POST(req: NextRequest) {
               const keepId = existingLedger[0].id;
               await prisma.$queryRawUnsafe(
                 `UPDATE payments_ledger
-                 SET payment_id = $1, effective_date = $2, accrual = $3, "order" = $3,
+                 SET payment_id = $1, effective_date = $2::date, accrual = $3, "order" = $3,
                      comment = $4, insider_uuid = $5::uuid, user_email = $6, updated_at = NOW()
                  WHERE id = $7`,
                 paymentIdToUse, effectiveDate, distributedAmount, comment,
@@ -494,7 +505,7 @@ export async function POST(req: NextRequest) {
               await prisma.$queryRawUnsafe(
                 `INSERT INTO payments_ledger (
                   payment_id, effective_date, accrual, "order", user_email, comment, insider_uuid
-                ) VALUES ($1, $2, $3, $3, $4, $5, $6::uuid)`,
+                ) VALUES ($1, $2::date, $3, $3, $4, $5, $6::uuid)`,
                 paymentIdToUse,
                 effectiveDate,
                 distributedAmount,
@@ -771,12 +782,22 @@ export async function PATCH(req: NextRequest) {
           // Create/update payments_ledger entry
           if (distributedAmount > 0 && paymentIdToUse) {
             try {
-              // Parse date from dd.mm.yyyy format, use current date if empty or invalid
+              // Parse date from dd.mm.yyyy. Use a calendar-only YYYY-MM-DD string and cast to ::date
+              // so we never round-trip through UTC (avoids -1 day shift in UTC+ zones).
               const dateParts = (distRow.distributionDate || '').split('.');
-              let effectiveDate = new Date();
+              let effectiveDate: string;
               if (dateParts.length === 3) {
                 const [day, month, year] = dateParts;
-                effectiveDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                const y = String(parseInt(year)).padStart(4, '0');
+                const m = String(parseInt(month)).padStart(2, '0');
+                const d = String(parseInt(day)).padStart(2, '0');
+                effectiveDate = `${y}-${m}-${d}`;
+              } else {
+                const today = new Date();
+                const y = today.getFullYear();
+                const m = String(today.getMonth() + 1).padStart(2, '0');
+                const d = String(today.getDate()).padStart(2, '0');
+                effectiveDate = `${y}-${m}-${d}`;
               }
 
               // Get insider_uuid from project
@@ -802,7 +823,7 @@ export async function PATCH(req: NextRequest) {
                 const keepId = existingLedger[0].id;
                 await prisma.$queryRawUnsafe(
                   `UPDATE payments_ledger
-                   SET payment_id = $1, effective_date = $2, accrual = $3, "order" = $3,
+                   SET payment_id = $1, effective_date = $2::date, accrual = $3, "order" = $3,
                        comment = $4, insider_uuid = $5::uuid, user_email = $6, updated_at = NOW()
                    WHERE id = $7`,
                   paymentIdToUse, effectiveDate, distributedAmount, comment,
@@ -818,7 +839,7 @@ export async function PATCH(req: NextRequest) {
                 await prisma.$queryRawUnsafe(
                   `INSERT INTO payments_ledger (
                     payment_id, effective_date, accrual, "order", user_email, comment, insider_uuid
-                  ) VALUES ($1, $2, $3, $3, $4, $5, $6::uuid)`,
+                  ) VALUES ($1, $2::date, $3, $3, $4, $5, $6::uuid)`,
                   paymentIdToUse,
                   effectiveDate,
                   distributedAmount,
@@ -862,11 +883,21 @@ export async function PATCH(req: NextRequest) {
             // Create ledger entry for the newly created payment
             if (distributedAmount > 0 && newPaymentId) {
               try {
+                // Calendar-only date string; cast ::date in SQL to avoid UTC drift.
                 const dateParts = (distRow.distributionDate || '').split('.');
-                let effectiveDate = new Date();
+                let effectiveDate: string;
                 if (dateParts.length === 3) {
                   const [day, month, year] = dateParts;
-                  effectiveDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                  const y = String(parseInt(year)).padStart(4, '0');
+                  const m = String(parseInt(month)).padStart(2, '0');
+                  const d = String(parseInt(day)).padStart(2, '0');
+                  effectiveDate = `${y}-${m}-${d}`;
+                } else {
+                  const today = new Date();
+                  const y = today.getFullYear();
+                  const m = String(today.getMonth() + 1).padStart(2, '0');
+                  const d = String(today.getDate()).padStart(2, '0');
+                  effectiveDate = `${y}-${m}-${d}`;
                 }
                 const comment = `Bundle distribution: ${distRow.financialCodeName}`;
                 const existingLedger = await prisma.$queryRawUnsafe<Array<{ id: bigint }>>(
@@ -880,7 +911,7 @@ export async function PATCH(req: NextRequest) {
                   const keepId = existingLedger[0].id;
                   await prisma.$queryRawUnsafe(
                     `UPDATE payments_ledger
-                     SET effective_date = $1, accrual = $2, "order" = $2,
+                     SET effective_date = $1::date, accrual = $2, "order" = $2,
                          comment = $3, insider_uuid = $4::uuid, user_email = $5, updated_at = NOW()
                      WHERE id = $6`,
                     effectiveDate, distributedAmount, comment, insider_uuid,
@@ -896,7 +927,7 @@ export async function PATCH(req: NextRequest) {
                   await prisma.$queryRawUnsafe(
                     `INSERT INTO payments_ledger (
                       payment_id, effective_date, accrual, "order", user_email, comment, insider_uuid
-                    ) VALUES ($1, $2, $3, $3, $4, $5, $6::uuid)`,
+                    ) VALUES ($1, $2::date, $3, $3, $4, $5, $6::uuid)`,
                     newPaymentId,
                     effectiveDate,
                     distributedAmount,
