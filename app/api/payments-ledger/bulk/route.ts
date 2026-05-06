@@ -17,7 +17,10 @@ const parseEffectiveDate = (effectiveDate?: string | number | Date | null) => {
   }
 
   if (effectiveDate instanceof Date && !Number.isNaN(effectiveDate.getTime())) {
-    return effectiveDate.toISOString().split('T')[0];
+    const y = effectiveDate.getFullYear();
+    const m = String(effectiveDate.getMonth() + 1).padStart(2, '0');
+    const d = String(effectiveDate.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   }
 
   if (typeof effectiveDate === 'number' && Number.isFinite(effectiveDate)) {
@@ -54,7 +57,10 @@ const parseEffectiveDate = (effectiveDate?: string | number | Date | null) => {
 
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) {
-    return parsed.toISOString().split('T')[0];
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, '0');
+    const d = String(parsed.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   }
 
   return null;
