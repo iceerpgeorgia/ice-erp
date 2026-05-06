@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Paperclip, Upload, Trash2, Download, Eye, Plus, X } from 'lucide-react';
+import { Paperclip, Upload, Trash2, Download, Eye, Plus, X, ScanSearch, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -92,6 +92,8 @@ export function PaymentAttachments({
   const [isMounted, setIsMounted] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [editingAttachment, setEditingAttachment] = useState<Attachment | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [ocrFilled, setOcrFilled] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const hasFetchedRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -223,6 +225,7 @@ export function PaymentAttachments({
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0]);
+      setOcrFilled(false);
     }
   };
 
@@ -246,6 +249,43 @@ export function PaymentAttachments({
     const droppedFile = e.dataTransfer.files?.[0];
     if (droppedFile) {
       setSelectedFile(droppedFile);
+      setOcrFilled(false);
+    }
+  };
+
+  const handleScanDocument = async () => {
+    if (!selectedFile) return;
+    setIsScanning(true);
+    setOcrFilled(false);
+    try {
+      const form = new FormData();
+      form.append('file', selectedFile);
+      const response = await fetch('/api/payments/attachments/ocr', {
+        method: 'POST',
+        body: form,
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'OCR failed');
+      }
+      let anyFilled = false;
+      if (result.date) { setDocumentDate(result.date); anyFilled = true; }
+      if (result.invoiceNo) { setDocumentNo(result.invoiceNo); anyFilled = true; }
+      if (result.amount != null) { setDocumentValue(String(result.amount)); anyFilled = true; }
+      if (result.currency) {
+        const match = currencies.find((c) => c.code === result.currency);
+        if (match) { setDocumentCurrency(match.uuid); anyFilled = true; }
+      }
+      if (anyFilled) {
+        setOcrFilled(true);
+      } else {
+        alert('No invoice fields could be extracted. Please fill in the fields manually.');
+      }
+    } catch (error: any) {
+      console.error('OCR error:', error);
+      alert(error?.message || 'Document scan failed. Please fill in the fields manually.');
+    } finally {
+      setIsScanning(false);
     }
   };
 
@@ -338,6 +378,7 @@ export function PaymentAttachments({
       setSelectedProject('');
       setAttachTarget('payment');
       setShowUploadForm(false);
+      setOcrFilled(false);
     } catch (error: any) {
       console.error('Error uploading attachment:', error);
       alert(error?.message || 'Failed to upload attachment');
@@ -462,6 +503,7 @@ export function PaymentAttachments({
     setSelectedProject('');
     setAttachTarget('payment');
     setShowUploadForm(false);
+    setOcrFilled(false);
   };
 
   const handleUpdateAttachment = async () => {
@@ -721,8 +763,38 @@ export function PaymentAttachments({
                         />
                       </div>
                       {selectedFile && (
-                        <div className="text-xs text-muted-foreground">
-                          {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-xs text-muted-foreground truncate">
+                              {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={handleScanDocument}
+                              disabled={isScanning || uploading}
+                              className="shrink-0 h-7 text-xs gap-1"
+                            >
+                              {isScanning ? (
+                                <>
+                                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                  Scanning...
+                                </>
+                              ) : (
+                                <>
+                                  <ScanSearch className="h-3 w-3" />
+                                  Scan
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                          {ocrFilled && (
+                            <div className="flex items-center gap-1 text-xs text-green-600">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Fields auto-filled from document — review and adjust if needed
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

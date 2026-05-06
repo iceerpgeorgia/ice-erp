@@ -5,6 +5,7 @@ import crypto from 'crypto';
 interface PaymentNotificationData {
   paymentId: string;
   label?: string | null;
+  uploaderUserId?: string | null;
 }
 
 interface NotificationResult {
@@ -54,7 +55,8 @@ function formatAttachmentSize(fileSizeBytes: number | null): string {
 }
 
 /**
- * Send payment notifications to all users with paymentNotifications enabled
+ * Send payment notifications when an attachment is uploaded.
+ * Recipients: users with paymentNotifications=true + the uploader (deduplicated).
  */
 export async function sendPaymentNotifications(
   payment: PaymentNotificationData
@@ -62,9 +64,9 @@ export async function sendPaymentNotifications(
   console.log('[Payment Notifications] ================================================');
   console.log('[Payment Notifications] Starting notification process');
   console.log('[Payment Notifications] Payment ID:', payment.paymentId);
-  console.log('[Payment Notifications] Payment Label:', payment.label || 'N/A');
+  console.log('[Payment Notifications] Uploader User ID:', payment.uploaderUserId || 'N/A');
   console.log('[Payment Notifications] ================================================');
-  
+
   const result: NotificationResult = {
     success: true,
     notifiedUsers: [],
@@ -72,63 +74,89 @@ export async function sendPaymentNotifications(
   };
 
   try {
-    console.log('[Payment Notifications] Querying users with notifications enabled...');
-    
-    // Get all users with payment notifications enabled
-    const users = await prisma.user.findMany({
-      where: {
-        paymentNotifications: true,
-        isAuthorized: true,
-        email: {
-          not: null,
-        },
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-      },
+    // ── 1. Collect recipients ─────────────────────────────────────────────────
+    const notifUsers = await prisma.user.findMany({
+      where: { paymentNotifications: true, isAuthorized: true, email: { not: null } },
+      select: { id: true, email: true, name: true, counteragentUuid: true },
     });
 
-    console.log('[Payment Notifications] Found', users.length, 'eligible users');
-    if (users.length > 0) {
-      console.log('[Payment Notifications] Users:', users.map(u => u.email).join(', '));
+    // Fetch uploader separately (may or may not have notifications enabled)
+    let uploaderUser: { id: string; email: string | null; name: string | null; counteragentUuid: string | null } | null = null;
+    if (payment.uploaderUserId) {
+      uploaderUser = await prisma.user.findUnique({
+        where: { id: payment.uploaderUserId },
+        select: { id: true, email: true, name: true, counteragentUuid: true },
+      });
     }
 
-    if (users.length === 0) {
-      console.log('[Payment Notifications] No users with notifications enabled - skipping email send');
+    // Deduplicate: start with notification users, then add uploader if not already there
+    const recipientMap = new Map<string, { id: string; email: string; name: string | null; counteragentUuid: string | null }>();
+    for (const u of notifUsers) {
+      if (u.email) recipientMap.set(u.id, { id: u.id, email: u.email, name: u.name, counteragentUuid: u.counteragentUuid ?? null });
+    }
+    if (uploaderUser?.email && !recipientMap.has(uploaderUser.id)) {
+      recipientMap.set(uploaderUser.id, {
+        id: uploaderUser.id,
+        email: uploaderUser.email,
+        name: uploaderUser.name,
+        counteragentUuid: uploaderUser.counteragentUuid ?? null,
+      });
+    }
+    const recipients = Array.from(recipientMap.values());
+
+    console.log('[Payment Notifications] Recipients:', recipients.map(u => u.email).join(', ') || 'none');
+
+    if (recipients.length === 0) {
+      console.log('[Payment Notifications] No recipients — skipping');
       return result;
     }
 
-    console.log('[Payment Notifications] Loading payment record...');
+    // ── 2. Load payment with joins ────────────────────────────────────────────
     const paymentRecord = await prisma.payments.findUnique({
-      where: {
-        payment_id: payment.paymentId,
-      },
+      where: { payment_id: payment.paymentId },
       select: {
         payment_id: true,
         record_uuid: true,
         label: true,
+        project_uuid: true,
+        counteragent_uuid: true,
+        currency_uuid: true,
       },
     });
 
     if (!paymentRecord) {
-      throw new Error(`Payment not found for notification: ${payment.paymentId}`);
+      throw new Error(`Payment not found: ${payment.paymentId}`);
     }
 
     const paymentLabel = payment.label ?? paymentRecord.label;
 
-    console.log('[Payment Notifications] Fetching payment attachments...');
-    
-    // Get attachments for the payment
+    // ── 3. Look up related entities in parallel ───────────────────────────────
+    const [projectRow, counteragentRow, currencyRow] = await Promise.all([
+      paymentRecord.project_uuid
+        ? prisma.projects.findFirst({
+            where: { project_uuid: paymentRecord.project_uuid },
+            select: { project_index: true, project_name: true },
+          })
+        : Promise.resolve(null),
+      prisma.counteragents.findFirst({
+        where: { counteragent_uuid: paymentRecord.counteragent_uuid },
+        select: { counteragent: true, name: true, insider_name: true },
+      }),
+      prisma.currencies.findFirst({
+        where: { uuid: paymentRecord.currency_uuid },
+        select: { code: true },
+      }),
+    ]);
+
+    const projectLabel = projectRow?.project_index || projectRow?.project_name || '—';
+    const counteragentLabel = counteragentRow?.counteragent || counteragentRow?.name || '—';
+    const insiderName = (counteragentRow as any)?.insider_name || null;
+    const currencyCode = currencyRow?.code || '';
+
+    // ── 4. Attachments for this payment ───────────────────────────────────────
     const attachments = await prisma.attachments.findMany({
       where: {
-        links: {
-          some: {
-            owner_table: 'payments',
-            owner_uuid: paymentRecord.record_uuid,
-          },
-        },
+        links: { some: { owner_table: 'payments', owner_uuid: paymentRecord.record_uuid } },
         is_active: true,
       },
       select: {
@@ -138,28 +166,62 @@ export async function sendPaymentNotifications(
         file_size_bytes: true,
         storage_bucket: true,
         storage_path: true,
-        document_type: {
-          select: {
-            name: true,
-          },
-        },
+        document_value: true,
+        document_type: { select: { name: true } },
       },
     });
 
-    console.log('[Payment Notifications] Found', attachments.length, 'attachments for this payment');
-    if (attachments.length > 0) {
-      console.log('[Payment Notifications] Attachments:', attachments.map(a => a.file_name).join(', '));
-    }
-
     if (attachments.length === 0) {
-      console.log('[Payment Notifications] No attachments - skipping email notification');
+      console.log('[Payment Notifications] No attachments — skipping');
       return result;
     }
 
-    const APP_URL = getNotificationAppUrl();
-    console.log('[Payment Notifications] App URL:', APP_URL);
-  console.log('[Payment Notifications] Attachment Count:', attachments.length);
+    // Sum of document values from attachments (as "თანხა")
+    const attachmentSum = attachments.reduce((acc, a) => {
+      return acc + (a.document_value ? parseFloat(String(a.document_value)) : 0);
+    }, 0);
+    const attachmentSumDisplay = attachmentSum !== 0
+      ? `${attachmentSum.toLocaleString('ka-GE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currencyCode}`
+      : '—';
 
+    // ── 5. Payment due (order − |bank payments|) ─────────────────────────────
+    let dueDisplay = '—';
+    try {
+      const dueRows = await prisma.$queryRawUnsafe<Array<{ total_order: string; total_payment: string }>>(
+        `SELECT
+           COALESCE(SUM(pl."order"), 0)::text AS total_order,
+           ABS(COALESCE((
+             SELECT SUM(cba.nominal_amount)
+             FROM consolidated_bank_accounts cba
+             WHERE cba.payment_id = $1
+           ), 0))::text AS total_payment
+         FROM payments_ledger pl
+         WHERE pl.payment_id = $1 AND pl.is_deleted = false`,
+        payment.paymentId
+      );
+      if (dueRows.length > 0) {
+        const due = parseFloat(dueRows[0].total_order) - parseFloat(dueRows[0].total_payment);
+        dueDisplay = `${due.toLocaleString('ka-GE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currencyCode}`;
+      }
+    } catch (e) {
+      console.warn('[Payment Notifications] Could not calculate due:', e);
+    }
+
+    // ── 6. Uploader's counteragent name (responsible) ─────────────────────────
+    let responsibleLabel = '—';
+    const uploaderCaUuid = uploaderUser?.counteragentUuid ?? null;
+    if (uploaderCaUuid) {
+      const uploaderCa = await prisma.counteragents.findFirst({
+        where: { counteragent_uuid: uploaderCaUuid },
+        select: { counteragent: true, name: true },
+      });
+      responsibleLabel = uploaderCa?.counteragent || uploaderCa?.name || uploaderUser?.name || '—';
+    } else if (uploaderUser?.name) {
+      responsibleLabel = uploaderUser.name;
+    }
+
+    // ── 7. Build signed attachment links ─────────────────────────────────────
+    const APP_URL = getNotificationAppUrl();
     const emailAttachmentLinks: EmailAttachmentLink[] = await Promise.all(
       attachments.map(async (attachment) => {
         try {
@@ -168,20 +230,13 @@ export async function sendPaymentNotifications(
             attachment.storage_path,
             60 * 60 * 24 * 30,
           );
-
           return {
             fileName: attachment.file_name,
             documentTypeName: attachment.document_type?.name || null,
             fileSizeBytes: attachment.file_size_bytes ? Number(attachment.file_size_bytes) : null,
             directUrl,
           };
-        } catch (error) {
-          console.error(
-            '[Payment Notifications] Failed to create signed URL for attachment:',
-            attachment.file_name,
-            error,
-          );
-
+        } catch {
           return {
             fileName: attachment.file_name,
             documentTypeName: attachment.document_type?.name || null,
@@ -192,190 +247,221 @@ export async function sendPaymentNotifications(
       })
     );
 
-    console.log('[Payment Notifications] Starting to send emails to', users.length, 'users...');
-    
-    // Send notification to each user
-    for (let i = 0; i < users.length; i++) {
-      const user = users[i];
-      console.log('[Payment Notifications] ----------------------------------------');
-      console.log('[Payment Notifications] Processing user', (i + 1), 'of', users.length);
-      console.log('[Payment Notifications] User:', user.email);
-      console.log('[Payment Notifications] User ID:', user.id);
-      console.log('[Payment Notifications] User Name:', user.name || 'N/A');
-      
+    // ── 8. Send to each recipient ─────────────────────────────────────────────
+    for (const user of recipients) {
       try {
-        console.log('[Payment Notifications] Generating secure token...');
-        // Generate unique token for this user and payment (30 days expiry)
         const token = generateSecureToken();
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 30);
-        console.log('[Payment Notifications] Token generated (length:', token.length, 'chars)');
-        console.log('[Payment Notifications] Token expires:', expiresAt.toISOString());
 
-        console.log('[Payment Notifications] Saving token to database...');
-        // Save token to database
         await prisma.paymentNotificationToken.create({
-          data: {
-            token,
-            userId: user.id,
-            paymentId: payment.paymentId,
-            expiresAt,
-          },
+          data: { token, userId: user.id, paymentId: payment.paymentId, expiresAt },
         });
-        console.log('[Payment Notifications] Token saved successfully');
 
-        // Generate public link
         const publicLink = `${APP_URL}/api/public/payment-attachments?token=${token}`;
-        console.log('[Payment Notifications] Public link generated:', publicLink);
 
-        console.log('[Payment Notifications] Preparing email content...');
-        // Prepare email content
-        const emailData = {
-          to: user.email!,
-          subject: `New Payment Added: ${paymentLabel || payment.paymentId}`,
-          text: `
-Hello ${user.name || user.email},
+        const emailData = buildEmail({
+          to: user.email,
+          paymentId: payment.paymentId,
+          paymentLabel,
+          projectLabel,
+          counteragentLabel,
+          insiderName,
+          attachmentSumDisplay,
+          dueDisplay,
+          responsibleLabel,
+          currencyCode,
+          emailAttachmentLinks,
+          publicLink,
+        });
 
-A new payment has been added to the system:
-
-Payment ID: ${payment.paymentId}
-${paymentLabel ? `Label: ${paymentLabel}` : ''}
-Attachments: ${attachments.length}
-
-${emailAttachmentLinks.length > 0 ? 'Attachment List:\n' + emailAttachmentLinks.map((att, idx) => {
-  const sizeText = formatAttachmentSize(att.fileSizeBytes);
-  const metadata = [att.documentTypeName || 'No type', sizeText].filter(Boolean).join(' - ');
-  const linkText = att.directUrl ? `\n   Open: ${att.directUrl}` : `\n   Open all attachments: ${publicLink}`;
-  return `${idx + 1}. ${att.fileName}${metadata ? ` (${metadata})` : ''}${linkText}`;
-}).join('\n') : 'No attachments available.'}
-
-View all attachments:
-${publicLink}
-
-This link is valid for 30 days and allows you to access payment attachments without logging in.
-
----
-This is an automated notification from the Payment System.
-          `.trim(),
-          html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: #4F46E5; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
-    .content { background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; }
-    .payment-info { background: white; padding: 15px; margin: 15px 0; border-radius: 6px; border-left: 4px solid #4F46E5; }
-    .attachments { background: white; padding: 15px; margin: 15px 0; border-radius: 6px; }
-    .attachment-item { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
-    .attachment-item:last-child { border-bottom: none; }
-    .button { display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 15px 0; }
-    .footer { text-align: center; color: #6b7280; font-size: 12px; margin-top: 20px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h2 style="margin: 0;">New Payment Added</h2>
-    </div>
-    <div class="content">
-      <p>Hello ${user.name || user.email},</p>
-      <p>A new payment has been added to the system:</p>
-      
-      <div class="payment-info">
-        <strong>Payment ID:</strong> ${payment.paymentId}<br>
-        ${paymentLabel ? `<strong>Label:</strong> ${paymentLabel}<br>` : ''}
-        <strong>Attachments:</strong> ${attachments.length}
-      </div>
-      
-      ${attachments.length > 0 ? `
-        <div class="attachments">
-          <h3 style="margin-top: 0;">Attachment List:</h3>
-          ${emailAttachmentLinks.map((att, idx) => {
-            const sizeText = formatAttachmentSize(att.fileSizeBytes);
-            const metadata = [att.documentTypeName, sizeText].filter(Boolean).join(' - ');
-
-            return `
-            <div class="attachment-item">
-              <strong>${idx + 1}.</strong>
-              ${att.directUrl ? `<a href="${att.directUrl}" style="color: #2563eb; text-decoration: underline;">${att.fileName}</a>` : att.fileName}
-              ${metadata ? ` <span style="color: #6b7280;">(${metadata})</span>` : ''}
-            </div>
-          `;
-          }).join('')}
-        </div>
-      ` : '<p style="color: #6b7280;"><em>No attachments available.</em></p>'}
-      
-      <a href="${publicLink}" class="button">View All Attachments</a>
-      
-      <p style="font-size: 12px; color: #6b7280;">
-        This link is valid for 30 days and allows you to access payment attachments without logging in.
-      </p>
-    </div>
-    <div class="footer">
-      This is an automated notification from the Payment System.
-    </div>
-  </div>
-</body>
-</html>
-          `.trim(),
-        };
-
-        // Send email notification
-        console.log('[Payment Notifications] Calling sendEmail function...');
-        console.log('[Payment Notifications] Email recipient:', user.email);
-        console.log('[Payment Notifications] Email subject:', emailData.subject);
-        
         await sendEmail(emailData);
-
-        console.log('[Payment Notifications] ✓ Email sent successfully to:', user.email);
-        result.notifiedUsers.push(user.email!);
-        
+        console.log('[Payment Notifications] ✓ Email sent to:', user.email);
+        result.notifiedUsers.push(user.email);
       } catch (error: any) {
-        console.error('[Payment Notifications] ========================================');
-        console.error('[Payment Notifications] ✗ Failed to notify user:', user.email);
-        console.error('[Payment Notifications] Error type:', typeof error);
-        console.error('[Payment Notifications] Error name:', error?.name);
-        console.error('[Payment Notifications] Error message:', error?.message);
-        console.error('[Payment Notifications] Error code:', error?.code);
-        console.error('[Payment Notifications] Error stack:', error?.stack);
-        console.error('[Payment Notifications] Full error:', error);
-        console.error('[Payment Notifications] ========================================');
+        console.error('[Payment Notifications] ✗ Failed to notify:', user.email, error?.message);
         result.errors.push(`Failed to notify ${user.email}: ${error?.message || 'Unknown error'}`);
         result.success = false;
       }
     }
 
-    console.log('[Payment Notifications] ================================================');
-    console.log('[Payment Notifications] Notification process complete');
-    console.log('[Payment Notifications] Successfully notified:', result.notifiedUsers.length, 'users');
-    console.log('[Payment Notifications] Errors:', result.errors.length);
-    if (result.notifiedUsers.length > 0) {
-      console.log('[Payment Notifications] Notified users:', result.notifiedUsers.join(', '));
-    }
-    if (result.errors.length > 0) {
-      console.log('[Payment Notifications] Error details:', result.errors.join('; '));
-    }
-    console.log('[Payment Notifications] Overall success:', result.success);
-    console.log('[Payment Notifications] ================================================');
-    
     return result;
   } catch (error: any) {
-    console.error('[Payment Notifications] ================================================');
-    console.error('[Payment Notifications] FATAL ERROR in notification process');
-    console.error('[Payment Notifications] Payment ID:', payment.paymentId);
-    console.error('[Payment Notifications] Error type:', typeof error);
-    console.error('[Payment Notifications] Error name:', error?.name);
-    console.error('[Payment Notifications] Error message:', error?.message);
-    console.error('[Payment Notifications] Error stack:', error?.stack);
-    console.error('[Payment Notifications] Full error:', error);
-    console.error('[Payment Notifications] ================================================');
+    console.error('[Payment Notifications] FATAL ERROR:', error?.message);
     result.success = false;
     result.errors.push(`Fatal error: ${error?.message || 'Unknown error'}`);
     return result;
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Email builder
+// ─────────────────────────────────────────────────────────────────────────────
+
+function buildEmail(ctx: {
+  to: string;
+  paymentId: string;
+  paymentLabel: string | null | undefined;
+  projectLabel: string;
+  counteragentLabel: string;
+  insiderName: string | null;
+  attachmentSumDisplay: string;
+  dueDisplay: string;
+  responsibleLabel: string;
+  currencyCode: string;
+  emailAttachmentLinks: EmailAttachmentLink[];
+  publicLink: string;
+}): { to: string; subject: string; text: string; html: string } {
+  const subject = ctx.paymentLabel
+    ? `ახალი გადახდა: ${ctx.paymentLabel}`
+    : `ახალი გადახდა: ${ctx.paymentId}`;
+
+  // ── Plain-text ────────────────────────────────────────────────────────────
+  const attachmentLines = ctx.emailAttachmentLinks
+    .map((att, i) => {
+      const meta = [att.documentTypeName, formatAttachmentSize(att.fileSizeBytes)].filter(Boolean).join(' – ');
+      const link = att.directUrl ? att.directUrl : ctx.publicLink;
+      return `${i + 1}. ${att.fileName}${meta ? ` (${meta})` : ''}\n   ${link}`;
+    })
+    .join('\n');
+
+  const text = [
+    'მოგესალმებით,',
+    '',
+    'გაცნობებთ, რომ დაემატა ახალი გადახდა:',
+    '',
+    `პროექტი           : ${ctx.projectLabel}`,
+    `კონტრაგენტი       : ${ctx.counteragentLabel}`,
+    ...(ctx.insiderName ? [`გადამხდელი        : ${ctx.insiderName}`] : []),
+    `თანხა             : ${ctx.attachmentSumDisplay}`,
+    `გადახდის ნაშთი    : ${ctx.dueDisplay}`,
+    `პასუხისმგებელი    : ${ctx.responsibleLabel}`,
+    '',
+    'დანართები:',
+    attachmentLines || '—',
+    '',
+    `ყველა დანართის სანახავად: ${ctx.publicLink}`,
+    '',
+    '(ბმული მოქმედია 30 დღის განმავლობაში)',
+  ].join('\n');
+
+  // ── HTML ──────────────────────────────────────────────────────────────────
+  const attachmentRows = ctx.emailAttachmentLinks
+    .map((att, i) => {
+      const meta = [att.documentTypeName, formatAttachmentSize(att.fileSizeBytes)].filter(Boolean).join(' – ');
+      const link = att.directUrl ?? ctx.publicLink;
+      return `
+      <tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:14px;color:#111827;">
+          <span style="color:#6b7280;margin-right:6px;">${i + 1}.</span>
+          <a href="${link}" style="color:#2563eb;text-decoration:none;font-weight:500;">${escapeHtml(att.fileName)}</a>
+          ${meta ? `<span style="color:#9ca3af;font-size:12px;margin-left:8px;">${escapeHtml(meta)}</span>` : ''}
+        </td>
+      </tr>`;
+    })
+    .join('');
+
+  const infoRows: [string, string][] = [
+    ['პროექტი', ctx.projectLabel],
+    ['კონტრაგენტი', ctx.counteragentLabel],
+    ...(ctx.insiderName ? [['გადამხდელი', ctx.insiderName] as [string, string]] : []),
+    ['თანხა', ctx.attachmentSumDisplay],
+    ['გადახდის ნაშთი', ctx.dueDisplay],
+    ['პასუხისმგებელი', ctx.responsibleLabel],
+  ];
+
+  const infoHtml = infoRows
+    .map(([label, value], idx) => `
+    <tr style="background:${idx % 2 === 0 ? '#f9fafb' : '#ffffff'};">
+      <td style="padding:10px 16px;font-size:13px;color:#6b7280;font-weight:600;white-space:nowrap;width:160px;">${escapeHtml(label)}</td>
+      <td style="padding:10px 16px;font-size:14px;color:#111827;">${escapeHtml(value)}</td>
+    </tr>`)
+    .join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${escapeHtml(subject)}</title>
+</head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#1e40af 0%,#3b82f6 100%);padding:28px 32px;">
+            <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#93c5fd;">გადახდის სისტემა</p>
+            <h1 style="margin:0;font-size:22px;font-weight:700;color:#ffffff;">ახალი გადახდა დაემატა</h1>
+          </td>
+        </tr>
+
+        <!-- Greeting -->
+        <tr>
+          <td style="padding:24px 32px 8px;">
+            <p style="margin:0;font-size:15px;color:#374151;">მოგესალმებით,</p>
+            <p style="margin:8px 0 0;font-size:15px;color:#374151;">გაცნობებთ, რომ სისტემაში დაემატა ახალი გადახდა:</p>
+          </td>
+        </tr>
+
+        <!-- Payment info table -->
+        <tr>
+          <td style="padding:16px 32px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+              ${infoHtml}
+            </table>
+          </td>
+        </tr>
+
+        <!-- Attachments -->
+        ${ctx.emailAttachmentLinks.length > 0 ? `
+        <tr>
+          <td style="padding:0 32px 8px;">
+            <p style="margin:0 0 10px;font-size:13px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">დანართები</p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+              ${attachmentRows}
+            </table>
+          </td>
+        </tr>` : ''}
+
+        <!-- CTA button -->
+        <tr>
+          <td style="padding:20px 32px 8px;" align="center">
+            <a href="${ctx.publicLink}"
+               style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+              ყველა დანართის ნახვა
+            </a>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:16px 32px 28px;text-align:center;">
+            <p style="margin:0;font-size:12px;color:#9ca3af;">ბმული მოქმედია 30 დღის განმავლობაში &bull; ავტომატური შეტყობინება</p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  return { to: ctx.to, subject, text, html };
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+
 
 /**
  * Send email using Gmail API with Service Account JSON or Gmail SMTP
