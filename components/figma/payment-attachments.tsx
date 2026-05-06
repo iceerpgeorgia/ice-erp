@@ -1009,7 +1009,7 @@ export function PaymentAttachments({
                       <Select 
                         value={documentCurrency} 
                         onValueChange={setDocumentCurrency}
-                        disabled={uploading}
+                        disabled={uploading || !!paymentCurrencyCode}
                       >
                         <SelectTrigger id="document-currency">
                           <SelectValue placeholder="Select currency" />

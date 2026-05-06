@@ -263,6 +263,9 @@ function extractInvoiceFields(
 
   let totalLine: string | null = null;
 
+  // Number regex: decimals OR plain integers (≥2 digits, avoids single digits)
+  const numRe = /([\d][\d\s,\u00a0]*\.\d{1,2}|\b\d{2,}\b)/;
+
   for (const kw of totalKeywords) {
     const kwEsc = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     // Capture the whole line so we can also extract currency from it
@@ -274,8 +277,14 @@ function extractInvoiceFields(
     if (m) {
       totalLine = m[1];
       // Extract number from that line
-      const numRe = /([\d][\d\s,\u00a0]*(?:\.\d{1,2})?)/;
-      const numM = totalLine.match(numRe);
+      let numM = totalLine.match(numRe);
+      // If the keyword line itself has no number, check the immediately following line
+      // (happens when OCR splits table cells: "Total amount\n300 EUR")
+      if (!numM || parseAmount(numM[1]) === null) {
+        const lineEnd = text.indexOf(totalLine) + totalLine.length;
+        const nextLineM = text.slice(lineEnd).match(/^[\n\r]+([^\n\r]+)/);
+        if (nextLineM) numM = nextLineM[1].match(numRe);
+      }
       if (numM) {
         const parsed = parseAmount(numM[1]);
         if (parsed !== null) { amount = parsed; break; }
@@ -283,15 +292,25 @@ function extractInvoiceFields(
     }
   }
 
-  // Fallback: largest number with 1-2 decimal places
-  // Exclude numbers that are part of a date (dd.mm or mm.yyyy patterns)
+  // Fallback: largest number (decimal or integer) that looks like a monetary amount
+  // – Exclude decimals that are part of a date (dd.mm.yyyy)
+  // – Exclude integers that look like years (19xx/20xx), IDs (>7 digits), or small counters
   if (amount === null) {
     const allAmounts: number[] = [];
-    // (?![.\d]) ensures not followed by another dot or digit (avoids matching dd.mm from dd.mm.yyyy)
+    // Decimal amounts (not followed by another dot/digit → avoids dd.mm from dates)
     const decRe = /\b(\d[\d\s,\u00a0]*\.\d{1,2})(?![.\d])/g;
     let dm: RegExpExecArray | null;
     while ((dm = decRe.exec(text)) !== null) {
       const parsed = parseAmount(dm[1]);
+      if (parsed !== null) allAmounts.push(parsed);
+    }
+    // Integer amounts: 2-6 digits, not a year (1900-2099), not preceded by alphanumeric
+    const intRe = /(?<![\w.])\b([1-9]\d{1,5})\b(?![.\d])/g;
+    let im: RegExpExecArray | null;
+    while ((im = intRe.exec(text)) !== null) {
+      const n = parseInt(im[1], 10);
+      if (n >= 1900 && n <= 2099) continue; // skip years
+      const parsed = parseAmount(im[1]);
       if (parsed !== null) allAmounts.push(parsed);
     }
     if (allAmounts.length > 0) amount = Math.max(...allAmounts);
@@ -309,19 +328,27 @@ function extractInvoiceFields(
   let extractedInn: string | null = null;
   let innMatch: boolean | null = null;
 
-  const innPatterns = [
-    /(?:საიდენტიფიკაციო\s+კოდი|ID\s*:?|INN\s*:?|S\/N\s*:?)\s*(\d{9,11})/i,
-    /\b(\d{9})\b/,   // 9-digit standalone
-    /\b(\d{11})\b/,  // 11-digit standalone
+  // INN patterns — the issuer's ID is always labelled (ID:, INN:, საიდენტიფიკაციო კოდი:)
+  // Numbers may be spaced: "445 399 097"
+  const innPatterns: RegExp[] = [
+    // Labelled: "ID: 445 399 097" or "INN:445399097" (spaces allowed between digit groups)
+    /(?:საიდენტიფიკაციო\s+კოდი|\bID\s*:?|\bINN\s*:?)\s*([\d][\d ]{7,14}[\d])/i,
+    // 9 or 11 consecutive digits (no spaces) as fallback
+    /\b(\d{11})\b/,
+    /\b(\d{9})\b/,
   ];
   for (const p of innPatterns) {
     const innM = text.match(p);
-    if (innM) { extractedInn = innM[1]; break; }
+    if (innM) {
+      // Strip spaces and dashes from the matched group
+      extractedInn = innM[1].replace(/[\s\-]/g, '');
+      break;
+    }
   }
 
   if (extractedInn && opts.counteragentInn) {
-    // Normalize both: strip leading zeros for comparison
-    const norm = (s: string) => s.replace(/^0+/, '');
+    // Normalize both: strip spaces/dashes and leading zeros for comparison
+    const norm = (s: string) => s.replace(/[\s\-]/g, '').replace(/^0+/, '');
     innMatch = norm(extractedInn) === norm(opts.counteragentInn);
   }
 
