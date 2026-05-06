@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-05-06 Deployment #264
+- Commit: fcb6d24
+- Production: https://ice-7h7p4uw82-iceerp.vercel.app
+- Summary: Fix XLSX upload date -1 day shift caused by xlsx-js-style cellDates:true bug.
+- Changes:
+  - components/figma/payments-report-table.tsx: Removed cellDates:true from XLSX.read() call. xlsx-js-style's cellDates conversion uses floating-point arithmetic that produces dates ~11s before local midnight (e.g. 23:59:49 local) causing getDate() to return the previous day. With cellDates:false date cells remain as integer serials, which excelSerialToIso converts correctly via UTC arithmetic.
+
 ## 2026-05-06 Deployment #263
 - Commit: 3873a07
 - Production: https://ice-i0ef5yxl9-iceerp.vercel.app
