@@ -1905,7 +1905,12 @@ export function PaymentsReportTable() {
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+      // Do NOT use cellDates:true — xlsx-js-style's Date conversion has a
+      // floating-point precision bug that produces dates ~11 s before local
+      // midnight (e.g. 23:59:49 local), causing getDate() to return the
+      // previous day.  With cellDates:false (default), date cells come back
+      // as numeric Excel serials which excelSerialToIso converts correctly.
+      const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: false });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true, defval: '' }) as any[][];
