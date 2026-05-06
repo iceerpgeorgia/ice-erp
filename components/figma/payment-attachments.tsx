@@ -104,6 +104,7 @@ export function PaymentAttachments({
   const [ledgerDialogOpen, setLedgerDialogOpen] = useState(false);
   const [pendingLedgerAccrual, setPendingLedgerAccrual] = useState<number | null>(null);
   const [pendingLedgerDate, setPendingLedgerDate] = useState<string>('');
+  const [pendingLedgerComment, setPendingLedgerComment] = useState<string>('');
   const [ledgerOrderInput, setLedgerOrderInput] = useState<string>('');
   const [creatingLedger, setCreatingLedger] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -349,7 +350,7 @@ export function PaymentAttachments({
           effectiveDate: pendingLedgerDate,
           accrual: pendingLedgerAccrual,
           order: orderAmount,
-          comment: 'Auto-created from attachment upload',
+          comment: pendingLedgerComment || 'Auto-created from attachment upload',
         }),
       });
       if (!res.ok) {
@@ -461,8 +462,12 @@ export function PaymentAttachments({
       setExtractedInn(null);
       // If the attachment has a value, offer to create a ledger entry
       if (uploadedValue > 0) {
+        const docTypeName = documentTypes.find(d => d.uuid === selectedDocumentType)?.name || '';
+        const docNo = documentNo.trim();
+        const comment = [docTypeName, docNo].filter(Boolean).join(' ');
         setPendingLedgerAccrual(uploadedValue);
         setPendingLedgerDate(uploadedDate);
+        setPendingLedgerComment(comment);
         setLedgerOrderInput(String(uploadedValue));
         setLedgerDialogOpen(true);
       }
