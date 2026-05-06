@@ -268,27 +268,29 @@ function extractInvoiceFields(
 
   for (const kw of totalKeywords) {
     const kwEsc = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // Capture the whole line so we can also extract currency from it
-    const lineRe = new RegExp(
-      `([^\\n]*${kwEsc}[^\\n]{0,120})`,
-      'i'
-    );
-    m = text.match(lineRe);
-    if (m) {
-      totalLine = m[1];
-      // Extract number from that line
-      let numM = totalLine.match(numRe);
-      // If the keyword line itself has no number, check the immediately following line
-      // (happens when OCR splits table cells: "Total amount\n300 EUR")
-      if (!numM || parseAmount(numM[1]) === null) {
-        const lineEnd = text.indexOf(totalLine) + totalLine.length;
-        const nextLineM = text.slice(lineEnd).match(/^[\n\r]+([^\n\r]+)/);
-        if (nextLineM) numM = nextLineM[1].match(numRe);
-      }
-      if (numM) {
-        const parsed = parseAmount(numM[1]);
-        if (parsed !== null) { amount = parsed; break; }
-      }
+    // Find the keyword position (case-insensitive) and only look AFTER it for numbers.
+    // This prevents false matches from reference numbers (e.g. "ICE LTD 400017245")
+    // that appear before the keyword on the same OCR line.
+    const kwRe = new RegExp(kwEsc, 'i');
+    const kwIdx = text.search(kwRe);
+    if (kwIdx === -1) continue;
+
+    // Capture up to 150 chars after the keyword (same line)
+    const afterKwMatch = text.slice(kwIdx + kw.length).match(/^([^\n]{0,150})/);
+    const suffix = afterKwMatch ? afterKwMatch[1] : '';
+    totalLine = suffix;
+
+    // Extract number from the suffix
+    let numM = suffix.match(numRe);
+    // If suffix has no number, check the immediately following line
+    // (handles OCR splitting table cells: "Total amount\n300 EUR")
+    if (!numM || parseAmount(numM[1]) === null) {
+      const nextLineM = text.slice(kwIdx + kw.length + suffix.length).match(/^[\n\r]+([^\n\r]+)/);
+      if (nextLineM) numM = nextLineM[1].match(numRe);
+    }
+    if (numM) {
+      const parsed = parseAmount(numM[1]);
+      if (parsed !== null) { amount = parsed; break; }
     }
   }
 
