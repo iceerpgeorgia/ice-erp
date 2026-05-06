@@ -67,13 +67,15 @@ export async function GET(req: NextRequest) {
   );
 
   const distribution = rows.map(row => {
-    // Format date as dd.mm.yyyy if exists, otherwise empty string
+    // Format date as dd.mm.yyyy. Use UTC getters so the calendar date is
+    // preserved regardless of the server's timezone or any previous timezone-
+    // induced storage drift (avoids a -1 day shift for UTC+/UTC- servers).
     let distributionDate = '';
     if (row.latest_date) {
       const d = new Date(row.latest_date);
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const year = d.getUTCFullYear();
       distributionDate = `${day}.${month}.${year}`;
     }
 

@@ -246,13 +246,22 @@ export function PaymentsReportTable() {
   }, [data, buildJobMatchKey]);
 
 
-  // BroadcastChannel for cross-tab updates
-  const [broadcastChannel] = useState(() => {
+  // BroadcastChannel for cross-tab updates.
+  // IMPORTANT: Must be initialised in useEffect (not useState) so the channel is
+  // only opened AFTER hydration. Opening it in useState causes React #418/#422
+  // because a broadcast message from another tab can trigger a state update while
+  // React is still diffing server vs. client HTML.
+  const [broadcastChannel, setBroadcastChannel] = useState<BroadcastChannel | null>(null);
+
+  useEffect(() => {
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-      return new BroadcastChannel('payments-ledger-updates');
+      const channel = new BroadcastChannel('payments-ledger-updates');
+      setBroadcastChannel(channel);
+      return () => {
+        channel.close();
+      };
     }
-    return null;
-  });
+  }, []);
 
   // Conditions filter state
   const allConditions = [
@@ -1189,11 +1198,7 @@ export function PaymentsReportTable() {
     }
   }, [broadcastChannel, fetchData]);
 
-  useEffect(() => {
-    return () => {
-      broadcastChannel?.close();
-    };
-  }, [broadcastChannel]);
+  // broadcastChannel is closed by the effect that creates it (no separate cleanup needed).
 
   const handleToggleColumn = (columnKey: string) => {
     setColumns(prev => 
