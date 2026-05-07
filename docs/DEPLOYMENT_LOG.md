@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-05-07 Deployment #274
+- Commit: 7ddfaae
+- Production: https://ice-ibf3lo4sw-iceerp.vercel.app
+- Summary: Payments Report BOG XLSX - dynamic insider sender account.
+- Changes:
+  - app/api/insider-bank-accounts/route.ts: New endpoint returning active bank accounts per insider UUID.
+  - components/figma/payments-report-table.tsx: Added resolveInsiderSenderAccountForExport; BOG export first column now uses insider's actual bank account number instead of hardcoded IBAN.
+
 ## 2026-05-07 Deployment #273
 - Commit: 7d08afd
 - Production: https://ice-7x9rb7z8z-iceerp.vercel.app
