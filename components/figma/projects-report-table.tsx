@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Download, Plus, RefreshCw, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, Plus, RefreshCw, Search, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
@@ -729,12 +729,6 @@ export function ProjectsReportTable() {
     XLSX.writeFile(wb, `projects-report-${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
-  const selectedProjectLabels = useMemo(() =>
-    Array.from(selectedProjectUuids).map((uuid) => {
-      const p = allProjects.find((x) => x.project_uuid === uuid);
-      return p ? `${p.project_index} – ${p.project_name}` : uuid;
-    }), [selectedProjectUuids, allProjects]);
-
   const metricOptions = useMemo(() => ALL_METRICS.map((m) => ({ value: m, label: METRIC_LABELS[m] })), []);
 
   return (
@@ -757,11 +751,42 @@ export function ProjectsReportTable() {
 
           {projectSelectorOpen && (
             <div className="absolute z-50 top-full left-0 mt-1 w-[420px] bg-white border border-gray-200 rounded-lg shadow-lg p-3 space-y-2">
+              {/* Search + actions row */}
               <div className="flex items-center gap-2">
-                <Input placeholder="Search projects…" value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} className="h-7 text-xs" autoFocus />
-                <button className="text-xs text-gray-500 hover:text-gray-800 shrink-0" onClick={() => setSelectedProjectUuids(new Set())}>Clear all</button>
+                <div className="relative flex-1">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+                  <Input
+                    placeholder="Search projects…"
+                    value={projectSearch}
+                    onChange={(e) => setProjectSearch(e.target.value)}
+                    className="h-7 text-xs pl-7"
+                    autoFocus
+                  />
+                </div>
+                <button
+                  className="text-xs text-blue-600 hover:text-blue-800 shrink-0 whitespace-nowrap"
+                  onClick={() => {
+                    const filteredUuids = filteredProjects.map((p) => p.project_uuid);
+                    const allChecked = filteredUuids.every((uuid) => selectedProjectUuids.has(uuid));
+                    setSelectedProjectUuids((prev) => {
+                      const next = new Set(prev);
+                      if (allChecked) {
+                        filteredUuids.forEach((uuid) => next.delete(uuid));
+                      } else {
+                        filteredUuids.forEach((uuid) => next.add(uuid));
+                      }
+                      return next;
+                    });
+                  }}
+                >
+                  {filteredProjects.every((p) => selectedProjectUuids.has(p.project_uuid)) && filteredProjects.length > 0
+                    ? 'Deselect filtered'
+                    : 'Select all filtered'}
+                </button>
+                <button className="text-xs text-gray-400 hover:text-gray-700 shrink-0" onClick={() => setSelectedProjectUuids(new Set())}>Clear all</button>
               </div>
-              <div className="max-h-64 overflow-y-auto space-y-0.5">
+              {/* Project list */}
+              <div className="max-h-72 overflow-y-auto space-y-0.5">
                 {filteredProjects.map((p) => {
                   const checked = selectedProjectUuids.has(p.project_uuid);
                   return (
@@ -777,13 +802,18 @@ export function ProjectsReportTable() {
                         <span className="font-mono font-semibold text-gray-700">{p.project_index}</span>
                         <span className="text-gray-500 ml-1">{p.project_name}</span>
                         {p.state && <span className="ml-1 text-gray-400">· {p.state}</span>}
+                        {checked && <span className="ml-1 text-blue-500">✓</span>}
                       </span>
                     </label>
                   );
                 })}
                 {filteredProjects.length === 0 && <p className="text-xs text-gray-400 px-2 py-2">No projects found</p>}
               </div>
-              <div className="flex justify-end pt-1 border-t">
+              {/* Footer */}
+              <div className="flex items-center justify-between pt-1 border-t">
+                <span className="text-[11px] text-gray-400">
+                  {selectedProjectUuids.size > 0 ? `${selectedProjectUuids.size} selected` : 'None selected'}
+                </span>
                 <Button size="sm" className="h-7 text-xs" onClick={() => setProjectSelectorOpen(false)}>Done</Button>
               </div>
             </div>
@@ -1023,23 +1053,6 @@ export function ProjectsReportTable() {
         </Dialog>
       </div>
 
-      {/* Selected project chips */}
-      {selectedProjectLabels.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {selectedProjectLabels.map((label, i) => {
-            const uuid = Array.from(selectedProjectUuids)[i];
-            return (
-              <span key={uuid} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full border border-blue-200">
-                {label}
-                <button onClick={() => setSelectedProjectUuids((prev) => { const n = new Set(prev); n.delete(uuid); return n; })} className="hover:text-blue-900">
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            );
-          })}
-        </div>
-      )}
-
       {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-3">{error}</div>}
 
       {!loading && selectedProjectUuids.size === 0 && (
@@ -1145,7 +1158,7 @@ export function ProjectsReportTable() {
                             <div className="relative group inline-block w-full">
                               <span className="truncate block max-w-full cursor-default">{fc.code}</span>
                               {fc.validation && fc.validation !== fc.code && (
-                                <div className="pointer-events-none absolute hidden group-hover:block z-50 bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-800 text-white text-[11px] rounded shadow-lg whitespace-normal max-w-[220px] text-center leading-snug">
+                                <div className="absolute hidden group-hover:block z-50 bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-800 text-white text-[11px] rounded shadow-lg whitespace-normal max-w-[220px] text-center leading-snug">
                                   {fc.validation}
                                 </div>
                               )}
