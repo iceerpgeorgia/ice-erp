@@ -49,6 +49,7 @@ type CellData = {
   confirmed: boolean;
   paymentCount: number;
   accrualPerFloor: number;
+  jobFloors: number;
   paymentIds: string[];
   latestDate: string | null;
 };
@@ -103,6 +104,7 @@ const STORAGE_KEY_CURRENCIES = 'projectsReportCurrencies';
 const STORAGE_KEY_FC_FILTERS = 'projectsReportFcFilters';
 const STORAGE_KEY_COLLAPSED = 'projectsReportCollapsed';
 const STORAGE_KEY_COL_WIDTHS = 'projectsReportColWidths';
+const STORAGE_KEY_ORDER = 'projectsReportOrder';
 
 const JOB_COL_DEFAULT_WIDTH = 180;
 const FC_COL_DEFAULT_WIDTH = 120;
@@ -197,6 +199,14 @@ export function ProjectsReportTable() {
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const [resizing, setResizing] = useState<{ key: string; startX: number; startWidth: number } | null>(null);
   const [projectCurrencies, setProjectCurrencies] = useState<Record<string, 'USD' | 'GEL' | 'EUR'>>({});
+  const [projectOrder, setProjectOrder] = useState<string[]>([]);
+  const [projectLoadingUuids, setProjectLoadingUuids] = useState<Set<string>>(new Set());
+  // Ref so fetchReport/fetchOneProject always see latest currencies without re-creating callbacks
+  const projectCurrenciesRef = useRef<Record<string, 'USD' | 'GEL' | 'EUR'>>({});
+  useEffect(() => { projectCurrenciesRef.current = projectCurrencies; }, [projectCurrencies]);
+  // Drag state (no React state — we don’t need re-renders mid-drag)
+  const dragUuid = useRef<string | null>(null);
+  const dragOverUuid = useRef<string | null>(null);
 
   // ── Add Ledger dialog state ──
 
@@ -282,6 +292,13 @@ export function ProjectsReportTable() {
         if (parsed && typeof parsed === 'object') setColWidths(parsed);
       } catch { /* ignore */ }
     }
+    const savedOrder = localStorage.getItem(STORAGE_KEY_ORDER);
+    if (savedOrder) {
+      try {
+        const parsed = JSON.parse(savedOrder);
+        if (Array.isArray(parsed)) setProjectOrder(parsed.map(String));
+      } catch { /* ignore */ }
+    }
   }, []);
 
   useEffect(() => { localStorage.setItem(STORAGE_KEY_PROJECTS, JSON.stringify(Array.from(selectedProjectUuids))); }, [selectedProjectUuids]);
@@ -291,6 +308,7 @@ export function ProjectsReportTable() {
   useEffect(() => { localStorage.setItem(STORAGE_KEY_FC_FILTERS, JSON.stringify(projectFcFilters)); }, [projectFcFilters]);
   useEffect(() => { localStorage.setItem(STORAGE_KEY_COLLAPSED, JSON.stringify(Array.from(collapsedProjects))); }, [collapsedProjects]);
   useEffect(() => { localStorage.setItem(STORAGE_KEY_COL_WIDTHS, JSON.stringify(colWidths)); }, [colWidths]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEY_ORDER, JSON.stringify(projectOrder)); }, [projectOrder]);
 
   // ── Column resize ──
 
@@ -356,10 +374,11 @@ export function ProjectsReportTable() {
     if (!options?.silent) setLoading(true);
     setError(null);
     try {
+      const currencies = projectCurrenciesRef.current;
       // Group projects by their chosen currency and fetch each group
       const currencyGroups = new Map<string, string[]>();
       for (const uuid of selectedProjectUuids) {
-        const curr = projectCurrencies[uuid] ?? 'GEL';
+        const curr = currencies[uuid] ?? 'GEL';
         if (!currencyGroups.has(curr)) currencyGroups.set(curr, []);
         currencyGroups.get(curr)!.push(uuid);
       }
@@ -387,9 +406,41 @@ export function ProjectsReportTable() {
     } finally {
       if (!options?.silent) setLoading(false);
     }
-  }, [selectedProjectUuids, maxDate, selectedInsiderUuids, projectCurrencies]);
+  }, [selectedProjectUuids, maxDate, selectedInsiderUuids]);
+
+  // ── Fetch a single project’s data silently (used when currency changes) ──
+  const fetchOneProject = useCallback(async (uuid: string, currency: 'USD' | 'GEL' | 'EUR') => {
+    setProjectLoadingUuids((prev) => new Set(prev).add(uuid));
+    try {
+      const gParams = new URLSearchParams();
+      gParams.set('projectUuids', uuid);
+      if (maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate)) gParams.set('maxDate', maxDate);
+      if (selectedInsiderUuids.length > 0) gParams.set('insiderUuids', selectedInsiderUuids.join(','));
+      gParams.set('targetCurrency', currency);
+      const res = await fetch(`/api/projects-report?${gParams}`);
+      if (!res.ok) return;
+      const data = await res.json() as ProjectsReportResponse;
+      const updated = data.projects[0];
+      if (!updated) return;
+      setReport((prev) => {
+        if (!prev) return prev;
+        return { projects: prev.projects.map((p) => p.projectUuid === uuid ? updated : p) };
+      });
+    } catch { /* silent */ } finally {
+      setProjectLoadingUuids((prev) => { const n = new Set(prev); n.delete(uuid); return n; });
+    }
+  }, [maxDate, selectedInsiderUuids]);
 
   useEffect(() => { fetchReport(); }, [fetchReport]);
+
+  // Keep projectOrder in sync when selected projects change
+  useEffect(() => {
+    setProjectOrder((prev) => {
+      const filtered = prev.filter((uuid) => selectedProjectUuids.has(uuid));
+      const added = Array.from(selectedProjectUuids).filter((uuid) => !filtered.includes(uuid));
+      return [...filtered, ...added];
+    });
+  }, [selectedProjectUuids]);
 
   // ── Add Ledger: lazy loaders ──
 
@@ -603,13 +654,19 @@ export function ProjectsReportTable() {
   }, [report]);
 
   function buildPivot(proj: ProjectData, fcFilter: FcFilter) {
-    const jobMap = new Map<string, { key: string; label: string; jobUuid: string | null }>();
+    const jobMap = new Map<string, { key: string; label: string; jobUuid: string | null; floors: number }>();
 
     for (const cell of proj.cells) {
       if (fcFilter === 'income' && !cell.financialCodeIsIncome) continue;
       if (fcFilter === 'cost' && cell.financialCodeIsIncome) continue;
       const jobKey = cell.jobUuid ?? NULL_JOB_KEY;
-      if (!jobMap.has(jobKey)) jobMap.set(jobKey, { key: jobKey, label: cell.jobName ?? '(No Job)', jobUuid: cell.jobUuid });
+      if (!jobMap.has(jobKey)) {
+        jobMap.set(jobKey, { key: jobKey, label: cell.jobName ?? '(No Job)', jobUuid: cell.jobUuid, floors: cell.jobFloors ?? 0 });
+      } else {
+        // take max in case of multiple cells for same job
+        const existing = jobMap.get(jobKey)!;
+        existing.floors = Math.max(existing.floors, cell.jobFloors ?? 0);
+      }
     }
 
     const cellMap = new Map<string, CellData>();
@@ -664,6 +721,13 @@ export function ProjectsReportTable() {
       // Job column: fit longest label
       const maxJobChars = jobList.reduce((max, j) => Math.max(max, j.label.length), 5);
       map.set('job', Math.max(map.get('job') ?? 0, Math.max(50, Math.min(240, Math.ceil(maxJobChars * PX_PER_CHAR + CELL_PAD)))));
+
+      // Floors column: fit longest floors value (header "Floors" = 6 chars)
+      const maxFloorsChars = proj.cells.reduce((max, cell) => {
+        const f = cell.jobFloors ?? 0;
+        return f > 0 ? Math.max(max, String(f).length) : max;
+      }, 6 /* "Floors" header */);
+      map.set('floors', Math.max(map.get('floors') ?? 0, Math.max(44, Math.ceil(maxFloorsChars * PX_PER_CHAR + CELL_PAD))));
 
       // Data columns: individual width per fc×metric
       for (const fc of fcList) {
@@ -1062,24 +1126,65 @@ export function ProjectsReportTable() {
       {loading && <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>}
 
       {/* ── Project grids ── */}
-      {!loading && report?.projects?.map((proj) => {
+      {!loading && (() => {
+        const orderedProjects = projectOrder
+          .map((uuid) => report?.projects?.find((p) => p.projectUuid === uuid))
+          .filter(Boolean) as ProjectData[];
+        // append any that aren’t in order yet
+        const unordered = (report?.projects ?? []).filter((p) => !projectOrder.includes(p.projectUuid));
+        return [...orderedProjects, ...unordered];
+      })().map((proj) => {
+        const isProjectLoading = projectLoadingUuids.has(proj.projectUuid);
         const fcFilter = projectFcFilters[proj.projectUuid] ?? 'all';
         const { jobList, fcList, cellMap } = buildPivot(proj, fcFilter);
         const isCollapsed = collapsedProjects.has(proj.projectUuid);
         const jobColKey = 'job';
+        const floorsColKey = 'floors';
         const totalColKey = 'total';
         const autoJobColW = autoColWidthsMap.get('job') ?? 50;
+        const autoFloorsColW = autoColWidthsMap.get('floors') ?? 44;
         const autoTotalColW = autoColWidthsMap.get('total') ?? 50;
         const jobColW = getColWidth(jobColKey, autoJobColW);
+        const floorsColW = getColWidth(floorsColKey, autoFloorsColW);
         const totalColW = getColWidth(totalColKey, autoTotalColW);
 
         return (
-          <div key={proj.projectUuid} className="border border-gray-200 rounded-lg overflow-hidden">
+          <div
+            key={proj.projectUuid}
+            className="border border-gray-200 rounded-lg overflow-hidden transition-opacity"
+            style={{ opacity: isProjectLoading ? 0.6 : 1 }}
+            draggable
+            onDragStart={() => { dragUuid.current = proj.projectUuid; }}
+            onDragOver={(e) => { e.preventDefault(); dragOverUuid.current = proj.projectUuid; }}
+            onDrop={() => {
+              const from = dragUuid.current;
+              const to = dragOverUuid.current;
+              if (!from || !to || from === to) { dragUuid.current = null; dragOverUuid.current = null; return; }
+              setProjectOrder((prev) => {
+                const list = prev.length ? prev : (report?.projects ?? []).map((p) => p.projectUuid);
+                const a = list.indexOf(from);
+                const b = list.indexOf(to);
+                if (a === -1 || b === -1) return list;
+                const next = [...list];
+                next.splice(a, 1);
+                next.splice(b, 0, from);
+                return next;
+              });
+              dragUuid.current = null;
+              dragOverUuid.current = null;
+            }}
+          >
             {/* Section header */}
             <div
               className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-200 cursor-pointer select-none"
               onClick={() => toggleCollapse(proj.projectUuid)}
             >
+              {/* Drag handle */}
+              <span
+                className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing mr-1 shrink-0"
+                title="Drag to reorder"
+                onClick={(e) => e.stopPropagation()}
+              >☰</span>
               {isCollapsed ? <ChevronRight className="h-4 w-4 text-gray-500 shrink-0" /> : <ChevronDown className="h-4 w-4 text-gray-500 shrink-0" />}
               <span className="font-mono font-semibold text-sm text-gray-800">{proj.projectIndex}</span>
               <span className="font-medium text-sm text-gray-700">{proj.projectName}</span>
@@ -1106,7 +1211,10 @@ export function ProjectsReportTable() {
                   return (
                     <button
                       key={c}
-                      onClick={() => setProjectCurrencies((prev) => ({ ...prev, [proj.projectUuid]: c }))}
+                      onClick={() => {
+                        setProjectCurrencies((prev) => ({ ...prev, [proj.projectUuid]: c }));
+                        fetchOneProject(proj.projectUuid, c);
+                      }}
                       className={`px-1.5 py-0 h-6 text-[11px] rounded border transition-colors ${
                         active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
                       }`}
@@ -1147,6 +1255,15 @@ export function ProjectsReportTable() {
                         >
                           <div className="px-3 py-2 text-left font-semibold text-gray-700 text-xs">Job</div>
                           <div className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-300 opacity-0 hover:opacity-60" onMouseDown={(e) => startResize(e, jobColKey, autoJobColW)} />
+                        </th>
+                        {/* Floors column – spans both header rows */}
+                        <th
+                          className="bg-gray-100 border-r border-gray-200 relative overflow-hidden"
+                          style={{ width: floorsColW, minWidth: floorsColW }}
+                          rowSpan={2}
+                        >
+                          <div className="px-2 py-2 text-center font-semibold text-gray-700 text-xs">Floors</div>
+                          <div className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-300 opacity-0 hover:opacity-60" onMouseDown={(e) => startResize(e, floorsColKey, autoFloorsColW)} />
                         </th>
                         {fcList.map((fc) => (
                           <th
@@ -1216,6 +1333,13 @@ export function ProjectsReportTable() {
                             >
                               {job.label}
                             </td>
+                            {/* Floors */}
+                            <td
+                              className={`px-2 py-2 text-center tabular-nums border-r border-gray-200 ${stickyBg}`}
+                              style={{ width: floorsColW, maxWidth: floorsColW }}
+                            >
+                              {job.floors > 0 ? <span className="text-gray-600">{job.floors}</span> : <span className="text-gray-200">—</span>}
+                            </td>
                             {fcList.flatMap((fc) =>
                               activeMetrics.map((m, mi) => {
                                 const colKey = `${fc.uuid}:${m}`;
@@ -1248,6 +1372,10 @@ export function ProjectsReportTable() {
                       {/* Totals row */}
                       <tr className="border-t-2 border-gray-300 bg-gray-100 font-semibold">
                         <td className="sticky left-0 z-10 bg-gray-100 px-3 py-2 border-r border-gray-200 text-gray-800 whitespace-nowrap" style={{ width: jobColW, maxWidth: jobColW }}>TOTAL</td>
+                        {/* Floors totals cell – show sum of all job floors */}
+                        <td className="px-2 py-2 text-center tabular-nums bg-gray-100 border-r border-gray-200 text-gray-700" style={{ width: floorsColW, maxWidth: floorsColW }}>
+                          {(() => { const total = jobList.reduce((s, j) => s + j.floors, 0); return total > 0 ? total : <span className="text-gray-300">—</span>; })()}
+                        </td>
                         {fcList.flatMap((fc) =>
                           activeMetrics.map((m, mi) => {
                             const colKey = `${fc.uuid}:${m}`;

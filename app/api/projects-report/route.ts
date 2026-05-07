@@ -322,6 +322,7 @@ export async function GET(request: NextRequest) {
         confirmed: boolean;
         paymentCount: number;
         accrualPerFloor: number;
+        jobFloors: number;
         paymentIds: string[];
         latestDate: string | null;
       }[];
@@ -370,6 +371,7 @@ export async function GET(request: NextRequest) {
         confirmed: Boolean(row.confirmed),
         paymentCount: Number(row.payment_count || 0),
         accrualPerFloor,
+        jobFloors: floors,
         paymentIds: Array.isArray(row.payment_ids)
           ? row.payment_ids.filter((v: unknown) => typeof v === 'string' && v.trim() !== '')
           : [],
