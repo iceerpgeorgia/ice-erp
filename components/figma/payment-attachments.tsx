@@ -751,10 +751,17 @@ export function PaymentAttachments({
       {!hideTrigger && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="flex items-center gap-1">
-              {count > 0 && <span className="text-xs font-medium">{count}</span>}
-              <Paperclip className="h-4 w-4" />
-            </Button>
+            <button
+              className="inline-flex items-center gap-1 rounded p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 focus:outline-none"
+              title={count > 0 ? `${count} attachment${count !== 1 ? 's' : ''}` : 'No attachments'}
+            >
+              <Paperclip className="h-4 w-4 shrink-0" />
+              <span
+                className={`min-w-[1rem] text-center text-xs font-semibold tabular-nums leading-none ${count > 0 ? 'text-blue-600' : 'text-gray-400'}`}
+              >
+                {count}
+              </span>
+            </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={handleOpenDialog}>View attachments</DropdownMenuItem>

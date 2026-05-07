@@ -501,13 +501,12 @@ export function PaymentsTable() {
         if (!response.ok) throw new Error('Failed to fetch payment attachment counts');
         const result = await response.json();
         if (!cancelled) {
-          setAttachmentCounts(result.counts || {});
+          // Merge new counts so stale values stay visible during re-fetches
+          setAttachmentCounts((prev) => ({ ...prev, ...(result.counts || {}) }));
         }
       } catch (error) {
         console.error('Error fetching payment attachment counts:', error);
-        if (!cancelled) {
-          setAttachmentCounts({});
-        }
+        // Do not reset counts on error — keep last known values
       }
     };
 
