@@ -635,44 +635,73 @@ export function ProjectsReportTable() {
     return { jobList, fcList, cellMap };
   }
 
-  function calcAutoWidths(
-    jobList: { key: string; label: string }[],
-    fcList: { uuid: string; code: string }[],
-    cellMap: Map<string, CellData>,
-    metrics: MetricKey[],
-  ): { dataColW: number; jobColW: number } {
+  const activeMetrics = useMemo(() => ALL_METRICS.filter((m) => selectedMetrics.has(m)), [selectedMetrics]);
+
+  // ── Per-column auto widths (shared across all grids) ──
+  const autoColWidthsMap = useMemo((): Map<string, number> => {
+    const map = new Map<string, number>();
+    if (!report?.projects) return map;
     const PX_PER_CHAR = 7.5;
-    const CELL_PAD = 24;
-    let maxDataChars = 1;
-    for (const job of jobList) {
-      let rowTotal = 0;
+    const CELL_PAD = 16;
+
+    for (const proj of report.projects) {
+      const fcFilter = projectFcFilters[proj.projectUuid] ?? 'all';
+      // Build job+cell maps (mirrors buildPivot)
+      const jobMap = new Map<string, { key: string; label: string }>();
+      const cellMap = new Map<string, CellData>();
+      for (const cell of proj.cells) {
+        if (fcFilter === 'income' && !cell.financialCodeIsIncome) continue;
+        if (fcFilter === 'cost' && cell.financialCodeIsIncome) continue;
+        const jobKey = cell.jobUuid ?? NULL_JOB_KEY;
+        if (!jobMap.has(jobKey)) jobMap.set(jobKey, { key: jobKey, label: cell.jobName ?? '(No Job)' });
+        cellMap.set(`${jobKey}:${cell.financialCodeUuid}`, cell);
+      }
+      const jobList = Array.from(jobMap.values());
+      const fcList = Array.from(globalFcMap.values()).filter((fc) =>
+        fcFilter === 'income' ? fc.isIncome : fcFilter === 'cost' ? !fc.isIncome : true
+      );
+
+      // Job column: fit longest label
+      const maxJobChars = jobList.reduce((max, j) => Math.max(max, j.label.length), 5);
+      map.set('job', Math.max(map.get('job') ?? 0, Math.max(50, Math.min(240, Math.ceil(maxJobChars * PX_PER_CHAR + CELL_PAD)))));
+
+      // Data columns: individual width per fc×metric
       for (const fc of fcList) {
-        const cell = cellMap.get(`${job.key}:${fc.uuid}`);
-        for (const m of metrics) {
-          const v = cell ? getCellValue(cell, m) : 0;
-          maxDataChars = Math.max(maxDataChars, formatCell(v, m).length);
-          if (!NON_ADDITIVE_METRICS.has(m)) rowTotal += v;
+        for (const m of activeMetrics) {
+          const colKey = `${fc.uuid}:${m}`;
+          let maxChars = 1;
+          for (const job of jobList) {
+            const cell = cellMap.get(`${job.key}:${fc.uuid}`);
+            const v = cell ? (cell[m] as number) : 0;
+            const s = formatCell(v, m);
+            if (s !== '-') maxChars = Math.max(maxChars, s.length);
+          }
+          if (!NON_ADDITIVE_METRICS.has(m)) {
+            const colTotal = jobList.reduce((s, job) => {
+              const cell = cellMap.get(`${job.key}:${fc.uuid}`);
+              return s + (cell ? (cell[m] as number) : 0);
+            }, 0);
+            if (colTotal !== 0) maxChars = Math.max(maxChars, formatCell(colTotal, m).length);
+          }
+          const w = Math.max(38, Math.ceil(maxChars * PX_PER_CHAR + CELL_PAD));
+          map.set(colKey, Math.max(map.get(colKey) ?? 0, w));
         }
       }
-      maxDataChars = Math.max(maxDataChars, formatMoney(rowTotal).length);
-    }
-    // column totals row
-    for (const fc of fcList) {
-      for (const m of metrics) {
-        const colTotal = jobList.reduce((s, job) => {
-          const cell = cellMap.get(`${job.key}:${fc.uuid}`);
-          return s + (cell ? getCellValue(cell, m) : 0);
-        }, 0);
-        maxDataChars = Math.max(maxDataChars, formatCell(colTotal, m).length);
-      }
-    }
-    const dataColW = Math.max(45, Math.ceil(maxDataChars * PX_PER_CHAR + CELL_PAD));
-    const maxJobChars = jobList.reduce((max, j) => Math.max(max, j.label.length), 5 /* 'TOTAL' */);
-    const jobColW = Math.max(60, Math.min(260, Math.ceil(maxJobChars * PX_PER_CHAR + CELL_PAD)));
-    return { dataColW, jobColW };
-  }
 
-  const activeMetrics = useMemo(() => ALL_METRICS.filter((m) => selectedMetrics.has(m)), [selectedMetrics]);
+      // Total column: fit longest row-sum
+      let maxTotalChars = 1;
+      for (const job of jobList) {
+        const rowTotal = fcList.reduce((sum, fc) => {
+          const cell = cellMap.get(`${job.key}:${fc.uuid}`);
+          if (!cell) return sum;
+          return sum + activeMetrics.reduce((s, m) => NON_ADDITIVE_METRICS.has(m) ? s : s + (cell[m] as number), 0);
+        }, 0);
+        if (rowTotal !== 0) maxTotalChars = Math.max(maxTotalChars, formatMoney(rowTotal).length);
+      }
+      map.set('total', Math.max(map.get('total') ?? 0, Math.max(50, Math.ceil(maxTotalChars * PX_PER_CHAR + CELL_PAD))));
+    }
+    return map;
+  }, [report, projectFcFilters, globalFcMap, activeMetrics]);
 
   // ── XLSX export ──
 
@@ -1024,11 +1053,12 @@ export function ProjectsReportTable() {
         const fcFilter = projectFcFilters[proj.projectUuid] ?? 'all';
         const { jobList, fcList, cellMap } = buildPivot(proj, fcFilter);
         const isCollapsed = collapsedProjects.has(proj.projectUuid);
-        const jobColKey = `${proj.projectUuid}:job`;
-        const totalColKey = `${proj.projectUuid}:total`;
-        const { dataColW: autoDataColW, jobColW: autoJobColW } = calcAutoWidths(jobList, fcList, cellMap, activeMetrics);
+        const jobColKey = 'job';
+        const totalColKey = 'total';
+        const autoJobColW = autoColWidthsMap.get('job') ?? 50;
+        const autoTotalColW = autoColWidthsMap.get('total') ?? 50;
         const jobColW = getColWidth(jobColKey, autoJobColW);
-        const totalColW = getColWidth(totalColKey, autoDataColW);
+        const totalColW = getColWidth(totalColKey, autoTotalColW);
 
         return (
           <div key={proj.projectUuid} className="border border-gray-200 rounded-lg overflow-hidden">
@@ -1109,7 +1139,7 @@ export function ProjectsReportTable() {
                           <th
                             key={fc.uuid}
                             colSpan={activeMetrics.length}
-                            style={{ minWidth: autoDataColW * activeMetrics.length }}
+                            style={{ minWidth: activeMetrics.reduce((s, m) => s + getColWidth(`${fc.uuid}:${m}`, autoColWidthsMap.get(`${fc.uuid}:${m}`) ?? 38), 0) }}
                             className="px-2 py-1.5 text-center font-semibold text-gray-700 border-r border-gray-200 text-xs bg-gray-100"
                           >
                             <div className="relative group inline-block w-full">
@@ -1128,15 +1158,16 @@ export function ProjectsReportTable() {
                           rowSpan={2}
                         >
                           <div className="px-3 py-2 text-right font-semibold text-gray-700 text-xs">Total</div>
-                          <div className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-300 opacity-0 hover:opacity-60" onMouseDown={(e) => startResize(e, totalColKey, autoDataColW)} />
+                          <div className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-300 opacity-0 hover:opacity-60" onMouseDown={(e) => startResize(e, totalColKey, autoTotalColW)} />
                         </th>
                       </tr>
                       {/* Row 2: metric sub-headers */}
                       <tr className="bg-gray-50 border-b border-gray-200">
                         {fcList.flatMap((fc) =>
                           activeMetrics.map((m, mi) => {
-                            const colKey = `${proj.projectUuid}:${fc.uuid}:${m}`;
-                            const colW = getColWidth(colKey, autoDataColW);
+                            const colKey = `${fc.uuid}:${m}`;
+                            const autoW = autoColWidthsMap.get(colKey) ?? 38;
+                            const colW = getColWidth(colKey, autoW);
                             const isLast = mi === activeMetrics.length - 1;
                             return (
                               <th
@@ -1146,7 +1177,7 @@ export function ProjectsReportTable() {
                                 style={{ width: colW, minWidth: colW }}
                               >
                                 <span className="truncate block">{METRIC_LABELS[m]}</span>
-                                <div className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-300 opacity-0 hover:opacity-60" onMouseDown={(e) => startResize(e, colKey, autoDataColW)} />
+                                <div className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-300 opacity-0 hover:opacity-60" onMouseDown={(e) => startResize(e, colKey, autoW)} />
                               </th>
                             );
                           })
@@ -1174,8 +1205,8 @@ export function ProjectsReportTable() {
                             </td>
                             {fcList.flatMap((fc) =>
                               activeMetrics.map((m, mi) => {
-                                const colKey = `${proj.projectUuid}:${fc.uuid}:${m}`;
-                                const colW = getColWidth(colKey, autoDataColW);
+                                const colKey = `${fc.uuid}:${m}`;
+                                const colW = getColWidth(colKey, autoColWidthsMap.get(colKey) ?? 38);
                                 const isLast = mi === activeMetrics.length - 1;
                                 const cell = cellMap.get(`${job.key}:${fc.uuid}`);
                                 const value = cell ? getCellValue(cell, m) : 0;
@@ -1206,8 +1237,8 @@ export function ProjectsReportTable() {
                         <td className="sticky left-0 z-10 bg-gray-100 px-3 py-2 border-r border-gray-200 text-gray-800 whitespace-nowrap" style={{ width: jobColW, maxWidth: jobColW }}>TOTAL</td>
                         {fcList.flatMap((fc) =>
                           activeMetrics.map((m, mi) => {
-                            const colKey = `${proj.projectUuid}:${fc.uuid}:${m}`;
-                            const colW = getColWidth(colKey, autoDataColW);
+                            const colKey = `${fc.uuid}:${m}`;
+                            const colW = getColWidth(colKey, autoColWidthsMap.get(colKey) ?? 38);
                             const isLast = mi === activeMetrics.length - 1;
                             const colTotal = NON_ADDITIVE_METRICS.has(m) ? 0 : jobList.reduce((sum, job) => {
                               const cell = cellMap.get(`${job.key}:${fc.uuid}`);
