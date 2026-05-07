@@ -1,0 +1,319 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { getSourceTables } from '@/lib/source-tables';
+
+export const revalidate = 0;
+
+const parseUuidList = (value: string | null) => {
+  if (!value) return [] as string[];
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => uuidRegex.test(item));
+};
+
+const parseIsoDate = (value: string | null) => {
+  if (!value) return null;
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+};
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const projectUuids = parseUuidList(searchParams.get('projectUuids'));
+    const insiderUuids = parseUuidList(searchParams.get('insiderUuids'));
+    const maxDate = parseIsoDate(searchParams.get('maxDate'));
+    const sourceTables = await getSourceTables(insiderUuids.length > 0 ? insiderUuids : undefined);
+
+    if (projectUuids.length === 0) {
+      return NextResponse.json({ projects: [] });
+    }
+
+    const ledgerDateFilter = maxDate ? `AND pl.effective_date::date <= '${maxDate}'::date` : '';
+    const bankDateFilter = maxDate ? `AND transaction_date::date <= '${maxDate}'::date` : '';
+
+    const referenceDate = maxDate ? new Date(`${maxDate}T00:00:00.000Z`) : new Date();
+    const lastMonthStartDate = new Date(Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth() - 1, 1));
+    const monthStartDate = new Date(Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth(), 1));
+    const monthStart = monthStartDate.toISOString().slice(0, 10);
+    const lastMonthStart = lastMonthStartDate.toISOString().slice(0, 10);
+
+    const rawUnionBankQuery = sourceTables.length
+      ? sourceTables.map((table) => (
+          `SELECT
+             raw_record_uuid::text AS raw_record_uuid,
+             counteragent_uuid::uuid AS counteragent_uuid,
+             payment_id::text AS payment_id,
+             nominal_amount::numeric AS nominal_amount,
+             transaction_date::date AS transaction_date,
+             account_currency_amount::numeric AS account_currency_amount
+           FROM "${table}"`
+        )).join(' UNION ALL ')
+      : 'SELECT NULL::text AS raw_record_uuid, NULL::uuid AS counteragent_uuid, NULL::text AS payment_id, NULL::numeric AS nominal_amount, NULL::date AS transaction_date, NULL::numeric AS account_currency_amount WHERE false';
+
+    const projectPlaceholders = projectUuids.map((_, i) => `$${i + 1}::uuid`).join(', ');
+    const insiderOffset = projectUuids.length;
+    const insiderPlaceholders = insiderUuids.map((_, i) => `$${insiderOffset + i + 1}::uuid`).join(', ');
+    const insiderFilter = insiderUuids.length > 0
+      ? `AND proj.insider_uuid IN (${insiderPlaceholders})`
+      : '';
+    const queryParams = [...projectUuids, ...insiderUuids];
+
+    const query = `
+      WITH raw_union_bank AS (
+        ${rawUnionBankQuery}
+      ),
+      selected_payments AS (
+        SELECT
+          p.payment_id,
+          p.project_uuid,
+          p.job_uuid,
+          p.financial_code_uuid,
+          COALESCE(fc.validation, fc.code, '-') AS financial_code_validation,
+          proj.project_index,
+          proj.project_name,
+          proj.address AS project_address,
+          COALESCE(proj.service_state, '-') AS service_state,
+          COALESCE(ps.name, proj.state, 'Unknown') AS status_name,
+          COALESCE(j.job_name, NULL) AS job_name,
+          COALESCE(insider_ca.insider_name, insider_ca.name, insider_ca.counteragent, '-') AS insider_name,
+          COALESCE(proj.department, '-') AS department
+        FROM payments p
+        LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
+        LEFT JOIN project_states ps ON proj.state_uuid = ps.uuid
+        LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
+        LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
+        LEFT JOIN counteragents insider_ca ON proj.insider_uuid = insider_ca.counteragent_uuid
+        WHERE p.is_active = true
+          AND p.project_uuid IN (${projectPlaceholders})
+          ${insiderFilter}
+      ),
+      ledger_agg AS (
+        SELECT
+          pl.payment_id,
+          SUM(COALESCE(pl.accrual, 0)) AS total_accrual,
+          SUM(COALESCE(pl."order", 0)) AS total_order,
+          BOOL_AND(COALESCE(pl.confirmed, false)) AS all_confirmed,
+          COUNT(*) AS entries_count,
+          MAX(pl.effective_date) AS latest_ledger_date
+        FROM payments_ledger pl
+        WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
+          ${ledgerDateFilter}
+        GROUP BY pl.payment_id
+      ),
+      latest_ledger_date_per_payment AS (
+        SELECT
+          pl.payment_id,
+          MAX(pl.effective_date) AS latest_effective_date
+        FROM payments_ledger pl
+        WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
+          ${ledgerDateFilter}
+        GROUP BY pl.payment_id
+      ),
+      ledger_latest AS (
+        SELECT
+          pl.payment_id,
+          SUM(COALESCE(pl.accrual, 0)) AS latest_accrual
+        FROM payments_ledger pl
+        JOIN latest_ledger_date_per_payment ldp
+          ON ldp.payment_id = pl.payment_id
+         AND ldp.latest_effective_date = pl.effective_date
+        WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
+          ${ledgerDateFilter}
+        GROUP BY pl.payment_id
+      ),
+      ledger_last_month AS (
+        SELECT
+          pl.payment_id,
+          SUM(COALESCE(pl.accrual, 0)) AS total_accrual,
+          SUM(COALESCE(pl."order", 0)) AS total_order
+        FROM payments_ledger pl
+        WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
+          AND pl.effective_date::date >= '${lastMonthStart}'::date
+          AND pl.effective_date::date < '${monthStart}'::date
+        GROUP BY pl.payment_id
+      ),
+      bank_agg AS (
+        SELECT
+          payment_id,
+          SUM(nominal_amount) AS total_payment,
+          MAX(transaction_date::date) AS latest_bank_date
+        FROM (
+          SELECT
+            cba.payment_id,
+            cba.nominal_amount,
+            cba.transaction_date
+          FROM raw_union_bank cba
+          WHERE NOT EXISTS (
+            SELECT 1 FROM bank_transaction_batches btb
+            WHERE btb.raw_record_uuid::text = cba.raw_record_uuid::text
+          )
+          AND cba.payment_id NOT ILIKE 'BTC_%'
+
+          UNION ALL
+
+          SELECT
+            COALESCE(
+              CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
+              p2.payment_id
+            ) AS payment_id,
+            (COALESCE(NULLIF(btb.nominal_amount, 0), btb.partition_amount) * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) AS nominal_amount,
+            cba.transaction_date
+          FROM raw_union_bank cba
+          JOIN bank_transaction_batches btb
+            ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
+          LEFT JOIN payments p2
+            ON (
+              btb.payment_uuid IS NOT NULL AND p2.record_uuid = btb.payment_uuid
+            ) OR (
+              btb.payment_uuid IS NULL AND btb.payment_id IS NOT NULL AND p2.payment_id = btb.payment_id
+            )
+        ) combined
+        WHERE payment_id IS NOT NULL AND payment_id <> ''
+        ${bankDateFilter}
+        GROUP BY payment_id
+      ),
+      adj_agg AS (
+        SELECT
+          payment_id,
+          SUM(COALESCE(nominal_amount, amount)) AS total_adjustment
+        FROM payment_adjustments
+        WHERE (is_deleted = false OR is_deleted IS NULL)
+        GROUP BY payment_id
+      )
+      SELECT
+        sp.project_uuid,
+        MAX(sp.project_index) AS project_index,
+        MAX(sp.project_name) AS project_name,
+        MAX(sp.project_address) AS project_address,
+        MAX(sp.status_name) AS status_name,
+        MAX(sp.service_state) AS service_state,
+        MAX(sp.insider_name) AS insider_name,
+        MAX(sp.department) AS department,
+        sp.job_uuid,
+        MAX(sp.job_name) AS job_name,
+        sp.financial_code_uuid,
+        MAX(sp.financial_code_validation) AS financial_code_validation,
+        ARRAY_REMOVE(ARRAY_AGG(DISTINCT sp.payment_id ORDER BY sp.payment_id), NULL) AS payment_ids,
+        COUNT(DISTINCT sp.payment_id) AS payment_count,
+        SUM(COALESCE(la.total_accrual, 0)) AS accrual,
+        SUM(COALESCE(ll.latest_accrual, 0)) AS latest_accrual,
+        SUM(COALESCE(la.total_order, 0)) AS "order",
+        SUM(COALESCE(llm.total_accrual, 0)) AS last_month_accrual,
+        SUM(COALESCE(llm.total_order, 0)) AS last_month_order,
+        SUM(COALESCE(ba.total_payment, 0) + COALESCE(adj.total_adjustment, 0)) AS payment,
+        BOOL_AND(
+          CASE
+            WHEN COALESCE(la.entries_count, 0) > 0 THEN COALESCE(la.all_confirmed, false)
+            ELSE false
+          END
+        ) AS confirmed,
+        MAX(la.latest_ledger_date) AS latest_date
+      FROM selected_payments sp
+      LEFT JOIN ledger_agg la ON sp.payment_id = la.payment_id
+      LEFT JOIN ledger_latest ll ON sp.payment_id = ll.payment_id
+      LEFT JOIN ledger_last_month llm ON sp.payment_id = llm.payment_id
+      LEFT JOIN bank_agg ba ON sp.payment_id = ba.payment_id
+      LEFT JOIN adj_agg adj ON sp.payment_id = adj.payment_id
+      GROUP BY sp.project_uuid, sp.job_uuid, sp.financial_code_uuid
+      ORDER BY MAX(sp.project_index) ASC, MAX(sp.job_name) ASC NULLS LAST, MAX(sp.financial_code_validation) ASC
+    `;
+
+    const rows = await prisma.$queryRawUnsafe<any[]>(query, ...queryParams);
+
+    // Group rows by project
+    const projectMap = new Map<string, {
+      projectUuid: string;
+      projectIndex: string;
+      projectName: string;
+      projectAddress: string | null;
+      status: string;
+      serviceState: string;
+      insiderName: string;
+      department: string;
+      cells: {
+        jobUuid: string | null;
+        jobName: string | null;
+        financialCodeUuid: string;
+        financialCodeValidation: string;
+        accrual: number;
+        latestAccrual: number;
+        order: number;
+        lastMonthAccrual: number;
+        lastMonthOrder: number;
+        payment: number;
+        due: number;
+        balance: number;
+        confirmed: boolean;
+        paymentCount: number;
+        paymentIds: string[];
+        latestDate: string | null;
+      }[];
+    }>();
+
+    for (const row of rows) {
+      const key = row.project_uuid as string;
+      if (!projectMap.has(key)) {
+        projectMap.set(key, {
+          projectUuid: key,
+          projectIndex: row.project_index || '-',
+          projectName: row.project_name || '-',
+          projectAddress: row.project_address || null,
+          status: row.status_name || 'Unknown',
+          serviceState: row.service_state || '-',
+          insiderName: row.insider_name || '-',
+          department: row.department || '-',
+          cells: [],
+        });
+      }
+
+      const accrual = Number(row.accrual || 0);
+      const order = Number(row.order || 0);
+      const payment = Number(row.payment || 0);
+      const due = Number((order - Math.abs(payment)).toFixed(2));
+      const balance = Number((accrual - Math.abs(payment)).toFixed(2));
+
+      projectMap.get(key)!.cells.push({
+        jobUuid: row.job_uuid || null,
+        jobName: row.job_name || null,
+        financialCodeUuid: row.financial_code_uuid as string,
+        financialCodeValidation: row.financial_code_validation as string,
+        accrual,
+        latestAccrual: Number(row.latest_accrual || 0),
+        order,
+        lastMonthAccrual: Number(row.last_month_accrual || 0),
+        lastMonthOrder: Number(row.last_month_order || 0),
+        payment,
+        due,
+        balance,
+        confirmed: Boolean(row.confirmed),
+        paymentCount: Number(row.payment_count || 0),
+        paymentIds: Array.isArray(row.payment_ids)
+          ? row.payment_ids.filter((v: unknown) => typeof v === 'string' && v.trim() !== '')
+          : [],
+        latestDate: row.latest_date || null,
+      });
+    }
+
+    // Preserve the order of selected projects
+    const projects = projectUuids
+      .map((uuid) => projectMap.get(uuid))
+      .filter(Boolean);
+
+    return NextResponse.json({ projects });
+  } catch (error: any) {
+    console.error('Error fetching projects report:', error);
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
