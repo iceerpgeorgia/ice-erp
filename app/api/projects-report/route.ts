@@ -31,6 +31,8 @@ export async function GET(request: NextRequest) {
     const projectUuids = parseUuidList(searchParams.get('projectUuids'));
     const insiderUuids = parseUuidList(searchParams.get('insiderUuids'));
     const maxDate = parseIsoDate(searchParams.get('maxDate'));
+    const rawTargetCurrency = searchParams.get('targetCurrency') || '';
+    const targetCurrency = (['USD', 'GEL', 'EUR'].includes(rawTargetCurrency) ? rawTargetCurrency : 'GEL') as 'USD' | 'GEL' | 'EUR';
     const sourceTables = await getSourceTables(insiderUuids.length > 0 ? insiderUuids : undefined);
 
     if (projectUuids.length === 0) {
@@ -38,7 +40,7 @@ export async function GET(request: NextRequest) {
     }
 
     const ledgerDateFilter = maxDate ? `AND pl.effective_date::date <= '${maxDate}'::date` : '';
-    const bankDateFilter = maxDate ? `AND transaction_date::date <= '${maxDate}'::date` : '';
+    const bankDateFilter = maxDate ? `AND combined.transaction_date::date <= '${maxDate}'::date` : '';
 
     const referenceDate = maxDate ? new Date(`${maxDate}T00:00:00.000Z`) : new Date();
     const lastMonthStartDate = new Date(Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth() - 1, 1));
@@ -67,6 +69,14 @@ export async function GET(request: NextRequest) {
       : '';
     const queryParams = [...projectUuids, ...insiderUuids];
 
+    // Generates a SQL conversion-factor expression: source_currency→target_currency using NBG rates.
+    // source_rate / target_rate (both looked up from the same NBG row by entry date).
+    const convFactor = (currCol: string, nbg: string) => {
+      const srcRate = `CASE ${currCol} WHEN 'GEL' THEN 1.0 WHEN 'USD' THEN COALESCE(${nbg}.usd_rate, 1.0) WHEN 'EUR' THEN COALESCE(${nbg}.eur_rate, 1.0) ELSE 1.0 END::numeric`;
+      const tgtRate = targetCurrency === 'GEL' ? '1.0::numeric' : `COALESCE(${nbg}.${targetCurrency.toLowerCase()}_rate, 1.0)::numeric`;
+      return `(${srcRate} / NULLIF(${tgtRate}, 0))`;
+    };
+
     const query = `
       WITH raw_union_bank AS (
         ${rawUnionBankQuery}
@@ -78,6 +88,7 @@ export async function GET(request: NextRequest) {
           p.job_uuid,
           p.financial_code_uuid,
           COALESCE(fc.validation, fc.code, '-') AS financial_code_validation,
+          COALESCE(fc.code, '-') AS financial_code_code,
           COALESCE(fc.is_income, false) AS financial_code_is_income,
           proj.project_index,
           proj.project_name,
@@ -97,15 +108,29 @@ export async function GET(request: NextRequest) {
           AND p.project_uuid IN (${projectPlaceholders})
           ${insiderFilter}
       ),
+      payment_currencies AS (
+        SELECT
+          p.payment_id,
+          COALESCE(curr.code, 'GEL') AS currency_code
+        FROM payments p
+        LEFT JOIN currencies curr ON curr.uuid = p.currency_uuid
+        WHERE p.is_active = true
+          AND p.project_uuid IN (${projectPlaceholders})
+      ),
       ledger_agg AS (
         SELECT
           pl.payment_id,
-          SUM(COALESCE(pl.accrual, 0)) AS total_accrual,
-          SUM(COALESCE(pl."order", 0)) AS total_order,
+          SUM(COALESCE(pl.accrual, 0) * ${convFactor('pc.currency_code', 'nbg_l')}) AS total_accrual,
+          SUM(COALESCE(pl."order", 0) * ${convFactor('pc.currency_code', 'nbg_l')}) AS total_order,
           BOOL_AND(COALESCE(pl.confirmed, false)) AS all_confirmed,
           COUNT(*) AS entries_count,
           MAX(pl.effective_date) AS latest_ledger_date
         FROM payments_ledger pl
+        LEFT JOIN payment_currencies pc ON pc.payment_id = pl.payment_id
+        LEFT JOIN LATERAL (
+          SELECT usd_rate, eur_rate FROM nbg_exchange_rates
+          WHERE date <= pl.effective_date::date ORDER BY date DESC LIMIT 1
+        ) nbg_l ON true
         WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
           ${ledgerDateFilter}
         GROUP BY pl.payment_id
@@ -122,11 +147,16 @@ export async function GET(request: NextRequest) {
       ledger_latest AS (
         SELECT
           pl.payment_id,
-          SUM(COALESCE(pl.accrual, 0)) AS latest_accrual
+          SUM(COALESCE(pl.accrual, 0) * ${convFactor('pc.currency_code', 'nbg_ll')}) AS latest_accrual
         FROM payments_ledger pl
         JOIN latest_ledger_date_per_payment ldp
           ON ldp.payment_id = pl.payment_id
          AND ldp.latest_effective_date = pl.effective_date
+        LEFT JOIN payment_currencies pc ON pc.payment_id = pl.payment_id
+        LEFT JOIN LATERAL (
+          SELECT usd_rate, eur_rate FROM nbg_exchange_rates
+          WHERE date <= pl.effective_date::date ORDER BY date DESC LIMIT 1
+        ) nbg_ll ON true
         WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
           ${ledgerDateFilter}
         GROUP BY pl.payment_id
@@ -134,9 +164,14 @@ export async function GET(request: NextRequest) {
       ledger_last_month AS (
         SELECT
           pl.payment_id,
-          SUM(COALESCE(pl.accrual, 0)) AS total_accrual,
-          SUM(COALESCE(pl."order", 0)) AS total_order
+          SUM(COALESCE(pl.accrual, 0) * ${convFactor('pc.currency_code', 'nbg_lm')}) AS total_accrual,
+          SUM(COALESCE(pl."order", 0) * ${convFactor('pc.currency_code', 'nbg_lm')}) AS total_order
         FROM payments_ledger pl
+        LEFT JOIN payment_currencies pc ON pc.payment_id = pl.payment_id
+        LEFT JOIN LATERAL (
+          SELECT usd_rate, eur_rate FROM nbg_exchange_rates
+          WHERE date <= pl.effective_date::date ORDER BY date DESC LIMIT 1
+        ) nbg_lm ON true
         WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
           AND pl.effective_date::date >= '${lastMonthStart}'::date
           AND pl.effective_date::date < '${monthStart}'::date
@@ -144,9 +179,9 @@ export async function GET(request: NextRequest) {
       ),
       bank_agg AS (
         SELECT
-          payment_id,
-          SUM(nominal_amount) AS total_payment,
-          MAX(transaction_date::date) AS latest_bank_date
+          combined.payment_id,
+          SUM(combined.nominal_amount * ${convFactor('pc.currency_code', 'nbg_b')}) AS total_payment,
+          MAX(combined.transaction_date::date) AS latest_bank_date
         FROM (
           SELECT
             cba.payment_id,
@@ -178,17 +213,27 @@ export async function GET(request: NextRequest) {
               btb.payment_uuid IS NULL AND btb.payment_id IS NOT NULL AND p2.payment_id = btb.payment_id
             )
         ) combined
-        WHERE payment_id IS NOT NULL AND payment_id <> ''
+        LEFT JOIN payment_currencies pc ON pc.payment_id = combined.payment_id
+        LEFT JOIN LATERAL (
+          SELECT usd_rate, eur_rate FROM nbg_exchange_rates
+          WHERE date <= combined.transaction_date::date ORDER BY date DESC LIMIT 1
+        ) nbg_b ON true
+        WHERE combined.payment_id IS NOT NULL AND combined.payment_id <> ''
         ${bankDateFilter}
-        GROUP BY payment_id
+        GROUP BY combined.payment_id
       ),
       adj_agg AS (
         SELECT
-          payment_id,
-          SUM(COALESCE(nominal_amount, amount)) AS total_adjustment
-        FROM payment_adjustments
-        WHERE (is_deleted = false OR is_deleted IS NULL)
-        GROUP BY payment_id
+          pa.payment_id,
+          SUM(COALESCE(pa.nominal_amount, pa.amount) * ${convFactor('pc.currency_code', 'nbg_a')}) AS total_adjustment
+        FROM payment_adjustments pa
+        LEFT JOIN payment_currencies pc ON pc.payment_id = pa.payment_id
+        LEFT JOIN LATERAL (
+          SELECT usd_rate, eur_rate FROM nbg_exchange_rates
+          WHERE date <= pa.effective_date::date ORDER BY date DESC LIMIT 1
+        ) nbg_a ON true
+        WHERE (pa.is_deleted = false OR pa.is_deleted IS NULL)
+        GROUP BY pa.payment_id
       )
       SELECT
         sp.project_uuid,
@@ -203,6 +248,8 @@ export async function GET(request: NextRequest) {
         MAX(sp.job_name) AS job_name,
         sp.financial_code_uuid,
         MAX(sp.financial_code_validation) AS financial_code_validation,
+        MAX(sp.financial_code_code) AS financial_code_code,
+        MAX(sp.financial_code_is_income) AS financial_code_is_income,
         ARRAY_REMOVE(ARRAY_AGG(DISTINCT sp.payment_id ORDER BY sp.payment_id), NULL) AS payment_ids,
         COUNT(DISTINCT sp.payment_id) AS payment_count,
         SUM(COALESCE(la.total_accrual, 0)) AS accrual,
@@ -230,6 +277,20 @@ export async function GET(request: NextRequest) {
 
     const rows = await prisma.$queryRawUnsafe<any[]>(query, ...queryParams);
 
+    // Fetch job counts per project from the jobs table
+    const jobCountRows = await prisma.$queryRawUnsafe<{ project_uuid: string; job_count: bigint }[]>(
+      `SELECT project_uuid::text, COUNT(*) AS job_count
+       FROM jobs
+       WHERE project_uuid IN (${projectPlaceholders})
+         AND is_active = true
+       GROUP BY project_uuid`,
+      ...projectUuids
+    );
+    const jobCountByProject = new Map<string, number>();
+    for (const r of jobCountRows) {
+      jobCountByProject.set(r.project_uuid, Number(r.job_count));
+    }
+
     // Group rows by project
     const projectMap = new Map<string, {
       projectUuid: string;
@@ -240,11 +301,13 @@ export async function GET(request: NextRequest) {
       serviceState: string;
       insiderName: string;
       department: string;
+      totalJobsInProject: number;
       cells: {
         jobUuid: string | null;
         jobName: string | null;
         financialCodeUuid: string;
         financialCodeValidation: string;
+        financialCodeCode: string;
         financialCodeIsIncome: boolean;
         accrual: number;
         latestAccrual: number;
@@ -273,6 +336,7 @@ export async function GET(request: NextRequest) {
           serviceState: row.service_state || '-',
           insiderName: row.insider_name || '-',
           department: row.department || '-',
+          totalJobsInProject: jobCountByProject.get(key) ?? 0,
           cells: [],
         });
       }
@@ -288,6 +352,7 @@ export async function GET(request: NextRequest) {
         jobName: row.job_name || null,
         financialCodeUuid: row.financial_code_uuid as string,
         financialCodeValidation: row.financial_code_validation as string,
+        financialCodeCode: (row.financial_code_code as string) || '-',
         financialCodeIsIncome: Boolean(row.financial_code_is_income),
         accrual,
         latestAccrual: Number(row.latest_accrual || 0),

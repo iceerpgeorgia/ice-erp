@@ -1,9 +1,13 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Download, RefreshCw, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, Plus, RefreshCw, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Label } from './ui/label';
+import { Checkbox } from './ui/checkbox';
+import { Combobox } from '../ui/combobox';
 import * as XLSX from 'xlsx-js-style';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -29,6 +33,7 @@ type CellData = {
   jobName: string | null;
   financialCodeUuid: string;
   financialCodeValidation: string;
+  financialCodeCode: string;
   financialCodeIsIncome: boolean;
   accrual: number;
   latestAccrual: number;
@@ -53,6 +58,7 @@ type ProjectData = {
   serviceState: string;
   insiderName: string;
   department: string;
+  totalJobsInProject: number;
   cells: CellData[];
 };
 
@@ -181,6 +187,41 @@ export function ProjectsReportTable() {
 
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const [resizing, setResizing] = useState<{ key: string; startX: number; startWidth: number } | null>(null);
+  const [currency, setCurrency] = useState<'USD' | 'GEL' | 'EUR'>('GEL');
+
+  // ── Add Ledger dialog state ──
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [addLedgerStep, setAddLedgerStep] = useState<'payment' | 'ledger'>('payment');
+  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
+  const [preSelectedPaymentId, setPreSelectedPaymentId] = useState<string | null>(null);
+  const [selectedPaymentDetails, setSelectedPaymentDetails] = useState<{
+    paymentId: string; counteragent: string; project: string;
+    job: string; financialCode: string; incomeTax: boolean; currency: string;
+  } | null>(null);
+  const [dlgCounterAgents, setDlgCounterAgents] = useState<Array<{ counteragent_uuid?: string; counteragentUuid?: string; counteragent?: string; name?: string }>>([]);
+  const [dlgFinancialCodes, setDlgFinancialCodes] = useState<Array<{ uuid: string; validation: string; code: string }>>([]);
+  const [dlgCurrencies, setDlgCurrencies] = useState<Array<{ uuid: string; code: string; name: string }>>([]);
+  const [dlgJobs, setDlgJobs] = useState<Array<{ jobUuid: string; jobName: string; jobDisplay?: string }>>([]);
+  const [dlgPayments, setDlgPayments] = useState<Array<{
+    paymentId: string; counteragentUuid?: string | null; counteragentName?: string | null;
+    projectIndex?: string | null; projectName?: string | null; jobName?: string | null;
+    financialCode?: string | null; incomeTax?: boolean | null; currencyCode?: string | null;
+  }>>([]);
+  const [dlgSelectedCounteragentUuid, setDlgSelectedCounteragentUuid] = useState('');
+  const [dlgSelectedProjectUuid, setDlgSelectedProjectUuid] = useState('');
+  const [dlgSelectedFinancialCodeUuid, setDlgSelectedFinancialCodeUuid] = useState('');
+  const [dlgSelectedJobUuid, setDlgSelectedJobUuid] = useState('');
+  const [dlgSelectedCurrencyUuid, setDlgSelectedCurrencyUuid] = useState('');
+  const [dlgSelectedIncomeTax, setDlgSelectedIncomeTax] = useState(false);
+  const [dlgSelectedLabel, setDlgSelectedLabel] = useState('');
+  const [dlgSkipCounteragentFilter, setDlgSkipCounteragentFilter] = useState<{ uuid: string; name: string } | null>(null);
+  const [selectedPaymentId, setSelectedPaymentId] = useState('');
+  const [effectiveDate, setEffectiveDate] = useState('');
+  const [accrual, setAccrual] = useState('');
+  const [ledgerOrder, setLedgerOrder] = useState('');
+  const [ledgerComment, setLedgerComment] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ── Restore preferences ──
 
@@ -269,15 +310,16 @@ export function ProjectsReportTable() {
 
   // ── Fetch report ──
 
-  const fetchReport = useCallback(async () => {
+  const fetchReport = useCallback(async (options?: { silent?: boolean }) => {
     if (selectedProjectUuids.size === 0) { setReport({ projects: [] }); return; }
-    setLoading(true);
+    if (!options?.silent) setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
       params.set('projectUuids', Array.from(selectedProjectUuids).join(','));
       if (maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate)) params.set('maxDate', maxDate);
       if (selectedInsiderUuids.length > 0) params.set('insiderUuids', selectedInsiderUuids.join(','));
+      params.set('targetCurrency', currency);
       const res = await fetch(`/api/projects-report?${params}`);
       if (!res.ok) throw new Error('Failed to load projects report');
       const data = await res.json() as ProjectsReportResponse;
@@ -285,11 +327,190 @@ export function ProjectsReportTable() {
     } catch (err: any) {
       setError(err?.message || 'Failed to load projects report');
     } finally {
-      setLoading(false);
+      if (!options?.silent) setLoading(false);
     }
-  }, [selectedProjectUuids, maxDate, selectedInsiderUuids]);
+  }, [selectedProjectUuids, maxDate, selectedInsiderUuids, currency]);
 
   useEffect(() => { fetchReport(); }, [fetchReport]);
+
+  // ── Add Ledger: lazy loaders ──
+
+  const fetchDlgCounterAgents = useCallback(async () => {
+    try {
+      const res = await fetch('/api/counteragents');
+      if (res.ok) setDlgCounterAgents(await res.json());
+    } catch { /* ignore */ }
+  }, []);
+
+  const fetchDlgDictionaries = useCallback(async () => {
+    try {
+      const [fcRes, cRes] = await Promise.all([fetch('/api/financial-codes?leafOnly=true'), fetch('/api/currencies')]);
+      if (fcRes.ok) setDlgFinancialCodes(await fcRes.json());
+      if (cRes.ok) { const d = await cRes.json(); setDlgCurrencies(Array.isArray(d) ? d : d?.data ?? []); }
+    } catch { /* ignore */ }
+  }, []);
+
+  const fetchDlgPayments = useCallback(async () => {
+    try {
+      const res = await fetch('/api/payment-id-options?includeSalary=true&projectionMonths=36');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!Array.isArray(data)) return;
+      setDlgPayments(data.map((p: any) => ({
+        paymentId: p.paymentId || p.payment_id,
+        counteragentUuid: p.counteragentUuid || p.counteragent_uuid || null,
+        counteragentName: p.counteragentName || p.counteragent_name || null,
+        projectIndex: p.projectIndex || p.project_index || null,
+        projectName: p.projectName || p.project_name || null,
+        jobName: p.jobName || p.job_name || null,
+        financialCode: p.financialCode || p.financialCodeValidation || p.financial_code || null,
+        incomeTax: p.incomeTax ?? null,
+        currencyCode: p.currencyCode || p.currency_code || null,
+      })));
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (!dlgSelectedProjectUuid) { setDlgJobs([]); setDlgSelectedJobUuid(''); return; }
+    fetch(`/api/jobs?projectUuid=${dlgSelectedProjectUuid}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(d => { setDlgJobs(Array.isArray(d) ? d : []); setDlgSelectedJobUuid(''); })
+      .catch(() => setDlgJobs([]));
+  }, [dlgSelectedProjectUuid]);
+
+  useEffect(() => {
+    if (preSelectedPaymentId && dlgPayments.length > 0 && !selectedPaymentDetails) {
+      const p = dlgPayments.find(x => x.paymentId === preSelectedPaymentId);
+      if (p) setSelectedPaymentDetails({ paymentId: p.paymentId, counteragent: p.counteragentName || 'N/A', project: p.projectIndex || 'N/A', job: p.jobName || 'N/A', financialCode: p.financialCode || 'N/A', incomeTax: p.incomeTax || false, currency: p.currencyCode || 'N/A' });
+    }
+  }, [preSelectedPaymentId, dlgPayments, selectedPaymentDetails]);
+
+  // ── Add Ledger: handlers ──
+
+  const resetLedgerForm = () => {
+    setSelectedPaymentId('');
+    setPreSelectedPaymentId(null);
+    setSelectedPaymentDetails(null);
+    setEffectiveDate('');
+    setAccrual('');
+    setLedgerOrder('');
+    setLedgerComment('');
+    setIsSubmitting(false);
+    setAddLedgerStep('payment');
+    setDlgSelectedCounteragentUuid('');
+    setDlgSkipCounteragentFilter(null);
+    setDlgSelectedProjectUuid('');
+    setDlgSelectedFinancialCodeUuid('');
+    setDlgSelectedJobUuid('');
+    setDlgSelectedCurrencyUuid('');
+    setDlgSelectedIncomeTax(false);
+    setDlgSelectedLabel('');
+    setIsCreatingPayment(false);
+  };
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      resetLedgerForm();
+    } else {
+      setAddLedgerStep('payment');
+      fetchDlgCounterAgents();
+      fetchDlgDictionaries();
+      fetchDlgPayments();
+    }
+  };
+
+  const handleCreatePayment = async () => {
+    if (!dlgSelectedCounteragentUuid || !dlgSelectedFinancialCodeUuid || !dlgSelectedCurrencyUuid) {
+      alert('Please fill Counteragent, Financial Code, and Currency');
+      return;
+    }
+    setIsCreatingPayment(true);
+    try {
+      const response = await fetch('/api/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          counteragentUuid: dlgSelectedCounteragentUuid,
+          projectUuid: dlgSelectedProjectUuid || null,
+          financialCodeUuid: dlgSelectedFinancialCodeUuid,
+          jobUuid: dlgSelectedJobUuid || null,
+          incomeTax: dlgSelectedIncomeTax,
+          currencyUuid: dlgSelectedCurrencyUuid,
+          label: dlgSelectedLabel || null,
+        }),
+      });
+      if (!response.ok) { const e = await response.json(); throw new Error(e.error || 'Failed to create payment'); }
+      const result = await response.json();
+      const newPaymentId = result?.data?.payment_id || result?.data?.paymentId;
+      if (!newPaymentId) throw new Error('Payment ID not returned from server');
+      const ca = dlgCounterAgents.find(c => (c.counteragent_uuid || c.counteragentUuid) === dlgSelectedCounteragentUuid);
+      const proj = allProjects.find(p => p.project_uuid === dlgSelectedProjectUuid);
+      const job = dlgJobs.find(j => j.jobUuid === dlgSelectedJobUuid);
+      const fc = dlgFinancialCodes.find(f => f.uuid === dlgSelectedFinancialCodeUuid);
+      const curr = dlgCurrencies.find(c => c.uuid === dlgSelectedCurrencyUuid);
+      setPreSelectedPaymentId(newPaymentId);
+      setSelectedPaymentId(newPaymentId);
+      setSelectedPaymentDetails({
+        paymentId: newPaymentId,
+        counteragent: ca?.name || ca?.counteragent || 'N/A',
+        project: proj?.project_index || proj?.project_name || 'N/A',
+        job: job?.jobDisplay || job?.jobName || 'N/A',
+        financialCode: fc?.validation || fc?.code || 'N/A',
+        incomeTax: dlgSelectedIncomeTax,
+        currency: curr?.code || 'N/A',
+      });
+      await fetchDlgPayments();
+      setAddLedgerStep('ledger');
+    } catch (err: any) {
+      alert(err.message || 'Failed to create payment');
+    } finally {
+      setIsCreatingPayment(false);
+    }
+  };
+
+  const handleSkipToLedger = () => {
+    if (dlgSelectedCounteragentUuid) {
+      const ca = dlgCounterAgents.find(c => (c.counteragent_uuid || c.counteragentUuid) === dlgSelectedCounteragentUuid);
+      setDlgSkipCounteragentFilter({ uuid: dlgSelectedCounteragentUuid, name: ca?.counteragent || ca?.name || dlgSelectedCounteragentUuid });
+    } else {
+      setDlgSkipCounteragentFilter(null);
+    }
+    setAddLedgerStep('ledger');
+  };
+
+  const handleAddLedgerEntry = async () => {
+    if (isSubmitting) return;
+    if (!selectedPaymentId) { alert('Please select a payment'); return; }
+    const accrualValue = accrual ? parseFloat(accrual) : null;
+    const orderValue = ledgerOrder ? parseFloat(ledgerOrder) : null;
+    if ((!accrualValue || accrualValue === 0) && (!orderValue || orderValue === 0)) {
+      alert('Either Accrual or Order must be provided and cannot be zero');
+      return;
+    }
+    let isoDate: string | undefined;
+    if (effectiveDate) {
+      const match = effectiveDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+      if (match) { isoDate = `${match[3]}-${match[2]}-${match[1]}`; }
+      else { alert('Please enter date in dd.mm.yyyy format'); return; }
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/payments-ledger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId: selectedPaymentId, effectiveDate: isoDate, accrual: accrualValue, order: orderValue, comment: ledgerComment || undefined }),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Failed to create ledger entry'); }
+      setIsDialogOpen(false);
+      resetLedgerForm();
+      fetchReport({ silent: true });
+    } catch (err: any) {
+      alert(err.message || 'Failed to add ledger entry');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // ── Helpers ──
 
@@ -311,14 +532,14 @@ export function ProjectsReportTable() {
 
   function buildPivot(proj: ProjectData, fcFilter: FcFilter) {
     const jobMap = new Map<string, { key: string; label: string; jobUuid: string | null }>();
-    const fcMap = new Map<string, { uuid: string; validation: string; isIncome: boolean }>();
+    const fcMap = new Map<string, { uuid: string; validation: string; code: string; isIncome: boolean }>();
 
     for (const cell of proj.cells) {
       if (fcFilter === 'income' && !cell.financialCodeIsIncome) continue;
       if (fcFilter === 'cost' && cell.financialCodeIsIncome) continue;
       const jobKey = cell.jobUuid ?? NULL_JOB_KEY;
       if (!jobMap.has(jobKey)) jobMap.set(jobKey, { key: jobKey, label: cell.jobName ?? '(No Job)', jobUuid: cell.jobUuid });
-      if (!fcMap.has(cell.financialCodeUuid)) fcMap.set(cell.financialCodeUuid, { uuid: cell.financialCodeUuid, validation: cell.financialCodeValidation, isIncome: cell.financialCodeIsIncome });
+      if (!fcMap.has(cell.financialCodeUuid)) fcMap.set(cell.financialCodeUuid, { uuid: cell.financialCodeUuid, validation: cell.financialCodeValidation, code: cell.financialCodeCode, isIncome: cell.financialCodeIsIncome });
     }
 
     const cellMap = new Map<string, CellData>();
@@ -334,7 +555,7 @@ export function ProjectsReportTable() {
       if (a.key !== NULL_JOB_KEY && b.key === NULL_JOB_KEY) return -1;
       return a.label.localeCompare(b.label);
     });
-    const fcList = Array.from(fcMap.values()).sort((a, b) => a.validation.localeCompare(b.validation));
+    const fcList = Array.from(fcMap.values()).sort((a, b) => a.code.localeCompare(b.code));
     return { jobList, fcList, cellMap };
   }
 
@@ -349,7 +570,7 @@ export function ProjectsReportTable() {
       const fcFilter = projectFcFilters[proj.projectUuid] ?? 'all';
       const { jobList, fcList, cellMap } = buildPivot(proj, fcFilter);
       const sheetName = `${proj.projectIndex}`.replace(/[\\/:*?[\]]/g, '_').slice(0, 31);
-      const headerRow = ['Job', ...fcList.flatMap((fc) => activeMetrics.map((m) => `${fc.validation} / ${METRIC_LABELS[m]}`)), 'Total'];
+      const headerRow = ['Job', ...fcList.flatMap((fc) => activeMetrics.map((m) => `${fc.code} / ${METRIC_LABELS[m]}`)), 'Total'];
       const dataRows = jobList.map((job) => {
         let rowTotal = 0;
         const cols = fcList.flatMap((fc) => activeMetrics.map((m) => {
@@ -436,6 +657,24 @@ export function ProjectsReportTable() {
           )}
         </div>
 
+        {/* Currency */}
+        <div className="flex items-center gap-1">
+          <label className="text-xs text-gray-500 shrink-0">Currency:</label>
+          {(['GEL', 'USD', 'EUR'] as const).map((c) => (
+            <button
+              key={c}
+              onClick={() => setCurrency(c)}
+              className={`px-2 py-0.5 text-xs rounded border transition-colors ${
+                currency === c
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+
         {/* Metrics multi-select */}
         <div className="flex items-center gap-1">
           <label className="text-xs text-gray-500 shrink-0">Metrics:</label>
@@ -447,7 +686,7 @@ export function ProjectsReportTable() {
           />
         </div>
 
-        <Button variant="outline" size="sm" onClick={fetchReport} disabled={loading || selectedProjectUuids.size === 0} className="flex items-center gap-1">
+        <Button variant="outline" size="sm" onClick={() => fetchReport()} disabled={loading || selectedProjectUuids.size === 0} className="flex items-center gap-1">
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
@@ -456,6 +695,208 @@ export function ProjectsReportTable() {
           <Download className="h-3.5 w-3.5" />
           Export XLSX
         </Button>
+
+        {/* Add Ledger */}
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
+          <DialogTrigger asChild>
+            <Button variant="default" size="sm" className="flex items-center gap-1">
+              <Plus className="h-3.5 w-3.5" />
+              Add Ledger
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="w-[80%] max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>{addLedgerStep === 'payment' ? 'Add Payment' : 'Add Ledger Entry'}</DialogTitle>
+              <DialogDescription>
+                {addLedgerStep === 'payment'
+                  ? 'Create a payment first, or skip to add a ledger entry to an existing payment.'
+                  : 'Add a new entry to the payments ledger.'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {addLedgerStep === 'payment' ? (
+                <>
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                    Create a payment first, or skip to add a ledger entry to an existing payment.
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Counteragent <span className="text-red-500">*</span></Label>
+                    <Combobox
+                      value={dlgSelectedCounteragentUuid}
+                      onValueChange={setDlgSelectedCounteragentUuid}
+                      options={dlgCounterAgents.map(ca => ({ value: ca.counteragent_uuid || ca.counteragentUuid || '', label: ca.counteragent || ca.name || '' })).filter(o => o.value && o.label)}
+                      placeholder="Select counteragent..."
+                      searchPlaceholder="Search counteragents..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className={!dlgSelectedCounteragentUuid ? 'text-muted-foreground' : ''}>Financial Code <span className="text-red-500">*</span></Label>
+                    <Combobox
+                      value={dlgSelectedFinancialCodeUuid}
+                      onValueChange={setDlgSelectedFinancialCodeUuid}
+                      options={dlgFinancialCodes.map(fc => ({ value: fc.uuid, label: fc.validation }))}
+                      placeholder="Select financial code..."
+                      searchPlaceholder="Search financial codes..."
+                      disabled={!dlgSelectedCounteragentUuid}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className={!dlgSelectedFinancialCodeUuid ? 'text-muted-foreground' : ''}>Currency <span className="text-red-500">*</span></Label>
+                    <Combobox
+                      value={dlgSelectedCurrencyUuid}
+                      onValueChange={setDlgSelectedCurrencyUuid}
+                      options={dlgCurrencies.map(c => ({ value: c.uuid, label: c.code }))}
+                      placeholder="Select currency..."
+                      searchPlaceholder="Search currencies..."
+                      disabled={!dlgSelectedFinancialCodeUuid}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox checked={dlgSelectedIncomeTax} onCheckedChange={(v) => setDlgSelectedIncomeTax(v as boolean)} />
+                    <Label>Income Tax</Label>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className={!dlgSelectedCurrencyUuid ? 'text-muted-foreground' : ''}>Project (Optional)</Label>
+                    <Combobox
+                      value={dlgSelectedProjectUuid}
+                      onValueChange={setDlgSelectedProjectUuid}
+                      options={allProjects.map(p => ({ value: p.project_uuid, label: `${p.project_index} – ${p.project_name}` }))}
+                      placeholder="Select project..."
+                      searchPlaceholder="Search projects..."
+                      disabled={!dlgSelectedCurrencyUuid}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className={!dlgSelectedProjectUuid ? 'text-muted-foreground' : ''}>Job (Optional)</Label>
+                    <Combobox
+                      value={dlgSelectedJobUuid}
+                      onValueChange={setDlgSelectedJobUuid}
+                      options={dlgJobs.map(j => ({ value: j.jobUuid, label: j.jobDisplay || j.jobName }))}
+                      placeholder="Select job..."
+                      searchPlaceholder="Search jobs..."
+                      disabled={!dlgSelectedProjectUuid}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Label (Optional)</Label>
+                    <Input value={dlgSelectedLabel} onChange={(e) => setDlgSelectedLabel(e.target.value)} placeholder="Payment label" />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <Button onClick={handleCreatePayment} className="flex-1" disabled={isCreatingPayment || !dlgSelectedCounteragentUuid || !dlgSelectedFinancialCodeUuid || !dlgSelectedCurrencyUuid}>
+                      {isCreatingPayment ? 'Creating...' : 'Create Payment & Continue'}
+                    </Button>
+                    <Button variant="outline" className="flex-1" onClick={handleSkipToLedger}>Skip – Use Existing Payment</Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {preSelectedPaymentId && selectedPaymentDetails ? (
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-3 border border-gray-200">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-3">Payment Details</h3>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-gray-600">Payment ID</Label>
+                          <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center font-bold">{selectedPaymentDetails.paymentId}</div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-gray-600">Currency</Label>
+                          <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center font-bold">{selectedPaymentDetails.currency}</div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-gray-600">Income Tax</Label>
+                          <div className="flex items-center h-9 px-3 border-2 border-gray-300 rounded-md bg-gray-100">
+                            <Checkbox checked={selectedPaymentDetails.incomeTax} disabled />
+                            <span className="ml-2 text-sm font-bold">{selectedPaymentDetails.incomeTax ? 'Yes' : 'No'}</span>
+                          </div>
+                        </div>
+                      </div>
+                      {[['Counteragent', selectedPaymentDetails.counteragent], ['Project', selectedPaymentDetails.project], ['Job', selectedPaymentDetails.job], ['Financial Code', selectedPaymentDetails.financialCode]].map(([lbl, val]) => (
+                        <div key={lbl} className="space-y-1">
+                          <Label className="text-xs text-gray-600">{lbl}</Label>
+                          <div className="flex h-9 w-full rounded-md border-2 border-gray-300 bg-gray-100 px-3 py-1 text-sm items-center font-bold">{val}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>Payment</Label>
+                      {dlgSkipCounteragentFilter && (
+                        <div className="flex items-center gap-2 rounded-md bg-blue-50 border border-blue-200 px-3 py-1.5 text-sm text-blue-800">
+                          <span className="flex-1">Showing payments for: <strong>{dlgSkipCounteragentFilter.name}</strong></span>
+                          <button type="button" className="text-blue-500 hover:text-blue-700 font-bold" onClick={() => setDlgSkipCounteragentFilter(null)}>×</button>
+                        </div>
+                      )}
+                      <Combobox
+                        value={selectedPaymentId}
+                        onValueChange={(value) => {
+                          setSelectedPaymentId(value);
+                          const p = dlgPayments.find(x => x.paymentId === value);
+                          if (p) setSelectedPaymentDetails({ paymentId: p.paymentId, counteragent: p.counteragentName || 'N/A', project: p.projectIndex || 'N/A', job: p.jobName || 'N/A', financialCode: p.financialCode || 'N/A', incomeTax: p.incomeTax || false, currency: p.currencyCode || 'N/A' });
+                        }}
+                        filter={(value, search) => { try { return new RegExp(search, 'i').test(value) ? 1 : 0; } catch { return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0; } }}
+                        options={dlgPayments.filter(p => !dlgSkipCounteragentFilter || p.counteragentUuid === dlgSkipCounteragentFilter.uuid).map(p => { const parts = [p.paymentId, p.counteragentName, p.projectName, p.jobName, p.financialCode, p.currencyCode].filter(Boolean); return { value: p.paymentId, label: parts.join(' | ') }; })}
+                        placeholder="Select payment..."
+                        searchPlaceholder="Search by payment ID, project, job..."
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label>Effective Date</Label>
+                    <div className="relative flex gap-2">
+                      <Input
+                        type="text"
+                        value={effectiveDate}
+                        onChange={(e) => {
+                          let v = e.target.value.replace(/[^\d.]/g, '');
+                          if (v.length === 2 && !v.includes('.')) v += '.';
+                          else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                          if (v.length <= 10) setEffectiveDate(v);
+                        }}
+                        placeholder="dd.mm.yyyy"
+                        maxLength={10}
+                        className="border-2 border-gray-400 flex-1"
+                      />
+                      <input
+                        type="date"
+                        onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setEffectiveDate(`${d}.${m}.${y}`); } }}
+                        className="border-2 border-gray-400 rounded-md px-3 cursor-pointer w-12 flex-shrink-0"
+                        title="Pick date from calendar"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500">Optional. Defaults to today if not set. Format: dd.mm.yyyy</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Amount <span className="text-red-500">*</span></Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs text-gray-600 mb-1 block">Accrual</Label>
+                        <Input type="number" step="0.01" value={accrual} onChange={(e) => setAccrual(e.target.value)} placeholder="0.00" className="border-[3px] border-gray-400 focus-visible:border-blue-500" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-600 mb-1 block">Order</Label>
+                        <Input type="number" step="0.01" value={ledgerOrder} onChange={(e) => setLedgerOrder(e.target.value)} placeholder="0.00" className="border-[3px] border-gray-400 focus-visible:border-blue-500" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">Enter at least one amount (Accrual or Order).</p>
+                  </div>
+                  <Button onClick={handleAddLedgerEntry} className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? 'Creating...' : 'Create Entry'}
+                  </Button>
+                  <div className="space-y-2">
+                    <Label>Comment</Label>
+                    <textarea
+                      value={ledgerComment}
+                      onChange={(e) => setLedgerComment(e.target.value)}
+                      placeholder="Optional notes or description"
+                      className="flex min-h-[120px] w-full rounded-md border-[3px] border-gray-400 bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-blue-500"
+                      rows={4}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Selected project chips */}
@@ -524,7 +965,7 @@ export function ProjectsReportTable() {
                 {proj.serviceState && proj.serviceState !== '-' && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{proj.serviceState}</span>}
                 {proj.insiderName && proj.insiderName !== '-' && <span>Insider: {proj.insiderName}</span>}
                 {proj.department && proj.department !== '-' && <span>Dept: {proj.department}</span>}
-                <span className="text-gray-400">{fcList.length} FCs · {jobList.length} jobs</span>
+                <span className="text-gray-400">{fcList.length} FCs · {jobList.filter(j => j.key !== NULL_JOB_KEY).length} / {proj.totalJobsInProject} jobs paid</span>
               </span>
             </div>
 
@@ -555,8 +996,9 @@ export function ProjectsReportTable() {
                             key={fc.uuid}
                             colSpan={activeMetrics.length}
                             className="px-2 py-1.5 text-center font-semibold text-gray-700 border-r border-gray-200 text-xs bg-gray-100"
-                          >
-                            <span className="truncate block max-w-full" title={fc.validation}>{fc.validation}</span>
+                             title={fc.validation}
+                           >
+                             <span className="truncate block max-w-full">{fc.code}</span>
                           </th>
                         ))}
                         <th
