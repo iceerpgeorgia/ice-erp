@@ -1688,6 +1688,95 @@ export function PaymentsReportTable() {
     }
   };
 
+  const resolveInsiderSenderAccountForExport = async (
+    records: PaymentReport[],
+    bankHint: string
+  ): Promise<Map<string, string>> => {
+    const result = new Map<string, string>();
+
+    const uniqueInsiderUuids = [
+      ...new Set(records.map((r) => r.insiderUuid).filter((u): u is string => !!u)),
+    ];
+
+    if (uniqueInsiderUuids.length === 0) {
+      return result;
+    }
+
+    const res = await fetch(`/api/insider-bank-accounts?insiderUuids=${uniqueInsiderUuids.join(',')}`);
+    if (!res.ok) {
+      throw new Error('Failed to fetch insider bank accounts');
+    }
+
+    const accounts: {
+      insiderUuid: string;
+      accountNumber: string;
+      bankName: string | null;
+      currencyCode: string | null;
+      parsingSchemeName: string | null;
+    }[] = await res.json();
+
+    const byInsider = new Map<string, typeof accounts>();
+    for (const acc of accounts) {
+      if (!byInsider.has(acc.insiderUuid)) byInsider.set(acc.insiderUuid, []);
+      byInsider.get(acc.insiderUuid)!.push(acc);
+    }
+
+    for (const insiderUuid of uniqueInsiderUuids) {
+      const insiderAccounts = byInsider.get(insiderUuid) || [];
+      const insiderName =
+        records.find((r) => r.insiderUuid === insiderUuid)?.insiderName || insiderUuid;
+
+      if (insiderAccounts.length === 0) {
+        const entered = prompt(
+          `Insider "${insiderName}" has no active bank account.\nEnter sender account number/IBAN for export:`
+        );
+        if (!entered || !entered.trim()) {
+          throw new Error(`Sender account is required for insider "${insiderName}". Export cancelled.`);
+        }
+        result.set(insiderUuid, entered.trim());
+        continue;
+      }
+
+      const bankFiltered = insiderAccounts.filter((a) => {
+        const name = (a.bankName || '').toUpperCase();
+        const scheme = (a.parsingSchemeName || '').toUpperCase();
+        return (
+          name.includes(bankHint.toUpperCase()) || scheme.includes(bankHint.toUpperCase())
+        );
+      });
+
+      const candidates = bankFiltered.length > 0 ? bankFiltered : insiderAccounts;
+
+      if (candidates.length === 1) {
+        result.set(insiderUuid, candidates[0].accountNumber);
+      } else {
+        const options = candidates
+          .map(
+            (a, i) =>
+              `${i + 1}. ${a.accountNumber} (${a.bankName || 'Unknown'} ${a.currencyCode || ''})`
+          )
+          .join('\n');
+        const choice = prompt(
+          `Insider "${insiderName}" has multiple ${bankHint} accounts.\nSelect account number:\n\n${options}`
+        );
+        if (!choice) {
+          throw new Error(
+            `Account selection is required for insider "${insiderName}". Export cancelled.`
+          );
+        }
+        const idx = Number(choice);
+        if (!Number.isInteger(idx) || idx < 1 || idx > candidates.length) {
+          throw new Error(
+            `Invalid account selection for insider "${insiderName}". Export cancelled.`
+          );
+        }
+        result.set(insiderUuid, candidates[idx - 1].accountNumber);
+      }
+    }
+
+    return result;
+  };
+
   const resolveIbansForExport = async (records: PaymentReport[]) => {
     const resolvedByPaymentId = new Map<string, string>();
     const resolvedByCounteragent = new Map<string, string>();
@@ -1778,14 +1867,20 @@ export function PaymentsReportTable() {
     ];
 
     try {
-      const resolvedIbans = await resolveIbansForExport(eligible);
+      const [resolvedIbans, insiderSenderAccounts] = await Promise.all([
+        resolveIbansForExport(eligible),
+        resolveInsiderSenderAccountForExport(eligible, 'BOG'),
+      ]);
 
       const rows = await Promise.all(
         eligible.map(async (record) => {
           const description = buildPaymentDescription(record.financialCodeDescription, record);
           const amount = await calculateExportAmount(record);
+          const senderAccount = record.insiderUuid
+            ? (insiderSenderAccounts.get(record.insiderUuid) || '')
+            : '';
           return [
-            'GE78BG0000000893486000',
+            senderAccount,
             '',
             '',
             resolvedIbans.get(record.paymentId) || '',
