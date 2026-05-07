@@ -1,5 +1,15 @@
 ﻿# Deployment Log
 
+## 2026-05-07 Deployment #267
+- Commit: aec090e
+- Production: https://ice-1cdwl6tyo-iceerp.vercel.app
+- Summary: New Projects Report page at /dictionaries/projects-report.
+- Changes:
+  - app/api/projects-report/route.ts: API querying payments grouped by (project x job x financial_code) with full ledger/bank aggregation and BTC batch resolution.
+  - components/figma/projects-report-table.tsx: Pivot-grid UI — one grid per selected project; rows=jobs, columns=financial codes; each FC column has its own metric picker (accrual/order/payment/due/balance/etc); totals row/column, XLSX export, collapsible sections.
+  - app/dictionaries/projects-report/page.tsx: Next.js page at /dictionaries/projects-report.
+  - app/dictionaries/page.tsx: Added Projects Report link to dictionaries index.
+
 ## 2026-05-07 Deployment #266
 - Commit: d25e66a
 - Production: https://ice-dtff0n2la-iceerp.vercel.app
