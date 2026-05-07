@@ -78,6 +78,7 @@ export async function GET(request: NextRequest) {
           p.job_uuid,
           p.financial_code_uuid,
           COALESCE(fc.validation, fc.code, '-') AS financial_code_validation,
+          COALESCE(fc.is_income, false) AS financial_code_is_income,
           proj.project_index,
           proj.project_name,
           proj.address AS project_address,
@@ -244,6 +245,7 @@ export async function GET(request: NextRequest) {
         jobName: string | null;
         financialCodeUuid: string;
         financialCodeValidation: string;
+        financialCodeIsIncome: boolean;
         accrual: number;
         latestAccrual: number;
         order: number;
@@ -286,6 +288,7 @@ export async function GET(request: NextRequest) {
         jobName: row.job_name || null,
         financialCodeUuid: row.financial_code_uuid as string,
         financialCodeValidation: row.financial_code_validation as string,
+        financialCodeIsIncome: Boolean(row.financial_code_is_income),
         accrual,
         latestAccrual: Number(row.latest_accrual || 0),
         order,
