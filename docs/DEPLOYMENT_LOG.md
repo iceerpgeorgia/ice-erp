@@ -1,4 +1,13 @@
-ï»¿# Deployment Log
+# Deployment Log
+
+## 2026-05-07 Deployment #268
+- Commit: dd79095
+- Production: https://ice-89jabvnu2-iceerp.vercel.app
+- Summary: Projects Report - Add Ledger dialog, multi-currency conversion, FC income/cost filter fix, dual job counts in header.
+- Changes:
+  - app/api/projects-report/route.ts: Added targetCurrency param (USD/GEL/EUR); all aggregation CTEs apply NBG historical rate conversion via LATERAL joins; added payment_currencies CTE; fixed missing financial_code_is_income and financial_code_code in final SELECT; added separate job count query returning totalJobsInProject.
+  - components/figma/projects-report-table.tsx: Added GEL/USD/EUR currency selector buttons; Add Ledger two-step dialog (create payment + add ledger entry) with silent fetchReport refresh on save; project header now shows X/Y jobs paid.
+
 
 ## 2026-05-07 Deployment #267
 - Commit: aec090e
@@ -6,14 +15,14 @@
 - Summary: New Projects Report page at /dictionaries/projects-report.
 - Changes:
   - app/api/projects-report/route.ts: API querying payments grouped by (project x job x financial_code) with full ledger/bank aggregation and BTC batch resolution.
-  - components/figma/projects-report-table.tsx: Pivot-grid UI â€” one grid per selected project; rows=jobs, columns=financial codes; each FC column has its own metric picker (accrual/order/payment/due/balance/etc); totals row/column, XLSX export, collapsible sections.
+  - components/figma/projects-report-table.tsx: Pivot-grid UI — one grid per selected project; rows=jobs, columns=financial codes; each FC column has its own metric picker (accrual/order/payment/due/balance/etc); totals row/column, XLSX export, collapsible sections.
   - app/dictionaries/projects-report/page.tsx: Next.js page at /dictionaries/projects-report.
   - app/dictionaries/page.tsx: Added Projects Report link to dictionaries index.
 
 ## 2026-05-07 Deployment #266
 - Commit: d25e66a
 - Production: https://ice-dtff0n2la-iceerp.vercel.app
-- Summary: Stable attachment count icon â€” counts no longer flash to 0 on re-fetch, layout no longer shifts.
+- Summary: Stable attachment count icon — counts no longer flash to 0 on re-fetch, layout no longer shifts.
 - Changes:
   - components/figma/payments-report-table.tsx: Merge incoming counts into existing state so stale values stay visible during re-fetches; removed count reset on error.
   - components/figma/payments-table.tsx: Same merge-on-update pattern; removed count reset on error.
