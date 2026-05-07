@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-05-07 Deployment #273
+- Commit: 7d08afd
+- Production: https://ice-7x9rb7z8z-iceerp.vercel.app
+- Summary: Projects Report - Floors column, silent currency switch, drag-to-reorder grids.
+- Changes:
+  - app/api/projects-report/route.ts: Added jobFloors field to cell type and response builder.
+  - components/figma/projects-report-table.tsx: Added Floors column after Job; per-project currency now fetches silently via fetchOneProject (no full reload); grids are drag-and-drop reorderable with persisted order in localStorage.
+
 ## 2026-05-07 Deployment #272
 - Commit: deb3f48
 - Production: https://ice-4i7u5t3q0-iceerp.vercel.app
