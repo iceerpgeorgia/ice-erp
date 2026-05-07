@@ -1,4 +1,13 @@
-# Deployment Log
+﻿# Deployment Log
+
+## 2026-05-07 Deployment #266
+- Commit: d25e66a
+- Production: https://ice-dtff0n2la-iceerp.vercel.app
+- Summary: Stable attachment count icon — counts no longer flash to 0 on re-fetch, layout no longer shifts.
+- Changes:
+  - components/figma/payments-report-table.tsx: Merge incoming counts into existing state so stale values stay visible during re-fetches; removed count reset on error.
+  - components/figma/payments-table.tsx: Same merge-on-update pattern; removed count reset on error.
+  - components/figma/payment-attachments.tsx: Compact inline button always shows count digit (0 when none, blue when > 0) so layout is stable.
 
 ## 2026-05-07 Deployment #265
 - Commit: 7065983
