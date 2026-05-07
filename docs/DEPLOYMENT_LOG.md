@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-05-07 Deployment #271
+- Commit: 1763ac4
+- Production: https://ice-5l1qzgiae-iceerp.vercel.app
+- Summary: Projects Report - per-column autofit widths and shared cross-grid resize keys.
+- Changes:
+  - components/figma/projects-report-table.tsx: Replaced single autoDataColW with autoColWidthsMap useMemo computing independent widths per fc:metric key from actual cell values (7.5px/char + 16px padding, 38px min). Column resize keys are now global so resizing propagates across all project grids.
+
 ## 2026-05-07 Deployment #268
 - Commit: dd79095
 - Production: https://ice-89jabvnu2-iceerp.vercel.app
