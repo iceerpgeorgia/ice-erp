@@ -249,7 +249,7 @@ export async function GET(request: NextRequest) {
         sp.financial_code_uuid,
         MAX(sp.financial_code_validation) AS financial_code_validation,
         MAX(sp.financial_code_code) AS financial_code_code,
-        MAX(sp.financial_code_is_income) AS financial_code_is_income,
+        MAX(sp.financial_code_is_income::int)::boolean AS financial_code_is_income,
         ARRAY_REMOVE(ARRAY_AGG(DISTINCT sp.payment_id ORDER BY sp.payment_id), NULL) AS payment_ids,
         COUNT(DISTINCT sp.payment_id) AS payment_count,
         SUM(COALESCE(la.total_accrual, 0)) AS accrual,
