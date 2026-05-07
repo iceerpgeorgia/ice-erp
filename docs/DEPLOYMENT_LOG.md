@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-05-07 Deployment #265
+- Commit: 7065983
+- Production: https://ice-n4msvjl02-iceerp.vercel.app
+- Summary: Bundle distribution grid now shows accrual amounts instead of order amounts when opening project edit.
+- Changes:
+  - app/api/projects/bundle-distribution/route.ts: Changed SUM('order') to SUM(accrual) in the ledger aggregate query so the pre-filled amounts reflect accruals rather than orders
+
 ## 2026-05-06 Deployment #264
 - Commit: fcb6d24
 - Production: https://ice-7h7p4uw82-iceerp.vercel.app
