@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-05-07 Deployment #272
+- Commit: deb3f48
+- Production: https://ice-4i7u5t3q0-iceerp.vercel.app
+- Summary: Projects Report UI improvements - remove project chips from toolbar, add search+select-all-filtered to project selector, fix FC tooltip disappearing on hover.
+- Changes:
+  - components/figma/projects-report-table.tsx: Removed project chip tags row; upgraded project selector with search icon, 'Select all filtered'/'Deselect filtered' toggle, selected count in footer; removed pointer-events-none from FC description tooltip so it stays visible when cursor moves onto it.
+
 ## 2026-05-07 Deployment #271
 - Commit: 1763ac4
 - Production: https://ice-5l1qzgiae-iceerp.vercel.app
