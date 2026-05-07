@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     financial_code_name: string;
     financial_code_code: string;
     payment_id: string | null;
-    total_order: number | null;
+    total_accrual: number | null;
     latest_date: Date | null;
   }>>(
     `SELECT
@@ -43,10 +43,10 @@ export async function GET(req: NextRequest) {
        fc.name AS financial_code_name,
        fc.code AS financial_code_code,
        p.payment_id,
-       (SELECT COALESCE(SUM("order"), 0) 
+       (SELECT COALESCE(SUM(accrual), 0) 
         FROM payments_ledger 
         WHERE payment_id = p.payment_id
-          AND (is_deleted = false OR is_deleted IS NULL)) AS total_order,
+          AND (is_deleted = false OR is_deleted IS NULL)) AS total_accrual,
        (SELECT MAX(effective_date) 
         FROM payments_ledger 
         WHERE payment_id = p.payment_id
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
       distributionDate = `${day}.${month}.${year}`;
     }
 
-    const amount = row.total_order ? String(row.total_order) : '';
+    const amount = row.total_accrual ? String(row.total_accrual) : '';
     const projectValue = Number(project.value) || 0;
     let percentage = '';
     if (amount && parseFloat(amount) > 0 && projectValue > 0) {
