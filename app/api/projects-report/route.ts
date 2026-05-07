@@ -97,7 +97,8 @@ export async function GET(request: NextRequest) {
           COALESCE(ps.name, proj.state, 'Unknown') AS status_name,
           COALESCE(j.job_name, NULL) AS job_name,
           COALESCE(insider_ca.insider_name, insider_ca.name, insider_ca.counteragent, '-') AS insider_name,
-          COALESCE(proj.department, '-') AS department
+          COALESCE(proj.department, '-') AS department,
+          COALESCE(j.floors, 0) AS job_floors
         FROM payments p
         LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
         LEFT JOIN project_states ps ON proj.state_uuid = ps.uuid
@@ -250,6 +251,7 @@ export async function GET(request: NextRequest) {
         MAX(sp.financial_code_validation) AS financial_code_validation,
         MAX(sp.financial_code_code) AS financial_code_code,
         MAX(sp.financial_code_is_income::int)::boolean AS financial_code_is_income,
+        MAX(sp.job_floors) AS job_floors,
         ARRAY_REMOVE(ARRAY_AGG(DISTINCT sp.payment_id ORDER BY sp.payment_id), NULL) AS payment_ids,
         COUNT(DISTINCT sp.payment_id) AS payment_count,
         SUM(COALESCE(la.total_accrual, 0)) AS accrual,
@@ -319,6 +321,7 @@ export async function GET(request: NextRequest) {
         balance: number;
         confirmed: boolean;
         paymentCount: number;
+        accrualPerFloor: number;
         paymentIds: string[];
         latestDate: string | null;
       }[];
@@ -346,6 +349,8 @@ export async function GET(request: NextRequest) {
       const payment = Number(row.payment || 0);
       const due = Number((order - Math.abs(payment)).toFixed(2));
       const balance = Number((accrual - Math.abs(payment)).toFixed(2));
+      const floors = Number(row.job_floors || 0);
+      const accrualPerFloor = floors > 0 ? Number((accrual / floors).toFixed(2)) : 0;
 
       projectMap.get(key)!.cells.push({
         jobUuid: row.job_uuid || null,
@@ -364,6 +369,7 @@ export async function GET(request: NextRequest) {
         balance,
         confirmed: Boolean(row.confirmed),
         paymentCount: Number(row.payment_count || 0),
+        accrualPerFloor,
         paymentIds: Array.isArray(row.payment_ids)
           ? row.payment_ids.filter((v: unknown) => typeof v === 'string' && v.trim() !== '')
           : [],

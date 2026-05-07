@@ -12,7 +12,7 @@ import * as XLSX from 'xlsx-js-style';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type MetricKey = 'accrual' | 'latestAccrual' | 'order' | 'lastMonthAccrual' | 'lastMonthOrder' | 'payment' | 'due' | 'balance' | 'paymentCount';
+type MetricKey = 'accrual' | 'latestAccrual' | 'order' | 'lastMonthAccrual' | 'lastMonthOrder' | 'payment' | 'due' | 'balance' | 'paymentCount' | 'accrualPerFloor';
 
 const METRIC_LABELS: Record<MetricKey, string> = {
   accrual: 'Accrual',
@@ -24,7 +24,10 @@ const METRIC_LABELS: Record<MetricKey, string> = {
   due: 'Due',
   balance: 'Balance',
   paymentCount: 'Count',
+  accrualPerFloor: 'Accrual/Floor',
 };
+
+const NON_ADDITIVE_METRICS = new Set<MetricKey>(['paymentCount', 'accrualPerFloor']);
 
 const ALL_METRICS = Object.keys(METRIC_LABELS) as MetricKey[];
 
@@ -45,6 +48,7 @@ type CellData = {
   balance: number;
   confirmed: boolean;
   paymentCount: number;
+  accrualPerFloor: number;
   paymentIds: string[];
   latestDate: string | null;
 };
@@ -84,6 +88,7 @@ const formatMoney = (value: number) =>
 
 const formatCell = (value: number, metric: MetricKey) => {
   if (metric === 'paymentCount') return value === 0 ? '-' : String(value);
+  if (metric === 'accrualPerFloor') return value === 0 ? '-' : formatMoney(value);
   return value === 0 ? '-' : formatMoney(value);
 };
 
@@ -94,6 +99,10 @@ const NULL_JOB_KEY = '__NO_JOB__';
 const STORAGE_KEY_PROJECTS = 'projectsReportSelectedProjects';
 const STORAGE_KEY_MAXDATE = 'projectsReportMaxDate';
 const STORAGE_KEY_METRICS = 'projectsReportSelectedMetrics';
+const STORAGE_KEY_CURRENCIES = 'projectsReportCurrencies';
+const STORAGE_KEY_FC_FILTERS = 'projectsReportFcFilters';
+const STORAGE_KEY_COLLAPSED = 'projectsReportCollapsed';
+const STORAGE_KEY_COL_WIDTHS = 'projectsReportColWidths';
 
 const JOB_COL_DEFAULT_WIDTH = 180;
 const FC_COL_DEFAULT_WIDTH = 120;
@@ -187,7 +196,7 @@ export function ProjectsReportTable() {
 
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const [resizing, setResizing] = useState<{ key: string; startX: number; startWidth: number } | null>(null);
-  const [currency, setCurrency] = useState<'USD' | 'GEL' | 'EUR'>('GEL');
+  const [projectCurrencies, setProjectCurrencies] = useState<Record<string, 'USD' | 'GEL' | 'EUR'>>({});
 
   // ── Add Ledger dialog state ──
 
@@ -229,6 +238,10 @@ export function ProjectsReportTable() {
     const savedProjects = localStorage.getItem(STORAGE_KEY_PROJECTS);
     const savedMaxDate = localStorage.getItem(STORAGE_KEY_MAXDATE);
     const savedMetrics = localStorage.getItem(STORAGE_KEY_METRICS);
+    const savedCurrencies = localStorage.getItem(STORAGE_KEY_CURRENCIES);
+    const savedFcFilters = localStorage.getItem(STORAGE_KEY_FC_FILTERS);
+    const savedCollapsed = localStorage.getItem(STORAGE_KEY_COLLAPSED);
+    const savedColWidths = localStorage.getItem(STORAGE_KEY_COL_WIDTHS);
 
     if (savedProjects) {
       try {
@@ -245,11 +258,39 @@ export function ProjectsReportTable() {
         }
       } catch { /* ignore */ }
     }
+    if (savedCurrencies) {
+      try {
+        const parsed = JSON.parse(savedCurrencies);
+        if (parsed && typeof parsed === 'object') setProjectCurrencies(parsed);
+      } catch { /* ignore */ }
+    }
+    if (savedFcFilters) {
+      try {
+        const parsed = JSON.parse(savedFcFilters);
+        if (parsed && typeof parsed === 'object') setProjectFcFilters(parsed);
+      } catch { /* ignore */ }
+    }
+    if (savedCollapsed) {
+      try {
+        const parsed = JSON.parse(savedCollapsed);
+        if (Array.isArray(parsed)) setCollapsedProjects(new Set(parsed.map(String)));
+      } catch { /* ignore */ }
+    }
+    if (savedColWidths) {
+      try {
+        const parsed = JSON.parse(savedColWidths);
+        if (parsed && typeof parsed === 'object') setColWidths(parsed);
+      } catch { /* ignore */ }
+    }
   }, []);
 
   useEffect(() => { localStorage.setItem(STORAGE_KEY_PROJECTS, JSON.stringify(Array.from(selectedProjectUuids))); }, [selectedProjectUuids]);
   useEffect(() => { localStorage.setItem(STORAGE_KEY_MAXDATE, maxDate || ''); }, [maxDate]);
   useEffect(() => { localStorage.setItem(STORAGE_KEY_METRICS, JSON.stringify(Array.from(selectedMetrics))); }, [selectedMetrics]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEY_CURRENCIES, JSON.stringify(projectCurrencies)); }, [projectCurrencies]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEY_FC_FILTERS, JSON.stringify(projectFcFilters)); }, [projectFcFilters]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEY_COLLAPSED, JSON.stringify(Array.from(collapsedProjects))); }, [collapsedProjects]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEY_COL_WIDTHS, JSON.stringify(colWidths)); }, [colWidths]);
 
   // ── Column resize ──
 
@@ -315,21 +356,38 @@ export function ProjectsReportTable() {
     if (!options?.silent) setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      params.set('projectUuids', Array.from(selectedProjectUuids).join(','));
-      if (maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate)) params.set('maxDate', maxDate);
-      if (selectedInsiderUuids.length > 0) params.set('insiderUuids', selectedInsiderUuids.join(','));
-      params.set('targetCurrency', currency);
-      const res = await fetch(`/api/projects-report?${params}`);
-      if (!res.ok) throw new Error('Failed to load projects report');
-      const data = await res.json() as ProjectsReportResponse;
-      setReport(data);
+      // Group projects by their chosen currency and fetch each group
+      const currencyGroups = new Map<string, string[]>();
+      for (const uuid of selectedProjectUuids) {
+        const curr = projectCurrencies[uuid] ?? 'GEL';
+        if (!currencyGroups.has(curr)) currencyGroups.set(curr, []);
+        currencyGroups.get(curr)!.push(uuid);
+      }
+      const groupResults = await Promise.all(
+        Array.from(currencyGroups.entries()).map(async ([curr, uuids]) => {
+          const gParams = new URLSearchParams();
+          gParams.set('projectUuids', uuids.join(','));
+          if (maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate)) gParams.set('maxDate', maxDate);
+          if (selectedInsiderUuids.length > 0) gParams.set('insiderUuids', selectedInsiderUuids.join(','));
+          gParams.set('targetCurrency', curr);
+          const res = await fetch(`/api/projects-report?${gParams}`);
+          if (!res.ok) throw new Error('Failed to load projects report');
+          const data = await res.json() as ProjectsReportResponse;
+          return data.projects;
+        })
+      );
+      const allProjectData = groupResults.flat();
+      // Preserve selected order
+      const ordered = Array.from(selectedProjectUuids)
+        .map((uuid) => allProjectData.find((p) => p.projectUuid === uuid))
+        .filter(Boolean) as ProjectsReportResponse['projects'];
+      setReport({ projects: ordered });
     } catch (err: any) {
       setError(err?.message || 'Failed to load projects report');
     } finally {
       if (!options?.silent) setLoading(false);
     }
-  }, [selectedProjectUuids, maxDate, selectedInsiderUuids, currency]);
+  }, [selectedProjectUuids, maxDate, selectedInsiderUuids, projectCurrencies]);
 
   useEffect(() => { fetchReport(); }, [fetchReport]);
 
@@ -559,6 +617,44 @@ export function ProjectsReportTable() {
     return { jobList, fcList, cellMap };
   }
 
+  function calcAutoWidths(
+    jobList: { key: string; label: string }[],
+    fcList: { uuid: string; code: string }[],
+    cellMap: Map<string, CellData>,
+    metrics: MetricKey[],
+  ): { dataColW: number; jobColW: number } {
+    const PX_PER_CHAR = 7.5;
+    const CELL_PAD = 24;
+    // seed with metric label lengths so header text fits too
+    let maxDataChars = metrics.reduce((max, m) => Math.max(max, METRIC_LABELS[m].length), 1);
+    for (const job of jobList) {
+      let rowTotal = 0;
+      for (const fc of fcList) {
+        const cell = cellMap.get(`${job.key}:${fc.uuid}`);
+        for (const m of metrics) {
+          const v = cell ? getCellValue(cell, m) : 0;
+          maxDataChars = Math.max(maxDataChars, formatCell(v, m).length);
+          if (!NON_ADDITIVE_METRICS.has(m)) rowTotal += v;
+        }
+      }
+      maxDataChars = Math.max(maxDataChars, formatMoney(rowTotal).length);
+    }
+    // column totals row
+    for (const fc of fcList) {
+      for (const m of metrics) {
+        const colTotal = jobList.reduce((s, job) => {
+          const cell = cellMap.get(`${job.key}:${fc.uuid}`);
+          return s + (cell ? getCellValue(cell, m) : 0);
+        }, 0);
+        maxDataChars = Math.max(maxDataChars, formatCell(colTotal, m).length);
+      }
+    }
+    const dataColW = Math.max(60, Math.ceil(maxDataChars * PX_PER_CHAR + CELL_PAD));
+    const maxJobChars = jobList.reduce((max, j) => Math.max(max, j.label.length), 5 /* 'TOTAL' */);
+    const jobColW = Math.max(80, Math.min(320, Math.ceil(maxJobChars * PX_PER_CHAR + CELL_PAD)));
+    return { dataColW, jobColW };
+  }
+
   const activeMetrics = useMemo(() => ALL_METRICS.filter((m) => selectedMetrics.has(m)), [selectedMetrics]);
 
   // ── XLSX export ──
@@ -576,7 +672,7 @@ export function ProjectsReportTable() {
         const cols = fcList.flatMap((fc) => activeMetrics.map((m) => {
           const cell = cellMap.get(`${job.key}:${fc.uuid}`);
           const v = cell ? getCellValue(cell, m) : 0;
-          if (m !== 'paymentCount') rowTotal += v;
+          if (!NON_ADDITIVE_METRICS.has(m)) rowTotal += v;
           return v;
         }));
         return [job.label, ...cols, rowTotal];
@@ -655,24 +751,6 @@ export function ProjectsReportTable() {
           {maxDate && (
             <button onClick={() => setMaxDate('')} className="text-gray-400 hover:text-gray-600"><X className="h-3.5 w-3.5" /></button>
           )}
-        </div>
-
-        {/* Currency */}
-        <div className="flex items-center gap-1">
-          <label className="text-xs text-gray-500 shrink-0">Currency:</label>
-          {(['GEL', 'USD', 'EUR'] as const).map((c) => (
-            <button
-              key={c}
-              onClick={() => setCurrency(c)}
-              className={`px-2 py-0.5 text-xs rounded border transition-colors ${
-                currency === c
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              {c}
-            </button>
-          ))}
         </div>
 
         {/* Metrics multi-select */}
@@ -931,8 +1009,9 @@ export function ProjectsReportTable() {
         const isCollapsed = collapsedProjects.has(proj.projectUuid);
         const jobColKey = `${proj.projectUuid}:job`;
         const totalColKey = `${proj.projectUuid}:total`;
-        const jobColW = getColWidth(jobColKey, JOB_COL_DEFAULT_WIDTH);
-        const totalColW = getColWidth(totalColKey, TOTAL_COL_DEFAULT_WIDTH);
+        const { dataColW: autoDataColW, jobColW: autoJobColW } = calcAutoWidths(jobList, fcList, cellMap, activeMetrics);
+        const jobColW = getColWidth(jobColKey, autoJobColW);
+        const totalColW = getColWidth(totalColKey, autoDataColW);
 
         return (
           <div key={proj.projectUuid} className="border border-gray-200 rounded-lg overflow-hidden">
@@ -958,6 +1037,24 @@ export function ProjectsReportTable() {
                   <option value="income">Incomes</option>
                   <option value="cost">Costs</option>
                 </select>
+              </div>
+
+              {/* Per-project currency */}
+              <div className="flex items-center gap-0.5 ml-1" onClick={(e) => e.stopPropagation()}>
+                {(['GEL', 'USD', 'EUR'] as const).map((c) => {
+                  const active = (projectCurrencies[proj.projectUuid] ?? 'GEL') === c;
+                  return (
+                    <button
+                      key={c}
+                      onClick={() => setProjectCurrencies((prev) => ({ ...prev, [proj.projectUuid]: c }))}
+                      className={`px-1.5 py-0 h-6 text-[11px] rounded border transition-colors ${
+                        active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
               </div>
 
               <span className="ml-auto flex items-center gap-3 text-xs text-gray-500">
@@ -989,16 +1086,23 @@ export function ProjectsReportTable() {
                           rowSpan={2}
                         >
                           <div className="px-3 py-2 text-left font-semibold text-gray-700 text-xs">Job</div>
-                          <div className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-300 opacity-0 hover:opacity-60" onMouseDown={(e) => startResize(e, jobColKey, JOB_COL_DEFAULT_WIDTH)} />
+                          <div className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-300 opacity-0 hover:opacity-60" onMouseDown={(e) => startResize(e, jobColKey, autoJobColW)} />
                         </th>
                         {fcList.map((fc) => (
                           <th
                             key={fc.uuid}
                             colSpan={activeMetrics.length}
+                            style={{ minWidth: autoDataColW * activeMetrics.length }}
                             className="px-2 py-1.5 text-center font-semibold text-gray-700 border-r border-gray-200 text-xs bg-gray-100"
-                             title={fc.validation}
-                           >
-                             <span className="truncate block max-w-full">{fc.code}</span>
+                          >
+                            <div className="relative group inline-block w-full">
+                              <span className="truncate block max-w-full cursor-default">{fc.code}</span>
+                              {fc.validation && fc.validation !== fc.code && (
+                                <div className="pointer-events-none absolute hidden group-hover:block z-50 bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-800 text-white text-[11px] rounded shadow-lg whitespace-normal max-w-[220px] text-center leading-snug">
+                                  {fc.validation}
+                                </div>
+                              )}
+                            </div>
                           </th>
                         ))}
                         <th
@@ -1007,7 +1111,7 @@ export function ProjectsReportTable() {
                           rowSpan={2}
                         >
                           <div className="px-3 py-2 text-right font-semibold text-gray-700 text-xs">Total</div>
-                          <div className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-300 opacity-0 hover:opacity-60" onMouseDown={(e) => startResize(e, totalColKey, TOTAL_COL_DEFAULT_WIDTH)} />
+                          <div className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-300 opacity-0 hover:opacity-60" onMouseDown={(e) => startResize(e, totalColKey, autoDataColW)} />
                         </th>
                       </tr>
                       {/* Row 2: metric sub-headers */}
@@ -1015,7 +1119,7 @@ export function ProjectsReportTable() {
                         {fcList.flatMap((fc) =>
                           activeMetrics.map((m, mi) => {
                             const colKey = `${proj.projectUuid}:${fc.uuid}:${m}`;
-                            const colW = getColWidth(colKey, FC_COL_DEFAULT_WIDTH);
+                            const colW = getColWidth(colKey, autoDataColW);
                             const isLast = mi === activeMetrics.length - 1;
                             return (
                               <th
@@ -1024,7 +1128,7 @@ export function ProjectsReportTable() {
                                 style={{ width: colW, minWidth: colW }}
                               >
                                 {METRIC_LABELS[m]}
-                                <div className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-300 opacity-0 hover:opacity-60" onMouseDown={(e) => startResize(e, colKey, FC_COL_DEFAULT_WIDTH)} />
+                                <div className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-300 opacity-0 hover:opacity-60" onMouseDown={(e) => startResize(e, colKey, autoDataColW)} />
                               </th>
                             );
                           })
@@ -1039,7 +1143,7 @@ export function ProjectsReportTable() {
                         const rowTotal = fcList.reduce((sum, fc) => {
                           const cell = cellMap.get(`${job.key}:${fc.uuid}`);
                           if (!cell) return sum;
-                          return sum + activeMetrics.reduce((s, m) => m === 'paymentCount' ? s : s + getCellValue(cell, m), 0);
+                          return sum + activeMetrics.reduce((s, m) => NON_ADDITIVE_METRICS.has(m) ? s : s + getCellValue(cell, m), 0);
                         }, 0);
 
                         return (
@@ -1053,7 +1157,7 @@ export function ProjectsReportTable() {
                             {fcList.flatMap((fc) =>
                               activeMetrics.map((m, mi) => {
                                 const colKey = `${proj.projectUuid}:${fc.uuid}:${m}`;
-                                const colW = getColWidth(colKey, FC_COL_DEFAULT_WIDTH);
+                                const colW = getColWidth(colKey, autoDataColW);
                                 const isLast = mi === activeMetrics.length - 1;
                                 const cell = cellMap.get(`${job.key}:${fc.uuid}`);
                                 const value = cell ? getCellValue(cell, m) : 0;
@@ -1085,9 +1189,9 @@ export function ProjectsReportTable() {
                         {fcList.flatMap((fc) =>
                           activeMetrics.map((m, mi) => {
                             const colKey = `${proj.projectUuid}:${fc.uuid}:${m}`;
-                            const colW = getColWidth(colKey, FC_COL_DEFAULT_WIDTH);
+                            const colW = getColWidth(colKey, autoDataColW);
                             const isLast = mi === activeMetrics.length - 1;
-                            const colTotal = jobList.reduce((sum, job) => {
+                            const colTotal = NON_ADDITIVE_METRICS.has(m) ? 0 : jobList.reduce((sum, job) => {
                               const cell = cellMap.get(`${job.key}:${fc.uuid}`);
                               return sum + (cell ? getCellValue(cell, m) : 0);
                             }, 0);
@@ -1097,7 +1201,10 @@ export function ProjectsReportTable() {
                                 className={`px-3 py-2 text-right tabular-nums ${isLast ? 'border-r border-gray-200' : 'border-r border-gray-100'}`}
                                 style={{ width: colW, maxWidth: colW }}
                               >
-                                <span className={colTotal !== 0 ? 'text-gray-800' : 'text-gray-400'}>{formatCell(colTotal, m)}</span>
+                                {NON_ADDITIVE_METRICS.has(m)
+                                  ? <span className="text-gray-300">—</span>
+                                  : <span className={colTotal !== 0 ? 'text-gray-800' : 'text-gray-400'}>{formatCell(colTotal, m)}</span>
+                                }
                               </td>
                             );
                           })
@@ -1109,7 +1216,7 @@ export function ProjectsReportTable() {
                           {formatMoney(jobList.reduce((sum, job) =>
                             sum + fcList.reduce((s2, fc) =>
                               s2 + activeMetrics.reduce((s3, m) => {
-                                if (m === 'paymentCount') return s3;
+                                if (NON_ADDITIVE_METRICS.has(m)) return s3;
                                 const cell = cellMap.get(`${job.key}:${fc.uuid}`);
                                 return s3 + (cell ? getCellValue(cell, m) : 0);
                               }, 0)
