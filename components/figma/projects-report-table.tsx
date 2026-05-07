@@ -588,16 +588,28 @@ export function ProjectsReportTable() {
 
   const getCellValue = (cell: CellData, metric: MetricKey): number => cell[metric] as number;
 
+  // Build the union of all FCs across all projects so every grid shows the same columns
+  const globalFcMap = useMemo(() => {
+    const map = new Map<string, { uuid: string; validation: string; code: string; isIncome: boolean }>();
+    if (!report?.projects) return map;
+    for (const proj of report.projects) {
+      for (const cell of proj.cells) {
+        if (!map.has(cell.financialCodeUuid)) {
+          map.set(cell.financialCodeUuid, { uuid: cell.financialCodeUuid, validation: cell.financialCodeValidation, code: cell.financialCodeCode, isIncome: cell.financialCodeIsIncome });
+        }
+      }
+    }
+    return map;
+  }, [report]);
+
   function buildPivot(proj: ProjectData, fcFilter: FcFilter) {
     const jobMap = new Map<string, { key: string; label: string; jobUuid: string | null }>();
-    const fcMap = new Map<string, { uuid: string; validation: string; code: string; isIncome: boolean }>();
 
     for (const cell of proj.cells) {
       if (fcFilter === 'income' && !cell.financialCodeIsIncome) continue;
       if (fcFilter === 'cost' && cell.financialCodeIsIncome) continue;
       const jobKey = cell.jobUuid ?? NULL_JOB_KEY;
       if (!jobMap.has(jobKey)) jobMap.set(jobKey, { key: jobKey, label: cell.jobName ?? '(No Job)', jobUuid: cell.jobUuid });
-      if (!fcMap.has(cell.financialCodeUuid)) fcMap.set(cell.financialCodeUuid, { uuid: cell.financialCodeUuid, validation: cell.financialCodeValidation, code: cell.financialCodeCode, isIncome: cell.financialCodeIsIncome });
     }
 
     const cellMap = new Map<string, CellData>();
@@ -613,7 +625,13 @@ export function ProjectsReportTable() {
       if (a.key !== NULL_JOB_KEY && b.key === NULL_JOB_KEY) return -1;
       return a.label.localeCompare(b.label);
     });
-    const fcList = Array.from(fcMap.values()).sort((a, b) => a.code.localeCompare(b.code));
+    const fcList = Array.from(globalFcMap.values())
+      .filter((fc) => {
+        if (fcFilter === 'income') return fc.isIncome;
+        if (fcFilter === 'cost') return !fc.isIncome;
+        return true;
+      })
+      .sort((a, b) => a.code.localeCompare(b.code));
     return { jobList, fcList, cellMap };
   }
 
@@ -625,8 +643,7 @@ export function ProjectsReportTable() {
   ): { dataColW: number; jobColW: number } {
     const PX_PER_CHAR = 7.5;
     const CELL_PAD = 24;
-    // seed with metric label lengths so header text fits too
-    let maxDataChars = metrics.reduce((max, m) => Math.max(max, METRIC_LABELS[m].length), 1);
+    let maxDataChars = 1;
     for (const job of jobList) {
       let rowTotal = 0;
       for (const fc of fcList) {
@@ -649,9 +666,9 @@ export function ProjectsReportTable() {
         maxDataChars = Math.max(maxDataChars, formatCell(colTotal, m).length);
       }
     }
-    const dataColW = Math.max(60, Math.ceil(maxDataChars * PX_PER_CHAR + CELL_PAD));
+    const dataColW = Math.max(45, Math.ceil(maxDataChars * PX_PER_CHAR + CELL_PAD));
     const maxJobChars = jobList.reduce((max, j) => Math.max(max, j.label.length), 5 /* 'TOTAL' */);
-    const jobColW = Math.max(80, Math.min(320, Math.ceil(maxJobChars * PX_PER_CHAR + CELL_PAD)));
+    const jobColW = Math.max(60, Math.min(260, Math.ceil(maxJobChars * PX_PER_CHAR + CELL_PAD)));
     return { dataColW, jobColW };
   }
 
@@ -1068,7 +1085,7 @@ export function ProjectsReportTable() {
 
             {!isCollapsed && (
               <div className="overflow-x-auto">
-                {fcList.length === 0 ? (
+                {jobList.length === 0 ? (
                   <p className="text-xs text-gray-400 px-4 py-6 text-center">No payments data for this project.</p>
                 ) : activeMetrics.length === 0 ? (
                   <p className="text-xs text-gray-400 px-4 py-6 text-center">Select at least one metric to display data.</p>
@@ -1124,10 +1141,11 @@ export function ProjectsReportTable() {
                             return (
                               <th
                                 key={`${fc.uuid}:${m}`}
+                                title={METRIC_LABELS[m]}
                                 className={`relative overflow-hidden px-2 py-1 text-center text-[10px] font-medium text-gray-500 ${isLast ? 'border-r border-gray-200' : 'border-r border-gray-100'}`}
                                 style={{ width: colW, minWidth: colW }}
                               >
-                                {METRIC_LABELS[m]}
+                                <span className="truncate block">{METRIC_LABELS[m]}</span>
                                 <div className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-300 opacity-0 hover:opacity-60" onMouseDown={(e) => startResize(e, colKey, autoDataColW)} />
                               </th>
                             );
