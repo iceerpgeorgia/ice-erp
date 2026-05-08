@@ -159,20 +159,22 @@ def process_single_record(row, counteragents_map, parsing_rules, payments_map, i
         # Prefer condition_script for consistent UI logic
         condition_script = rule.get('condition_script')
         if condition_script:
+            # Keys MUST be lowercase to match compiled condition_script field references
+            # (formula compiler generates row.docsendername, row.docnomination, etc.)
             row_ctx = {
-                'DocProdGroup': DocProdGroup,
-                'DocNomination': DocNomination,
-                'DocInformation': DocInformation,
-                'DocKey': DocKey,
-                'DocSenderInn': DocSenderInn,
-                'DocBenefInn': DocBenefInn,
-                'DocSenderAcctNo': DocSenderAcctNo,
-                'DocBenefAcctNo': DocBenefAcctNo,
-                'DocSenderName': DocSenderName,
-                'DocBenefName': DocBenefName,
-                'DocCorAcct': DocCorAcct,
-                'EntryDbAmt': debit,
-                'EntryCrAmt': credit
+                'docprodgroup': DocProdGroup,
+                'docnomination': DocNomination,
+                'docinformation': DocInformation,
+                'dockey': DocKey,
+                'docsenderinn': DocSenderInn,
+                'docbenefinn': DocBenefInn,
+                'docsenderacctno': DocSenderAcctNo,
+                'docbenefacctno': DocBenefAcctNo,
+                'docsendername': DocSenderName,
+                'docbenefname': DocBenefName,
+                'doccoracct': DocCorAcct,
+                'entrydbamt': debit,
+                'entrycramtbase': credit
             }
 
             if evaluate_condition_script(condition_script, row_ctx):
