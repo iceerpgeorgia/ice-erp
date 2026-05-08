@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-05-08 Deployment #275
+- Commit: cfad207
+- Production: https://ice-odftszlrl-iceerp.vercel.app
+- Summary: Fix facet filter for comma-separated multi-user cells in payments report.
+- Changes:
+  - components/figma/shared/table-filters.ts: matchesFacet now splits comma-separated row values and checks each part individually against filter selection.
+
 ## 2026-05-07 Deployment #274
 - Commit: 7ddfaae
 - Production: https://ice-ibf3lo4sw-iceerp.vercel.app
