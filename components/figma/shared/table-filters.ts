@@ -146,6 +146,19 @@ function matchesFacet(rowValue: any, filter: FacetFilter): boolean {
   for (const candidate of filter.values) {
     if (String(candidate) === rowAsString) return true;
   }
+
+  // Multi-value cells (e.g. comma-separated user emails like "a@x.com, b@x.com"):
+  // check if any individual part matches any selected filter value.
+  if (rowAsString.includes(',')) {
+    const parts = rowAsString.split(',').map((p) => p.trim()).filter(Boolean);
+    for (const part of parts) {
+      if (filter.values.has(part)) return true;
+      for (const candidate of filter.values) {
+        if (String(candidate) === part) return true;
+      }
+    }
+  }
+
   return false;
 }
 
