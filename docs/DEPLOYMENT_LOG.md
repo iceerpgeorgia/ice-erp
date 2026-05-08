@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-05-08 Deployment #276
+- Commit: edbfa3d
+- Production: https://ice-mjtpnmusa-iceerp.vercel.app
+- Summary: Projects Report settings panel - FC full-text toggle and default currency selector.
+- Changes:
+  - components/figma/projects-report-table.tsx: Added Settings gear button with popover; toggle for FC full description view; default currency selector that auto-applies to newly added projects; all preferences persisted in localStorage.
+
 ## 2026-05-08 Deployment #275
 - Commit: cfad207
 - Production: https://ice-odftszlrl-iceerp.vercel.app
