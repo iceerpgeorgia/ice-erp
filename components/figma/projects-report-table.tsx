@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Download, Plus, RefreshCw, Search, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, Plus, RefreshCw, Search, Settings, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
@@ -105,6 +105,8 @@ const STORAGE_KEY_FC_FILTERS = 'projectsReportFcFilters';
 const STORAGE_KEY_COLLAPSED = 'projectsReportCollapsed';
 const STORAGE_KEY_COL_WIDTHS = 'projectsReportColWidths';
 const STORAGE_KEY_ORDER = 'projectsReportOrder';
+const STORAGE_KEY_FC_FULL = 'projectsReportFcFull';
+const STORAGE_KEY_DEFAULT_CURRENCY = 'projectsReportDefaultCurrency';
 
 const JOB_COL_DEFAULT_WIDTH = 180;
 const FC_COL_DEFAULT_WIDTH = 120;
@@ -198,6 +200,9 @@ export function ProjectsReportTable() {
 
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const [resizing, setResizing] = useState<{ key: string; startX: number; startWidth: number } | null>(null);
+  const [fcFullMode, setFcFullMode] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [defaultCurrency, setDefaultCurrency] = useState<'GEL' | 'USD' | 'EUR'>('GEL');
   const [projectCurrencies, setProjectCurrencies] = useState<Record<string, 'USD' | 'GEL' | 'EUR'>>({});
   const [projectOrder, setProjectOrder] = useState<string[]>([]);
   const [projectLoadingUuids, setProjectLoadingUuids] = useState<Set<string>>(new Set());
@@ -292,6 +297,10 @@ export function ProjectsReportTable() {
         if (parsed && typeof parsed === 'object') setColWidths(parsed);
       } catch { /* ignore */ }
     }
+    const savedFcFull = localStorage.getItem(STORAGE_KEY_FC_FULL);
+    if (savedFcFull === 'true') setFcFullMode(true);
+    const savedDefaultCurrency = localStorage.getItem(STORAGE_KEY_DEFAULT_CURRENCY);
+    if (savedDefaultCurrency === 'USD' || savedDefaultCurrency === 'EUR') setDefaultCurrency(savedDefaultCurrency);
     const savedOrder = localStorage.getItem(STORAGE_KEY_ORDER);
     if (savedOrder) {
       try {
@@ -309,6 +318,24 @@ export function ProjectsReportTable() {
   useEffect(() => { localStorage.setItem(STORAGE_KEY_COLLAPSED, JSON.stringify(Array.from(collapsedProjects))); }, [collapsedProjects]);
   useEffect(() => { localStorage.setItem(STORAGE_KEY_COL_WIDTHS, JSON.stringify(colWidths)); }, [colWidths]);
   useEffect(() => { localStorage.setItem(STORAGE_KEY_ORDER, JSON.stringify(projectOrder)); }, [projectOrder]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEY_FC_FULL, String(fcFullMode)); }, [fcFullMode]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEY_DEFAULT_CURRENCY, defaultCurrency); }, [defaultCurrency]);
+
+  // Apply defaultCurrency to newly-added projects (those without an explicit currency set)
+  useEffect(() => {
+    setProjectCurrencies((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      selectedProjectUuids.forEach((uuid) => {
+        if (!next[uuid]) {
+          next[uuid] = defaultCurrency;
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProjectUuids, defaultCurrency]);
 
   // ── Column resize ──
 
@@ -914,6 +941,50 @@ export function ProjectsReportTable() {
           Export XLSX
         </Button>
 
+        {/* Settings */}
+        <div className="relative">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-1"
+            onClick={() => setSettingsOpen((o) => !o)}
+            title="Settings"
+          >
+            <Settings className="h-3.5 w-3.5" />
+          </Button>
+          {settingsOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setSettingsOpen(false)} />
+              <div className="absolute right-0 top-8 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 min-w-[210px]">
+                <p className="text-xs font-semibold text-gray-600 mb-2">Display</p>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <div
+                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${fcFullMode ? 'bg-blue-600' : 'bg-gray-200'}`}
+                    onClick={() => setFcFullMode((v) => !v)}
+                  >
+                    <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-lg transition-transform ${fcFullMode ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </div>
+                  <span className="text-xs text-gray-700">Show full FC description</span>
+                </label>
+                <div className="mt-3 pt-2 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-gray-600 mb-2">Default currency for new projects</p>
+                  <div className="flex gap-1">
+                    {(['GEL', 'USD', 'EUR'] as const).map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setDefaultCurrency(c)}
+                        className={`px-2.5 py-1 text-xs rounded border transition-colors ${defaultCurrency === c ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
         {/* Add Ledger */}
         <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
           <DialogTrigger asChild>
@@ -1273,8 +1344,10 @@ export function ProjectsReportTable() {
                             className="px-2 py-1.5 text-center font-semibold text-gray-700 border-r border-gray-200 text-xs bg-gray-100"
                           >
                             <div className="relative group inline-block w-full">
-                              <span className="truncate block max-w-full cursor-default">{fc.code}</span>
-                              {fc.validation && fc.validation !== fc.code && (
+                              <span className="truncate block max-w-full cursor-default">
+                                {fcFullMode && fc.validation ? fc.validation : fc.code}
+                              </span>
+                              {!fcFullMode && fc.validation && fc.validation !== fc.code && (
                                 <div className="absolute hidden group-hover:block z-50 bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-800 text-white text-[11px] rounded shadow-lg whitespace-normal max-w-[220px] text-center leading-snug">
                                   {fc.validation}
                                 </div>
