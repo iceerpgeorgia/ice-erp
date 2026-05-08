@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-05-08 Deployment #277
+- Commit: 65720a6
+- Production: https://ice-h5rcctfty-iceerp.vercel.app
+- Summary: Fix FC header tooltip clipped by overflow-x-auto in projects report.
+- Changes:
+  - components/figma/projects-report-table.tsx: Replaced CSS group-hover absolute tooltip with state-based fixed-position tooltip rendered outside scroll container, positioned via mouse coordinates from onMouseEnter/onMouseMove/onMouseLeave events.
+
 ## 2026-05-08 Deployment #276
 - Commit: edbfa3d
 - Production: https://ice-mjtpnmusa-iceerp.vercel.app
