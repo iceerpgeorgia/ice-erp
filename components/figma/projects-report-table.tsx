@@ -957,7 +957,7 @@ export function ProjectsReportTable() {
         </div>
       )}
       {/* ── Toolbar ── */}
-      <div className="flex flex-wrap items-start gap-3">
+      <div className="sticky top-0 z-40 bg-white border-b border-gray-200 -mx-4 px-4 py-2 flex flex-wrap items-start gap-3">
 
         {/* Project selector */}
         <div className="relative">
