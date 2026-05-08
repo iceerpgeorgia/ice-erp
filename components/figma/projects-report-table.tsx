@@ -218,6 +218,14 @@ export function ProjectsReportTable() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [addLedgerStep, setAddLedgerStep] = useState<'payment' | 'ledger'>('payment');
+  const [cellPrefill, setCellPrefill] = useState<{
+    projectUuid: string;
+    projectLabel: string;
+    financialCodeUuid: string;
+    financialCodeLabel: string;
+    jobUuid: string | null;
+    jobLabel: string | null;
+  } | null>(null);
   const [isCreatingPayment, setIsCreatingPayment] = useState(false);
   const [preSelectedPaymentId, setPreSelectedPaymentId] = useState<string | null>(null);
   const [selectedPaymentDetails, setSelectedPaymentDetails] = useState<{
@@ -515,6 +523,14 @@ export function ProjectsReportTable() {
       .catch(() => setDlgJobs([]));
   }, [dlgSelectedProjectUuid]);
 
+  // When jobs load after a cell-prefill open, restore the pre-set job UUID
+  useEffect(() => {
+    if (cellPrefill?.jobUuid && dlgJobs.length > 0) {
+      setDlgSelectedJobUuid(cellPrefill.jobUuid);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dlgJobs]);
+
   useEffect(() => {
     if (preSelectedPaymentId && dlgPayments.length > 0 && !selectedPaymentDetails) {
       const p = dlgPayments.find(x => x.paymentId === preSelectedPaymentId);
@@ -538,6 +554,7 @@ export function ProjectsReportTable() {
     setDlgSkipCounteragentFilter(null);
     setDlgSelectedProjectUuid('');
     setDlgSelectedFinancialCodeUuid('');
+    setCellPrefill(null);
     setDlgSelectedJobUuid('');
     setDlgSelectedCurrencyUuid('');
     setDlgSelectedIncomeTax(false);
@@ -555,6 +572,18 @@ export function ProjectsReportTable() {
       fetchDlgDictionaries();
       fetchDlgPayments();
     }
+  };
+
+  const handleCellAddLedger = (ctx: {
+    projectUuid: string; projectLabel: string;
+    financialCodeUuid: string; financialCodeLabel: string;
+    jobUuid: string | null; jobLabel: string | null;
+  }) => {
+    setCellPrefill(ctx);
+    setDlgSelectedProjectUuid(ctx.projectUuid);
+    setDlgSelectedFinancialCodeUuid(ctx.financialCodeUuid);
+    // Job UUID will be set reactively once jobs load (see jobs useEffect)
+    handleDialogOpenChange(true);
   };
 
   const handleCreatePayment = async () => {
@@ -1015,9 +1044,15 @@ export function ProjectsReportTable() {
             <div className="space-y-4">
               {addLedgerStep === 'payment' ? (
                 <>
-                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-                    Create a payment first, or skip to add a ledger entry to an existing payment.
-                  </div>
+                  {cellPrefill ? (
+                    <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                      Pre-filled from grid cell — select a <strong>Counteragent</strong> and <strong>Currency</strong> to create the payment.
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                      Create a payment first, or skip to add a ledger entry to an existing payment.
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label>Counteragent <span className="text-red-500">*</span></Label>
                     <Combobox
@@ -1029,15 +1064,21 @@ export function ProjectsReportTable() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className={!dlgSelectedCounteragentUuid ? 'text-muted-foreground' : ''}>Financial Code <span className="text-red-500">*</span></Label>
-                    <Combobox
-                      value={dlgSelectedFinancialCodeUuid}
-                      onValueChange={setDlgSelectedFinancialCodeUuid}
-                      options={dlgFinancialCodes.map(fc => ({ value: fc.uuid, label: fc.validation }))}
-                      placeholder="Select financial code..."
-                      searchPlaceholder="Search financial codes..."
-                      disabled={!dlgSelectedCounteragentUuid}
-                    />
+                    <Label className={!cellPrefill && !dlgSelectedCounteragentUuid ? 'text-muted-foreground' : ''}>Financial Code <span className="text-red-500">*</span></Label>
+                    {cellPrefill ? (
+                      <div className="flex h-9 w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-1 text-sm items-center text-gray-500 cursor-not-allowed">
+                        {cellPrefill.financialCodeLabel}
+                      </div>
+                    ) : (
+                      <Combobox
+                        value={dlgSelectedFinancialCodeUuid}
+                        onValueChange={setDlgSelectedFinancialCodeUuid}
+                        options={dlgFinancialCodes.map(fc => ({ value: fc.uuid, label: fc.validation }))}
+                        placeholder="Select financial code..."
+                        searchPlaceholder="Search financial codes..."
+                        disabled={!dlgSelectedCounteragentUuid}
+                      />
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label className={!dlgSelectedFinancialCodeUuid ? 'text-muted-foreground' : ''}>Currency <span className="text-red-500">*</span></Label>
@@ -1055,26 +1096,38 @@ export function ProjectsReportTable() {
                     <Label>Income Tax</Label>
                   </div>
                   <div className="space-y-2">
-                    <Label className={!dlgSelectedCurrencyUuid ? 'text-muted-foreground' : ''}>Project (Optional)</Label>
-                    <Combobox
-                      value={dlgSelectedProjectUuid}
-                      onValueChange={setDlgSelectedProjectUuid}
-                      options={allProjects.map(p => ({ value: p.project_uuid, label: `${p.project_index} – ${p.project_name}` }))}
-                      placeholder="Select project..."
-                      searchPlaceholder="Search projects..."
-                      disabled={!dlgSelectedCurrencyUuid}
-                    />
+                    <Label className={!cellPrefill && !dlgSelectedCurrencyUuid ? 'text-muted-foreground' : ''}>Project (Optional)</Label>
+                    {cellPrefill ? (
+                      <div className="flex h-9 w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-1 text-sm items-center text-gray-500 cursor-not-allowed">
+                        {cellPrefill.projectLabel}
+                      </div>
+                    ) : (
+                      <Combobox
+                        value={dlgSelectedProjectUuid}
+                        onValueChange={setDlgSelectedProjectUuid}
+                        options={allProjects.map(p => ({ value: p.project_uuid, label: `${p.project_index} – ${p.project_name}` }))}
+                        placeholder="Select project..."
+                        searchPlaceholder="Search projects..."
+                        disabled={!dlgSelectedCurrencyUuid}
+                      />
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <Label className={!dlgSelectedProjectUuid ? 'text-muted-foreground' : ''}>Job (Optional)</Label>
-                    <Combobox
-                      value={dlgSelectedJobUuid}
-                      onValueChange={setDlgSelectedJobUuid}
-                      options={dlgJobs.map(j => ({ value: j.jobUuid, label: j.jobDisplay || j.jobName }))}
-                      placeholder="Select job..."
-                      searchPlaceholder="Search jobs..."
-                      disabled={!dlgSelectedProjectUuid}
-                    />
+                    <Label className={!cellPrefill && !dlgSelectedProjectUuid ? 'text-muted-foreground' : ''}>Job (Optional)</Label>
+                    {cellPrefill ? (
+                      <div className="flex h-9 w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-1 text-sm items-center text-gray-500 cursor-not-allowed">
+                        {cellPrefill.jobLabel ?? '—'}
+                      </div>
+                    ) : (
+                      <Combobox
+                        value={dlgSelectedJobUuid}
+                        onValueChange={setDlgSelectedJobUuid}
+                        options={dlgJobs.map(j => ({ value: j.jobUuid, label: j.jobDisplay || j.jobName }))}
+                        placeholder="Select job..."
+                        searchPlaceholder="Search jobs..."
+                        disabled={!dlgSelectedProjectUuid}
+                      />
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Label (Optional)</Label>
@@ -1407,7 +1460,7 @@ export function ProjectsReportTable() {
                         }, 0);
 
                         return (
-                          <tr key={job.key} className={`border-b border-gray-100 ${rowBg}`}>
+                          <tr key={job.key} className={`border-b border-gray-100 ${rowBg} group/row`}>
                             <td
                               className={`sticky left-0 z-10 px-3 py-2 border-r border-gray-200 font-medium whitespace-nowrap overflow-hidden text-ellipsis ${stickyBg} ${isNoJob ? 'italic text-gray-400' : 'text-gray-800'}`}
                               style={{ width: jobColW, maxWidth: jobColW }}
@@ -1431,10 +1484,30 @@ export function ProjectsReportTable() {
                                 return (
                                   <td
                                     key={`${fc.uuid}:${m}`}
-                                    className={`px-3 py-2 text-right tabular-nums overflow-hidden ${isLast ? 'border-r border-gray-200' : 'border-r border-gray-100'}`}
+                                    className={`relative px-3 py-2 text-right tabular-nums overflow-hidden ${isLast ? 'border-r border-gray-200' : 'border-r border-gray-100'}`}
                                     style={{ width: colW, maxWidth: colW }}
                                     title={cell?.paymentIds?.join(', ') || undefined}
                                   >
+                                    {mi === 0 && (
+                                      <button
+                                        type="button"
+                                        className="absolute left-0.5 top-1/2 -translate-y-1/2 opacity-0 group-hover/row:opacity-100 hover:bg-blue-100 text-blue-400 hover:text-blue-600 rounded-sm w-4 h-4 flex items-center justify-center text-[11px] leading-none transition-opacity z-10"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleCellAddLedger({
+                                            projectUuid: proj.projectUuid,
+                                            projectLabel: `${proj.projectIndex} – ${proj.projectName}`,
+                                            financialCodeUuid: fc.uuid,
+                                            financialCodeLabel: fc.validation || fc.code,
+                                            jobUuid: isNoJob ? null : job.key,
+                                            jobLabel: isNoJob ? null : job.label,
+                                          });
+                                        }}
+                                        title="Add ledger entry for this project / FC / job"
+                                      >
+                                        +
+                                      </button>
+                                    )}
                                     {value !== 0 ? <span className="text-gray-800">{formatCell(value, m)}</span> : <span className="text-gray-200">—</span>}
                                   </td>
                                 );
