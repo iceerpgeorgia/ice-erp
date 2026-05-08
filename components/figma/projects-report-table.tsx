@@ -191,6 +191,7 @@ export function ProjectsReportTable() {
 
   const [maxDate, setMaxDate] = useState('');
   const [selectedInsiderUuids, setSelectedInsiderUuids] = useState<string[]>([]);
+  const [insidersList, setInsidersList] = useState<Array<{ value: string; label: string }>>([]);
 
   const [report, setReport] = useState<ProjectsReportResponse | null>(null);
 
@@ -255,6 +256,20 @@ export function ProjectsReportTable() {
   const [ledgerOrder, setLedgerOrder] = useState('');
   const [ledgerComment, setLedgerComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // ── Add Job dialog state ──
+  const [addJobOpen, setAddJobOpen] = useState(false);
+  const [addJobProjectUuid, setAddJobProjectUuid] = useState('');
+  const [addJobProjectLabel, setAddJobProjectLabel] = useState('');
+  const [addJobName, setAddJobName] = useState('');
+  const [addJobFactoryNo, setAddJobFactoryNo] = useState('');
+  const [addJobFloors, setAddJobFloors] = useState('');
+  const [addJobWeight, setAddJobWeight] = useState('');
+  const [addJobIsFf, setAddJobIsFf] = useState(false);
+  const [addJobBrandUuid, setAddJobBrandUuid] = useState('');
+  const [addJobInsiderUuid, setAddJobInsiderUuid] = useState('');
+  const [addJobBrands, setAddJobBrands] = useState<Array<{ uuid: string; name: string }>>([]);
+  const [isAddJobSubmitting, setIsAddJobSubmitting] = useState(false);
 
   // ── Restore preferences ──
 
@@ -395,6 +410,10 @@ export function ProjectsReportTable() {
         const insiderData = await insiderRes.json();
         const uuids = Array.isArray(insiderData?.selectedUuids) ? insiderData.selectedUuids : [];
         setSelectedInsiderUuids(uuids);
+        const raw = Array.isArray(insiderData?.selectedInsiders) && insiderData.selectedInsiders.length > 0
+          ? insiderData.selectedInsiders
+          : (Array.isArray(insiderData?.options) ? insiderData.options : []);
+        setInsidersList(raw.map((o: any) => ({ value: o.insiderUuid, label: o.insiderName })));
       }
     } catch (err: any) {
       setError(err?.message || 'Failed to load projects');
@@ -571,6 +590,80 @@ export function ProjectsReportTable() {
       fetchDlgCounterAgents();
       fetchDlgDictionaries();
       fetchDlgPayments();
+    }
+  };
+
+  const fetchDlgJobsForProject = useCallback((projectUuid: string) => {
+    if (!projectUuid) return;
+    fetch(`/api/jobs?projectUuid=${encodeURIComponent(projectUuid)}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(d => { if (Array.isArray(d)) setDlgJobs(d); })
+      .catch(() => {});
+  }, []);
+
+  const resetAddJobForm = () => {
+    setAddJobName('');
+    setAddJobFactoryNo('');
+    setAddJobFloors('');
+    setAddJobWeight('');
+    setAddJobIsFf(false);
+    setAddJobBrandUuid('');
+    // Keep insider pre-filled
+  };
+
+  const handleOpenAddJob = (projectUuid: string, projectLabel: string) => {
+    resetAddJobForm();
+    setAddJobProjectUuid(projectUuid);
+    setAddJobProjectLabel(projectLabel);
+    // Pre-fill insider from selectedInsiderUuids if exactly one
+    if (selectedInsiderUuids.length === 1) setAddJobInsiderUuid(selectedInsiderUuids[0]);
+    // Lazy-load brands if not yet loaded
+    if (addJobBrands.length === 0) {
+      fetch('/api/brands')
+        .then(r => r.ok ? r.json() : [])
+        .then((d: any[]) => setAddJobBrands(Array.isArray(d) ? d.map((b: any) => ({ uuid: b.uuid || b.id?.toString(), name: b.name })) : []))
+        .catch(() => {});
+    }
+    setAddJobOpen(true);
+  };
+
+  const handleAddJob = async () => {
+    if (!addJobName.trim()) { alert('Job Name is required'); return; }
+    if (!addJobProjectUuid) { alert('Project is required'); return; }
+    if (!addJobInsiderUuid) { alert('Insider is required'); return; }
+    setIsAddJobSubmitting(true);
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobName: addJobName.trim(),
+          projectUuids: [addJobProjectUuid],
+          projectUuid: addJobProjectUuid,
+          factoryNo: addJobFactoryNo.trim() || null,
+          floors: addJobFloors === '' ? null : Number(addJobFloors),
+          weight: addJobWeight === '' ? null : Number(addJobWeight),
+          isFf: addJobIsFf,
+          brandUuid: addJobBrandUuid || null,
+          insiderUuid: addJobInsiderUuid,
+        }),
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.error || 'Failed to create job');
+      }
+      setAddJobOpen(false);
+      resetAddJobForm();
+      // Refresh jobs in add-ledger dropdown for this project
+      if (dlgSelectedProjectUuid === addJobProjectUuid) {
+        fetchDlgJobsForProject(addJobProjectUuid);
+      }
+      // Refresh report grid silently
+      fetchReport({ silent: true });
+    } catch (err: any) {
+      alert(err.message || 'Failed to create job');
+    } finally {
+      setIsAddJobSubmitting(false);
     }
   };
 
@@ -1375,6 +1468,15 @@ export function ProjectsReportTable() {
                 {proj.insiderName && proj.insiderName !== '-' && <span>Insider: {proj.insiderName}</span>}
                 {proj.department && proj.department !== '-' && <span>Dept: {proj.department}</span>}
                 <span className="text-gray-400">{fcList.length} FCs · {jobList.filter(j => j.key !== NULL_JOB_KEY).length} / {proj.totalJobsInProject} jobs paid</span>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 px-2 py-0.5 h-6 text-[11px] rounded border border-gray-200 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-colors"
+                  title="Add a new job to this project"
+                  onClick={(e) => { e.stopPropagation(); handleOpenAddJob(proj.projectUuid, `${proj.projectIndex} – ${proj.projectName}`); }}
+                >
+                  <Plus className="h-3 w-3" />
+                  Add Job
+                </button>
               </span>
             </div>
 
@@ -1599,6 +1701,120 @@ export function ProjectsReportTable() {
       {!loading && report?.projects?.length === 0 && selectedProjectUuids.size > 0 && (
         <div className="text-sm text-gray-400 py-8 text-center">No payment data found for the selected projects.</div>
       )}
+
+      {/* ── Add Job Dialog ── */}
+      <Dialog open={addJobOpen} onOpenChange={(open) => { if (!open) { setAddJobOpen(false); resetAddJobForm(); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Job</DialogTitle>
+            <DialogDescription>
+              Add a new job to <span className="font-medium">{addJobProjectLabel}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="space-y-3"
+            onSubmit={(e) => { e.preventDefault(); handleAddJob(); }}
+          >
+            {/* Insider */}
+            <div>
+              <Label>Insider *</Label>
+              {selectedInsiderUuids.length === 1 ? (
+                <div className="mt-1 px-3 py-2 bg-gray-100 border border-gray-200 rounded text-sm text-gray-500 cursor-not-allowed">
+                  {insidersList.find(i => i.value === selectedInsiderUuids[0])?.label || selectedInsiderUuids[0]}
+                  <span className="ml-2 text-xs text-gray-400">(fixed)</span>
+                </div>
+              ) : (
+                <Combobox
+                  options={insidersList}
+                  value={addJobInsiderUuid}
+                  onValueChange={setAddJobInsiderUuid}
+                  placeholder="Select insider…"
+                  searchPlaceholder="Search insiders…"
+                  emptyText="No insider found."
+                />
+              )}
+            </div>
+            {/* Job Name */}
+            <div>
+              <Label htmlFor="ajJobName">Job Name *</Label>
+              <Input
+                id="ajJobName"
+                value={addJobName}
+                onChange={(e) => setAddJobName(e.target.value)}
+                placeholder="Enter job name"
+                autoFocus
+              />
+            </div>
+            {/* Factory No */}
+            <div>
+              <Label htmlFor="ajFactoryNo">Factory No</Label>
+              <Input
+                id="ajFactoryNo"
+                value={addJobFactoryNo}
+                onChange={(e) => setAddJobFactoryNo(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+            {/* Floors & Weight */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="ajFloors">Floors</Label>
+                <Input
+                  id="ajFloors"
+                  type="number"
+                  value={addJobFloors}
+                  onChange={(e) => setAddJobFloors(e.target.value)}
+                  placeholder="e.g. 10"
+                />
+              </div>
+              <div>
+                <Label htmlFor="ajWeight">Weight (kg)</Label>
+                <Input
+                  id="ajWeight"
+                  type="number"
+                  value={addJobWeight}
+                  onChange={(e) => setAddJobWeight(e.target.value)}
+                  placeholder="e.g. 1200"
+                />
+              </div>
+            </div>
+            {/* Brand */}
+            <div>
+              <Label htmlFor="ajBrand">Brand</Label>
+              <select
+                id="ajBrand"
+                value={addJobBrandUuid}
+                onChange={(e) => setAddJobBrandUuid(e.target.value)}
+                className="w-full h-9 border border-gray-200 rounded px-2 text-sm bg-white text-gray-700 mt-1"
+              >
+                <option value="">— Select brand —</option>
+                {addJobBrands.map(b => (
+                  <option key={b.uuid} value={b.uuid}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+            {/* FF */}
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="ajIsFf"
+                checked={addJobIsFf}
+                onCheckedChange={(v) => setAddJobIsFf(Boolean(v))}
+              />
+              <Label htmlFor="ajIsFf" className="cursor-pointer">FF (firefighter)</Label>
+            </div>
+            {/* Actions */}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => { setAddJobOpen(false); resetAddJobForm(); }}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isAddJobSubmitting}>
+                <Plus className="h-4 w-4 mr-1" />
+                {isAddJobSubmitting ? 'Saving…' : 'Add Job'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
