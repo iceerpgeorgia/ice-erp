@@ -203,6 +203,7 @@ export function ProjectsReportTable() {
   const [fcFullMode, setFcFullMode] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [defaultCurrency, setDefaultCurrency] = useState<'GEL' | 'USD' | 'EUR'>('GEL');
+  const [fcTooltip, setFcTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
   const [projectCurrencies, setProjectCurrencies] = useState<Record<string, 'USD' | 'GEL' | 'EUR'>>({});
   const [projectOrder, setProjectOrder] = useState<string[]>([]);
   const [projectLoadingUuids, setProjectLoadingUuids] = useState<Set<string>>(new Set());
@@ -824,6 +825,15 @@ export function ProjectsReportTable() {
 
   return (
     <div className="p-4 space-y-4">
+      {/* Fixed FC tooltip — renders above all overflow-hidden/overflow-x-auto containers */}
+      {fcTooltip && (
+        <div
+          className="fixed z-[9999] px-2 py-1 bg-gray-800 text-white text-[11px] rounded shadow-lg whitespace-normal max-w-[240px] text-center leading-snug pointer-events-none"
+          style={{ left: fcTooltip.x, top: fcTooltip.y - 8, transform: 'translate(-50%, -100%)' }}
+        >
+          {fcTooltip.text}
+        </div>
+      )}
       {/* ── Toolbar ── */}
       <div className="flex flex-wrap items-start gap-3">
 
@@ -1341,17 +1351,15 @@ export function ProjectsReportTable() {
                             key={fc.uuid}
                             colSpan={activeMetrics.length}
                             style={{ minWidth: activeMetrics.reduce((s, m) => s + getColWidth(`${fc.uuid}:${m}`, autoColWidthsMap.get(`${fc.uuid}:${m}`) ?? 38), 0) }}
-                            className="px-2 py-1.5 text-center font-semibold text-gray-700 border-r border-gray-200 text-xs bg-gray-100"
+                            className="px-2 py-1.5 text-center font-semibold text-gray-700 border-r border-gray-200 text-xs bg-gray-100 overflow-visible"
+                            onMouseEnter={!fcFullMode && fc.validation && fc.validation !== fc.code ? (e) => setFcTooltip({ text: fc.validation, x: e.clientX, y: e.clientY }) : undefined}
+                            onMouseMove={!fcFullMode && fc.validation && fc.validation !== fc.code ? (e) => setFcTooltip((t) => t ? { ...t, x: e.clientX, y: e.clientY } : t) : undefined}
+                            onMouseLeave={!fcFullMode && fc.validation && fc.validation !== fc.code ? () => setFcTooltip(null) : undefined}
                           >
-                            <div className="relative group inline-block w-full">
+                            <div className="inline-block w-full">
                               <span className="truncate block max-w-full cursor-default">
                                 {fcFullMode && fc.validation ? fc.validation : fc.code}
                               </span>
-                              {!fcFullMode && fc.validation && fc.validation !== fc.code && (
-                                <div className="absolute hidden group-hover:block z-50 bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-800 text-white text-[11px] rounded shadow-lg whitespace-normal max-w-[220px] text-center leading-snug">
-                                  {fc.validation}
-                                </div>
-                              )}
                             </div>
                           </th>
                         ))}
