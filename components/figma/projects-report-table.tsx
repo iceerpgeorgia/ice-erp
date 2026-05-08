@@ -1063,7 +1063,7 @@ export function ProjectsReportTable() {
           />
         </div>
 
-        <Button variant="outline" size="sm" onClick={() => fetchReport()} disabled={loading || selectedProjectUuids.size === 0} className="flex items-center gap-1">
+        <Button variant="outline" size="sm" onClick={() => fetchReport({ silent: true })} disabled={loading || selectedProjectUuids.size === 0} className="flex items-center gap-1">
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
@@ -1350,10 +1350,10 @@ export function ProjectsReportTable() {
         <div className="text-sm text-gray-400 py-12 text-center">Select one or more projects to generate the report.</div>
       )}
 
-      {loading && <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>}
+      {loading && !report?.projects?.length && <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>}
 
       {/* ── Project grids ── */}
-      {!loading && (() => {
+      {(!loading || report?.projects?.length) && (() => {
         const orderedProjects = projectOrder
           .map((uuid) => report?.projects?.find((p) => p.projectUuid === uuid))
           .filter(Boolean) as ProjectData[];
@@ -1379,7 +1379,7 @@ export function ProjectsReportTable() {
           <div
             key={proj.projectUuid}
             className="border border-gray-200 rounded-lg overflow-hidden transition-opacity"
-            style={{ opacity: isProjectLoading ? 0.6 : 1 }}
+            style={{ opacity: isProjectLoading || loading ? 0.6 : 1 }}
             draggable
             onDragStart={() => { dragUuid.current = proj.projectUuid; }}
             onDragOver={(e) => { e.preventDefault(); dragOverUuid.current = proj.projectUuid; }}
