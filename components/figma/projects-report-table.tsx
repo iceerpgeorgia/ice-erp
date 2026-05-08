@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Download, Plus, RefreshCw, Search, Settings, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, Filter, Plus, RefreshCw, Search, Settings, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
@@ -1323,6 +1323,16 @@ export function ProjectsReportTable() {
               <span className="font-mono font-semibold text-sm text-gray-800">{proj.projectIndex}</span>
               <span className="font-medium text-sm text-gray-700">{proj.projectName}</span>
               {proj.projectAddress && <span className="text-xs text-gray-500">· {proj.projectAddress}</span>}
+              <a
+                href={`/dictionaries/payments-report?projectUuid=${encodeURIComponent(proj.projectUuid)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open payments report filtered by this project"
+                className="ml-1 text-gray-300 hover:text-blue-500 transition-colors shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Filter className="h-3.5 w-3.5" />
+              </a>
 
               {/* FC filter */}
               <div className="flex items-center gap-1 ml-2" onClick={(e) => e.stopPropagation()}>
@@ -1409,10 +1419,19 @@ export function ProjectsReportTable() {
                             onMouseMove={!fcFullMode && fc.validation && fc.validation !== fc.code ? (e) => setFcTooltip((t) => t ? { ...t, x: e.clientX, y: e.clientY } : t) : undefined}
                             onMouseLeave={!fcFullMode && fc.validation && fc.validation !== fc.code ? () => setFcTooltip(null) : undefined}
                           >
-                            <div className="inline-block w-full">
-                              <span className="truncate block max-w-full cursor-default">
+                            <div className="inline-flex items-center justify-center gap-1 w-full group/fchdr">
+                              <span className="truncate cursor-default">
                                 {fcFullMode && fc.validation ? fc.validation : fc.code}
                               </span>
+                              <a
+                                href={`/dictionaries/payments-report?projectUuid=${encodeURIComponent(proj.projectUuid)}&financialCodeUuid=${encodeURIComponent(fc.uuid)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Open payments report filtered by this project & FC"
+                                className="opacity-0 group-hover/fchdr:opacity-100 text-gray-300 hover:text-blue-500 transition-opacity shrink-0"
+                              >
+                                <Filter className="h-3 w-3" />
+                              </a>
                             </div>
                           </th>
                         ))}

@@ -1433,7 +1433,8 @@ export function PaymentsReportTable() {
     const counteragentUuidParam = urlParams.get('counteragentUuid');
     const projectUuidParam = urlParams.get('projectUuid');
     const jobUuidParam = urlParams.get('jobUuid');
-    const hasUrlQuickFilter = Boolean(counteragentUuidParam || projectUuidParam || jobUuidParam);
+    const financialCodeUuidParam = urlParams.get('financialCodeUuid');
+    const hasUrlQuickFilter = Boolean(counteragentUuidParam || projectUuidParam || jobUuidParam || financialCodeUuidParam);
 
     if (hasUrlQuickFilter) {
       clearFilters();
@@ -1446,6 +1447,9 @@ export function PaymentsReportTable() {
       }
       if (jobUuidParam) {
         handleFilterChange('jobUuid' as ColumnKey, { mode: 'facet', values: new Set([jobUuidParam]) });
+      }
+      if (financialCodeUuidParam) {
+        handleFilterChange('financialCodeUuid' as ColumnKey, { mode: 'facet', values: new Set([financialCodeUuidParam]) });
       }
       // Remove query params from URL so they don't re-apply on next mount
       window.history.replaceState({}, '', window.location.pathname);
