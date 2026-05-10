@@ -182,6 +182,7 @@ function MultiSelectDropdown({
 
 export function ProjectsReportTable() {
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [allProjects, setAllProjects] = useState<ProjectOption[]>([]);
@@ -427,6 +428,7 @@ export function ProjectsReportTable() {
   const fetchReport = useCallback(async (options?: { silent?: boolean }) => {
     if (selectedProjectUuids.size === 0) { setReport({ projects: [] }); return; }
     if (!options?.silent) setLoading(true);
+    else setRefreshing(true);
     setError(null);
     try {
       const currencies = projectCurrenciesRef.current;
@@ -460,6 +462,7 @@ export function ProjectsReportTable() {
       setError(err?.message || 'Failed to load projects report');
     } finally {
       if (!options?.silent) setLoading(false);
+      else setRefreshing(false);
     }
   }, [selectedProjectUuids, maxDate, selectedInsiderUuids]);
 
@@ -1064,7 +1067,7 @@ export function ProjectsReportTable() {
         </div>
 
         <Button variant="outline" size="sm" onClick={() => fetchReport({ silent: true })} disabled={loading || selectedProjectUuids.size === 0} className="flex items-center gap-1">
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${loading || refreshing ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
 
