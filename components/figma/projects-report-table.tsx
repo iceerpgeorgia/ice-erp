@@ -296,9 +296,10 @@ export function ProjectsReportTable() {
   const [projBulkCurrencyUuid, setProjBulkCurrencyUuid] = useState('');
   const [projBulkIncomeTax, setProjBulkIncomeTax] = useState(false);
   const [projBulkLabel, setProjBulkLabel] = useState('');
+  const [projBulkFcUuid, setProjBulkFcUuid] = useState('');
   const [projBulkRows, setProjBulkRows] = useState<Array<{
     jobUuid: string | null; jobLabel: string;
-    financialCodeUuid: string; accrual: string; order: string; date: string;
+    accrual: string; order: string; date: string;
   }>>([]);
   const [isProjBulkSubmitting, setIsProjBulkSubmitting] = useState(false);
 
@@ -798,10 +799,11 @@ export function ProjectsReportTable() {
     setProjBulkCurrencyUuid('');
     setProjBulkIncomeTax(false);
     setProjBulkLabel('');
+    setProjBulkFcUuid('');
     setProjBulkRows(
       ctx.jobs
         .filter(j => j.key !== NULL_JOB_KEY)
-        .map(j => ({ jobUuid: j.jobUuid, jobLabel: j.label, financialCodeUuid: '', accrual: '', order: '', date: '' }))
+        .map(j => ({ jobUuid: j.jobUuid, jobLabel: j.label, accrual: '', order: '', date: '' }))
     );
     if (dlgCounterAgents.length === 0) fetchDlgCounterAgents();
     if (dlgCurrencies.length === 0 || dlgFinancialCodes.length === 0) fetchDlgDictionaries();
@@ -810,13 +812,13 @@ export function ProjectsReportTable() {
   };
 
   const handleProjBulkSubmit = async () => {
-    if (!projBulkCounteragentUuid || !projBulkCurrencyUuid) {
-      alert('Please select Counteragent and Currency');
+    if (!projBulkCounteragentUuid || !projBulkCurrencyUuid || !projBulkFcUuid) {
+      alert('Please select Counteragent, Currency, and Financial Code');
       return;
     }
-    const filledRows = projBulkRows.filter(r => r.financialCodeUuid && (r.accrual || r.order));
+    const filledRows = projBulkRows.filter(r => r.accrual || r.order);
     if (filledRows.length === 0) {
-      alert('Please select a Financial Code and enter at least one value (Accrual or Order) for at least one job');
+      alert('Please enter at least one value (Accrual or Order) for at least one job');
       return;
     }
     setIsProjBulkSubmitting(true);
@@ -833,7 +835,7 @@ export function ProjectsReportTable() {
           body: JSON.stringify({
             counteragentUuid: projBulkCounteragentUuid,
             projectUuid: projBulkProjectUuid,
-            financialCodeUuid: row.financialCodeUuid,
+            financialCodeUuid: projBulkFcUuid,
             jobUuid: row.jobUuid || null,
             incomeTax: projBulkIncomeTax,
             currencyUuid: projBulkCurrencyUuid,
@@ -2142,7 +2144,7 @@ export function ProjectsReportTable() {
             <DialogTitle>Bulk Add Ledger Entries</DialogTitle>
             <DialogDescription>
               <span className="font-medium text-gray-800">{projBulkProjectLabel}</span>
-              <br />Select counteragent &amp; currency, then choose a financial code and enter values per job.
+              <br />Select counteragent, currency &amp; financial code once, then enter values per job.
             </DialogDescription>
           </DialogHeader>
           <div className="overflow-y-auto flex-1 space-y-4 pr-1">
@@ -2169,6 +2171,16 @@ export function ProjectsReportTable() {
                 />
               </div>
             </div>
+            <div className="space-y-1">
+              <Label>Financial Code <span className="text-red-500">*</span></Label>
+              <Combobox
+                value={projBulkFcUuid}
+                onValueChange={setProjBulkFcUuid}
+                options={dlgFinancialCodes.map(fc => ({ value: fc.uuid, label: fc.validation || fc.code }))}
+                placeholder="Select financial code..."
+                searchPlaceholder="Search financial codes..."
+              />
+            </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Checkbox id="projBulkIncomeTax" checked={projBulkIncomeTax} onCheckedChange={(v) => setProjBulkIncomeTax(Boolean(v))} />
@@ -2187,7 +2199,6 @@ export function ProjectsReportTable() {
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Job</th>
-                      <th className="text-left px-2 py-2 text-xs font-semibold text-gray-600">Financial Code</th>
                       <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-24">Accrual</th>
                       <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-24">Order</th>
                       <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-28">Date</th>
@@ -2196,11 +2207,11 @@ export function ProjectsReportTable() {
                   </thead>
                   <tbody>
                     {projBulkRows.map((row, i) => {
-                      // Find existing matching payment when header + FC are selected
+                      // Find existing matching payment when header fields + shared FC are all selected
                       const existingPayment = (() => {
-                        if (!projBulkCounteragentUuid || !projBulkCurrencyUuid || !row.financialCodeUuid) return null;
+                        if (!projBulkCounteragentUuid || !projBulkCurrencyUuid || !projBulkFcUuid) return null;
                         const currCode = dlgCurrencies.find(c => c.uuid === projBulkCurrencyUuid)?.code;
-                        const fcValidation = dlgFinancialCodes.find(f => f.uuid === row.financialCodeUuid)?.validation;
+                        const fcValidation = dlgFinancialCodes.find(f => f.uuid === projBulkFcUuid)?.validation;
                         if (!currCode || !fcValidation) return null;
                         return dlgPayments.find(p =>
                           p.counteragentUuid === projBulkCounteragentUuid &&
@@ -2212,18 +2223,6 @@ export function ProjectsReportTable() {
                       return (
                         <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}>
                           <td className="px-3 py-1.5 text-xs text-gray-700 font-medium">{row.jobLabel}</td>
-                          <td className="px-2 py-1">
-                            <select
-                              value={row.financialCodeUuid}
-                              onChange={(e) => setProjBulkRows(prev => prev.map((r, j) => j === i ? { ...r, financialCodeUuid: e.target.value } : r))}
-                              className="w-full h-7 border border-gray-200 rounded px-1 text-xs bg-white text-gray-700"
-                            >
-                              <option value="">— select FC —</option>
-                              {dlgFinancialCodes.map(fc => (
-                                <option key={fc.uuid} value={fc.uuid}>{fc.code} – {fc.validation}</option>
-                              ))}
-                            </select>
-                          </td>
                           <td className="px-2 py-1">
                             <Input
                               type="number" step="0.01" value={row.accrual}
@@ -2258,7 +2257,7 @@ export function ProjectsReportTable() {
                               >
                                 {existingPayment.paymentId}
                               </span>
-                            ) : row.financialCodeUuid && projBulkCounteragentUuid && projBulkCurrencyUuid ? (
+                            ) : projBulkCounteragentUuid && projBulkCurrencyUuid && projBulkFcUuid ? (
                               <span className="text-[10px] text-gray-300">none</span>
                             ) : null}
                           </td>
@@ -2269,18 +2268,18 @@ export function ProjectsReportTable() {
                 </table>
               </div>
             )}
-            <p className="text-xs text-gray-400">Only rows with a Financial Code and at least one value will be submitted. Existing payment IDs shown in amber are informational — a new payment will still be created.</p>
+            <p className="text-xs text-gray-400">Only rows with at least one value (Accrual or Order) will be submitted. Existing payment IDs shown in amber are informational — a new payment will still be created per job row.</p>
           </div>
           <div className="flex gap-3 pt-3 border-t border-gray-100 mt-2">
             <Button variant="outline" onClick={() => setProjBulkOpen(false)} disabled={isProjBulkSubmitting} className="flex-1">Cancel</Button>
             <Button
               onClick={handleProjBulkSubmit}
-              disabled={isProjBulkSubmitting || !projBulkCounteragentUuid || !projBulkCurrencyUuid}
+              disabled={isProjBulkSubmitting || !projBulkCounteragentUuid || !projBulkCurrencyUuid || !projBulkFcUuid}
               className="flex-1"
             >
               {isProjBulkSubmitting
                 ? 'Submitting…'
-                : `Submit${projBulkRows.filter(r => r.financialCodeUuid && (r.accrual || r.order)).length > 0 ? ` (${projBulkRows.filter(r => r.financialCodeUuid && (r.accrual || r.order)).length} rows)` : ''}`}
+                : `Submit${projBulkRows.filter(r => r.accrual || r.order).length > 0 ? ` (${projBulkRows.filter(r => r.accrual || r.order).length} rows)` : ''}`}
             </Button>
           </div>
         </DialogContent>
