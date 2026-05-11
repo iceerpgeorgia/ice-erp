@@ -272,6 +272,22 @@ export function ProjectsReportTable() {
   const [addJobBrands, setAddJobBrands] = useState<Array<{ uuid: string; name: string }>>([]);
   const [isAddJobSubmitting, setIsAddJobSubmitting] = useState(false);
 
+  // ── FC Bulk Ledger dialog state ──
+  const [fcBulkOpen, setFcBulkOpen] = useState(false);
+  const [fcBulkProjectUuid, setFcBulkProjectUuid] = useState('');
+  const [fcBulkProjectLabel, setFcBulkProjectLabel] = useState('');
+  const [fcBulkFcUuid, setFcBulkFcUuid] = useState('');
+  const [fcBulkFcLabel, setFcBulkFcLabel] = useState('');
+  const [fcBulkCounteragentUuid, setFcBulkCounteragentUuid] = useState('');
+  const [fcBulkCurrencyUuid, setFcBulkCurrencyUuid] = useState('');
+  const [fcBulkIncomeTax, setFcBulkIncomeTax] = useState(false);
+  const [fcBulkLabel, setFcBulkLabel] = useState('');
+  const [fcBulkJobs, setFcBulkJobs] = useState<Array<{
+    jobUuid: string | null; jobLabel: string;
+    accrual: string; order: string; date: string;
+  }>>([]);
+  const [isFcBulkSubmitting, setIsFcBulkSubmitting] = useState(false);
+
   // ── Restore preferences ──
 
   useEffect(() => {
@@ -680,6 +696,82 @@ export function ProjectsReportTable() {
     setDlgSelectedFinancialCodeUuid(ctx.financialCodeUuid);
     // Job UUID will be set reactively once jobs load (see jobs useEffect)
     handleDialogOpenChange(true);
+  };
+
+  const handleOpenFcBulkDialog = (ctx: {
+    projectUuid: string; projectLabel: string;
+    fcUuid: string; fcLabel: string;
+    jobs: Array<{ key: string; jobUuid: string | null; label: string }>;
+  }) => {
+    setFcBulkProjectUuid(ctx.projectUuid);
+    setFcBulkProjectLabel(ctx.projectLabel);
+    setFcBulkFcUuid(ctx.fcUuid);
+    setFcBulkFcLabel(ctx.fcLabel);
+    setFcBulkCounteragentUuid('');
+    setFcBulkCurrencyUuid('');
+    setFcBulkIncomeTax(false);
+    setFcBulkLabel('');
+    setFcBulkJobs(
+      ctx.jobs
+        .filter(j => j.key !== NULL_JOB_KEY)
+        .map(j => ({ jobUuid: j.jobUuid, jobLabel: j.label, accrual: '', order: '', date: '' }))
+    );
+    if (dlgCounterAgents.length === 0) fetchDlgCounterAgents();
+    if (dlgCurrencies.length === 0) fetchDlgDictionaries();
+    setFcBulkOpen(true);
+  };
+
+  const handleFcBulkSubmit = async () => {
+    if (!fcBulkCounteragentUuid || !fcBulkCurrencyUuid) {
+      alert('Please select Counteragent and Currency');
+      return;
+    }
+    const filledJobs = fcBulkJobs.filter(j => j.accrual || j.order);
+    if (filledJobs.length === 0) {
+      alert('Please enter at least one Accrual or Order value');
+      return;
+    }
+    setIsFcBulkSubmitting(true);
+    try {
+      for (const row of filledJobs) {
+        let isoDate: string | undefined;
+        if (row.date) {
+          const match = row.date.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+          if (match) isoDate = `${match[3]}-${match[2]}-${match[1]}`;
+        }
+        const payRes = await fetch('/api/payments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            counteragentUuid: fcBulkCounteragentUuid,
+            projectUuid: fcBulkProjectUuid,
+            financialCodeUuid: fcBulkFcUuid,
+            jobUuid: row.jobUuid || null,
+            incomeTax: fcBulkIncomeTax,
+            currencyUuid: fcBulkCurrencyUuid,
+            label: fcBulkLabel || null,
+          }),
+        });
+        if (!payRes.ok) { const e = await payRes.json(); throw new Error(e.error || 'Failed to create payment'); }
+        const payData = await payRes.json();
+        const paymentId = payData?.data?.payment_id || payData?.data?.paymentId;
+        if (!paymentId) throw new Error('Payment ID not returned from server');
+        const accrualVal = row.accrual ? parseFloat(row.accrual) : null;
+        const orderVal = row.order ? parseFloat(row.order) : null;
+        const ledgerRes = await fetch('/api/payments-ledger', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentId, effectiveDate: isoDate, accrual: accrualVal, order: orderVal }),
+        });
+        if (!ledgerRes.ok) { const e = await ledgerRes.json(); throw new Error(e.error || 'Failed to create ledger entry'); }
+      }
+      setFcBulkOpen(false);
+      fetchReport({ silent: true });
+    } catch (err: any) {
+      alert(err.message || 'Failed');
+    } finally {
+      setIsFcBulkSubmitting(false);
+    }
   };
 
   const handleCreatePayment = async () => {
@@ -1537,6 +1629,14 @@ export function ProjectsReportTable() {
                               >
                                 <Filter className="h-3 w-3" />
                               </a>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleOpenFcBulkDialog({ projectUuid: proj.projectUuid, projectLabel: `${proj.projectIndex} – ${proj.projectName}`, fcUuid: fc.uuid, fcLabel: fc.validation || fc.code, jobs: jobList }); }}
+                                title="Bulk add ledger entries for all jobs in this FC"
+                                className="opacity-0 group-hover/fchdr:opacity-100 text-gray-300 hover:text-green-500 transition-opacity shrink-0"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </button>
                             </div>
                           </th>
                         ))}
@@ -1816,6 +1916,125 @@ export function ProjectsReportTable() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── FC Bulk Ledger Dialog ── */}
+      <Dialog open={fcBulkOpen} onOpenChange={setFcBulkOpen}>
+        <DialogContent className="w-[90%] max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Bulk Add Ledger Entries</DialogTitle>
+            <DialogDescription>
+              <span className="font-medium text-gray-800">{fcBulkFcLabel}</span>
+              {' · '}
+              <span className="font-medium text-gray-800">{fcBulkProjectLabel}</span>
+              <br />Select a counteragent and currency, then enter values per job.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto flex-1 space-y-4 pr-1">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Counteragent <span className="text-red-500">*</span></Label>
+                <Combobox
+                  value={fcBulkCounteragentUuid}
+                  onValueChange={setFcBulkCounteragentUuid}
+                  options={dlgCounterAgents.map(ca => ({ value: ca.counteragent_uuid || ca.counteragentUuid || '', label: ca.counteragent || ca.name || '' })).filter(o => o.value && o.label)}
+                  placeholder="Select counteragent..."
+                  searchPlaceholder="Search counteragents..."
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Currency <span className="text-red-500">*</span></Label>
+                <Combobox
+                  value={fcBulkCurrencyUuid}
+                  onValueChange={setFcBulkCurrencyUuid}
+                  options={dlgCurrencies.map(c => ({ value: c.uuid, label: c.code }))}
+                  placeholder="Select currency..."
+                  searchPlaceholder="Search currencies..."
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Checkbox id="fcBulkIncomeTax" checked={fcBulkIncomeTax} onCheckedChange={(v) => setFcBulkIncomeTax(Boolean(v))} />
+                <Label htmlFor="fcBulkIncomeTax">Income Tax</Label>
+              </div>
+              <div className="flex-1">
+                <Input value={fcBulkLabel} onChange={(e) => setFcBulkLabel(e.target.value)} placeholder="Payment label (optional)" className="h-8 text-sm" />
+              </div>
+            </div>
+            {fcBulkJobs.length === 0 ? (
+              <div className="text-sm text-gray-400 text-center py-4">No jobs found for this project.</div>
+            ) : (
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Job</th>
+                      <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-28">Accrual</th>
+                      <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-28">Order</th>
+                      <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-36">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fcBulkJobs.map((row, i) => (
+                      <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}>
+                        <td className="px-3 py-1.5 text-xs text-gray-700 font-medium">{row.jobLabel}</td>
+                        <td className="px-2 py-1">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={row.accrual}
+                            onChange={(e) => setFcBulkJobs(prev => prev.map((r, j) => j === i ? { ...r, accrual: e.target.value } : r))}
+                            placeholder="0.00"
+                            className="h-7 text-xs text-center"
+                          />
+                        </td>
+                        <td className="px-2 py-1">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={row.order}
+                            onChange={(e) => setFcBulkJobs(prev => prev.map((r, j) => j === i ? { ...r, order: e.target.value } : r))}
+                            placeholder="0.00"
+                            className="h-7 text-xs text-center"
+                          />
+                        </td>
+                        <td className="px-2 py-1">
+                          <Input
+                            type="text"
+                            value={row.date}
+                            onChange={(e) => {
+                              let v = e.target.value.replace(/[^\d.]/g, '');
+                              if (v.length === 2 && !v.includes('.')) v += '.';
+                              else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                              if (v.length <= 10) setFcBulkJobs(prev => prev.map((r, j) => j === i ? { ...r, date: v } : r));
+                            }}
+                            placeholder="dd.mm.yyyy"
+                            maxLength={10}
+                            className="h-7 text-xs text-center"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <p className="text-xs text-gray-400">Only rows with at least one value (Accrual or Order) will be submitted. One payment + ledger entry created per job row.</p>
+          </div>
+          <div className="flex gap-3 pt-3 border-t border-gray-100 mt-2">
+            <Button variant="outline" onClick={() => setFcBulkOpen(false)} disabled={isFcBulkSubmitting} className="flex-1">Cancel</Button>
+            <Button
+              onClick={handleFcBulkSubmit}
+              disabled={isFcBulkSubmitting || !fcBulkCounteragentUuid || !fcBulkCurrencyUuid}
+              className="flex-1"
+            >
+              {isFcBulkSubmitting
+                ? 'Submitting…'
+                : `Submit${fcBulkJobs.filter(j => j.accrual || j.order).length > 0 ? ` (${fcBulkJobs.filter(j => j.accrual || j.order).length} rows)` : ''}`}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
