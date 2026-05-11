@@ -574,7 +574,8 @@ export async function PATCH(req: NextRequest) {
       insider_uuid,
       employees,
       bundleDistribution,
-      deconfirmBeforeScale
+      deconfirmBeforeScale,
+      confirmBundleCleanup,
     } = body;
     const selection = await resolveInsiderSelection(req);
     const insiderOptions = await getInsiderOptions();
@@ -623,12 +624,72 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Fetch current project value before update so we can scale ledger entries proportionally
-    const currentProjectRows = await prisma.$queryRawUnsafe<Array<{ project_uuid: string; value: any }>>(
-      `SELECT project_uuid, value FROM projects WHERE id = $1 LIMIT 1`,
+    const currentProjectRows = await prisma.$queryRawUnsafe<Array<{ project_uuid: string; value: any; financial_code_uuid: string | null }>>(
+      `SELECT project_uuid, value, financial_code_uuid::text FROM projects WHERE id = $1 LIMIT 1`,
       parseInt(id)
     );
     const oldProjectValue = currentProjectRows.length > 0 ? parseFloat(currentProjectRows[0].value) : null;
     const oldProjectUuid = currentProjectRows.length > 0 ? currentProjectRows[0].project_uuid : null;
+    const oldProjectFcUuid = currentProjectRows.length > 0 ? currentProjectRows[0].financial_code_uuid : null;
+
+    // Bundle cleanup check: if FC is changing from a bundle FC to a non-bundle FC,
+    // find active is_bundle_payment=true rows. Without confirmation return 409 with impact.
+    let oldBundlePaymentsToCleanup: Array<{ id: bigint; payment_id: string; fc_code: string }> = [];
+    const isChangingFC = financial_code_uuid && oldProjectFcUuid &&
+      financial_code_uuid.toLowerCase() !== oldProjectFcUuid.toLowerCase();
+    if (isChangingFC && oldProjectUuid) {
+      const oldFcData = await prisma.$queryRawUnsafe<Array<{ is_bundle: boolean }>>(
+        `SELECT is_bundle FROM financial_codes WHERE uuid = $1::uuid LIMIT 1`,
+        oldProjectFcUuid
+      );
+      const oldFcWasBundle = oldFcData.length > 0 && oldFcData[0].is_bundle === true;
+      if (oldFcWasBundle) {
+        const newFcData = await prisma.$queryRawUnsafe<Array<{ is_bundle: boolean }>>(
+          `SELECT is_bundle FROM financial_codes WHERE uuid = $1::uuid LIMIT 1`,
+          financial_code_uuid
+        );
+        const newFcIsBundle = newFcData.length > 0 && newFcData[0].is_bundle === true;
+        if (!newFcIsBundle) {
+          const bundlePayments = await prisma.$queryRawUnsafe<Array<{ id: bigint; payment_id: string; fc_code: string }>>(
+            `SELECT p.id, p.payment_id, COALESCE(fc.code, '') AS fc_code
+             FROM payments p
+             LEFT JOIN financial_codes fc ON fc.uuid = p.financial_code_uuid
+             WHERE p.project_uuid = $1::uuid AND p.is_bundle_payment = true AND p.is_active = true`,
+            oldProjectUuid
+          );
+          if (bundlePayments.length > 0) {
+            if (!confirmBundleCleanup) {
+              const paymentIds = bundlePayments.map((p: any) => p.payment_id).filter(Boolean) as string[];
+              let ledgerCount = 0;
+              let bankCount = 0;
+              if (paymentIds.length > 0) {
+                const placeholders = paymentIds.map((_: any, i: number) => `$${i + 1}`).join(',');
+                const lc = await prisma.$queryRawUnsafe<Array<{ cnt: bigint }>>(
+                  `SELECT COUNT(*) AS cnt FROM payments_ledger WHERE payment_id IN (${placeholders})`,
+                  ...paymentIds
+                );
+                ledgerCount = Number(lc[0]?.cnt ?? 0);
+                const bc = await prisma.$queryRawUnsafe<Array<{ cnt: bigint }>>(
+                  `SELECT COUNT(*) AS cnt FROM consolidated_bank_accounts WHERE payment_id IN (${placeholders})`,
+                  ...paymentIds
+                );
+                bankCount = Number(bc[0]?.cnt ?? 0);
+              }
+              return NextResponse.json({
+                bundleCleanupRequired: true,
+                affectedPayments: bundlePayments.map((p: any) => ({
+                  paymentId: p.payment_id || '(no ID)',
+                  financialCode: p.fc_code || '',
+                })),
+                ledgerCount,
+                bankCount,
+              }, { status: 409 });
+            }
+            oldBundlePaymentsToCleanup = bundlePayments;
+          }
+        }
+      }
+    }
 
     // Update project
     const result = await prisma.$queryRaw`
@@ -1067,6 +1128,33 @@ export async function PATCH(req: NextRequest) {
       }
     } catch (syncError: any) {
       console.warn('Project-derived payment sync error:', syncError?.message);
+    }
+
+    // Bundle cleanup: deactivate old bundle payments, delete their ledger entries,
+    // and unbind consolidated bank account transactions.
+    if (oldBundlePaymentsToCleanup.length > 0) {
+      try {
+        const paymentIds = oldBundlePaymentsToCleanup
+          .map((p: any) => String(p.payment_id || '')).filter((s: string) => s.trim() !== '');
+        if (paymentIds.length > 0) {
+          await prisma.$queryRawUnsafe(
+            `DELETE FROM payments_ledger WHERE payment_id = ANY($1::text[])`,
+            paymentIds
+          );
+          await prisma.$queryRawUnsafe(
+            `UPDATE consolidated_bank_accounts SET payment_id = NULL WHERE payment_id = ANY($1::text[])`,
+            paymentIds
+          );
+        }
+        for (const bp of oldBundlePaymentsToCleanup) {
+          await prisma.$queryRawUnsafe(
+            `UPDATE payments SET is_active = false, updated_at = NOW() WHERE id = $1`,
+            bp.id
+          );
+        }
+      } catch (cleanupErr: any) {
+        console.warn('Bundle cleanup error:', cleanupErr?.message);
+      }
     }
 
     // Serialize BigInt values for JSON response

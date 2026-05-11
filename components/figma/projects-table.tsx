@@ -246,6 +246,12 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
   const [loadingAudit, setLoadingAudit] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isConfirmedWarningOpen, setIsConfirmedWarningOpen] = useState(false);
+  const [isBundleCleanupWarningOpen, setIsBundleCleanupWarningOpen] = useState(false);
+  const [bundleCleanupData, setBundleCleanupData] = useState<{
+    affectedPayments: Array<{ paymentId: string; financialCode: string }>;
+    ledgerCount: number;
+    bankCount: number;
+  } | null>(null);
   
   // Initialize columns from localStorage or use defaults
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
@@ -836,7 +842,7 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
       : <ArrowDown className="h-3 w-3" />;
   };
 
-  const handleSave = async (deconfirmBeforeScale = false) => {
+  const handleSave = async (deconfirmBeforeScale = false, confirmBundleCleanup = false) => {
     if (isSaving) return;
     setIsSaving(true);
     try {
@@ -886,14 +892,24 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
             state_uuid: formData.stateUuid,
             employees: formData.employees,
             bundleDistribution: formData.bundleDistribution,
-            deconfirmBeforeScale: deconfirmBeforeScale || undefined
+            deconfirmBeforeScale: deconfirmBeforeScale || undefined,
+            confirmBundleCleanup: confirmBundleCleanup || undefined,
           })
         });
         
         if (!response.ok) {
-          const error = await response.json();
-          console.error('[Edit] API error:', error);
-          alert(`Failed to update: ${error.error || 'Unknown error'}`);
+          const errorData = await response.json();
+          if (response.status === 409 && errorData.bundleCleanupRequired) {
+            setBundleCleanupData({
+              affectedPayments: errorData.affectedPayments || [],
+              ledgerCount: errorData.ledgerCount || 0,
+              bankCount: errorData.bankCount || 0,
+            });
+            setIsBundleCleanupWarningOpen(true);
+            return;
+          }
+          console.error('[Edit] API error:', errorData);
+          alert(`Failed to update: ${errorData.error || 'Unknown error'}`);
           return;
         }
         
@@ -1720,6 +1736,46 @@ export function ProjectsTable({ data }: { data?: Project[] }) {
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={cancelEdit} disabled={isSaving}>Cancel</Button>
                 <Button onClick={() => handleSave()} disabled={isSaving}>{isSaving ? 'Saving...' : 'Update Project'}</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Bundle Cleanup Warning Dialog */}
+          <Dialog open={isBundleCleanupWarningOpen} onOpenChange={setIsBundleCleanupWarningOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Switch from Bundle to Non-Bundle FC</DialogTitle>
+                <DialogDescription>
+                  Changing to a non-bundle financial code will remove the child bundle payments for this project.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 py-2 text-sm text-muted-foreground">
+                {bundleCleanupData && bundleCleanupData.affectedPayments.length > 0 && (
+                  <div>
+                    <p className="font-medium text-foreground mb-1">Affected bundle payments ({bundleCleanupData.affectedPayments.length}):</p>
+                    <ul className="list-disc ml-4 space-y-0.5 text-xs">
+                      {bundleCleanupData.affectedPayments.map((p, i) => (
+                        <li key={i}>
+                          <span className="font-mono">{p.paymentId || '(no ID)'}</span>
+                          {p.financialCode ? <span className="text-muted-foreground"> — {p.financialCode}</span> : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {bundleCleanupData && (
+                  <p>
+                    This will <strong>deactivate</strong> {bundleCleanupData.affectedPayments.length} bundle payment(s),
+                    <strong> delete</strong> {bundleCleanupData.ledgerCount} ledger {bundleCleanupData.ledgerCount === 1 ? 'entry' : 'entries'},
+                    and <strong>unbind</strong> {bundleCleanupData.bankCount} bank {bundleCleanupData.bankCount === 1 ? 'transaction' : 'transactions'}.
+                  </p>
+                )}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setIsBundleCleanupWarningOpen(false)}>Cancel</Button>
+                <Button variant="destructive" onClick={() => { setIsBundleCleanupWarningOpen(false); handleSave(false, true); }}>
+                  Confirm &amp; Save
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
