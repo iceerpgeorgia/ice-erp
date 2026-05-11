@@ -242,7 +242,7 @@ export function ProjectsReportTable() {
   const [dlgJobs, setDlgJobs] = useState<Array<{ jobUuid: string; jobName: string; jobDisplay?: string }>>([]);
   const [dlgPayments, setDlgPayments] = useState<Array<{
     paymentId: string; counteragentUuid?: string | null; counteragentName?: string | null;
-    projectIndex?: string | null; projectName?: string | null; jobName?: string | null;
+    projectUuid?: string | null; projectIndex?: string | null; projectName?: string | null; jobName?: string | null;
     financialCode?: string | null; incomeTax?: boolean | null; currencyCode?: string | null;
   }>>([]);
   const [dlgSelectedCounteragentUuid, setDlgSelectedCounteragentUuid] = useState('');
@@ -563,6 +563,7 @@ export function ProjectsReportTable() {
         paymentId: p.paymentId || p.payment_id,
         counteragentUuid: p.counteragentUuid || p.counteragent_uuid || null,
         counteragentName: p.counteragentName || p.counteragent_name || null,
+        projectUuid: p.projectUuid || p.project_uuid || null,
         projectIndex: p.projectIndex || p.project_index || null,
         projectName: p.projectName || p.project_name || null,
         jobName: p.jobName || p.job_name || null,
@@ -2248,6 +2249,7 @@ export function ProjectsReportTable() {
                         const fcValidation = dlgFinancialCodes.find(f => f.uuid === projBulkFcUuid)?.validation;
                         if (!currCode || !fcValidation) return null;
                         return dlgPayments.find(p =>
+                          p.projectUuid === projBulkProjectUuid &&
                           p.counteragentUuid === projBulkCounteragentUuid &&
                           p.currencyCode === currCode &&
                           (p.incomeTax ?? false) === projBulkIncomeTax &&
