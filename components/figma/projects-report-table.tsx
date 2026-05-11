@@ -107,6 +107,7 @@ const STORAGE_KEY_COL_WIDTHS = 'projectsReportColWidths';
 const STORAGE_KEY_ORDER = 'projectsReportOrder';
 const STORAGE_KEY_FC_FULL = 'projectsReportFcFull';
 const STORAGE_KEY_DEFAULT_CURRENCY = 'projectsReportDefaultCurrency';
+const STORAGE_KEY_FC_DISPLAY = 'projectsReportFcDisplay';
 
 const JOB_COL_DEFAULT_WIDTH = 180;
 const FC_COL_DEFAULT_WIDTH = 120;
@@ -203,6 +204,7 @@ export function ProjectsReportTable() {
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const [resizing, setResizing] = useState<{ key: string; startX: number; startWidth: number } | null>(null);
   const [fcFullMode, setFcFullMode] = useState(false);
+  const [fcDisplayMode, setFcDisplayMode] = useState<'global' | 'perProject'>('global');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [defaultCurrency, setDefaultCurrency] = useState<'GEL' | 'USD' | 'EUR'>('GEL');
   const [fcTooltip, setFcTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
@@ -355,6 +357,8 @@ export function ProjectsReportTable() {
     }
     const savedFcFull = localStorage.getItem(STORAGE_KEY_FC_FULL);
     if (savedFcFull === 'true') setFcFullMode(true);
+    const savedFcDisplay = localStorage.getItem(STORAGE_KEY_FC_DISPLAY);
+    if (savedFcDisplay === 'perProject') setFcDisplayMode('perProject');
     const savedDefaultCurrency = localStorage.getItem(STORAGE_KEY_DEFAULT_CURRENCY);
     if (savedDefaultCurrency === 'USD' || savedDefaultCurrency === 'EUR') setDefaultCurrency(savedDefaultCurrency);
     const savedOrder = localStorage.getItem(STORAGE_KEY_ORDER);
@@ -375,6 +379,7 @@ export function ProjectsReportTable() {
   useEffect(() => { localStorage.setItem(STORAGE_KEY_COL_WIDTHS, JSON.stringify(colWidths)); }, [colWidths]);
   useEffect(() => { localStorage.setItem(STORAGE_KEY_ORDER, JSON.stringify(projectOrder)); }, [projectOrder]);
   useEffect(() => { localStorage.setItem(STORAGE_KEY_FC_FULL, String(fcFullMode)); }, [fcFullMode]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEY_FC_DISPLAY, fcDisplayMode); }, [fcDisplayMode]);
   useEffect(() => { localStorage.setItem(STORAGE_KEY_DEFAULT_CURRENCY, defaultCurrency); }, [defaultCurrency]);
 
   // Apply defaultCurrency to newly-added projects (those without an explicit currency set)
@@ -1017,7 +1022,10 @@ export function ProjectsReportTable() {
       if (a.key !== NULL_JOB_KEY && b.key === NULL_JOB_KEY) return -1;
       return a.label.localeCompare(b.label);
     });
-    const fcList = Array.from(globalFcMap.values())
+    const fcSource = fcDisplayMode === 'perProject'
+      ? Array.from(new Map(proj.cells.map(c => [c.financialCodeUuid, { uuid: c.financialCodeUuid, validation: c.financialCodeValidation, code: c.financialCodeCode, isIncome: c.financialCodeIsIncome }])).values())
+      : Array.from(globalFcMap.values());
+    const fcList = fcSource
       .filter((fc) => {
         if (fcFilter === 'income') return fc.isIncome;
         if (fcFilter === 'cost') return !fc.isIncome;
@@ -1049,9 +1057,15 @@ export function ProjectsReportTable() {
         cellMap.set(`${jobKey}:${cell.financialCodeUuid}`, cell);
       }
       const jobList = Array.from(jobMap.values());
-      const fcList = Array.from(globalFcMap.values()).filter((fc) =>
-        fcFilter === 'income' ? fc.isIncome : fcFilter === 'cost' ? !fc.isIncome : true
-      );
+      const fcList = fcDisplayMode === 'perProject'
+        ? Array.from(new Map(
+            proj.cells
+              .filter(c => !(fcFilter === 'income' && !c.financialCodeIsIncome) && !(fcFilter === 'cost' && c.financialCodeIsIncome))
+              .map(c => [c.financialCodeUuid, { uuid: c.financialCodeUuid, validation: c.financialCodeValidation, code: c.financialCodeCode, isIncome: c.financialCodeIsIncome }])
+          ).values())
+        : Array.from(globalFcMap.values()).filter((fc) =>
+            fcFilter === 'income' ? fc.isIncome : fcFilter === 'cost' ? !fc.isIncome : true
+          );
 
       // Job column: fit longest label
       const maxJobChars = jobList.reduce((max, j) => Math.max(max, j.label.length), 5);
@@ -1100,7 +1114,7 @@ export function ProjectsReportTable() {
       map.set('total', Math.max(map.get('total') ?? 0, Math.max(50, Math.ceil(maxTotalChars * PX_PER_CHAR + CELL_PAD))));
     }
     return map;
-  }, [report, projectFcFilters, globalFcMap, activeMetrics]);
+  }, [report, projectFcFilters, globalFcMap, fcDisplayMode, activeMetrics]);
 
   // ── XLSX export ──
 
@@ -1283,6 +1297,26 @@ export function ProjectsReportTable() {
                   </div>
                   <span className="text-xs text-gray-700">Show full FC description</span>
                 </label>
+                <div className="mt-3 pt-2 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-gray-600 mb-2">Display financial codes</p>
+                  <div className="flex flex-col gap-1">
+                    {([
+                      { value: 'global', label: 'Binded to selected projects' },
+                      { value: 'perProject', label: 'Unique to each project' },
+                    ] as const).map(opt => (
+                      <label key={opt.value} className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="radio"
+                          name="fcDisplayMode"
+                          checked={fcDisplayMode === opt.value}
+                          onChange={() => setFcDisplayMode(opt.value)}
+                          className="accent-blue-600"
+                        />
+                        <span className="text-xs text-gray-700">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 <div className="mt-3 pt-2 border-t border-gray-100">
                   <p className="text-xs font-semibold text-gray-600 mb-2">Default currency for new projects</p>
                   <div className="flex gap-1">
