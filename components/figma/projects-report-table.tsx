@@ -288,6 +288,20 @@ export function ProjectsReportTable() {
   }>>([]);
   const [isFcBulkSubmitting, setIsFcBulkSubmitting] = useState(false);
 
+  // ── Project Bulk Ledger dialog state ──
+  const [projBulkOpen, setProjBulkOpen] = useState(false);
+  const [projBulkProjectUuid, setProjBulkProjectUuid] = useState('');
+  const [projBulkProjectLabel, setProjBulkProjectLabel] = useState('');
+  const [projBulkCounteragentUuid, setProjBulkCounteragentUuid] = useState('');
+  const [projBulkCurrencyUuid, setProjBulkCurrencyUuid] = useState('');
+  const [projBulkIncomeTax, setProjBulkIncomeTax] = useState(false);
+  const [projBulkLabel, setProjBulkLabel] = useState('');
+  const [projBulkRows, setProjBulkRows] = useState<Array<{
+    jobUuid: string | null; jobLabel: string;
+    financialCodeUuid: string; accrual: string; order: string; date: string;
+  }>>([]);
+  const [isProjBulkSubmitting, setIsProjBulkSubmitting] = useState(false);
+
   // ── Restore preferences ──
 
   useEffect(() => {
@@ -771,6 +785,80 @@ export function ProjectsReportTable() {
       alert(err.message || 'Failed');
     } finally {
       setIsFcBulkSubmitting(false);
+    }
+  };
+
+  const handleOpenProjBulkDialog = (ctx: {
+    projectUuid: string; projectLabel: string;
+    jobs: Array<{ key: string; jobUuid: string | null; label: string }>;
+  }) => {
+    setProjBulkProjectUuid(ctx.projectUuid);
+    setProjBulkProjectLabel(ctx.projectLabel);
+    setProjBulkCounteragentUuid('');
+    setProjBulkCurrencyUuid('');
+    setProjBulkIncomeTax(false);
+    setProjBulkLabel('');
+    setProjBulkRows(
+      ctx.jobs
+        .filter(j => j.key !== NULL_JOB_KEY)
+        .map(j => ({ jobUuid: j.jobUuid, jobLabel: j.label, financialCodeUuid: '', accrual: '', order: '', date: '' }))
+    );
+    if (dlgCounterAgents.length === 0) fetchDlgCounterAgents();
+    if (dlgCurrencies.length === 0 || dlgFinancialCodes.length === 0) fetchDlgDictionaries();
+    if (dlgPayments.length === 0) fetchDlgPayments();
+    setProjBulkOpen(true);
+  };
+
+  const handleProjBulkSubmit = async () => {
+    if (!projBulkCounteragentUuid || !projBulkCurrencyUuid) {
+      alert('Please select Counteragent and Currency');
+      return;
+    }
+    const filledRows = projBulkRows.filter(r => r.financialCodeUuid && (r.accrual || r.order));
+    if (filledRows.length === 0) {
+      alert('Please select a Financial Code and enter at least one value (Accrual or Order) for at least one job');
+      return;
+    }
+    setIsProjBulkSubmitting(true);
+    try {
+      for (const row of filledRows) {
+        let isoDate: string | undefined;
+        if (row.date) {
+          const match = row.date.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+          if (match) isoDate = `${match[3]}-${match[2]}-${match[1]}`;
+        }
+        const payRes = await fetch('/api/payments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            counteragentUuid: projBulkCounteragentUuid,
+            projectUuid: projBulkProjectUuid,
+            financialCodeUuid: row.financialCodeUuid,
+            jobUuid: row.jobUuid || null,
+            incomeTax: projBulkIncomeTax,
+            currencyUuid: projBulkCurrencyUuid,
+            label: projBulkLabel || null,
+          }),
+        });
+        if (!payRes.ok) { const e = await payRes.json(); throw new Error(e.error || 'Failed to create payment'); }
+        const payData = await payRes.json();
+        const paymentId = payData?.data?.payment_id || payData?.data?.paymentId;
+        if (!paymentId) throw new Error('Payment ID not returned from server');
+        const accrualVal = row.accrual ? parseFloat(row.accrual) : null;
+        const orderVal = row.order ? parseFloat(row.order) : null;
+        const ledgerRes = await fetch('/api/payments-ledger', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentId, effectiveDate: isoDate, accrual: accrualVal, order: orderVal }),
+        });
+        if (!ledgerRes.ok) { const e = await ledgerRes.json(); throw new Error(e.error || 'Failed to create ledger entry'); }
+      }
+      setProjBulkOpen(false);
+      fetchReport({ silent: true });
+    } catch (err: any) {
+      alert(err.message || 'Failed');
+    } finally {
+      setIsProjBulkSubmitting(false);
     }
   };
 
@@ -1565,6 +1653,15 @@ export function ProjectsReportTable() {
                 <span className="text-gray-400">{fcList.length} FCs · {jobList.filter(j => j.key !== NULL_JOB_KEY).length} / {proj.totalJobsInProject} jobs paid</span>
                 <button
                   type="button"
+                  className="flex items-center gap-1 px-2 py-0.5 h-6 text-[11px] rounded border border-gray-200 bg-white text-gray-600 hover:bg-green-50 hover:text-green-700 hover:border-green-300 transition-colors"
+                  title="Bulk add ledger entries per job (select FC per job)"
+                  onClick={(e) => { e.stopPropagation(); handleOpenProjBulkDialog({ projectUuid: proj.projectUuid, projectLabel: `${proj.projectIndex} – ${proj.projectName}`, jobs: jobList }); }}
+                >
+                  <Plus className="h-3 w-3" />
+                  Add Ledger
+                </button>
+                <button
+                  type="button"
                   className="flex items-center gap-1 px-2 py-0.5 h-6 text-[11px] rounded border border-gray-200 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-colors"
                   title="Add a new job to this project"
                   onClick={(e) => { e.stopPropagation(); handleOpenAddJob(proj.projectUuid, `${proj.projectIndex} – ${proj.projectName}`); }}
@@ -2033,6 +2130,157 @@ export function ProjectsReportTable() {
               {isFcBulkSubmitting
                 ? 'Submitting…'
                 : `Submit${fcBulkJobs.filter(j => j.accrual || j.order).length > 0 ? ` (${fcBulkJobs.filter(j => j.accrual || j.order).length} rows)` : ''}`}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Project Bulk Ledger Dialog ── */}
+      <Dialog open={projBulkOpen} onOpenChange={setProjBulkOpen}>
+        <DialogContent className="w-[95%] max-w-3xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Bulk Add Ledger Entries</DialogTitle>
+            <DialogDescription>
+              <span className="font-medium text-gray-800">{projBulkProjectLabel}</span>
+              <br />Select counteragent &amp; currency, then choose a financial code and enter values per job.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto flex-1 space-y-4 pr-1">
+            {/* Shared header fields */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Counteragent <span className="text-red-500">*</span></Label>
+                <Combobox
+                  value={projBulkCounteragentUuid}
+                  onValueChange={setProjBulkCounteragentUuid}
+                  options={dlgCounterAgents.map(ca => ({ value: ca.counteragent_uuid || ca.counteragentUuid || '', label: ca.counteragent || ca.name || '' })).filter(o => o.value && o.label)}
+                  placeholder="Select counteragent..."
+                  searchPlaceholder="Search counteragents..."
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Currency <span className="text-red-500">*</span></Label>
+                <Combobox
+                  value={projBulkCurrencyUuid}
+                  onValueChange={setProjBulkCurrencyUuid}
+                  options={dlgCurrencies.map(c => ({ value: c.uuid, label: c.code }))}
+                  placeholder="Select currency..."
+                  searchPlaceholder="Search currencies..."
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Checkbox id="projBulkIncomeTax" checked={projBulkIncomeTax} onCheckedChange={(v) => setProjBulkIncomeTax(Boolean(v))} />
+                <Label htmlFor="projBulkIncomeTax">Income Tax</Label>
+              </div>
+              <div className="flex-1">
+                <Input value={projBulkLabel} onChange={(e) => setProjBulkLabel(e.target.value)} placeholder="Payment label (optional)" className="h-8 text-sm" />
+              </div>
+            </div>
+            {/* Per-job rows */}
+            {projBulkRows.length === 0 ? (
+              <div className="text-sm text-gray-400 text-center py-4">No jobs found for this project.</div>
+            ) : (
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Job</th>
+                      <th className="text-left px-2 py-2 text-xs font-semibold text-gray-600">Financial Code</th>
+                      <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-24">Accrual</th>
+                      <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-24">Order</th>
+                      <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-28">Date</th>
+                      <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-32">Existing Payment</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projBulkRows.map((row, i) => {
+                      // Find existing matching payment when header + FC are selected
+                      const existingPayment = (() => {
+                        if (!projBulkCounteragentUuid || !projBulkCurrencyUuid || !row.financialCodeUuid) return null;
+                        const currCode = dlgCurrencies.find(c => c.uuid === projBulkCurrencyUuid)?.code;
+                        const fcValidation = dlgFinancialCodes.find(f => f.uuid === row.financialCodeUuid)?.validation;
+                        if (!currCode || !fcValidation) return null;
+                        return dlgPayments.find(p =>
+                          p.counteragentUuid === projBulkCounteragentUuid &&
+                          p.currencyCode === currCode &&
+                          (p.incomeTax ?? false) === projBulkIncomeTax &&
+                          p.financialCode === fcValidation
+                        ) || null;
+                      })();
+                      return (
+                        <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}>
+                          <td className="px-3 py-1.5 text-xs text-gray-700 font-medium">{row.jobLabel}</td>
+                          <td className="px-2 py-1">
+                            <select
+                              value={row.financialCodeUuid}
+                              onChange={(e) => setProjBulkRows(prev => prev.map((r, j) => j === i ? { ...r, financialCodeUuid: e.target.value } : r))}
+                              className="w-full h-7 border border-gray-200 rounded px-1 text-xs bg-white text-gray-700"
+                            >
+                              <option value="">— select FC —</option>
+                              {dlgFinancialCodes.map(fc => (
+                                <option key={fc.uuid} value={fc.uuid}>{fc.code} – {fc.validation}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-2 py-1">
+                            <Input
+                              type="number" step="0.01" value={row.accrual}
+                              onChange={(e) => setProjBulkRows(prev => prev.map((r, j) => j === i ? { ...r, accrual: e.target.value } : r))}
+                              placeholder="0.00" className="h-7 text-xs text-center"
+                            />
+                          </td>
+                          <td className="px-2 py-1">
+                            <Input
+                              type="number" step="0.01" value={row.order}
+                              onChange={(e) => setProjBulkRows(prev => prev.map((r, j) => j === i ? { ...r, order: e.target.value } : r))}
+                              placeholder="0.00" className="h-7 text-xs text-center"
+                            />
+                          </td>
+                          <td className="px-2 py-1">
+                            <Input
+                              type="text" value={row.date}
+                              onChange={(e) => {
+                                let v = e.target.value.replace(/[^\d.]/g, '');
+                                if (v.length === 2 && !v.includes('.')) v += '.';
+                                else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                                if (v.length <= 10) setProjBulkRows(prev => prev.map((r, j) => j === i ? { ...r, date: v } : r));
+                              }}
+                              placeholder="dd.mm.yyyy" maxLength={10} className="h-7 text-xs text-center"
+                            />
+                          </td>
+                          <td className="px-2 py-1 text-center">
+                            {existingPayment ? (
+                              <span
+                                className="inline-block px-1.5 py-0.5 bg-amber-50 border border-amber-200 text-amber-800 text-[10px] rounded font-mono cursor-default"
+                                title={`Existing payment: ${existingPayment.counteragentName} | ${existingPayment.currencyCode} | Income Tax: ${existingPayment.incomeTax ? 'Yes' : 'No'} | FC: ${existingPayment.financialCode}`}
+                              >
+                                {existingPayment.paymentId}
+                              </span>
+                            ) : row.financialCodeUuid && projBulkCounteragentUuid && projBulkCurrencyUuid ? (
+                              <span className="text-[10px] text-gray-300">none</span>
+                            ) : null}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <p className="text-xs text-gray-400">Only rows with a Financial Code and at least one value will be submitted. Existing payment IDs shown in amber are informational — a new payment will still be created.</p>
+          </div>
+          <div className="flex gap-3 pt-3 border-t border-gray-100 mt-2">
+            <Button variant="outline" onClick={() => setProjBulkOpen(false)} disabled={isProjBulkSubmitting} className="flex-1">Cancel</Button>
+            <Button
+              onClick={handleProjBulkSubmit}
+              disabled={isProjBulkSubmitting || !projBulkCounteragentUuid || !projBulkCurrencyUuid}
+              className="flex-1"
+            >
+              {isProjBulkSubmitting
+                ? 'Submitting…'
+                : `Submit${projBulkRows.filter(r => r.financialCodeUuid && (r.accrual || r.order)).length > 0 ? ` (${projBulkRows.filter(r => r.financialCodeUuid && (r.accrual || r.order)).length} rows)` : ''}`}
             </Button>
           </div>
         </DialogContent>
