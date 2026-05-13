@@ -309,6 +309,7 @@ export async function GET(request: NextRequest) {
       insiderName: string;
       department: string;
       totalJobsInProject: number;
+      allJobs: { jobUuid: string; jobName: string; floors: number }[];
       cells: {
         jobUuid: string | null;
         jobName: string | null;
@@ -346,6 +347,7 @@ export async function GET(request: NextRequest) {
           insiderName: row.insider_name || '-',
           department: row.department || '-',
           totalJobsInProject: jobCountByProject.get(key) ?? 0,
+          allJobs: allJobsByProject.get(key) ?? [],
           cells: [],
         });
       }
