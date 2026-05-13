@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-05-13 Deployment #250
+- Commit: b4c9441
+- Production: https://ice-mghkox8r3-iceerp.vercel.app
+- Summary: Make Order optional for ledger entries; Accrual is now required.
+- Changes:
+  - components/figma/projects-report-table.tsx: Accrual required, Order optional in Add Ledger dialog and bulk dialogs.
+  - app/api/payments-ledger/route.ts: Require Accrual only.
+  - app/api/payments-ledger/bulk/route.ts: Require Accrual only.
+
 ## 2026-05-08 Deployment #277
 - Commit: 65720a6
 - Production: https://ice-h5rcctfty-iceerp.vercel.app
@@ -66,14 +75,14 @@
 - Summary: New Projects Report page at /dictionaries/projects-report.
 - Changes:
   - app/api/projects-report/route.ts: API querying payments grouped by (project x job x financial_code) with full ledger/bank aggregation and BTC batch resolution.
-  - components/figma/projects-report-table.tsx: Pivot-grid UI — one grid per selected project; rows=jobs, columns=financial codes; each FC column has its own metric picker (accrual/order/payment/due/balance/etc); totals row/column, XLSX export, collapsible sections.
+  - components/figma/projects-report-table.tsx: Pivot-grid UI â€” one grid per selected project; rows=jobs, columns=financial codes; each FC column has its own metric picker (accrual/order/payment/due/balance/etc); totals row/column, XLSX export, collapsible sections.
   - app/dictionaries/projects-report/page.tsx: Next.js page at /dictionaries/projects-report.
   - app/dictionaries/page.tsx: Added Projects Report link to dictionaries index.
 
 ## 2026-05-07 Deployment #266
 - Commit: d25e66a
 - Production: https://ice-dtff0n2la-iceerp.vercel.app
-- Summary: Stable attachment count icon — counts no longer flash to 0 on re-fetch, layout no longer shifts.
+- Summary: Stable attachment count icon â€” counts no longer flash to 0 on re-fetch, layout no longer shifts.
 - Changes:
   - components/figma/payments-report-table.tsx: Merge incoming counts into existing state so stale values stay visible during re-fetches; removed count reset on error.
   - components/figma/payments-table.tsx: Same merge-on-update pattern; removed count reset on error.
