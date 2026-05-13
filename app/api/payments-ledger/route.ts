@@ -167,10 +167,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payment ID is required' }, { status: 400 });
     }
 
-    // Ensure at least one of accrual or order is provided and not zero
-    if ((!accrual || accrual === 0) && (!order || order === 0)) {
+    // Accrual is required; order is optional
+    if (!accrual || accrual === 0) {
       return NextResponse.json(
-        { error: 'Either accrual or order must be provided and cannot be zero' },
+        { error: 'Accrual is required and cannot be zero' },
         { status: 400 }
       );
     }

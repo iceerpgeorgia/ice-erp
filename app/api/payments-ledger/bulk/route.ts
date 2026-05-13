@@ -108,11 +108,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if ((!entry.accrual || entry.accrual === 0) && (!entry.order || entry.order === 0)) {
-        logs.push(`[ERROR] Accrual/Order missing (payment ${entry.paymentId})`);
+      if (!entry.accrual || entry.accrual === 0) {
+        logs.push(`[ERROR] Accrual missing (payment ${entry.paymentId})`);
         return NextResponse.json(
           {
-            error: `Either accrual or order must be provided and cannot be zero (payment ${entry.paymentId})`,
+            error: `Accrual is required and cannot be zero (payment ${entry.paymentId})`,
             logs: logs.join('\n'),
           },
           { status: 400 }

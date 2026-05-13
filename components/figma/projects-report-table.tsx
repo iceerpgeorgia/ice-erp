@@ -1117,6 +1117,57 @@ export function ProjectsReportTable() {
     return map;
   }, [report, projectFcFilters, globalFcMap, fcDisplayMode, activeMetrics]);
 
+  // ── Grand totals across all selected projects (grouped by currency) ──
+
+  const grandTotals = useMemo(() => {
+    if (!report?.projects?.length || activeMetrics.length === 0) return null;
+
+    type FcEntry = { uuid: string; code: string; validation: string; isIncome: boolean; metrics: Record<MetricKey, number> };
+    const byCurrency = new Map<string, Map<string, FcEntry>>();
+
+    for (const proj of report.projects) {
+      const currency = projectCurrencies[proj.projectUuid] ?? 'GEL';
+      if (!byCurrency.has(currency)) byCurrency.set(currency, new Map());
+      const fcMap = byCurrency.get(currency)!;
+
+      const fcFilter = projectFcFilters[proj.projectUuid] ?? 'all';
+      for (const cell of proj.cells) {
+        if (fcFilter === 'income' && !cell.financialCodeIsIncome) continue;
+        if (fcFilter === 'cost' && cell.financialCodeIsIncome) continue;
+
+        if (!fcMap.has(cell.financialCodeUuid)) {
+          const emptyMetrics = Object.fromEntries(ALL_METRICS.map(m => [m, 0])) as Record<MetricKey, number>;
+          fcMap.set(cell.financialCodeUuid, {
+            uuid: cell.financialCodeUuid,
+            code: cell.financialCodeCode,
+            validation: cell.financialCodeValidation,
+            isIncome: cell.financialCodeIsIncome,
+            metrics: emptyMetrics,
+          });
+        }
+        const entry = fcMap.get(cell.financialCodeUuid)!;
+        for (const m of activeMetrics) {
+          if (!NON_ADDITIVE_METRICS.has(m)) {
+            entry.metrics[m] += cell[m] as number;
+          }
+        }
+      }
+    }
+
+    return Array.from(byCurrency.entries()).map(([currency, fcMap]) => {
+      const fcList = Array.from(fcMap.values()).sort((a, b) => a.code.localeCompare(b.code));
+      const addMetrics = activeMetrics.filter(m => !NON_ADDITIVE_METRICS.has(m));
+      const metricTotals = addMetrics.reduce((acc, m) => {
+        acc[m] = fcList.reduce((s, fc) => s + fc.metrics[m], 0);
+        return acc;
+      }, {} as Record<MetricKey, number>);
+      const overallTotal = fcList.reduce((s, fc) =>
+        s + addMetrics.reduce((s2, m) => s2 + fc.metrics[m], 0), 0);
+      const projectCount = report.projects.filter(p => (projectCurrencies[p.projectUuid] ?? 'GEL') === currency).length;
+      return { currency, fcList, metricTotals, overallTotal, projectCount };
+    });
+  }, [report, projectCurrencies, projectFcFilters, activeMetrics]);
+
   // ── XLSX export ──
 
   const handleExport = () => {
@@ -1571,6 +1622,87 @@ export function ProjectsReportTable() {
       )}
 
       {loading && !report?.projects?.length && <div className="text-sm text-gray-500 py-8 text-center">Loading…</div>}
+
+      {/* ── Grand Total Summary ── */}
+      {grandTotals && grandTotals.length > 0 && (
+        <div className="space-y-1">
+          {grandTotals.map(({ currency, fcList, metricTotals, overallTotal, projectCount }) => {
+            const addMetrics = activeMetrics.filter(m => !NON_ADDITIVE_METRICS.has(m));
+            return (
+              <div key={currency} className="border border-gray-300 rounded-lg overflow-hidden">
+                <div className="flex items-center gap-3 px-4 py-2.5 bg-gray-700">
+                  <span className="font-semibold text-sm text-white">
+                    Total · {projectCount} project{projectCount !== 1 ? 's' : ''} · {currency}
+                  </span>
+                  <span className="ml-auto flex items-center gap-4 flex-wrap">
+                    {addMetrics.map(m => {
+                      const v = metricTotals[m] ?? 0;
+                      return v !== 0 ? (
+                        <span key={m} className="text-xs text-gray-300">
+                          <span className="text-gray-400 mr-1">{METRIC_LABELS[m]}:</span>
+                          <span className="text-white font-semibold tabular-nums">{formatMoney(v)}</span>
+                        </span>
+                      ) : null;
+                    })}
+                    {addMetrics.length > 1 && (
+                      <span className="text-xs text-gray-300 border-l border-gray-500 pl-4">
+                        <span className="text-gray-400 mr-1">Grand Total:</span>
+                        <span className="text-white font-bold tabular-nums">{formatMoney(overallTotal)}</span>
+                      </span>
+                    )}
+                  </span>
+                </div>
+                {fcList.length > 0 && addMetrics.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <table className="border-collapse text-xs w-full">
+                      <thead>
+                        <tr className="bg-gray-600">
+                          {fcList.flatMap((fc) =>
+                            addMetrics.map((m, mi) => {
+                              const isLast = mi === addMetrics.length - 1;
+                              return (
+                                <th
+                                  key={`${fc.uuid}:${m}`}
+                                  className={`px-3 py-1.5 text-center font-medium text-gray-200 whitespace-nowrap ${isLast ? 'border-r border-gray-500' : 'border-r border-gray-600'}`}
+                                >
+                                  {fcFullMode && fc.validation ? fc.validation : fc.code}
+                                  {addMetrics.length > 1 && <span className="ml-1 text-gray-400 font-normal">/ {METRIC_LABELS[m]}</span>}
+                                </th>
+                              );
+                            })
+                          )}
+                          <th className="px-3 py-1.5 text-right font-semibold text-white whitespace-nowrap">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="bg-gray-100">
+                          {fcList.flatMap((fc) =>
+                            addMetrics.map((m, mi) => {
+                              const isLast = mi === addMetrics.length - 1;
+                              const v = fc.metrics[m];
+                              return (
+                                <td
+                                  key={`${fc.uuid}:${m}`}
+                                  className={`px-3 py-2 text-right tabular-nums font-semibold ${isLast ? 'border-r border-gray-200' : 'border-r border-gray-100'}`}
+                                >
+                                  {v !== 0 ? <span className="text-gray-800">{formatMoney(v)}</span> : <span className="text-gray-300">—</span>}
+                                </td>
+                              );
+                            })
+                          )}
+                          <td className="px-3 py-2 text-right tabular-nums font-bold text-gray-900 bg-gray-200">
+                            {formatMoney(overallTotal)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── Project grids ── */}
       {(!loading || report?.projects?.length) && (() => {
