@@ -279,18 +279,23 @@ export async function GET(request: NextRequest) {
 
     const rows = await prisma.$queryRawUnsafe<any[]>(query, ...queryParams);
 
-    // Fetch job counts per project from the jobs table
-    const jobCountRows = await prisma.$queryRawUnsafe<{ project_uuid: string; job_count: bigint }[]>(
-      `SELECT project_uuid::text, COUNT(*) AS job_count
+    // Fetch all active jobs per project (not just those with payments)
+    const allJobRows = await prisma.$queryRawUnsafe<{ project_uuid: string; job_uuid: string; job_name: string; floors: number }[]>(
+      `SELECT project_uuid::text, job_uuid::text, COALESCE(job_name, '') AS job_name, COALESCE(floors, 0) AS floors
        FROM jobs
        WHERE project_uuid IN (${projectPlaceholders})
          AND is_active = true
-       GROUP BY project_uuid`,
+       ORDER BY job_name ASC`,
       ...projectUuids
     );
+    const allJobsByProject = new Map<string, { jobUuid: string; jobName: string; floors: number }[]>();
     const jobCountByProject = new Map<string, number>();
-    for (const r of jobCountRows) {
-      jobCountByProject.set(r.project_uuid, Number(r.job_count));
+    for (const r of allJobRows) {
+      if (!allJobsByProject.has(r.project_uuid)) allJobsByProject.set(r.project_uuid, []);
+      allJobsByProject.get(r.project_uuid)!.push({ jobUuid: r.job_uuid, jobName: r.job_name, floors: r.floors });
+    }
+    for (const [uuid, jobs] of allJobsByProject) {
+      jobCountByProject.set(uuid, jobs.length);
     }
 
     // Group rows by project

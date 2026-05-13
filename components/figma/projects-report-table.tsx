@@ -64,6 +64,7 @@ type ProjectData = {
   insiderName: string;
   department: string;
   totalJobsInProject: number;
+  allJobs: { jobUuid: string; jobName: string; floors: number }[];
   cells: CellData[];
 };
 
@@ -502,6 +503,9 @@ export function ProjectsReportTable() {
       setActiveViewUuid(view.uuid);
       setNewViewOpen(false);
       setNewViewName('');
+      // Clear projects so user picks fresh projects for this new view
+      setSelectedProjectUuids(new Set());
+      setReport({ projects: [] });
     } catch { /* ignore */ }
   }
 
@@ -1156,6 +1160,11 @@ export function ProjectsReportTable() {
   function buildPivot(proj: ProjectData, fcFilter: FcFilter) {
     const jobMap = new Map<string, { key: string; label: string; jobUuid: string | null; floors: number }>();
 
+    // First: add ALL registered jobs so grid shows them even without payments
+    for (const job of (proj.allJobs ?? [])) {
+      jobMap.set(job.jobUuid, { key: job.jobUuid, label: job.jobName || '(No Job)', jobUuid: job.jobUuid, floors: job.floors });
+    }
+
     for (const cell of proj.cells) {
       if (fcFilter === 'income' && !cell.financialCodeIsIncome) continue;
       if (fcFilter === 'cost' && cell.financialCodeIsIncome) continue;
@@ -1163,7 +1172,7 @@ export function ProjectsReportTable() {
       if (!jobMap.has(jobKey)) {
         jobMap.set(jobKey, { key: jobKey, label: cell.jobName ?? '(No Job)', jobUuid: cell.jobUuid, floors: cell.jobFloors ?? 0 });
       } else {
-        // take max in case of multiple cells for same job
+        // take max floors in case of multiple cells for same job
         const existing = jobMap.get(jobKey)!;
         existing.floors = Math.max(existing.floors, cell.jobFloors ?? 0);
       }
@@ -1279,53 +1288,38 @@ export function ProjectsReportTable() {
   // ── Grand totals across all selected projects (grouped by currency) ──
 
   const grandTotals = useMemo(() => {
-    if (!report?.projects?.length || activeMetrics.length === 0) return null;
+    if (!report?.projects?.length) return null;
 
-    type FcEntry = { uuid: string; code: string; validation: string; isIncome: boolean; metrics: Record<MetricKey, number> };
-    const byCurrency = new Map<string, Map<string, FcEntry>>();
+    const byCurrency = new Map<string, { projectCount: number; totalJobs: number; totalFcs: Set<string>; paidJobs: Set<string> }>();
 
     for (const proj of report.projects) {
       const currency = projectCurrencies[proj.projectUuid] ?? 'GEL';
-      if (!byCurrency.has(currency)) byCurrency.set(currency, new Map());
-      const fcMap = byCurrency.get(currency)!;
+      if (!byCurrency.has(currency)) byCurrency.set(currency, { projectCount: 0, totalJobs: 0, totalFcs: new Set(), paidJobs: new Set() });
+      const entry = byCurrency.get(currency)!;
+      entry.projectCount++;
 
       const fcFilter = projectFcFilters[proj.projectUuid] ?? 'all';
-      for (const cell of proj.cells) {
-        if (fcFilter === 'income' && !cell.financialCodeIsIncome) continue;
-        if (fcFilter === 'cost' && cell.financialCodeIsIncome) continue;
+      const { jobList, fcList } = buildPivot(proj, fcFilter);
 
-        if (!fcMap.has(cell.financialCodeUuid)) {
-          const emptyMetrics = Object.fromEntries(ALL_METRICS.map(m => [m, 0])) as Record<MetricKey, number>;
-          fcMap.set(cell.financialCodeUuid, {
-            uuid: cell.financialCodeUuid,
-            code: cell.financialCodeCode,
-            validation: cell.financialCodeValidation,
-            isIncome: cell.financialCodeIsIncome,
-            metrics: emptyMetrics,
-          });
-        }
-        const entry = fcMap.get(cell.financialCodeUuid)!;
-        for (const m of activeMetrics) {
-          if (!NON_ADDITIVE_METRICS.has(m)) {
-            entry.metrics[m] += cell[m] as number;
-          }
-        }
+      entry.totalJobs += jobList.filter(j => j.key !== NULL_JOB_KEY).length;
+      for (const fc of fcList) entry.totalFcs.add(fc.uuid);
+
+      // a job is "paid" if it has any cell with accrual or payment
+      for (const job of jobList) {
+        if (job.key === NULL_JOB_KEY) continue;
+        const hasPaid = proj.cells.some(c => c.jobUuid === job.jobUuid && (c.accrual !== 0 || c.payment !== 0));
+        if (hasPaid) entry.paidJobs.add(`${proj.projectUuid}:${job.jobUuid}`);
       }
     }
 
-    return Array.from(byCurrency.entries()).map(([currency, fcMap]) => {
-      const fcList = Array.from(fcMap.values()).sort((a, b) => a.code.localeCompare(b.code));
-      const addMetrics = activeMetrics.filter(m => !NON_ADDITIVE_METRICS.has(m));
-      const metricTotals = addMetrics.reduce((acc, m) => {
-        acc[m] = fcList.reduce((s, fc) => s + fc.metrics[m], 0);
-        return acc;
-      }, {} as Record<MetricKey, number>);
-      const overallTotal = fcList.reduce((s, fc) =>
-        s + addMetrics.reduce((s2, m) => s2 + fc.metrics[m], 0), 0);
-      const projectCount = report.projects.filter(p => (projectCurrencies[p.projectUuid] ?? 'GEL') === currency).length;
-      return { currency, fcList, metricTotals, overallTotal, projectCount };
-    });
-  }, [report, projectCurrencies, projectFcFilters, activeMetrics]);
+    return Array.from(byCurrency.entries()).map(([currency, entry]) => ({
+      currency,
+      projectCount: entry.projectCount,
+      totalJobs: entry.totalJobs,
+      totalFcs: entry.totalFcs.size,
+      paidJobs: entry.paidJobs.size,
+    }));
+  }, [report, projectCurrencies, projectFcFilters, buildPivot]);
 
   // ── XLSX export ──
 
@@ -1908,32 +1902,16 @@ export function ProjectsReportTable() {
       {/* ── Grand Total Summary ── */}
       {grandTotals && grandTotals.length > 0 && (
         <div className="space-y-1">
-          {grandTotals.map(({ currency, fcList, metricTotals, overallTotal, projectCount }) => {
-            const addMetrics = activeMetrics.filter(m => !NON_ADDITIVE_METRICS.has(m));
-            return (
-              <div key={currency} className="border border-gray-300 rounded-lg overflow-hidden">
-                <div className="flex items-center gap-3 px-4 py-2.5 bg-gray-700">
-                  <span className="font-semibold text-sm text-white">
-                    Total · {projectCount} project{projectCount !== 1 ? 's' : ''} · {currency}
-                  </span>
-                  <span className="ml-auto flex items-center gap-4 flex-wrap">
-                    {addMetrics.map(m => {
-                      const v = metricTotals[m] ?? 0;
-                      return v !== 0 ? (
-                        <span key={m} className="text-xs text-gray-300">
-                          <span className="text-gray-400 mr-1">{METRIC_LABELS[m]}:</span>
-                          <span className="text-white font-semibold tabular-nums">{formatMoney(v)}</span>
-                        </span>
-                      ) : null;
-                    })}
-                    {addMetrics.length > 1 && (
-                      <span className="text-xs text-gray-300 border-l border-gray-500 pl-4">
-                        <span className="text-gray-400 mr-1">Grand Total:</span>
-                        <span className="text-white font-bold tabular-nums">{formatMoney(overallTotal)}</span>
-                      </span>
-                    )}
-                  </span>
-                </div>
+          {grandTotals.map(({ currency, projectCount, totalJobs, totalFcs, paidJobs }) => (
+            <div key={currency} className="border border-gray-300 rounded-lg overflow-hidden">
+              <div className="flex items-center gap-3 px-4 py-2.5 bg-gray-700">
+                <span className="font-semibold text-sm text-white">
+                  Total · {projectCount} project{projectCount !== 1 ? 's' : ''} · {currency}
+                </span>
+                <span className="ml-auto text-xs text-gray-300">
+                  {totalFcs} FCs · {paidJobs} / {totalJobs} jobs paid
+                </span>
+              </div>
                 {fcList.length > 0 && addMetrics.length > 0 && (
                   <div className="overflow-x-auto">
                     <table className="border-collapse text-xs w-full">
@@ -1979,10 +1957,8 @@ export function ProjectsReportTable() {
                       </tbody>
                     </table>
                   </div>
-                )}
-              </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
 
