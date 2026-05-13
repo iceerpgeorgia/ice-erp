@@ -1912,51 +1912,6 @@ export function ProjectsReportTable() {
                   {totalFcs} FCs · {paidJobs} / {totalJobs} jobs paid
                 </span>
               </div>
-                {fcList.length > 0 && addMetrics.length > 0 && (
-                  <div className="overflow-x-auto">
-                    <table className="border-collapse text-xs w-full">
-                      <thead>
-                        <tr className="bg-gray-600">
-                          {fcList.flatMap((fc) =>
-                            addMetrics.map((m, mi) => {
-                              const isLast = mi === addMetrics.length - 1;
-                              return (
-                                <th
-                                  key={`${fc.uuid}:${m}`}
-                                  className={`px-3 py-1.5 text-center font-medium text-gray-200 whitespace-nowrap ${isLast ? 'border-r border-gray-500' : 'border-r border-gray-600'}`}
-                                >
-                                  {fcFullMode && fc.validation ? fc.validation : fc.code}
-                                  {addMetrics.length > 1 && <span className="ml-1 text-gray-400 font-normal">/ {METRIC_LABELS[m]}</span>}
-                                </th>
-                              );
-                            })
-                          )}
-                          <th className="px-3 py-1.5 text-right font-semibold text-white whitespace-nowrap">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="bg-gray-100">
-                          {fcList.flatMap((fc) =>
-                            addMetrics.map((m, mi) => {
-                              const isLast = mi === addMetrics.length - 1;
-                              const v = fc.metrics[m];
-                              return (
-                                <td
-                                  key={`${fc.uuid}:${m}`}
-                                  className={`px-3 py-2 text-right tabular-nums font-semibold ${isLast ? 'border-r border-gray-200' : 'border-r border-gray-100'}`}
-                                >
-                                  {v !== 0 ? <span className="text-gray-800">{formatMoney(v)}</span> : <span className="text-gray-300">—</span>}
-                                </td>
-                              );
-                            })
-                          )}
-                          <td className="px-3 py-2 text-right tabular-nums font-bold text-gray-900 bg-gray-200">
-                            {formatMoney(overallTotal)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
             </div>
           ))}
         </div>
