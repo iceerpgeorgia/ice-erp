@@ -318,6 +318,9 @@ export function ProjectsReportTable() {
   const [isProjBulkSubmitting, setIsProjBulkSubmitting] = useState(false);
   const [fcBulkSums, setFcBulkSums] = useState<Map<string, { accrual: number; order: number }>>(new Map());
   const [projBulkSums, setProjBulkSums] = useState<Map<string, { accrual: number; order: number }>>(new Map());
+  const [bulkDragCopy, setBulkDragCopy] = useState<{
+    table: 'fc' | 'proj'; col: 'accrual' | 'order'; srcRow: number; dstRow: number; value: string;
+  } | null>(null);
 
   // ── Ledger sums for bulk dialogs ──
   useEffect(() => {
@@ -351,6 +354,24 @@ export function ProjectsReportTable() {
       })
       .catch(() => setProjBulkSums(new Map()));
   }, [projBulkOpen, projBulkCounteragentUuid, projBulkCurrencyUuid, projBulkIncomeTax, projBulkFcUuid, projBulkProjectUuid]);
+
+  // ── Drag-copy apply on mouse release ──
+  useEffect(() => {
+    const handleMouseUp = () => {
+      if (!bulkDragCopy) return;
+      const { table, col, srcRow, dstRow, value } = bulkDragCopy;
+      const lo = Math.min(srcRow, dstRow);
+      const hi = Math.max(srcRow, dstRow);
+      if (table === 'fc') {
+        setFcBulkJobs(prev => prev.map((r, i) => (i >= lo && i <= hi) ? { ...r, [col]: value } : r));
+      } else {
+        setProjBulkRows(prev => prev.map((r, i) => (i >= lo && i <= hi) ? { ...r, [col]: value } : r));
+      }
+      setBulkDragCopy(null);
+    };
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, [bulkDragCopy]);
 
   // ── Restore preferences ──
 
@@ -2492,28 +2513,47 @@ export function ProjectsReportTable() {
                     </tr>
                   </thead>
                   <tbody>
-                    {fcBulkJobs.map((row, i) => (
-                      <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}>
+                    {fcBulkJobs.map((row, i) => {
+                      const isDragHighlighted = bulkDragCopy?.table === 'fc' && i >= Math.min(bulkDragCopy.srcRow, bulkDragCopy.dstRow) && i <= Math.max(bulkDragCopy.srcRow, bulkDragCopy.dstRow);
+                      return (
+                      <tr key={i}
+                        className={isDragHighlighted ? 'bg-blue-50' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}
+                        onMouseEnter={() => { if (bulkDragCopy?.table === 'fc') setBulkDragCopy(prev => prev ? { ...prev, dstRow: i } : null); }}
+                      >
                         <td className="px-3 py-1.5 text-xs text-gray-700 font-medium">{row.jobLabel}</td>
                         <td className="px-2 py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={row.accrual}
-                            onChange={(e) => setFcBulkJobs(prev => prev.map((r, j) => j === i ? { ...r, accrual: e.target.value } : r))}
-                            placeholder="0.00"
-                            className="h-7 text-xs text-center"
-                          />
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={row.accrual}
+                              onChange={(e) => setFcBulkJobs(prev => prev.map((r, j) => j === i ? { ...r, accrual: e.target.value } : r))}
+                              placeholder="0.00"
+                              className="h-7 text-xs text-center"
+                            />
+                            <div
+                              className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-blue-400 hover:bg-blue-600 cursor-crosshair select-none"
+                              title="Drag to copy value"
+                              onMouseDown={(e) => { e.preventDefault(); setBulkDragCopy({ table: 'fc', col: 'accrual', srcRow: i, dstRow: i, value: row.accrual }); }}
+                            />
+                          </div>
                         </td>
                         <td className="px-2 py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={row.order}
-                            onChange={(e) => setFcBulkJobs(prev => prev.map((r, j) => j === i ? { ...r, order: e.target.value } : r))}
-                            placeholder="0.00"
-                            className="h-7 text-xs text-center"
-                          />
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={row.order}
+                              onChange={(e) => setFcBulkJobs(prev => prev.map((r, j) => j === i ? { ...r, order: e.target.value } : r))}
+                              placeholder="0.00"
+                              className="h-7 text-xs text-center"
+                            />
+                            <div
+                              className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-blue-400 hover:bg-blue-600 cursor-crosshair select-none"
+                              title="Drag to copy value"
+                              onMouseDown={(e) => { e.preventDefault(); setBulkDragCopy({ table: 'fc', col: 'order', srcRow: i, dstRow: i, value: row.order }); }}
+                            />
+                          </div>
                         </td>
                         <td className="px-2 py-1">
                           <Input
@@ -2544,7 +2584,8 @@ export function ProjectsReportTable() {
                           })()}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2650,22 +2691,40 @@ export function ProjectsReportTable() {
                           p.financialCode === fcValidation
                         ) || null;
                       })();
+                      const isDragHighlightedP = bulkDragCopy?.table === 'proj' && i >= Math.min(bulkDragCopy.srcRow, bulkDragCopy.dstRow) && i <= Math.max(bulkDragCopy.srcRow, bulkDragCopy.dstRow);
                       return (
-                        <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}>
+                        <tr key={i}
+                          className={isDragHighlightedP ? 'bg-blue-50' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}
+                          onMouseEnter={() => { if (bulkDragCopy?.table === 'proj') setBulkDragCopy(prev => prev ? { ...prev, dstRow: i } : null); }}
+                        >
                           <td className="px-3 py-1.5 text-xs text-gray-700 font-medium">{row.jobLabel}</td>
                           <td className="px-2 py-1">
-                            <Input
-                              type="number" step="0.01" value={row.accrual}
-                              onChange={(e) => setProjBulkRows(prev => prev.map((r, j) => j === i ? { ...r, accrual: e.target.value } : r))}
-                              placeholder="0.00" className="h-7 text-xs text-center"
-                            />
+                            <div className="relative">
+                              <Input
+                                type="number" step="0.01" value={row.accrual}
+                                onChange={(e) => setProjBulkRows(prev => prev.map((r, j) => j === i ? { ...r, accrual: e.target.value } : r))}
+                                placeholder="0.00" className="h-7 text-xs text-center"
+                              />
+                              <div
+                                className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-blue-400 hover:bg-blue-600 cursor-crosshair select-none"
+                                title="Drag to copy value"
+                                onMouseDown={(e) => { e.preventDefault(); setBulkDragCopy({ table: 'proj', col: 'accrual', srcRow: i, dstRow: i, value: row.accrual }); }}
+                              />
+                            </div>
                           </td>
                           <td className="px-2 py-1">
-                            <Input
-                              type="number" step="0.01" value={row.order}
-                              onChange={(e) => setProjBulkRows(prev => prev.map((r, j) => j === i ? { ...r, order: e.target.value } : r))}
-                              placeholder="0.00" className="h-7 text-xs text-center"
-                            />
+                            <div className="relative">
+                              <Input
+                                type="number" step="0.01" value={row.order}
+                                onChange={(e) => setProjBulkRows(prev => prev.map((r, j) => j === i ? { ...r, order: e.target.value } : r))}
+                                placeholder="0.00" className="h-7 text-xs text-center"
+                              />
+                              <div
+                                className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-blue-400 hover:bg-blue-600 cursor-crosshair select-none"
+                                title="Drag to copy value"
+                                onMouseDown={(e) => { e.preventDefault(); setBulkDragCopy({ table: 'proj', col: 'order', srcRow: i, dstRow: i, value: row.order }); }}
+                              />
+                            </div>
                           </td>
                           <td className="px-2 py-1">
                             <Input
