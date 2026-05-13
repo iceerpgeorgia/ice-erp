@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Download, Filter, Plus, RefreshCw, Search, Settings, X } from 'lucide-react';
+import { BookmarkPlus, ChevronDown, ChevronRight, Download, Filter, Pencil, Plus, RefreshCw, Search, Settings, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
@@ -218,6 +218,17 @@ export function ProjectsReportTable() {
   const dragUuid = useRef<string | null>(null);
   const dragOverUuid = useRef<string | null>(null);
 
+  // ── Views state ──
+  const [views, setViews] = useState<Array<{ uuid: string; name: string; config: Record<string, unknown>; isDefault: boolean }>>([]);
+  const [activeViewUuid, setActiveViewUuid] = useState<string | null>(null);
+  const [viewsReady, setViewsReady] = useState(false);
+  const isLoadingViewRef = useRef(false);
+  const [renamingViewUuid, setRenamingViewUuid] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [newViewName, setNewViewName] = useState('');
+  const [newViewOpen, setNewViewOpen] = useState(false);
+  const saveViewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // ── Add Ledger dialog state ──
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -381,6 +392,154 @@ export function ProjectsReportTable() {
   useEffect(() => { localStorage.setItem(STORAGE_KEY_FC_FULL, String(fcFullMode)); }, [fcFullMode]);
   useEffect(() => { localStorage.setItem(STORAGE_KEY_FC_DISPLAY, fcDisplayMode); }, [fcDisplayMode]);
   useEffect(() => { localStorage.setItem(STORAGE_KEY_DEFAULT_CURRENCY, defaultCurrency); }, [defaultCurrency]);
+
+  // ── View config helpers ──
+  const getViewConfig = (): Record<string, unknown> => ({
+    selectedProjectUuids: Array.from(selectedProjectUuids),
+    maxDate,
+    selectedMetrics: Array.from(selectedMetrics),
+    projectCurrencies,
+    projectFcFilters,
+    collapsedProjects: Array.from(collapsedProjects),
+    colWidths,
+    projectOrder,
+    fcFullMode,
+    fcDisplayMode,
+    defaultCurrency,
+    selectedInsiderUuids,
+  });
+
+  const applyViewConfig = (config: Record<string, unknown>) => {
+    isLoadingViewRef.current = true;
+    const c = config;
+    if (Array.isArray(c.selectedProjectUuids)) setSelectedProjectUuids(new Set(c.selectedProjectUuids as string[]));
+    if (typeof c.maxDate === 'string') setMaxDate(c.maxDate as string);
+    if (Array.isArray(c.selectedMetrics) && c.selectedMetrics.length > 0)
+      setSelectedMetrics(new Set((c.selectedMetrics as unknown[]).filter((m): m is MetricKey => typeof m === 'string' && m in METRIC_LABELS)));
+    if (c.projectCurrencies && typeof c.projectCurrencies === 'object') setProjectCurrencies(c.projectCurrencies as Record<string, 'USD' | 'GEL' | 'EUR'>);
+    if (c.projectFcFilters && typeof c.projectFcFilters === 'object') setProjectFcFilters(c.projectFcFilters as Record<string, FcFilter>);
+    if (Array.isArray(c.collapsedProjects)) setCollapsedProjects(new Set(c.collapsedProjects as string[]));
+    if (c.colWidths && typeof c.colWidths === 'object') setColWidths(c.colWidths as Record<string, number>);
+    if (Array.isArray(c.projectOrder)) setProjectOrder(c.projectOrder as string[]);
+    if (typeof c.fcFullMode === 'boolean') setFcFullMode(c.fcFullMode as boolean);
+    if (c.fcDisplayMode === 'global' || c.fcDisplayMode === 'perProject') setFcDisplayMode(c.fcDisplayMode as 'global' | 'perProject');
+    if (c.defaultCurrency === 'GEL' || c.defaultCurrency === 'USD' || c.defaultCurrency === 'EUR')
+      setDefaultCurrency(c.defaultCurrency as 'GEL' | 'USD' | 'EUR');
+    if (Array.isArray(c.selectedInsiderUuids)) setSelectedInsiderUuids(c.selectedInsiderUuids as string[]);
+    setTimeout(() => { isLoadingViewRef.current = false; }, 300);
+  };
+
+  // Load views from DB on mount (after localStorage restore)
+  useEffect(() => {
+    let cancelled = false;
+    async function loadViews() {
+      try {
+        const res = await fetch('/api/project-report-views');
+        if (!res.ok || cancelled) return;
+        const data: Array<{ uuid: string; name: string; config: Record<string, unknown>; isDefault: boolean }> = await res.json();
+        if (cancelled) return;
+        setViews(data);
+        const defaultView = data.find((v) => v.isDefault) ?? data[0];
+        if (defaultView) {
+          setActiveViewUuid(defaultView.uuid);
+          applyViewConfig(defaultView.config);
+        }
+      } catch { /* ignore */ } finally {
+        if (!cancelled) setViewsReady(true);
+      }
+    }
+    loadViews();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-save active view to DB (debounced 800 ms) whenever config state changes
+  useEffect(() => {
+    if (!viewsReady || !activeViewUuid || isLoadingViewRef.current) return;
+    if (saveViewTimerRef.current) clearTimeout(saveViewTimerRef.current);
+    const config = {
+      selectedProjectUuids: Array.from(selectedProjectUuids),
+      maxDate,
+      selectedMetrics: Array.from(selectedMetrics),
+      projectCurrencies,
+      projectFcFilters,
+      collapsedProjects: Array.from(collapsedProjects),
+      colWidths,
+      projectOrder,
+      fcFullMode,
+      fcDisplayMode,
+      defaultCurrency,
+      selectedInsiderUuids,
+    };
+    saveViewTimerRef.current = setTimeout(() => {
+      fetch(`/api/project-report-views/${activeViewUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config }),
+      }).then((r) => {
+        if (r.ok) setViews((prev) => prev.map((v) => v.uuid === activeViewUuid ? { ...v, config } : v));
+      }).catch(() => {});
+    }, 800);
+    return () => { if (saveViewTimerRef.current) clearTimeout(saveViewTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProjectUuids, maxDate, selectedMetrics, projectCurrencies, projectFcFilters,
+      collapsedProjects, colWidths, projectOrder, fcFullMode, fcDisplayMode, defaultCurrency,
+      selectedInsiderUuids, viewsReady, activeViewUuid]);
+
+  // View management handlers
+  async function handleCreateView() {
+    const name = newViewName.trim() || `View ${views.length + 1}`;
+    const config = getViewConfig();
+    try {
+      const res = await fetch('/api/project-report-views', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, config }),
+      });
+      if (!res.ok) return;
+      const view: { uuid: string; name: string; config: Record<string, unknown>; isDefault: boolean } = await res.json();
+      setViews((prev) => [...prev, view]);
+      setActiveViewUuid(view.uuid);
+      setNewViewOpen(false);
+      setNewViewName('');
+    } catch { /* ignore */ }
+  }
+
+  async function handleDeleteView(uuid: string) {
+    if (views.length <= 1) { alert('Cannot delete the last view'); return; }
+    if (!confirm('Delete this view?')) return;
+    try {
+      await fetch(`/api/project-report-views/${uuid}`, { method: 'DELETE' });
+      setViews((prev) => prev.filter((v) => v.uuid !== uuid));
+      if (activeViewUuid === uuid) {
+        const remaining = views.filter((v) => v.uuid !== uuid);
+        const next = remaining[0];
+        if (next) { setActiveViewUuid(next.uuid); applyViewConfig(next.config); }
+      }
+    } catch { /* ignore */ }
+  }
+
+  async function handleRenameView(uuid: string, name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    try {
+      const res = await fetch(`/api/project-report-views/${uuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (res.ok) setViews((prev) => prev.map((v) => v.uuid === uuid ? { ...v, name: trimmed } : v));
+    } catch { /* ignore */ }
+    setRenamingViewUuid(null);
+  }
+
+  function handleSwitchView(uuid: string) {
+    if (uuid === activeViewUuid) return;
+    const view = views.find((v) => v.uuid === uuid);
+    if (!view) return;
+    setActiveViewUuid(uuid);
+    applyViewConfig(view.config);
+  }
 
   // Apply defaultCurrency to newly-added projects (those without an explicit currency set)
   useEffect(() => {
@@ -1207,7 +1366,130 @@ export function ProjectsReportTable() {
           {fcTooltip.text}
         </div>
       )}
-      {/* ── Toolbar ── */}
+      {/* ── Views bar ── */}
+      {views.length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap min-h-[32px]">
+          <span className="text-xs text-gray-400 font-medium shrink-0">Views:</span>
+          {views.map((view) => {
+            const isActive = view.uuid === activeViewUuid;
+            const isRenaming = renamingViewUuid === view.uuid;
+            return (
+              <div key={view.uuid} className={`flex items-center gap-0.5 rounded-full border text-xs font-medium px-2.5 py-0.5 cursor-pointer select-none ${isActive ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50'}`}>
+                {isRenaming ? (
+                  <input
+                    autoFocus
+                    className="bg-transparent outline-none w-24 text-xs"
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onBlur={() => handleRenameView(view.uuid, renameValue)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleRenameView(view.uuid, renameValue);
+                      if (e.key === 'Escape') setRenamingViewUuid(null);
+                    }}
+                  />
+                ) : (
+                  <span onClick={() => handleSwitchView(view.uuid)}>{view.name}</span>
+                )}
+                {isActive && !isRenaming && (
+                  <button
+                    className="ml-1 opacity-70 hover:opacity-100"
+                    title="Rename view"
+                    onClick={(e) => { e.stopPropagation(); setRenamingViewUuid(view.uuid); setRenameValue(view.name); }}
+                  >
+                    <Pencil className="h-2.5 w-2.5" />
+                  </button>
+                )}
+                {views.length > 1 && isActive && (
+                  <button
+                    className="ml-0.5 opacity-70 hover:opacity-100"
+                    title="Delete view"
+                    onClick={(e) => { e.stopPropagation(); handleDeleteView(view.uuid); }}
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {newViewOpen ? (
+            <div className="flex items-center gap-1">
+              <input
+                autoFocus
+                className="h-6 px-2 text-xs border border-gray-300 rounded-full outline-none focus:border-blue-400 w-32"
+                placeholder="View name…"
+                value={newViewName}
+                onChange={(e) => setNewViewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreateView();
+                  if (e.key === 'Escape') { setNewViewOpen(false); setNewViewName(''); }
+                }}
+              />
+              <button
+                className="h-6 px-2 text-xs bg-blue-600 text-white rounded-full hover:bg-blue-700"
+                onClick={handleCreateView}
+              >
+                Save
+              </button>
+              <button
+                className="h-6 px-2 text-xs text-gray-500 hover:text-gray-700"
+                onClick={() => { setNewViewOpen(false); setNewViewName(''); }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              className="flex items-center gap-0.5 text-xs text-gray-500 hover:text-blue-600 px-1"
+              title="Save current state as a new view"
+              onClick={() => setNewViewOpen(true)}
+            >
+              <BookmarkPlus className="h-3.5 w-3.5" />
+              <span>New view</span>
+            </button>
+          )}
+        </div>
+      )}
+      {views.length === 0 && viewsReady && (
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-gray-400">No saved views.</span>
+          {newViewOpen ? (
+            <div className="flex items-center gap-1">
+              <input
+                autoFocus
+                className="h-6 px-2 text-xs border border-gray-300 rounded-full outline-none focus:border-blue-400 w-32"
+                placeholder="View name…"
+                value={newViewName}
+                onChange={(e) => setNewViewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreateView();
+                  if (e.key === 'Escape') { setNewViewOpen(false); setNewViewName(''); }
+                }}
+              />
+              <button
+                className="h-6 px-2 text-xs bg-blue-600 text-white rounded-full hover:bg-blue-700"
+                onClick={handleCreateView}
+              >
+                Save
+              </button>
+              <button
+                className="h-6 px-2 text-xs text-gray-500 hover:text-gray-700"
+                onClick={() => { setNewViewOpen(false); setNewViewName(''); }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              className="flex items-center gap-0.5 text-xs text-blue-600 hover:text-blue-700"
+              onClick={() => setNewViewOpen(true)}
+            >
+              <BookmarkPlus className="h-3.5 w-3.5" />
+              <span>Save as view</span>
+            </button>
+          )}
+        </div>
+      )}
+            {/* ── Toolbar ── */}
       <div className="sticky top-0 z-40 bg-white border-b border-gray-200 -mx-4 px-4 py-2 flex flex-wrap items-start gap-3">
 
         {/* Project selector */}

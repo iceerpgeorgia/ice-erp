@@ -78,6 +78,22 @@ model User {
   Session               Session[]
   UserPermission        UserPermission[]
   PaymentNotificationToken PaymentNotificationToken[]
+  ProjectReportView     ProjectReportView[]
+}
+
+model ProjectReportView {
+  id        BigInt   @id @default(autoincrement())
+  uuid      String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id")
+  name      String   @db.VarChar(100)
+  config    Json
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("project_report_views")
 }
 
 model Module {
