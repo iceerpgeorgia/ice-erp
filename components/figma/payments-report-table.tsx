@@ -263,7 +263,7 @@ export function PaymentsReportTable() {
     }
   }, []);
 
-  // Conditions filter state
+  // Conditions filter state — single-select "view"
   const allConditions = [
     'ALL',
     'Confirmed',
@@ -287,32 +287,8 @@ export function PaymentsReportTable() {
     'Current Due>0',
     'Current Due<0',
     'Current Due=0'
-  ] as const;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const sanitizeConditions = useCallback((values: string[]) => {
-    const allowed = values.filter((value) => allConditions.includes(value as (typeof allConditions)[number]));
-    if (allowed.length === 0) {
-      return new Set(allConditions);
-    }
-    return new Set(allowed);
-  }, [allConditions]);
-  const [selectedConditions, setSelectedConditions] = useState<Set<string>>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('paymentsReportConditions');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            return sanitizeConditions(parsed);
-          }
-          return new Set(allConditions);
-        } catch {
-          return new Set(allConditions);
-        }
-      }
-    }
-    return new Set(allConditions);
-  });
+  ];
+  const [selectedCondition, setSelectedCondition] = useState<string>('ALL');
 
   // Add Entry form states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -623,12 +599,12 @@ export function PaymentsReportTable() {
     }
   }, [dateFilterMode, customDate, isInitialized]);
 
-  // Save conditions filter to localStorage
+  // Save active condition (view) to localStorage
   useEffect(() => {
     if (isInitialized && typeof window !== 'undefined') {
-      localStorage.setItem('paymentsReportConditions', JSON.stringify(Array.from(selectedConditions)));
+      localStorage.setItem('paymentsReportConditions', selectedCondition);
     }
-  }, [selectedConditions, isInitialized]);
+  }, [selectedCondition, isInitialized]);
 
   // Column resize handlers - optimized to avoid re-renders during drag
   useEffect(() => {
@@ -1218,85 +1194,36 @@ export function PaymentsReportTable() {
 
   const normalizeUserEmail = (value: string) => value.trim().toLowerCase();
 
-  // Pre-filter data by conditions before passing to hook
+  // Pre-filter data by active condition (view) before passing to hook
   const conditionsFilteredData = useMemo(() => {
-    if (selectedConditions.size === 0 || selectedConditions.has('ALL')) return data;
-
+    if (!selectedCondition || selectedCondition === 'ALL') return data;
     return data.filter(row => {
-      for (const condition of selectedConditions) {
-        let matches = false;
-
-        switch (condition) {
-          case 'Accrual>0':
-            matches = row.accrual > 0;
-            break;
-          case 'Accrual<0':
-            matches = row.accrual < 0;
-            break;
-          case 'Accrual=0':
-            matches = row.accrual === 0;
-            break;
-          case 'Order>0':
-            matches = row.order > 0;
-            break;
-          case 'Order<0':
-            matches = row.order < 0;
-            break;
-          case 'Order=0':
-            matches = row.order === 0;
-            break;
-          case 'Paid>0':
-            matches = row.payment > 0;
-            break;
-          case 'Paid<0':
-            matches = row.payment < 0;
-            break;
-          case 'Paid=0':
-            matches = row.payment === 0;
-            break;
-          case 'Due>0':
-            matches = row.due > 0;
-            break;
-          case 'Due<0':
-            matches = row.due < 0;
-            break;
-          case 'Due=0':
-            matches = row.due === 0;
-            break;
-          case 'Balance>0':
-            matches = row.balance > 0;
-            break;
-          case 'Balance<0':
-            matches = row.balance < 0;
-            break;
-          case 'Balance=0':
-            matches = row.balance === 0;
-            break;
-          case 'Current Due>0':
-            matches = row.due > 0;
-            break;
-          case 'Current Due<0':
-            matches = row.due < 0;
-            break;
-          case 'Current Due=0':
-            matches = row.due === 0;
-            break;
-          case 'Confirmed':
-            matches = Boolean(row.confirmed);
-            break;
-          case 'Confirmed & Due>0':
-            matches = Boolean(row.confirmed) && row.due > 0;
-            break;
-          case 'Unconfirmed & Due>0':
-            matches = !row.confirmed && row.due > 0;
-            break;
-        }
-
-        if (matches) return true;
+      switch (selectedCondition) {
+        case 'Accrual>0': return row.accrual > 0;
+        case 'Accrual<0': return row.accrual < 0;
+        case 'Accrual=0': return row.accrual === 0;
+        case 'Order>0': return row.order > 0;
+        case 'Order<0': return row.order < 0;
+        case 'Order=0': return row.order === 0;
+        case 'Paid>0': return row.payment > 0;
+        case 'Paid<0': return row.payment < 0;
+        case 'Paid=0': return row.payment === 0;
+        case 'Due>0': return row.due > 0;
+        case 'Due<0': return row.due < 0;
+        case 'Due=0': return row.due === 0;
+        case 'Balance>0': return row.balance > 0;
+        case 'Balance<0': return row.balance < 0;
+        case 'Balance=0': return row.balance === 0;
+        case 'Current Due>0': return row.due > 0;
+        case 'Current Due<0': return row.due < 0;
+        case 'Current Due=0': return row.due === 0;
+        case 'Confirmed': return Boolean(row.confirmed);
+        case 'Confirmed & Due>0': return Boolean(row.confirmed) && row.due > 0;
+        case 'Unconfirmed & Due>0': return !row.confirmed && row.due > 0;
+        default: return true;
       }
-      return false;
     });
-  }, [data, selectedConditions]);
+  }, [data, selectedCondition]);
 
   // Inject aggregated parent rows for bundle payments
   const dataWithBundleAggregates = useMemo(() => {
@@ -3293,63 +3220,29 @@ export function PaymentsReportTable() {
               </>
             )}
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Filter className="w-4 h-4" />
-                  Conditions
-                  {!selectedConditions.has('ALL') && (
-                    <Badge variant="secondary" className="ml-1 h-4 px-1 text-xs">
-                      {selectedConditions.size}
-                    </Badge>
-                  )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant={selectedCondition !== 'ALL' ? 'default' : 'outline'}
+                  size="sm"
+                  className="gap-2"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                  {selectedCondition === 'ALL' ? 'View' : selectedCondition}
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 max-h-[500px] overflow-y-auto">
-                <div className="space-y-3">
-                  <h4 className="font-medium text-sm">Filter by Conditions</h4>
-                  
-                  <div className="space-y-2">
-                    {allConditions.map(condition => (
-                      <div key={condition} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`condition-${condition}`}
-                          checked={selectedConditions.has(condition)}
-                          onCheckedChange={(checked) => {
-                            setSelectedConditions(prev => {
-                              const next = new Set(prev);
-                              if (checked) {
-                                next.add(condition);
-                                // If ALL is selected, select all conditions
-                                if (condition === 'ALL') {
-                                  allConditions.forEach(c => next.add(c));
-                                }
-                              } else {
-                                next.delete(condition);
-                                // If any condition is unselected, unselect ALL
-                                if (condition !== 'ALL') {
-                                  next.delete('ALL');
-                                } else {
-                                  // If ALL is unselected, unselect everything
-                                  next.clear();
-                                }
-                              }
-                              return next;
-                            });
-                          }}
-                        />
-                        <label 
-                          htmlFor={`condition-${condition}`} 
-                          className="text-sm cursor-pointer flex-1"
-                        >
-                          {condition}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="max-h-[400px] overflow-y-auto">
+                {allConditions.map(condition => (
+                  <DropdownMenuItem
+                    key={condition}
+                    onClick={() => setSelectedCondition(condition)}
+                    className={selectedCondition === condition ? 'font-medium bg-accent' : ''}
+                  >
+                    {condition}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <Popover>
               <PopoverTrigger asChild>
