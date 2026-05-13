@@ -316,6 +316,41 @@ export function ProjectsReportTable() {
     accrual: string; order: string; date: string;
   }>>([]);
   const [isProjBulkSubmitting, setIsProjBulkSubmitting] = useState(false);
+  const [fcBulkSums, setFcBulkSums] = useState<Map<string, { accrual: number; order: number }>>(new Map());
+  const [projBulkSums, setProjBulkSums] = useState<Map<string, { accrual: number; order: number }>>(new Map());
+
+  // ── Ledger sums for bulk dialogs ──
+  useEffect(() => {
+    if (!fcBulkOpen || !fcBulkCounteragentUuid || !fcBulkCurrencyUuid || !fcBulkProjectUuid || !fcBulkFcUuid) {
+      setFcBulkSums(new Map());
+      return;
+    }
+    const params = new URLSearchParams({ projectUuid: fcBulkProjectUuid, counteragentUuid: fcBulkCounteragentUuid, financialCodeUuid: fcBulkFcUuid, currencyUuid: fcBulkCurrencyUuid, incomeTax: String(fcBulkIncomeTax) });
+    fetch(`/api/payments-ledger/sums?${params}`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: Array<{ jobUuid: string | null; accrualSum: number; orderSum: number }>) => {
+        const m = new Map<string, { accrual: number; order: number }>();
+        for (const row of data) m.set(row.jobUuid ?? 'null', { accrual: row.accrualSum, order: row.orderSum });
+        setFcBulkSums(m);
+      })
+      .catch(() => setFcBulkSums(new Map()));
+  }, [fcBulkOpen, fcBulkCounteragentUuid, fcBulkCurrencyUuid, fcBulkIncomeTax, fcBulkProjectUuid, fcBulkFcUuid]);
+
+  useEffect(() => {
+    if (!projBulkOpen || !projBulkCounteragentUuid || !projBulkCurrencyUuid || !projBulkFcUuid || !projBulkProjectUuid) {
+      setProjBulkSums(new Map());
+      return;
+    }
+    const params = new URLSearchParams({ projectUuid: projBulkProjectUuid, counteragentUuid: projBulkCounteragentUuid, financialCodeUuid: projBulkFcUuid, currencyUuid: projBulkCurrencyUuid, incomeTax: String(projBulkIncomeTax) });
+    fetch(`/api/payments-ledger/sums?${params}`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: Array<{ jobUuid: string | null; accrualSum: number; orderSum: number }>) => {
+        const m = new Map<string, { accrual: number; order: number }>();
+        for (const row of data) m.set(row.jobUuid ?? 'null', { accrual: row.accrualSum, order: row.orderSum });
+        setProjBulkSums(m);
+      })
+      .catch(() => setProjBulkSums(new Map()));
+  }, [projBulkOpen, projBulkCounteragentUuid, projBulkCurrencyUuid, projBulkIncomeTax, projBulkFcUuid, projBulkProjectUuid]);
 
   // ── Restore preferences ──
 
@@ -2453,6 +2488,7 @@ export function ProjectsReportTable() {
                       <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-28">Accrual</th>
                       <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-28">Order</th>
                       <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-36">Date</th>
+                      <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-28">In Ledger</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2493,6 +2529,19 @@ export function ProjectsReportTable() {
                             maxLength={10}
                             className="h-7 text-xs text-center"
                           />
+                        </td>
+                        <td className="px-2 py-1.5 text-center">
+                          {(() => {
+                            const selReady = !!(fcBulkCounteragentUuid && fcBulkCurrencyUuid);
+                            const s = fcBulkSums.get(row.jobUuid ?? 'null');
+                            if (!s || (s.accrual === 0 && s.order === 0)) return selReady ? <span className="text-[10px] text-gray-300">—</span> : null;
+                            return (
+                              <div className="text-[10px] font-mono leading-tight space-y-0.5">
+                                {s.accrual !== 0 && <div className="text-blue-700 font-semibold">{formatMoney(s.accrual)}</div>}
+                                {s.order !== 0 && <div className="text-gray-500">ord: {formatMoney(s.order)}</div>}
+                              </div>
+                            );
+                          })()}
                         </td>
                       </tr>
                     ))}
@@ -2582,7 +2631,7 @@ export function ProjectsReportTable() {
                       <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-24">Accrual</th>
                       <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-24">Order</th>
                       <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-28">Date</th>
-                      <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-32">Existing Payment</th>
+                      <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-32">In Ledger</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2630,17 +2679,18 @@ export function ProjectsReportTable() {
                               placeholder="dd.mm.yyyy" maxLength={10} className="h-7 text-xs text-center"
                             />
                           </td>
-                          <td className="px-2 py-1 text-center">
-                            {existingPayment ? (
-                              <span
-                                className="inline-block px-1.5 py-0.5 bg-amber-50 border border-amber-200 text-amber-800 text-[10px] rounded font-mono cursor-default"
-                                title={`Existing payment: ${existingPayment.counteragentName} | ${existingPayment.currencyCode} | Income Tax: ${existingPayment.incomeTax ? 'Yes' : 'No'} | FC: ${existingPayment.financialCode}`}
-                              >
-                                {existingPayment.paymentId}
-                              </span>
-                            ) : projBulkCounteragentUuid && projBulkCurrencyUuid && projBulkFcUuid ? (
-                              <span className="text-[10px] text-gray-300">none</span>
-                            ) : null}
+                          <td className="px-2 py-1.5 text-center">
+                            {(() => {
+                              const selReady = !!(projBulkCounteragentUuid && projBulkCurrencyUuid && projBulkFcUuid);
+                              const sm = projBulkSums.get(row.jobUuid ?? 'null');
+                              if (!sm || (sm.accrual === 0 && sm.order === 0)) return selReady ? <span className="text-[10px] text-gray-300">—</span> : null;
+                              return (
+                                <div className="text-[10px] font-mono leading-tight space-y-0.5">
+                                  {sm.accrual !== 0 && <div className="text-blue-700 font-semibold">{formatMoney(sm.accrual)}</div>}
+                                  {sm.order !== 0 && <div className="text-gray-500">ord: {formatMoney(sm.order)}</div>}
+                                </div>
+                              );
+                            })()}
                           </td>
                         </tr>
                       );
