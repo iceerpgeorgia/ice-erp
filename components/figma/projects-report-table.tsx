@@ -59,9 +59,6 @@ type CellData = {
   lastMonthOrderTax: number;
   paymentTax: number;
   pensionOnTax: boolean;
-  waybillSum: number;
-  pairedFcCode: string | null;
-  pairedFcValidation: string | null;
 };
 
 type ProjectData = {
@@ -75,6 +72,10 @@ type ProjectData = {
   department: string;
   totalJobsInProject: number;
   allJobs: { jobUuid: string; jobName: string; floors: number }[];
+  waybillSum: number;
+  projectFcUuid: string | null;
+  waybillPairedFcCode: string | null;
+  waybillPairedFcValidation: string | null;
   cells: CellData[];
 };
 
@@ -1315,12 +1316,18 @@ export function ProjectsReportTable() {
         return true;
       })
       .sort((a, b) => a.code.localeCompare(b.code));
-    // Build waybillFcMap directly from proj.cells (more reliable than iterating cellMap)
-    // Maps income FC uuid → paired cost FC code label (e.g. '2.1.1.6')
+    // Build waybillFcMap from project-level waybill data (not per-cell).
+    // The waybill is associated with the project's income FC (projects.financial_code_uuid).
+    // Fallback: if project FC isn't a payment column, use the first income FC in fcList.
     const waybillFcMap = new Map<string, string>();
-    for (const cell of proj.cells) {
-      if (cell.waybillSum > 0 && cell.pairedFcCode) {
-        waybillFcMap.set(cell.financialCodeUuid, cell.pairedFcCode);
+    if (proj.waybillSum > 0 && proj.waybillPairedFcCode) {
+      const projectFcInList = proj.projectFcUuid ? fcList.find(fc => fc.uuid === proj.projectFcUuid) : null;
+      if (projectFcInList) {
+        waybillFcMap.set(projectFcInList.uuid, proj.waybillPairedFcCode);
+      } else {
+        // Fallback: first income FC column (for projects with sub-code payments like 1.1.1.1)
+        const firstIncomeFc = fcList.find(fc => fc.isIncome);
+        if (firstIncomeFc) waybillFcMap.set(firstIncomeFc.uuid, proj.waybillPairedFcCode);
       }
     }
     return { jobList, fcList, cellMap, waybillFcMap };
@@ -2340,23 +2347,21 @@ export function ProjectsReportTable() {
                                 );
                               });
                               if (waybillFcMap.has(fc.uuid)) {
+                                const wKey = `${fc.uuid}:waybillSum`;
+                                const wColW = getColWidth(wKey, autoColWidthsMap.get(wKey) ?? 60);
                                 metricTds.push(
                                   <td
-                                    key={`${fc.uuid}:waybillSum`}
-                                    className="px-3 py-2 text-right tabular-nums border-r border-gray-200 bg-amber-50 text-amber-800"
+                                    key={`${job.key}:${fc.uuid}:waybillSum`}
+                                    className="px-2 py-1 text-right text-[11px] text-amber-600 bg-amber-50 border-r border-amber-200"
+                                    style={{ width: wColW, minWidth: wColW }}
                                   >
-                                    {cell && cell.waybillSum !== 0 ? formatMoney(cell.waybillSum) : <span className="text-gray-200">—</span>}
+                                    {/* Waybill is project-level; shown in totals row only */}
+                                    <span className="text-gray-300">-</span>
                                   </td>
                                 );
                               }
                               return metricTds;
                             })}
-                            <td
-                              className="px-3 py-2 text-right font-semibold bg-gray-50 tabular-nums text-gray-700 border-l border-gray-200"
-                              style={{ width: totalColW, maxWidth: totalColW }}
-                            >
-                              {rowTotal !== 0 ? <span>{formatMoney(rowTotal)}</span> : <span className="text-gray-300">—</span>}
-                            </td>
                           </tr>
                         );
                       })}
@@ -2391,19 +2396,17 @@ export function ProjectsReportTable() {
                             );
                           });
                           if (waybillFcMap.has(fc.uuid)) {
-                            const waybillTotal = jobList.reduce((sum, job) => {
-                              const cell = cellMap.get(`${job.key}:${fc.uuid}`);
-                              return sum + (cell?.waybillSum ?? 0);
-                            }, 0);
+                            // Waybill total comes from project-level aggregate (not summed per-job)
+                            const waybillTotal = proj.waybillSum;
                             const wKey = `${fc.uuid}:waybillSum`;
                             const wColW = getColWidth(wKey, autoColWidthsMap.get(wKey) ?? 60);
                             totMetricTds.push(
                               <td
-                                key={wKey}
-                                className="px-3 py-2 text-right tabular-nums border-r border-gray-200 bg-amber-100 text-amber-900"
-                                style={{ width: wColW, maxWidth: wColW }}
+                                key={`${fc.uuid}:waybillSum:total`}
+                                className="px-2 py-1 text-right text-[11px] font-semibold text-amber-700 bg-amber-100 border-r border-amber-200"
+                                style={{ width: wColW, minWidth: wColW }}
                               >
-                                {waybillTotal !== 0 ? <span>{formatMoney(waybillTotal)}</span> : <span className="text-gray-400">—</span>}
+                                {waybillTotal > 0 ? formatMoney(waybillTotal) : '-'}
                               </td>
                             );
                           }
