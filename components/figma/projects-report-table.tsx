@@ -52,6 +52,13 @@ type CellData = {
   jobFloors: number;
   paymentIds: string[];
   latestDate: string | null;
+  accrualTax: number;
+  latestAccrualTax: number;
+  orderTax: number;
+  lastMonthAccrualTax: number;
+  lastMonthOrderTax: number;
+  paymentTax: number;
+  pensionOnTax: boolean;
 };
 
 type ProjectData = {
@@ -207,6 +214,7 @@ export function ProjectsReportTable() {
   const [fcFullMode, setFcFullMode] = useState(false);
   const [fcDisplayMode, setFcDisplayMode] = useState<'global' | 'perProject'>('global');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showTaxMultiplier, setShowTaxMultiplier] = useState(false);
   const [defaultCurrency, setDefaultCurrency] = useState<'GEL' | 'USD' | 'EUR'>('GEL');
   const [fcTooltip, setFcTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
   const [projectCurrencies, setProjectCurrencies] = useState<Record<string, 'USD' | 'GEL' | 'EUR'>>({});
@@ -215,6 +223,16 @@ export function ProjectsReportTable() {
   // Ref so fetchReport/fetchOneProject always see latest currencies without re-creating callbacks
   const projectCurrenciesRef = useRef<Record<string, 'USD' | 'GEL' | 'EUR'>>({});
   useEffect(() => { projectCurrenciesRef.current = projectCurrencies; }, [projectCurrencies]);
+  useEffect(() => {
+    if (typeof window !== 'undefined' && localStorage.getItem('projectsReportTaxMult') === 'true') {
+      setShowTaxMultiplier(true);
+    }
+  }, []);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('projectsReportTaxMult', String(showTaxMultiplier));
+    }
+  }, [showTaxMultiplier]);
   // Drag state (no React state — we don’t need re-renders mid-drag)
   const dragUuid = useRef<string | null>(null);
   const dragOverUuid = useRef<string | null>(null);
@@ -1197,7 +1215,35 @@ export function ProjectsReportTable() {
     });
   };
 
-  const getCellValue = (cell: CellData, metric: MetricKey): number => cell[metric] as number;
+  const effectiveValue = (cell: CellData, metric: MetricKey): number => {
+    if (!showTaxMultiplier) return cell[metric] as number;
+    const factor = cell.pensionOnTax ? 1.25 * 1.04 : 1.25;
+    switch (metric) {
+      case 'accrual': return (cell.accrual - cell.accrualTax) + cell.accrualTax * factor;
+      case 'latestAccrual': return (cell.latestAccrual - cell.latestAccrualTax) + cell.latestAccrualTax * factor;
+      case 'order': return (cell.order - cell.orderTax) + cell.orderTax * factor;
+      case 'lastMonthAccrual': return (cell.lastMonthAccrual - cell.lastMonthAccrualTax) + cell.lastMonthAccrualTax * factor;
+      case 'lastMonthOrder': return (cell.lastMonthOrder - cell.lastMonthOrderTax) + cell.lastMonthOrderTax * factor;
+      case 'payment': return (cell.payment - cell.paymentTax) + cell.paymentTax * factor;
+      case 'due': {
+        const o = (cell.order - cell.orderTax) + cell.orderTax * factor;
+        const p = (cell.payment - cell.paymentTax) + cell.paymentTax * factor;
+        return Number((o - Math.abs(p)).toFixed(2));
+      }
+      case 'balance': {
+        const a = (cell.accrual - cell.accrualTax) + cell.accrualTax * factor;
+        const p = (cell.payment - cell.paymentTax) + cell.paymentTax * factor;
+        return Number((a - Math.abs(p)).toFixed(2));
+      }
+      case 'accrualPerFloor': {
+        const a = (cell.accrual - cell.accrualTax) + cell.accrualTax * factor;
+        return cell.jobFloors > 0 ? Number((a / cell.jobFloors).toFixed(2)) : 0;
+      }
+      default:
+        return cell[metric] as number;
+    }
+  };
+  const getCellValue = (cell: CellData, metric: MetricKey): number => effectiveValue(cell, metric);
 
   // Build the union of all FCs across all projects so every grid shows the same columns
   const globalFcMap = useMemo(() => {
@@ -1310,14 +1356,14 @@ export function ProjectsReportTable() {
           let maxChars = 1;
           for (const job of jobList) {
             const cell = cellMap.get(`${job.key}:${fc.uuid}`);
-            const v = cell ? (cell[m] as number) : 0;
+            const v = cell ? effectiveValue(cell, m) : 0;
             const s = formatCell(v, m);
             if (s !== '-') maxChars = Math.max(maxChars, s.length);
           }
           if (!NON_ADDITIVE_METRICS.has(m)) {
             const colTotal = jobList.reduce((s, job) => {
               const cell = cellMap.get(`${job.key}:${fc.uuid}`);
-              return s + (cell ? (cell[m] as number) : 0);
+              return s + (cell ? effectiveValue(cell, m) : 0);
             }, 0);
             if (colTotal !== 0) maxChars = Math.max(maxChars, formatCell(colTotal, m).length);
           }
@@ -1332,7 +1378,7 @@ export function ProjectsReportTable() {
         const rowTotal = fcList.reduce((sum, fc) => {
           const cell = cellMap.get(`${job.key}:${fc.uuid}`);
           if (!cell) return sum;
-          return sum + activeMetrics.reduce((s, m) => NON_ADDITIVE_METRICS.has(m) ? s : s + (cell[m] as number), 0);
+          return sum + activeMetrics.reduce((s, m) => NON_ADDITIVE_METRICS.has(m) ? s : s + effectiveValue(cell, m), 0);
         }, 0);
         if (rowTotal !== 0) maxTotalChars = Math.max(maxTotalChars, formatMoney(rowTotal).length);
       }
@@ -1700,6 +1746,19 @@ export function ProjectsReportTable() {
                       </label>
                     ))}
                   </div>
+                </div>
+                <div className="mt-3 pt-2 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-gray-600 mb-2">Calculation</p>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <div
+                      className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${showTaxMultiplier ? 'bg-blue-600' : 'bg-gray-200'}`}
+                      onClick={() => setShowTaxMultiplier((v) => !v)}
+                    >
+                      <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-lg transition-transform ${showTaxMultiplier ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </div>
+                    <span className="text-xs text-gray-700">Income/Pension Tax gross-up</span>
+                  </label>
+                  <p className="text-[10px] text-gray-400 mt-1 ml-11">×1.25 income tax · ×1.04 pension</p>
                 </div>
                 <div className="mt-3 pt-2 border-t border-gray-100">
                   <p className="text-xs font-semibold text-gray-600 mb-2">Default currency for new projects</p>

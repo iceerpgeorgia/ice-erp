@@ -118,16 +118,30 @@ export async function GET(request: NextRequest) {
         WHERE p.is_active = true
           AND p.project_uuid IN (${projectPlaceholders})
       ),
+      payment_tax_flags AS (
+        SELECT
+          p.payment_id,
+          COALESCE(p.income_tax, false) AS income_tax,
+          COALESCE(ca.pension_scheme, false) AS pension_scheme
+        FROM payments p
+        LEFT JOIN counteragents ca ON ca.counteragent_uuid = p.counteragent_uuid
+        WHERE p.is_active = true
+          AND p.project_uuid IN (${projectPlaceholders})
+      ),
       ledger_agg AS (
         SELECT
           pl.payment_id,
           SUM(COALESCE(pl.accrual, 0) * ${convFactor('pc.currency_code', 'nbg_l')}) AS total_accrual,
           SUM(COALESCE(pl."order", 0) * ${convFactor('pc.currency_code', 'nbg_l')}) AS total_order,
+          SUM(CASE WHEN ptf.income_tax THEN COALESCE(pl.accrual, 0) * ${convFactor('pc.currency_code', 'nbg_l')} ELSE 0 END) AS total_accrual_tax,
+          SUM(CASE WHEN ptf.income_tax THEN COALESCE(pl."order", 0) * ${convFactor('pc.currency_code', 'nbg_l')} ELSE 0 END) AS total_order_tax,
+          BOOL_OR(CASE WHEN ptf.income_tax THEN ptf.pension_scheme ELSE false END) AS pension_on_tax,
           BOOL_AND(COALESCE(pl.confirmed, false)) AS all_confirmed,
           COUNT(*) AS entries_count,
           MAX(pl.effective_date) AS latest_ledger_date
         FROM payments_ledger pl
         LEFT JOIN payment_currencies pc ON pc.payment_id = pl.payment_id
+        LEFT JOIN payment_tax_flags ptf ON ptf.payment_id = pl.payment_id
         LEFT JOIN LATERAL (
           SELECT usd_rate, eur_rate FROM nbg_exchange_rates
           WHERE date <= pl.effective_date::date ORDER BY date DESC LIMIT 1
@@ -148,12 +162,14 @@ export async function GET(request: NextRequest) {
       ledger_latest AS (
         SELECT
           pl.payment_id,
-          SUM(COALESCE(pl.accrual, 0) * ${convFactor('pc.currency_code', 'nbg_ll')}) AS latest_accrual
+          SUM(COALESCE(pl.accrual, 0) * ${convFactor('pc.currency_code', 'nbg_ll')}) AS latest_accrual,
+          SUM(CASE WHEN ptf.income_tax THEN COALESCE(pl.accrual, 0) * ${convFactor('pc.currency_code', 'nbg_ll')} ELSE 0 END) AS latest_accrual_tax
         FROM payments_ledger pl
         JOIN latest_ledger_date_per_payment ldp
           ON ldp.payment_id = pl.payment_id
          AND ldp.latest_effective_date = pl.effective_date
         LEFT JOIN payment_currencies pc ON pc.payment_id = pl.payment_id
+        LEFT JOIN payment_tax_flags ptf ON ptf.payment_id = pl.payment_id
         LEFT JOIN LATERAL (
           SELECT usd_rate, eur_rate FROM nbg_exchange_rates
           WHERE date <= pl.effective_date::date ORDER BY date DESC LIMIT 1
@@ -166,9 +182,12 @@ export async function GET(request: NextRequest) {
         SELECT
           pl.payment_id,
           SUM(COALESCE(pl.accrual, 0) * ${convFactor('pc.currency_code', 'nbg_lm')}) AS total_accrual,
-          SUM(COALESCE(pl."order", 0) * ${convFactor('pc.currency_code', 'nbg_lm')}) AS total_order
+          SUM(COALESCE(pl."order", 0) * ${convFactor('pc.currency_code', 'nbg_lm')}) AS total_order,
+          SUM(CASE WHEN ptf.income_tax THEN COALESCE(pl.accrual, 0) * ${convFactor('pc.currency_code', 'nbg_lm')} ELSE 0 END) AS total_accrual_tax,
+          SUM(CASE WHEN ptf.income_tax THEN COALESCE(pl."order", 0) * ${convFactor('pc.currency_code', 'nbg_lm')} ELSE 0 END) AS total_order_tax
         FROM payments_ledger pl
         LEFT JOIN payment_currencies pc ON pc.payment_id = pl.payment_id
+        LEFT JOIN payment_tax_flags ptf ON ptf.payment_id = pl.payment_id
         LEFT JOIN LATERAL (
           SELECT usd_rate, eur_rate FROM nbg_exchange_rates
           WHERE date <= pl.effective_date::date ORDER BY date DESC LIMIT 1
@@ -182,6 +201,7 @@ export async function GET(request: NextRequest) {
         SELECT
           combined.payment_id,
           SUM(combined.nominal_amount * ${convFactor('pc.currency_code', 'nbg_b')}) AS total_payment,
+          SUM(CASE WHEN ptf.income_tax THEN combined.nominal_amount * ${convFactor('pc.currency_code', 'nbg_b')} ELSE 0 END) AS total_payment_tax,
           MAX(combined.transaction_date::date) AS latest_bank_date
         FROM (
           SELECT
@@ -215,6 +235,7 @@ export async function GET(request: NextRequest) {
             )
         ) combined
         LEFT JOIN payment_currencies pc ON pc.payment_id = combined.payment_id
+        LEFT JOIN payment_tax_flags ptf ON ptf.payment_id = combined.payment_id
         LEFT JOIN LATERAL (
           SELECT usd_rate, eur_rate FROM nbg_exchange_rates
           WHERE date <= combined.transaction_date::date ORDER BY date DESC LIMIT 1
@@ -226,9 +247,11 @@ export async function GET(request: NextRequest) {
       adj_agg AS (
         SELECT
           pa.payment_id,
-          SUM(COALESCE(pa.nominal_amount, pa.amount) * ${convFactor('pc.currency_code', 'nbg_a')}) AS total_adjustment
+          SUM(COALESCE(pa.nominal_amount, pa.amount) * ${convFactor('pc.currency_code', 'nbg_a')}) AS total_adjustment,
+          SUM(CASE WHEN ptf.income_tax THEN COALESCE(pa.nominal_amount, pa.amount) * ${convFactor('pc.currency_code', 'nbg_a')} ELSE 0 END) AS total_adjustment_tax
         FROM payment_adjustments pa
         LEFT JOIN payment_currencies pc ON pc.payment_id = pa.payment_id
+        LEFT JOIN payment_tax_flags ptf ON ptf.payment_id = pa.payment_id
         LEFT JOIN LATERAL (
           SELECT usd_rate, eur_rate FROM nbg_exchange_rates
           WHERE date <= pa.effective_date::date ORDER BY date DESC LIMIT 1
@@ -259,6 +282,13 @@ export async function GET(request: NextRequest) {
         SUM(COALESCE(la.total_order, 0)) AS "order",
         SUM(COALESCE(llm.total_accrual, 0)) AS last_month_accrual,
         SUM(COALESCE(llm.total_order, 0)) AS last_month_order,
+        SUM(COALESCE(la.total_accrual_tax, 0)) AS accrual_tax,
+        SUM(COALESCE(ll.latest_accrual_tax, 0)) AS latest_accrual_tax,
+        SUM(COALESCE(la.total_order_tax, 0)) AS order_tax,
+        SUM(COALESCE(llm.total_accrual_tax, 0)) AS last_month_accrual_tax,
+        SUM(COALESCE(llm.total_order_tax, 0)) AS last_month_order_tax,
+        SUM(COALESCE(ba.total_payment_tax, 0) + COALESCE(adj.total_adjustment_tax, 0)) AS payment_tax,
+        BOOL_OR(COALESCE(la.pension_on_tax, false)) AS pension_on_tax,
         SUM(COALESCE(ba.total_payment, 0) + COALESCE(adj.total_adjustment, 0)) AS payment,
         BOOL_AND(
           CASE
@@ -331,6 +361,13 @@ export async function GET(request: NextRequest) {
         jobFloors: number;
         paymentIds: string[];
         latestDate: string | null;
+        accrualTax: number;
+        latestAccrualTax: number;
+        orderTax: number;
+        lastMonthAccrualTax: number;
+        lastMonthOrderTax: number;
+        paymentTax: number;
+        pensionOnTax: boolean;
       }[];
     }>();
 
@@ -383,6 +420,13 @@ export async function GET(request: NextRequest) {
           ? row.payment_ids.filter((v: unknown) => typeof v === 'string' && v.trim() !== '')
           : [],
         latestDate: row.latest_date || null,
+        accrualTax: Number(row.accrual_tax || 0),
+        latestAccrualTax: Number(row.latest_accrual_tax || 0),
+        orderTax: Number(row.order_tax || 0),
+        lastMonthAccrualTax: Number(row.last_month_accrual_tax || 0),
+        lastMonthOrderTax: Number(row.last_month_order_tax || 0),
+        paymentTax: Number(row.payment_tax || 0),
+        pensionOnTax: Boolean(row.pension_on_tax),
       });
     }
 
