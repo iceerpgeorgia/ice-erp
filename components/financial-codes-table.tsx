@@ -395,9 +395,22 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
     isActive: true,
     automatedPaymentId: false,
     isBundle: false,
+    defaultCodeFc: null as string | null,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [costFCs, setCostFCs] = useState<{ uuid: string; code: string; name: string }[]>([]);
+
+  // Fetch cost financial codes for the pairing dropdown
+  useEffect(() => {
+    fetch('/api/financial-codes?isIncome=false&leafOnly=true')
+      .then((r) => r.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : (data.codes ?? []);
+        setCostFCs(list.map((c: any) => ({ uuid: c.uuid, code: c.code, name: c.name })));
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (code) {
@@ -416,6 +429,7 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
         isActive: code.isActive,
         automatedPaymentId: code.automatedPaymentId,
         isBundle: code.isBundle,
+        defaultCodeFc: code.defaultCodeFc ?? null,
       });
     }
   }, [code, parent]);
@@ -451,6 +465,7 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
         automatedPaymentId: formData.automatedPaymentId,
         isBundle: formData.isBundle,
         parentUuid: parent?.uuid || null,
+        defaultCodeFc: formData.isIncome ? (formData.defaultCodeFc || null) : null,
       };
 
       const method = code ? "PATCH" : "POST";
@@ -614,6 +629,29 @@ function FinancialCodeDialog({ code, parent, onClose, onSuccess }: DialogProps) 
               </label>
             )}
           </div>
+
+          {formData.isIncome && (
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Default Cost FC for Waybills
+              </label>
+              <select
+                value={formData.defaultCodeFc ?? ""}
+                onChange={(e) => setFormData({ ...formData, defaultCodeFc: e.target.value || null })}
+                className="w-full px-3 py-2 border rounded-lg bg-white"
+              >
+                <option value="">— None —</option>
+                {costFCs.map((fc) => (
+                  <option key={fc.uuid} value={fc.uuid}>
+                    {fc.code} — {fc.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500 mt-1">
+                Waybill costs from this cost FC will appear in the Projects Report Waybills column.
+              </p>
+            </div>
+          )}
 
           {errors._form && <p className="text-red-600 text-sm">{errors._form}</p>}
 
