@@ -258,21 +258,6 @@ export async function GET(request: NextRequest) {
         ) nbg_a ON true
         WHERE (pa.is_deleted = false OR pa.is_deleted IS NULL)
         GROUP BY pa.payment_id
-      ),
-      waybill_agg AS (
-        SELECT
-          w.project_uuid::text AS project_uuid,
-          w.financial_code_uuid::text AS financial_code_uuid,
-          SUM((COALESCE(w.sum, 0) / CASE WHEN w.vat = true THEN 1.18 ELSE 1.0 END) * ${convFactor("'GEL'", 'nbg_w')}) AS waybill_sum
-        FROM rs_waybills_in w
-        LEFT JOIN LATERAL (
-          SELECT usd_rate, eur_rate FROM nbg_exchange_rates
-          WHERE date <= COALESCE(w.activation_time::date, CURRENT_DATE) ORDER BY date DESC LIMIT 1
-        ) nbg_w ON true
-        WHERE w.project_uuid IN (${projectPlaceholders})
-          AND w.financial_code_uuid IS NOT NULL
-          ${maxDate ? `AND COALESCE(w.activation_time::date, CURRENT_DATE) <= '${maxDate}'::date` : ''}
-        GROUP BY w.project_uuid, w.financial_code_uuid
       )
       SELECT
         sp.project_uuid,
@@ -311,22 +296,13 @@ export async function GET(request: NextRequest) {
             ELSE false
           END
         ) AS confirmed,
-        MAX(la.latest_ledger_date) AS latest_date,
-        COALESCE(MAX(wa.waybill_sum), 0) AS waybill_sum
+        MAX(la.latest_ledger_date) AS latest_date
       FROM selected_payments sp
       LEFT JOIN ledger_agg la ON sp.payment_id = la.payment_id
       LEFT JOIN ledger_latest ll ON sp.payment_id = ll.payment_id
       LEFT JOIN ledger_last_month llm ON sp.payment_id = llm.payment_id
       LEFT JOIN bank_agg ba ON sp.payment_id = ba.payment_id
       LEFT JOIN adj_agg adj ON sp.payment_id = adj.payment_id
-      LEFT JOIN (
-        SELECT uuid::text AS fc_uuid, default_code_fc::text AS default_cost_fc
-        FROM financial_codes
-        WHERE default_code_fc IS NOT NULL
-      ) fc_pair ON fc_pair.fc_uuid = sp.financial_code_uuid::text
-      LEFT JOIN waybill_agg wa
-        ON wa.project_uuid = sp.project_uuid::text
-       AND wa.financial_code_uuid = fc_pair.default_cost_fc
       GROUP BY sp.project_uuid, sp.job_uuid, sp.financial_code_uuid
       ORDER BY MAX(sp.project_index) ASC, MAX(sp.job_name) ASC NULLS LAST, MAX(sp.financial_code_validation) ASC
     `;
@@ -452,7 +428,64 @@ export async function GET(request: NextRequest) {
         lastMonthOrderTax: Number(row.last_month_order_tax || 0),
         paymentTax: Number(row.payment_tax || 0),
         pensionOnTax: Boolean(row.pension_on_tax),
-        waybillSum: Number(row.waybill_sum || 0),
+        waybillSum: 0,
+      });
+    }
+
+    // Waybill rows: separate cells per cost FC, paired via default_code_fc
+    const waybillRowQuery = `
+      SELECT
+        w.project_uuid::text AS project_uuid,
+        w.financial_code_uuid::text AS financial_code_uuid,
+        COALESCE(fc.validation, fc.code, '-') AS fc_validation,
+        COALESCE(fc.code, '-') AS fc_code,
+        COALESCE(fc.is_income, false) AS fc_is_income,
+        SUM((COALESCE(w.sum, 0) / CASE WHEN w.vat = true THEN 1.18 ELSE 1.0 END) * ${convFactor("'GEL'", 'nbg_w')}) AS waybill_sum
+      FROM rs_waybills_in w
+      LEFT JOIN LATERAL (
+        SELECT usd_rate, eur_rate FROM nbg_exchange_rates
+        WHERE date <= COALESCE(w.activation_time::date, CURRENT_DATE) ORDER BY date DESC LIMIT 1
+      ) nbg_w ON true
+      LEFT JOIN financial_codes fc ON fc.uuid = w.financial_code_uuid
+      WHERE w.project_uuid IN (${projectPlaceholders})
+        AND w.financial_code_uuid IS NOT NULL
+        AND w.financial_code_uuid IN (SELECT default_code_fc FROM financial_codes WHERE default_code_fc IS NOT NULL)
+        ${maxDate ? `AND COALESCE(w.activation_time::date, CURRENT_DATE) <= '${maxDate}'::date` : ''}
+      GROUP BY w.project_uuid, w.financial_code_uuid, fc.validation, fc.code, fc.is_income
+    `;
+    const waybillRows = await prisma.$queryRawUnsafe<any[]>(waybillRowQuery, ...projectUuids);
+    for (const wr of waybillRows) {
+      const wKey = wr.project_uuid as string;
+      if (!projectMap.has(wKey)) continue;
+      projectMap.get(wKey)!.cells.push({
+        jobUuid: null,
+        jobName: null,
+        financialCodeUuid: wr.financial_code_uuid as string,
+        financialCodeValidation: wr.fc_validation as string,
+        financialCodeCode: wr.fc_code as string,
+        financialCodeIsIncome: Boolean(wr.fc_is_income),
+        accrual: 0,
+        latestAccrual: 0,
+        order: 0,
+        lastMonthAccrual: 0,
+        lastMonthOrder: 0,
+        payment: 0,
+        due: 0,
+        balance: 0,
+        confirmed: true,
+        paymentCount: 0,
+        accrualPerFloor: 0,
+        jobFloors: 0,
+        paymentIds: [],
+        latestDate: null,
+        accrualTax: 0,
+        latestAccrualTax: 0,
+        orderTax: 0,
+        lastMonthAccrualTax: 0,
+        lastMonthOrderTax: 0,
+        paymentTax: 0,
+        pensionOnTax: false,
+        waybillSum: Number(wr.waybill_sum || 0),
       });
     }
 
