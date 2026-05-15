@@ -1,22 +1,12 @@
 # Deployment Log
 
-## 2026-05-14 Deployment #252
-- Commit: 78c2bf6
-- Production: https://ice-mhisd0uiu-iceerp.vercel.app
-- Summary: Projects report: all active jobs shown in grid; grand total simplified to X FCs / Y of Z jobs paid; New View clears selected projects.
+## 2026-05-14 Deployment #278
+- Commit: 4f9caf1
+- Production: https://ice-qp4tye7ek-iceerp.vercel.app
+- Summary: Add Income/Pension Tax gross-up toggle to Projects Report settings. When ON, amounts for payments with income_tax=true are multiplied by x1.25; if the counteragent also has pension_scheme=true, an additional x1.04 is applied. Toggle persists in localStorage.
 - Changes:
-  - app/api/projects-report/route.ts: Added allJobs query; included allJobs array in projectMap.
-  - components/figma/projects-report-table.tsx: allJobs in ProjectData type; buildPivot seeds jobMap from allJobs; grandTotals rewritten with paidJobs/totalFcs/totalJobs counts; simplified JSX bar; handleCreateView clears projects.
-
-## 2026-05-14 Deployment #251
-- Commit: a2da73d
-- Production: https://ice-7jjxpcvxp-iceerp.vercel.app
-- Summary: Projects Report Views feature - save/load named project selections with FC filters.
-- Changes:
-  - prisma/schema.prisma: Added ProjectReportView model.
-  - app/api/project-report-views/route.ts: GET/POST endpoints.
-  - app/api/project-report-views/[uuid]/route.ts: DELETE endpoint.
-  - components/figma/projects-report-table.tsx: Views panel UI.
+  - app/api/projects-report/route.ts: Added payment_tax_flags CTE; added *_tax aggregate columns to ledger_agg, ledger_latest, ledger_last_month, bank_agg, adj_agg; added 7 tax columns to final SELECT and row mapping.
+  - components/figma/projects-report-table.tsx: Extended CellData type with 7 tax fields; added showTaxMultiplier state with localStorage persistence; added effectiveValue() gross-up function; added Income/Pension Tax toggle in Settings panel under Calculation section.
 
 ## 2026-05-14 Deployment #252
 - Commit: 78c2bf6
