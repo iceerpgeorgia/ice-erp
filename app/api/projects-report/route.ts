@@ -458,7 +458,7 @@ export async function GET(request: NextRequest) {
       ) nbg_w ON true
       LEFT JOIN financial_codes fc_income ON fc_income.uuid = proj.financial_code_uuid
       LEFT JOIN financial_codes cost_fc ON cost_fc.uuid = fc_income.default_code_fc
-      WHERE proj.project_uuid::text IN (${projectPlaceholders})
+      WHERE proj.project_uuid IN (${projectPlaceholders})
         ${maxDate ? `AND COALESCE(w.activation_time::date, CURRENT_DATE) <= '${maxDate}'::date` : ''}
       GROUP BY proj.project_uuid, proj.financial_code_uuid, cost_fc.code, cost_fc.validation
       HAVING SUM(COALESCE(w.sum, 0)) > 0
