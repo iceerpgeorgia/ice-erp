@@ -262,7 +262,6 @@ export async function GET(request: NextRequest) {
       waybill_agg AS (
         SELECT
           w.project_uuid::text AS project_uuid,
-          w.financial_code_uuid::text AS financial_code_uuid,
           SUM((COALESCE(w.sum, 0) / CASE WHEN w.vat = true THEN 1.18 ELSE 1.0 END) * ${convFactor("'GEL'", 'nbg_w')}) AS waybill_sum
         FROM rs_waybills_in w
         LEFT JOIN LATERAL (
@@ -270,9 +269,8 @@ export async function GET(request: NextRequest) {
           WHERE date <= COALESCE(w.activation_time::date, CURRENT_DATE) ORDER BY date DESC LIMIT 1
         ) nbg_w ON true
         WHERE w.project_uuid IN (${projectPlaceholders})
-          AND w.financial_code_uuid IS NOT NULL
           ${maxDate ? `AND COALESCE(w.activation_time::date, CURRENT_DATE) <= '${maxDate}'::date` : ''}
-        GROUP BY w.project_uuid, w.financial_code_uuid
+        GROUP BY w.project_uuid
       )
       SELECT
         sp.project_uuid,
@@ -326,7 +324,7 @@ export async function GET(request: NextRequest) {
       ) fc_pair ON fc_pair.fc_uuid = sp.financial_code_uuid::text
       LEFT JOIN waybill_agg wa
         ON wa.project_uuid = sp.project_uuid::text
-       AND wa.financial_code_uuid = fc_pair.default_cost_fc
+       AND fc_pair.fc_uuid IS NOT NULL
       GROUP BY sp.project_uuid, sp.job_uuid, sp.financial_code_uuid
       ORDER BY MAX(sp.project_index) ASC, MAX(sp.job_name) ASC NULLS LAST, MAX(sp.financial_code_validation) ASC
     `;
