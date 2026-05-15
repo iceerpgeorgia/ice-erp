@@ -12,7 +12,7 @@ import * as XLSX from 'xlsx-js-style';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type MetricKey = 'accrual' | 'latestAccrual' | 'order' | 'lastMonthAccrual' | 'lastMonthOrder' | 'payment' | 'due' | 'balance' | 'paymentCount' | 'accrualPerFloor';
+type MetricKey = 'accrual' | 'latestAccrual' | 'order' | 'lastMonthAccrual' | 'lastMonthOrder' | 'payment' | 'due' | 'balance' | 'paymentCount' | 'accrualPerFloor' | 'waybillSum';
 
 const METRIC_LABELS: Record<MetricKey, string> = {
   accrual: 'Accrual',
@@ -25,6 +25,7 @@ const METRIC_LABELS: Record<MetricKey, string> = {
   balance: 'Balance',
   paymentCount: 'Count',
   accrualPerFloor: 'Accrual/Floor',
+  waybillSum: 'Waybills',
 };
 
 const NON_ADDITIVE_METRICS = new Set<MetricKey>(['paymentCount', 'accrualPerFloor']);
@@ -59,6 +60,7 @@ type CellData = {
   lastMonthOrderTax: number;
   paymentTax: number;
   pensionOnTax: boolean;
+  waybillSum: number;
 };
 
 type ProjectData = {

@@ -8,7 +8,7 @@ function serializeFinancialCode(code: any) {
   return {
     ...code,
     id: String(code.id),
-    // parentUuid is already a string, no conversion needed
+    default_code_fc: code.default_code_fc ?? null,
   };
 }
 
@@ -149,7 +149,14 @@ function validatePayload(body: any) {
   const isActive = typeof body?.isActive === "boolean" ? body.isActive : true;
   const automatedPaymentId = typeof body?.automatedPaymentId === "boolean" ? body.automatedPaymentId : false;
   const isBundle = typeof body?.isBundle === "boolean" ? body.isBundle : false;
-  
+
+  // Validate defaultCodeFc UUID if provided
+  const uuidRegexFC = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  let defaultCodeFc: string | null = null;
+  if (body?.defaultCodeFc && typeof body.defaultCodeFc === "string" && uuidRegexFC.test(body.defaultCodeFc)) {
+    defaultCodeFc = body.defaultCodeFc;
+  }
+
   // Validate parentUuid format if provided
   let parentUuid: string | null = null;
   if (body?.parentUuid && typeof body.parentUuid === "string") {
@@ -192,6 +199,7 @@ function validatePayload(body: any) {
       automatedPaymentId,
       isBundle,
       parentUuid,
+      defaultCodeFc,
     },
   } as const;
 }
@@ -263,6 +271,7 @@ export async function POST(req: NextRequest) {
         is_active: payload.isActive,
         automated_payment_id: payload.automatedPaymentId,
         is_bundle: payload.isBundle ?? false,
+        default_code_fc: payload.defaultCodeFc ?? null,
         ...(payload.parentUuid && { parent_uuid: payload.parentUuid }),
         depth,
         sort_order: sortOrder,
@@ -361,6 +370,7 @@ export async function PATCH(req: NextRequest) {
       automated_payment_id: payload.automatedPaymentId,
       is_bundle: payload.isBundle ?? false,
       parent_uuid: payload.parentUuid,
+      default_code_fc: payload.defaultCodeFc ?? null,
     };
 
     if (payload.code !== existing.code) {

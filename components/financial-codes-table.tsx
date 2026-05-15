@@ -20,6 +20,7 @@ type FinancialCode = {
   isActive: boolean;
   automatedPaymentId: boolean;
   isBundle: boolean;
+  defaultCodeFc: string | null;
   children?: FinancialCode[];
 };
 
@@ -54,6 +55,7 @@ export function FinancialCodesTable() {
             isActive: code.isActive ?? code.is_active ?? true,
             automatedPaymentId: code.automatedPaymentId ?? code.automated_payment_id ?? false,
             isBundle: code.isBundle ?? code.is_bundle ?? false,
+            defaultCodeFc: code.default_code_fc ?? null,
             children: [],
           }))
         : [];
