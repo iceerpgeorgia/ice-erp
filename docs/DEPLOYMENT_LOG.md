@@ -1,5 +1,17 @@
 # Deployment Log
 
+## Deployment #280
+
+- **Date**: 2025-07-14
+- **Commit**: ac30ee6
+- **Description**: feat(projects-report): add waybill sum via default_code_fc pairing
+  - Added `default_code_fc` column to `financial_codes` (Prisma schema)
+  - Projects Report API: waybill_agg CTE queries rs_waybills_in, joined via fc_pair lookup
+  - Projects Report UI: Waybills metric column (MetricKey, METRIC_LABELS, CellData)
+  - Financial codes UI: "Paired Cost FC for Waybills" selector + table column
+- **Production URL**: https://ice-7n0gl33c7-iceerp.vercel.app
+
+
 ## 2026-06-13 Deployment #279
 - Commit: 03fa8bd
 - Production: https://ice-laxrdi0bh-iceerp.vercel.app
