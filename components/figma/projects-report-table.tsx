@@ -60,6 +60,8 @@ type CellData = {
   paymentTax: number;
   pensionOnTax: boolean;
   waybillSum: number;
+  pairedFcCode: string | null;
+  pairedFcValidation: string | null;
 };
 
 type ProjectData = {
@@ -1314,12 +1316,13 @@ export function ProjectsReportTable() {
       })
       .sort((a, b) => a.code.localeCompare(b.code));
     // Compute which FCs have waybill data
-    const waybillFcSet = new Set<string>(
-      fcList
-        .filter((fc) => [...cellMap.values()].some((c) => c.financialCodeUuid === fc.uuid && c.waybillSum > 0))
-        .map((fc) => fc.uuid)
-    );
-    return { jobList, fcList, cellMap, waybillFcSet };
+    // Map: income FC uuid → paired cost FC code (for waybill column label)
+    const waybillFcMap = new Map<string, string>();
+    for (const fc of fcList) {
+      const cell = [...cellMap.values()].find((c) => c.financialCodeUuid === fc.uuid && c.waybillSum > 0);
+      if (cell?.pairedFcCode) waybillFcMap.set(fc.uuid, cell.pairedFcCode);
+    }
+    return { jobList, fcList, cellMap, waybillFcMap };
   }
 
   const activeMetrics = useMemo(() => ALL_METRICS.filter((m) => selectedMetrics.has(m)), [selectedMetrics]);
@@ -1446,7 +1449,7 @@ export function ProjectsReportTable() {
     const wb = XLSX.utils.book_new();
     for (const proj of report.projects) {
       const fcFilter = projectFcFilters[proj.projectUuid] ?? 'all';
-      const { jobList, fcList, cellMap, waybillFcSet } = buildPivot(proj, fcFilter);
+      const { jobList, fcList, cellMap, waybillFcMap } = buildPivot(proj, fcFilter);
       const sheetName = `${proj.projectIndex}`.replace(/[\\/:*?[\]]/g, '_').slice(0, 31);
       const headerRow = ['Job', ...fcList.flatMap((fc) => activeMetrics.map((m) => `${fc.code} / ${METRIC_LABELS[m]}`)), 'Total'];
       const dataRows = jobList.map((job) => {
@@ -2030,7 +2033,7 @@ export function ProjectsReportTable() {
       })().map((proj) => {
         const isProjectLoading = projectLoadingUuids.has(proj.projectUuid);
         const fcFilter = projectFcFilters[proj.projectUuid] ?? 'all';
-        const { jobList, fcList, cellMap, waybillFcSet } = buildPivot(proj, fcFilter);
+        const { jobList, fcList, cellMap, waybillFcMap } = buildPivot(proj, fcFilter);
         const isCollapsed = collapsedProjects.has(proj.projectUuid);
         const jobColKey = 'job';
         const floorsColKey = 'floors';
@@ -2190,8 +2193,8 @@ export function ProjectsReportTable() {
                         {fcList.map((fc) => (
                           <th
                             key={fc.uuid}
-                            colSpan={activeMetrics.length + (waybillFcSet.has(fc.uuid) ? 1 : 0)}
-                            style={{ minWidth: activeMetrics.reduce((s, m) => s + getColWidth(`${fc.uuid}:${m}`, autoColWidthsMap.get(`${fc.uuid}:${m}`) ?? 38), 0) + (waybillFcSet.has(fc.uuid) ? getColWidth(`${fc.uuid}:waybillSum`, autoColWidthsMap.get(`${fc.uuid}:waybillSum`) ?? 60) : 0) }}
+                            colSpan={activeMetrics.length + (waybillFcMap.has(fc.uuid) ? 1 : 0)}
+                            style={{ minWidth: activeMetrics.reduce((s, m) => s + getColWidth(`${fc.uuid}:${m}`, autoColWidthsMap.get(`${fc.uuid}:${m}`) ?? 38), 0) + (waybillFcMap.has(fc.uuid) ? getColWidth(`${fc.uuid}:waybillSum`, autoColWidthsMap.get(`${fc.uuid}:waybillSum`) ?? 60) : 0) }}
                             className="px-2 py-1.5 text-center font-semibold text-gray-700 border-r border-gray-200 text-xs bg-gray-100 overflow-visible"
                             onMouseEnter={!fcFullMode && fc.validation && fc.validation !== fc.code ? (e) => setFcTooltip({ text: fc.validation, x: e.clientX, y: e.clientY }) : undefined}
                             onMouseMove={!fcFullMode && fc.validation && fc.validation !== fc.code ? (e) => setFcTooltip((t) => t ? { ...t, x: e.clientX, y: e.clientY } : t) : undefined}
@@ -2237,7 +2240,7 @@ export function ProjectsReportTable() {
                             const colKey = `${fc.uuid}:${m}`;
                             const autoW = autoColWidthsMap.get(colKey) ?? 38;
                             const colW = getColWidth(colKey, autoW);
-                            const isLast = mi === activeMetrics.length - 1 && !waybillFcSet.has(fc.uuid);
+                            const isLast = mi === activeMetrics.length - 1 && !waybillFcMap.has(fc.uuid);
                             return (
                               <th
                                 key={`${fc.uuid}:${m}`}
@@ -2250,18 +2253,19 @@ export function ProjectsReportTable() {
                               </th>
                             );
                           });
-                          if (waybillFcSet.has(fc.uuid)) {
+                          if (waybillFcMap.has(fc.uuid)) {
                             const wKey = `${fc.uuid}:waybillSum`;
                             const wAutoW = autoColWidthsMap.get(wKey) ?? 60;
                             const wColW = getColWidth(wKey, wAutoW);
+                            const pairedCode = waybillFcMap.get(fc.uuid) ?? 'Waybills';
                             metricThs.push(
                               <th
                                 key={wKey}
-                                title="Waybills"
+                                title={pairedCode}
                                 className="relative overflow-hidden px-2 py-1 text-center text-[10px] font-medium text-amber-700 border-r border-gray-200 bg-amber-50"
                                 style={{ width: wColW, minWidth: wColW }}
                               >
-                                <span className="truncate block">Waybills</span>
+                                <span className="truncate block">{pairedCode}</span>
                                 <div className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-300 opacity-0 hover:opacity-60" onMouseDown={(e) => startResize(e, wKey, wAutoW)} />
                               </th>
                             );
@@ -2301,7 +2305,7 @@ export function ProjectsReportTable() {
                               const metricTds = activeMetrics.map((m, mi) => {
                                 const colKey = `${fc.uuid}:${m}`;
                                 const colW = getColWidth(colKey, autoColWidthsMap.get(colKey) ?? 38);
-                                const isLast = mi === activeMetrics.length - 1 && !waybillFcSet.has(fc.uuid);
+                                const isLast = mi === activeMetrics.length - 1 && !waybillFcMap.has(fc.uuid);
                                 const value = cell ? getCellValue(cell, m) : 0;
                                 return (
                                   <td
@@ -2334,7 +2338,7 @@ export function ProjectsReportTable() {
                                   </td>
                                 );
                               });
-                              if (waybillFcSet.has(fc.uuid)) {
+                              if (waybillFcMap.has(fc.uuid)) {
                                 metricTds.push(
                                   <td
                                     key={`${fc.uuid}:waybillSum`}
@@ -2367,7 +2371,7 @@ export function ProjectsReportTable() {
                           const totMetricTds = activeMetrics.map((m, mi) => {
                             const colKey = `${fc.uuid}:${m}`;
                             const colW = getColWidth(colKey, autoColWidthsMap.get(colKey) ?? 38);
-                            const isLast = mi === activeMetrics.length - 1 && !waybillFcSet.has(fc.uuid);
+                            const isLast = mi === activeMetrics.length - 1 && !waybillFcMap.has(fc.uuid);
                             const colTotal = NON_ADDITIVE_METRICS.has(m) ? 0 : jobList.reduce((sum, job) => {
                               const cell = cellMap.get(`${job.key}:${fc.uuid}`);
                               return sum + (cell ? getCellValue(cell, m) : 0);
@@ -2385,7 +2389,7 @@ export function ProjectsReportTable() {
                               </td>
                             );
                           });
-                          if (waybillFcSet.has(fc.uuid)) {
+                          if (waybillFcMap.has(fc.uuid)) {
                             const waybillTotal = jobList.reduce((sum, job) => {
                               const cell = cellMap.get(`${job.key}:${fc.uuid}`);
                               return sum + (cell?.waybillSum ?? 0);

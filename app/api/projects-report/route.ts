@@ -310,7 +310,9 @@ export async function GET(request: NextRequest) {
           END
         ) AS confirmed,
         MAX(la.latest_ledger_date) AS latest_date,
-        COALESCE(MAX(wa.waybill_sum), 0) AS waybill_sum
+        COALESCE(MAX(wa.waybill_sum), 0) AS waybill_sum,
+        MAX(cost_fc.code) AS paired_fc_code,
+        MAX(COALESCE(cost_fc.validation, cost_fc.code)) AS paired_fc_validation
       FROM selected_payments sp
       LEFT JOIN ledger_agg la ON sp.payment_id = la.payment_id
       LEFT JOIN ledger_latest ll ON sp.payment_id = ll.payment_id
@@ -322,6 +324,7 @@ export async function GET(request: NextRequest) {
         FROM financial_codes
         WHERE default_code_fc IS NOT NULL
       ) fc_pair ON fc_pair.fc_uuid = sp.financial_code_uuid::text
+      LEFT JOIN financial_codes cost_fc ON cost_fc.uuid::text = fc_pair.default_cost_fc
       LEFT JOIN waybill_agg wa
         ON wa.project_uuid = sp.project_uuid::text
        AND fc_pair.fc_uuid IS NOT NULL
@@ -391,6 +394,8 @@ export async function GET(request: NextRequest) {
         paymentTax: number;
         pensionOnTax: boolean;
         waybillSum: number;
+        pairedFcCode: string | null;
+        pairedFcValidation: string | null;
       }[];
     }>();
 
@@ -451,6 +456,8 @@ export async function GET(request: NextRequest) {
         paymentTax: Number(row.payment_tax || 0),
         pensionOnTax: Boolean(row.pension_on_tax),
         waybillSum: Number(row.waybill_sum || 0),
+        pairedFcCode: (row.paired_fc_code as string) || null,
+        pairedFcValidation: (row.paired_fc_validation as string) || null,
       });
     }
 
