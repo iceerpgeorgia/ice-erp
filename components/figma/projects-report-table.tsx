@@ -75,6 +75,7 @@ type ProjectData = {
   waybillSum: number;
   projectFcUuid: string | null;
   waybillPairedFcCode: string | null;
+  waybillPairedFcUuid: string | null;
   waybillPairedFcValidation: string | null;
   cells: CellData[];
 };
@@ -1269,6 +1270,12 @@ export function ProjectsReportTable() {
         }
       }
     }
+    // Also ensure cost FCs from waybill data are in the map (so col appears even with no direct payments)
+    for (const proj of report.projects) {
+      if (proj.waybillPairedFcUuid && proj.waybillPairedFcCode && !map.has(proj.waybillPairedFcUuid)) {
+        map.set(proj.waybillPairedFcUuid, { uuid: proj.waybillPairedFcUuid, validation: proj.waybillPairedFcValidation ?? proj.waybillPairedFcCode, code: proj.waybillPairedFcCode, isIncome: false });
+      }
+    }
     return map;
   }, [report]);
 
@@ -1316,21 +1323,13 @@ export function ProjectsReportTable() {
         return true;
       })
       .sort((a, b) => a.code.localeCompare(b.code));
-    // Build waybillFcMap from project-level waybill data (not per-cell).
-    // The waybill is associated with the project's income FC (projects.financial_code_uuid).
-    // Fallback: if project FC isn't a payment column, use the first income FC in fcList.
-    const waybillFcMap = new Map<string, string>();
-    if (proj.waybillSum > 0 && proj.waybillPairedFcCode) {
-      const projectFcInList = proj.projectFcUuid ? fcList.find(fc => fc.uuid === proj.projectFcUuid) : null;
-      if (projectFcInList) {
-        waybillFcMap.set(projectFcInList.uuid, proj.waybillPairedFcCode);
-      } else {
-        // Fallback: first income FC column (for projects with sub-code payments like 1.1.1.1)
-        const firstIncomeFc = fcList.find(fc => fc.isIncome);
-        if (firstIncomeFc) waybillFcMap.set(firstIncomeFc.uuid, proj.waybillPairedFcCode);
-      }
+    // waybillFcMap: key = cost FC UUID (financial_codes.default_code_fc), value = column label.
+    // The amber sub-column appears inside the cost FC column (e.g. 2.1.1.6).
+    const waybillFcMap = new Map();
+    if (proj.waybillSum > 0 && proj.waybillPairedFcUuid) {
+      waybillFcMap.set(proj.waybillPairedFcUuid, "Waybill");
     }
-    return { jobList, fcList, cellMap, waybillFcMap };
+        return { jobList, fcList, cellMap, waybillFcMap };
   }
 
   const activeMetrics = useMemo(() => ALL_METRICS.filter((m) => selectedMetrics.has(m)), [selectedMetrics]);

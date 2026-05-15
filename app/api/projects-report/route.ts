@@ -343,6 +343,7 @@ export async function GET(request: NextRequest) {
       waybillSum: number;
       projectFcUuid: string | null;
       waybillPairedFcCode: string | null;
+      waybillPairedFcUuid: string | null;
       waybillPairedFcValidation: string | null;
       cells: {
         jobUuid: string | null;
@@ -392,6 +393,7 @@ export async function GET(request: NextRequest) {
           waybillSum: 0,
           projectFcUuid: null,
           waybillPairedFcCode: null,
+          waybillPairedFcUuid: null,
           waybillPairedFcValidation: null,
           cells: [],
         });
@@ -448,6 +450,7 @@ export async function GET(request: NextRequest) {
           * ${convFactor("'GEL'", 'nbg_w')}
         ) AS waybill_sum,
         proj.financial_code_uuid::text AS project_fc_uuid,
+        cost_fc.uuid::text AS paired_fc_uuid,
         cost_fc.code AS paired_fc_code,
         COALESCE(cost_fc.validation, cost_fc.code) AS paired_fc_validation
       FROM projects proj
@@ -460,7 +463,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN financial_codes cost_fc ON cost_fc.uuid = fc_income.default_code_fc
       WHERE proj.project_uuid IN (${projectPlaceholders})
         ${maxDate ? `AND COALESCE(w.activation_time::date, CURRENT_DATE) <= '${maxDate}'::date` : ''}
-      GROUP BY proj.project_uuid, proj.financial_code_uuid, cost_fc.code, cost_fc.validation
+      GROUP BY proj.project_uuid, proj.financial_code_uuid, cost_fc.uuid, cost_fc.code, cost_fc.validation
       HAVING SUM(COALESCE(w.sum, 0)) > 0
     `;
     const waybillRows = await prisma.$queryRawUnsafe<any[]>(waybillQuery, ...queryParams);
@@ -470,6 +473,7 @@ export async function GET(request: NextRequest) {
         proj.waybillSum = Number(wRow.waybill_sum || 0);
         proj.projectFcUuid = (wRow.project_fc_uuid as string) || null;
         proj.waybillPairedFcCode = (wRow.paired_fc_code as string) || null;
+        proj.waybillPairedFcUuid = (wRow.paired_fc_uuid as string) || null;
         proj.waybillPairedFcValidation = (wRow.paired_fc_validation as string) || null;
       }
     }
