@@ -1315,12 +1315,13 @@ export function ProjectsReportTable() {
         return true;
       })
       .sort((a, b) => a.code.localeCompare(b.code));
-    // Compute which FCs have waybill data
-    // Map: income FC uuid → paired cost FC code (for waybill column label)
+    // Build waybillFcMap directly from proj.cells (more reliable than iterating cellMap)
+    // Maps income FC uuid → paired cost FC code label (e.g. '2.1.1.6')
     const waybillFcMap = new Map<string, string>();
-    for (const fc of fcList) {
-      const cell = [...cellMap.values()].find((c) => c.financialCodeUuid === fc.uuid && c.waybillSum > 0);
-      if (cell?.pairedFcCode) waybillFcMap.set(fc.uuid, cell.pairedFcCode);
+    for (const cell of proj.cells) {
+      if (cell.waybillSum > 0 && cell.pairedFcCode) {
+        waybillFcMap.set(cell.financialCodeUuid, cell.pairedFcCode);
+      }
     }
     return { jobList, fcList, cellMap, waybillFcMap };
   }
