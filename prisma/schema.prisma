@@ -546,6 +546,7 @@ model financial_codes {
   is_active             Boolean        @default(true)
   automated_payment_id  Boolean        @default(false)
   is_bundle             Boolean        @default(false)
+  default_code_fc       String?        @db.Uuid
   created_at            DateTime       @default(now())
   updated_at            DateTime       @updatedAt
   transactions          transactions[]

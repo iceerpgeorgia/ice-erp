@@ -258,6 +258,21 @@ export async function GET(request: NextRequest) {
         ) nbg_a ON true
         WHERE (pa.is_deleted = false OR pa.is_deleted IS NULL)
         GROUP BY pa.payment_id
+      ),
+      waybill_agg AS (
+        SELECT
+          w.project_uuid::text AS project_uuid,
+          w.financial_code_uuid::text AS financial_code_uuid,
+          SUM(COALESCE(w.sum, 0) * ${convFactor("'GEL'", 'nbg_w')}) AS waybill_sum
+        FROM rs_waybills_in w
+        LEFT JOIN LATERAL (
+          SELECT usd_rate, eur_rate FROM nbg_exchange_rates
+          WHERE date <= COALESCE(w.activation_time::date, CURRENT_DATE) ORDER BY date DESC LIMIT 1
+        ) nbg_w ON true
+        WHERE w.project_uuid IN (${projectPlaceholders})
+          AND w.financial_code_uuid IS NOT NULL
+          ${maxDate ? `AND COALESCE(w.activation_time::date, CURRENT_DATE) <= '${maxDate}'::date` : ''}
+        GROUP BY w.project_uuid, w.financial_code_uuid
       )
       SELECT
         sp.project_uuid,
@@ -296,13 +311,22 @@ export async function GET(request: NextRequest) {
             ELSE false
           END
         ) AS confirmed,
-        MAX(la.latest_ledger_date) AS latest_date
+        MAX(la.latest_ledger_date) AS latest_date,
+        COALESCE(MAX(wa.waybill_sum), 0) AS waybill_sum
       FROM selected_payments sp
       LEFT JOIN ledger_agg la ON sp.payment_id = la.payment_id
       LEFT JOIN ledger_latest ll ON sp.payment_id = ll.payment_id
       LEFT JOIN ledger_last_month llm ON sp.payment_id = llm.payment_id
       LEFT JOIN bank_agg ba ON sp.payment_id = ba.payment_id
       LEFT JOIN adj_agg adj ON sp.payment_id = adj.payment_id
+      LEFT JOIN (
+        SELECT uuid::text AS fc_uuid, default_code_fc::text AS default_cost_fc
+        FROM financial_codes
+        WHERE default_code_fc IS NOT NULL
+      ) fc_pair ON fc_pair.fc_uuid = sp.financial_code_uuid::text
+      LEFT JOIN waybill_agg wa
+        ON wa.project_uuid = sp.project_uuid::text
+       AND wa.financial_code_uuid = fc_pair.default_cost_fc
       GROUP BY sp.project_uuid, sp.job_uuid, sp.financial_code_uuid
       ORDER BY MAX(sp.project_index) ASC, MAX(sp.job_name) ASC NULLS LAST, MAX(sp.financial_code_validation) ASC
     `;
@@ -368,6 +392,7 @@ export async function GET(request: NextRequest) {
         lastMonthOrderTax: number;
         paymentTax: number;
         pensionOnTax: boolean;
+        waybillSum: number;
       }[];
     }>();
 
@@ -427,6 +452,7 @@ export async function GET(request: NextRequest) {
         lastMonthOrderTax: Number(row.last_month_order_tax || 0),
         paymentTax: Number(row.payment_tax || 0),
         pensionOnTax: Boolean(row.pension_on_tax),
+        waybillSum: Number(row.waybill_sum || 0),
       });
     }
 
