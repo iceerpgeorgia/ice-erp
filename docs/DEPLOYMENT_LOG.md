@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-13 Deployment #279
+- Commit: 03fa8bd
+- Production: https://ice-laxrdi0bh-iceerp.vercel.app
+- Summary: Projects Report views as dropdown, last selected view persisted to localStorage.
+- Changes:
+  - components/figma/projects-report-table.tsx: Views selector replaced with dropdown. localStorage persistence for activeViewUuid.
+
 ## 2026-05-14 Deployment #278
 - Commit: 4f9caf1
 - Production: https://ice-qp4tye7ek-iceerp.vercel.app
