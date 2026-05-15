@@ -263,7 +263,7 @@ export async function GET(request: NextRequest) {
         SELECT
           w.project_uuid::text AS project_uuid,
           w.financial_code_uuid::text AS financial_code_uuid,
-          SUM(COALESCE(w.sum, 0) * ${convFactor("'GEL'", 'nbg_w')}) AS waybill_sum
+          SUM((COALESCE(w.sum, 0) / CASE WHEN w.vat = true THEN 1.18 ELSE 1.0 END) * ${convFactor("'GEL'", 'nbg_w')}) AS waybill_sum
         FROM rs_waybills_in w
         LEFT JOIN LATERAL (
           SELECT usd_rate, eur_rate FROM nbg_exchange_rates
