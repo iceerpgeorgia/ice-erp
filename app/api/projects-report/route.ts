@@ -296,7 +296,7 @@ export async function GET(request: NextRequest) {
             ELSE false
           END
         ) AS confirmed,
-        MAX(la.latest_ledger_date) AS latest_date,
+        MAX(la.latest_ledger_date) AS latest_date
       FROM selected_payments sp
       LEFT JOIN ledger_agg la ON sp.payment_id = la.payment_id
       LEFT JOIN ledger_latest ll ON sp.payment_id = ll.payment_id
