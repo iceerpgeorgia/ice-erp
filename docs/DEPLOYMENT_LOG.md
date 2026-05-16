@@ -384,3 +384,9 @@
 - URL: https://ice-erp.vercel.app
 - Change: Waybill column reworked to standalone column per project (not sub-column inside existing FC group). No more empty 2.1.1.6 columns across all projects. Standalone amber th appears only when waybillSum > 0, showing cost FC code + Waybill subtitle. Job rows show dash, totals row shows waybillSum. Excel export updated to match.
 
+
+## Deployment #294 — 2026-05-17
+- Commit: 14cd75c
+- URL: https://ice-erp.vercel.app
+- Change: Waybill column now matches other FC column styling (gray, not amber). Column header shows cost FC code with hover filter icon linking to /dictionaries/waybills?projectUuid=... Waybills page now reads projectUuid URL param on mount and applies as project_uuid column filter.
+
