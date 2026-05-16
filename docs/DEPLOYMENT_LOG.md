@@ -378,3 +378,9 @@
 - Commit: c379c8b
 - Production URL: https://ice-2yj0m8uw6-iceerp.vercel.app
 - feat(payments-report): added Insider column derived from project.insider_uuid (joined to counteragents.name). Available as new visible column 'Insider' in the payments report; flows through bundle aggregate rows automatically.
+
+## Deployment #293 — 2026-05-17
+- Commit: be30569
+- URL: https://ice-erp.vercel.app
+- Change: Waybill column reworked to standalone column per project (not sub-column inside existing FC group). No more empty 2.1.1.6 columns across all projects. Standalone amber th appears only when waybillSum > 0, showing cost FC code + Waybill subtitle. Job rows show dash, totals row shows waybillSum. Excel export updated to match.
+
