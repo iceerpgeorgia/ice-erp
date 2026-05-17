@@ -2263,7 +2263,7 @@ export function ProjectsReportTable() {
                             key={fc.uuid}
                             colSpan={activeMetrics.length}
                             style={{ minWidth: activeMetrics.reduce((s, m) => s + getColWidth(`${fc.uuid}:${m}`, autoColWidthsMap.get(`${fc.uuid}:${m}`) ?? 38), 0) }}
-                            className="px-2 py-1.5 text-center font-semibold text-gray-700 border-r border-gray-200 text-xs bg-gray-100 overflow-visible"
+                            className="px-2 py-1.5 text-center font-semibold text-amber-700 border-r border-amber-200 text-xs bg-amber-50 overflow-visible"
                             onMouseEnter={!fcFullMode && fc.validation && fc.validation !== fc.code ? (e) => setFcTooltip({ text: fc.validation, x: e.clientX, y: e.clientY }) : undefined}
                             onMouseMove={!fcFullMode && fc.validation && fc.validation !== fc.code ? (e) => setFcTooltip((t) => t ? { ...t, x: e.clientX, y: e.clientY } : t) : undefined}
                             onMouseLeave={!fcFullMode && fc.validation && fc.validation !== fc.code ? () => setFcTooltip(null) : undefined}
@@ -2305,7 +2305,7 @@ export function ProjectsReportTable() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 title="Open waybills filtered by this project"
-                                className="opacity-0 group-hover/wbhdr:opacity-100 text-gray-300 hover:text-blue-500 transition-opacity shrink-0"
+                                className="opacity-0 group-hover/wbhdr:opacity-100 text-amber-300 hover:text-amber-600 transition-opacity shrink-0"
                               >
                                 <Filter className="h-3 w-3" />
                               </a>
@@ -2414,7 +2414,7 @@ export function ProjectsReportTable() {
                               return metricTds;
                             })}
                             {proj.waybillSum > 0 && proj.waybillPairedFcCode && (
-                              <td className="px-2 py-2 text-center text-gray-300 border-r border-gray-200" style={{ width: 80, minWidth: 80 }}>—</td>
+                              <td className="px-2 py-2 text-center text-amber-200 bg-amber-50 border-r border-amber-100" style={{ width: 80, minWidth: 80 }}>—</td>
                             )}
                           </tr>
                         );
@@ -2453,7 +2453,7 @@ export function ProjectsReportTable() {
                           return totMetricTds;
                         })}
                         {proj.waybillSum > 0 && proj.waybillPairedFcCode && (
-                          <td className="px-3 py-2 text-right tabular-nums border-r border-gray-200 text-gray-800" style={{ width: 80, minWidth: 80 }}>
+                          <td className="px-2 py-2 text-right text-[11px] font-semibold text-amber-700 bg-amber-100 border-r border-amber-200" style={{ width: 80, minWidth: 80 }}>
                             {formatMoney(proj.waybillSum)}
                           </td>
                         )}
