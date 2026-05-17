@@ -1498,15 +1498,30 @@ export function ProjectsReportTable() {
       tots.forEach((v, c) => setC(sumWs, sumRow, 3 + c, Math.round(v * 100) / 100, v !== 0 ? S.D : S.D0));
       sumRow++;
     }
+    // Waybill row in summary
+    const waybillTots = pivotByProject.map(({ proj: p }) => p.waybillSum > 0 ? Math.round(p.waybillSum * 100) / 100 : 0);
+    if (waybillTots.some((v) => v > 0)) {
+      const anyWb = pivotByProject.find(({ proj: p }) => p.waybillSum > 0);
+      const wbCode = anyWb?.proj.waybillPairedFcCode ?? 'Waybill';
+      const wbName = anyWb?.proj.waybillPairedFcValidation ?? wbCode;
+      setC(sumWs, sumRow, 0, wbCode, { ...S.D, alignment: { horizontal: 'left' } });
+      setC(sumWs, sumRow, 1, wbName, { ...S.D, alignment: { horizontal: 'left' } });
+      setC(sumWs, sumRow, 2, 'Cost', { ...S.D, alignment: { horizontal: 'center' } });
+      waybillTots.forEach((v, c) => setC(sumWs, sumRow, 3 + c, v, v > 0 ? S.D : S.D0));
+      sumRow++;
+    }
+
     setC(sumWs, sumRow, 0, '', S.TL);
     setC(sumWs, sumRow, 1, 'TOTAL', S.TL);
     setC(sumWs, sumRow, 2, '', S.TL);
-    pivotByProject.forEach(({ jobList, fcList, cellMap }, i) => {
-      const t = fcList.reduce((s, fc) => s + jobList.reduce((js, job) => {
+    pivotByProject.forEach(({ proj: p, jobList, fcList, cellMap }, i) => {
+      const fcTot = fcList.reduce((s, fc) => s + jobList.reduce((js, job) => {
         const cell = cellMap.get(`${job.key}:${fc.uuid}`);
         return js + (cell && !NON_ADDITIVE_METRICS.has(summaryMetric) ? getCellValue(cell, summaryMetric) : 0);
       }, 0), 0);
-      setC(sumWs, sumRow, 3 + i, Math.round(t * 100) / 100, t !== 0 ? S.T : S.TL);
+      const wbTot = summaryMetric === 'payment' ? (p.waybillSum > 0 ? Math.round(p.waybillSum * 100) / 100 : 0) : 0;
+      const t = Math.round((fcTot + wbTot) * 100) / 100;
+      setC(sumWs, sumRow, 3 + i, t, t !== 0 ? S.T : S.TL);
     });
     sumWs['!ref'] = `A1:${cellAddr(sumRow, 2 + report.projects.length)}`;
     sumWs['!cols'] = [{ wch: 12 }, { wch: 36 }, { wch: 10 }, ...report.projects.map(() => ({ wch: 14 }))];
@@ -1516,7 +1531,7 @@ export function ProjectsReportTable() {
     for (const { proj, jobList, fcList, cellMap } of pivotByProject) {
       const ws: Record<string, any> = {};
       const merges: Array<{ s: { r: number; c: number }; e: { r: number; c: number } }> = [];
-      const hasWaybill = proj.waybillSum > 0 && !!proj.waybillPairedFcCode;
+      const hasWaybill = proj.waybillSum > 0;
       const nM = activeMetrics.length;
       const waybillCol = 2 + fcList.length * nM;
       const totalCol = waybillCol + (hasWaybill ? 1 : 0);
@@ -1536,7 +1551,7 @@ export function ProjectsReportTable() {
         }
       });
       if (hasWaybill) {
-        setC(ws, 0, waybillCol, proj.waybillPairedFcCode!, S.H1);
+        setC(ws, 0, waybillCol, proj.waybillPairedFcCode ?? 'Waybill', S.H1);
         merges.push({ s: { r: 0, c: waybillCol }, e: { r: 1, c: waybillCol } });
       }
       setC(ws, 0, totalCol, 'Total', S.H1); merges.push({ s: { r: 0, c: totalCol }, e: { r: 1, c: totalCol } });
