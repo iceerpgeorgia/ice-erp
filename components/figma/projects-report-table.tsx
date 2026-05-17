@@ -2263,7 +2263,7 @@ export function ProjectsReportTable() {
                             key={fc.uuid}
                             colSpan={activeMetrics.length}
                             style={{ minWidth: activeMetrics.reduce((s, m) => s + getColWidth(`${fc.uuid}:${m}`, autoColWidthsMap.get(`${fc.uuid}:${m}`) ?? 38), 0) }}
-                            className="px-2 py-1.5 text-center font-semibold text-amber-700 border-r border-amber-200 text-xs bg-amber-50 overflow-visible"
+                            className="px-2 py-1.5 text-center font-semibold text-gray-700 border-r border-gray-200 text-xs bg-gray-100 overflow-visible"
                             onMouseEnter={!fcFullMode && fc.validation && fc.validation !== fc.code ? (e) => setFcTooltip({ text: fc.validation, x: e.clientX, y: e.clientY }) : undefined}
                             onMouseMove={!fcFullMode && fc.validation && fc.validation !== fc.code ? (e) => setFcTooltip((t) => t ? { ...t, x: e.clientX, y: e.clientY } : t) : undefined}
                             onMouseLeave={!fcFullMode && fc.validation && fc.validation !== fc.code ? () => setFcTooltip(null) : undefined}
@@ -2294,21 +2294,13 @@ export function ProjectsReportTable() {
                         ))}
                         {proj.waybillSum > 0 && proj.waybillPairedFcCode && (
                           <th
-                            className="px-2 py-1.5 text-center font-semibold text-gray-700 border-r border-gray-200 text-xs bg-gray-100 overflow-visible"
+                            className="bg-amber-50 border-r border-amber-200 relative overflow-hidden"
                             style={{ width: 80, minWidth: 80 }}
                             rowSpan={2}
                           >
-                            <div className="inline-flex items-center justify-center gap-1 w-full group/wbhdr">
-                              <span className="truncate cursor-default">{proj.waybillPairedFcCode}</span>
-                              <a
-                                href={`/dictionaries/waybills?projectUuid=${encodeURIComponent(proj.projectUuid)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title="Open waybills filtered by this project"
-                                className="opacity-0 group-hover/wbhdr:opacity-100 text-amber-300 hover:text-amber-600 transition-opacity shrink-0"
-                              >
-                                <Filter className="h-3 w-3" />
-                              </a>
+                            <div className="px-2 py-1.5 text-center font-semibold text-amber-700 text-xs leading-tight">
+                              <div>{proj.waybillPairedFcCode}</div>
+                              <div className="text-[9px] font-normal text-amber-500">Waybill</div>
                             </div>
                           </th>
                         )}

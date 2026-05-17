@@ -290,18 +290,6 @@ export function WaybillsTable() {
     setFiltersInitialized(true);
   }, [filtersStorageKey]);
 
-  // Apply URL query parameters as initial column filters (overrides localStorage state)
-  useEffect(() => {
-    if (!filtersInitialized) return;
-    const urlParams = new URLSearchParams(window.location.search);
-    const projectUuidParam = urlParams.get('projectUuid');
-    if (projectUuidParam) {
-      setColumnFilters([{ id: 'project_uuid', value: [projectUuidParam] }]);
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtersInitialized]);
-
   useEffect(() => {
     if (!filtersInitialized) return;
     const serialized = {
