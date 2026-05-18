@@ -167,10 +167,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payment ID is required' }, { status: 400 });
     }
 
-    // Accrual is required; order is optional
-    if (!accrual || accrual === 0) {
+    // At least one of accrual or order must be provided
+    if ((!accrual || accrual === 0) && (!order || order === 0)) {
       return NextResponse.json(
-        { error: 'Accrual is required and cannot be zero' },
+        { error: 'Either Accrual or Order must be provided and cannot be zero' },
         { status: 400 }
       );
     }
@@ -206,23 +206,7 @@ export async function POST(request: NextRequest) {
       paymentId
     );
 
-    const existingAccrual = Number(totals?.[0]?.accrual_total ?? 0);
-    const existingOrder = Number(totals?.[0]?.order_total ?? 0);
-    const newOrder = Number(order || 0);
-    const newAccrual = Number(accrual || 0);
-    const toCents = (value: number) => Math.round(value * 100);
-    const currentExcessCents = Math.max(0, toCents(existingOrder) - toCents(existingAccrual));
-    const nextExcessCents = Math.max(
-      0,
-      toCents(existingOrder + newOrder) - toCents(existingAccrual + newAccrual)
-    );
-
-    if (nextExcessCents > currentExcessCents) {
-      return NextResponse.json(
-        { error: 'Total order cannot exceed total accrual for this payment' },
-        { status: 400 }
-      );
-    }
+    // Totals loaded for reference (accrual and order are independent)
 
     const query = `
       INSERT INTO payments_ledger (

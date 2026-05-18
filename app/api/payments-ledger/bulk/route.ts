@@ -108,11 +108,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (!entry.accrual || entry.accrual === 0) {
-        logs.push(`[ERROR] Accrual missing (payment ${entry.paymentId})`);
+      if ((!entry.accrual || entry.accrual === 0) && (!entry.order || entry.order === 0)) {
+        logs.push(`[ERROR] Accrual or Order missing (payment ${entry.paymentId})`);
         return NextResponse.json(
           {
-            error: `Accrual is required and cannot be zero (payment ${entry.paymentId})`,
+            error: `Either Accrual or Order must be provided (payment ${entry.paymentId})`,
             logs: logs.join('\n'),
           },
           { status: 400 }
@@ -194,28 +194,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    for (const [paymentId, addedOrder] of orderAdditions.entries()) {
-      const existing = totalsMap.get(paymentId) || { accrual: 0, order: 0 };
-      const toCents = (value: number) => Math.round(value * 100);
-      const currentExcessCents = Math.max(0, toCents(existing.order) - toCents(existing.accrual));
-      const nextExcessCents = Math.max(
-        0,
-        (toCents(existing.order) + toCents(addedOrder)) -
-          (toCents(existing.accrual) + toCents(accrualAdditions.get(paymentId) || 0))
-      );
-
-      if (nextExcessCents > currentExcessCents) {
-        logs.push(`[ERROR] Order exceeds accrual for payment ${paymentId}`);
-        return NextResponse.json(
-          {
-            error: `Total order cannot exceed total accrual for payment ${paymentId}`,
-            logs: logs.join('\n'),
-          },
-          { status: 400 }
-        );
-      }
-    }
-    logs.push('[INFO] Totals consistency check passed');
+    logs.push('[INFO] Totals consistency check skipped (accrual and order are independent)');
 
     await prisma.$transaction(
       normalized.map((entry: { paymentId: string; effectiveDate: string; accrual: number; order: number; comment: string | null }) =>
