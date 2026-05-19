@@ -274,23 +274,11 @@ export async function POST(request: NextRequest) {
     // Send payment notifications asynchronously (don't await to not block response)
     const paymentIdForNotification = (payment as any).payment_id;
     if (paymentIdForNotification) {
-      // Count attachments for this payment
-      prisma.attachments.count({
-        where: {
-          links: {
-            some: {
-              owner_table: 'payments',
-              owner_uuid: paymentIdForNotification,
-            },
-          },
-          is_active: true,
-        },
-      }).then(async () => {
-        const notificationResult = await sendPaymentNotifications({
-          paymentId: paymentIdForNotification,
-          label: (payment as any).label,
-        });
-
+      // Send notifications asynchronously
+      sendPaymentNotifications({
+        paymentId: paymentIdForNotification,
+        label: (payment as any).label,
+      }).then(notificationResult => {
         if (!notificationResult.success) {
           console.error('[Payment Notifications] Notification completed with errors:', notificationResult.errors);
         }
