@@ -1,6 +1,19 @@
-# Deployment Log
+﻿# Deployment Log
 
-## 2026-05-22 Deployment #290
+## 2026-05-23 Deployment #254
+- Commit: bcddae9
+- Production: https://ice-5klg1cgpl-iceerp.vercel.app
+- Summary: Scheduled RS.ge waybill sync with multi-insider support. Extracted shared sync logic into `lib/waybills/run-waybill-sync.ts`. Added hourly today-sync cron (`/api/cron/waybills-today`, every hour 8AM-8PM Tbilisi) and daily 3-month backcheck cron (`/api/cron/waybills-quarterly`, 4AM Tbilisi). Multi-insider credentials via `RS_CREDENTIALS_MAP` env var (JSON array, same pattern as BOG). VAT field locked at first insert, never overwritten. `insider_uuid` stored per waybill in `rs_waybills_in_api`.
+- Changes:
+  - `lib/waybills/run-waybill-sync.ts`: New shared sync library.
+  - `lib/integrations/rsge/client.ts`: Added `getRsCredentialsMap()` parsing `RS_CREDENTIALS_MAP` JSON array.
+  - `app/api/waybills/sync/route.ts`: Slimmed to use `getRsCredentialsMap()[0]` + `runWaybillSync`.
+  - `app/api/cron/waybills-today/route.ts`: New - hourly cron, syncs today per insider.
+  - `app/api/cron/waybills-quarterly/route.ts`: New - daily cron, syncs last 3 months per insider.
+  - `vercel.json`: Added two new cron entries.
+  - `AGENTS.md`: Added RS.ge Waybill Sync documentation section.
+- NOTE: RS_CREDENTIALS_MAP must be added to Vercel dashboard env vars for crons to work.
+ 2026-05-22 Deployment #290
 - Commit: da1853b
 - Production: https://ice-3swrny141-iceerp.vercel.app
 - Summary: Add `rs_waybills_in_api` table as single source of truth for RS.ge buyer waybills synced via SOAP API. Integrates `is_vat_payer_tin` SOAP operation to populate the `vat` field per seller TIN. Backfilled 12,416 rows from `rs_waybills_in`. User-editable fields seeded on first import, never overwritten by sync.
