@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-05-22 Deployment #290
+- Commit: da1853b
+- Production: https://ice-3swrny141-iceerp.vercel.app
+- Summary: Add `rs_waybills_in_api` table as single source of truth for RS.ge buyer waybills synced via SOAP API. Integrates `is_vat_payer_tin` SOAP operation to populate the `vat` field per seller TIN. Backfilled 12,416 rows from `rs_waybills_in`. User-editable fields seeded on first import, never overwritten by sync.
+- Changes:
+  - lib/integrations/rsge/client.ts: Added `isVatPayerTin()` and `batchIsVatPayerTin()` SOAP helpers.
+  - prisma/schema.prisma: Added `rs_waybills_in_api` model (48 fields, 7 indexes).
+  - app/api/waybills/sync/route.ts: Upserts into `rs_waybills_in_api`; seeds user fields on creation only.
+  - _backfill_rs_waybills_in_api.js: One-time backfill script (12,416 rows inserted).
 ## 2026-05-15 Deployment #289
 - Commit: ce4ab94
 - Production: https://ice-kvxw13va2-iceerp.vercel.app
@@ -37,7 +46,7 @@
 ## 2026-05-14 Deployment #252
 - Commit: 78c2bf6
 - Production: https://ice-mhisd0uiu-iceerp.vercel.app
-- Summary: Projects report: all active jobs shown in grid; grand total simplified to "X FCs · Y / Z jobs paid"; New View clears selected projects.
+- Summary: Projects report: all active jobs shown in grid; grand total simplified to "X FCs Â· Y / Z jobs paid"; New View clears selected projects.
 - Changes:
   - app/api/projects-report/route.ts: Added allJobs query; included allJobs array in projectMap.
   - components/figma/projects-report-table.tsx: allJobs in ProjectData type; buildPivot seeds jobMap from allJobs; grandTotals rewritten with paidJobs/totalFcs/totalJobs counts; simplified JSX bar; handleCreateView clears projects.
@@ -126,14 +135,14 @@
 - Summary: New Projects Report page at /dictionaries/projects-report.
 - Changes:
   - app/api/projects-report/route.ts: API querying payments grouped by (project x job x financial_code) with full ledger/bank aggregation and BTC batch resolution.
-  - components/figma/projects-report-table.tsx: Pivot-grid UI â€” one grid per selected project; rows=jobs, columns=financial codes; each FC column has its own metric picker (accrual/order/payment/due/balance/etc); totals row/column, XLSX export, collapsible sections.
+  - components/figma/projects-report-table.tsx: Pivot-grid UI Ã¢â‚¬â€ one grid per selected project; rows=jobs, columns=financial codes; each FC column has its own metric picker (accrual/order/payment/due/balance/etc); totals row/column, XLSX export, collapsible sections.
   - app/dictionaries/projects-report/page.tsx: Next.js page at /dictionaries/projects-report.
   - app/dictionaries/page.tsx: Added Projects Report link to dictionaries index.
 
 ## 2026-05-07 Deployment #266
 - Commit: d25e66a
 - Production: https://ice-dtff0n2la-iceerp.vercel.app
-- Summary: Stable attachment count icon â€” counts no longer flash to 0 on re-fetch, layout no longer shifts.
+- Summary: Stable attachment count icon Ã¢â‚¬â€ counts no longer flash to 0 on re-fetch, layout no longer shifts.
 - Changes:
   - components/figma/payments-report-table.tsx: Merge incoming counts into existing state so stale values stay visible during re-fetches; removed count reset on error.
   - components/figma/payments-table.tsx: Same merge-on-update pattern; removed count reset on error.
@@ -379,13 +388,13 @@
 - Production URL: https://ice-2yj0m8uw6-iceerp.vercel.app
 - feat(payments-report): added Insider column derived from project.insider_uuid (joined to counteragents.name). Available as new visible column 'Insider' in the payments report; flows through bundle aggregate rows automatically.
 
-## Deployment #293 � 2026-05-17
+## Deployment #293 — 2026-05-17
 - Commit: be30569
 - URL: https://ice-erp.vercel.app
 - Change: Waybill column reworked to standalone column per project (not sub-column inside existing FC group). No more empty 2.1.1.6 columns across all projects. Standalone amber th appears only when waybillSum > 0, showing cost FC code + Waybill subtitle. Job rows show dash, totals row shows waybillSum. Excel export updated to match.
 
 
-## Deployment #294 � 2026-05-17
+## Deployment #294 — 2026-05-17
 - Commit: 14cd75c
 - URL: https://ice-erp.vercel.app
 - Change: Waybill column now matches other FC column styling (gray, not amber). Column header shows cost FC code with hover filter icon linking to /dictionaries/waybills?projectUuid=... Waybills page now reads projectUuid URL param on mount and applies as project_uuid column filter.
