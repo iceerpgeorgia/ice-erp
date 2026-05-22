@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { resolveInsiderSelection } from '@/lib/insider-selection';
@@ -19,60 +19,8 @@ const toNumber = (value: any) => (typeof value === 'bigint' ? Number(value) : va
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const UUID_FILTER_FIELDS = new Set(['counteragent_uuid', 'driver_uuid', 'project_uuid', 'financial_code_uuid']);
 const NON_BLANK_FILTER_TOKEN = '__NON_BLANK__';
-let waybillUuidSanitized = false;
-let waybillUuidSanitizePromise: Promise<void> | null = null;
 
 const isValidUuid = (value: string) => UUID_REGEX.test(value.trim());
-
-const sanitizeWaybillUuidColumns = async () => {
-  await prisma.$executeRawUnsafe(`
-    UPDATE rs_waybills_in
-    SET
-      counteragent_uuid = CASE
-        WHEN counteragent_uuid IS NULL THEN NULL
-        WHEN TRIM(counteragent_uuid::text) = '' THEN NULL
-        WHEN TRIM(counteragent_uuid::text) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN counteragent_uuid
-        ELSE NULL
-      END,
-      driver_uuid = CASE
-        WHEN driver_uuid IS NULL THEN NULL
-        WHEN TRIM(driver_uuid::text) = '' THEN NULL
-        WHEN TRIM(driver_uuid::text) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN driver_uuid
-        ELSE NULL
-      END,
-      project_uuid = CASE
-        WHEN project_uuid IS NULL THEN NULL
-        WHEN TRIM(project_uuid::text) = '' THEN NULL
-        WHEN TRIM(project_uuid::text) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN project_uuid
-        ELSE NULL
-      END,
-      financial_code_uuid = CASE
-        WHEN financial_code_uuid IS NULL THEN NULL
-        WHEN TRIM(financial_code_uuid::text) = '' THEN NULL
-        WHEN TRIM(financial_code_uuid::text) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN financial_code_uuid
-        ELSE NULL
-      END
-    WHERE
-      (counteragent_uuid IS NOT NULL AND (TRIM(counteragent_uuid::text) = '' OR TRIM(counteragent_uuid::text) !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'))
-      OR (driver_uuid IS NOT NULL AND (TRIM(driver_uuid::text) = '' OR TRIM(driver_uuid::text) !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'))
-      OR (project_uuid IS NOT NULL AND (TRIM(project_uuid::text) = '' OR TRIM(project_uuid::text) !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'))
-      OR (financial_code_uuid IS NOT NULL AND (TRIM(financial_code_uuid::text) = '' OR TRIM(financial_code_uuid::text) !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'))
-  `);
-};
-
-const ensureWaybillUuidColumnsSanitized = async () => {
-  if (waybillUuidSanitized) return;
-  if (!waybillUuidSanitizePromise) {
-    waybillUuidSanitizePromise = sanitizeWaybillUuidColumns()
-      .then(() => {
-        waybillUuidSanitized = true;
-      })
-      .finally(() => {
-        waybillUuidSanitizePromise = null;
-      });
-  }
-  await waybillUuidSanitizePromise;
-};
 
 const formatDate = (value: Date) => {
   const day = String(value.getUTCDate()).padStart(2, '0');
@@ -108,22 +56,20 @@ const serializeWaybill = (row: any) => ({
     : null,
   submission_time: row.submission_time ? new Date(row.submission_time).toISOString() : null,
   cancellation_time: row.cancellation_time ? new Date(row.cancellation_time).toISOString() : null,
-  created_at: row.created_at ? new Date(row.created_at).toISOString() : null,
-  updated_at: row.updated_at ? new Date(row.updated_at).toISOString() : null,
+  synced_at: row.synced_at ? new Date(row.synced_at).toISOString() : null,
 });
 
 export async function GET(req: NextRequest) {
   try {
     const selection = await resolveInsiderSelection(req);
     const insider = selection.primaryInsider;
-    if (!(await tableExists('rs_waybills_in'))) {
+    if (!(await tableExists('rs_waybills_in_api'))) {
       return NextResponse.json(
         { error: 'Waybills table is not available yet. Please run migrations.' },
         { status: 503 }
       );
     }
     const { searchParams } = new URL(req.url);
-    await ensureWaybillUuidColumnsSanitized();
     const limit = Math.min(Number(searchParams.get('limit') || 200), 2000);
     const offset = Math.max(Number(searchParams.get('offset') || 0), 0);
     const search = (searchParams.get('search') || '').trim();
@@ -139,7 +85,7 @@ export async function GET(req: NextRequest) {
     const periodFromDate = parseMonthBoundary(periodFromParam, 'start');
     const periodToExclusiveDate = parseMonthBoundary(periodToParam, 'endExclusive');
 
-    const periodRangeClause: Prisma.rs_waybills_inWhereInput | null =
+    const periodRangeClause: Prisma.rs_waybills_in_apiWhereInput | null =
       periodFromDate && periodToExclusiveDate
         ? { activation_time: { gte: periodFromDate, lt: periodToExclusiveDate } }
         : periodFromDate
@@ -171,6 +117,10 @@ export async function GET(req: NextRequest) {
       'project_uuid',
       'financial_code_uuid',
       'corresponding_account',
+      'transportation_beginning_time',
+      'submission_time',
+      'cancellation_time',
+      'note',
     ]);
 
     const allowedSortColumns = new Set([
@@ -196,10 +146,14 @@ export async function GET(req: NextRequest) {
       'project_uuid',
       'financial_code_uuid',
       'corresponding_account',
+      'transportation_beginning_time',
+      'submission_time',
+      'cancellation_time',
+      'note',
       'id',
     ]);
 
-    const baseSearch: Prisma.rs_waybills_inWhereInput = search
+    const baseSearch: Prisma.rs_waybills_in_apiWhereInput = search
       ? {
           OR: [
             { waybill_no: { contains: search, mode: Prisma.QueryMode.insensitive } },
@@ -228,8 +182,8 @@ export async function GET(req: NextRequest) {
 
     const buildFilterClauses = async (
       excludeColumnKey?: string
-    ): Promise<Prisma.rs_waybills_inWhereInput[]> => {
-      const clauses: Prisma.rs_waybills_inWhereInput[] = [];
+    ): Promise<Prisma.rs_waybills_in_apiWhereInput[]> => {
+      const clauses: Prisma.rs_waybills_in_apiWhereInput[] = [];
 
       const entries = parsedFilterEntries
         .filter(([key]) => allowedFilterFields.has(key))
@@ -285,7 +239,7 @@ export async function GET(req: NextRequest) {
 
         if (requireNonBlank && nonBlank.length === 0 && !includeBlank) {
           if (UUID_FILTER_FIELDS.has(key)) {
-            clauses.push({ [key]: { not: null } } as Prisma.rs_waybills_inWhereInput);
+            clauses.push({ [key]: { not: null } } as Prisma.rs_waybills_in_apiWhereInput);
             return;
           }
           if (key === 'vat') {
@@ -296,13 +250,13 @@ export async function GET(req: NextRequest) {
             return;
           }
           if (['sum', 'transportation_sum', 'transportation_cost'].includes(key)) {
-            clauses.push({ [key]: { not: null } } as Prisma.rs_waybills_inWhereInput);
+            clauses.push({ [key]: { not: null } } as Prisma.rs_waybills_in_apiWhereInput);
             return;
           }
           clauses.push({
             AND: [
-              { [key]: { not: null } } as Prisma.rs_waybills_inWhereInput,
-              { [key]: { not: '' } } as Prisma.rs_waybills_inWhereInput,
+              { [key]: { not: null } } as Prisma.rs_waybills_in_apiWhereInput,
+              { [key]: { not: '' } } as Prisma.rs_waybills_in_apiWhereInput,
             ],
           });
           return;
@@ -311,11 +265,11 @@ export async function GET(req: NextRequest) {
         if (UUID_FILTER_FIELDS.has(key)) {
           const uuidValues = nonBlank.filter((item) => isValidUuid(item));
           if (uuidValues.length > 0 && includeBlank) {
-            clauses.push({ OR: [{ [key]: { in: uuidValues } }, { [key]: null }] } as Prisma.rs_waybills_inWhereInput);
+            clauses.push({ OR: [{ [key]: { in: uuidValues } }, { [key]: null }] } as Prisma.rs_waybills_in_apiWhereInput);
           } else if (uuidValues.length > 0) {
-            clauses.push({ [key]: { in: uuidValues } } as Prisma.rs_waybills_inWhereInput);
+            clauses.push({ [key]: { in: uuidValues } } as Prisma.rs_waybills_in_apiWhereInput);
           } else if (includeBlank) {
-            clauses.push({ [key]: null } as Prisma.rs_waybills_inWhereInput);
+            clauses.push({ [key]: null } as Prisma.rs_waybills_in_apiWhereInput);
           }
           return;
         }
@@ -346,7 +300,7 @@ export async function GET(req: NextRequest) {
             })
             .filter((range): range is { start: Date; end: Date } => Boolean(range));
           if (ranges.length > 0) {
-            const dateOr: Prisma.rs_waybills_inWhereInput[] = ranges.map((range) => ({
+            const dateOr: Prisma.rs_waybills_in_apiWhereInput[] = ranges.map((range) => ({
               activation_time: {
                 gte: range.start,
                 lt: range.end,
@@ -379,11 +333,11 @@ export async function GET(req: NextRequest) {
         if (['sum', 'transportation_sum', 'transportation_cost'].includes(key)) {
           const numbers = nonBlank.map((value) => Number(value)).filter((value) => !Number.isNaN(value));
           if (numbers.length > 0 && includeBlank) {
-            clauses.push({ OR: [{ [key]: { in: numbers } }, { [key]: null }] } as Prisma.rs_waybills_inWhereInput);
+            clauses.push({ OR: [{ [key]: { in: numbers } }, { [key]: null }] } as Prisma.rs_waybills_in_apiWhereInput);
           } else if (numbers.length > 0) {
-            clauses.push({ [key]: { in: numbers } } as Prisma.rs_waybills_inWhereInput);
+            clauses.push({ [key]: { in: numbers } } as Prisma.rs_waybills_in_apiWhereInput);
           } else if (includeBlank) {
-            clauses.push({ [key]: null } as Prisma.rs_waybills_inWhereInput);
+            clauses.push({ [key]: null } as Prisma.rs_waybills_in_apiWhereInput);
           }
           return;
         }
@@ -391,26 +345,26 @@ export async function GET(req: NextRequest) {
         if (nonBlank.length > 0 && includeBlank) {
           clauses.push({
             OR: [
-              { [key]: { in: nonBlank } } as Prisma.rs_waybills_inWhereInput,
-              { [key]: null } as Prisma.rs_waybills_inWhereInput,
-              { [key]: '' } as Prisma.rs_waybills_inWhereInput,
+              { [key]: { in: nonBlank } } as Prisma.rs_waybills_in_apiWhereInput,
+              { [key]: null } as Prisma.rs_waybills_in_apiWhereInput,
+              { [key]: '' } as Prisma.rs_waybills_in_apiWhereInput,
             ],
           });
           return;
         }
         if (nonBlank.length > 0) {
-          clauses.push({ [key]: { in: nonBlank } } as Prisma.rs_waybills_inWhereInput);
+          clauses.push({ [key]: { in: nonBlank } } as Prisma.rs_waybills_in_apiWhereInput);
           return;
         }
         if (includeBlank) {
-          clauses.push({ OR: [{ [key]: null } as Prisma.rs_waybills_inWhereInput, { [key]: '' } as Prisma.rs_waybills_inWhereInput] });
+          clauses.push({ OR: [{ [key]: null } as Prisma.rs_waybills_in_apiWhereInput, { [key]: '' } as Prisma.rs_waybills_in_apiWhereInput] });
         }
       });
 
       return clauses;
     };
 
-    const buildWhere = async (excludeColumnKey?: string): Promise<Prisma.rs_waybills_inWhereInput> => {
+    const buildWhere = async (excludeColumnKey?: string): Promise<Prisma.rs_waybills_in_apiWhereInput> => {
       const filterClauses = await buildFilterClauses(excludeColumnKey);
       return {
         AND: [
@@ -431,9 +385,9 @@ export async function GET(req: NextRequest) {
 
     const filterClauses = await buildFilterClauses();
 
-    const where: Prisma.rs_waybills_inWhereInput = await buildWhere();
+    const where: Prisma.rs_waybills_in_apiWhereInput = await buildWhere();
 
-    const missingCounteragentWhere: Prisma.rs_waybills_inWhereInput = {
+    const missingCounteragentWhere: Prisma.rs_waybills_in_apiWhereInput = {
       AND: [
         baseSearch,
         ...(periodRangeClause ? [periodRangeClause] : []),
@@ -445,12 +399,12 @@ export async function GET(req: NextRequest) {
       ],
     };
 
-    const orderBy: Prisma.rs_waybills_inOrderByWithRelationInput[] =
+    const orderBy: Prisma.rs_waybills_in_apiOrderByWithRelationInput[] =
       allowedSortColumns.has(sortColumn)
         ? [
             sortColumn === 'date'
-              ? ({ activation_time: sortDirection } as Prisma.rs_waybills_inOrderByWithRelationInput)
-              : ({ [sortColumn]: sortDirection } as Prisma.rs_waybills_inOrderByWithRelationInput),
+              ? ({ activation_time: sortDirection } as Prisma.rs_waybills_in_apiOrderByWithRelationInput)
+              : ({ [sortColumn]: sortDirection } as Prisma.rs_waybills_in_apiOrderByWithRelationInput),
             { id: Prisma.SortOrder.desc },
           ]
         : [
@@ -458,13 +412,13 @@ export async function GET(req: NextRequest) {
             { id: Prisma.SortOrder.desc },
           ];
 
-    const rows = await prisma.rs_waybills_in.findMany({
+    const rows = await prisma.rs_waybills_in_api.findMany({
       where,
       orderBy,
       ...(exportAll ? {} : { take: limit, skip: offset }),
     });
-    const total = await prisma.rs_waybills_in.count({ where });
-    const missingCounteragentCount = await prisma.rs_waybills_in.count({ where: missingCounteragentWhere });
+    const total = await prisma.rs_waybills_in_api.count({ where });
+    const missingCounteragentCount = await prisma.rs_waybills_in_api.count({ where: missingCounteragentWhere });
 
     const counteragentUuids = Array.from(
       new Set(rows.map((row: any) => row.counteragent_uuid).filter(Boolean))
@@ -490,7 +444,7 @@ export async function GET(req: NextRequest) {
       for (const field of facetFields) {
         const facetWhere = await buildWhere(field);
         if (field === 'counteragent_name') {
-          const uuids = await prisma.rs_waybills_in.findMany({
+          const uuids = await prisma.rs_waybills_in_api.findMany({
             where: facetWhere,
             distinct: ['counteragent_uuid'],
             select: { counteragent_uuid: true },
@@ -515,7 +469,7 @@ export async function GET(req: NextRequest) {
           continue;
         }
         if (field === 'date') {
-          const rows = await prisma.rs_waybills_in.findMany({
+          const rows = await prisma.rs_waybills_in_api.findMany({
             where: facetWhere,
             distinct: ['activation_time'],
             select: { activation_time: true },
@@ -526,10 +480,10 @@ export async function GET(req: NextRequest) {
           facetResults.push([field, Array.from(new Set(values))] as const);
           continue;
         }
-        const rows = await prisma.rs_waybills_in.findMany({
+        const rows = await prisma.rs_waybills_in_api.findMany({
           where: facetWhere,
           distinct: [field as any],
-          select: { [field]: true } as Prisma.rs_waybills_inSelect,
+          select: { [field]: true } as Prisma.rs_waybills_in_apiSelect,
         });
         const values = rows
           .map((row: any) => row[field])
@@ -590,7 +544,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const selection = await resolveInsiderSelection(req);
     const insider = selection.primaryInsider;
-    if (!(await tableExists('rs_waybills_in'))) {
+    if (!(await tableExists('rs_waybills_in_api'))) {
       return NextResponse.json(
         { error: 'Waybills table is not available yet. Please run migrations.' },
         { status: 503 }
@@ -636,9 +590,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
 
-    updates.updated_at = new Date();
-
-    const updated = await prisma.rs_waybills_in.update({
+    const updated = await prisma.rs_waybills_in_api.update({
       where: { id },
       data: updates,
     });

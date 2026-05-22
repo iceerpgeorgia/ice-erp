@@ -84,26 +84,30 @@ type ColumnConfig = {
 };
 
 const defaultColumns: ColumnConfig[] = [
-  { key: 'waybill_no', label: 'Waybill No', visible: true, sortable: true, filterable: true, width: 140 },
-  { key: 'state', label: 'State', visible: true, sortable: true, filterable: true, width: 120 },
+  { key: 'waybill_no', label: 'Waybill', visible: true, sortable: true, filterable: true, width: 140 },
+  { key: 'state', label: 'Status', visible: true, sortable: true, filterable: true, width: 120 },
   { key: 'condition', label: 'Condition', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'category', label: 'Category', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'type', label: 'Type', visible: true, sortable: true, filterable: true, width: 140 },
-  { key: 'counteragent_name', label: 'Counteragent', visible: true, sortable: true, filterable: true, width: 240 },
+  { key: 'counteragent_name', label: 'Organization', visible: true, sortable: true, filterable: true, width: 240 },
   { key: 'insiderName', label: 'Insider', visible: true, sortable: false, filterable: false, width: 180 },
   { key: 'counteragent_inn', label: 'INN', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'vat', label: 'VAT', visible: true, sortable: true, filterable: true, format: 'boolean', width: 80 },
-  { key: 'sum', label: 'Sum', visible: true, sortable: true, filterable: true, format: 'number', width: 120 },
+  { key: 'sum', label: 'Amount', visible: true, sortable: true, filterable: true, format: 'number', width: 120 },
   { key: 'driver', label: 'Driver', visible: true, sortable: true, filterable: true, width: 200 },
-  { key: 'vehicle', label: 'Vehicle', visible: true, sortable: true, filterable: true, width: 160 },
-  { key: 'activation_time', label: 'Activation Time', visible: true, sortable: true, filterable: true, format: 'datetime', width: 190 },
-  { key: 'date', label: 'Date', visible: true, sortable: true, filterable: true, format: 'date', width: 120 },
-  { key: 'period', label: 'Period', visible: true, sortable: true, filterable: true, format: 'date', width: 120 },
+  { key: 'vehicle', label: 'Auto', visible: true, sortable: true, filterable: true, width: 160 },
+  { key: 'transportation_sum', label: 'Transport Amount', visible: true, sortable: true, filterable: true, format: 'number', width: 140 },
+  { key: 'departure_address', label: 'Departure Place', visible: true, sortable: true, filterable: true, width: 260 },
+  { key: 'shipping_address', label: 'Delivery Address', visible: true, sortable: true, filterable: true, width: 260 },
+  { key: 'activation_time', label: 'Activation Date', visible: true, sortable: true, filterable: true, format: 'datetime', width: 190 },
+  { key: 'transportation_beginning_time', label: 'Transport Start', visible: true, sortable: true, filterable: true, format: 'datetime', width: 190 },
+  { key: 'submission_time', label: 'Submission Date', visible: true, sortable: true, filterable: true, format: 'datetime', width: 190 },
+  { key: 'cancellation_time', label: 'Cancellation Date', visible: false, sortable: true, filterable: true, format: 'datetime', width: 190 },
+  { key: 'note', label: 'Note', visible: false, sortable: true, filterable: true, width: 260 },
+  { key: 'date', label: 'Date', visible: false, sortable: true, filterable: true, format: 'date', width: 120 },
+  { key: 'period', label: 'Period', visible: false, sortable: true, filterable: true, format: 'date', width: 120 },
   { key: 'rs_id', label: 'RS ID', visible: true, sortable: true, filterable: true, width: 140 },
-  { key: 'transportation_sum', label: 'Transport Sum', visible: true, sortable: true, filterable: true, format: 'number', width: 140 },
-  { key: 'transportation_cost', label: 'Transport Cost', visible: true, sortable: true, filterable: true, format: 'number', width: 140 },
-  { key: 'shipping_address', label: 'Shipping Address', visible: true, sortable: true, filterable: true, width: 260 },
-  { key: 'departure_address', label: 'Departure Address', visible: true, sortable: true, filterable: true, width: 260 },
+  { key: 'transportation_cost', label: 'Transport Cost', visible: false, sortable: true, filterable: true, format: 'number', width: 140 },
   { key: 'project_uuid', label: 'Project', visible: true, sortable: true, filterable: true, width: 200 },
   { key: 'financial_code_uuid', label: 'Financial Code', visible: true, sortable: true, filterable: true, width: 220 },
   { key: 'corresponding_account', label: 'Corresponding Account', visible: true, sortable: true, filterable: true, width: 180 },
@@ -209,7 +213,7 @@ export function WaybillsTable() {
 
   useEffect(() => {
     const versionKey = 'waybillsColumnsVersion';
-    const currentVersion = '2';
+    const currentVersion = '3';
     const savedVersion = localStorage.getItem(versionKey);
     const shouldLoadSavedColumns = savedVersion === currentVersion;
     if (!shouldLoadSavedColumns) {
