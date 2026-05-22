@@ -144,6 +144,60 @@ export function getRsApiCredentials(): { su: string; sp: string } {
   return { su, sp };
 }
 
+export interface RsCredential {
+  insiderUuid: string;
+  su: string;
+  sp: string;
+}
+
+/**
+ * Parses RS_CREDENTIALS_MAP env var into per-insider RS API credentials.
+ *
+ * Format (JSON array, wrapping single-quotes are stripped automatically):
+ *   [{"INSIDER_UUID":"...","RS_API_SU":"...","RS_API_SP":"..."}]
+ *
+ * Falls back to RS_API_SU / RS_API_SP + RS_API_INSIDER_UUID when the map is
+ * not set, allowing gradual migration.
+ *
+ * Returns an empty array when no credentials are configured — cron routes
+ * should treat this as a 503 / configuration error.
+ */
+export function getRsCredentialsMap(): RsCredential[] {
+  const raw = (process.env.RS_CREDENTIALS_MAP ?? '').trim().replace(/^['"]|['"]$/g, '');
+  if (raw) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      try {
+        parsed = JSON.parse(raw.replace(/\\"/g, '"'));
+      } catch {
+        parsed = null;
+      }
+    }
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const result: RsCredential[] = [];
+      for (const entry of parsed) {
+        if (!entry || typeof entry !== 'object') continue;
+        const row = entry as Record<string, unknown>;
+        const insiderUuid = String(row.INSIDER_UUID ?? row.insider_uuid ?? '').trim();
+        const su = String(row.RS_API_SU ?? row.su ?? '').trim();
+        const sp = String(row.RS_API_SP ?? row.sp ?? '').trim();
+        if (insiderUuid && su && sp) result.push({ insiderUuid, su, sp });
+      }
+      if (result.length > 0) return result;
+    }
+  }
+
+  // Fallback: single credential pair with explicit insider UUID
+  const su = (process.env.RS_API_SU ?? '').trim();
+  const sp = (process.env.RS_API_SP ?? '').trim();
+  const insiderUuid = (process.env.RS_API_INSIDER_UUID ?? '').trim();
+  if (su && sp && insiderUuid) return [{ insiderUuid, su, sp }];
+
+  return [];
+}
+
 /**
  * Checks whether a given TIN (INN) is registered as a VAT payer at rs.ge.
  *

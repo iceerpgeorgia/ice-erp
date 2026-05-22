@@ -1,5 +1,8 @@
 # Repository Guidelines
 
+## Documentation Policy
+**Always update `AGENTS.md` when logic changes.** Any time domain logic, integration rules, architectural decisions, or key constraints are added or modified, the relevant section in this file must be updated in the same session. This file is the single source of truth for how the system works. New sections should follow the style of existing ones.
+
 ## Project Structure & Module Organization
 The workspace is a single Next.js 14 application (App Router) with co-located API routes. Pages and components live in `app/` with co-located hooks and styles. API routes are in `app/api/` (50+ route files). Shared Prisma schema and migrations sit in `prisma/`, reusable types in `types/`, shared utilities in `lib/` (auth, Prisma client, audit logging, Zod schemas). Python scripts for bank XML processing live at the project root. Vercel cron jobs handle scheduled tasks (BOG import, NBG rates, cash accruals) via `vercel.json`.
 
@@ -151,6 +154,53 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 **Re Scripts** (proven working logic, used as reference):
 - `scripts/process-bog-gel-counteragents-first.js`: Original three-stage processor (Python implementation now matches this)
 - `scripts/parse-bog-gel-comprehensive.js`: Original comprehensive parser (Python implementation now matches this)
+
+## RS.ge Waybill Sync
+
+### Architecture Overview
+Buyer waybills are fetched from the RS.ge SOAP API (`WaybillService.asmx`) and written to two tables:
+- **`rs_waybills_in_api`** — primary source of truth, API fields only; user-editable fields (project, financial code, corresponding account) start NULL and are set exclusively via UI, never overwritten by sync.
+- **`rs_waybills_in`** — legacy backward-compat table kept in sync for existing UI; same field-lock rules apply.
+
+### Multi-Insider Credential Map
+All RS.ge credentials are stored in `RS_CREDENTIALS_MAP` (JSON array in `.env.local` and Vercel env):
+```json
+[{"INSIDER_UUID":"...","RS_API_SU":"iceapi:XXXXXXXXX","RS_API_SP":"..."}]
+```
+Add one object per insider/company. Parsed by `getRsCredentialsMap()` in `lib/integrations/rsge/client.ts`. Both cron routes and the manual sync endpoint read exclusively from this map — there are no separate `RS_API_SU`/`RS_API_SP` fallback vars.
+
+### VAT Lock Rule
+`vat` (counteragent VAT payer status) is a **point-in-time snapshot** captured at first import via `is_vat_payer_tin` SOAP call:
+- **CREATE**: `vat` is stored from the live API response.
+- **UPDATE**: `vat` is explicitly excluded from all update payloads — the original value is preserved forever.
+- This applies to both `rs_waybills_in_api` and `rs_waybills_in`.
+
+### Date Filter
+The API filter used is `create_date_s / create_date_e` (matches the portal's **Activation Period** filter). `begin_date_s/e` (transport start date) is NOT used — it returns `-1064` when no waybills have a BEGIN_DATE in range.
+
+### Scheduled Cron Jobs (vercel.json)
+| Route | Schedule (UTC) | Tbilisi equivalent | Purpose |
+|---|---|---|---|
+| `/api/cron/waybills-today` | `0 4-16 * * *` | Hourly 08:00–20:00 | Sync current day for all insiders |
+| `/api/cron/waybills-quarterly` | `0 0 * * *` | 04:00 daily | Re-sync last 3 months, catch corrections |
+
+Both routes loop over every entry in `RS_CREDENTIALS_MAP`, call `runWaybillSync` per insider, and return aggregated totals + per-insider breakdown. Individual insider errors are caught and surfaced without aborting the loop.
+
+### Shared Sync Library
+`lib/waybills/run-waybill-sync.ts` — exported `runWaybillSync(credentials, dateFrom, dateTo, options?)`:
+- `options.insiderUuid` — if provided, used directly; otherwise falls back to `getRequiredInsider()` (used by the manual sync route for backward compat).
+- `options.statuses`, `options.itypes` — passed through to the SOAP call.
+- Returns `{ imported, updated, sync_batch_id, message? }`.
+
+### Manual Sync Endpoint
+`POST /api/waybills/sync` — accepts `{ begin_date?, end_date?, statuses?, itypes?, raw? }`:
+- Uses the **first** entry in `RS_CREDENTIALS_MAP` (no `insiderUuid` passed → falls back to `getRequiredInsider()`).
+- `raw: true` mode fetches and parses XML without writing to DB (field inspection).
+- Default date range: last 30 days.
+
+### Data Gaps & Known Constraints
+- Waybills with `create_date = null` in RS.ge are **invisible** to the `create_date_s/e` filter. Such records must be inserted manually by copying from the legacy `rs_waybills_in` table.
+- `rs_waybills_in_api` is unique on `rs_id`. `rs_waybills_in` is unique on `(rs_id, waybill_no)` — both nullable, so duplicates can exist in the legacy table.
 
 ## Build, Test, and Development Commands
 Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, API, and workers concurrently while developing. Whenever `prisma/schema.prisma` changes, run `pnpm prisma migrate dev --name <feature>` followed by `pnpm prisma generate` to refresh the client. After adding new models to the schema, run `python scripts/auto-generate-templates.py` to automatically create Excel import templates in the `templates/` folder. Execute `pnpm test` for Jest coverage and `pnpm test:e2e` when end-to-end verification is required; append `--watch` for quick feedback loops.

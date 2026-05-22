@@ -25,6 +25,14 @@
     {
       "path": "/api/cron/recurring-payments-monthly",
       "schedule": "0 1 1 * *"
+    },
+    {
+      "path": "/api/cron/waybills-today",
+      "schedule": "0 4-16 * * *"
+    },
+    {
+      "path": "/api/cron/waybills-quarterly",
+      "schedule": "0 0 * * *"
     }
   ]
 }
