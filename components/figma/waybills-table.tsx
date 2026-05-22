@@ -104,8 +104,8 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'submission_time', label: 'Submission Date', visible: true, sortable: true, filterable: true, format: 'datetime', width: 190 },
   { key: 'cancellation_time', label: 'Cancellation Date', visible: false, sortable: true, filterable: true, format: 'datetime', width: 190 },
   { key: 'note', label: 'Note', visible: false, sortable: true, filterable: true, width: 260 },
-  { key: 'date', label: 'Date', visible: false, sortable: true, filterable: true, format: 'date', width: 120 },
-  { key: 'period', label: 'Period', visible: false, sortable: true, filterable: true, format: 'date', width: 120 },
+  { key: 'date', label: 'Date', visible: false, sortable: true, filterable: true, width: 120 },
+  { key: 'period', label: 'Period', visible: false, sortable: true, filterable: true, format: 'period', width: 120 },
   { key: 'rs_id', label: 'RS ID', visible: true, sortable: true, filterable: true, width: 140 },
   { key: 'transportation_cost', label: 'Transport Cost', visible: false, sortable: true, filterable: true, format: 'number', width: 140 },
   { key: 'project_uuid', label: 'Project', visible: true, sortable: true, filterable: true, width: 200 },
@@ -118,11 +118,30 @@ const formatCell = (value: any, format?: ColumnConfig['format']) => {
   if (format === 'boolean') return value ? 'Yes' : 'No';
   if (format === 'datetime') {
     const date = typeof value === 'string' || value instanceof Date ? new Date(value) : null;
-    return date && !Number.isNaN(date.getTime()) ? date.toLocaleString() : '-';
+    if (!date || Number.isNaN(date.getTime())) return '-';
+    const dd = String(date.getDate()).padStart(2, '0');
+    const MM = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    const ss = String(date.getSeconds()).padStart(2, '0');
+    return `${dd}.${MM}.${yyyy} ${hh}:${mm}:${ss}`;
   }
   if (format === 'date') {
     const date = typeof value === 'string' || value instanceof Date ? new Date(value) : null;
-    return date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString() : '-';
+    if (!date || Number.isNaN(date.getTime())) return String(value);
+    const dd = String(date.getDate()).padStart(2, '0');
+    const MM = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${dd}.${MM}.${yyyy}`;
+  }
+  if (format === 'period') {
+    const match = String(value).match(/^(\d{4})-(\d{2})$/);
+    if (match) {
+      const d = new Date(Number(match[1]), Number(match[2]) - 1, 1);
+      return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    }
+    return String(value);
   }
   return String(value);
 };

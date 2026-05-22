@@ -15,7 +15,8 @@ export type ColumnFormat =
   | 'percent'
   | 'boolean'
   | 'date'
-  | 'datetime';
+  | 'datetime'
+  | 'period';
 
 /** Operators for numeric columns (currency / number / percent). */
 export type NumericOperator =
