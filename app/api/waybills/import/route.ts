@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getRequiredInsider } from '@/lib/required-insider';
 import Papa from 'papaparse';
 import { randomUUID } from 'crypto';
 
@@ -177,6 +178,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const insider = await getRequiredInsider();
+
     const importBatchId = randomUUID();
     const records = (parsed.data || []).map((row) => {
       const waybillNoRaw = getValue(row, 'ზედნადები', 'waybill_no');
@@ -239,6 +242,7 @@ export async function POST(req: NextRequest) {
         stat: stat ? String(stat).trim() : null,
         transportation_cost: transportationCost,
         rs_id: rsId ? String(rsId).trim() : null,
+        insider_uuid: insider.insiderUuid,
         project_uuid: null,
         financial_code_uuid: null,
         corresponding_account: null,

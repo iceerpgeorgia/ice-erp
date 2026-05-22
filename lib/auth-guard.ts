@@ -48,3 +48,21 @@ export async function requireAdmin(): Promise<AuthSession | NextResponse> {
 export function isAuthError(result: AuthSession | NextResponse): result is NextResponse {
   return result instanceof NextResponse;
 }
+
+/**
+ * Allow either a valid user session OR a valid CRON_SECRET bearer token.
+ * Use for routes that can be called both from the UI and from automation.
+ */
+export async function requireAuthOrCron(
+  req: import('next/server').NextRequest,
+): Promise<AuthSession | NextResponse> {
+  const authHeader = req.headers.get('authorization') ?? '';
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
+    // Treat as a synthetic session for cron/API callers
+    return {
+      user: { id: 'cron', email: 'cron@system', name: 'Cron', image: '', role: 'system_admin', isAuthorized: true },
+    };
+  }
+  return requireAuth();
+}
