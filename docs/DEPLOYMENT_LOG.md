@@ -1,5 +1,13 @@
 ﻿# Deployment Log
 
+## 2026-05-23 Deployment #256
+- Commit: e86ca83
+- Production: https://ice-nc2oanwn9-iceerp.vercel.app
+- Summary: Format waybill date columns as `dd.MM.yyyy HH:mm:ss` (datetime) and period column as `Jun 2020` / `Jul 2020`. Added `'period'` format type to shared `ColumnFormat`.
+- Changes:
+  - `components/figma/shared/table-filters.ts`: Added `'period'` to `ColumnFormat` union type.
+  - `components/figma/waybills-table.tsx`: Updated `formatCell` for datetime (`dd.MM.yyyy HH:mm:ss`), date (`dd.MM.yyyy`), and new period format (`YYYY-MM` → `Mon YYYY`). Period column format changed from `'date'` to `'period'`; date column format removed.
+
 ## 2026-05-23 Deployment #255
 - Commit: 77e8a0d
 - Production: https://ice-guu6snxon-iceerp.vercel.app
