@@ -1,5 +1,12 @@
 ﻿# Deployment Log
 
+## 2026-05-23 Deployment #255
+- Commit: 77e8a0d
+- Production: https://ice-guu6snxon-iceerp.vercel.app
+- Summary: Switch waybills UI from legacy `rs_waybills_in` to `rs_waybills_in_api`. Update column labels to match RS.ge portal (Waybill, Status, Organization, Amount, Auto, Transport Amount, Departure Place, Delivery Address, Activation Date). Add Transport Start, Submission Date, Cancellation Date, Note columns. Remove UUID sanitization startup code. Column version bumped to 3.
+- Changes:
+  - `app/api/waybills/route.ts`: All Prisma calls and type annotations switched to `rs_waybills_in_api`; UUID sanitize block removed; `serializeWaybill` now uses `synced_at`; `updates.updated_at` removed from PATCH; added `transportation_beginning_time`, `submission_time`, `cancellation_time`, `note` to `allowedFilterFields` / `allowedSortColumns`.
+  - `components/figma/waybills-table.tsx`: `defaultColumns` labels updated to match RS.ge; 4 new columns added; column order aligned with RS.ge portal; version key bumped `'2'` to `'3'`.
 ## 2026-05-23 Deployment #254
 - Commit: bcddae9
 - Production: https://ice-5klg1cgpl-iceerp.vercel.app
