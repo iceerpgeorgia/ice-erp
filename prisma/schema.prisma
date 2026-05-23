@@ -861,13 +861,6 @@ model rs_waybills_in {
   stat                          String?
   transportation_cost           Decimal?  @db.Decimal(20, 2)
   rs_id                         String?
-  // Fields from SOAP API not previously captured
-  invoice_id                    String?
-  is_confirmed                  Boolean   @default(false)
-  is_corrected                  Boolean   @default(false)
-  is_med                        Boolean   @default(false)
-  create_date                   DateTime?
-  seller_st                     String?
   project_uuid                  String?   @db.Uuid
   financial_code_uuid           String?   @db.Uuid
   corresponding_account         String?
@@ -890,8 +883,6 @@ model rs_waybills_in {
   @@map("rs_waybills_in")
 }
 
-/// Pure API snapshot — written by the sync route, never edited by users.
-/// Unique on rs_id (RS internal ID). User-editable fields live in rs_waybills_in.
 model rs_waybills_in_api {
   id                            BigInt    @id @default(autoincrement())
   rs_id                         String    @unique
@@ -930,17 +921,18 @@ model rs_waybills_in_api {
   seller_st                     String?
   date                          String?
   period                        String?
-  synced_at                     DateTime  @default(now())
-  // User-editable fields — set on first import, never overwritten by sync
   project_uuid                  String?   @db.Uuid
   financial_code_uuid           String?   @db.Uuid
   corresponding_account         String?
+  import_batch_id               String?
+  synced_at                     DateTime  @default(now())
 
   @@index([waybill_no])
   @@index([counteragent_inn])
   @@index([activation_time])
   @@index([counteragent_uuid])
   @@index([insider_uuid])
+  @@index([driver_uuid])
   @@index([project_uuid])
   @@index([financial_code_uuid])
   @@map("rs_waybills_in_api")
