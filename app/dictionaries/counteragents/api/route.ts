@@ -93,7 +93,7 @@ async function updateDeconsolidatedCounteragent(inn: string | null, counteragent
 }
 
 const pick = {
-  id: true, createdAt: true, updatedAt: true, ts: true,
+  id: true, created_at: true, updated_at: true, ts: true,
   name: true, identification_number: true, birth_or_incorporation_date: true,
   entity_type: true, sex: true, pension_scheme: true, country: true,
   address_line_1: true, address_line_2: true, zip_code: true,
@@ -112,8 +112,8 @@ const pick = {
 function toApi(r: any) {
   return {
     id: Number(r.id),
-    created_at: r.createdAt?.toISOString() ?? null,
-    updated_at: r.updatedAt?.toISOString() ?? null,
+    created_at: r.created_at?.toISOString() ?? null,
+    updated_at: r.updated_at?.toISOString() ?? null,
     ts: r.ts?.toISOString() ?? null,
     name: r.name,
     identification_number: r.identification_number,
