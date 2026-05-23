@@ -1,5 +1,5 @@
 {
-  "buildCommand": "NODE_OPTIONS='--max-old-space-size=4096' pnpm prisma generate && pnpm build",
+  "buildCommand": "pnpm prisma generate && pnpm build",
   "installCommand": "pnpm install",
   "framework": "nextjs",
   "git": {

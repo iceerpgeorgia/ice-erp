@@ -2,6 +2,7 @@
   "name": "next-postgres-starter",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.17.1",
   "type": "commonjs",
   "scripts": {
     "dev": "node scripts/dev-with-logs.js",
@@ -118,11 +119,7 @@
       "unrs-resolver"
     ],
     "ignoredBuiltDependencies": [
-      "@prisma/client",
-      "@prisma/engines",
-      "@tailwindcss/oxide",
-      "prisma",
-      "unrs-resolver"
+      "@tailwindcss/oxide"
     ]
   }
 }
