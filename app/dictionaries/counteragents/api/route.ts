@@ -32,6 +32,7 @@ export async function PUT(req: NextRequest) {
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { logAudit } from "@/lib/audit";
+import { rebindWaybillsByInn } from "@/lib/waybills/rebind";
 export const revalidate = 0;
 const prisma = new PrismaClient();
 
@@ -177,7 +178,7 @@ export async function POST(req: NextRequest) {
     const isEmp = toBool(b.is_emploee);
     const wasEmp = toBool(b.was_emploee);
 
-    const created = await prisma.counteragents.create({
+    const stub = await prisma.counteragents.create({
       data: {
         counteragent_uuid: crypto.randomUUID(),
         name: b.name ?? null,
@@ -200,7 +201,6 @@ export async function POST(req: NextRequest) {
         counteragent: b.counteragent ?? null,
         country_uuid: b.country_uuid ?? null,
         entity_type_uuid: b.entity_type_uuid ?? null,
-        internal_number: b.internal_number ?? null,
         updated_at: new Date(),
 
         ...(isEmp === null ? {} : { is_emploee: isEmp }),
@@ -208,11 +208,27 @@ export async function POST(req: NextRequest) {
         department: b.department ?? null,
         job_title: b.job_title ?? null,
       },
+      select: { id: true },
+    });
+
+    // Auto-generate internal_number (format: ICE000001, ICE000002, etc.)
+    const idStr = stub.id.toString();
+    const internalNumber = `ICE${'0'.repeat(Math.max(0, 6 - idStr.length))}${idStr}`;
+
+    const created = await prisma.counteragents.update({
+      where: { id: stub.id },
+      data: { internal_number: internalNumber },
       select: pick,
     });
+
     const normalizedInn = normalizeInn(created.identification_number);
     if (normalizedInn && created.counteragent_uuid) {
       await updateDeconsolidatedCounteragent(normalizedInn, created.counteragent_uuid);
+      try {
+        await rebindWaybillsByInn(normalizedInn, created.counteragent_uuid as string);
+      } catch (waybillError) {
+        console.error('[POST /dictionaries/counteragents] Waybill rebind by INN failed:', waybillError);
+      }
     }
     await logAudit({ table: "counteragents", recordId: BigInt(created.id as any), action: "create" });
     return NextResponse.json(toApi(created), { status: 201 });

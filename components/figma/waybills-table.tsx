@@ -25,6 +25,7 @@ import { useRequiredInsiderName } from './shared/use-required-insider';
 import { BLANK_FACET_TOKEN } from './shared/table-filters';
 import type { ColumnFormat } from './shared/table-filters';
 import * as XLSX from 'xlsx';
+import { CounteragentFormDialog } from './CounteragentFormDialog';
 
 const CORRESPONDING_ACCOUNTS = [
   '1_4_30','1_6_10','1_6_20','1_6_30','1_6_55','1_6_70','2_1_50','2_1_60','2_1_70',
@@ -187,6 +188,38 @@ export function WaybillsTable() {
   const [facetValues, setFacetValues] = useState<Map<ColumnKey, any[]>>(new Map());
   const [isInitialized, setIsInitialized] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
+
+  // Add Counteragent dialog
+  const [addCaOpen, setAddCaOpen] = useState(false);
+  const [addCaPrefill, setAddCaPrefill] = useState<{ name: string; identificationNumber: string } | null>(null);
+  const [caEntityTypes, setCaEntityTypes] = useState<any[]>([]);
+  const [caCountries, setCaCountries] = useState<any[]>([]);
+  const [caInsiders, setCaInsiders] = useState<any[]>([]);
+  const [caMetaLoaded, setCaMetaLoaded] = useState(false);
+  const openAddCaDialog = useCallback(async (prefillName: string, prefillId: string) => {
+    setAddCaPrefill({ name: prefillName, identificationNumber: prefillId });
+    setAddCaOpen(true);
+    if (!caMetaLoaded) {
+      try {
+        const [etRes, cRes, caRes] = await Promise.all([
+          fetch('/api/entity-types'),
+          fetch('/api/countries'),
+          fetch('/api/counteragents'),
+        ]);
+        const etBody = await etRes.json();
+        const cBody = await cRes.json();
+        const caBody = await caRes.json();
+        setCaEntityTypes(etBody.data || etBody || []);
+        setCaCountries(cBody.data || cBody || []);
+        const insiderList = (Array.isArray(caBody) ? caBody : []).filter((c: any) => c.insider);
+        setCaInsiders(insiderList.map((c: any) => ({ counteragentUuid: c.counteragent_uuid, label: c.name })));
+        setCaMetaLoaded(true);
+      } catch (err) {
+        console.error('Failed to load counteragent form meta', err);
+      }
+    }
+  }, [caMetaLoaded]);
+
   const resizeRafRef = useRef<number | null>(null);
   const resizePendingRef = useRef<{ element: HTMLElement; width: number } | null>(null);
   const facetsRequestIdRef = useRef(0);
@@ -412,6 +445,19 @@ export function WaybillsTable() {
       setLoading(false);
     }
   }, [buildWaybillsQueryParams]);
+
+  const handleAddCaSave = useCallback(async (payload: any) => {
+    const res = await fetch('/api/counteragents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body?.error || 'Failed to create counteragent');
+    }
+    await fetchWaybills();
+  }, [fetchWaybills]);
 
   const fetchWaybillFacets = useCallback(async () => {
     const requestId = facetsRequestIdRef.current + 1;
@@ -817,8 +863,6 @@ export function WaybillsTable() {
       const prefillId = (row.counteragent_inn || '').trim();
       if (prefillName) addCounteragentParams.set('name', prefillName);
       if (prefillId) addCounteragentParams.set('identification_number', prefillId);
-      addCounteragentParams.set('source', 'waybills');
-      const addCounteragentUrl = `/dictionaries/counteragents/new?${addCounteragentParams.toString()}`;
       return (
         <tr
           key={row.id}
@@ -867,7 +911,7 @@ export function WaybillsTable() {
                   variant="outline"
                   size="sm"
                   title="Add Counteragent"
-                  onClick={() => window.open(addCounteragentUrl, '_blank', 'noopener,noreferrer')}
+                  onClick={() => openAddCaDialog(prefillName, prefillId)}
                 >
                   <UserPlus className="h-4 w-4" />
                 </Button>
@@ -1529,6 +1573,16 @@ export function WaybillsTable() {
           )}
         </DialogContent>
       </Dialog>
+
+      <CounteragentFormDialog
+        isOpen={addCaOpen}
+        onClose={() => { setAddCaOpen(false); setAddCaPrefill(null); }}
+        onSave={handleAddCaSave}
+        editData={addCaPrefill ? { name: addCaPrefill.name, identificationNumber: addCaPrefill.identificationNumber } : undefined}
+        entityTypes={caEntityTypes}
+        countries={caCountries}
+        insiders={caInsiders}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma, withRetry } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { reparseByCounteragentInn } from "@/lib/bank-import/reparse";
+import { rebindWaybillsByInn } from "@/lib/waybills/rebind";
 import { requireAuth, isAuthError } from "@/lib/auth-guard";
 
 export const revalidate = 0;
@@ -304,11 +305,19 @@ export async function POST(req: NextRequest) {
     });
 
     let reparseSummary: { updated: number; byTable: Record<string, number> } | null = null;
+    let waybillRebind: { updatedApi: number; updatedLegacy: number } | null = null;
     if (normalizedIdentificationNumber) {
       try {
         reparseSummary = await reparseByCounteragentInn([normalizedIdentificationNumber]);
       } catch (reparseError) {
         console.error('[POST /counteragents] Auto-reparse by INN failed:', reparseError);
+      }
+      if (updated.counteragent_uuid) {
+        try {
+          waybillRebind = await rebindWaybillsByInn(normalizedIdentificationNumber, updated.counteragent_uuid as string);
+        } catch (waybillError) {
+          console.error('[POST /counteragents] Waybill rebind by INN failed:', waybillError);
+        }
       }
     }
 
@@ -317,6 +326,7 @@ export async function POST(req: NextRequest) {
       {
         ...toApi(updatedWithInsiderName[0]),
         reparse: reparseSummary,
+        waybillRebind,
       },
       { status: 201 }
     );
@@ -585,11 +595,23 @@ export async function PATCH(req: NextRequest) {
     );
 
     let reparseSummary: { updated: number; byTable: Record<string, number> } | null = null;
+    let waybillRebind: { updatedApi: number; updatedLegacy: number } | null = null;
     if (reparseInns.length > 0) {
       try {
         reparseSummary = await reparseByCounteragentInn(reparseInns);
       } catch (reparseError) {
         console.error('[PATCH /counteragents] Auto-reparse by INN failed:', reparseError);
+      }
+      if (updated.counteragent_uuid) {
+        const rebindInn = normalizeIdentificationNumber(body.identification_number as string | null | undefined)
+          ?? normalizeIdentificationNumber(existing.identification_number as string | null | undefined);
+        if (rebindInn) {
+          try {
+            waybillRebind = await rebindWaybillsByInn(rebindInn, updated.counteragent_uuid as string);
+          } catch (waybillError) {
+            console.error('[PATCH /counteragents] Waybill rebind by INN failed:', waybillError);
+          }
+        }
       }
     }
 
@@ -598,6 +620,7 @@ export async function PATCH(req: NextRequest) {
       {
         ...toApi(updatedWithInsiderName[0]),
         reparse: reparseSummary,
+        waybillRebind,
       },
       { status: 200 }
     );
