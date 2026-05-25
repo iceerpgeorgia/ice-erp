@@ -1035,10 +1035,6 @@ export function PaymentsReportTable() {
   const handleDialogOpenChange = (open: boolean) => {
     setIsDialogOpen(open);
     if (!open) {
-      // If a payment was created but no ledger entry was added, refresh the report table
-      if (addLedgerStep === 'ledger') {
-        fetchData({ silent: true });
-      }
       resetForm();
     } else {
       setAddLedgerStep('payment');

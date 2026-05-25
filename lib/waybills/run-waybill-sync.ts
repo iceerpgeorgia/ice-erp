@@ -231,6 +231,12 @@ const COMPARE_KEYS = [
   'seller_st',
 ] as const;
 
+// Fields that exist in the legacy rs_waybills_in table (subset of COMPARE_KEYS).
+// rs_waybills_in lacks: invoice_id, is_confirmed, is_corrected, is_med, create_date, seller_st.
+const LEGACY_COMPARE_KEYS = COMPARE_KEYS.filter(
+  (k) => !['invoice_id', 'is_confirmed', 'is_corrected', 'is_med', 'create_date', 'seller_st'].includes(k as string),
+) as readonly string[];
+
 // ---------------------------------------------------------------------------
 // Main sync function
 // ---------------------------------------------------------------------------
@@ -313,7 +319,7 @@ export async function runWaybillSync(
   const waybillNos = withKey.map((r) => r.waybill_no!);
 
   const selectFields = Object.fromEntries(
-    [...COMPARE_KEYS, 'rs_id', 'waybill_no'].map((k) => [k, true]),
+    [...LEGACY_COMPARE_KEYS, 'rs_id', 'waybill_no'].map((k) => [k, true]),
   ) as Record<string, true>;
 
   const [existingByRsId, existingByWaybillNoOnly] = await Promise.all([
@@ -423,7 +429,7 @@ export async function runWaybillSync(
   for (const row of withKey) {
     const existingByRs = rsIdMap.get(row.rs_id!);
     if (existingByRs) {
-      if (isDifferent(existingByRs, row as unknown as Record<string, unknown>, COMPARE_KEYS)) {
+      if (isDifferent(existingByRs, row as unknown as Record<string, unknown>, LEGACY_COMPARE_KEYS)) {
         // Destructure to exclude vat (locked) and user-editable fields (never overwritten by sync)
         const { project_uuid, financial_code_uuid, corresponding_account, created_at, updated_at, vat, ...updatable } = row;
         toUpdate.push({
