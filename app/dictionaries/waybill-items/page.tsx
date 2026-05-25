@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,39 +51,54 @@ export default function WaybillItemsPage() {
   const urlRsId = searchParams.get("rs_id") ?? "";
 
   const [rows, setRows] = useState<WaybillItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const LIMIT = 200;
   const [inventories, setInventories] = useState<Option[]>([]);
   const [projects, setProjects] = useState<Option[]>([]);
   const [finCodes, setFinCodes] = useState<Option[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(urlRsId);
+  const [searchInput, setSearchInput] = useState(urlRsId);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<WaybillItem | null>(null);
   const [formData, setFormData] = useState({ ...emptyForm, rs_id: urlRsId });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => { fetchAll(); fetchLookups(); }, []);
+  useEffect(() => { fetchAll(1, search); fetchLookups(); }, []);
 
-  const fetchAll = async () => {
+  const fetchAll = async (p = 1, q = "") => {
     try {
       setLoading(true);
-      const res = await fetch("/api/waybill-items");
-      if (res.ok) { const r = await res.json(); setRows(Array.isArray(r?.data) ? r.data : []); }
+      const params = new URLSearchParams({ page: String(p), limit: String(LIMIT) });
+      if (q) params.set("q", q);
+      const res = await fetch(`/api/waybill-items?${params}`);
+      if (res.ok) {
+        const r = await res.json();
+        setRows(Array.isArray(r?.data) ? r.data : []);
+        setTotal(r?.total ?? 0);
+        setPage(r?.page ?? 1);
+        setPages(r?.pages ?? 1);
+      }
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
 
-  // client-side filtering: match search against rs_id, waybill_no, goods_name, goods_code
-  const filteredRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(r =>
-      (r.rs_id ?? "").toLowerCase().includes(q) ||
-      (r.waybill_no ?? "").toLowerCase().includes(q) ||
-      (r.goods_name ?? "").toLowerCase().includes(q) ||
-      (r.goods_code ?? "").toLowerCase().includes(q)
-    );
-  }, [rows, search]);
+  const handleSearch = () => {
+    setSearch(searchInput);
+    fetchAll(1, searchInput);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput("");
+    setSearch("");
+    fetchAll(1, "");
+    router.replace("/dictionaries/waybill-items");
+  };
+
+  const filteredRows = rows; // server-side now
 
   const fetchLookups = async () => {
     try {
@@ -154,14 +169,14 @@ export default function WaybillItemsPage() {
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) { if (data.details) setErrors(data.details); else setErrors({ _form: data.error || "Failed to save" }); return; }
-      setDialogOpen(false); fetchAll();
+      setDialogOpen(false); fetchAll(page, search);
     } catch { setErrors({ _form: "Failed to save" }); }
     finally { setSubmitting(false); }
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this waybill item? This action cannot be undone.")) return;
-    try { const res = await fetch(`/api/waybill-items?id=${id}`, { method: "DELETE" }); if (res.ok) fetchAll(); }
+    try { const res = await fetch(`/api/waybill-items?id=${id}`, { method: "DELETE" }); if (res.ok) fetchAll(page, search); }
     catch (err) { console.error(err); }
   };
 
@@ -204,22 +219,24 @@ export default function WaybillItemsPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Filter by RS ID, waybill #, name…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by RS ID, waybill #, name, code…"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
             className="pl-8 pr-8"
           />
-          {search && (
+          {searchInput && (
             <button
               className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
-              onClick={() => { setSearch(""); router.replace("/dictionaries/waybill-items"); }}
+              onClick={handleClearSearch}
             >
               <X className="h-4 w-4" />
             </button>
           )}
         </div>
+        <Button size="sm" onClick={handleSearch} disabled={loading}>Search</Button>
         <span className="text-sm text-muted-foreground">
-          {filteredRows.length} / {rows.length} rows
+          {total > 0 ? `Showing ${rows.length} of ${total.toLocaleString()} rows` : "No results"}
         </span>
         {search && (
           <Button variant="outline" size="sm" asChild>
@@ -231,6 +248,7 @@ export default function WaybillItemsPage() {
       </div>
 
       {loading ? <div className="text-center py-12">Loading…</div> : (
+        <>
         <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
@@ -259,7 +277,7 @@ export default function WaybillItemsPage() {
                     {row.rs_id ? (
                       <button
                         className="text-blue-600 hover:underline"
-                        onClick={() => setSearch(row.rs_id!)}
+                        onClick={() => { setSearchInput(row.rs_id!); setSearch(row.rs_id!); fetchAll(1, row.rs_id!); }}
                       >{row.rs_id}</button>
                     ) : <span className="text-muted-foreground">—</span>}
                   </TableCell>
@@ -283,6 +301,15 @@ export default function WaybillItemsPage() {
             </TableBody>
           </Table>
         </div>
+        {/* Pagination */}
+        {pages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => fetchAll(page - 1, search)}>← Prev</Button>
+            <span className="text-sm text-muted-foreground">Page {page} of {pages}</span>
+            <Button variant="outline" size="sm" disabled={page >= pages || loading} onClick={() => fetchAll(page + 1, search)}>Next →</Button>
+          </div>
+        )}
+        </>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

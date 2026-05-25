@@ -46,19 +46,34 @@ export async function GET(req: NextRequest) {
     const waybillNo = url.searchParams.get("waybill_no");
     const rsIdParam = url.searchParams.get("rs_id");
     const batchId = url.searchParams.get("import_batch_id");
+    const q = url.searchParams.get("q")?.trim() ?? "";
+    const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10));
+    const limit = Math.min(500, Math.max(1, parseInt(url.searchParams.get("limit") ?? "200", 10)));
+    const skip = (page - 1) * limit;
 
     const where: any = {};
     if (waybillNo) where.waybill_no = waybillNo;
     if (rsIdParam) where.rs_id = rsIdParam;
     if (batchId) where.import_batch_id = batchId;
+    if (q) {
+      where.OR = [
+        { rs_id: { contains: q, mode: "insensitive" } },
+        { waybill_no: { contains: q, mode: "insensitive" } },
+        { goods_name: { contains: q, mode: "insensitive" } },
+        { goods_code: { contains: q, mode: "insensitive" } },
+      ];
+    }
 
-    const rows = await prisma.rs_waybills_in_items.findMany({
-      where,
-      orderBy: [{ waybill_no: "asc" }, { id: "asc" }],
-      include: {
-        inventory: { select: { name: true } },
-      },
-    });
+    const [rows, total] = await Promise.all([
+      prisma.rs_waybills_in_items.findMany({
+        where,
+        orderBy: [{ waybill_no: "desc" }, { id: "asc" }],
+        take: limit,
+        skip,
+        include: { inventory: { select: { name: true } } },
+      }),
+      prisma.rs_waybills_in_items.count({ where }),
+    ]);
 
     const data = rows.map((row) => ({
       id: Number(row.id),
@@ -84,7 +99,7 @@ export async function GET(req: NextRequest) {
       insider_name: insider.insiderName,
     }));
 
-    return NextResponse.json({ data });
+    return NextResponse.json({ data, total, page, limit, pages: Math.ceil(total / limit) });
   } catch (error: any) {
     console.error("[waybill-items] GET error", error);
     return NextResponse.json({ error: error?.message || "Server error" }, { status: 500 });
