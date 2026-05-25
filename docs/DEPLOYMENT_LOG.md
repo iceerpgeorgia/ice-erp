@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-05-25 Deployment #254
+- Commit: e88fba0
+- Production: https://ice-7udvwus2y-iceerp.vercel.app
+- Summary: Fix waybill sync still failing to write to rs_waybills_in — api-only fields in createMany/updateMany payloads caused PrismaClientValidationError.
+- Changes:
+  - lib/waybills/run-waybill-sync.ts: Added `toLegacyRecord()` helper that strips `invoice_id`, `is_confirmed`, `is_corrected`, `is_med`, `create_date`, `seller_st` from a row before any write to `rs_waybills_in`. Applied to `toCreate` (both `withoutKey` and `withKey` new records) and both `toUpdate` branches. The previous fix (deployment #253) only patched the `findMany` select, but the create/update data payloads still contained api-only fields unknown to the legacy model.
+
 ## 2026-05-25 Deployment #253
 - Commit: 17cd612
 - Production: https://ice-gs7zz2yow-iceerp.vercel.app
