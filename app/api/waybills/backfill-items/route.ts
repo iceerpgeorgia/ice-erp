@@ -109,6 +109,7 @@ export async function POST(req: NextRequest) {
   let totalInserted = 0;
   let totalSkipped = 0;
   let totalErrors = 0;
+  const errorSamples: string[] = [];
 
   for (const [insiderUuid, group] of byInsider) {
     const cred = credsByInsider.get(insiderUuid);
@@ -156,7 +157,10 @@ export async function POST(req: NextRequest) {
 
     for (const r of results) {
       totalInserted += r.inserted;
-      if (r.error) totalErrors += 1;
+      if (r.error) {
+        totalErrors += 1;
+        if (errorSamples.length < 3) errorSamples.push(r.error);
+      }
     }
   }
 
@@ -169,5 +173,6 @@ export async function POST(req: NextRequest) {
     total_waybills: waybills.length,
     processed_waybills: toProcess.length,
     batch_id: batchId,
+    ...(errorSamples.length > 0 ? { error_samples: errorSamples } : {}),
   });
 }
