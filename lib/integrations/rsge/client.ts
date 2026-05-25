@@ -155,14 +155,38 @@ export interface RsCredential {
 // ---------------------------------------------------------------------------
 
 export interface WaybillGoodsItem {
-  waybill_id: string | null;
-  goods_name: string | null;
-  goods_code: string | null;
-  unit: string | null;
-  quantity: string | null;
-  unit_price: string | null;
-  total_price: string | null;
-  taxation: string | null;
+  // linking
+  waybill_id: string | null;       // WAYBILL_NUMBER
+  // waybill-level fields (repeat per goods line)
+  type: string | null;             // TYPE
+  create_date: string | null;      // CREATE_DATE
+  activate_date: string | null;    // ACTIVATE_DATE
+  begin_date: string | null;       // BEGIN_DATE
+  cancel_date: string | null;      // CANCEL_DATE
+  seller_tin: string | null;       // TIN
+  seller_name: string | null;      // NAME
+  start_address: string | null;    // START_ADDRESS
+  end_address: string | null;      // END_ADDRESS
+  driver_tin: string | null;       // DRIVER_TIN
+  driver_name: string | null;      // DRIVER_NAME
+  transport_cost: string | null;   // TRANSPORT_COAST
+  full_amount: string | null;      // FULL_AMOUNT
+  car_number: string | null;       // CAR_NUMBER
+  tran_cost_payer: string | null;  // TRAN_COST_PAYER
+  trans_id: string | null;         // TRANS_ID
+  is_confirmed: string | null;     // IS_CONFIRMED
+  status: string | null;           // STATUS
+  // goods line fields
+  goods_name: string | null;       // W_NAME
+  goods_code: string | null;       // BAR_CODE
+  unit_id: string | null;          // UNIT_ID (numeric code)
+  unit: string | null;             // UNIT_TXT (human-readable label)
+  quantity: string | null;         // QUANTITY
+  unit_price: string | null;       // PRICE
+  total_price: string | null;      // AMOUNT
+  vat_type: string | null;         // VAT_TYPE
+  a_id: string | null;             // A_ID
+  taxation: string | null;         // kept for compat
 }
 
 function buildGoodsListSoapEnvelope(
@@ -264,6 +288,31 @@ export async function getBuyerWaybillGoodsList(
   const childKey = Object.keys(rootObj).find((k) => Array.isArray(rootObj[k])) ?? '';
   const goodsArray: Record<string, any>[] = rootObj[childKey] ?? [];
 
+  // RS.ge only returns UNIT_ID (numeric). Map to Georgian unit label.
+  // All entries verified against the RS.ge portal UI.
+  const RS_UNIT_MAP: Record<string, string> = {
+    '1':  'ც',       // ცალი
+    '2':  'კგ',      // კილოგრამი
+    '3':  'გ',       // გრამი
+    '4':  'ლ',       // ლიტრი
+    '5':  'მლ',      // მილილიტრი
+    '6':  'მ',       // მეტრი
+    '7':  'კმ',      // კილომეტრი
+    '8':  'მ',       // მეტრი (verified from RS.ge portal — was incorrectly 'სმ')
+    '9':  'მმ',      // მილიმეტრი
+    '10': 'მ²',      // კვ. მეტრი
+    '11': 'მ³',      // კუბ. მეტრი
+    '12': 'მ³',      // კუბ. მეტრი (verified from RS.ge portal — was incorrectly 'ჰა')
+    '13': 'ტ',       // ტონა
+    '14': 'კომ',     // კომპლექტი
+    '15': 'ყ',       // ყუთი
+    '16': 'ბ',       // ბოთლი
+    '17': 'კ',       // კომპლექტი (alt)
+    '18': 'პ',       // პარტია
+    '19': 'სხვ',     // სხვა
+    '99': 'წყვილი',  // წყვილი (verified from RS.ge portal dropdown)
+  };
+
   const pick = (obj: Record<string, any>, ...keys: string[]): string | null => {
     for (const k of keys) {
       const v = obj[k];
@@ -274,14 +323,35 @@ export async function getBuyerWaybillGoodsList(
   };
 
   return goodsArray.map((g) => ({
-    waybill_id: pick(g, 'WAYBILL_NUMBER', 'waybill_number', 'WAYBILL_ID', 'waybill_id', 'WaybillId', 'ID', 'id'),
-    goods_name: pick(g, 'PROD_NAME', 'prod_name', 'ProdName', 'NAME', 'name'),
-    goods_code: pick(g, 'BAR_CODE', 'bar_code', 'BarCode', 'PROD_CODE', 'prod_code'),
-    unit: pick(g, 'UNIT_OF_MEASURE', 'unit_of_measure', 'UnitOfMeasure', 'UNIT', 'unit'),
-    quantity: pick(g, 'QUANTITY', 'quantity', 'Quantity'),
-    unit_price: pick(g, 'PRICE', 'price', 'Price'),
-    total_price: pick(g, 'AMOUNT', 'amount', 'Amount', 'TOTAL', 'total'),
-    taxation: pick(g, 'EXCISE', 'excise', 'Excise', 'TAXATION', 'taxation'),
+    waybill_id:      pick(g, 'WAYBILL_NUMBER', 'waybill_number'),
+    type:            pick(g, 'TYPE', 'type'),
+    create_date:     pick(g, 'CREATE_DATE', 'create_date'),
+    activate_date:   pick(g, 'ACTIVATE_DATE', 'activate_date'),
+    begin_date:      pick(g, 'BEGIN_DATE', 'begin_date'),
+    cancel_date:     pick(g, 'CANCEL_DATE', 'cancel_date'),
+    seller_tin:      pick(g, 'TIN', 'tin'),
+    seller_name:     pick(g, 'NAME', 'name'),
+    start_address:   pick(g, 'START_ADDRESS', 'start_address'),
+    end_address:     pick(g, 'END_ADDRESS', 'end_address'),
+    driver_tin:      pick(g, 'DRIVER_TIN', 'driver_tin'),
+    driver_name:     pick(g, 'DRIVER_NAME', 'driver_name'),
+    transport_cost:  pick(g, 'TRANSPORT_COAST', 'transport_cost'),
+    full_amount:     pick(g, 'FULL_AMOUNT', 'full_amount'),
+    car_number:      pick(g, 'CAR_NUMBER', 'car_number'),
+    tran_cost_payer: pick(g, 'TRAN_COST_PAYER', 'tran_cost_payer'),
+    trans_id:        pick(g, 'TRANS_ID', 'trans_id'),
+    is_confirmed:    pick(g, 'IS_CONFIRMED', 'is_confirmed'),
+    status:          pick(g, 'STATUS', 'status'),
+    goods_name:      pick(g, 'W_NAME', 'w_name'),
+    goods_code:      pick(g, 'BAR_CODE', 'bar_code'),
+    unit_id:         pick(g, 'UNIT_ID', 'unit_id'),
+    unit:            (() => { const id = pick(g, 'UNIT_ID', 'unit_id'); return id ? (RS_UNIT_MAP[id] ?? id) : null; })(),
+    quantity:        pick(g, 'QUANTITY', 'quantity'),
+    unit_price:      pick(g, 'PRICE', 'price'),
+    total_price:     pick(g, 'AMOUNT', 'amount'),
+    vat_type:        pick(g, 'VAT_TYPE', 'vat_type'),
+    a_id:            pick(g, 'A_ID', 'a_id'),
+    taxation:        null,
   }));
 }
 
