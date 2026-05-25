@@ -151,10 +151,11 @@ export interface RsCredential {
 }
 
 // ---------------------------------------------------------------------------
-// get_goods_by_waybill_id
+// get_buyer_waybilll_goods_list  (note the triple 'l' — rs.ge typo preserved)
 // ---------------------------------------------------------------------------
 
 export interface WaybillGoodsItem {
+  waybill_id: string | null;
   goods_name: string | null;
   goods_code: string | null;
   unit: string | null;
@@ -164,54 +165,79 @@ export interface WaybillGoodsItem {
   taxation: string | null;
 }
 
-function buildGoodsSoapEnvelope(su: string, sp: string, waybillId: string): string {
+function buildGoodsListSoapEnvelope(
+  su: string,
+  sp: string,
+  createDateS: Date,
+  createDateE: Date,
+): string {
+  const dt = (d: Date) => d.toISOString().slice(0, 19);
   return `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:xsd="http://www.w3.org/2001/XMLSchema"
   xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
   <soap:Body>
-    <get_goods_by_waybill_id xmlns="http://tempuri.org/">
+    <get_buyer_waybilll_goods_list xmlns="http://tempuri.org/">
       <su>${escapeXml(su)}</su>
       <sp>${escapeXml(sp)}</sp>
-      <waybill_id>${escapeXml(waybillId)}</waybill_id>
-    </get_goods_by_waybill_id>
+      <itypes></itypes>
+      <seller_tin></seller_tin>
+      <statuses></statuses>
+      <car_number></car_number>
+      <begin_date_s xsi:nil="true" />
+      <begin_date_e xsi:nil="true" />
+      <create_date_s>${dt(createDateS)}</create_date_s>
+      <create_date_e>${dt(createDateE)}</create_date_e>
+      <driver_tin></driver_tin>
+      <delivery_date_s xsi:nil="true" />
+      <delivery_date_e xsi:nil="true" />
+      <full_amount xsi:nil="true" />
+      <waybill_number></waybill_number>
+      <close_date_s xsi:nil="true" />
+      <close_date_e xsi:nil="true" />
+      <s_user_ids></s_user_ids>
+      <comment></comment>
+    </get_buyer_waybilll_goods_list>
   </soap:Body>
 </soap:Envelope>`;
 }
 
 /**
- * Fetches goods/line-items for a single waybill from rs.ge.
- * Returns an empty array when the waybill has no goods or rs.ge returns an error code.
+ * Fetches all buyer waybill goods for a date range from rs.ge.
+ * Returns a flat array where each item includes the waybill_id.
+ * Returns empty array on rs.ge error codes or empty responses.
  */
-export async function getGoodsByWaybillId(
+export async function getBuyerWaybillGoodsList(
   su: string,
   sp: string,
-  waybillId: string,
-): Promise<WaybillGoodsItem[]> {
-  const envelope = buildGoodsSoapEnvelope(su, sp, waybillId);
+  createDateS: Date,
+  createDateE: Date,
+  /** Pass true to get the raw inner XML string instead of parsed items */
+  raw?: boolean,
+): Promise<WaybillGoodsItem[] | string> {
+  const envelope = buildGoodsListSoapEnvelope(su, sp, createDateS, createDateE);
 
   const res = await fetch(SOAP_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'text/xml; charset=utf-8',
-      SOAPAction: '"http://tempuri.org/get_goods_by_waybill_id"',
+      SOAPAction: '"http://tempuri.org/get_buyer_waybilll_goods_list"',
     },
     body: envelope,
   });
 
-  if (!res.ok) throw new Error(`rs.ge HTTP ${res.status} for waybill ${waybillId}`);
+  if (!res.ok) throw new Error(`rs.ge HTTP ${res.status}`);
 
   const text = await res.text();
 
   const faultMatch = text.match(/<faultstring[^>]*>([\s\S]*?)<\/faultstring>/);
-  if (faultMatch) throw new Error(`rs.ge SOAP fault (goods ${waybillId}): ${faultMatch[1].trim()}`);
+  if (faultMatch) throw new Error(`rs.ge SOAP fault: ${faultMatch[1].trim()}`);
 
-  // Result element may be named get_goods_by_waybill_idResult
   const resultMatch = text.match(
-    /<get_goods_by_waybill_idResult[^>]*>([\s\S]*?)<\/get_goods_by_waybill_idResult>/,
+    /<get_buyer_waybilll_goods_listResult[^>]*>([\s\S]*?)<\/get_buyer_waybilll_goods_listResult>/,
   );
-  if (!resultMatch) return [];
+  if (!resultMatch) return raw ? '' : [];
 
   const innerXml = resultMatch[1]
     .replace(/&lt;/g, '<')
@@ -220,10 +246,11 @@ export async function getGoodsByWaybillId(
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'");
 
-  // Negative result codes from rs.ge (e.g. "-10001") — return empty
+  if (raw) return innerXml;
+
+  // Negative result codes from rs.ge → empty
   if (/^-?\d+$/.test(innerXml.trim())) return [];
 
-  // Parse XML
   const { parseStringPromise } = await import('xml2js');
   let parsed: Record<string, any>;
   try {
@@ -247,6 +274,7 @@ export async function getGoodsByWaybillId(
   };
 
   return goodsArray.map((g) => ({
+    waybill_id: pick(g, 'WAYBILL_ID', 'waybill_id', 'WaybillId', 'ID', 'id'),
     goods_name: pick(g, 'PROD_NAME', 'prod_name', 'ProdName', 'NAME', 'name'),
     goods_code: pick(g, 'BAR_CODE', 'bar_code', 'BarCode', 'PROD_CODE', 'prod_code'),
     unit: pick(g, 'UNIT_OF_MEASURE', 'unit_of_measure', 'UnitOfMeasure', 'UNIT', 'unit'),

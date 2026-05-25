@@ -1,46 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGoodsByWaybillId, getRsCredentialsMap } from '@/lib/integrations/rsge/client';
+import { getBuyerWaybillGoodsList, getRsCredentialsMap } from '@/lib/integrations/rsge/client';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
-// Backfill can take a while — allow up to 300 s on Vercel Pro
+// Allow up to 300 s on Vercel Pro
 export const maxDuration = 300;
 
-const CONCURRENCY = 3; // parallel SOAP calls per insider
-const DELAY_BETWEEN_BATCHES_MS = 150;
-
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-async function processBatch<T, R>(
-  items: T[],
-  concurrency: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results: R[] = [];
-  for (let i = 0; i < items.length; i += concurrency) {
-    const slice = items.slice(i, i + concurrency);
-    const batch = await Promise.allSettled(slice.map(fn));
-    for (const r of batch) {
-      if (r.status === 'fulfilled') results.push(r.value);
-    }
-    if (i + concurrency < items.length) await sleep(DELAY_BETWEEN_BATCHES_MS);
+/** Build [monthStart, monthEnd) pairs for every calendar month between two dates. */
+function monthlyRanges(start: Date, end: Date): Array<[Date, Date]> {
+  const ranges: Array<[Date, Date]> = [];
+  const cur = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+  const last = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1));
+  while (cur <= last) {
+    const next = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth() + 1, 1));
+    ranges.push([new Date(cur), next]);
+    cur.setUTCMonth(cur.getUTCMonth() + 1);
   }
-  return results;
+  return ranges;
 }
 
 /**
  * POST /api/waybills/backfill-items
  *
- * Fetches goods/line-items from rs.ge for every waybill in rs_waybills_in_api
- * and inserts them into rs_waybills_in_items.
+ * Fetches goods/line-items from rs.ge using get_buyer_waybilll_goods_list
+ * (bulk, per calendar month) and inserts into rs_waybills_in_items.
  *
  * Query params:
  *   ?skip_existing=true  (default) — skip waybills that already have items
- *   ?skip_existing=false           — re-fetch ALL waybills (overwrites existing)
+ *   ?skip_existing=false           — re-insert ALL (deletes existing first)
  *   ?insider_uuid=<uuid>           — limit to a single insider
- *   ?limit=<n>                     — process at most N waybills (for testing)
+ *   ?from=YYYY-MM                  — start from this month  (default: earliest in DB)
+ *   ?to=YYYY-MM                    — end at this month      (default: latest in DB)
+ *   ?raw=true                      — return raw XML for first month (debug)
  */
 export async function POST(req: NextRequest) {
   const { requireAuthOrCron, isAuthError } = await import('@/lib/auth-guard');
@@ -49,60 +40,22 @@ export async function POST(req: NextRequest) {
 
   const credMap = getRsCredentialsMap();
   if (credMap.length === 0) {
-    return NextResponse.json(
-      { error: 'No RS API credentials configured' },
-      { status: 503 },
-    );
+    return NextResponse.json({ error: 'No RS API credentials configured' }, { status: 503 });
   }
 
   const url = new URL(req.url);
   const skipExisting = url.searchParams.get('skip_existing') !== 'false';
-  const limitParam = url.searchParams.get('limit');
   const insiderFilter = url.searchParams.get('insider_uuid') ?? undefined;
-  const limit = limitParam ? parseInt(limitParam, 10) : undefined;
+  const rawMode = url.searchParams.get('raw') === 'true';
+  const fromParam = url.searchParams.get('from'); // e.g. "2024-01"
+  const toParam = url.searchParams.get('to');     // e.g. "2025-12"
 
-  // Build a map: insiderUuid → credentials
-  const credsByInsider = new Map(credMap.map((c) => [c.insiderUuid, c]));
+  const insidersToProcess = insiderFilter
+    ? credMap.filter((c) => c.insiderUuid === insiderFilter)
+    : credMap;
 
-  // Fetch waybills from DB
-  const waybills = await prisma.rs_waybills_in_api.findMany({
-    where: insiderFilter ? { insider_uuid: insiderFilter } : undefined,
-    select: { rs_id: true, waybill_no: true, insider_uuid: true },
-    orderBy: { synced_at: 'asc' },
-    ...(limit ? { take: limit } : {}),
-  });
-
-  if (waybills.length === 0) {
-    return NextResponse.json({ inserted: 0, skipped: 0, errors: 0, message: 'No waybills found' });
-  }
-
-  // Optionally skip waybills that already have items
-  let toProcess = waybills;
-  if (skipExisting) {
-    const existingRsIds = await prisma.rs_waybills_in_items.findMany({
-      where: { rs_id: { not: null } },
-      select: { rs_id: true },
-      distinct: ['rs_id'],
-    });
-    const existingSet = new Set(existingRsIds.map((r) => r.rs_id));
-    toProcess = waybills.filter((w) => !existingSet.has(w.rs_id));
-  }
-
-  if (toProcess.length === 0) {
-    return NextResponse.json({
-      inserted: 0,
-      skipped: waybills.length,
-      errors: 0,
-      message: 'All waybills already have items (use ?skip_existing=false to re-fetch)',
-    });
-  }
-
-  // Group by insider_uuid so we use the right credentials per call
-  const byInsider = new Map<string, typeof toProcess>();
-  for (const w of toProcess) {
-    const key = w.insider_uuid ?? '__unknown__';
-    if (!byInsider.has(key)) byInsider.set(key, []);
-    byInsider.get(key)!.push(w);
+  if (insidersToProcess.length === 0) {
+    return NextResponse.json({ error: 'No matching insider credentials' }, { status: 400 });
   }
 
   const batchId = `backfill-${Date.now()}`;
@@ -111,67 +64,122 @@ export async function POST(req: NextRequest) {
   let totalErrors = 0;
   const errorSamples: string[] = [];
 
-  for (const [insiderUuid, group] of byInsider) {
-    const cred = credsByInsider.get(insiderUuid);
-    if (!cred) {
-      console.warn(`[backfill-items] No credentials for insider ${insiderUuid} — skipping ${group.length} waybills`);
-      totalSkipped += group.length;
-      continue;
-    }
-
-    const results = await processBatch(group, CONCURRENCY, async (w) => {
-      if (!w.rs_id) return { inserted: 0, error: null };
-      try {
-        const goods = await getGoodsByWaybillId(cred.su, cred.sp, w.rs_id);
-        if (goods.length === 0) return { inserted: 0, error: null };
-
-        // If overwriting, delete existing items for this rs_id first
-        if (!skipExisting) {
-          await prisma.rs_waybills_in_items.deleteMany({ where: { rs_id: w.rs_id } });
-        }
-
-        await prisma.rs_waybills_in_items.createMany({
-          data: goods.map((g) => ({
-            rs_id: w.rs_id,
-            waybill_no: w.waybill_no,
-            insider_uuid: insiderUuid === '__unknown__' ? null : insiderUuid,
-            goods_name: g.goods_name,
-            goods_code: g.goods_code,
-            unit: g.unit,
-            quantity: g.quantity ? parseFloat(g.quantity) : null,
-            unit_price: g.unit_price ? parseFloat(g.unit_price) : null,
-            total_price: g.total_price ? parseFloat(g.total_price) : null,
-            taxation: g.taxation,
-            import_batch_id: batchId,
-          })),
-          skipDuplicates: true,
-        });
-
-        return { inserted: goods.length, error: null };
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[backfill-items] waybill ${w.rs_id}:`, msg);
-        return { inserted: 0, error: msg };
-      }
+  for (const cred of insidersToProcess) {
+    // Determine date range from DB (or from query params)
+    const bounds = await prisma.rs_waybills_in_api.aggregate({
+      where: { insider_uuid: cred.insiderUuid },
+      _min: { create_date: true },
+      _max: { create_date: true },
     });
 
-    for (const r of results) {
-      totalInserted += r.inserted;
-      if (r.error) {
+    let rangeStart = bounds._min.create_date ?? new Date();
+    let rangeEnd = bounds._max.create_date ?? new Date();
+    if (fromParam) rangeStart = new Date(`${fromParam}-01T00:00:00Z`);
+    if (toParam)   rangeEnd   = new Date(`${toParam}-28T00:00:00Z`);
+
+    const ranges = monthlyRanges(rangeStart, rangeEnd);
+    if (ranges.length === 0) continue;
+
+    // Build a lookup: rs_id → waybill_no for this insider
+    const waybillMeta = await prisma.rs_waybills_in_api.findMany({
+      where: { insider_uuid: cred.insiderUuid },
+      select: { rs_id: true, waybill_no: true },
+    });
+    const metaByRsId = new Map(waybillMeta.map((w) => [w.rs_id, w.waybill_no]));
+
+    // Build set of rs_ids that already have items (skip_existing mode)
+    let existingRsIds: Set<string> = new Set();
+    if (skipExisting) {
+      const existing = await prisma.rs_waybills_in_items.findMany({
+        where: { insider_uuid: cred.insiderUuid, rs_id: { not: null } },
+        select: { rs_id: true },
+        distinct: ['rs_id'],
+      });
+      existingRsIds = new Set(existing.map((r) => r.rs_id as string));
+    }
+
+    for (const [monthStart, monthEnd] of ranges) {
+      try {
+        const result = await getBuyerWaybillGoodsList(
+          cred.su,
+          cred.sp,
+          monthStart,
+          monthEnd,
+          rawMode,
+        );
+
+        // Raw debug mode — return immediately
+        if (rawMode) {
+          return NextResponse.json({
+            raw: typeof result === 'string' ? result.slice(0, 8000) : result,
+            month: monthStart.toISOString().slice(0, 7),
+            insider_uuid: cred.insiderUuid,
+          });
+        }
+
+        const goods = result as Awaited<ReturnType<typeof getBuyerWaybillGoodsList>>;
+        if (!Array.isArray(goods) || goods.length === 0) continue;
+
+        // Group items by waybill_id
+        const byWaybill = new Map<string, typeof goods>();
+        for (const g of goods) {
+          const wid = g.waybill_id;
+          if (!wid) continue;
+          if (!byWaybill.has(wid)) byWaybill.set(wid, []);
+          byWaybill.get(wid)!.push(g);
+        }
+
+        for (const [waybillId, items] of byWaybill) {
+          // Only insert for waybills we know about
+          if (!metaByRsId.has(waybillId)) continue;
+
+          if (skipExisting && existingRsIds.has(waybillId)) {
+            totalSkipped += 1;
+            continue;
+          }
+
+          if (!skipExisting) {
+            await prisma.rs_waybills_in_items.deleteMany({ where: { rs_id: waybillId } });
+          }
+
+          try {
+            const ins = await prisma.rs_waybills_in_items.createMany({
+              data: items.map((g) => ({
+                rs_id: waybillId,
+                waybill_no: metaByRsId.get(waybillId) ?? null,
+                insider_uuid: cred.insiderUuid,
+                goods_name: g.goods_name,
+                goods_code: g.goods_code,
+                unit: g.unit,
+                quantity: g.quantity ? parseFloat(g.quantity) : null,
+                unit_price: g.unit_price ? parseFloat(g.unit_price) : null,
+                total_price: g.total_price ? parseFloat(g.total_price) : null,
+                taxation: g.taxation,
+                import_batch_id: batchId,
+              })),
+              skipDuplicates: true,
+            });
+            totalInserted += ins.count;
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            totalErrors += 1;
+            if (errorSamples.length < 3) errorSamples.push(`insert ${waybillId}: ${msg}`);
+          }
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const label = `${cred.insiderUuid} ${monthStart.toISOString().slice(0, 7)}`;
+        console.error(`[backfill-items] ${label}:`, msg);
         totalErrors += 1;
-        if (errorSamples.length < 3) errorSamples.push(r.error);
+        if (errorSamples.length < 3) errorSamples.push(`${label}: ${msg}`);
       }
     }
   }
-
-  totalSkipped += waybills.length - toProcess.length;
 
   return NextResponse.json({
     inserted: totalInserted,
     skipped: totalSkipped,
     errors: totalErrors,
-    total_waybills: waybills.length,
-    processed_waybills: toProcess.length,
     batch_id: batchId,
     ...(errorSamples.length > 0 ? { error_samples: errorSamples } : {}),
   });
