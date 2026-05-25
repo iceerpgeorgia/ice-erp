@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-05-25 Deployment #253
+- Commit: 17cd612
+- Production: https://ice-gs7zz2yow-iceerp.vercel.app
+- Summary: Fix waybill sync crashing with Prisma validation error; fix empty waybills UI due to missing DB column.
+- Changes:
+  - lib/waybills/run-waybill-sync.ts: Added `LEGACY_COMPARE_KEYS` — a filtered subset of `COMPARE_KEYS` excluding fields only present in `rs_waybills_in_api` (`invoice_id`, `is_confirmed`, `is_corrected`, `is_med`, `create_date`, `seller_st`). Using full `COMPARE_KEYS` for `rs_waybills_in.findMany` select caused `PrismaClientValidationError` on unknown fields, aborting the entire sync. `LEGACY_COMPARE_KEYS` now used for `selectFields` and `isDifferent` calls against the legacy table.
+  - DB migration (direct): `ALTER TABLE rs_waybills_in_api ADD COLUMN IF NOT EXISTS import_batch_id TEXT` — the Prisma schema declared this column but the DB table was missing it. Prisma SELECTs all model fields by default, so every `/api/waybills` GET threw a PostgreSQL "column does not exist" error, making the UI show no records.
+  - components/figma/payments-report-table.tsx: Removed stale `fetchData` call on dialog close (was triggering an unnecessary reload when closing from the `ledger` step).
+
 ## 2026-05-23 Deployment #252
 - Commits: 7474a43, c799638, 30f820f, 6d03a2c
 - Production: https://ice-9tur1y074-iceerp.vercel.app
