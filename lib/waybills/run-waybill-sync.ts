@@ -237,6 +237,12 @@ const LEGACY_COMPARE_KEYS = COMPARE_KEYS.filter(
   (k) => !['invoice_id', 'is_confirmed', 'is_corrected', 'is_med', 'create_date', 'seller_st'].includes(k as string),
 ) as readonly string[];
 
+// Strip api-only fields so the data is safe to write into rs_waybills_in.
+const toLegacyRecord = <T extends Record<string, unknown>>(row: T): Omit<T, 'invoice_id' | 'is_confirmed' | 'is_corrected' | 'is_med' | 'create_date' | 'seller_st'> => {
+  const { invoice_id, is_confirmed, is_corrected, is_med, create_date, seller_st, ...rest } = row as any;
+  return rest;
+};
+
 // ---------------------------------------------------------------------------
 // Main sync function
 // ---------------------------------------------------------------------------
@@ -423,7 +429,7 @@ export async function runWaybillSync(
   // 2. Sync rs_waybills_in for backward compatibility.
   //    VAT lock: same rule — excluded from update data.
   // ---------------------------------------------------------------------------
-  const toCreate = [...withoutKey];
+  const toCreate = [...withoutKey.map(toLegacyRecord)];
   const toUpdate: Array<{ where: Record<string, unknown>; data: Record<string, unknown> }> = [];
 
   for (const row of withKey) {
@@ -431,7 +437,7 @@ export async function runWaybillSync(
     if (existingByRs) {
       if (isDifferent(existingByRs, row as unknown as Record<string, unknown>, LEGACY_COMPARE_KEYS)) {
         // Destructure to exclude vat (locked) and user-editable fields (never overwritten by sync)
-        const { project_uuid, financial_code_uuid, corresponding_account, created_at, updated_at, vat, ...updatable } = row;
+        const { project_uuid, financial_code_uuid, corresponding_account, created_at, updated_at, vat, ...updatable } = toLegacyRecord(row);
         toUpdate.push({
           where: { rs_id: row.rs_id!, waybill_no: row.waybill_no! },
           data: { ...updatable, import_batch_id: syncBatchId, updated_at: new Date() },
@@ -442,7 +448,7 @@ export async function runWaybillSync(
 
     const existingByNo = waybillNoMap.get(row.waybill_no!);
     if (existingByNo) {
-      const { project_uuid, financial_code_uuid, corresponding_account, created_at, updated_at, vat, ...updatable } = row;
+      const { project_uuid, financial_code_uuid, corresponding_account, created_at, updated_at, vat, ...updatable } = toLegacyRecord(row);
       toUpdate.push({
         where: { waybill_no: row.waybill_no!, rs_id: null },
         data: { ...updatable, import_batch_id: syncBatchId, updated_at: new Date() },
@@ -450,7 +456,7 @@ export async function runWaybillSync(
       continue;
     }
 
-    toCreate.push(row);
+    toCreate.push(toLegacyRecord(row));
   }
 
   const result = await prisma.rs_waybills_in.createMany({
