@@ -454,7 +454,7 @@ export async function GET(request: NextRequest) {
         cost_fc.code AS paired_fc_code,
         COALESCE(cost_fc.validation, cost_fc.code) AS paired_fc_validation
       FROM projects proj
-      JOIN rs_waybills_in w ON w.project_uuid = proj.project_uuid
+      JOIN rs_waybills_in_api w ON w.project_uuid = proj.project_uuid
       LEFT JOIN LATERAL (
         SELECT usd_rate, eur_rate FROM nbg_exchange_rates
         WHERE date <= COALESCE(w.activation_time::date, CURRENT_DATE) ORDER BY date DESC LIMIT 1

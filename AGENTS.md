@@ -158,9 +158,10 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 ## RS.ge Waybill Sync
 
 ### Architecture Overview
-Buyer waybills are fetched from the RS.ge SOAP API (`WaybillService.asmx`) and written to two tables:
-- **`rs_waybills_in_api`** — primary source of truth, API fields only; user-editable fields (project, financial code, corresponding account) start NULL and are set exclusively via UI, never overwritten by sync.
-- **`rs_waybills_in`** — legacy backward-compat table kept in sync for existing UI; same field-lock rules apply.
+Buyer waybills are fetched from the RS.ge SOAP API (`WaybillService.asmx`) and written to a single table:
+- **`rs_waybills_in_api`** — single source of truth; user-editable fields (project, financial code, corresponding account) start NULL and are set exclusively via UI, never overwritten by sync.
+
+The legacy `rs_waybills_in` table is no longer written to by any code path.
 
 ### Multi-Insider Credential Map
 All RS.ge credentials are stored in `RS_CREDENTIALS_MAP` (JSON array in `.env.local` and Vercel env):
@@ -173,7 +174,7 @@ Add one object per insider/company. Parsed by `getRsCredentialsMap()` in `lib/in
 `vat` (counteragent VAT payer status) is a **point-in-time snapshot** captured at first import via `is_vat_payer_tin` SOAP call:
 - **CREATE**: `vat` is stored from the live API response.
 - **UPDATE**: `vat` is explicitly excluded from all update payloads — the original value is preserved forever.
-- This applies to both `rs_waybills_in_api` and `rs_waybills_in`.
+- This applies to `rs_waybills_in_api`.
 
 ### Date Filter
 The API filter used is `create_date_s / create_date_e` (matches the portal's **Activation Period** filter). `begin_date_s/e` (transport start date) is NOT used — it returns `-1064` when no waybills have a BEGIN_DATE in range.
@@ -199,8 +200,8 @@ Both routes loop over every entry in `RS_CREDENTIALS_MAP`, call `runWaybillSync`
 - Default date range: last 30 days.
 
 ### Data Gaps & Known Constraints
-- Waybills with `create_date = null` in RS.ge are **invisible** to the `create_date_s/e` filter. Such records must be inserted manually by copying from the legacy `rs_waybills_in` table.
-- `rs_waybills_in_api` is unique on `rs_id`. `rs_waybills_in` is unique on `(rs_id, waybill_no)` — both nullable, so duplicates can exist in the legacy table.
+- Waybills with `create_date = null` in RS.ge are **invisible** to the `create_date_s/e` filter. Such records must be inserted manually via the CSV import route (`/api/waybills/import`), which only accepts records with a non-null `rs_id`.
+- `rs_waybills_in_api` is unique on `rs_id` (non-nullable). The legacy `rs_waybills_in` table still exists in the DB but is no longer used.
 
 ## Build, Test, and Development Commands
 Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, API, and workers concurrently while developing. Whenever `prisma/schema.prisma` changes, run `pnpm prisma migrate dev --name <feature>` followed by `pnpm prisma generate` to refresh the client. After adding new models to the schema, run `python scripts/auto-generate-templates.py` to automatically create Excel import templates in the `templates/` folder. Execute `pnpm test` for Jest coverage and `pnpm test:e2e` when end-to-end verification is required; append `--watch` for quick feedback loops.

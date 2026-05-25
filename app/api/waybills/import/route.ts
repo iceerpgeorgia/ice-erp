@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
   const limited = await uploadRateLimit.check(req);
   if (limited) return limited;
   try {
-    if (!(await tableExists('rs_waybills_in'))) {
+    if (!(await tableExists('rs_waybills_in_api'))) {
       return NextResponse.json(
         { error: 'Waybills table is not available yet. Please run migrations.' },
         { status: 503 }
@@ -288,34 +288,27 @@ export async function POST(req: NextRequest) {
       'period',
     ];
 
-    const withKey = filtered.filter(r => r.rs_id && r.waybill_no);
-    const withoutKey = filtered.filter(r => !(r.rs_id && r.waybill_no));
+    // Records without rs_id cannot be stored in rs_waybills_in_api (rs_id required).
+    const withRsId = filtered.filter(r => r.rs_id);
 
     const existingMap = new Map<string, any>();
     const batchSize = 200;
-    for (let i = 0; i < withKey.length; i += batchSize) {
-      const batch = withKey.slice(i, i + batchSize);
-      const existing = await prisma.rs_waybills_in.findMany({
-        where: {
-          OR: batch.map((row) => ({
-            rs_id: row.rs_id as string,
-            waybill_no: row.waybill_no as string,
-          })),
-        },
+    for (let i = 0; i < withRsId.length; i += batchSize) {
+      const batch = withRsId.slice(i, i + batchSize);
+      const existing = await prisma.rs_waybills_in_api.findMany({
+        where: { rs_id: { in: batch.map(r => r.rs_id as string) } },
         select: Object.fromEntries(compareKeys.map((key) => [key, true])) as any,
-      });
-
+      }) as any[];
       for (const row of existing) {
-        existingMap.set(`${row.rs_id}::${row.waybill_no}`, row);
+        existingMap.set(row.rs_id as string, row);
       }
     }
 
-    const toCreate = [...withoutKey];
-    const toUpdate: Array<{ where: { rs_id: string; waybill_no: string }; data: any }> = [];
+    const toCreate: typeof withRsId = [];
+    const toUpdate: Array<{ where: { rs_id: string }; data: any }> = [];
 
-    for (const row of withKey) {
-      const key = `${row.rs_id}::${row.waybill_no}`;
-      const existing = existingMap.get(key);
+    for (const row of withRsId) {
+      const existing = existingMap.get(row.rs_id as string);
       if (!existing) {
         toCreate.push(row);
         continue;
@@ -332,18 +325,16 @@ export async function POST(req: NextRequest) {
         } = row;
 
         toUpdate.push({
-          where: { rs_id: row.rs_id as string, waybill_no: row.waybill_no as string },
-          data: {
-            ...updatable,
-            import_batch_id: importBatchId,
-            updated_at: new Date(),
-          },
+          where: { rs_id: row.rs_id as string },
+          data: { ...updatable, import_batch_id: importBatchId },
         });
       }
     }
 
-    const result = await prisma.rs_waybills_in.createMany({
-      data: toCreate,
+    // Strip created_at/updated_at — not present in rs_waybills_in_api schema.
+    const toCreateApi = toCreate.map(({ created_at, updated_at, ...rest }) => rest as any);
+    const result = await prisma.rs_waybills_in_api.createMany({
+      data: toCreateApi,
       skipDuplicates: true,
     });
 
@@ -351,8 +342,8 @@ export async function POST(req: NextRequest) {
     const updateBatchSize = 50;
     for (let i = 0; i < toUpdate.length; i += updateBatchSize) {
       const batch = toUpdate.slice(i, i + updateBatchSize).map((item) =>
-        prisma.rs_waybills_in.updateMany({
-          where: item.where,
+        prisma.rs_waybills_in_api.updateMany({
+          where: { rs_id: item.where.rs_id },
           data: item.data,
         })
       );

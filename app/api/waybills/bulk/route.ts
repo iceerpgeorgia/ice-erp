@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest) {
   const auth = await requireAuth();
   if (isAuthError(auth)) return auth;
   try {
-    if (!(await tableExists('rs_waybills_in'))) {
+    if (!(await tableExists('rs_waybills_in_api'))) {
       return NextResponse.json(
         { error: 'Waybills table is not available yet. Please run migrations.' },
         { status: 503 }
@@ -75,8 +75,6 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
 
-    updates.updated_at = new Date();
-
     const normalizedIds = ids
       .map((id: any) => Number(id))
       .filter((id: number) => Number.isFinite(id));
@@ -85,7 +83,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'No valid ids provided' }, { status: 400 });
     }
 
-    const result = await prisma.rs_waybills_in.updateMany({
+    const result = await prisma.rs_waybills_in_api.updateMany({
       where: { id: { in: normalizedIds } },
       data: updates,
     });

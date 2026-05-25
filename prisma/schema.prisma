@@ -926,6 +926,7 @@ model rs_waybills_in_api {
   corresponding_account         String?
   import_batch_id               String?
   synced_at                     DateTime  @default(now())
+  waybill_items                 rs_waybills_in_items[]
 
   @@index([waybill_no])
   @@index([counteragent_inn])
@@ -993,26 +994,29 @@ model inventories {
 }
 
 model rs_waybills_in_items {
-  id                    BigInt       @id @default(autoincrement())
-  uuid                  String       @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                    BigInt              @id @default(autoincrement())
+  uuid                  String              @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rs_id                 String?
   waybill_no            String?
   goods_code            String?
   goods_name            String?
   unit                  String?
-  quantity              Decimal?     @db.Decimal(20, 4)
-  unit_price            Decimal?     @db.Decimal(20, 4)
-  total_price           Decimal?     @db.Decimal(20, 2)
+  quantity              Decimal?            @db.Decimal(20, 4)
+  unit_price            Decimal?            @db.Decimal(20, 4)
+  total_price           Decimal?            @db.Decimal(20, 2)
   taxation              String?
-  inventory_uuid        String?      @db.Uuid
-  insider_uuid          String?      @db.Uuid
-  project_uuid          String?      @db.Uuid
-  financial_code_uuid   String?      @db.Uuid
+  inventory_uuid        String?             @db.Uuid
+  insider_uuid          String?             @db.Uuid
+  project_uuid          String?             @db.Uuid
+  financial_code_uuid   String?             @db.Uuid
   corresponding_account String?
   import_batch_id       String?
-  created_at            DateTime     @default(now())
-  updated_at            DateTime     @updatedAt
-  inventory             inventories? @relation(fields: [inventory_uuid], references: [uuid])
+  created_at            DateTime            @default(now())
+  updated_at            DateTime            @updatedAt
+  inventory             inventories?        @relation(fields: [inventory_uuid], references: [uuid])
+  waybill               rs_waybills_in_api? @relation(fields: [rs_id], references: [rs_id])
 
+  @@index([rs_id])
   @@index([waybill_no])
   @@index([inventory_uuid])
   @@index([insider_uuid])

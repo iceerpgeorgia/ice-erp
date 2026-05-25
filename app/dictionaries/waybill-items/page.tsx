@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,12 +11,13 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Download, Plus, Pencil, Trash2 } from "lucide-react";
+import { Download, Plus, Pencil, Trash2, Search, X, ExternalLink } from "lucide-react";
 import { exportRowsToXlsx } from "@/lib/export-xlsx";
 
 interface WaybillItem {
   id: number;
   uuid: string;
+  rs_id: string | null;
   waybill_no: string | null;
   goods_code: string | null;
   goods_name: string | null;
@@ -37,21 +39,26 @@ interface WaybillItem {
 interface Option { uuid: string; label: string; }
 
 const emptyForm = {
-  waybill_no: "", goods_code: "", goods_name: "", unit: "",
+  rs_id: "", waybill_no: "", goods_code: "", goods_name: "", unit: "",
   quantity: "", unit_price: "", total_price: "", taxation: "",
   inventory_uuid: "", project_uuid: "", financial_code_uuid: "",
   corresponding_account: "",
 };
 
 export default function WaybillItemsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const urlRsId = searchParams.get("rs_id") ?? "";
+
   const [rows, setRows] = useState<WaybillItem[]>([]);
   const [inventories, setInventories] = useState<Option[]>([]);
   const [projects, setProjects] = useState<Option[]>([]);
   const [finCodes, setFinCodes] = useState<Option[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState(urlRsId);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<WaybillItem | null>(null);
-  const [formData, setFormData] = useState(emptyForm);
+  const [formData, setFormData] = useState({ ...emptyForm, rs_id: urlRsId });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -65,6 +72,18 @@ export default function WaybillItemsPage() {
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
+
+  // client-side filtering: match search against rs_id, waybill_no, goods_name, goods_code
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(r =>
+      (r.rs_id ?? "").toLowerCase().includes(q) ||
+      (r.waybill_no ?? "").toLowerCase().includes(q) ||
+      (r.goods_name ?? "").toLowerCase().includes(q) ||
+      (r.goods_code ?? "").toLowerCase().includes(q)
+    );
+  }, [rows, search]);
 
   const fetchLookups = async () => {
     try {
@@ -90,10 +109,11 @@ export default function WaybillItemsPage() {
     } catch (err) { console.error(err); }
   };
 
-  const handleAdd = () => { setEditing(null); setFormData({ ...emptyForm }); setErrors({}); setDialogOpen(true); };
+  const handleAdd = () => { setEditing(null); setFormData({ ...emptyForm, rs_id: search }); setErrors({}); setDialogOpen(true); };
   const handleEdit = (row: WaybillItem) => {
     setEditing(row);
     setFormData({
+      rs_id: row.rs_id || "",
       waybill_no: row.waybill_no || "",
       goods_code: row.goods_code || "",
       goods_name: row.goods_name || "",
@@ -117,6 +137,7 @@ export default function WaybillItemsPage() {
       const url = editing ? `/api/waybill-items?id=${editing.id}` : "/api/waybill-items";
       const method = editing ? "PATCH" : "POST";
       const payload = {
+        rs_id: formData.rs_id || null,
         waybill_no: formData.waybill_no || null,
         goods_code: formData.goods_code || null,
         goods_name: formData.goods_name || null,
@@ -152,11 +173,15 @@ export default function WaybillItemsPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">Waybill Items</h1>
-          <p className="text-muted-foreground mt-1">RS Waybill incoming items</p>
+          <p className="text-muted-foreground mt-1">
+            RS waybill incoming items
+            {search && <span className="ml-1">— filtered by <span className="font-mono text-foreground">{search}</span></span>}
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled={rows.length === 0}
-            onClick={() => exportRowsToXlsx({ rows, columns: [
+          <Button variant="outline" size="sm" disabled={filteredRows.length === 0}
+            onClick={() => exportRowsToXlsx({ rows: filteredRows, columns: [
+              { key: "rs_id" as any, label: "RS ID", visible: true },
               { key: "waybill_no" as any, label: "Waybill #", visible: true },
               { key: "goods_code" as any, label: "Code", visible: true },
               { key: "goods_name" as any, label: "Name", visible: true },
@@ -174,11 +199,43 @@ export default function WaybillItemsPage() {
         </div>
       </div>
 
+      {/* Search / filter bar */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Filter by RS ID, waybill #, name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8 pr-8"
+          />
+          {search && (
+            <button
+              className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
+              onClick={() => { setSearch(""); router.replace("/dictionaries/waybill-items"); }}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        <span className="text-sm text-muted-foreground">
+          {filteredRows.length} / {rows.length} rows
+        </span>
+        {search && (
+          <Button variant="outline" size="sm" asChild>
+            <a href="/dictionaries/waybills">
+              <ExternalLink className="h-3 w-3 mr-1" />Waybills
+            </a>
+          </Button>
+        )}
+      </div>
+
       {loading ? <div className="text-center py-12">Loading…</div> : (
         <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>RS ID</TableHead>
                 <TableHead>Waybill #</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Name</TableHead>
@@ -192,11 +249,21 @@ export default function WaybillItemsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.length === 0 ? (
-                <TableRow><TableCell colSpan={10} className="text-center py-12 text-muted-foreground">No waybill items found.</TableCell></TableRow>
-              ) : rows.map((row) => (
+              {filteredRows.length === 0 ? (
+                <TableRow><TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
+                  {rows.length === 0 ? "No waybill items found." : "No items match the filter."}
+                </TableCell></TableRow>
+              ) : filteredRows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell>{row.waybill_no}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {row.rs_id ? (
+                      <button
+                        className="text-blue-600 hover:underline"
+                        onClick={() => setSearch(row.rs_id!)}
+                      >{row.rs_id}</button>
+                    ) : <span className="text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell className="text-xs">{row.waybill_no ?? <span className="text-muted-foreground">—</span>}</TableCell>
                   <TableCell>{row.goods_code}</TableCell>
                   <TableCell className="font-medium max-w-[200px] truncate">{row.goods_name}</TableCell>
                   <TableCell>{row.unit}</TableCell>
@@ -228,14 +295,15 @@ export default function WaybillItemsPage() {
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
+                  <Label htmlFor="rs_id">RS ID</Label>
+                  <Input id="rs_id" value={formData.rs_id}
+                    onChange={(e) => setFormData({ ...formData, rs_id: e.target.value })}
+                    placeholder="From rs_waybills_in_api" />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="waybill_no">Waybill No</Label>
                   <Input id="waybill_no" value={formData.waybill_no}
                     onChange={(e) => setFormData({ ...formData, waybill_no: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="goods_code">Goods Code</Label>
-                  <Input id="goods_code" value={formData.goods_code}
-                    onChange={(e) => setFormData({ ...formData, goods_code: e.target.value })} />
                 </div>
               </div>
 
@@ -245,6 +313,12 @@ export default function WaybillItemsPage() {
                   onChange={(e) => setFormData({ ...formData, goods_name: e.target.value })}
                   className={errors.goods_name ? "border-destructive" : ""} />
                 {errors.goods_name && <p className="text-sm text-destructive">{errors.goods_name}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="goods_code">Goods Code</Label>
+                <Input id="goods_code" value={formData.goods_code}
+                  onChange={(e) => setFormData({ ...formData, goods_code: e.target.value })} />
               </div>
 
               <div className="grid grid-cols-4 gap-4">

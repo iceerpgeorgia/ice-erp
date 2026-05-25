@@ -231,25 +231,13 @@ const COMPARE_KEYS = [
   'seller_st',
 ] as const;
 
-// Fields that exist in the legacy rs_waybills_in table (subset of COMPARE_KEYS).
-// rs_waybills_in lacks: invoice_id, is_confirmed, is_corrected, is_med, create_date, seller_st.
-const LEGACY_COMPARE_KEYS = COMPARE_KEYS.filter(
-  (k) => !['invoice_id', 'is_confirmed', 'is_corrected', 'is_med', 'create_date', 'seller_st'].includes(k as string),
-) as readonly string[];
-
-// Strip api-only fields so the data is safe to write into rs_waybills_in.
-const toLegacyRecord = <T extends Record<string, unknown>>(row: T): Omit<T, 'invoice_id' | 'is_confirmed' | 'is_corrected' | 'is_med' | 'create_date' | 'seller_st'> => {
-  const { invoice_id, is_confirmed, is_corrected, is_med, create_date, seller_st, ...rest } = row as any;
-  return rest;
-};
-
 // ---------------------------------------------------------------------------
 // Main sync function
 // ---------------------------------------------------------------------------
 
 /**
  * Fetches waybills from RS.ge for the given date range and upserts them into
- * rs_waybills_in_api (primary) and rs_waybills_in (backward compat).
+ * rs_waybills_in_api (single source of truth).
  *
  * VAT lock rule: the counteragent VAT payer status (vat field) is set once at
  * first import and never overwritten — it reflects the state at that exact fetch.
@@ -318,36 +306,15 @@ export async function runWaybillSync(
     }
   }
 
-  const withKey = records.filter((r) => r.rs_id && r.waybill_no);
-  const withoutKey = records.filter((r) => !(r.rs_id && r.waybill_no));
+  const withKey = records.filter((r) => r.rs_id);
 
   const rsIds = withKey.map((r) => r.rs_id!);
-  const waybillNos = withKey.map((r) => r.waybill_no!);
 
-  const selectFields = Object.fromEntries(
-    [...LEGACY_COMPARE_KEYS, 'rs_id', 'waybill_no'].map((k) => [k, true]),
-  ) as Record<string, true>;
-
-  const [existingByRsId, existingByWaybillNoOnly] = await Promise.all([
-    prisma.rs_waybills_in.findMany({
-      where: { rs_id: { in: rsIds } },
-      select: selectFields,
-    }),
-    prisma.rs_waybills_in.findMany({
-      where: { waybill_no: { in: waybillNos }, rs_id: null },
-      select: selectFields,
-    }),
-  ]);
-
-  const rsIdMap = new Map(
-    existingByRsId.map((r) => [r.rs_id as string, r as Record<string, unknown>]),
-  );
-  const waybillNoMap = new Map(
-    existingByWaybillNoOnly.map((r) => [r.waybill_no as string, r as Record<string, unknown>]),
-  );
+  const apiCreate: typeof withKey = [];
+  const apiUpdate: typeof withKey = [];
 
   // ---------------------------------------------------------------------------
-  // 1. Upsert rs_waybills_in_api — primary source of truth.
+  // Upsert rs_waybills_in_api — single source of truth.
   //    CREATE: includes vat (snapshot at this fetch).
   //    UPDATE: excludes vat — original snapshot is preserved forever.
   // ---------------------------------------------------------------------------
@@ -361,8 +328,6 @@ export async function runWaybillSync(
       ).map((r) => r.rs_id),
     );
 
-    const apiCreate: typeof withKey = [];
-    const apiUpdate: typeof withKey = [];
     for (const r of withKey) {
       (existingApiRsIds.has(r.rs_id!) ? apiUpdate : apiCreate).push(r);
     }
@@ -425,54 +390,5 @@ export async function runWaybillSync(
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // 2. Sync rs_waybills_in for backward compatibility.
-  //    VAT lock: same rule — excluded from update data.
-  // ---------------------------------------------------------------------------
-  const toCreate = [...withoutKey.map(toLegacyRecord)];
-  const toUpdate: Array<{ where: Record<string, unknown>; data: Record<string, unknown> }> = [];
-
-  for (const row of withKey) {
-    const existingByRs = rsIdMap.get(row.rs_id!);
-    if (existingByRs) {
-      if (isDifferent(existingByRs, row as unknown as Record<string, unknown>, LEGACY_COMPARE_KEYS)) {
-        // Destructure to exclude vat (locked) and user-editable fields (never overwritten by sync)
-        const { project_uuid, financial_code_uuid, corresponding_account, created_at, updated_at, vat, ...updatable } = toLegacyRecord(row);
-        toUpdate.push({
-          where: { rs_id: row.rs_id!, waybill_no: row.waybill_no! },
-          data: { ...updatable, import_batch_id: syncBatchId, updated_at: new Date() },
-        });
-      }
-      continue;
-    }
-
-    const existingByNo = waybillNoMap.get(row.waybill_no!);
-    if (existingByNo) {
-      const { project_uuid, financial_code_uuid, corresponding_account, created_at, updated_at, vat, ...updatable } = toLegacyRecord(row);
-      toUpdate.push({
-        where: { waybill_no: row.waybill_no!, rs_id: null },
-        data: { ...updatable, import_batch_id: syncBatchId, updated_at: new Date() },
-      });
-      continue;
-    }
-
-    toCreate.push(toLegacyRecord(row));
-  }
-
-  const result = await prisma.rs_waybills_in.createMany({
-    data: toCreate,
-    skipDuplicates: true,
-  });
-
-  let updated = 0;
-  const batchSize = 50;
-  for (let i = 0; i < toUpdate.length; i += batchSize) {
-    const batch = toUpdate.slice(i, i + batchSize).map((item) =>
-      prisma.rs_waybills_in.updateMany({ where: item.where, data: item.data }),
-    );
-    await prisma.$transaction(batch);
-    updated += batch.length;
-  }
-
-  return { imported: result.count, updated, sync_batch_id: syncBatchId };
+  return { imported: apiCreate.length, updated: apiUpdate.length, sync_batch_id: syncBatchId };
 }

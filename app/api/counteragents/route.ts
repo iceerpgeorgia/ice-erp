@@ -305,7 +305,7 @@ export async function POST(req: NextRequest) {
     });
 
     let reparseSummary: { updated: number; byTable: Record<string, number> } | null = null;
-    let waybillRebind: { updatedApi: number; updatedLegacy: number } | null = null;
+    let waybillRebind: { updated: number } | null = null;
     if (normalizedIdentificationNumber) {
       try {
         reparseSummary = await reparseByCounteragentInn([normalizedIdentificationNumber]);
@@ -595,7 +595,7 @@ export async function PATCH(req: NextRequest) {
     );
 
     let reparseSummary: { updated: number; byTable: Record<string, number> } | null = null;
-    let waybillRebind: { updatedApi: number; updatedLegacy: number } | null = null;
+    let waybillRebind: { updated: number } | null = null;
     if (reparseInns.length > 0) {
       try {
         reparseSummary = await reparseByCounteragentInn(reparseInns);

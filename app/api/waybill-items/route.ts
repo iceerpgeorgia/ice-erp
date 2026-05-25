@@ -13,8 +13,7 @@ function formatDate(date: string | Date | undefined): string {
 
 function validatePayload(body: any) {
   const errors: Record<string, string> = {};
-  const waybill_no = typeof body?.waybill_no === "string" ? body.waybill_no.trim() : null;
-  const goods_code = typeof body?.goods_code === "string" ? body.goods_code.trim() : null;
+  const waybill_no = typeof body?.waybill_no === "string" ? body.waybill_no.trim() : null;  const rsId = typeof body?.rs_id === "string" ? body.rs_id.trim() : null;  const goods_code = typeof body?.goods_code === "string" ? body.goods_code.trim() : null;
   const goods_name = typeof body?.goods_name === "string" ? body.goods_name.trim() : null;
   const unit = typeof body?.unit === "string" ? body.unit.trim() : null;
   const quantity = body?.quantity != null && body.quantity !== "" ? Number(body.quantity) : null;
@@ -32,7 +31,7 @@ function validatePayload(body: any) {
   return {
     errors,
     payload: {
-      waybill_no, goods_code, goods_name, unit,
+      waybill_no, rs_id: rsId, goods_code, goods_name, unit,
       quantity, unit_price, total_price, taxation,
       inventory_uuid, project_uuid, financial_code_uuid,
       corresponding_account, import_batch_id,
@@ -45,10 +44,12 @@ export async function GET(req: NextRequest) {
     const insider = await getRequiredInsider();
     const url = new URL(req.url);
     const waybillNo = url.searchParams.get("waybill_no");
+    const rsIdParam = url.searchParams.get("rs_id");
     const batchId = url.searchParams.get("import_batch_id");
 
     const where: any = {};
     if (waybillNo) where.waybill_no = waybillNo;
+    if (rsIdParam) where.rs_id = rsIdParam;
     if (batchId) where.import_batch_id = batchId;
 
     const rows = await prisma.rs_waybills_in_items.findMany({
@@ -62,6 +63,7 @@ export async function GET(req: NextRequest) {
     const data = rows.map((row) => ({
       id: Number(row.id),
       uuid: row.uuid,
+      rs_id: row.rs_id,
       waybill_no: row.waybill_no,
       goods_code: row.goods_code,
       goods_name: row.goods_name,
@@ -105,6 +107,7 @@ export async function POST(req: NextRequest) {
       data: {
         uuid: crypto.randomUUID(),
         waybill_no: payload.waybill_no,
+        rs_id: payload.rs_id,
         goods_code: payload.goods_code,
         goods_name: payload.goods_name!,
         unit: payload.unit,
@@ -128,6 +131,7 @@ export async function POST(req: NextRequest) {
       {
         id: Number(created.id),
         uuid: created.uuid,
+        rs_id: created.rs_id,
         waybill_no: created.waybill_no,
         goods_code: created.goods_code,
         goods_name: created.goods_name,
@@ -177,6 +181,7 @@ export async function PATCH(req: NextRequest) {
       where: { id: pk },
       data: {
         waybill_no: payload.waybill_no,
+        rs_id: payload.rs_id,
         goods_code: payload.goods_code,
         goods_name: payload.goods_name!,
         unit: payload.unit,
@@ -199,6 +204,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({
       id: Number(updated.id),
       uuid: updated.uuid,
+      rs_id: updated.rs_id,
       waybill_no: updated.waybill_no,
       goods_code: updated.goods_code,
       goods_name: updated.goods_name,
