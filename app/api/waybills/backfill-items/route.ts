@@ -80,12 +80,13 @@ export async function POST(req: NextRequest) {
     const ranges = monthlyRanges(rangeStart, rangeEnd);
     if (ranges.length === 0) continue;
 
-    // Build a lookup: rs_id → waybill_no for this insider
+    // Build lookup: waybill_no → rs_id for this insider
     const waybillMeta = await prisma.rs_waybills_in_api.findMany({
       where: { insider_uuid: cred.insiderUuid },
       select: { rs_id: true, waybill_no: true },
     });
-    const metaByRsId = new Map(waybillMeta.map((w) => [w.rs_id, w.waybill_no]));
+    // waybill_no is the WAYBILL_NUMBER from RS.ge; rs_id is the internal numeric ID
+    const metaByWaybillNo = new Map(waybillMeta.filter(w => w.waybill_no).map((w) => [w.waybill_no as string, w.rs_id]));
 
     // Build set of rs_ids that already have items (skip_existing mode)
     let existingRsIds: Set<string> = new Set();
@@ -129,24 +130,25 @@ export async function POST(req: NextRequest) {
           byWaybill.get(wid)!.push(g);
         }
 
-        for (const [waybillId, items] of byWaybill) {
-          // Only insert for waybills we know about
-          if (!metaByRsId.has(waybillId)) continue;
+        for (const [waybillNumber, items] of byWaybill) {
+          // Look up internal rs_id using the human-readable WAYBILL_NUMBER
+          const rsId = metaByWaybillNo.get(waybillNumber);
+          if (!rsId) continue; // not in our DB — skip
 
-          if (skipExisting && existingRsIds.has(waybillId)) {
+          if (skipExisting && existingRsIds.has(rsId)) {
             totalSkipped += 1;
             continue;
           }
 
           if (!skipExisting) {
-            await prisma.rs_waybills_in_items.deleteMany({ where: { rs_id: waybillId } });
+            await prisma.rs_waybills_in_items.deleteMany({ where: { rs_id: rsId } });
           }
 
           try {
             const ins = await prisma.rs_waybills_in_items.createMany({
               data: items.map((g) => ({
-                rs_id: waybillId,
-                waybill_no: metaByRsId.get(waybillId) ?? null,
+                rs_id: rsId,
+                waybill_no: waybillNumber,
                 insider_uuid: cred.insiderUuid,
                 goods_name: g.goods_name,
                 goods_code: g.goods_code,

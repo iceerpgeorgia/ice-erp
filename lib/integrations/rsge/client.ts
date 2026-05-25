@@ -274,7 +274,7 @@ export async function getBuyerWaybillGoodsList(
   };
 
   return goodsArray.map((g) => ({
-    waybill_id: pick(g, 'WAYBILL_ID', 'waybill_id', 'WaybillId', 'ID', 'id'),
+    waybill_id: pick(g, 'WAYBILL_NUMBER', 'waybill_number', 'WAYBILL_ID', 'waybill_id', 'WaybillId', 'ID', 'id'),
     goods_name: pick(g, 'PROD_NAME', 'prod_name', 'ProdName', 'NAME', 'name'),
     goods_code: pick(g, 'BAR_CODE', 'bar_code', 'BarCode', 'PROD_CODE', 'prod_code'),
     unit: pick(g, 'UNIT_OF_MEASURE', 'unit_of_measure', 'UnitOfMeasure', 'UNIT', 'unit'),
