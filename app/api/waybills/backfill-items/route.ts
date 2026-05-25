@@ -165,7 +165,7 @@ export async function POST(req: NextRequest) {
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             totalErrors += 1;
-            if (errorSamples.length < 3) errorSamples.push(`insert ${waybillId}: ${msg}`);
+            if (errorSamples.length < 3) errorSamples.push(`insert ${waybillNumber}: ${msg}`);
           }
         }
       } catch (err) {
