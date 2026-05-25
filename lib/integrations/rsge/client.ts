@@ -150,6 +150,115 @@ export interface RsCredential {
   sp: string;
 }
 
+// ---------------------------------------------------------------------------
+// get_goods_by_waybill_id
+// ---------------------------------------------------------------------------
+
+export interface WaybillGoodsItem {
+  goods_name: string | null;
+  goods_code: string | null;
+  unit: string | null;
+  quantity: string | null;
+  unit_price: string | null;
+  total_price: string | null;
+  taxation: string | null;
+}
+
+function buildGoodsSoapEnvelope(su: string, sp: string, waybillId: string): string {
+  return `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <get_goods_by_waybill_id xmlns="http://tempuri.org/">
+      <su>${escapeXml(su)}</su>
+      <sp>${escapeXml(sp)}</sp>
+      <waybill_id>${escapeXml(waybillId)}</waybill_id>
+    </get_goods_by_waybill_id>
+  </soap:Body>
+</soap:Envelope>`;
+}
+
+/**
+ * Fetches goods/line-items for a single waybill from rs.ge.
+ * Returns an empty array when the waybill has no goods or rs.ge returns an error code.
+ */
+export async function getGoodsByWaybillId(
+  su: string,
+  sp: string,
+  waybillId: string,
+): Promise<WaybillGoodsItem[]> {
+  const envelope = buildGoodsSoapEnvelope(su, sp, waybillId);
+
+  const res = await fetch(SOAP_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/xml; charset=utf-8',
+      SOAPAction: '"http://tempuri.org/get_goods_by_waybill_id"',
+    },
+    body: envelope,
+  });
+
+  if (!res.ok) throw new Error(`rs.ge HTTP ${res.status} for waybill ${waybillId}`);
+
+  const text = await res.text();
+
+  const faultMatch = text.match(/<faultstring[^>]*>([\s\S]*?)<\/faultstring>/);
+  if (faultMatch) throw new Error(`rs.ge SOAP fault (goods ${waybillId}): ${faultMatch[1].trim()}`);
+
+  // Result element may be named get_goods_by_waybill_idResult
+  const resultMatch = text.match(
+    /<get_goods_by_waybill_idResult[^>]*>([\s\S]*?)<\/get_goods_by_waybill_idResult>/,
+  );
+  if (!resultMatch) return [];
+
+  const innerXml = resultMatch[1]
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+
+  // Negative result codes from rs.ge (e.g. "-10001") — return empty
+  if (/^-?\d+$/.test(innerXml.trim())) return [];
+
+  // Parse XML
+  const { parseStringPromise } = await import('xml2js');
+  let parsed: Record<string, any>;
+  try {
+    parsed = await parseStringPromise(innerXml, { explicitArray: true });
+  } catch {
+    return [];
+  }
+
+  const rootKey = Object.keys(parsed)[0] ?? '';
+  const rootObj = parsed[rootKey] ?? {};
+  const childKey = Object.keys(rootObj).find((k) => Array.isArray(rootObj[k])) ?? '';
+  const goodsArray: Record<string, any>[] = rootObj[childKey] ?? [];
+
+  const pick = (obj: Record<string, any>, ...keys: string[]): string | null => {
+    for (const k of keys) {
+      const v = obj[k];
+      if (Array.isArray(v) && v.length > 0) return String(v[0]).trim() || null;
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+    return null;
+  };
+
+  return goodsArray.map((g) => ({
+    goods_name: pick(g, 'PROD_NAME', 'prod_name', 'ProdName', 'NAME', 'name'),
+    goods_code: pick(g, 'BAR_CODE', 'bar_code', 'BarCode', 'PROD_CODE', 'prod_code'),
+    unit: pick(g, 'UNIT_OF_MEASURE', 'unit_of_measure', 'UnitOfMeasure', 'UNIT', 'unit'),
+    quantity: pick(g, 'QUANTITY', 'quantity', 'Quantity'),
+    unit_price: pick(g, 'PRICE', 'price', 'Price'),
+    total_price: pick(g, 'AMOUNT', 'amount', 'Amount', 'TOTAL', 'total'),
+    taxation: pick(g, 'EXCISE', 'excise', 'Excise', 'TAXATION', 'taxation'),
+  }));
+}
+
+
+
 /**
  * Parses RS_CREDENTIALS_MAP env var into per-insider RS API credentials.
  *
