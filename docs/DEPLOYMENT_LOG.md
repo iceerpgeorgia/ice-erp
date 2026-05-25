@@ -1,5 +1,22 @@
 # Deployment Log
 
+## 2026-05-25 Deployment #255
+- Commit: 391a745
+- Production: https://ice-r8w3ekpme-iceerp.vercel.app
+- Summary: Single-table waybill consolidation (rs_waybills_in_api only) + rs_id FK from rs_waybills_in_items + improved waybill-items UI.
+- Changes:
+  - lib/waybills/run-waybill-sync.ts: Removed entire legacy rs_waybills_in dual-write section. Now writes only to rs_waybills_in_api. Returns {imported, updated, sync_batch_id}.
+  - lib/waybills/rebind.ts: Only updates rs_waybills_in_api. Returns {updated: number}.
+  - app/api/waybills/import/route.ts: Keys by rs_id only; skips records without rs_id; cast findMany result as any[] to fix TS type error from Prisma union return after schema update.
+  - app/api/waybills/bulk/route.ts: Uses rs_waybills_in_api; removed updated_at from payload.
+  - app/api/projects-report/route.ts: JOIN on rs_waybills_in_api.
+  - app/api/counteragents/route.ts: waybillRebind return type updated to {updated: number}.
+  - app/api/waybill-items/route.ts: rs_id in validatePayload, GET filter, POST create, PATCH update, all responses.
+  - prisma/schema.prisma: Added rs_id field + waybill relation on rs_waybills_in_items; added waybill_items relation on rs_waybills_in_api.
+  - Migration 20270101000002: ALTER TABLE rs_waybills_in_items ADD COLUMN rs_id TEXT; FK constraint -> rs_waybills_in_api(rs_id) ON DELETE SET NULL; backfill from waybill_no; index.
+  - app/dictionaries/waybill-items/page.tsx: Added rs_id column (clickable filter), search bar (filter by rs_id/waybill_no/goods_name/goods_code), URL param support (?rs_id=), Waybills back-link when filtered.
+  - app/page-title.tsx: Added /dictionaries/waybill-items -> 'Waybill Items'.
+
 ## 2026-05-25 Deployment #254
 - Commit: e88fba0
 - Production: https://ice-7udvwus2y-iceerp.vercel.app
