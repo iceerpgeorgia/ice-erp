@@ -151,6 +151,96 @@ export interface RsCredential {
 }
 
 // ---------------------------------------------------------------------------
+// get_waybill  (single waybill by ID, returns goods with UNIT_TXT)
+// ---------------------------------------------------------------------------
+
+export interface WaybillGoodsDetail {
+  goods_name:   string | null;  // W_NAME
+  goods_code:   string | null;  // BAR_CODE
+  unit_id:      string | null;  // UNIT_ID
+  unit_txt:     string | null;  // UNIT_TXT (actual label, especially for ID=99 / custom)
+  quantity:     string | null;  // QUANTITY
+  quantity_ext: string | null;  // QUANTITY_EXT
+  unit_price:   string | null;  // PRICE
+  total_price:  string | null;  // AMOUNT
+}
+
+export async function getWaybill(
+  su: string,
+  sp: string,
+  waybillId: string,
+): Promise<WaybillGoodsDetail[]> {
+  const envelope = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <get_waybill xmlns="http://tempuri.org/">
+      <su>${escapeXml(su)}</su>
+      <sp>${escapeXml(sp)}</sp>
+      <waybill_id>${escapeXml(waybillId)}</waybill_id>
+    </get_waybill>
+  </soap:Body>
+</soap:Envelope>`;
+
+  const res = await fetch(SOAP_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/xml; charset=utf-8',
+      SOAPAction: '"http://tempuri.org/get_waybill"',
+    },
+    body: envelope,
+  });
+
+  if (!res.ok) throw new Error(`rs.ge HTTP ${res.status}`);
+  const text = await res.text();
+
+  const faultMatch = text.match(/<faultstring[^>]*>([\s\S]*?)<\/faultstring>/);
+  if (faultMatch) throw new Error(`rs.ge SOAP fault: ${faultMatch[1].trim()}`);
+
+  const resultMatch = text.match(/<get_waybillResult[^>]*>([\s\S]*?)<\/get_waybillResult>/);
+  if (!resultMatch) return [];
+
+  const innerXml = resultMatch[1]
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+
+  const { parseStringPromise } = await import('xml2js');
+  let parsed: Record<string, any>;
+  try { parsed = await parseStringPromise(innerXml, { explicitArray: true }); }
+  catch { return []; }
+
+  // Navigate: root → WAYBILL → GOODS_LIST → GOODS[]
+  const rootKey = Object.keys(parsed)[0] ?? '';
+  const rootObj = parsed[rootKey] ?? {};
+  const waybillArr: Record<string, any>[] = rootObj['WAYBILL'] ?? [];
+  if (!waybillArr.length) return [];
+  const waybill = waybillArr[0] ?? {};
+  const goodsList: Record<string, any>[] = waybill['GOODS_LIST']?.[0]?.['GOODS'] ?? [];
+
+  const pick = (obj: Record<string, any>, ...keys: string[]): string | null => {
+    for (const k of keys) {
+      const v = obj[k];
+      if (Array.isArray(v) && v.length > 0) return String(v[0]).trim() || null;
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+    return null;
+  };
+
+  return goodsList.map((g) => ({
+    goods_name:   pick(g, 'W_NAME'),
+    goods_code:   pick(g, 'BAR_CODE'),
+    unit_id:      pick(g, 'UNIT_ID'),
+    unit_txt:     pick(g, 'UNIT_TXT'),
+    quantity:     pick(g, 'QUANTITY'),
+    quantity_ext: pick(g, 'QUANTITY_EXT'),
+    unit_price:   pick(g, 'PRICE'),
+    total_price:  pick(g, 'AMOUNT'),
+  }));
+}
+
+// ---------------------------------------------------------------------------
 // get_buyer_waybilll_goods_list  (note the triple 'l' — rs.ge typo preserved)
 // ---------------------------------------------------------------------------
 
@@ -288,29 +378,24 @@ export async function getBuyerWaybillGoodsList(
   const childKey = Object.keys(rootObj).find((k) => Array.isArray(rootObj[k])) ?? '';
   const goodsArray: Record<string, any>[] = rootObj[childKey] ?? [];
 
-  // RS.ge only returns UNIT_ID (numeric). Map to Georgian unit label.
-  // All entries verified against the RS.ge portal UI.
+  // RS.ge unit ID → abbreviation. Derived from get_waybill_units API response:
+  //   1=ცალი  2=კგ  3=გრამი  4=ლიტრი  5=ტონა  7=სანტიმეტრი  8=მეტრი
+  //   9=კილომეტრი  10=კვ.სმ  11=კვ.მ  12=მ³  13=მილილიტრი  14=შეკვრა  99=სხვა
+  // ID=99 is custom ("სხვა") — actual label comes from UNIT_TXT per waybill.
   const RS_UNIT_MAP: Record<string, string> = {
-    '1':  'ც',       // ცალი
-    '2':  'კგ',      // კილოგრამი
-    '3':  'გ',       // გრამი
-    '4':  'ლ',       // ლიტრი
-    '5':  'მლ',      // მილილიტრი
-    '6':  'მ',       // მეტრი
-    '7':  'კმ',      // კილომეტრი
-    '8':  'მ',       // მეტრი (verified from RS.ge portal — was incorrectly 'სმ')
-    '9':  'მმ',      // მილიმეტრი
-    '10': 'მ²',      // კვ. მეტრი
-    '11': 'მ³',      // კუბ. მეტრი
-    '12': 'მ³',      // კუბ. მეტრი (verified from RS.ge portal — was incorrectly 'ჰა')
-    '13': 'ტ',       // ტონა
-    '14': 'კომ',     // კომპლექტი
-    '15': 'ყ',       // ყუთი
-    '16': 'ბ',       // ბოთლი
-    '17': 'კ',       // კომპლექტი (alt)
-    '18': 'პ',       // პარტია
-    '19': 'სხვ',     // სხვა
-    '99': 'წყვილი',  // წყვილი (verified from RS.ge portal dropdown)
+    '1':  'ც',     // ცალი
+    '2':  'კგ',    // კილოგრამი
+    '3':  'გ',     // გრამი
+    '4':  'ლ',     // ლიტრი
+    '5':  'ტ',     // ტონა
+    '7':  'სმ',    // სანტიმეტრი
+    '8':  'მ',     // მეტრი
+    '9':  'კმ',    // კილომეტრი
+    '10': 'კვ.სმ', // კვ. სანტიმეტრი
+    '11': 'კვ.მ',  // კვ. მეტრი
+    '12': 'მ³',    // კუბ. მეტრი
+    '13': 'მლ',    // მილილიტრი
+    '14': 'შეკვ',  // შეკვრა
   };
 
   const pick = (obj: Record<string, any>, ...keys: string[]): string | null => {
@@ -345,7 +430,16 @@ export async function getBuyerWaybillGoodsList(
     goods_name:      pick(g, 'W_NAME', 'w_name'),
     goods_code:      pick(g, 'BAR_CODE', 'bar_code'),
     unit_id:         pick(g, 'UNIT_ID', 'unit_id'),
-    unit:            (() => { const id = pick(g, 'UNIT_ID', 'unit_id'); return id ? (RS_UNIT_MAP[id] ?? id) : null; })(),
+    unit:            (() => {
+                       const id  = pick(g, 'UNIT_ID', 'unit_id');
+                       const txt = pick(g, 'UNIT_TXT', 'unit_txt');
+                       if (!id) return null;
+                       // ID=99 means custom/other — UNIT_TXT is the actual unit name
+                       if (id === '99') return txt || 'სხვ';
+                       // For standard units: prefer UNIT_TXT if the API returns it,
+                       // otherwise fall back to the hardcoded abbreviation map.
+                       return txt || RS_UNIT_MAP[id] || id;
+                     })(),
     quantity:        pick(g, 'QUANTITY', 'quantity'),
     unit_price:      pick(g, 'PRICE', 'price'),
     total_price:     pick(g, 'AMOUNT', 'amount'),

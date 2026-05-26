@@ -43,6 +43,6 @@ export const config = {
     "/payment-statement/:path*",
     "/salary-report/:path*",
     "/admin/:path*",
-    "/api/((?!auth|cron|test-env|waybills/sync|waybills/backfill-items|waybills/debug-units).*)",
+    "/api/((?!auth|cron|test-env|waybills/sync|waybills/backfill-items|waybills/debug-units|waybills/backfill-unit-txt).*)",
   ],
 };

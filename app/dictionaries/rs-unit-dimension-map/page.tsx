@@ -8,13 +8,12 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Pencil, Check, X } from "lucide-react";
+import { Pencil, Check, X, RefreshCw } from "lucide-react";
 
 interface UnitMap {
   id: number;
   uuid: string;
-  rs_unit_id: string;
-  rs_unit_label: string;
+  unit_text: string;
   dimension_uuid: string | null;
   dimension_name: string | null;
   is_active: boolean;
@@ -36,8 +35,11 @@ export default function RsUnitDimensionMapPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
     Promise.all([
       fetch("/api/rs-unit-dimension-map").then((r) => r.json()),
       fetch("/api/dimensions").then((r) => r.json()),
@@ -45,7 +47,9 @@ export default function RsUnitDimensionMapPage() {
       setRows(Array.isArray(mapRes?.data) ? mapRes.data : []);
       setDimensions(Array.isArray(dimRes?.data) ? dimRes.data.filter((d: Dimension) => d.is_active) : []);
     }).catch(console.error).finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(load, []);
 
   const UNLINKED = "__none__";
 
@@ -75,14 +79,45 @@ export default function RsUnitDimensionMapPage() {
     }
   };
 
+  const syncFromItems = async () => {
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      const res = await fetch("/api/rs-unit-dimension-map", { method: "POST" });
+      const data = await res.json();
+      if (data.added > 0) {
+        setSyncMsg(`Added ${data.added} new unit text(s): ${data.new_texts?.join(", ")}`);
+        load();
+      } else {
+        setSyncMsg("Already up to date — no new unit texts found.");
+      }
+    } catch (e) {
+      setSyncMsg("Sync failed.");
+      console.error(e);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <div className="container mx-auto py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">RS.ge Unit → Dimension Mapping</h1>
-        <p className="text-muted-foreground mt-1">
-          Maps RS.ge numeric unit IDs and labels to internal dimension records
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Unit Text → Dimension Mapping</h1>
+          <p className="text-muted-foreground mt-1">
+            Maps unique unit text values from RS.ge waybill items to internal dimension records.
+            Bind each text manually using the edit button.
+          </p>
+        </div>
+        <Button variant="outline" onClick={syncFromItems} disabled={syncing}>
+          <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
+          {syncing ? "Syncing…" : "Sync from items"}
+        </Button>
       </div>
+
+      {syncMsg && (
+        <div className="mb-4 text-sm px-4 py-2 rounded border bg-muted">{syncMsg}</div>
+      )}
 
       {loading ? (
         <div className="text-center py-12">Loading…</div>
@@ -91,8 +126,7 @@ export default function RsUnitDimensionMapPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-20">RS Unit ID</TableHead>
-                <TableHead className="w-24">RS Label</TableHead>
+                <TableHead>Unit Text</TableHead>
                 <TableHead>Mapped Dimension</TableHead>
                 <TableHead className="text-right w-24">Items</TableHead>
                 <TableHead>Updated</TableHead>
@@ -102,26 +136,22 @@ export default function RsUnitDimensionMapPage() {
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                    No entries found.
+                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                    No entries found. Click &quot;Sync from items&quot; to populate.
                   </TableCell>
                 </TableRow>
               ) : (
                 rows.map((row) => (
                   <TableRow key={row.id} className={!row.is_active ? "opacity-50" : ""}>
-                    <TableCell className="font-mono text-sm">{row.rs_unit_id}</TableCell>
-                    <TableCell className="font-medium">{row.rs_unit_label}</TableCell>
+                    <TableCell className="font-medium">{row.unit_text}</TableCell>
                     <TableCell>
                       {editingId === row.id ? (
-                        <Select
-                          value={editValue}
-                          onValueChange={setEditValue}
-                        >
+                        <Select value={editValue} onValueChange={setEditValue}>
                           <SelectTrigger className="w-48">
                             <SelectValue placeholder="— unlinked —" />
                           </SelectTrigger>
                           <SelectContent>
-                          <SelectItem value={UNLINKED}>— unlinked —</SelectItem>
+                            <SelectItem value={UNLINKED}>— unlinked —</SelectItem>
                             {dimensions.map((d) => (
                               <SelectItem key={d.uuid} value={d.uuid}>
                                 {d.dimension}
@@ -135,25 +165,17 @@ export default function RsUnitDimensionMapPage() {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right font-mono">{row.item_count > 0 ? row.item_count.toLocaleString() : <span className="text-muted-foreground">0</span>}</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {row.item_count > 0 ? row.item_count.toLocaleString() : <span className="text-muted-foreground">0</span>}
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{row.updatedAt}</TableCell>
                     <TableCell className="text-right">
                       {editingId === row.id ? (
                         <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => saveEdit(row)}
-                            disabled={saving}
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => saveEdit(row)} disabled={saving}>
                             <Check className="w-4 h-4 text-green-600" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={cancelEdit}
-                            disabled={saving}
-                          >
+                          <Button variant="ghost" size="sm" onClick={cancelEdit} disabled={saving}>
                             <X className="w-4 h-4 text-destructive" />
                           </Button>
                         </div>

@@ -593,15 +593,6 @@ model job_projects {
   @@index([job_uuid], map: "idx_job_projects_job_uuid")
 }
 
-model mi_dimensions {
-  id         BigInt   @id @default(autoincrement())
-  uuid       String   @unique @db.Uuid
-  name       String   @unique
-  is_active  Boolean  @default(true)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-}
-
 model nbg_exchange_rates {
   id         BigInt   @id @default(autoincrement())
   uuid       String   @unique @db.Uuid
@@ -946,8 +937,9 @@ model dimensions {
   is_active        Boolean            @default(true)
   created_at       DateTime           @default(now())
   updated_at       DateTime           @updatedAt
-  inventory_groups inventory_groups[]
-  inventories      inventories[]
+  inventory_groups    inventory_groups[]
+  inventories         inventories[]
+  rs_unit_dim_maps    rs_unit_dimension_map[]
 
   @@map("dimensions")
 }
@@ -1005,6 +997,27 @@ model rs_waybills_in_items {
   unit_price            Decimal?            @db.Decimal(20, 4)
   total_price           Decimal?            @db.Decimal(20, 2)
   taxation              String?
+  type                  String?
+  create_date           DateTime?
+  activate_date         DateTime?
+  begin_date            DateTime?
+  cancel_date           DateTime?
+  seller_tin            String?
+  seller_name           String?
+  start_address         String?
+  end_address           String?
+  driver_tin            String?
+  driver_name           String?
+  transport_cost        Decimal?            @db.Decimal(20, 2)
+  full_amount           Decimal?            @db.Decimal(20, 2)
+  car_number            String?
+  tran_cost_payer       String?
+  trans_id              String?
+  is_confirmed          String?
+  status                String?
+  unit_id               String?
+  vat_type              String?
+  a_id                  String?
   inventory_uuid        String?             @db.Uuid
   insider_uuid          String?             @db.Uuid
   project_uuid          String?             @db.Uuid
@@ -1024,5 +1037,19 @@ model rs_waybills_in_items {
   @@index([financial_code_uuid])
   @@index([goods_code])
   @@map("rs_waybills_in_items")
+}
+
+model rs_unit_dimension_map {
+  id             BigInt      @id @default(autoincrement())
+  uuid           String      @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  unit_text      String      @unique
+  dimension_uuid String?     @db.Uuid
+  is_active      Boolean     @default(true)
+  created_at     DateTime    @default(now())
+  updated_at     DateTime    @updatedAt
+  dimension      dimensions? @relation(fields: [dimension_uuid], references: [uuid])
+
+  @@index([dimension_uuid])
+  @@map("rs_unit_dimension_map")
 }
 
