@@ -1616,55 +1616,98 @@ export function WaybillsTable() {
       />
 
       <Dialog open={!!itemsWaybill} onOpenChange={(open) => { if (!open) { setItemsWaybill(null); setWaybillItems([]); } }}>
-        <DialogContent className="max-w-5xl w-full">
-          <DialogHeader>
-            <DialogTitle>
-              Waybill Items — {itemsWaybill?.waybill_no || itemsWaybill?.rs_id || ''}
-              {itemsWaybill?.counteragent_name ? (
-                <span className="ml-2 text-sm font-normal text-muted-foreground">{itemsWaybill.counteragent_name}</span>
-              ) : null}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-5xl w-full p-0 gap-0 overflow-hidden [&>button]:text-white [&>button]:top-3 [&>button]:right-4">
+          {/* Header bar — dark teal, mirrors RS.ge popup title */}
+          <div className="bg-[#2e7d7d] text-white px-5 py-3 flex items-center justify-between min-h-[52px]">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-base tracking-wide">{itemsWaybill?.waybill_no || itemsWaybill?.rs_id || ''}</span>
+              {itemsWaybill?.state && (
+                <span className="bg-white/20 rounded px-2 py-0.5 text-xs font-medium">{itemsWaybill.state}</span>
+              )}
+              {itemsWaybill?.condition && (
+                <span className="bg-white/20 rounded px-2 py-0.5 text-xs font-medium">{itemsWaybill.condition}</span>
+              )}
+              {itemsWaybill?.type && (
+                <span className="bg-white/10 rounded px-2 py-0.5 text-xs text-white/80">{itemsWaybill.type}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-4 text-sm shrink-0 ml-4">
+              {itemsWaybill?.activation_time && (
+                <span className="text-white/75">{itemsWaybill.activation_time}</span>
+              )}
+              {itemsWaybill?.sum && (
+                <span className="font-bold tabular-nums">
+                  {Number(itemsWaybill.sum).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₾
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Counteragent section — amber title, matches RS.ge seller/buyer block */}
+          <div className="px-5 py-3 border-b bg-white">
+            <div className="inline-block bg-[#f59e0b] text-white text-[11px] font-bold px-2 py-0.5 rounded mb-2 uppercase tracking-wide">
+              მიმღები / მყიდველი
+            </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+              {itemsWaybill?.counteragent_inn && (
+                <div><span className="text-muted-foreground text-xs">INN:</span> <span className="font-medium">{itemsWaybill.counteragent_inn}</span></div>
+              )}
+              {itemsWaybill?.counteragent_name && (
+                <div className="font-medium">{itemsWaybill.counteragent_name}</div>
+              )}
+              {itemsWaybill?.departure_address && (
+                <div><span className="text-muted-foreground text-xs">გამგ.:</span> <span>{itemsWaybill.departure_address}</span></div>
+              )}
+              {itemsWaybill?.shipping_address && (
+                <div><span className="text-muted-foreground text-xs">მიწ.:</span> <span>{itemsWaybill.shipping_address}</span></div>
+              )}
+            </div>
+          </div>
+
+          {/* Items table — Georgian column names matching RS.ge */}
+          <DialogTitle className="sr-only">ზედნადები {itemsWaybill?.waybill_no}</DialogTitle>
           {itemsLoading ? (
-            <div className="py-8 text-center text-muted-foreground text-sm">Loading items...</div>
+            <div className="py-10 text-center text-muted-foreground text-sm">იტვირთება...</div>
           ) : waybillItems.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground text-sm">No items found for this waybill.</div>
+            <div className="py-10 text-center text-muted-foreground text-sm">საქონელი ვერ მოიძებნა.</div>
           ) : (
             <div className="overflow-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
-                  <tr className="bg-muted/60 text-left">
-                    <th className="px-3 py-2 font-medium border-b w-8">#</th>
-                    <th className="px-3 py-2 font-medium border-b">Goods Name</th>
-                    <th className="px-3 py-2 font-medium border-b w-28">Code</th>
-                    <th className="px-3 py-2 font-medium border-b w-20">Unit</th>
-                    <th className="px-3 py-2 font-medium border-b w-24 text-right">Quantity</th>
-                    <th className="px-3 py-2 font-medium border-b w-28 text-right">Unit Price</th>
-                    <th className="px-3 py-2 font-medium border-b w-28 text-right">Total</th>
-                    <th className="px-3 py-2 font-medium border-b w-24">Tax</th>
+                  <tr className="bg-[#f0f4f4] text-left border-b-2 border-[#2e7d7d]/30">
+                    <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-8 text-center">#</th>
+                    <th className="px-3 py-2 font-semibold text-[#2e7d7d]">საქონლის დასახელება</th>
+                    <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-28">შტ.კოდი</th>
+                    <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-20">ერთ.</th>
+                    <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-24 text-right">რაოდ.</th>
+                    <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-28 text-right">ერთ. ფასი</th>
+                    <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-28 text-right">ჯამი</th>
+                    <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-28">დაბეგვრა</th>
                   </tr>
                 </thead>
                 <tbody>
                   {waybillItems.map((item, idx) => (
-                    <tr key={item.id} className={idx % 2 === 0 ? '' : 'bg-muted/20'}>
-                      <td className="px-3 py-1.5 border-b text-muted-foreground">{idx + 1}</td>
-                      <td className="px-3 py-1.5 border-b max-w-xs truncate" title={item.goods_name}>{item.goods_name}</td>
-                      <td className="px-3 py-1.5 border-b text-muted-foreground truncate" title={item.goods_code}>{item.goods_code || '—'}</td>
-                      <td className="px-3 py-1.5 border-b">{item.unit || '—'}</td>
-                      <td className="px-3 py-1.5 border-b text-right tabular-nums">{item.quantity != null ? Number(item.quantity).toLocaleString('en-US', { maximumFractionDigits: 4 }) : '—'}</td>
-                      <td className="px-3 py-1.5 border-b text-right tabular-nums">{item.unit_price != null ? Number(item.unit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}</td>
-                      <td className="px-3 py-1.5 border-b text-right tabular-nums font-medium">{item.total_price != null ? Number(item.total_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</td>
-                      <td className="px-3 py-1.5 border-b text-muted-foreground">{item.taxation || '—'}</td>
+                    <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#f7fbfb]'}>
+                      <td className="px-3 py-1.5 border-b border-gray-100 text-muted-foreground text-center">{idx + 1}</td>
+                      <td className="px-3 py-1.5 border-b border-gray-100 font-medium" title={item.goods_name}>{item.goods_name}</td>
+                      <td className="px-3 py-1.5 border-b border-gray-100 text-muted-foreground text-xs truncate" title={item.goods_code}>{item.goods_code || '—'}</td>
+                      <td className="px-3 py-1.5 border-b border-gray-100">{item.unit || '—'}</td>
+                      <td className="px-3 py-1.5 border-b border-gray-100 text-right tabular-nums">{item.quantity != null ? Number(item.quantity).toLocaleString('en-US', { maximumFractionDigits: 4 }) : '—'}</td>
+                      <td className="px-3 py-1.5 border-b border-gray-100 text-right tabular-nums">{item.unit_price != null ? Number(item.unit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}</td>
+                      <td className="px-3 py-1.5 border-b border-gray-100 text-right tabular-nums font-semibold">{item.total_price != null ? Number(item.total_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</td>
+                      <td className="px-3 py-1.5 border-b border-gray-100 text-muted-foreground text-xs">{item.taxation || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-muted/60 font-semibold">
-                    <td className="px-3 py-2" colSpan={6}>Total ({waybillItems.length} item{waybillItems.length !== 1 ? 's' : ''})</td>
-                    <td className="px-3 py-2 text-right tabular-nums">
+                  <tr className="bg-[#e8f4f4] border-t-2 border-[#2e7d7d]/30 font-semibold">
+                    <td className="px-3 py-2 text-[#2e7d7d] text-xs" colSpan={6}>
+                      სულ: {waybillItems.length} დასახელება
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-[#2e7d7d]">
                       {waybillItems
                         .reduce((sum, item) => sum + (item.total_price != null ? Number(item.total_price) : 0), 0)
-                        .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₾
                     </td>
                     <td className="px-3 py-2" />
                   </tr>
