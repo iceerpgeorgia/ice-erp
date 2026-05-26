@@ -189,6 +189,29 @@ export function WaybillsTable() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
 
+  // Waybill items dialog
+  const [itemsWaybill, setItemsWaybill] = useState<Waybill | null>(null);
+  const [waybillItems, setWaybillItems] = useState<any[]>([]);
+  const [itemsLoading, setItemsLoading] = useState(false);
+
+  const fetchItemsForWaybill = useCallback(async (waybill: Waybill) => {
+    setItemsWaybill(waybill);
+    setWaybillItems([]);
+    setItemsLoading(true);
+    try {
+      const param = waybill.rs_id
+        ? `rs_id=${encodeURIComponent(waybill.rs_id)}`
+        : `waybill_no=${encodeURIComponent(waybill.waybill_no || '')}`;
+      const res = await fetch(`/api/waybill-items?${param}&limit=500`);
+      const body = await res.json();
+      setWaybillItems(body.data || []);
+    } catch (err) {
+      console.error('Failed to load waybill items', err);
+    } finally {
+      setItemsLoading(false);
+    }
+  }, []);
+
   // Add Counteragent dialog
   const [addCaOpen, setAddCaOpen] = useState(false);
   const [addCaPrefill, setAddCaPrefill] = useState<{ name: string; identificationNumber: string } | null>(null);
@@ -898,7 +921,15 @@ export function WaybillsTable() {
                     : formatCell(getCellValue(row, col.key), col.format)
                 )}
               >
-                {col.key === 'counteragent_name'
+                {col.key === 'waybill_no' ? (
+                  <button
+                    type="button"
+                    className="text-blue-600 hover:underline font-medium truncate block w-full text-left"
+                    onClick={() => fetchItemsForWaybill(row)}
+                  >
+                    {row.waybill_no || ''}
+                  </button>
+                ) : col.key === 'counteragent_name'
                   ? row.counteragent_name || row.counteragent || ''
                   : formatCell(getCellValue(row, col.key), col.format)}
               </div>
@@ -927,7 +958,7 @@ export function WaybillsTable() {
         </tr>
       );
     });
-  }, [filteredData, loading, selectedIds, setEditing, setSelected, toggleSelectRow, visibleColumns, getCellValue, virtualRows, rowVirtualizer]);
+  }, [filteredData, loading, selectedIds, setEditing, setSelected, toggleSelectRow, visibleColumns, getCellValue, virtualRows, rowVirtualizer, fetchItemsForWaybill]);
 
   const resetBulkEdit = () => {
     setBulkProjectUuid('');
@@ -1583,6 +1614,66 @@ export function WaybillsTable() {
         countries={caCountries}
         insiders={caInsiders}
       />
+
+      <Dialog open={!!itemsWaybill} onOpenChange={(open) => { if (!open) { setItemsWaybill(null); setWaybillItems([]); } }}>
+        <DialogContent className="max-w-5xl w-full">
+          <DialogHeader>
+            <DialogTitle>
+              Waybill Items — {itemsWaybill?.waybill_no || itemsWaybill?.rs_id || ''}
+              {itemsWaybill?.counteragent_name ? (
+                <span className="ml-2 text-sm font-normal text-muted-foreground">{itemsWaybill.counteragent_name}</span>
+              ) : null}
+            </DialogTitle>
+          </DialogHeader>
+          {itemsLoading ? (
+            <div className="py-8 text-center text-muted-foreground text-sm">Loading items...</div>
+          ) : waybillItems.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground text-sm">No items found for this waybill.</div>
+          ) : (
+            <div className="overflow-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-muted/60 text-left">
+                    <th className="px-3 py-2 font-medium border-b w-8">#</th>
+                    <th className="px-3 py-2 font-medium border-b">Goods Name</th>
+                    <th className="px-3 py-2 font-medium border-b w-28">Code</th>
+                    <th className="px-3 py-2 font-medium border-b w-20">Unit</th>
+                    <th className="px-3 py-2 font-medium border-b w-24 text-right">Quantity</th>
+                    <th className="px-3 py-2 font-medium border-b w-28 text-right">Unit Price</th>
+                    <th className="px-3 py-2 font-medium border-b w-28 text-right">Total</th>
+                    <th className="px-3 py-2 font-medium border-b w-24">Tax</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {waybillItems.map((item, idx) => (
+                    <tr key={item.id} className={idx % 2 === 0 ? '' : 'bg-muted/20'}>
+                      <td className="px-3 py-1.5 border-b text-muted-foreground">{idx + 1}</td>
+                      <td className="px-3 py-1.5 border-b max-w-xs truncate" title={item.goods_name}>{item.goods_name}</td>
+                      <td className="px-3 py-1.5 border-b text-muted-foreground truncate" title={item.goods_code}>{item.goods_code || '—'}</td>
+                      <td className="px-3 py-1.5 border-b">{item.unit || '—'}</td>
+                      <td className="px-3 py-1.5 border-b text-right tabular-nums">{item.quantity != null ? Number(item.quantity).toLocaleString('en-US', { maximumFractionDigits: 4 }) : '—'}</td>
+                      <td className="px-3 py-1.5 border-b text-right tabular-nums">{item.unit_price != null ? Number(item.unit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}</td>
+                      <td className="px-3 py-1.5 border-b text-right tabular-nums font-medium">{item.total_price != null ? Number(item.total_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</td>
+                      <td className="px-3 py-1.5 border-b text-muted-foreground">{item.taxation || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-muted/60 font-semibold">
+                    <td className="px-3 py-2" colSpan={6}>Total ({waybillItems.length} item{waybillItems.length !== 1 ? 's' : ''})</td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {waybillItems
+                        .reduce((sum, item) => sum + (item.total_price != null ? Number(item.total_price) : 0), 0)
+                        .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-3 py-2" />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
