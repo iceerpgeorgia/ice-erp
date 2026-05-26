@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-05-26 Deployment #259
+- Commit: 4271660
+- Production: https://ice-3gm43pd50-iceerp.vercel.app
+- Summary: Buyer waybill dialog — corrected section label and column names to match RS.ge buyer waybill layout.
+- Changes:
+  - components/figma/waybills-table.tsx: Seller section renamed to "გამყიდველი (გამზხავნი)" with RS.ge field labels (საიდენტ. №, ტრანსპ. დაწყ., ტრანსპ. დასრ.). Table columns reordered to match RS.ge: №, საქ. კოდი, საქონლის დასახელება, ბოთ. ერთ., რაოდ., ერთ. ფასი, საქ. ფასი, დაბეგვრა.
+
 ## 2026-05-26 Deployment #258
 - Commit: 9636359
 - Production: https://ice-1zd8s7kmx-iceerp.vercel.app
