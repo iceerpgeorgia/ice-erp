@@ -51,6 +51,7 @@ function mapGoodsItemToDb(
   waybillNumber: string,
   insiderUuid: string,
   batchId: string,
+  unitDimMap: Map<string, string>,
 ) {
   return {
     rs_id: rsId,
@@ -86,6 +87,7 @@ function mapGoodsItemToDb(
     vat_type: g.vat_type,
     a_id: g.a_id,
     import_batch_id: batchId,
+    dimension_uuid: g.unit ? (unitDimMap.get(g.unit) ?? null) : null,
   };
 }
 
@@ -118,6 +120,17 @@ export async function runWaybillItemsSync(
   let totalInserted = 0;
   let totalSkipped = 0;
   let totalErrors = 0;
+
+  // Preload unit → dimension_uuid map for resolving units on insert
+  const unitDimRows = await prisma.rs_unit_dimension_map.findMany({
+    where: { dimension_uuid: { not: null } },
+    select: { unit_text: true, dimension_uuid: true },
+  });
+  const unitDimMap = new Map<string, string>(
+    unitDimRows
+      .filter((r) => r.dimension_uuid != null)
+      .map((r) => [r.unit_text, r.dimension_uuid as string]),
+  );
 
   // Build a lookup: waybill_no → rs_id (internal string PK) for this insider.
   const waybillMeta = await prisma.rs_waybills_in_api.findMany({
@@ -180,7 +193,7 @@ export async function runWaybillItemsSync(
 
       try {
         const ins = await prisma.rs_waybills_in_items.createMany({
-          data: items.map((g) => mapGoodsItemToDb(g, rsId, waybillNumber, insiderUuid, batchId)),
+          data: items.map((g) => mapGoodsItemToDb(g, rsId, waybillNumber, insiderUuid, batchId, unitDimMap)),
           skipDuplicates: true,
         });
         totalInserted += ins.count;

@@ -1691,7 +1691,7 @@ export function WaybillsTable() {
                       <td className="px-3 py-1.5 border-b border-gray-100 text-muted-foreground text-center">{idx + 1}</td>
                       <td className="px-3 py-1.5 border-b border-gray-100 text-muted-foreground text-xs truncate" title={item.goods_code}>{item.goods_code || '—'}</td>
                       <td className="px-3 py-1.5 border-b border-gray-100 font-medium" title={item.goods_name}>{item.goods_name}</td>
-                      <td className="px-3 py-1.5 border-b border-gray-100">{item.unit || '—'}</td>
+                      <td className="px-3 py-1.5 border-b border-gray-100">{item.dimension_name || item.unit || '—'}</td>
                       <td className="px-3 py-1.5 border-b border-gray-100 text-right tabular-nums">{item.quantity != null ? Number(item.quantity).toLocaleString('en-US', { maximumFractionDigits: 4 }) : '—'}</td>
                       <td className="px-3 py-1.5 border-b border-gray-100 text-right tabular-nums">{item.unit_price != null ? Number(item.unit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}</td>
                       <td className="px-3 py-1.5 border-b border-gray-100 text-right tabular-nums font-semibold">{item.total_price != null ? Number(item.total_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</td>

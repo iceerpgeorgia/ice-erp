@@ -940,6 +940,7 @@ model dimensions {
   inventory_groups    inventory_groups[]
   inventories         inventories[]
   rs_unit_dim_maps    rs_unit_dimension_map[]
+  waybill_items       rs_waybills_in_items[]
 
   @@map("dimensions")
 }
@@ -1022,11 +1023,13 @@ model rs_waybills_in_items {
   insider_uuid          String?             @db.Uuid
   project_uuid          String?             @db.Uuid
   financial_code_uuid   String?             @db.Uuid
+  dimension_uuid        String?             @db.Uuid
   corresponding_account String?
   import_batch_id       String?
   created_at            DateTime            @default(now())
   updated_at            DateTime            @updatedAt
   inventory             inventories?        @relation(fields: [inventory_uuid], references: [uuid])
+  dimension             dimensions?         @relation(fields: [dimension_uuid], references: [uuid])
   waybill               rs_waybills_in_api? @relation(fields: [rs_id], references: [rs_id])
 
   @@index([rs_id])
@@ -1035,6 +1038,7 @@ model rs_waybills_in_items {
   @@index([insider_uuid])
   @@index([project_uuid])
   @@index([financial_code_uuid])
+  @@index([dimension_uuid])
   @@index([goods_code])
   @@map("rs_waybills_in_items")
 }

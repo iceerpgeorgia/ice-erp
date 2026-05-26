@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
         orderBy: [{ waybill_no: "desc" }, { id: "asc" }],
         take: limit,
         skip,
-        include: { inventory: { select: { name: true } } },
+        include: { inventory: { select: { name: true } }, dimension: { select: { dimension: true } } },
       }),
       prisma.rs_waybills_in_items.count({ where }),
     ]);
@@ -83,6 +83,8 @@ export async function GET(req: NextRequest) {
       goods_code: row.goods_code,
       goods_name: row.goods_name,
       unit: row.unit,
+      dimension_uuid: row.dimension_uuid,
+      dimension_name: row.dimension?.dimension ?? null,
       quantity: row.quantity ? Number(row.quantity) : null,
       unit_price: row.unit_price ? Number(row.unit_price) : null,
       total_price: row.total_price ? Number(row.total_price) : null,
