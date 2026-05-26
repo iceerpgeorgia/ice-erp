@@ -1,5 +1,17 @@
 # Deployment Log
 
+## 2026-05-27 Deployment #262
+- Commit: d06e060
+- Production: https://ice-ndqxw0wk1-iceerp.vercel.app
+- Summary: Waybill items inventory bindings + project sync via DB triggers and junction table.
+- Changes:
+  - DB: Applied 8,695 inventory_uuid bindings to rs_waybills_in_items from RS.GE - WB_Items_IN.xlsx (waybill_no + goods_name match key).
+  - DB: Trigger trg_sync_waybill_items_project on rs_waybills_in_api — propagates project_uuid to follower items when waybill project changes.
+  - DB: Backfilled 9,822 items with project_uuid from their parent waybill.
+  - DB: Created rs_waybills_in_projects junction table (rs_id, project_uuid) for many-to-many waybill↔project bindings; backfilled 5,385 rows.
+  - DB: Trigger trg_refresh_waybill_project_bindings on rs_waybills_in_items — maintains junction table automatically on item project changes.
+  - prisma/schema.prisma: Added rs_waybills_in_projects model with relations to rs_waybills_in_api and projects; added waybill_projects back-relation on rs_waybills_in_api and projects.
+
 ## 2026-05-26 Deployment #261
 - Commit: 4cc0ecd
 - Production: https://ice-erp.vercel.app
