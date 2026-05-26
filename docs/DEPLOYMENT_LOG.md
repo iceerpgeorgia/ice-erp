@@ -1,5 +1,18 @@
 # Deployment Log
 
+## 2026-05-26 Deployment #256
+- Commit: 6702167
+- Production: https://ice-o3wlsxf7a-iceerp.vercel.app
+- Summary: Waybill items cron sync, constants.ts mapping fixes, RS_WAYBILL_PROTOCOL.md docs.
+- Changes:
+  - lib/waybills/run-waybill-items-sync.ts: NEW — shared waybill items sync function. Calls getBuyerWaybillGoodsList per date range, skips waybills with existing items (preserves user-assigned fields), inserts via prisma.createMany. Returns {items_inserted, items_skipped, items_errors}.
+  - app/api/cron/waybills-today/route.ts: Calls runWaybillItemsSync after runWaybillSync per insider. maxDuration raised 60s→120s. Response includes items_inserted/items_skipped.
+  - app/api/cron/waybills-quarterly/route.ts: Same pattern for 3-month reconciliation. maxDuration raised 300s→600s.
+  - lib/integrations/rsge/constants.ts: Added STATUS 0 (შენახული), STATUS 8 (გადამზიდავთან გადაგზავნილი), STATUS -1 fix (წაშლილი), CONDITION -1 (უარყოფილი), RS_TRAN_COST_PAYER map, RS_SELLER_ST map, helper functions.
+  - app/api/waybills/backfill-items/route.ts: Label resolution using RS_WAYBILL_STATUS, RS_WAYBILL_CONDITION, rsTranCostPayerLabel().
+  - docs/RS_WAYBILL_PROTOCOL.md: NEW file — full RS.ge SOAP API reference with sections 1–15 including sync implementation notes.
+  - AGENTS.md: Cron table and shared library docs updated.
+
 ## 2026-05-25 Deployment #255
 - Commit: 391a745
 - Production: https://ice-r8w3ekpme-iceerp.vercel.app
