@@ -182,16 +182,23 @@ The API filter used is `create_date_s / create_date_e` (matches the portal's **A
 ### Scheduled Cron Jobs (vercel.json)
 | Route | Schedule (UTC) | Tbilisi equivalent | Purpose |
 |---|---|---|---|
-| `/api/cron/waybills-today` | `0 4-16 * * *` | Hourly 08:00–20:00 | Sync current day for all insiders |
-| `/api/cron/waybills-quarterly` | `0 0 * * *` | 04:00 daily | Re-sync last 3 months, catch corrections |
+| `/api/cron/waybills-today` | `0 4-16 * * *` | Hourly 08:00–20:00 | Sync today's waybills + items for all insiders (maxDuration 120 s) |
+| `/api/cron/waybills-quarterly` | `0 0 * * *` | 04:00 daily | Re-sync last 3 months waybills + items, catch corrections (maxDuration 600 s) |
 
-Both routes loop over every entry in `RS_CREDENTIALS_MAP`, call `runWaybillSync` per insider, and return aggregated totals + per-insider breakdown. Individual insider errors are caught and surfaced without aborting the loop.
+Both routes loop over every entry in `RS_CREDENTIALS_MAP`, call `runWaybillSync` then `runWaybillItemsSync` per insider, and return aggregated totals + per-insider breakdown. Individual insider errors are caught and surfaced without aborting the loop.
 
 ### Shared Sync Library
 `lib/waybills/run-waybill-sync.ts` — exported `runWaybillSync(credentials, dateFrom, dateTo, options?)`:
 - `options.insiderUuid` — if provided, used directly; otherwise falls back to `getRequiredInsider()` (used by the manual sync route for backward compat).
 - `options.statuses`, `options.itypes` — passed through to the SOAP call.
 - Returns `{ imported, updated, sync_batch_id, message? }`.
+
+`lib/waybills/run-waybill-items-sync.ts` — exported `runWaybillItemsSync(credentials, dateFrom, dateTo, options)`:
+- `options.insiderUuid` — required; items are scoped to this insider.
+- Calls `getBuyerWaybillGoodsList` (same date range as waybill sync); batches by month when range spans multiple months.
+- Skips waybills that already have items in `rs_waybills_in_items` to preserve user-assigned fields (`project_uuid`, `financial_code_uuid`, `corresponding_account`).
+- Must be called **after** `runWaybillSync` so waybill records already exist in `rs_waybills_in_api`.
+- Returns `{ items_inserted, items_skipped, items_errors }`.
 
 ### Manual Sync Endpoint
 `POST /api/waybills/sync` — accepts `{ begin_date?, end_date?, statuses?, itypes?, raw? }`:
@@ -202,6 +209,22 @@ Both routes loop over every entry in `RS_CREDENTIALS_MAP`, call `runWaybillSync`
 ### Data Gaps & Known Constraints
 - Waybills with `create_date = null` in RS.ge are **invisible** to the `create_date_s/e` filter. Such records must be inserted manually via the CSV import route (`/api/waybills/import`), which only accepts records with a non-null `rs_id`.
 - `rs_waybills_in_api` is unique on `rs_id` (non-nullable). The legacy `rs_waybills_in` table still exists in the DB but is no longer used.
+
+### Unit Handling (Official RS.ge unit IDs)
+The official unit list is fetched via `get_waybill_units` SOAP method. Verified IDs (only 14 exist):
+```
+1=ც(ცალი)  2=კგ  3=გ(გრამი)  4=ლ(ლიტრი)  5=ტ(ტონა)
+7=სმ(სანტიმეტრი)  8=მ(მეტრი)  9=კმ(კილომეტრი)
+10=კვ.სმ  11=კვ.მ  12=მ³  13=მლ(მილილიტრი)  14=შეკვ(შეკვრა)  99=სხვ(custom)
+```
+- **ID=99 = სხვა (custom)**: `UNIT_TXT` in `get_waybill` response is the actual unit name. The bulk method `get_buyer_waybilll_goods_list` does **NOT** return `UNIT_TXT` — only `UNIT_ID`.
+- **Backfill endpoint**: `POST /api/waybills/backfill-unit-txt` calls `get_waybill(rs_id)` for waybills with unit_id=99 items and updates the `unit` column with the real UNIT_TXT. Supports `?limit=N&offset=N&dry_run=true`.
+- **SOAP functions in `lib/integrations/rsge/client.ts`**:
+  - `getBuyerWaybillsXml` → `get_buyer_waybills` (documented, returns waybill list incl. IS_CONFIRMED)
+  - `getBuyerWaybillGoodsList` → `get_buyer_waybilll_goods_list` (undocumented bulk, no UNIT_TXT)
+  - `getWaybill(su, sp, waybillId)` → `get_waybill` (per-waybill with full goods + UNIT_TXT)
+  - `batchIsVatPayerTin` → `is_vat_payer_tin`
+- **IDs that do NOT exist** in the official list: 6, 15, 16, 17, 18, 19. Any items or dimension-map entries with these phantom IDs are data errors from a previously incorrect hardcoded map.
 
 ## Build, Test, and Development Commands
 Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, API, and workers concurrently while developing. Whenever `prisma/schema.prisma` changes, run `pnpm prisma migrate dev --name <feature>` followed by `pnpm prisma generate` to refresh the client. After adding new models to the schema, run `python scripts/auto-generate-templates.py` to automatically create Excel import templates in the `templates/` folder. Execute `pnpm test` for Jest coverage and `pnpm test:e2e` when end-to-end verification is required; append `--watch` for quick feedback loops.

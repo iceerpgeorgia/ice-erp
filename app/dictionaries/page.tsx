@@ -139,6 +139,11 @@ export default function DictionariesIndex() {
             </Link>
           </li>
           <li>
+            <Link className="text-blue-600 hover:underline" href="/dictionaries/rs-unit-dimension-map">
+              RS Unit → Dimension Map
+            </Link>
+          </li>
+          <li>
             <Link className="text-blue-600 hover:underline" href="/dictionaries/inventory-groups">
               Inventory Groups
             </Link>

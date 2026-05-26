@@ -1,10 +1,11 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { getRsCredentialsMap } from '@/lib/integrations/rsge/client';
 import { runWaybillSync, WaybillSyncResult } from '@/lib/waybills/run-waybill-sync';
+import { runWaybillItemsSync, WaybillItemsSyncResult } from '@/lib/waybills/run-waybill-items-sync';
 
 export const dynamic = 'force-dynamic';
-// Three months of data can be large — allow up to 5 min on Vercel Pro.
-export const maxDuration = 300;
+// Waybills + items reconciliation over 3 months — allow up to 10 min on Vercel Pro.
+export const maxDuration = 600;
 
 /**
  * Returns start of 3 months ago (first of that month, Tbilisi midnight) to
@@ -60,28 +61,50 @@ export async function GET(req: NextRequest) {
 
   const { from, to } = getTbilisiQuarterRange();
 
-  type InsiderResult = WaybillSyncResult & { insider_uuid: string };
+  type InsiderResult = WaybillSyncResult & WaybillItemsSyncResult & { insider_uuid: string };
   const results: InsiderResult[] = [];
 
   for (const cred of credMap) {
+    let waybillResult: WaybillSyncResult = { imported: 0, updated: 0, sync_batch_id: null };
+    let itemsResult: WaybillItemsSyncResult = { items_inserted: 0, items_skipped: 0, items_errors: 0 };
+
     try {
-      const result = await runWaybillSync(
+      waybillResult = await runWaybillSync(
         { su: cred.su, sp: cred.sp },
         from,
         to,
         { insiderUuid: cred.insiderUuid },
       );
-      results.push({ insider_uuid: cred.insiderUuid, ...result });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[GET /api/cron/waybills-quarterly] insider ${cred.insiderUuid} error:`, msg);
-      results.push({ insider_uuid: cred.insiderUuid, imported: 0, updated: 0, sync_batch_id: null, message: msg });
+      console.error(`[GET /api/cron/waybills-quarterly] insider ${cred.insiderUuid} waybills error:`, msg);
+      waybillResult = { imported: 0, updated: 0, sync_batch_id: null, message: msg };
     }
+
+    try {
+      itemsResult = await runWaybillItemsSync(
+        { su: cred.su, sp: cred.sp },
+        from,
+        to,
+        { insiderUuid: cred.insiderUuid },
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[GET /api/cron/waybills-quarterly] insider ${cred.insiderUuid} items error:`, msg);
+      itemsResult = { items_inserted: 0, items_skipped: 0, items_errors: 0, message: msg };
+    }
+
+    results.push({ insider_uuid: cred.insiderUuid, ...waybillResult, ...itemsResult });
   }
 
   const totals = results.reduce(
-    (acc, r) => ({ imported: acc.imported + r.imported, updated: acc.updated + r.updated }),
-    { imported: 0, updated: 0 },
+    (acc, r) => ({
+      imported: acc.imported + r.imported,
+      updated: acc.updated + r.updated,
+      items_inserted: acc.items_inserted + r.items_inserted,
+      items_skipped: acc.items_skipped + r.items_skipped,
+    }),
+    { imported: 0, updated: 0, items_inserted: 0, items_skipped: 0 },
   );
 
   return NextResponse.json({ mode: 'quarterly', range: { from, to }, ...totals, results });

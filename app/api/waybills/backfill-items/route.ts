@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBuyerWaybillGoodsList, getRsCredentialsMap } from '@/lib/integrations/rsge/client';
+import {
+  RS_WAYBILL_STATUS,
+  RS_WAYBILL_CONDITION,
+  rsTranCostPayerLabel,
+} from '@/lib/integrations/rsge/constants';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -150,13 +155,35 @@ export async function POST(req: NextRequest) {
                 rs_id: rsId,
                 waybill_no: waybillNumber,
                 insider_uuid: cred.insiderUuid,
+                // waybill-level raw fields
+                type: g.type,
+                create_date: g.create_date ? new Date(g.create_date) : null,
+                activate_date: g.activate_date ? new Date(g.activate_date) : null,
+                begin_date: g.begin_date ? new Date(g.begin_date) : null,
+                cancel_date: g.cancel_date ? new Date(g.cancel_date) : null,
+                seller_tin: g.seller_tin,
+                seller_name: g.seller_name,
+                start_address: g.start_address,
+                end_address: g.end_address,
+                driver_tin: g.driver_tin,
+                driver_name: g.driver_name,
+                transport_cost: g.transport_cost ? parseFloat(g.transport_cost) : null,
+                full_amount: g.full_amount ? parseFloat(g.full_amount) : null,
+                car_number: g.car_number,
+                tran_cost_payer: g.tran_cost_payer ? rsTranCostPayerLabel(g.tran_cost_payer) : null,
+                trans_id: g.trans_id,
+                is_confirmed: g.is_confirmed ? (RS_WAYBILL_CONDITION[g.is_confirmed] ?? g.is_confirmed) : null,
+                status: g.status ? (RS_WAYBILL_STATUS[g.status] ?? g.status) : null,
+                // goods line raw fields
                 goods_name: g.goods_name,
                 goods_code: g.goods_code,
+                unit_id: g.unit_id,
                 unit: g.unit,
                 quantity: g.quantity ? parseFloat(g.quantity) : null,
                 unit_price: g.unit_price ? parseFloat(g.unit_price) : null,
                 total_price: g.total_price ? parseFloat(g.total_price) : null,
-                taxation: g.taxation,
+                vat_type: g.vat_type,
+                a_id: g.a_id,
                 import_batch_id: batchId,
               })),
               skipDuplicates: true,
