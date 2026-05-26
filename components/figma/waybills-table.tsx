@@ -1643,23 +1643,23 @@ export function WaybillsTable() {
             </div>
           </div>
 
-          {/* Counteragent section — amber title, matches RS.ge seller/buyer block */}
+          {/* Counteragent section — amber title, matches RS.ge გამყიდველი block */}
           <div className="px-5 py-3 border-b bg-white">
             <div className="inline-block bg-[#f59e0b] text-white text-[11px] font-bold px-2 py-0.5 rounded mb-2 uppercase tracking-wide">
-              მიმღები / მყიდველი
+              გამყიდველი (გამზხავნი)
             </div>
             <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
               {itemsWaybill?.counteragent_inn && (
-                <div><span className="text-muted-foreground text-xs">INN:</span> <span className="font-medium">{itemsWaybill.counteragent_inn}</span></div>
+                <div><span className="text-muted-foreground text-xs">საიდენტ. №:</span> <span className="font-medium">{itemsWaybill.counteragent_inn}</span></div>
               )}
               {itemsWaybill?.counteragent_name && (
                 <div className="font-medium">{itemsWaybill.counteragent_name}</div>
               )}
               {itemsWaybill?.departure_address && (
-                <div><span className="text-muted-foreground text-xs">გამგ.:</span> <span>{itemsWaybill.departure_address}</span></div>
+                <div><span className="text-muted-foreground text-xs">ტრანსპ. დაწყ.:</span> <span>{itemsWaybill.departure_address}</span></div>
               )}
               {itemsWaybill?.shipping_address && (
-                <div><span className="text-muted-foreground text-xs">მიწ.:</span> <span>{itemsWaybill.shipping_address}</span></div>
+                <div><span className="text-muted-foreground text-xs">ტრანსპ. დასრ.:</span> <span>{itemsWaybill.shipping_address}</span></div>
               )}
             </div>
           </div>
@@ -1675,13 +1675,13 @@ export function WaybillsTable() {
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="bg-[#f0f4f4] text-left border-b-2 border-[#2e7d7d]/30">
-                    <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-8 text-center">#</th>
+                    <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-8 text-center">№</th>
+                    <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-28">საქ. კოდი</th>
                     <th className="px-3 py-2 font-semibold text-[#2e7d7d]">საქონლის დასახელება</th>
-                    <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-28">შტ.კოდი</th>
-                    <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-20">ერთ.</th>
+                    <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-24">ბოთ. ერთ.</th>
                     <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-24 text-right">რაოდ.</th>
                     <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-28 text-right">ერთ. ფასი</th>
-                    <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-28 text-right">ჯამი</th>
+                    <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-28 text-right">საქ. ფასი</th>
                     <th className="px-3 py-2 font-semibold text-[#2e7d7d] w-28">დაბეგვრა</th>
                   </tr>
                 </thead>
@@ -1689,8 +1689,8 @@ export function WaybillsTable() {
                   {waybillItems.map((item, idx) => (
                     <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#f7fbfb]'}>
                       <td className="px-3 py-1.5 border-b border-gray-100 text-muted-foreground text-center">{idx + 1}</td>
-                      <td className="px-3 py-1.5 border-b border-gray-100 font-medium" title={item.goods_name}>{item.goods_name}</td>
                       <td className="px-3 py-1.5 border-b border-gray-100 text-muted-foreground text-xs truncate" title={item.goods_code}>{item.goods_code || '—'}</td>
+                      <td className="px-3 py-1.5 border-b border-gray-100 font-medium" title={item.goods_name}>{item.goods_name}</td>
                       <td className="px-3 py-1.5 border-b border-gray-100">{item.unit || '—'}</td>
                       <td className="px-3 py-1.5 border-b border-gray-100 text-right tabular-nums">{item.quantity != null ? Number(item.quantity).toLocaleString('en-US', { maximumFractionDigits: 4 }) : '—'}</td>
                       <td className="px-3 py-1.5 border-b border-gray-100 text-right tabular-nums">{item.unit_price != null ? Number(item.unit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—'}</td>
