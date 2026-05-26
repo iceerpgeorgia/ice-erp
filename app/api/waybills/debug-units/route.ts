@@ -4,6 +4,23 @@ export const dynamic = 'force-dynamic';
 
 const SOAP_URL = 'https://services.rs.ge/WaybillService/WaybillService.asmx';
 
+export async function GET(req: NextRequest) {
+  const { requireAuthOrCron, isAuthError } = await import('@/lib/auth-guard');
+  const auth = await requireAuthOrCron(req);
+  if (isAuthError(auth)) return auth;
+
+  const { getWaybill, getRsCredentialsMap } = await import('@/lib/integrations/rsge/client');
+  const credsMap = getRsCredentialsMap();
+  if (!credsMap.length) return NextResponse.json({ error: 'No RS credentials' }, { status: 500 });
+
+  const url = new URL(req.url);
+  const rsId = url.searchParams.get('rs_id');
+  if (!rsId) return NextResponse.json({ error: 'rs_id required' }, { status: 400 });
+
+  const goods = await getWaybill(credsMap[0].su, credsMap[0].sp, rsId);
+  return NextResponse.json({ rs_id: rsId, goods_count: goods.length, goods });
+}
+
 export async function POST(req: NextRequest) {
   const { requireAuthOrCron, isAuthError } = await import('@/lib/auth-guard');
   const auth = await requireAuthOrCron(req);
