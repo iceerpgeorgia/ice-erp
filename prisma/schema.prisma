@@ -764,6 +764,7 @@ model projects {
   project_index       String?
   insider_uuid        String?             @db.Uuid
   project_employees   project_employees[]
+  waybill_projects    rs_waybills_in_projects[]
 
   @@index([counteragent_uuid])
   @@index([currency_uuid])
@@ -918,6 +919,7 @@ model rs_waybills_in_api {
   import_batch_id               String?
   synced_at                     DateTime  @default(now())
   waybill_items                 rs_waybills_in_items[]
+  waybill_projects              rs_waybills_in_projects[]
 
   @@index([waybill_no])
   @@index([counteragent_inn])
@@ -928,6 +930,20 @@ model rs_waybills_in_api {
   @@index([project_uuid])
   @@index([financial_code_uuid])
   @@map("rs_waybills_in_api")
+}
+
+model rs_waybills_in_projects {
+  id           BigInt             @id @default(autoincrement())
+  rs_id        String
+  project_uuid String             @db.Uuid
+  created_at   DateTime           @default(now())
+  waybill      rs_waybills_in_api @relation(fields: [rs_id], references: [rs_id], onDelete: Cascade)
+  project      projects           @relation(fields: [project_uuid], references: [project_uuid], onDelete: Cascade)
+
+  @@unique([rs_id, project_uuid])
+  @@index([rs_id])
+  @@index([project_uuid])
+  @@map("rs_waybills_in_projects")
 }
 
 model dimensions {
