@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-05-26 Deployment #260
+- Commit: a549595
+- Production: https://ice-bhiu3z4a1-iceerp.vercel.app
+- Summary: dimension_uuid stored on waybill items — schema, backfill, sync, API, dialog.
+- Changes:
+  - prisma/schema.prisma: Added dimension_uuid (uuid FK → dimensions) + index to rs_waybills_in_items; added reverse relation on dimensions.
+  - DB: Column + index applied via psql; 30132 existing rows backfilled from rs_unit_dimension_map.
+  - lib/waybills/run-waybill-items-sync.ts: Preloads unit→dimension_uuid map before insert; mapGoodsItemToDb now resolves and stores dimension_uuid on every new item.
+  - app/api/waybill-items/route.ts: Includes dimension relation in query; returns dimension_name in response.
+  - components/figma/waybills-table.tsx: Dialog unit column uses item.dimension_name (falls back to item.unit); removed client-side unit dim map fetch.
+
 ## 2026-05-26 Deployment #259
 - Commit: 4271660
 - Production: https://ice-3gm43pd50-iceerp.vercel.app
