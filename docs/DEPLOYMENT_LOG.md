@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-05-26 Deployment #261
+- Commit: 4cc0ecd
+- Production: https://ice-erp.vercel.app
+- Summary: Inventory groups — import 283 clean rows to DB + enhanced UI table page.
+- Changes:
+  - DB: Imported 283 inventory groups via Python/psycopg2 (9 typos fixed, 12 duplicates dropped, 1 service item skipped).
+  - app/dictionaries/inventory-groups/page.tsx: Added stats cards, live search, dimension filter dropdown, active/inactive 3-way toggle, inline active toggle, Georgian labels, row count footer.
+
 ## 2026-05-26 Deployment #260
 - Commit: a549595
 - Production: https://ice-bhiu3z4a1-iceerp.vercel.app
