@@ -317,6 +317,112 @@ function buildGoodsListSoapEnvelope(
 </soap:Envelope>`;
 }
 
+function buildGoodsListByNumberSoapEnvelope(
+  su: string,
+  sp: string,
+  waybillNumber: string,
+): string {
+  return `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <get_buyer_waybilll_goods_list xmlns="http://tempuri.org/">
+      <su>${escapeXml(su)}</su>
+      <sp>${escapeXml(sp)}</sp>
+      <itypes></itypes>
+      <seller_tin></seller_tin>
+      <statuses></statuses>
+      <car_number></car_number>
+      <begin_date_s xsi:nil="true" />
+      <begin_date_e xsi:nil="true" />
+      <create_date_s xsi:nil="true" />
+      <create_date_e xsi:nil="true" />
+      <driver_tin></driver_tin>
+      <delivery_date_s xsi:nil="true" />
+      <delivery_date_e xsi:nil="true" />
+      <full_amount xsi:nil="true" />
+      <waybill_number>${escapeXml(waybillNumber)}</waybill_number>
+      <close_date_s xsi:nil="true" />
+      <close_date_e xsi:nil="true" />
+      <s_user_ids></s_user_ids>
+      <comment></comment>
+    </get_buyer_waybilll_goods_list>
+  </soap:Body>
+</soap:Envelope>`;
+}
+
+/**
+ * Fetches buyer waybill goods for a specific waybill number from rs.ge.
+ * Returns map of goods_code → unit_txt (and goods_name → unit_txt as fallback).
+ */
+export async function getBuyerWaybillGoodsByNumber(
+  su: string,
+  sp: string,
+  waybillNumber: string,
+): Promise<{ byCode: Map<string, string>; byName: Map<string, string> }> {
+  const envelope = buildGoodsListByNumberSoapEnvelope(su, sp, waybillNumber);
+
+  const res = await fetch(SOAP_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/xml; charset=utf-8',
+      SOAPAction: '"http://tempuri.org/get_buyer_waybilll_goods_list"',
+    },
+    body: envelope,
+  });
+
+  const byCode = new Map<string, string>();
+  const byName = new Map<string, string>();
+
+  if (!res.ok) return { byCode, byName };
+  const text = await res.text();
+
+  const resultMatch = text.match(
+    /<get_buyer_waybilll_goods_listResult[^>]*>([\s\S]*?)<\/get_buyer_waybilll_goods_listResult>/,
+  );
+  if (!resultMatch) return { byCode, byName };
+
+  const innerXml = resultMatch[1]
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+
+  if (/^-?\d+$/.test(innerXml.trim())) return { byCode, byName };
+
+  const { parseStringPromise } = await import('xml2js');
+  let parsed: Record<string, any>;
+  try { parsed = await parseStringPromise(innerXml, { explicitArray: true }); }
+  catch { return { byCode, byName }; }
+
+  const rootKey = Object.keys(parsed)[0] ?? '';
+  const rootObj = parsed[rootKey] ?? {};
+  const childKey = Object.keys(rootObj).find((k) => Array.isArray(rootObj[k])) ?? '';
+  const goodsArray: Record<string, any>[] = rootObj[childKey] ?? [];
+
+  const pick = (obj: Record<string, any>, ...keys: string[]): string | null => {
+    for (const k of keys) {
+      const v = obj[k];
+      if (Array.isArray(v) && v.length > 0) return String(v[0]).trim() || null;
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+    return null;
+  };
+
+  for (const g of goodsArray) {
+    const unitId  = pick(g, 'UNIT_ID', 'unit_id');
+    if (unitId !== '99') continue; // only custom units need backfill
+    const unitTxt = pick(g, 'UNIT_TXT', 'unit_txt');
+    if (!unitTxt) continue;
+    const code = pick(g, 'BAR_CODE', 'bar_code');
+    const name = pick(g, 'W_NAME', 'w_name');
+    if (code) byCode.set(code, unitTxt);
+    if (name) byName.set(name, unitTxt);
+  }
+
+  return { byCode, byName };
+}
+
 /**
  * Fetches all buyer waybill goods for a date range from rs.ge.
  * Returns a flat array where each item includes the waybill_id.
