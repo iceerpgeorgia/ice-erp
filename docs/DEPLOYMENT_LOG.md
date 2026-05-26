@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-05-26 Deployment #257
+- Commit: 8424d10
+- Production: https://ice-dnl0r28f3-iceerp.vercel.app
+- Summary: Waybill items inline dialog — click waybill_no in waybills table to view items.
+- Changes:
+  - components/figma/waybills-table.tsx: waybill_no cell renders as blue clickable link. Click opens Dialog fetching /api/waybill-items?rs_id=... — compact table showing goods_name, goods_code, unit, quantity, unit_price, total_price, taxation with totals footer.
+
 ## 2026-05-26 Deployment #256
 - Commit: 6702167
 - Production: https://ice-o3wlsxf7a-iceerp.vercel.app
