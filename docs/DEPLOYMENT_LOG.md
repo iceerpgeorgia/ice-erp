@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-05-26 Deployment #258
+- Commit: 9636359
+- Production: https://ice-1zd8s7kmx-iceerp.vercel.app
+- Summary: RS.ge-styled waybill items dialog — dark teal header, amber counteragent section, Georgian column names.
+- Changes:
+  - components/figma/waybills-table.tsx: Redesigned inline dialog to match RS.ge visual. Header bar bg-[#2e7d7d] shows waybill_no + status/condition/type badges + activation_time + total ₾. Amber (f59e0b) section shows counteragent INN, name, departure/shipping addresses. Items table uses Georgian headers: საქონლის დასახელება, შტ.კოდი, ერთ., რაოდ., ერთ. ფასი, ჯამი, დაბეგვრა. Teal-tinted header row and footer.
+
 ## 2026-05-26 Deployment #257
 - Commit: 8424d10
 - Production: https://ice-dnl0r28f3-iceerp.vercel.app
