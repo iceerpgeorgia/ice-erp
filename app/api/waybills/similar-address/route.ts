@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
         OR project_uuid::text <> ${project_uuid ?? null}::text
       )
     ORDER BY trgm_score DESC
-    LIMIT 40
+    LIMIT 500
   `;
 
   const candidates: Candidate[] = rawCandidates.map((r) => ({
@@ -123,8 +123,14 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Build a compact list for the LLM to score
-  const addressList = candidates
+  // Build a compact list for the LLM to score.
+  // Cap at 100 highest-scoring candidates to stay within token limits;
+  // any beyond that are returned without LLM scoring (treated as confirmed by trgm).
+  const LLM_BATCH_LIMIT = 100;
+  const llmBatch = candidates.slice(0, LLM_BATCH_LIMIT);
+  const beyondBatch = candidates.slice(LLM_BATCH_LIMIT);
+
+  const addressList = llmBatch
     .map((c, i) => `${i + 1}. "${c.shipping_address}"`)
     .join("\n");
 
@@ -182,24 +188,27 @@ Return ONLY valid JSON, no prose.`;
     });
   }
 
-  // Merge LLM scores back into candidate list
-  const scored: Candidate[] = candidates.map((c, i) => {
+  // Merge LLM scores back into the scored batch
+  const scoredBatch: Candidate[] = llmBatch.map((c, i) => {
     const llmResult = llmScored.find((r) => r.index === i + 1);
     return {
       ...c,
       llm_score: llmResult?.confidence ?? null,
       llm_reason: llmResult?.reason ?? null,
-      // Filter: only keep matches the LLM confirmed (or all if LLM didn't score this one)
       _llm_is_match: llmResult?.is_match ?? true,
     } as Candidate & { _llm_is_match: boolean };
   });
 
-  const confirmed = (scored as Array<Candidate & { _llm_is_match: boolean }>)
-    .filter((c) => c._llm_is_match)
-    .map(({ _llm_is_match, ...rest }) => rest)
-    .sort((a, b) => (b.llm_score ?? 0) - (a.llm_score ?? 0));
+  const confirmed = [
+    ...(scoredBatch as Array<Candidate & { _llm_is_match: boolean }>)
+      .filter((c) => c._llm_is_match)
+      .map(({ _llm_is_match, ...rest }) => rest)
+      .sort((a, b) => (b.llm_score ?? 0) - (a.llm_score ?? 0)),
+    // Candidates beyond the LLM batch are included as-is (sorted by trgm score)
+    ...beyondBatch,
+  ];
 
-  const rejected = (scored as Array<Candidate & { _llm_is_match: boolean }>)
+  const rejected = (scoredBatch as Array<Candidate & { _llm_is_match: boolean }>)
     .filter((c) => !c._llm_is_match)
     .map(({ _llm_is_match, ...rest }) => rest);
 
