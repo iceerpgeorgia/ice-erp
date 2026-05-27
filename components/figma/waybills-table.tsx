@@ -1777,77 +1777,6 @@ export function WaybillsTable() {
             )}
           </div>
 
-          {/* Similar-address suggestions panel */}
-          {(similarLoading || similarMatches.length > 0) && (
-            <div className="px-5 py-3 border-b bg-[#f0f9f9]">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-[#2e7d7d] uppercase tracking-wide">
-                  Similar delivery addresses — not yet in this project
-                </span>
-                {checkedSimilarIds.size > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleApplySimilarProject}
-                    disabled={similarApplying}
-                    className="text-xs bg-[#2e7d7d] hover:bg-[#1d5959] text-white px-3 py-1 rounded font-medium disabled:opacity-50"
-                  >
-                    {similarApplying
-                      ? 'Applying…'
-                      : `Bind ${checkedSimilarIds.size} waybill${checkedSimilarIds.size !== 1 ? 's' : ''} to project`}
-                  </button>
-                )}
-              </div>
-              {similarLoading ? (
-                <div className="text-xs text-muted-foreground animate-pulse py-2">Analysing addresses with AI…</div>
-              ) : (
-                <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto pr-1">
-                  {similarMatches.map((match) => {
-                    const checked = checkedSimilarIds.has(match.rs_id);
-                    const confidence = match.llm_score ?? match.trgm_score ?? 0;
-                    const confPct = Math.round(confidence * 100);
-                    return (
-                      <label
-                        key={match.rs_id}
-                        className={`flex items-start gap-2.5 cursor-pointer rounded px-2.5 py-1.5 text-xs border transition-colors ${
-                          checked
-                            ? 'bg-[#e0f2f2] border-[#2e7d7d]/40'
-                            : 'bg-white border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        <Checkbox
-                          checked={checked}
-                          onCheckedChange={(v) => {
-                            setCheckedSimilarIds((prev) => {
-                              const next = new Set(prev);
-                              v ? next.add(match.rs_id) : next.delete(match.rs_id);
-                              return next;
-                            });
-                          }}
-                          className="mt-0.5 shrink-0"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium text-[#2e7d7d]">{match.waybill_no || match.rs_id}</span>
-                            {match.counteragent_name && (
-                              <span className="text-muted-foreground truncate">{match.counteragent_name}</span>
-                            )}
-                            <span className={`ml-auto shrink-0 font-semibold tabular-nums ${confPct >= 70 ? 'text-emerald-600' : confPct >= 40 ? 'text-amber-500' : 'text-red-400'}`}>
-                              {confPct}%
-                            </span>
-                          </div>
-                          <div className="text-muted-foreground truncate mt-0.5">{match.shipping_address}</div>
-                          {match.llm_reason && (
-                            <div className="text-[10px] text-muted-foreground/70 mt-0.5 italic">{match.llm_reason}</div>
-                          )}
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Counteragent section — amber title, matches RS.ge გამყიდველი block */}
           <div className="px-5 py-3 border-b bg-white">
             <div className="inline-block bg-[#f59e0b] text-white text-[11px] font-bold px-2 py-0.5 rounded mb-2 uppercase tracking-wide">
@@ -1918,6 +1847,77 @@ export function WaybillsTable() {
                   </tr>
                 </tfoot>
               </table>
+            </div>
+          )}
+
+          {/* Similar-address suggestions panel — below the items table */}
+          {(similarLoading || similarMatches.length > 0) && (
+            <div className="px-5 py-3 border-t bg-[#f0f9f9]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-[#2e7d7d] uppercase tracking-wide">
+                  Similar delivery addresses — not yet in this project
+                </span>
+                {checkedSimilarIds.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleApplySimilarProject}
+                    disabled={similarApplying}
+                    className="text-xs bg-[#2e7d7d] hover:bg-[#1d5959] text-white px-3 py-1 rounded font-medium disabled:opacity-50"
+                  >
+                    {similarApplying
+                      ? 'Applying…'
+                      : `Bind ${checkedSimilarIds.size} waybill${checkedSimilarIds.size !== 1 ? 's' : ''} to project`}
+                  </button>
+                )}
+              </div>
+              {similarLoading ? (
+                <div className="text-xs text-muted-foreground animate-pulse py-2">Analysing addresses with AI…</div>
+              ) : (
+                <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto pr-1">
+                  {similarMatches.map((match) => {
+                    const checked = checkedSimilarIds.has(match.rs_id);
+                    const confidence = match.llm_score ?? match.trgm_score ?? 0;
+                    const confPct = Math.round(confidence * 100);
+                    return (
+                      <label
+                        key={match.rs_id}
+                        className={`flex items-start gap-2.5 cursor-pointer rounded px-2.5 py-1.5 text-xs border transition-colors ${
+                          checked
+                            ? 'bg-[#e0f2f2] border-[#2e7d7d]/40'
+                            : 'bg-white border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            setCheckedSimilarIds((prev) => {
+                              const next = new Set(prev);
+                              v ? next.add(match.rs_id) : next.delete(match.rs_id);
+                              return next;
+                            });
+                          }}
+                          className="mt-0.5 shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-[#2e7d7d]">{match.waybill_no || match.rs_id}</span>
+                            {match.counteragent_name && (
+                              <span className="text-muted-foreground truncate">{match.counteragent_name}</span>
+                            )}
+                            <span className={`ml-auto shrink-0 font-semibold tabular-nums ${confPct >= 70 ? 'text-emerald-600' : confPct >= 40 ? 'text-amber-500' : 'text-red-400'}`}>
+                              {confPct}%
+                            </span>
+                          </div>
+                          <div className="text-muted-foreground truncate mt-0.5">{match.shipping_address}</div>
+                          {match.llm_reason && (
+                            <div className="text-[10px] text-muted-foreground/70 mt-0.5 italic">{match.llm_reason}</div>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
