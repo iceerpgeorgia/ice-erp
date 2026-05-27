@@ -892,11 +892,15 @@ export function WaybillsTable() {
     return next;
   }, [columns, data]);
 
-  const filterOptions = useMemo(() => {
-    return facetValues.size > 0 ? facetValues : fallbackFacetValues;
+  // Per-field: prefer server facet values when available and non-empty;
+  // fall back to current-page values if server returned nothing for a field.
+  const getUniqueValues = useCallback((columnKey: ColumnKey): any[] => {
+    if (facetValues.size > 0) {
+      const serverValues = facetValues.get(columnKey);
+      if (serverValues && serverValues.length > 0) return serverValues;
+    }
+    return fallbackFacetValues.get(columnKey) ?? [];
   }, [facetValues, fallbackFacetValues]);
-
-  const getUniqueValues = (columnKey: ColumnKey) => filterOptions.get(columnKey) || [];
 
   const filteredData = useMemo(() => data, [data]);
 

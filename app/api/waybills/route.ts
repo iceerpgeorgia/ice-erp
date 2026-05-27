@@ -441,60 +441,97 @@ export async function GET(req: NextRequest) {
     if (includeFacets) {
       const facetFields = Array.from(allowedFilterFields);
 
-      // Build all WHERE clauses in parallel (each excludes its own column)
-      const whereEntries = await Promise.all(
-        facetFields.map(async (field) => [field, await buildWhere(field)] as const)
+      // Only build per-field WHERE clauses for fields that currently have an active filter.
+      // For all other fields the global `where` (already computed above) is identical to
+      // buildWhere(field), so we can reuse it directly.  This avoids up to 26 parallel
+      // DB round-trips (especially the repeated counteragent UUID lookup).
+      const activeFilterKeys = new Set(
+        parsedFilterEntries
+          .filter(([key]) => allowedFilterFields.has(key))
+          .filter(([, values]) =>
+            Array.isArray(values) &&
+            (values as unknown[]).some((v) => v !== null && v !== undefined)
+          )
+          .map(([key]) => key)
       );
-      const whereMap = new Map(whereEntries);
 
-      // Run all facet distinct queries in parallel
+      const fieldWhereMap = new Map<string, Prisma.rs_waybills_in_apiWhereInput>();
+      await Promise.all(
+        Array.from(activeFilterKeys).map(async (field) => {
+          fieldWhereMap.set(field, await buildWhere(field));
+        })
+      );
+
+      // Run all facet distinct queries in parallel with per-field error isolation and limits
       const facetResults = await Promise.all(
         facetFields.map(async (field): Promise<readonly [string, any[]]> => {
-          const facetWhere = whereMap.get(field)!;
+          // Use per-field WHERE (excludes its own filter) when that field is actively filtered;
+          // otherwise reuse the already-computed global `where`.
+          const facetWhere = fieldWhereMap.get(field) ?? where;
+          try {
+            if (field === 'counteragent_name') {
+              const uuids = await prisma.rs_waybills_in_api.findMany({
+                where: facetWhere,
+                distinct: ['counteragent_uuid'],
+                select: { counteragent_uuid: true },
+                take: 300,
+                orderBy: { counteragent_uuid: 'asc' },
+              });
+              const ids = uuids
+                .map((row: any) => row.counteragent_uuid)
+                .filter((value: any) => value !== null && value !== undefined);
+              if (ids.length === 0) return [field, []] as const;
+              const counteragents = await prisma.counteragents.findMany({
+                where: { counteragent_uuid: { in: ids } },
+                select: { counteragent: true, name: true },
+              });
+              const values = counteragents
+                .map((row) => row.counteragent || row.name)
+                .filter((value) => value !== null && value !== undefined && String(value).trim() !== '') as string[];
+              const includeBlank = uuids.some((row: any) => row.counteragent_uuid === null);
+              if (includeBlank) values.unshift('');
+              return [field, Array.from(new Set(values))] as const;
+            }
 
-          if (field === 'counteragent_name') {
-            const uuids = await prisma.rs_waybills_in_api.findMany({
-              where: facetWhere,
-              distinct: ['counteragent_uuid'],
-              select: { counteragent_uuid: true },
-            });
-            const ids = uuids
-              .map((row: any) => row.counteragent_uuid)
-              .filter((value: any) => value !== null && value !== undefined);
-            if (ids.length === 0) return [field, []] as const;
-            const counteragents = await prisma.counteragents.findMany({
-              where: { counteragent_uuid: { in: ids } },
-              select: { counteragent: true, name: true },
-            });
-            const values = counteragents
-              .map((row) => row.counteragent || row.name)
-              .filter((value) => value !== null && value !== undefined && String(value).trim() !== '');
-            const includeBlank = uuids.some((row: any) => row.counteragent_uuid === null);
-            if (includeBlank) values.unshift('');
-            return [field, Array.from(new Set(values))] as const;
-          }
+            if (field === 'date') {
+              const rows = await prisma.rs_waybills_in_api.findMany({
+                where: facetWhere,
+                distinct: ['activation_time'],
+                select: { activation_time: true },
+                take: 200,
+                orderBy: { activation_time: 'desc' },
+              });
+              const values = rows
+                .map((row: any) => row.activation_time)
+                .map((value) => (value ? formatDate(new Date(value)) : ''));
+              return [field, Array.from(new Set(values))] as const;
+            }
 
-          if (field === 'date') {
+            if (field === 'vat') {
+              const rows = await prisma.rs_waybills_in_api.findMany({
+                where: facetWhere,
+                distinct: ['vat'],
+                select: { vat: true },
+              });
+              const values = rows.map((row: any) => (row.vat === true ? 'true' : 'false'));
+              return [field, Array.from(new Set(values))] as const;
+            }
+
             const rows = await prisma.rs_waybills_in_api.findMany({
               where: facetWhere,
-              distinct: ['activation_time'],
-              select: { activation_time: true },
+              distinct: [field as any],
+              select: { [field]: true } as Prisma.rs_waybills_in_apiSelect,
+              take: 200,
+              orderBy: { [field]: 'asc' } as Prisma.rs_waybills_in_apiOrderByWithRelationInput,
             });
             const values = rows
-              .map((row: any) => row.activation_time)
-              .map((value) => (value ? formatDate(new Date(value)) : ''));
+              .map((row: any) => row[field])
+              .map((value) => (value === null || value === undefined ? '' : String(value)));
             return [field, Array.from(new Set(values))] as const;
+          } catch (err) {
+            console.error(`[facets] field "${field}" failed:`, err);
+            return [field, []] as const;
           }
-
-          const rows = await prisma.rs_waybills_in_api.findMany({
-            where: facetWhere,
-            distinct: [field as any],
-            select: { [field]: true } as Prisma.rs_waybills_in_apiSelect,
-          });
-          const values = rows
-            .map((row: any) => row[field])
-            .map((value) => (value === null || value === undefined ? '' : value));
-          return [field, Array.from(new Set(values))] as const;
         })
       );
 
