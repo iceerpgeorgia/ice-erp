@@ -196,11 +196,13 @@ export function WaybillsTable() {
 
   // Project selector within the items dialog
   const [dialogProjectUuid, setDialogProjectUuid] = useState<string | null>(null);
+  const [dialogProjectDirty, setDialogProjectDirty] = useState(false);
   const [dialogProjectSaving, setDialogProjectSaving] = useState(false);
   const [similarMatches, setSimilarMatches] = useState<any[]>([]);
   const [similarLoading, setSimilarLoading] = useState(false);
   const [checkedSimilarIds, setCheckedSimilarIds] = useState<Set<string>>(new Set());
   const [similarApplying, setSimilarApplying] = useState(false);
+  const [similarView, setSimilarView] = useState<'waybills' | 'addresses'>('waybills');
 
   // Drag state for the items dialog
   const [dialogPos, setDialogPos] = useState({ x: 0, y: 0 });
@@ -254,78 +256,94 @@ export function WaybillsTable() {
     }
   }, []);
 
-  const handleDialogProjectChange = useCallback(async (newProjectUuid: string | null, waybill: Waybill) => {
+  const handleDialogProjectChange = useCallback((newProjectUuid: string | null, waybill: Waybill) => {
     const resolved = newProjectUuid === NONE_OPTION_VALUE ? null : newProjectUuid;
     setDialogProjectUuid(resolved);
+    setDialogProjectDirty(true);
     setSimilarMatches([]);
     setCheckedSimilarIds(new Set());
-    if (!waybill.id) return;
+    if (resolved && waybill.rs_id) {
+      fetchSimilarAddresses(waybill.rs_id, resolved);
+    }
+  }, [fetchSimilarAddresses]);
 
+  const handleSaveDialog = useCallback(async () => {
+    if (!itemsWaybill?.id) return;
     setDialogProjectSaving(true);
     try {
-      const res = await fetch(`/api/waybills?id=${waybill.id}`, {
+      // 1. Save this waybill's project
+      const res = await fetch(`/api/waybills?id=${itemsWaybill.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project_uuid: resolved }),
+        body: JSON.stringify({ project_uuid: dialogProjectUuid }),
       });
       const body = await res.json();
       if (res.ok && body?.data) {
         setData((prev) => prev.map((row) => (row.id === body.data.id ? body.data : row)));
-        setItemsWaybill((prev) => prev ? { ...prev, project_uuid: resolved } : prev);
+        setItemsWaybill((prev) => prev ? { ...prev, project_uuid: dialogProjectUuid } : prev);
+        setDialogProjectDirty(false);
+      }
+      // 2. Bulk-bind checked similar waybills
+      if (checkedSimilarIds.size > 0 && dialogProjectUuid) {
+        const idMap = new Map<string, number>();
+        similarMatches.forEach((m) => { if (m.rs_id && m.id) idMap.set(m.rs_id, Number(m.id)); });
+        data.forEach((row) => { if (row.rs_id && row.id) idMap.set(row.rs_id, row.id); });
+        const numericIds = Array.from(checkedSimilarIds)
+          .map((rid) => idMap.get(rid))
+          .filter((id): id is number => id !== undefined);
+        if (numericIds.length > 0) {
+          setSimilarApplying(true);
+          const bulkRes = await fetch('/api/waybills/bulk', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: numericIds, project_uuid: dialogProjectUuid }),
+          });
+          if (bulkRes.ok) {
+            setData((prev) =>
+              prev.map((row) =>
+                numericIds.includes(row.id) ? { ...row, project_uuid: dialogProjectUuid } : row
+              )
+            );
+            setSimilarMatches((prev) => prev.filter((m) => !checkedSimilarIds.has(m.rs_id)));
+            setCheckedSimilarIds(new Set());
+          }
+          setSimilarApplying(false);
+        }
       }
     } catch (err) {
-      console.error('project save error', err);
+      console.error('save error', err);
     } finally {
       setDialogProjectSaving(false);
     }
+  }, [itemsWaybill, dialogProjectUuid, checkedSimilarIds, similarMatches, data, setData]);
 
-    if (resolved && waybill.rs_id) {
-      fetchSimilarAddresses(waybill.rs_id, resolved);
+  // Group similar matches by unique shipping address for the Addresses view
+  const addressGroups = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const m of similarMatches) {
+      const addr = m.shipping_address || '';
+      if (!map.has(addr)) map.set(addr, []);
+      map.get(addr)!.push(m);
     }
-  }, [fetchSimilarAddresses, setData]);
-
-  const handleApplySimilarProject = useCallback(async () => {
-    if (!dialogProjectUuid || checkedSimilarIds.size === 0) return;
-    const rsIds = Array.from(checkedSimilarIds);
-    // Build a map: rs_id → numeric id from similarMatches (which includes the id field)
-    const idMap = new Map<string, number>();
-    similarMatches.forEach((m) => { if (m.rs_id && m.id) idMap.set(m.rs_id, Number(m.id)); });
-    // Also fall back to main table data in case some aren't in matches
-    data.forEach((row) => { if (row.rs_id && row.id) idMap.set(row.rs_id, row.id); });
-
-    const numericIds = rsIds.map((rid) => idMap.get(rid)).filter((id): id is number => id !== undefined);
-    if (numericIds.length === 0) return;
-
-    setSimilarApplying(true);
-    try {
-      const res = await fetch('/api/waybills/bulk', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: numericIds, project_uuid: dialogProjectUuid }),
-      });
-      if (res.ok) {
-        setData((prev) =>
-          prev.map((row) =>
-            numericIds.includes(row.id) ? { ...row, project_uuid: dialogProjectUuid } : row
-          )
-        );
-        setSimilarMatches((prev) => prev.filter((m) => !checkedSimilarIds.has(m.rs_id)));
-        setCheckedSimilarIds(new Set());
-      }
-    } catch (err) {
-      console.error('apply similar project error', err);
-    } finally {
-      setSimilarApplying(false);
-    }
-  }, [dialogProjectUuid, checkedSimilarIds, data, similarMatches]);
+    return Array.from(map.entries())
+      .map(([addr, waybills]) => ({
+        address: addr,
+        waybills,
+        maxConfidence: Math.max(...waybills.map((m) => m.llm_score ?? m.trgm_score ?? 0)),
+        checkedCount: waybills.filter((m) => checkedSimilarIds.has(m.rs_id)).length,
+      }))
+      .sort((a, b) => b.maxConfidence - a.maxConfidence);
+  }, [similarMatches, checkedSimilarIds]);
 
   const fetchItemsForWaybill = useCallback(async (waybill: Waybill) => {
     setItemsWaybill(waybill);
     setWaybillItems([]);
     setItemsLoading(true);
     setDialogProjectUuid(waybill.project_uuid ?? null);
+    setDialogProjectDirty(false);
     setSimilarMatches([]);
     setCheckedSimilarIds(new Set());
+    setSimilarView('waybills');
     setDialogPos({ x: 0, y: 0 });
     try {
       const param = waybill.rs_id
@@ -1799,24 +1817,26 @@ export function WaybillsTable() {
                 placeholder="Select project…"
               />
             </div>
-            {dialogProjectSaving && (
-              <span className="text-xs text-muted-foreground animate-pulse">Saving…</span>
+            {similarLoading && (
+              <span className="text-xs text-muted-foreground animate-pulse">Finding similar…</span>
             )}
-            {!dialogProjectSaving && dialogProjectUuid && (
-              <span className="text-xs text-emerald-600 font-medium">
-                {projectLabelMap.get(dialogProjectUuid) ?? dialogProjectUuid}
-              </span>
-            )}
-            {itemsWaybill?.rs_id && dialogProjectUuid && (
+            <div className="ml-auto flex items-center gap-2 shrink-0">
+              {(dialogProjectDirty || checkedSimilarIds.size > 0) && (
+                <span className="text-xs text-amber-600 font-medium">
+                  {checkedSimilarIds.size > 0
+                    ? `${checkedSimilarIds.size} similar selected`
+                    : 'Unsaved changes'}
+                </span>
+              )}
               <button
                 type="button"
-                onClick={() => fetchSimilarAddresses(itemsWaybill.rs_id!, dialogProjectUuid)}
-                disabled={similarLoading}
-                className="ml-auto text-xs text-[#2e7d7d] hover:text-[#1d5959] underline underline-offset-2 disabled:opacity-50"
+                onClick={handleSaveDialog}
+                disabled={dialogProjectSaving || similarApplying || (!dialogProjectDirty && checkedSimilarIds.size === 0)}
+                className="text-xs bg-[#2e7d7d] hover:bg-[#1d5959] text-white px-3 py-1.5 rounded font-medium disabled:opacity-40 transition-colors"
               >
-                {similarLoading ? 'Searching…' : 'Find similar addresses'}
+                {dialogProjectSaving || similarApplying ? 'Saving…' : 'Save'}
               </button>
-            )}
+            </div>
           </div>
 
           {/* Counteragent section — amber title, matches RS.ge გამყიდველი block */}
@@ -1895,26 +1915,31 @@ export function WaybillsTable() {
           {/* Similar-address suggestions panel — below the items table */}
           {(similarLoading || similarMatches.length > 0) && (
             <div className="px-5 py-3 border-t bg-[#f0f9f9] shrink-0">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-2 gap-2">
                 <span className="text-xs font-semibold text-[#2e7d7d] uppercase tracking-wide">
                   Similar delivery addresses — not yet in this project
                 </span>
-                {checkedSimilarIds.size > 0 && (
+                {/* View toggle */}
+                <div className="flex items-center rounded overflow-hidden border border-[#2e7d7d]/30 text-xs shrink-0">
                   <button
                     type="button"
-                    onClick={handleApplySimilarProject}
-                    disabled={similarApplying}
-                    className="text-xs bg-[#2e7d7d] hover:bg-[#1d5959] text-white px-3 py-1 rounded font-medium disabled:opacity-50"
+                    onClick={() => setSimilarView('waybills')}
+                    className={`px-2.5 py-1 ${similarView === 'waybills' ? 'bg-[#2e7d7d] text-white' : 'bg-white text-[#2e7d7d] hover:bg-[#e0f2f2]'} transition-colors`}
                   >
-                    {similarApplying
-                      ? 'Applying…'
-                      : `Bind ${checkedSimilarIds.size} waybill${checkedSimilarIds.size !== 1 ? 's' : ''} to project`}
+                    Waybills
                   </button>
-                )}
+                  <button
+                    type="button"
+                    onClick={() => setSimilarView('addresses')}
+                    className={`px-2.5 py-1 border-l border-[#2e7d7d]/30 ${similarView === 'addresses' ? 'bg-[#2e7d7d] text-white' : 'bg-white text-[#2e7d7d] hover:bg-[#e0f2f2]'} transition-colors`}
+                  >
+                    Addresses
+                  </button>
+                </div>
               </div>
               {similarLoading ? (
                 <div className="text-xs text-muted-foreground animate-pulse py-2">Analysing addresses with AI…</div>
-              ) : (
+              ) : similarView === 'waybills' ? (
                 <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto pr-1">
                   {similarMatches.map((match) => {
                     const checked = checkedSimilarIds.has(match.rs_id);
@@ -1954,6 +1979,54 @@ export function WaybillsTable() {
                           {match.llm_reason && (
                             <div className="text-[10px] text-muted-foreground/70 mt-0.5 italic">{match.llm_reason}</div>
                           )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* Addresses view — unique addresses grouped */
+                <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto pr-1">
+                  {addressGroups.map((group) => {
+                    const allChecked = group.checkedCount === group.waybills.length;
+                    const someChecked = group.checkedCount > 0 && !allChecked;
+                    const confPct = Math.round(group.maxConfidence * 100);
+                    return (
+                      <label
+                        key={group.address}
+                        className={`flex items-start gap-2.5 cursor-pointer rounded px-2.5 py-1.5 text-xs border transition-colors ${
+                          allChecked
+                            ? 'bg-[#e0f2f2] border-[#2e7d7d]/40'
+                            : someChecked
+                            ? 'bg-[#f0f9f9] border-[#2e7d7d]/25'
+                            : 'bg-white border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Checkbox
+                          checked={allChecked ? true : someChecked ? 'indeterminate' : false}
+                          onCheckedChange={(v) => {
+                            setCheckedSimilarIds((prev) => {
+                              const next = new Set(prev);
+                              if (v) {
+                                group.waybills.forEach((m) => next.add(m.rs_id));
+                              } else {
+                                group.waybills.forEach((m) => next.delete(m.rs_id));
+                              }
+                              return next;
+                            });
+                          }}
+                          className="mt-0.5 shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-[#2e7d7d] truncate">{group.address || '—'}</span>
+                            <span className="shrink-0 text-muted-foreground">
+                              {group.waybills.length} waybill{group.waybills.length !== 1 ? 's' : ''}
+                            </span>
+                            <span className={`ml-auto shrink-0 font-semibold tabular-nums ${confPct >= 70 ? 'text-emerald-600' : confPct >= 40 ? 'text-amber-500' : 'text-red-400'}`}>
+                              {confPct}%
+                            </span>
+                          </div>
                         </div>
                       </label>
                     );
