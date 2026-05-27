@@ -1746,20 +1746,22 @@ export function WaybillsTable() {
 
       <Dialog open={!!itemsWaybill} onOpenChange={(open) => { if (!open) { setItemsWaybill(null); setWaybillItems([]); setSimilarMatches([]); setCheckedSimilarIds(new Set()); } }}>
         <DialogContent
-          className="p-0 gap-0 [&>button]:text-white [&>button]:top-3 [&>button]:right-4"
+          className="p-0 gap-0 [&>button]:text-white [&>button]:top-3 [&>button]:right-4 flex flex-col"
           style={{
             transform: `translate(calc(-50% + ${dialogPos.x}px), calc(-50% + ${dialogPos.y}px))`,
             resize: 'both',
-            overflow: 'auto',
+            overflow: 'hidden',
             minWidth: '640px',
             minHeight: '300px',
             width: '1000px',
             maxWidth: '95vw',
+            height: '80vh',
+            maxHeight: '95vh',
           }}
         >
           {/* Header bar — dark teal, mirrors RS.ge popup title — doubles as drag handle */}
           <div
-            className="bg-[#2e7d7d] text-white px-5 py-3 flex items-center justify-between min-h-[52px] cursor-grab active:cursor-grabbing select-none"
+            className="bg-[#2e7d7d] text-white px-5 py-3 flex items-center justify-between min-h-[52px] cursor-grab active:cursor-grabbing select-none shrink-0"
             onMouseDown={handleDialogDragStart}
           >
             <div className="flex items-center gap-2 flex-wrap">
@@ -1787,7 +1789,7 @@ export function WaybillsTable() {
           </div>
 
           {/* Project selector row */}
-          <div className="px-5 py-2.5 border-b bg-[#f8fafb] flex items-center gap-3 flex-wrap">
+          <div className="px-5 py-2.5 border-b bg-[#f8fafb] flex items-center gap-3 flex-wrap shrink-0">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">Project</span>
             <div className="w-64">
               <Combobox
@@ -1818,7 +1820,7 @@ export function WaybillsTable() {
           </div>
 
           {/* Counteragent section — amber title, matches RS.ge გამყიდველი block */}
-          <div className="px-5 py-3 border-b bg-white">
+          <div className="px-5 py-3 border-b bg-white shrink-0">
             <div className="inline-block bg-[#f59e0b] text-white text-[11px] font-bold px-2 py-0.5 rounded mb-2 uppercase tracking-wide">
               გამყიდველი (გამზხავნი)
             </div>
@@ -1841,11 +1843,11 @@ export function WaybillsTable() {
           {/* Items table — Georgian column names matching RS.ge */}
           <DialogTitle className="sr-only">ზედნადები {itemsWaybill?.waybill_no}</DialogTitle>
           {itemsLoading ? (
-            <div className="py-10 text-center text-muted-foreground text-sm">იტვირთება...</div>
+            <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">იტვირთება...</div>
           ) : waybillItems.length === 0 ? (
-            <div className="py-10 text-center text-muted-foreground text-sm">საქონელი ვერ მოიძებნა.</div>
+            <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">საქონელი ვერ მოიძებნა.</div>
           ) : (
-            <div className="overflow-auto">
+            <div className="overflow-auto flex-1 min-h-0">
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="bg-[#f0f4f4] text-left border-b-2 border-[#2e7d7d]/30">
@@ -1892,7 +1894,7 @@ export function WaybillsTable() {
 
           {/* Similar-address suggestions panel — below the items table */}
           {(similarLoading || similarMatches.length > 0) && (
-            <div className="px-5 py-3 border-t bg-[#f0f9f9]">
+            <div className="px-5 py-3 border-t bg-[#f0f9f9] shrink-0">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-[#2e7d7d] uppercase tracking-wide">
                   Similar delivery addresses — not yet in this project
