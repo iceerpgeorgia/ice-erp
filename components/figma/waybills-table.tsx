@@ -202,6 +202,31 @@ export function WaybillsTable() {
   const [checkedSimilarIds, setCheckedSimilarIds] = useState<Set<string>>(new Set());
   const [similarApplying, setSimilarApplying] = useState(false);
 
+  // Drag state for the items dialog
+  const [dialogPos, setDialogPos] = useState({ x: 0, y: 0 });
+  const dialogDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
+
+  const handleDialogDragStart = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // Don't start drag on buttons/inputs inside the header
+    if ((e.target as HTMLElement).closest('button,input,select,a')) return;
+    e.preventDefault();
+    dialogDragRef.current = { startX: e.clientX, startY: e.clientY, originX: dialogPos.x, originY: dialogPos.y };
+    const onMove = (ev: MouseEvent) => {
+      if (!dialogDragRef.current) return;
+      setDialogPos({
+        x: dialogDragRef.current.originX + ev.clientX - dialogDragRef.current.startX,
+        y: dialogDragRef.current.originY + ev.clientY - dialogDragRef.current.startY,
+      });
+    };
+    const onUp = () => {
+      dialogDragRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [dialogPos]);
+
   const fetchSimilarAddresses = useCallback(async (rsId: string, projectUuid: string) => {
     setSimilarMatches([]);
     setCheckedSimilarIds(new Set());
@@ -301,6 +326,7 @@ export function WaybillsTable() {
     setDialogProjectUuid(waybill.project_uuid ?? null);
     setSimilarMatches([]);
     setCheckedSimilarIds(new Set());
+    setDialogPos({ x: 0, y: 0 });
     try {
       const param = waybill.rs_id
         ? `rs_id=${encodeURIComponent(waybill.rs_id)}`
@@ -1719,9 +1745,23 @@ export function WaybillsTable() {
       />
 
       <Dialog open={!!itemsWaybill} onOpenChange={(open) => { if (!open) { setItemsWaybill(null); setWaybillItems([]); setSimilarMatches([]); setCheckedSimilarIds(new Set()); } }}>
-        <DialogContent className="max-w-5xl w-full p-0 gap-0 overflow-hidden [&>button]:text-white [&>button]:top-3 [&>button]:right-4">
-          {/* Header bar — dark teal, mirrors RS.ge popup title */}
-          <div className="bg-[#2e7d7d] text-white px-5 py-3 flex items-center justify-between min-h-[52px]">
+        <DialogContent
+          className="p-0 gap-0 [&>button]:text-white [&>button]:top-3 [&>button]:right-4"
+          style={{
+            transform: `translate(calc(-50% + ${dialogPos.x}px), calc(-50% + ${dialogPos.y}px))`,
+            resize: 'both',
+            overflow: 'auto',
+            minWidth: '640px',
+            minHeight: '300px',
+            width: '1000px',
+            maxWidth: '95vw',
+          }}
+        >
+          {/* Header bar — dark teal, mirrors RS.ge popup title — doubles as drag handle */}
+          <div
+            className="bg-[#2e7d7d] text-white px-5 py-3 flex items-center justify-between min-h-[52px] cursor-grab active:cursor-grabbing select-none"
+            onMouseDown={handleDialogDragStart}
+          >
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-bold text-base tracking-wide">{itemsWaybill?.waybill_no || itemsWaybill?.rs_id || ''}</span>
               {itemsWaybill?.state && (
