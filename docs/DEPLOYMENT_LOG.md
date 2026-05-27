@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-05-27 Deployment #263
+- Commit: 1158f1b
+- Production: https://ice-j7b5zo8tr-iceerp.vercel.app
+- Summary: Project selector + LLM similar-address binding in waybill items dialog.
+- Changes:
+  - components/figma/waybills-table.tsx: Project combobox in items dialog header; shows current project, saves immediately on change; "Find similar addresses" button triggers LLM search; suggestions panel with checkboxes pre-checked at ≥70% confidence; "Bind N waybills to project" bulk action.
+  - app/api/waybills/similar-address/route.ts: New POST endpoint; accepts project_uuid to exclude already-bound waybills; pg_trgm GIN-indexed candidate search + Groq llama-3.3-70b-versatile refinement (is_match/confidence/reason); returns numeric id per candidate for direct bulk binding.
+  - DB: pg_trgm extension + GIN index on rs_waybills_in_api.shipping_address (enabled in prior session).
+  - Vercel: GROQ_API_KEY added to production environment.
+  - package.json: openai 6.39.0 dependency added.
+
 ## 2026-05-27 Deployment #262
 - Commit: d06e060
 - Production: https://ice-ndqxw0wk1-iceerp.vercel.app
