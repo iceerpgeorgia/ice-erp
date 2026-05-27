@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
     FROM rs_waybills_in_api
     WHERE rs_id <> ${rs_id}
       AND shipping_address IS NOT NULL
+      AND type <> 'შიდა გადაზიდვა'
       AND similarity(shipping_address, ${source.shipping_address}) >= ${threshold}
       AND (
         ${project_uuid ?? null}::text IS NULL
