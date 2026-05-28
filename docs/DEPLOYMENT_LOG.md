@@ -1,5 +1,21 @@
 # Deployment Log
 
+## 2026-05-29 Deployment #267
+- Commit: f83199a
+- Production: https://ice-6cnpiljqg-iceerp.vercel.app
+- Summary: Consolidate waybill-derived payments — one payment per counteragent+project+FC+currency group.
+- Changes:
+  - lib/waybills/sync-waybill-payment.ts: Rewritten steps 8+9 — group-based payment lookup (finds existing WB- payment with matching counteragent/project/FC/currency); if found, reuses it; if not, creates WB-{rs_id} as canonical. Ledger entries use DELETE+INSERT (matched by comment 'Waybill: {waybill_no}') to support project re-binding.
+  - AGENTS.md: Updated waybill-derived payments Key Rules to document group payment design.
+  - DB: _consolidate_wb_payments.js ran once — consolidated 12,880 WB- payments → 2,262 canonical payments (one per group); 11,458 ledger entries preserved.
+
+## 2026-05-29 Deployment #266
+- Commit: 016e9a8
+- Production: https://ice-dbwd12t9a-iceerp.vercel.app
+- Summary: Backfill waybill-derived payments for all existing bound waybills.
+- Changes:
+  - _backfill_waybills_from_api.js: Script to call syncWaybillPayment for all waybills with project_uuid set; created initial 12,880 WB- payments.
+
 ## 2026-05-28 Deployment #265
 - Commit: d3a3478
 - Production: https://ice-3pmpgbzyn-iceerp.vercel.app
