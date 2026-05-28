@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-05-29 Deployment #270
+- Commit: 7e18ca7
+- Production: https://ice-4rj66fy7c-iceerp.vercel.app
+- Summary: Attachment upload form — auto-populate and lock project from payment.
+- Changes:
+  - app/api/payments/meta/route.ts: Added project_uuid + project_name (via LEFT JOIN projects) to the meta response.
+  - components/figma/payment-attachments.tsx: When the payment has a linked project, project field is shown below "Attach to" as a read-only grayed div (cannot be changed); selectedProject is auto-set on load and preserved on form reset; when payment has no project, behavior unchanged.
+
 ## 2026-05-28 Deployment #269
 - Commit: d3a9848
 - Production: https://ice-mlrgtttdk-iceerp.vercel.app
