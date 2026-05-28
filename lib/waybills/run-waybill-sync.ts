@@ -26,7 +26,7 @@ const normalizeInn = (value: string | null | undefined): string | null => {
   return digits;
 };
 
-const normalizeWaybillNo = (value: string | null | undefined): string | null => {
+export const normalizeWaybillNo = (value: string | null | undefined): string | null => {
   if (!value) return null;
   const digits = String(value).replace(/\D/g, '');
   if (!digits) return null;

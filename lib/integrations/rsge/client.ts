@@ -672,3 +672,52 @@ export async function batchIsVatPayerTin(
   }
   return result;
 }
+
+// ---------------------------------------------------------------------------
+// get_print_pdf  (returns raw PDF bytes for a waybill)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetches the PDF document for a waybill from RS.ge.
+ * Returns the decoded PDF as a Buffer.
+ * Throws on HTTP error, SOAP fault, or missing result.
+ */
+export async function getPrintPdf(
+  su: string,
+  sp: string,
+  waybillId: number,
+): Promise<Buffer> {
+  const envelope = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <get_print_pdf xmlns="http://tempuri.org/">
+      <su>${escapeXml(su)}</su>
+      <sp>${escapeXml(sp)}</sp>
+      <waybill_id>${waybillId}</waybill_id>
+    </get_print_pdf>
+  </soap:Body>
+</soap:Envelope>`;
+
+  const res = await fetch(SOAP_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/xml; charset=utf-8',
+      SOAPAction: '"http://tempuri.org/get_print_pdf"',
+    },
+    body: envelope,
+  });
+
+  if (!res.ok) throw new Error(`rs.ge HTTP ${res.status}`);
+  const text = await res.text();
+
+  const faultMatch = text.match(/<faultstring[^>]*>([\s\S]*?)<\/faultstring>/);
+  if (faultMatch) throw new Error(`rs.ge SOAP fault: ${faultMatch[1].trim()}`);
+
+  const resultMatch = text.match(/<get_print_pdfResult[^>]*>([\s\S]*?)<\/get_print_pdfResult>/);
+  if (!resultMatch) throw new Error('rs.ge: missing get_print_pdfResult in response');
+
+  return Buffer.from(resultMatch[1].trim(), 'base64');
+}

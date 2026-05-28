@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { getBuyerWaybillGoodsList, WaybillGoodsItem } from '@/lib/integrations/rsge/client';
+import { normalizeWaybillNo } from '@/lib/waybills/run-waybill-sync';
 import {
   RS_WAYBILL_STATUS,
   RS_WAYBILL_CONDITION,
@@ -183,7 +184,7 @@ export async function runWaybillItemsSync(
     }
 
     for (const [waybillNumber, items] of byWaybill) {
-      const rsId = metaByWaybillNo.get(waybillNumber);
+      const rsId = metaByWaybillNo.get(normalizeWaybillNo(waybillNumber) ?? waybillNumber);
       if (!rsId) continue; // not in our DB — waybill sync hasn't seen it yet
 
       if (existingRsIds.has(rsId)) {

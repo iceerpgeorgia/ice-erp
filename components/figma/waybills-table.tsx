@@ -203,6 +203,7 @@ export function WaybillsTable() {
   const [checkedSimilarIds, setCheckedSimilarIds] = useState<Set<string>>(new Set());
   const [similarApplying, setSimilarApplying] = useState(false);
   const [similarView, setSimilarView] = useState<'waybills' | 'addresses'>('waybills');
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   // Drag state for the items dialog
   const [dialogPos, setDialogPos] = useState({ x: 0, y: 0 });
@@ -228,6 +229,29 @@ export function WaybillsTable() {
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   }, [dialogPos]);
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (!itemsWaybill?.rs_id) return;
+    setPdfLoading(true);
+    try {
+      const res = await fetch(`/api/waybills/pdf?rs_id=${encodeURIComponent(itemsWaybill.rs_id)}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(body.error ?? res.statusText);
+      }
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `waybill-${itemsWaybill.rs_id}.pdf`;
+      a.click();
+      URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+      alert(`PDF download failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setPdfLoading(false);
+    }
+  }, [itemsWaybill?.rs_id]);
 
   const fetchSimilarAddresses = useCallback(async (rsId: string, projectUuid: string) => {
     setSimilarMatches([]);
@@ -1806,6 +1830,27 @@ export function WaybillsTable() {
                 <span className="font-bold tabular-nums">
                   {Number(itemsWaybill.sum).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₾
                 </span>
+              )}
+              {itemsWaybill?.rs_id && (
+                <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  disabled={pdfLoading}
+                  className="text-white/80 hover:text-white transition-colors disabled:opacity-50 flex items-center gap-1"
+                  title="Download PDF"
+                >
+                  {pdfLoading ? (
+                    <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-8m0 8l-3-3m3 3l3-3M4 20h16" />
+                    </svg>
+                  )}
+                  <span className="text-xs">PDF</span>
+                </button>
               )}
             </div>
           </div>
