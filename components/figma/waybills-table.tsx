@@ -2034,50 +2034,91 @@ export function WaybillsTable() {
                   })}
                 </div>
               ) : (
-                /* Addresses view — unique addresses grouped */
-                <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto pr-1">
+                /* Addresses view — unique addresses grouped, with individual waybill rows */
+                <div className="flex flex-col gap-2 max-h-52 overflow-y-auto pr-1">
                   {addressGroups.map((group) => {
                     const allChecked = group.checkedCount === group.waybills.length;
                     const someChecked = group.checkedCount > 0 && !allChecked;
                     const confPct = Math.round(group.maxConfidence * 100);
                     return (
-                      <label
-                        key={group.address}
-                        className={`flex items-start gap-2.5 cursor-pointer rounded px-2.5 py-1.5 text-xs border transition-colors ${
-                          allChecked
-                            ? 'bg-[#e0f2f2] border-[#2e7d7d]/40'
-                            : someChecked
-                            ? 'bg-[#f0f9f9] border-[#2e7d7d]/25'
-                            : 'bg-white border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        <Checkbox
-                          checked={allChecked ? true : someChecked ? 'indeterminate' : false}
-                          onCheckedChange={(v) => {
-                            setCheckedSimilarIds((prev) => {
-                              const next = new Set(prev);
-                              if (v) {
-                                group.waybills.forEach((m) => next.add(m.rs_id));
-                              } else {
-                                group.waybills.forEach((m) => next.delete(m.rs_id));
-                              }
-                              return next;
-                            });
-                          }}
-                          className="mt-0.5 shrink-0"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-[#2e7d7d] truncate">{group.address || '—'}</span>
-                            <span className="shrink-0 text-muted-foreground">
+                      <div key={group.address} className="flex flex-col gap-1">
+                        {/* Address group header with select-all checkbox */}
+                        <div
+                          className={`flex items-center gap-2.5 rounded px-2.5 py-1.5 text-xs border ${
+                            allChecked
+                              ? 'bg-[#e0f2f2] border-[#2e7d7d]/40'
+                              : someChecked
+                              ? 'bg-[#f0f9f9] border-[#2e7d7d]/25'
+                              : 'bg-white border-gray-200'
+                          }`}
+                        >
+                          <Checkbox
+                            checked={allChecked ? true : someChecked ? 'indeterminate' : false}
+                            onCheckedChange={(v) => {
+                              setCheckedSimilarIds((prev) => {
+                                const next = new Set(prev);
+                                if (v) {
+                                  group.waybills.forEach((m) => next.add(m.rs_id));
+                                } else {
+                                  group.waybills.forEach((m) => next.delete(m.rs_id));
+                                }
+                                return next;
+                              });
+                            }}
+                            className="mt-0 shrink-0"
+                          />
+                          <div className="flex flex-1 items-center gap-2 min-w-0">
+                            <span className="font-semibold text-[#2e7d7d] truncate">{group.address || '—'}</span>
+                            <span className="shrink-0 text-muted-foreground ml-auto">
                               {group.waybills.length} waybill{group.waybills.length !== 1 ? 's' : ''}
                             </span>
-                            <span className={`ml-auto shrink-0 font-semibold tabular-nums ${confPct >= 70 ? 'text-emerald-600' : confPct >= 40 ? 'text-amber-500' : 'text-red-400'}`}>
+                            <span className={`shrink-0 font-semibold tabular-nums ${confPct >= 70 ? 'text-emerald-600' : confPct >= 40 ? 'text-amber-500' : 'text-red-400'}`}>
                               {confPct}%
                             </span>
                           </div>
                         </div>
-                      </label>
+                        {/* Individual waybill rows within this address group */}
+                        {group.waybills.map((match) => {
+                          const checked = checkedSimilarIds.has(match.rs_id);
+                          const matchConfPct = Math.round((match.llm_score ?? match.trgm_score ?? 0) * 100);
+                          return (
+                            <label
+                              key={match.rs_id}
+                              className={`ml-5 flex items-start gap-2.5 cursor-pointer rounded px-2.5 py-1.5 text-xs border transition-colors ${
+                                checked
+                                  ? 'bg-[#e0f2f2] border-[#2e7d7d]/40'
+                                  : 'bg-white border-gray-200 hover:bg-gray-50'
+                              }`}
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(v) => {
+                                  setCheckedSimilarIds((prev) => {
+                                    const next = new Set(prev);
+                                    v ? next.add(match.rs_id) : next.delete(match.rs_id);
+                                    return next;
+                                  });
+                                }}
+                                className="mt-0.5 shrink-0"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-medium text-[#2e7d7d]">{match.waybill_no || match.rs_id}</span>
+                                  {match.counteragent_name && (
+                                    <span className="text-muted-foreground truncate">{match.counteragent_name}</span>
+                                  )}
+                                  <span className={`ml-auto shrink-0 font-semibold tabular-nums ${matchConfPct >= 70 ? 'text-emerald-600' : matchConfPct >= 40 ? 'text-amber-500' : 'text-red-400'}`}>
+                                    {matchConfPct}%
+                                  </span>
+                                </div>
+                                {match.llm_reason && (
+                                  <div className="text-[10px] text-muted-foreground/70 mt-0.5 italic">{match.llm_reason}</div>
+                                )}
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
                     );
                   })}
                 </div>

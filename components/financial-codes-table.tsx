@@ -160,6 +160,12 @@ export function FinancialCodesTable() {
     return result;
   };
 
+  // Flat lookup map for resolving defaultCodeFc UUID → code name
+  const codeByUuid = React.useMemo(() => {
+    const flat = flattenCodes(codes);
+    return new Map(flat.map((c) => [c.uuid, c]));
+  }, [codes]);
+
   const handleExportXlsx = () => {
     if (codes.length === 0) return;
     setIsExporting(true);
@@ -274,6 +280,14 @@ export function FinancialCodesTable() {
           <td className="px-4 py-3 text-center">
             {code.isBundle ? "✓" : ""}
           </td>
+          <td className="px-4 py-3 text-sm text-slate-600">
+            {code.defaultCodeFc
+              ? (() => {
+                  const fc = codeByUuid.get(code.defaultCodeFc);
+                  return fc ? `${fc.code} ${fc.name}` : <span className="text-slate-400 font-mono text-xs">{code.defaultCodeFc.slice(0, 8)}…</span>;
+                })()
+              : ''}
+          </td>
           <td className="px-4 py-3">
             <div className="flex items-center gap-2">
               <button
@@ -345,13 +359,14 @@ export function FinancialCodesTable() {
               <th className="px-4 py-3 text-center font-semibold text-slate-700">Active</th>
               <th className="px-4 py-3 text-center font-semibold text-slate-700">Auto Payment</th>
               <th className="px-4 py-3 text-center font-semibold text-slate-700">Bundle</th>
+              <th className="px-4 py-3 text-left font-semibold text-slate-700">Default Cost FC</th>
               <th className="px-4 py-3 text-left font-semibold text-slate-700">Actions</th>
             </tr>
           </thead>
           <tbody>
             {codes.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={12} className="px-4 py-8 text-center text-slate-500">
                   No financial codes found. Click &quot;Add Root Code&quot; to create one.
                 </td>
               </tr>
