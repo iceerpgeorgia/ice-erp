@@ -220,6 +220,7 @@ export function ProjectsReportTable() {
   const [fcDisplayMode, setFcDisplayMode] = useState<'global' | 'perProject'>('global');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showTaxMultiplier, setShowTaxMultiplier] = useState(false);
+  const [showNulls, setShowNulls] = useState(true);
   const [defaultCurrency, setDefaultCurrency] = useState<'GEL' | 'USD' | 'EUR'>('GEL');
   const [fcTooltip, setFcTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
   const [projectCurrencies, setProjectCurrencies] = useState<Record<string, 'USD' | 'GEL' | 'EUR'>>({});
@@ -455,6 +456,7 @@ export function ProjectsReportTable() {
     }
     const savedFcFull = localStorage.getItem(STORAGE_KEY_FC_FULL);
     if (savedFcFull === 'true') setFcFullMode(true);
+    if (localStorage.getItem('projectsReportShowNulls') === 'false') setShowNulls(false);
     const savedFcDisplay = localStorage.getItem(STORAGE_KEY_FC_DISPLAY);
     if (savedFcDisplay === 'perProject') setFcDisplayMode('perProject');
     const savedDefaultCurrency = localStorage.getItem(STORAGE_KEY_DEFAULT_CURRENCY);
@@ -478,6 +480,7 @@ export function ProjectsReportTable() {
   useEffect(() => { localStorage.setItem(STORAGE_KEY_ORDER, JSON.stringify(projectOrder)); }, [projectOrder]);
   useEffect(() => { localStorage.setItem(STORAGE_KEY_FC_FULL, String(fcFullMode)); }, [fcFullMode]);
   useEffect(() => { localStorage.setItem(STORAGE_KEY_FC_DISPLAY, fcDisplayMode); }, [fcDisplayMode]);
+  useEffect(() => { localStorage.setItem('projectsReportShowNulls', String(showNulls)); }, [showNulls]);
   useEffect(() => { localStorage.setItem(STORAGE_KEY_DEFAULT_CURRENCY, defaultCurrency); }, [defaultCurrency]);
 
   // ── View config helpers ──
@@ -1872,6 +1875,15 @@ export function ProjectsReportTable() {
                   </div>
                   <span className="text-xs text-gray-700">Show full FC description</span>
                 </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none mt-2">
+                  <div
+                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${showNulls ? 'bg-blue-600' : 'bg-gray-200'}`}
+                    onClick={() => setShowNulls((v) => !v)}
+                  >
+                    <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-lg transition-transform ${showNulls ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </div>
+                  <span className="text-xs text-gray-700">Show zero metrics</span>
+                </label>
                 <div className="mt-3 pt-2 border-t border-gray-100">
                   <p className="text-xs font-semibold text-gray-600 mb-2">Display financial codes</p>
                   <div className="flex flex-col gap-1">
@@ -2188,7 +2200,15 @@ export function ProjectsReportTable() {
       })().map((proj) => {
         const isProjectLoading = projectLoadingUuids.has(proj.projectUuid);
         const fcFilter = projectFcFilters[proj.projectUuid] ?? 'all';
-        const { jobList, fcList, cellMap } = buildPivot(proj, fcFilter);
+        const { jobList, fcList: allFcList, cellMap } = buildPivot(proj, fcFilter);
+        const fcList = showNulls
+          ? allFcList
+          : allFcList.filter((fc) =>
+              jobList.some((job) => {
+                const cell = cellMap.get(`${job.key}:${fc.uuid}`);
+                return cell && activeMetrics.some((m) => getCellValue(cell, m) !== 0);
+              })
+            );
         const isCollapsed = collapsedProjects.has(proj.projectUuid);
         const jobColKey = 'job';
         const floorsColKey = 'floors';
