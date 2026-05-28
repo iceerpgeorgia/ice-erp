@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-05-28 Deployment #269
+- Commit: d3a9848
+- Production: https://ice-mlrgtttdk-iceerp.vercel.app
+- Summary: Projects report — fix waybill paired FC column bugs.
+- Changes:
+  - components/figma/projects-report-table.tsx: (1) Waybill FC column now hidden when FC filter is set to "income" (it is a cost FC); (2) Column header now respects the fcFullMode toggle — shows full validation description when enabled, short code otherwise; hover tooltip shows validation when in compact mode.
+
 ## 2026-05-28 Deployment #268
 - Commit: 872af97
 - Production: https://ice-5lqiaiuv1-iceerp.vercel.app
