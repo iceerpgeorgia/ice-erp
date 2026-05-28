@@ -94,9 +94,11 @@ export function PaymentAttachments({
   const [editingAttachment, setEditingAttachment] = useState<Attachment | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [ocrFilled, setOcrFilled] = useState(false);
-  // Payment metadata (currency + counteragent INN) fetched on dialog open
+  // Payment metadata (currency, counteragent INN, project) fetched on dialog open
   const [paymentCurrencyCode, setPaymentCurrencyCode] = useState<string | null>(null);
   const [counteragentInn, setCounterAgentInn] = useState<string | null>(null);
+  const [paymentProjectUuid, setPaymentProjectUuid] = useState<string | null>(null);
+  const [paymentProjectName, setPaymentProjectName] = useState<string | null>(null);
   // INN mismatch from OCR: null=unchecked, false=ok/unknown, true=mismatch
   const [innMismatch, setInnMismatch] = useState<boolean | null>(null);
   const [extractedInn, setExtractedInn] = useState<string | null>(null);
@@ -241,6 +243,11 @@ export function PaymentAttachments({
       const data = await res.json();
       setPaymentCurrencyCode(data.currencyCode ?? null);
       setCounterAgentInn(data.counteragentInn ?? null);
+      if (data.projectUuid) {
+        setPaymentProjectUuid(data.projectUuid);
+        setPaymentProjectName(data.projectName ?? null);
+        setSelectedProject(data.projectUuid);
+      }
     } catch {
       // non-critical
     }
@@ -454,7 +461,7 @@ export function PaymentAttachments({
       setDocumentNo('');
       setDocumentValue('');
       setDocumentCurrency('');
-      setSelectedProject('');
+      setSelectedProject(paymentProjectUuid ?? '');
       setAttachTarget('payment');
       setShowUploadForm(false);
       setOcrFilled(false);
@@ -592,7 +599,7 @@ export function PaymentAttachments({
     setDocumentNo('');
     setDocumentValue('');
     setDocumentCurrency('');
-    setSelectedProject('');
+    setSelectedProject(paymentProjectUuid ?? '');
     setAttachTarget('payment');
     setShowUploadForm(false);
     setOcrFilled(false);
@@ -740,7 +747,7 @@ export function PaymentAttachments({
 
   const openWithTarget = (target: 'payment' | 'project') => {
     setAttachTarget(target);
-    setSelectedProject('');
+    setSelectedProject(paymentProjectUuid ?? '');
     setShowUploadForm(true);
     setDialogMounted(true);
     setIsDialogOpen(true);
@@ -958,7 +965,15 @@ export function PaymentAttachments({
                   {!editingAttachment && (
                     <div className="space-y-2">
                       <Label className="text-sm">Attach to</Label>
-                      <Select value={attachTarget} onValueChange={(v) => { setAttachTarget(v as 'payment' | 'project'); setSelectedProject(''); }} disabled={uploading}>
+                      <Select
+                        value={attachTarget}
+                        onValueChange={(v) => {
+                          setAttachTarget(v as 'payment' | 'project');
+                          // Only clear the project if it wasn't locked from the payment
+                          if (!paymentProjectUuid) setSelectedProject('');
+                        }}
+                        disabled={uploading}
+                      >
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="payment">Payment</SelectItem>
@@ -968,20 +983,27 @@ export function PaymentAttachments({
                     </div>
                   )}
 
-                  {/* Project selector — shown when binding to project, or when doc type requires project */}
-                  {!editingAttachment && (attachTarget === 'project' || documentTypes.find(d => d.uuid === selectedDocumentType)?.requireProject) && (
+                  {/* Project — always shown when payment has a project (locked), or when attaching to project / doc type requires it */}
+                  {!editingAttachment && (paymentProjectUuid || attachTarget === 'project' || documentTypes.find(d => d.uuid === selectedDocumentType)?.requireProject) && (
                     <div className="space-y-2">
                       <Label htmlFor="document-project" className="text-sm">
                         Project {(attachTarget === 'project' || documentTypes.find(d => d.uuid === selectedDocumentType)?.requireProject) && <span className="text-destructive">*</span>}
                       </Label>
-                      <Select value={selectedProject} onValueChange={setSelectedProject} disabled={uploading}>
-                        <SelectTrigger id="document-project"><SelectValue placeholder="Select project" /></SelectTrigger>
-                        <SelectContent>
-                          {projects.map((p) => (
-                            <SelectItem key={p.project_uuid} value={p.project_uuid}>{p.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {paymentProjectUuid ? (
+                        /* Read-only: project is locked from payment */
+                        <div className="flex items-center h-9 rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground cursor-not-allowed select-none">
+                          {paymentProjectName ?? paymentProjectUuid}
+                        </div>
+                      ) : (
+                        <Select value={selectedProject} onValueChange={setSelectedProject} disabled={uploading}>
+                          <SelectTrigger id="document-project"><SelectValue placeholder="Select project" /></SelectTrigger>
+                          <SelectContent>
+                            {projects.map((p) => (
+                              <SelectItem key={p.project_uuid} value={p.project_uuid}>{p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
                   )}
                   
