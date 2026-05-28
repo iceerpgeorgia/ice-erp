@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-05-28 Deployment #268
+- Commit: 872af97
+- Production: https://ice-5lqiaiuv1-iceerp.vercel.app
+- Summary: Projects report — "Show zero metrics" toggle in settings panel.
+- Changes:
+  - components/figma/projects-report-table.tsx: Added showNulls state (default true); when toggled off, FC columns where all job×metric values are zero are filtered out of the grid. Persisted to localStorage as projectsReportShowNulls. Toggle appears in Settings > Display section.
+
 ## 2026-05-29 Deployment #267
 - Commit: f83199a
 - Production: https://ice-6cnpiljqg-iceerp.vercel.app
