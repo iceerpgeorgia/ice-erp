@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
+import { syncWaybillPayment } from '@/lib/waybills/sync-waybill-payment';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -87,6 +88,43 @@ export async function PATCH(req: NextRequest) {
       where: { id: { in: normalizedIds } },
       data: updates,
     });
+
+    // Sync waybill-derived payments when project or counteragent binding changes in bulk
+    if (hasProject || 'counteragent_uuid' in updates) {
+      try {
+        const updatedWaybills = await prisma.rs_waybills_in_api.findMany({
+          where: { id: { in: normalizedIds } },
+          select: {
+            rs_id: true, sum: true, type: true, waybill_no: true,
+            project_uuid: true, counteragent_uuid: true,
+            activation_time: true, insider_uuid: true,
+          },
+        });
+        await Promise.allSettled(
+          updatedWaybills
+            .filter((w) => w.rs_id)
+            .map((w) =>
+              syncWaybillPayment(
+                {
+                  rs_id: String(w.rs_id),
+                  sum: w.sum,
+                  type: w.type,
+                  waybill_no: w.waybill_no,
+                  project_uuid: w.project_uuid,
+                  counteragent_uuid: w.counteragent_uuid,
+                  activation_time: w.activation_time,
+                  insider_uuid: w.insider_uuid,
+                },
+                auth.user.email
+              ).catch((err) =>
+                console.error(`[PATCH /api/waybills/bulk] syncWaybillPayment error for ${w.rs_id}:`, err)
+              )
+            )
+        );
+      } catch (syncErr) {
+        console.error('[PATCH /api/waybills/bulk] Payment sync error:', syncErr);
+      }
+    }
 
     return NextResponse.json({ updated: result.count });
   } catch (error: any) {

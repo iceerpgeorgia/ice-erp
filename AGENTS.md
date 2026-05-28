@@ -226,6 +226,26 @@ The official unit list is fetched via `get_waybill_units` SOAP method. Verified 
   - `batchIsVatPayerTin` → `is_vat_payer_tin`
 - **IDs that do NOT exist** in the official list: 6, 15, 16, 17, 18, 19. Any items or dimension-map entries with these phantom IDs are data errors from a previously incorrect hardcoded map.
 
+## Waybill-Derived Payments
+
+When a waybill is bound (or re-bound) to a project, the system automatically creates and maintains a corresponding `payments` record and a `payments_ledger` entry.
+
+### Key Rules
+- **Trigger**: Any `PATCH /api/waybills?id=...` or `PATCH /api/waybills/bulk` that changes `project_uuid` or `counteragent_uuid` calls `syncWaybillPayment` in `lib/waybills/sync-waybill-payment.ts`.
+- **Payment ID**: `WB-{rs_id}` (uniquely identifies the payment for this waybill).
+- **Currency**: always GEL (looked up by `code = 'GEL'`).
+- **Financial code**: cost FC derived via `project.financial_code_uuid → financial_codes.default_code_fc`; falls back to FC `3.9.4` when project is unset or the FC has no `default_code_fc`.
+- **Return waybills**: when `type = 'უკან დაბრუნება'`, the amount is negated.
+- **`waybill_derived = true`** on the `payments` row marks it as auto-managed.
+- **Ledger entry**: one per payment (matched by `payment_id`); updated in-place on each re-bind.
+- **Read-only guard**: `POST` and `DELETE` on `/api/payments-ledger` return HTTP 403 for `waybill_derived` payments. The UI replaces the delete button with a "WB" badge for these entries.
+
+### DB Constraint Change
+The original `@@unique([project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid])` constraint on `payments` was replaced with a partial unique index `payments_composite_unique_non_waybill` (`WHERE waybill_derived = FALSE`) via `_apply_waybill_payments_constraint.js`. This allows multiple waybill-derived payments to share the same composite key while still enforcing uniqueness for manual payments.
+
+### Open Issue — Item-Level Priority
+When waybill items are bound to different projects, item-level binding should take priority over waybill-level payment derivation. This is not yet implemented; the current implementation operates at the waybill level only.
+
 ## Build, Test, and Development Commands
 Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, API, and workers concurrently while developing. Whenever `prisma/schema.prisma` changes, run `pnpm prisma migrate dev --name <feature>` followed by `pnpm prisma generate` to refresh the client. After adding new models to the schema, run `python scripts/auto-generate-templates.py` to automatically create Excel import templates in the `templates/` folder. Execute `pnpm test` for Jest coverage and `pnpm test:e2e` when end-to-end verification is required; append `--watch` for quick feedback loops.
 

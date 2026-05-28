@@ -659,12 +659,16 @@ model payments {
   is_project_derived    Boolean             @default(false)
   is_bundle_payment     Boolean             @default(false)
   is_recurring          Boolean             @default(false)
+  waybill_derived       Boolean             @default(false)
   payment_bundle_uuid   String?             @db.Uuid
   payment_bundle        payment_bundles?    @relation(fields: [payment_bundle_uuid], references: [uuid])
   payments_ledger       payments_ledger[]
   payment_adjustments   payment_adjustments[]
 
-  @@unique([project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid], map: "payments_project_uuid_counteragent_uuid_financial_code_uu_key")
+  // NOTE: Composite uniqueness is enforced by partial index payments_composite_unique_non_waybill
+  // (WHERE waybill_derived = FALSE) managed via raw SQL migration, not Prisma @@unique,
+  // to allow multiple waybill-derived payments with the same composite key.
+  @@index([project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid])
   @@index([counteragent_uuid])
   @@index([currency_uuid])
   @@index([financial_code_uuid])

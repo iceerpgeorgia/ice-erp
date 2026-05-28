@@ -42,6 +42,7 @@ export type PaymentLedgerEntry = {
   jobUuid?: string;
   incomeTax?: boolean;
   currencyUuid?: string;
+  waybillDerived?: boolean;
   projectIndex?: string;
   projectName?: string;
   counteragentName?: string;
@@ -669,13 +670,22 @@ export function PaymentsLedgerTable() {
                       );
                     })}
                     <td className="px-4 py-2 text-sm text-center" style={{ width: 80, minWidth: 80, maxWidth: 80 }}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteEntry(entry.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      {entry.waybillDerived ? (
+                        <span
+                          title="Managed by waybill binding — edit from the Waybills table"
+                          className="text-xs text-muted-foreground px-1"
+                        >
+                          WB
+                        </span>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteEntry(entry.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))

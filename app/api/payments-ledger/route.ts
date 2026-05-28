@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
         p.job_uuid,
         p.income_tax,
         p.currency_uuid,
+        p.waybill_derived,
         proj.project_index,
         proj.project_name,
         ca.name as counteragent_name,
@@ -111,6 +112,7 @@ export async function GET(request: NextRequest) {
       jobUuid: entry.job_uuid,
       incomeTax: entry.income_tax,
       currencyUuid: entry.currency_uuid,
+      waybillDerived: entry.waybill_derived ?? false,
       projectIndex: entry.project_index,
       projectName: entry.project_name,
       counteragentName: entry.counteragent_name,
@@ -142,8 +144,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { paymentId, effectiveDate, accrual, order, comment } = body;
 
-    const paymentRows = await prisma.$queryRawUnsafe<Array<{ payment_id: string; insider_uuid: string | null }>>(
-      `SELECT payment_id, insider_uuid
+    const paymentRows = await prisma.$queryRawUnsafe<Array<{ payment_id: string; insider_uuid: string | null; waybill_derived: boolean }>>(
+      `SELECT payment_id, insider_uuid, waybill_derived
        FROM payments
        WHERE payment_id = $1 AND is_active = true
        LIMIT 1`,
@@ -152,6 +154,13 @@ export async function POST(request: NextRequest) {
 
     if (!Array.isArray(paymentRows) || paymentRows.length === 0) {
       return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
+    }
+
+    if (paymentRows[0]?.waybill_derived) {
+      return NextResponse.json(
+        { error: 'Waybill-derived ledger entries are managed automatically. Edit the waybill binding instead.' },
+        { status: 403 }
+      );
     }
 
     const insiderUuid = paymentRows[0]?.insider_uuid;
@@ -273,9 +282,19 @@ export async function DELETE(request: NextRequest) {
     }
 
     const existing = await prisma.$queryRawUnsafe<any[]>(
-      `SELECT * FROM payments_ledger WHERE id = $1`,
+      `SELECT pl.*, p.waybill_derived
+       FROM payments_ledger pl
+       LEFT JOIN payments p ON pl.payment_id = p.payment_id
+       WHERE pl.id = $1`,
       BigInt(id)
     );
+
+    if (existing?.[0]?.waybill_derived) {
+      return NextResponse.json(
+        { error: 'Waybill-derived ledger entries are managed automatically. Edit the waybill binding instead.' },
+        { status: 403 }
+      );
+    }
 
     await prisma.$executeRawUnsafe(
       `DELETE FROM payments_ledger WHERE id = $1`,

@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { resolveInsiderSelection } from '@/lib/insider-selection';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
+import { syncWaybillPayment } from '@/lib/waybills/sync-waybill-payment';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -639,6 +640,27 @@ export async function PATCH(req: NextRequest) {
       where: { id },
       data: updates,
     });
+
+    // Sync waybill-derived payment whenever project or counteragent binding changes
+    if (('project_uuid' in updates || 'counteragent_uuid' in updates) && updated.rs_id) {
+      try {
+        await syncWaybillPayment(
+          {
+            rs_id: String(updated.rs_id),
+            sum: updated.sum,
+            type: updated.type,
+            waybill_no: updated.waybill_no,
+            project_uuid: updated.project_uuid,
+            counteragent_uuid: updated.counteragent_uuid,
+            activation_time: updated.activation_time,
+            insider_uuid: updated.insider_uuid,
+          },
+          auth.user.email
+        );
+      } catch (syncErr) {
+        console.error('[PATCH /api/waybills] syncWaybillPayment error:', syncErr);
+      }
+    }
 
     return NextResponse.json({
       data: serializeWaybill({
