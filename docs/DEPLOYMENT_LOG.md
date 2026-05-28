@@ -1,6 +1,26 @@
 # Deployment Log
 
-## 2026-05-27 Deployment #263
+## 2026-05-28 Deployment #265
+- Commit: d3a3478
+- Production: https://ice-3pmpgbzyn-iceerp.vercel.app
+- Summary: Waybill-derived payments — auto-create payment + ledger entry on project binding.
+- Changes:
+  - lib/waybills/sync-waybill-payment.ts: New core function; upserts WB-{rs_id} payment (waybill_derived=true, GEL, cost FC from project→income FC→default_code_fc or fallback 3.9.4) and one payments_ledger entry per waybill; negates amount for "უკან დაბრუნება" return type.
+  - app/api/waybills/route.ts (PATCH): Calls syncWaybillPayment after project_uuid/counteragent_uuid changes.
+  - app/api/waybills/bulk/route.ts (PATCH): Calls syncWaybillPayment for all updated waybills when project binding changes in bulk.
+  - app/api/payments-ledger/route.ts: GET includes waybill_derived flag; POST/DELETE return 403 for waybill-derived payments.
+  - components/figma/payments-ledger-table.tsx: waybillDerived field in PaymentLedgerEntry type; delete button replaced with "WB" badge for waybill-derived entries.
+  - prisma/schema.prisma: Removed @@unique on payments composite key (now managed as partial DB index).
+  - DB: Dropped payments_project_uuid_counteragent_uuid_financial_code_uu_key constraint; added partial unique index payments_composite_unique_non_waybill (WHERE waybill_derived = FALSE).
+  - _apply_waybill_payments_constraint.js: Migration script for the constraint change.
+  - AGENTS.md: Documented waybill-derived payments architecture.
+
+## 2026-05-28 Deployment #264
+- Commit: dcd6bb9
+- Production: https://ice-9875h469b-iceerp.vercel.app
+- Summary: Sync similar waybill checks across address/waybill views + show default cost FC in financial codes table.
+
+
 - Commit: 1158f1b
 - Production: https://ice-j7b5zo8tr-iceerp.vercel.app
 - Summary: Project selector + LLM similar-address binding in waybill items dialog.
