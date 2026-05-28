@@ -2399,14 +2399,17 @@ export function ProjectsReportTable() {
                             </div>
                           </th>
                         ))}
-                        {proj.waybillSum > 0 && proj.waybillPairedFcCode && (
+                        {proj.waybillSum > 0 && proj.waybillPairedFcCode && fcFilter !== 'income' && (
                           <th
                             className="px-2 py-1.5 text-center font-semibold text-gray-700 border-r border-gray-200 text-xs bg-gray-100 overflow-visible"
                             style={{ width: 80, minWidth: 80 }}
                             rowSpan={2}
+                            onMouseEnter={!fcFullMode && proj.waybillPairedFcValidation && proj.waybillPairedFcValidation !== proj.waybillPairedFcCode ? (e) => setFcTooltip({ text: proj.waybillPairedFcValidation!, x: e.clientX, y: e.clientY }) : undefined}
+                            onMouseMove={!fcFullMode && proj.waybillPairedFcValidation && proj.waybillPairedFcValidation !== proj.waybillPairedFcCode ? (e) => setFcTooltip((t) => t ? { ...t, x: e.clientX, y: e.clientY } : t) : undefined}
+                            onMouseLeave={!fcFullMode && proj.waybillPairedFcValidation && proj.waybillPairedFcValidation !== proj.waybillPairedFcCode ? () => setFcTooltip(null) : undefined}
                           >
                             <div className="inline-flex items-center justify-center gap-1 w-full group/wbhdr">
-                              <span className="truncate cursor-default">{proj.waybillPairedFcCode}</span>
+                              <span className="truncate cursor-default">{fcFullMode && proj.waybillPairedFcValidation ? proj.waybillPairedFcValidation : proj.waybillPairedFcCode}</span>
                               <a
                                 href={`/dictionaries/waybills?projectUuid=${encodeURIComponent(proj.projectUuid)}`}
                                 target="_blank"
@@ -2520,7 +2523,7 @@ export function ProjectsReportTable() {
 
                               return metricTds;
                             })}
-                            {proj.waybillSum > 0 && proj.waybillPairedFcCode && (
+                            {proj.waybillSum > 0 && proj.waybillPairedFcCode && fcFilter !== 'income' && (
                               <td className="px-2 py-2 text-center text-gray-300 border-r border-gray-200" style={{ width: 80, minWidth: 80 }}>—</td>
                             )}
                           </tr>
@@ -2559,7 +2562,7 @@ export function ProjectsReportTable() {
 
                           return totMetricTds;
                         })}
-                        {proj.waybillSum > 0 && proj.waybillPairedFcCode && (
+                        {proj.waybillSum > 0 && proj.waybillPairedFcCode && fcFilter !== 'income' && (
                           <td className="px-3 py-2 text-right tabular-nums border-r border-gray-200 text-gray-800" style={{ width: 80, minWidth: 80 }}>
                             {formatMoney(proj.waybillSum)}
                           </td>
