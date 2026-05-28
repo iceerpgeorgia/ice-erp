@@ -135,8 +135,12 @@ export async function syncWaybillPayment(
     waybillLabel
   );
 
-  // ── 9. Upsert ledger entry ────────────────────────────────────────────────
-  //  One entry per waybill-derived payment (matched by payment_id).
+  // ── 9. Upsert ledger entry (skip zero-sum waybills) ────────────────────────
+  //  check_accrual_or_order requires at least one of accrual/order to be non-null and non-zero.
+  if (amountParam === null) {
+    return { skipped: false }; // payment record created but no ledger entry for zero-sum waybills
+  }
+
   const existing = await prisma.$queryRawUnsafe<Array<{ id: bigint }>>(
     `SELECT id FROM payments_ledger
      WHERE payment_id = $1 AND (is_deleted = false OR is_deleted IS NULL)

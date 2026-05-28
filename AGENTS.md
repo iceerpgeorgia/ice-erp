@@ -240,8 +240,10 @@ When a waybill is bound (or re-bound) to a project, the system automatically cre
 - **Ledger entry**: one per payment (matched by `payment_id`); updated in-place on each re-bind.
 - **Read-only guard**: `POST` and `DELETE` on `/api/payments-ledger` return HTTP 403 for `waybill_derived` payments. The UI replaces the delete button with a "WB" badge for these entries.
 
-### DB Constraint Change
-The original `@@unique([project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid])` constraint on `payments` was replaced with a partial unique index `payments_composite_unique_non_waybill` (`WHERE waybill_derived = FALSE`) via `_apply_waybill_payments_constraint.js`. This allows multiple waybill-derived payments to share the same composite key while still enforcing uniqueness for manual payments.
+### DB Constraint Changes
+- **Composite unique → partial index**: The original `@@unique([project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid])` constraint on `payments` was replaced with a partial unique index `payments_composite_unique_non_waybill` (`WHERE waybill_derived = FALSE`) via `_apply_waybill_payments_constraint.js`. This allows multiple waybill-derived payments to share the same composite key while still enforcing uniqueness for manual payments.
+- **payment_id format constraint expanded**: `payments_payment_id_format_check` originally only allowed `^[0-9a-f]{6}_[0-9a-f]{2}_[0-9a-f]{6}$` (hex format). Updated via `_fix_payment_id_constraint.js` to also allow `^WB-[0-9]+$` for waybill-derived payments.
+- **Zero-sum waybills**: When a waybill has `sum = NULL` or `sum = 0`, the payment record is still created but no ledger entry is inserted (the `check_accrual_or_order` constraint on `payments_ledger` requires non-null, non-zero accrual/order).
 
 ### Open Issue — Item-Level Priority
 When waybill items are bound to different projects, item-level binding should take priority over waybill-level payment derivation. This is not yet implemented; the current implementation operates at the waybill level only.
