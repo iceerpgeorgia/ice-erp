@@ -101,39 +101,63 @@ export async function syncWaybillPayment(
   const waybillLabel = waybill.waybill_no ?? waybill.rs_id;
   const comment = `Waybill: ${waybillLabel}`;
 
-  // ── 8. Upsert payment ─────────────────────────────────────────────────────
-  //  ON CONFLICT on payment_id (unique): updates mutable fields when project changes.
-  //  The partial unique index (WHERE waybill_derived = FALSE) allows multiple waybill
-  //  payments to share the same (project, counteragent, FC, currency) composite key.
-  await prisma.$executeRawUnsafe(
-    `INSERT INTO payments (
-       payment_id, record_uuid, project_uuid, counteragent_uuid, financial_code_uuid,
-       currency_uuid, insider_uuid, waybill_derived, is_active, income_tax,
-       is_project_derived, is_bundle_payment, is_recurring, label, accrual_source,
-       created_at, updated_at
-     )
-     VALUES (
-       $1, gen_random_uuid(), $2::uuid, $3::uuid, $4::uuid,
-       $5::uuid, $6::uuid, true, true, false,
-       false, false, false, $7, 'waybill',
-       NOW(), NOW()
-     )
-     ON CONFLICT (payment_id) DO UPDATE SET
-       project_uuid        = EXCLUDED.project_uuid,
-       counteragent_uuid   = EXCLUDED.counteragent_uuid,
-       financial_code_uuid = EXCLUDED.financial_code_uuid,
-       currency_uuid       = EXCLUDED.currency_uuid,
-       insider_uuid        = COALESCE(EXCLUDED.insider_uuid, payments.insider_uuid),
-       label               = EXCLUDED.label,
-       updated_at          = NOW()`,
-    paymentId,
-    waybill.project_uuid ?? null,
+  // ── 8. Find-or-create the GROUP payment ───────────────────────────────────
+  //  One payment per (counteragent, project, FC, currency) for waybill-derived payments.
+  //  Reuse an existing WB payment for this combination rather than creating a new one.
+  const existingGroupPayment = await prisma.$queryRawUnsafe<Array<{ payment_id: string }>>(
+    `SELECT payment_id FROM payments
+     WHERE waybill_derived = TRUE
+       AND is_active = TRUE
+       AND counteragent_uuid = $1::uuid
+       AND financial_code_uuid = $2::uuid
+       AND currency_uuid = $3::uuid
+       AND project_uuid IS NOT DISTINCT FROM $4::uuid
+     LIMIT 1`,
     waybill.counteragent_uuid,
     financialCodeUuid,
     gelUuid,
-    waybill.insider_uuid,
-    waybillLabel
+    waybill.project_uuid ?? null
   );
+
+  let targetPaymentId: string;
+  if (existingGroupPayment.length > 0) {
+    targetPaymentId = existingGroupPayment[0].payment_id;
+    await prisma.$executeRawUnsafe(
+      `UPDATE payments SET updated_at = NOW() WHERE payment_id = $1`,
+      targetPaymentId
+    );
+  } else {
+    targetPaymentId = paymentId; // WB-{rs_id}
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO payments (
+         payment_id, record_uuid, project_uuid, counteragent_uuid, financial_code_uuid,
+         currency_uuid, insider_uuid, waybill_derived, is_active, income_tax,
+         is_project_derived, is_bundle_payment, is_recurring, label, accrual_source,
+         created_at, updated_at
+       )
+       VALUES (
+         $1, gen_random_uuid(), $2::uuid, $3::uuid, $4::uuid,
+         $5::uuid, $6::uuid, true, true, false,
+         false, false, false, $7, 'waybill',
+         NOW(), NOW()
+       )
+       ON CONFLICT (payment_id) DO UPDATE SET
+         project_uuid        = EXCLUDED.project_uuid,
+         counteragent_uuid   = EXCLUDED.counteragent_uuid,
+         financial_code_uuid = EXCLUDED.financial_code_uuid,
+         currency_uuid       = EXCLUDED.currency_uuid,
+         insider_uuid        = COALESCE(EXCLUDED.insider_uuid, payments.insider_uuid),
+         label               = EXCLUDED.label,
+         updated_at          = NOW()`,
+      targetPaymentId,
+      waybill.project_uuid ?? null,
+      waybill.counteragent_uuid,
+      financialCodeUuid,
+      gelUuid,
+      waybill.insider_uuid,
+      waybillLabel
+    );
+  }
 
   // ── 9. Upsert ledger entry (skip zero-sum waybills) ────────────────────────
   //  check_accrual_or_order requires at least one of accrual/order to be non-null and non-zero.
@@ -141,42 +165,31 @@ export async function syncWaybillPayment(
     return { skipped: false }; // payment record created but no ledger entry for zero-sum waybills
   }
 
-  const existing = await prisma.$queryRawUnsafe<Array<{ id: bigint }>>(
-    `SELECT id FROM payments_ledger
-     WHERE payment_id = $1 AND (is_deleted = false OR is_deleted IS NULL)
-     LIMIT 1`,
-    paymentId
+  // Remove any existing WB ledger entry for this waybill (handles project re-binding:
+  // deletes from the old group payment, inserts fresh under the new one).
+  await prisma.$executeRawUnsafe(
+    `DELETE FROM payments_ledger
+     WHERE comment = $1
+       AND (is_deleted = false OR is_deleted IS NULL)
+       AND payment_id IN (
+         SELECT payment_id FROM payments WHERE waybill_derived = TRUE AND is_active = TRUE
+       )`,
+    comment
   );
 
-  if (existing.length > 0) {
-    await prisma.$executeRawUnsafe(
-      `UPDATE payments_ledger
-       SET effective_date = $1::timestamp,
-           accrual        = $2,
-           "order"        = $2,
-           comment        = $3,
-           updated_at     = NOW()
-       WHERE id = $4`,
-      effectiveDate,
-      amountParam,
-      comment,
-      existing[0].id
-    );
-  } else {
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO payments_ledger (
-         payment_id, effective_date, accrual, "order", comment,
-         user_email, confirmed, insider_uuid
-       )
-       VALUES ($1, $2::timestamp, $3, $3, $4, $5, false, $6::uuid)`,
-      paymentId,
-      effectiveDate,
-      amountParam,
-      comment,
-      userEmail,
-      waybill.insider_uuid
-    );
-  }
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO payments_ledger (
+       payment_id, effective_date, accrual, "order", comment,
+       user_email, confirmed, insider_uuid
+     )
+     VALUES ($1, $2::timestamp, $3, $3, $4, $5, false, $6::uuid)`,
+    targetPaymentId,
+    effectiveDate,
+    amountParam,
+    comment,
+    userEmail,
+    waybill.insider_uuid
+  );
 
   return { skipped: false };
 }

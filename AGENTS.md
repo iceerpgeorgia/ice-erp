@@ -232,12 +232,12 @@ When a waybill is bound (or re-bound) to a project, the system automatically cre
 
 ### Key Rules
 - **Trigger**: Any `PATCH /api/waybills?id=...` or `PATCH /api/waybills/bulk` that changes `project_uuid` or `counteragent_uuid` calls `syncWaybillPayment` in `lib/waybills/sync-waybill-payment.ts`.
-- **Payment ID**: `WB-{rs_id}` (uniquely identifies the payment for this waybill).
+- **Payment grouping**: One `payments` record per unique `(counteragent_uuid, project_uuid, financial_code_uuid, currency_uuid)` combination. The first waybill in a group creates a payment with ID `WB-{rs_id}`; subsequent waybills reuse the existing group payment. This avoids N duplicate payments for the same supplier/project.
+- **Ledger entries**: One `payments_ledger` entry per waybill (matched by `comment = 'Waybill: {waybill_no}'`). When a waybill's project changes, the old ledger entry is deleted and a fresh one is inserted under the new group payment.
 - **Currency**: always GEL (looked up by `code = 'GEL'`).
 - **Financial code**: cost FC derived via `project.financial_code_uuid → financial_codes.default_code_fc`; falls back to FC `3.9.4` when project is unset or the FC has no `default_code_fc`.
 - **Return waybills**: when `type = 'უკან დაბრუნება'`, the amount is negated.
 - **`waybill_derived = true`** on the `payments` row marks it as auto-managed.
-- **Ledger entry**: one per payment (matched by `payment_id`); updated in-place on each re-bind.
 - **Read-only guard**: `POST` and `DELETE` on `/api/payments-ledger` return HTTP 403 for `waybill_derived` payments. The UI replaces the delete button with a "WB" badge for these entries.
 
 ### DB Constraint Changes
