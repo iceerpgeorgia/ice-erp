@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getWaybill, getRsCredentialsMap } from '@/lib/integrations/rsge/client';
+import { getBuyerWaybillGoodsListByNumber, getRsCredentialsMap } from '@/lib/integrations/rsge/client';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -8,9 +8,9 @@ export const maxDuration = 300;
 /**
  * POST /api/waybills/backfill-items-per-waybill
  *
- * Fetches goods/line-items for specific waybills using the per-waybill
- * `get_waybill` SOAP call (more reliable than the bulk method for waybills
- * that were missed by `get_buyer_waybilll_goods_list`).
+ * Fetches goods/line-items for specific waybills using the
+ * `get_buyer_waybilll_goods_list` SOAP method filtered by waybill_number
+ * (more reliable for waybills that were missed by the date-range bulk sync).
  *
  * Body: { rs_ids: string[] }   — list of rs_id values to backfill
  *
@@ -122,10 +122,12 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const goods = await getWaybill(cred.su, cred.sp, rsId);
+      const waybillNo = meta.waybill_no ?? rsId;
+      const goods = await getBuyerWaybillGoodsListByNumber(cred.su, cred.sp, waybillNo);
 
       if (goods.length === 0) {
         // Waybill exists but has no goods in RS.ge — skip
+        errors.push(`${rsId} (${waybillNo}): RS.ge returned 0 goods`);
         processed++;
         skipped++;
         continue;
@@ -157,15 +159,15 @@ export async function POST(req: NextRequest) {
           car_number: meta.vehicle ?? null,
           transport_cost: meta.transportation_sum ? Number(meta.transportation_sum) : null,
           full_amount: meta.sum ? Number(meta.sum) : null,
-          // Goods-level fields from getWaybill
+          // Goods-level fields from getBuyerWaybillGoodsListByNumber
           goods_name: g.goods_name,
           goods_code: g.goods_code,
           unit_id: g.unit_id,
-          unit: g.unit_txt ?? null,
+          unit: g.unit ?? null,
           quantity: g.quantity ? parseFloat(g.quantity) : null,
           unit_price: g.unit_price ? parseFloat(g.unit_price) : null,
           total_price: g.total_price ? parseFloat(g.total_price) : null,
-          dimension_uuid: g.unit_txt ? (unitDimMap.get(g.unit_txt) ?? null) : null,
+          dimension_uuid: g.unit ? (unitDimMap.get(g.unit) ?? null) : null,
         }));
 
         const result = await prisma.rs_waybills_in_items.createMany({

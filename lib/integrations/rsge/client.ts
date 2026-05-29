@@ -558,6 +558,120 @@ export async function getBuyerWaybillGoodsList(
 
 
 /**
+ * Fetches all goods/line-items for a single waybill by its WAYBILL_NUMBER
+ * (the human-readable document number, e.g. "0626162613").
+ *
+ * Uses the same `get_buyer_waybilll_goods_list` SOAP method as the date-range
+ * sync but filters by waybill_number instead of create_date. Returns the full
+ * WaybillGoodsItem[] with all fields (waybill-level + goods-level).
+ *
+ * This is the correct fallback for waybills that were missed by the bulk sync.
+ */
+export async function getBuyerWaybillGoodsListByNumber(
+  su: string,
+  sp: string,
+  waybillNumber: string,
+): Promise<WaybillGoodsItem[]> {
+  const envelope = buildGoodsListByNumberSoapEnvelope(su, sp, waybillNumber);
+
+  const res = await fetch(SOAP_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/xml; charset=utf-8',
+      SOAPAction: '"http://tempuri.org/get_buyer_waybilll_goods_list"',
+    },
+    body: envelope,
+  });
+
+  if (!res.ok) throw new Error(`rs.ge HTTP ${res.status}`);
+
+  const text = await res.text();
+
+  const faultMatch = text.match(/<faultstring[^>]*>([\s\S]*?)<\/faultstring>/);
+  if (faultMatch) throw new Error(`rs.ge SOAP fault: ${faultMatch[1].trim()}`);
+
+  const resultMatch = text.match(
+    /<get_buyer_waybilll_goods_listResult[^>]*>([\s\S]*?)<\/get_buyer_waybilll_goods_listResult>/,
+  );
+  if (!resultMatch) return [];
+
+  const innerXml = resultMatch[1]
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+
+  if (/^-?\d+$/.test(innerXml.trim())) return [];
+
+  const { parseStringPromise } = await import('xml2js');
+  let parsed: Record<string, any>;
+  try {
+    parsed = await parseStringPromise(innerXml, { explicitArray: true });
+  } catch {
+    return [];
+  }
+
+  const rootKey = Object.keys(parsed)[0] ?? '';
+  const rootObj = parsed[rootKey] ?? {};
+  const childKey = Object.keys(rootObj).find((k) => Array.isArray(rootObj[k])) ?? '';
+  const goodsArray: Record<string, any>[] = rootObj[childKey] ?? [];
+
+  const RS_UNIT_MAP: Record<string, string> = {
+    '1':  'ც',     '2':  'კგ',    '3':  'გ',     '4':  'ლ',
+    '5':  'ტ',     '7':  'სმ',    '8':  'მ',     '9':  'კმ',
+    '10': 'კვ.სმ', '11': 'კვ.მ',  '12': 'მ³',    '13': 'მლ',    '14': 'შეკვ',
+  };
+
+  const pick = (obj: Record<string, any>, ...keys: string[]): string | null => {
+    for (const k of keys) {
+      const v = obj[k];
+      if (Array.isArray(v) && v.length > 0) return String(v[0]).trim() || null;
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+    return null;
+  };
+
+  return goodsArray.map((g) => ({
+    waybill_id:      pick(g, 'WAYBILL_NUMBER', 'waybill_number'),
+    type:            pick(g, 'TYPE', 'type'),
+    create_date:     pick(g, 'CREATE_DATE', 'create_date'),
+    activate_date:   pick(g, 'ACTIVATE_DATE', 'activate_date'),
+    begin_date:      pick(g, 'BEGIN_DATE', 'begin_date'),
+    cancel_date:     pick(g, 'CANCEL_DATE', 'cancel_date'),
+    seller_tin:      pick(g, 'TIN', 'tin'),
+    seller_name:     pick(g, 'NAME', 'name'),
+    start_address:   pick(g, 'START_ADDRESS', 'start_address'),
+    end_address:     pick(g, 'END_ADDRESS', 'end_address'),
+    driver_tin:      pick(g, 'DRIVER_TIN', 'driver_tin'),
+    driver_name:     pick(g, 'DRIVER_NAME', 'driver_name'),
+    transport_cost:  pick(g, 'TRANSPORT_COAST', 'transport_cost'),
+    full_amount:     pick(g, 'FULL_AMOUNT', 'full_amount'),
+    car_number:      pick(g, 'CAR_NUMBER', 'car_number'),
+    tran_cost_payer: pick(g, 'TRAN_COST_PAYER', 'tran_cost_payer'),
+    trans_id:        pick(g, 'TRANS_ID', 'trans_id'),
+    is_confirmed:    pick(g, 'IS_CONFIRMED', 'is_confirmed'),
+    status:          pick(g, 'STATUS', 'status'),
+    goods_name:      pick(g, 'W_NAME', 'w_name'),
+    goods_code:      pick(g, 'BAR_CODE', 'bar_code'),
+    unit_id:         pick(g, 'UNIT_ID', 'unit_id'),
+    unit:            (() => {
+                       const id  = pick(g, 'UNIT_ID', 'unit_id');
+                       const txt = pick(g, 'UNIT_TXT', 'unit_txt');
+                       if (!id) return null;
+                       if (id === '99') return txt || 'სხვ';
+                       return txt || RS_UNIT_MAP[id] || id;
+                     })(),
+    quantity:        pick(g, 'QUANTITY', 'quantity'),
+    unit_price:      pick(g, 'PRICE', 'price'),
+    total_price:     pick(g, 'AMOUNT', 'amount'),
+    vat_type:        pick(g, 'VAT_TYPE', 'vat_type'),
+    a_id:            pick(g, 'A_ID', 'a_id'),
+    taxation:        null,
+  }));
+}
+
+/**
  * Parses RS_CREDENTIALS_MAP env var into per-insider RS API credentials.
  *
  * Format (JSON array, wrapping single-quotes are stripped automatically):
