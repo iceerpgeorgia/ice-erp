@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-05-29 Deployment #271
+- Commit: 6456909
+- Production: https://ice-me3w1ic11-iceerp.vercel.app
+- Summary: Waybill detail dialog in payments report and counteragent statement.
+- Changes:
+  - components/figma/waybill-detail-dialog.tsx (NEW): Standalone reusable waybill detail dialog — fetches waybill metadata and items, full teal header with badges/sum/PDF download, project selector with similar-address suggestions, draggable positioning.
+  - components/figma/payments-report-table.tsx: WB- payment IDs rendered as teal clickable links; clicking opens WaybillDetailDialog for the corresponding rs_id.
+  - app/counteragent-statement/[counteragentUuid]/page.tsx: Same WB- link + WaybillDetailDialog added to the paymentId column.
+
 ## 2026-05-29 Deployment #270
 - Commit: 7e18ca7
 - Production: https://ice-4rj66fy7c-iceerp.vercel.app
