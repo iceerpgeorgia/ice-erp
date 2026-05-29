@@ -16,10 +16,20 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className="font-sans text-[14px] text-neutral-950 antialiased">
-        <header className="flex gap-4 px-4 py-3 border-b border-gray-200 bg-white">
-          <Link href="/" className="text-blue-600 hover:underline">Home</Link>
-          <Link href="/dictionaries" className="text-blue-600 hover:underline">Dictionaries</Link>
+      <body className="min-h-screen bg-background text-foreground antialiased">
+        <header className="flex h-topbar items-center gap-6 border-b border-border bg-card px-6 shadow-xs">
+          <Link
+            href="/"
+            className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+          >
+            Home
+          </Link>
+          <Link
+            href="/dictionaries"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Dictionaries
+          </Link>
         </header>
 
         <Providers>

@@ -45,65 +45,159 @@
   background: #555;
 }
 
-/* Figma design tokens as CSS variables to support shadcn/ui and figma components */
+/* ===========================================================================
+ * Corporate Minimalist Design System — v1
+ * Single source of truth for colors, typography, spacing, elevation.
+ * Accent: slate-blue. Neutrals: cool gray. Designed for dense data tables.
+ * =========================================================================== */
 :root {
-	--font-size: 16px;
-	--background: #ffffff;
-	--foreground: oklch(0.145 0 0);
-	--card: #ffffff;
-	--card-foreground: oklch(0.145 0 0);
-	--popover: oklch(1 0 0);
-	--popover-foreground: oklch(0.145 0 0);
-	--primary: #030213;
-	--primary-foreground: oklch(1 0 0);
-	--secondary: oklch(0.95 0.0058 264.53);
-	--secondary-foreground: #030213;
-	--muted: #ececf0;
-	--muted-foreground: #717182;
-	--accent: #e9ebef;
-	--accent-foreground: #030213;
-	--destructive: #d4183d;
-	--destructive-foreground: #ffffff;
-	--success: #dcfce7;
-	--success-foreground: #166534;
-	--error: #fef2f2;
-	--error-foreground: #dc2626;
-	--border: rgba(0, 0, 0, 0.1);
-	--input: transparent;
-	--input-background: #f3f3f5;
-	--switch-background: #cbced4;
-	--font-weight-medium: 500;
+	/* Type scale base */
+	--font-size: 14px;
 	--font-weight-normal: 400;
-	--ring: oklch(0.708 0 0);
-	--radius: 0.625rem;
+	--font-weight-medium: 500;
+	--font-weight-semibold: 600;
+
+	/* Neutral gray scale (cool) */
+	--gray-25:  #fcfcfd;
+	--gray-50:  #f8fafc;
+	--gray-100: #f1f5f9;
+	--gray-200: #e2e8f0;
+	--gray-300: #cbd5e1;
+	--gray-400: #94a3b8;
+	--gray-500: #64748b;
+	--gray-600: #475569;
+	--gray-700: #334155;
+	--gray-800: #1e293b;
+	--gray-900: #0f172a;
+
+	/* Brand accent — corporate slate-blue */
+	--brand-50:  #eef2ff;
+	--brand-100: #e0e7ff;
+	--brand-200: #c7d2fe;
+	--brand-300: #a5b4fc;
+	--brand-400: #818cf8;
+	--brand-500: #6366f1;
+	--brand-600: #4f46e5;
+	--brand-700: #4338ca;
+	--brand-800: #3730a3;
+	--brand-900: #312e81;
+
+	/* Surfaces */
+	--background: var(--gray-50);
+	--foreground: var(--gray-900);
+	--card: #ffffff;
+	--card-foreground: var(--gray-900);
+	--popover: #ffffff;
+	--popover-foreground: var(--gray-900);
+
+	/* Primary (interactive) */
+	--primary: var(--brand-600);
+	--primary-foreground: #ffffff;
+
+	/* Secondary surface (subtle tinted button/badge) */
+	--secondary: var(--gray-100);
+	--secondary-foreground: var(--gray-800);
+
+	/* Muted (de-emphasised text/backgrounds) */
+	--muted: var(--gray-100);
+	--muted-foreground: var(--gray-500);
+
+	/* Accent (hover surfaces) */
+	--accent: var(--gray-100);
+	--accent-foreground: var(--gray-900);
+
+	/* Semantic state */
+	--destructive: #dc2626;
+	--destructive-foreground: #ffffff;
+	--success: #16a34a;
+	--success-foreground: #ffffff;
+	--warning: #d97706;
+	--warning-foreground: #ffffff;
+	--info: var(--brand-600);
+	--info-foreground: #ffffff;
+
+	/* Soft semantic backgrounds (for badges/banners) */
+	--success-soft: #dcfce7;
+	--success-soft-foreground: #15803d;
+	--error: #fee2e2;
+	--error-foreground: #b91c1c;
+	--warning-soft: #fef3c7;
+	--warning-soft-foreground: #b45309;
+	--info-soft: var(--brand-50);
+	--info-soft-foreground: var(--brand-700);
+
+	/* Borders / inputs / focus */
+	--border: var(--gray-200);
+	--border-strong: var(--gray-300);
+	--input: transparent;
+	--input-background: #ffffff;
+	--input-border: var(--gray-300);
+	--switch-background: var(--gray-300);
+	--ring: var(--brand-500);
+	--radius: 0.5rem;
+
+	/* Elevation */
+	--shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+	--shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05), 0 1px 3px 0 rgba(15, 23, 42, 0.06);
+	--shadow-md: 0 4px 8px -2px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+	--shadow-lg: 0 12px 24px -6px rgba(15, 23, 42, 0.10), 0 4px 8px -4px rgba(15, 23, 42, 0.06);
+
+	/* Table tokens */
+	--table-header-bg: var(--gray-50);
+	--table-header-fg: var(--gray-600);
+	--table-row-hover: var(--gray-50);
+	--table-row-selected: var(--brand-50);
+	--table-zebra: rgba(241, 245, 249, 0.45);
+	--table-border: var(--gray-200);
+	--table-row-h-compact: 32px;
+	--table-row-h-cozy: 40px;
+	--table-row-h-comfortable: 48px;
+
+	/* Layout */
+	--sidebar-width: 248px;
+	--sidebar-width-collapsed: 64px;
+	--topbar-height: 56px;
 }
 
 .dark {
-	--background: oklch(0.145 0 0);
-	--foreground: oklch(0.985 0 0);
-	--card: oklch(0.145 0 0);
-	--card-foreground: oklch(0.985 0 0);
-	--popover: oklch(0.145 0 0);
-	--popover-foreground: oklch(0.985 0 0);
-	--primary: oklch(0.985 0 0);
-	--primary-foreground: oklch(0.205 0 0);
-	--secondary: oklch(0.269 0 0);
-	--secondary-foreground: oklch(0.985 0 0);
-	--muted: oklch(0.269 0 0);
-	--muted-foreground: oklch(0.708 0 0);
-	--accent: oklch(0.269 0 0);
-	--accent-foreground: oklch(0.985 0 0);
-	--destructive: oklch(0.396 0.141 25.723);
-	--destructive-foreground: oklch(0.637 0.237 25.331);
-	--success: oklch(0.269 0.07 143.72);
-	--success-foreground: oklch(0.92 0.08 143.72);
-	--error: oklch(0.269 0.07 25.723);
-	--error-foreground: oklch(0.92 0.08 25.723);
-	--border: oklch(0.269 0 0);
-	--input: oklch(0.269 0 0);
-	--ring: oklch(0.439 0 0);
-	--font-weight-medium: 500;
-	--font-weight-normal: 400;
+	--background: var(--gray-900);
+	--foreground: var(--gray-50);
+	--card: var(--gray-800);
+	--card-foreground: var(--gray-50);
+	--popover: var(--gray-800);
+	--popover-foreground: var(--gray-50);
+	--primary: var(--brand-500);
+	--primary-foreground: #ffffff;
+	--secondary: var(--gray-800);
+	--secondary-foreground: var(--gray-100);
+	--muted: var(--gray-800);
+	--muted-foreground: var(--gray-400);
+	--accent: var(--gray-800);
+	--accent-foreground: var(--gray-50);
+	--destructive: #ef4444;
+	--destructive-foreground: #ffffff;
+	--success: #22c55e;
+	--success-foreground: #ffffff;
+	--success-soft: rgba(34, 197, 94, 0.15);
+	--success-soft-foreground: #86efac;
+	--error: rgba(239, 68, 68, 0.15);
+	--error-foreground: #fca5a5;
+	--warning-soft: rgba(234, 179, 8, 0.15);
+	--warning-soft-foreground: #fcd34d;
+	--info-soft: rgba(99, 102, 241, 0.15);
+	--info-soft-foreground: #a5b4fc;
+	--border: var(--gray-700);
+	--border-strong: var(--gray-600);
+	--input: var(--gray-800);
+	--input-background: var(--gray-800);
+	--input-border: var(--gray-700);
+	--ring: var(--brand-400);
+	--table-header-bg: var(--gray-800);
+	--table-header-fg: var(--gray-400);
+	--table-row-hover: rgba(255, 255, 255, 0.04);
+	--table-row-selected: rgba(99, 102, 241, 0.12);
+	--table-zebra: rgba(255, 255, 255, 0.02);
+	--table-border: var(--gray-700);
 }
 
 /* Tailwind v4 token bridge: expose color tokens for utilities like bg-background, text-muted-foreground, border-border */
@@ -139,11 +233,84 @@
 		border-color: var(--border);
 	}
 	body {
-		/* Avoid @apply for token utilities in Tailwind v4; set directly */
 		background-color: var(--background);
 		color: var(--foreground);
 		font-size: var(--font-size);
+		font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+			"Helvetica Neue", Arial, sans-serif;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		text-rendering: optimizeLegibility;
 	}
+	h1 { font-size: 24px; line-height: 32px; font-weight: 600; letter-spacing: -0.01em; color: var(--foreground); }
+	h2 { font-size: 20px; line-height: 28px; font-weight: 600; letter-spacing: -0.01em; color: var(--foreground); }
+	h3 { font-size: 16px; line-height: 24px; font-weight: 600; color: var(--foreground); }
+	h4 { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--foreground); }
+}
+
+/* ---------- Table utility layer (used by shared DataTable + table.tsx) ---------- */
+@layer components {
+	.ds-table-wrap {
+		position: relative;
+		width: 100%;
+		overflow: auto;
+		border: 1px solid var(--table-border);
+		border-radius: var(--radius);
+		background: var(--card);
+		box-shadow: var(--shadow-xs);
+	}
+	.ds-table {
+		width: 100%;
+		border-collapse: separate;
+		border-spacing: 0;
+		font-size: 13px;
+		color: var(--foreground);
+	}
+	.ds-table thead th {
+		position: sticky;
+		top: 0;
+		z-index: 2;
+		background: var(--table-header-bg);
+		color: var(--table-header-fg);
+		font-weight: 600;
+		font-size: 11px;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		text-align: left;
+		padding: 10px 12px;
+		border-bottom: 1px solid var(--table-border);
+		white-space: nowrap;
+	}
+	.ds-table tbody td {
+		padding: 10px 12px;
+		border-bottom: 1px solid var(--table-border);
+		vertical-align: middle;
+		white-space: nowrap;
+	}
+	.ds-table tbody tr:last-child td { border-bottom: 0; }
+	.ds-table tbody tr:hover td { background: var(--table-row-hover); }
+	.ds-table tbody tr[data-selected="true"] td { background: var(--table-row-selected); }
+	.ds-table[data-zebra="true"] tbody tr:nth-child(even) td { background: var(--table-zebra); }
+
+	.ds-table[data-density="compact"] thead th,
+	.ds-table[data-density="compact"] tbody td { padding: 6px 10px; font-size: 12px; }
+	.ds-table[data-density="cozy"] thead th,
+	.ds-table[data-density="cozy"] tbody td { padding: 10px 12px; }
+	.ds-table[data-density="comfortable"] thead th,
+	.ds-table[data-density="comfortable"] tbody td { padding: 14px 16px; font-size: 14px; }
+
+	.ds-table .ds-col-sticky-left {
+		position: sticky;
+		left: 0;
+		z-index: 1;
+		background: var(--card);
+		box-shadow: 1px 0 0 0 var(--table-border);
+	}
+	.ds-table thead .ds-col-sticky-left {
+		z-index: 3;
+		background: var(--table-header-bg);
+	}
+	.ds-table tbody tr:hover .ds-col-sticky-left { background: var(--table-row-hover); }
 }
 
 @import './dictionaries/countries/countries-table.css';
