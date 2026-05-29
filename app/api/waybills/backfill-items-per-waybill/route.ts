@@ -12,14 +12,18 @@ export const maxDuration = 300;
  * `get_buyer_waybilll_goods_list` SOAP method filtered by waybill_number
  * (more reliable for waybills that were missed by the date-range bulk sync).
  *
- * Body: { rs_ids: string[] }   — list of rs_id values to backfill
+ * Body (one of):
+ *   { rs_ids: string[] }         — specific rs_id values to backfill
+ *   { all_missing: true,         — backfill all waybills missing items
+ *     limit?: number,            — max to process (default 400)
+ *     offset?: number }          — for pagination (default 0)
  *
  * Query params:
  *   ?skip_existing=true  (default) — skip waybills that already have items
  *   ?skip_existing=false           — re-insert all (deletes existing first)
  *   ?dry_run=true                  — report counts without writing
  *
- * Returns: { processed, inserted, skipped, already_had_items, errors }
+ * Returns: { processed, inserted, skipped, already_had_items, errors, total_missing?, next_offset? }
  */
 export async function POST(req: NextRequest) {
   const { requireAuthOrCron, isAuthError } = await import('@/lib/auth-guard');
@@ -34,17 +38,44 @@ export async function POST(req: NextRequest) {
   const skipExisting = url.searchParams.get('skip_existing') !== 'false';
   const dryRun = url.searchParams.get('dry_run') === 'true';
 
-  let body: { rs_ids?: unknown };
+  let body: { rs_ids?: unknown; all_missing?: unknown; limit?: unknown; offset?: unknown };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  if (!Array.isArray(body.rs_ids) || body.rs_ids.length === 0)
-    return NextResponse.json({ error: 'rs_ids must be a non-empty array' }, { status: 400 });
+  let rsIds: string[];
+  let totalMissing: number | undefined;
+  let nextOffset: number | undefined;
 
-  const rsIds: string[] = body.rs_ids.map(String);
+  if (body.all_missing === true) {
+    // Find all rs_ids that have no items in rs_waybills_in_items
+    const limit = typeof body.limit === 'number' ? Math.min(body.limit, 500) : 400;
+    const offset = typeof body.offset === 'number' ? body.offset : 0;
+
+    const allWaybills = await prisma.rs_waybills_in_api.findMany({
+      select: { rs_id: true },
+      orderBy: { rs_id: 'asc' },
+    });
+    const withItems = await prisma.rs_waybills_in_items.findMany({
+      select: { rs_id: true },
+      distinct: ['rs_id'],
+    });
+    const hasItemsSet = new Set(withItems.map((r) => r.rs_id as string));
+    const allMissing = allWaybills
+      .map((w) => w.rs_id as string)
+      .filter((id) => !hasItemsSet.has(id));
+
+    totalMissing = allMissing.length;
+    const page = allMissing.slice(offset, offset + limit);
+    rsIds = page;
+    nextOffset = offset + page.length < totalMissing ? offset + page.length : undefined;
+  } else {
+    if (!Array.isArray(body.rs_ids) || body.rs_ids.length === 0)
+      return NextResponse.json({ error: 'Provide rs_ids array or all_missing:true' }, { status: 400 });
+    rsIds = (body.rs_ids as unknown[]).map(String);
+  }
 
   // Load waybill metadata from DB
   const waybillRows = await prisma.rs_waybills_in_api.findMany({
@@ -189,7 +220,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Small delay to avoid hammering RS.ge
-    await new Promise((r) => setTimeout(r, 300));
+    await new Promise((r) => setTimeout(r, 150));
   }
 
   return NextResponse.json({
@@ -198,6 +229,8 @@ export async function POST(req: NextRequest) {
     skipped,
     already_had_items: alreadyHadItems,
     dry_run: dryRun,
-    errors: errors.slice(0, 20),
+    errors: errors.slice(0, 50),
+    ...(totalMissing !== undefined && { total_missing: totalMissing }),
+    ...(nextOffset !== undefined && { next_offset: nextOffset }),
   });
 }
