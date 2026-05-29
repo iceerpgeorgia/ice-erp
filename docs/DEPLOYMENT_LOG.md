@@ -1,5 +1,20 @@
 # Deployment Log
 
+## 2026-05-29 Deployment #273
+- Commit: e2105c7
+- Production: https://ice-hay8xshqt-iceerp.vercel.app
+- Summary: Fix per-waybill items backfill — use waybill_no with get_buyer_waybilll_goods_list instead of rs_id with get_waybill; backfill ran and inserted 17 items for 16 previously empty waybills.
+- Changes:
+  - app/api/waybills/backfill-items-per-waybill/route.ts: Switched from getWaybill(rs_id) to getBuyerWaybillGoodsListByNumber(waybill_no); fixed goods field mapping (unit_txt → unit); improved error logging with waybill_no in zero-goods message.
+  - lib/integrations/rsge/client.ts: Added getBuyerWaybillGoodsListByNumber() — calls get_buyer_waybilll_goods_list filtered by waybill_number, returns full WaybillGoodsItem[].
+
+## 2026-05-29 Deployment #272
+- Commit: 616ea62
+- Production: https://ice-g7g522jg1-iceerp.vercel.app
+- Summary: Add per-waybill items backfill endpoint (initial version — had wrong ID type bug, fixed in #273).
+- Changes:
+  - app/api/waybills/backfill-items-per-waybill/route.ts (NEW): POST endpoint accepting rs_ids[], fetches goods per waybill and inserts into rs_waybills_in_items.
+
 ## 2026-05-29 Deployment #271
 - Commit: 6456909
 - Production: https://ice-me3w1ic11-iceerp.vercel.app
