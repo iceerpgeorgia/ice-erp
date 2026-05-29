@@ -46,6 +46,7 @@ import * as XLSX from 'xlsx-js-style';
 import { AddProjectDialog } from './add-project-dialog';
 import { PaymentAttachments } from './payment-attachments';
 import { BundleDistributionGrid, type BundleDistributionRow } from './bundle-distribution-grid';
+import { WaybillDetailDialog } from './waybill-detail-dialog';
 
 
 type PaymentReport = {
@@ -173,6 +174,7 @@ export function PaymentsReportTable() {
   const [baseInfoLoading, setBaseInfoLoading] = useState(false);
   const [baseInfoError, setBaseInfoError] = useState<string | null>(null);
   const [baseInfo, setBaseInfo] = useState<any | null>(null);
+  const [waybillDialogRsId, setWaybillDialogRsId] = useState<string | null>(null);
   const [isBankExporting, setIsBankExporting] = useState(false);
   const [isAOOpen, setIsAOOpen] = useState(false);
   const [aoEffectiveDate, setAoEffectiveDate] = useState('');
@@ -3745,9 +3747,20 @@ export function PaymentsReportTable() {
                         </div>
                       ) : col.key === 'paymentId' ? (
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="truncate">
-                            {formatValue(row[col.key], col.format, col.key)}
-                          </span>
+                          {row.paymentId?.startsWith('WB-') ? (
+                            <button
+                              type="button"
+                              className="truncate text-[#2e7d7d] hover:underline font-medium text-left"
+                              title="Open waybill details"
+                              onClick={() => setWaybillDialogRsId(row.paymentId.replace('WB-', ''))}
+                            >
+                              {formatValue(row[col.key], col.format, col.key)}
+                            </button>
+                          ) : (
+                            <span className="truncate">
+                              {formatValue(row[col.key], col.format, col.key)}
+                            </span>
+                          )}
                           <button
                             type="button"
                             className="text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded p-1"
@@ -4242,6 +4255,7 @@ export function PaymentsReportTable() {
       </DialogContent>
     </Dialog>
 
+    <WaybillDetailDialog rsId={waybillDialogRsId} onClose={() => setWaybillDialogRsId(null)} />
     </div>
   );
 }

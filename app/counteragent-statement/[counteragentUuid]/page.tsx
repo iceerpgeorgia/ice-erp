@@ -20,6 +20,7 @@ import {
 import { BankTransactionsTable } from '../../../components/figma/bank-transactions-table';
 import type { BankTransaction } from '../../../components/figma/bank-transactions-table';
 import { AddProjectDialog } from '../../../components/figma/add-project-dialog';
+import { WaybillDetailDialog } from '../../../components/figma/waybill-detail-dialog';
 import { Combobox } from '../../../components/ui/combobox';
 import { Label } from '../../../components/ui/label';
 import { ColumnFilterPopover } from '../../../components/figma/shared/column-filter-popover';
@@ -190,6 +191,7 @@ export default function CounteragentStatementPage() {
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
   const [bulkPaymentId, setBulkPaymentId] = useState('');
   const [isBulkSaving, setIsBulkSaving] = useState(false);
+  const [waybillDialogRsId, setWaybillDialogRsId] = useState<string | null>(null);
 
   const normalizePaymentKey = useCallback((value: string) => {
     const trimmed = value.trim();
@@ -2040,7 +2042,18 @@ export default function CounteragentStatementPage() {
                             className={`px-4 py-2 text-sm ${col.align === 'right' ? 'text-right' : 'text-left'}`}
                             style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
                           >
-                            {displayValue}
+                            {col.key === 'paymentId' && typeof value === 'string' && value.startsWith('WB-') ? (
+                              <button
+                                type="button"
+                                className="text-[#2e7d7d] hover:underline font-medium"
+                                title="Open waybill details"
+                                onClick={() => setWaybillDialogRsId(value.replace('WB-', ''))}
+                              >
+                                {displayValue}
+                              </button>
+                            ) : (
+                              displayValue
+                            )}
                           </td>
                         );
                       })}
@@ -2246,6 +2259,7 @@ export default function CounteragentStatementPage() {
           )}
         </div>
       )}
+      <WaybillDetailDialog rsId={waybillDialogRsId} onClose={() => setWaybillDialogRsId(null)} />
     </div>
   );
 }
