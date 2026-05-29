@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 
   if (body.all_missing === true) {
     // Find all rs_ids that have no items in rs_waybills_in_items
-    const limit = typeof body.limit === 'number' ? Math.min(body.limit, 500) : 400;
+    const limit = typeof body.limit === 'number' ? Math.min(body.limit, 500) : 150;
     const offset = typeof body.offset === 'number' ? body.offset : 0;
 
     const allWaybills = await prisma.rs_waybills_in_api.findMany({
@@ -218,9 +218,6 @@ export async function POST(req: NextRequest) {
       errors.push(`${rsId}: ${msg}`);
       skipped++;
     }
-
-    // Small delay to avoid hammering RS.ge
-    await new Promise((r) => setTimeout(r, 150));
   }
 
   return NextResponse.json({
