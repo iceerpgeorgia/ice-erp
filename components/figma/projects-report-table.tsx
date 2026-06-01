@@ -350,7 +350,7 @@ export function ProjectsReportTable() {
   const [fcBulkSums, setFcBulkSums] = useState<Map<string, { accrual: number; order: number }>>(new Map());
   const [projBulkSums, setProjBulkSums] = useState<Map<string, { accrual: number; order: number }>>(new Map());
   const [bulkDragCopy, setBulkDragCopy] = useState<{
-    table: 'fc' | 'proj'; col: 'accrual' | 'order'; srcRow: number; dstRow: number; value: string;
+    table: 'fc' | 'proj'; col: 'accrual' | 'order' | 'date'; srcRow: number; dstRow: number; value: string;
   } | null>(null);
 
   // ── Ledger sums for bulk dialogs ──
@@ -2823,7 +2823,7 @@ export function ProjectsReportTable() {
                           </div>
                         </td>
                         <td className="px-2 py-1">
-                          <div className="flex items-center gap-1">
+                          <div className="relative flex items-center gap-1">
                             <Input
                               type="text"
                               value={row.date}
@@ -2842,6 +2842,11 @@ export function ProjectsReportTable() {
                               onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setFcBulkJobs(prev => prev.map((r, j) => j === i ? { ...r, date: `${d}.${m}.${y}` } : r)); } }}
                               className="border border-gray-300 rounded cursor-pointer w-7 h-7 flex-shrink-0 text-[0px] [color-scheme:light]"
                               title="Pick date"
+                            />
+                            <div
+                              className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-blue-400 hover:bg-blue-600 cursor-crosshair select-none"
+                              title="Drag to copy date"
+                              onMouseDown={(e) => { e.preventDefault(); setBulkDragCopy({ table: 'fc', col: 'date', srcRow: i, dstRow: i, value: row.date }); }}
                             />
                           </div>
                         </td>
@@ -3012,7 +3017,7 @@ export function ProjectsReportTable() {
                             </div>
                           </td>
                           <td className="px-2 py-1">
-                            <div className="flex items-center gap-1">
+                            <div className="relative flex items-center gap-1">
                               <Input
                                 type="text" value={row.date}
                                 onChange={(e) => {
@@ -3028,6 +3033,11 @@ export function ProjectsReportTable() {
                                 onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setProjBulkRows(prev => prev.map((r, j) => j === i ? { ...r, date: `${d}.${m}.${y}` } : r)); } }}
                                 className="border border-gray-300 rounded cursor-pointer w-7 h-7 flex-shrink-0 text-[0px] [color-scheme:light]"
                                 title="Pick date"
+                              />
+                              <div
+                                className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-blue-400 hover:bg-blue-600 cursor-crosshair select-none"
+                                title="Drag to copy date"
+                                onMouseDown={(e) => { e.preventDefault(); setBulkDragCopy({ table: 'proj', col: 'date', srcRow: i, dstRow: i, value: row.date }); }}
                               />
                             </div>
                           </td>
