@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-06-01 Deployment #263
+- Commit: e995420
+- Production: https://ice-cgsyyuo5a-iceerp.vercel.app
+- Summary: Global dd.mm.yyyy date input format across all forms; fix duplicate L0001 job row in Deka Lisi project report.
+- Changes:
+  - 18 files: All native `type="date"` main inputs replaced with text+calendar companion pattern (dd.mm.yyyy auto-dot, ISO conversion at API call) across counteragent forms, attachment dialogs, bank accounts/transactions, NBG rates, payment/project/services reports, counteragent statement, admin attachments.
+  - DB fix: Updated payment `3a55e2_01_705744` job_uuid to correct L0001 (`78089c5a`) — was pointing to orphan job UUID causing duplicate row in Deka Lisi project report.
+  - components/figma/projects-report-table.tsx: Added `comment` field to `fcBulkJobs` and `projBulkRows` type definitions.
+  - components/figma/payment-attachments.tsx + app/counteragent-statement/[counteragentUuid]/page.tsx: Fixed missing `})` closings in JSON.stringify calls.
+
 ## 2026-06-01 Deployment #262
 - Commit: 6558028
 - Production: https://ice-bkap2a4bc-iceerp.vercel.app
