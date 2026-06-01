@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-01 Deployment #264
+- Commit: 82116b8
+- Production: https://ice-c6x0zt35a-iceerp.vercel.app
+- Summary: Add drag-copy for date column in FC Bulk and Proj Bulk ledger entry dialogs.
+- Changes:
+  - components/figma/projects-report-table.tsx: Expanded `bulkDragCopy` col union type to include `'date'`; added blue drag-handle div to date cell in both FC Bulk and Proj Bulk dialogs (matching existing accrual/order pattern).
+
 ## 2026-06-01 Deployment #263
 - Commit: e995420
 - Production: https://ice-cgsyyuo5a-iceerp.vercel.app
