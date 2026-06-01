@@ -1,109 +1,14 @@
 # Deployment Log
 
-## 2026-05-29 Deployment #273
-- Commit: e2105c7
-- Production: https://ice-hay8xshqt-iceerp.vercel.app
-- Summary: Fix per-waybill items backfill — use waybill_no with get_buyer_waybilll_goods_list instead of rs_id with get_waybill; backfill ran and inserted 17 items for 16 previously empty waybills.
+## 2026-06-01 Deployment #262
+- Commit: 6558028
+- Production: https://ice-bkap2a4bc-iceerp.vercel.app
+- Summary: Projects report all jobs via job_projects join table; waybills advanced text filters; payments ClearFiltersButton count fix.
 - Changes:
-  - app/api/waybills/backfill-items-per-waybill/route.ts: Switched from getWaybill(rs_id) to getBuyerWaybillGoodsListByNumber(waybill_no); fixed goods field mapping (unit_txt → unit); improved error logging with waybill_no in zero-goods message.
-  - lib/integrations/rsge/client.ts: Added getBuyerWaybillGoodsListByNumber() — calls get_buyer_waybilll_goods_list filtered by waybill_number, returns full WaybillGoodsItem[].
-
-## 2026-05-29 Deployment #272
-- Commit: 616ea62
-- Production: https://ice-g7g522jg1-iceerp.vercel.app
-- Summary: Add per-waybill items backfill endpoint (initial version — had wrong ID type bug, fixed in #273).
-- Changes:
-  - app/api/waybills/backfill-items-per-waybill/route.ts (NEW): POST endpoint accepting rs_ids[], fetches goods per waybill and inserts into rs_waybills_in_items.
-
-## 2026-05-29 Deployment #271
-- Commit: 6456909
-- Production: https://ice-me3w1ic11-iceerp.vercel.app
-- Summary: Waybill detail dialog in payments report and counteragent statement.
-- Changes:
-  - components/figma/waybill-detail-dialog.tsx (NEW): Standalone reusable waybill detail dialog — fetches waybill metadata and items, full teal header with badges/sum/PDF download, project selector with similar-address suggestions, draggable positioning.
-  - components/figma/payments-report-table.tsx: WB- payment IDs rendered as teal clickable links; clicking opens WaybillDetailDialog for the corresponding rs_id.
-  - app/counteragent-statement/[counteragentUuid]/page.tsx: Same WB- link + WaybillDetailDialog added to the paymentId column.
-
-## 2026-05-29 Deployment #270
-- Commit: 7e18ca7
-- Production: https://ice-4rj66fy7c-iceerp.vercel.app
-- Summary: Attachment upload form — auto-populate and lock project from payment.
-- Changes:
-  - app/api/payments/meta/route.ts: Added project_uuid + project_name (via LEFT JOIN projects) to the meta response.
-  - components/figma/payment-attachments.tsx: When the payment has a linked project, project field is shown below "Attach to" as a read-only grayed div (cannot be changed); selectedProject is auto-set on load and preserved on form reset; when payment has no project, behavior unchanged.
-
-## 2026-05-28 Deployment #269
-- Commit: d3a9848
-- Production: https://ice-mlrgtttdk-iceerp.vercel.app
-- Summary: Projects report — fix waybill paired FC column bugs.
-- Changes:
-  - components/figma/projects-report-table.tsx: (1) Waybill FC column now hidden when FC filter is set to "income" (it is a cost FC); (2) Column header now respects the fcFullMode toggle — shows full validation description when enabled, short code otherwise; hover tooltip shows validation when in compact mode.
-
-## 2026-05-28 Deployment #268
-- Commit: 872af97
-- Production: https://ice-5lqiaiuv1-iceerp.vercel.app
-- Summary: Projects report — "Show zero metrics" toggle in settings panel.
-- Changes:
-  - components/figma/projects-report-table.tsx: Added showNulls state (default true); when toggled off, FC columns where all job×metric values are zero are filtered out of the grid. Persisted to localStorage as projectsReportShowNulls. Toggle appears in Settings > Display section.
-
-## 2026-05-29 Deployment #267
-- Commit: f83199a
-- Production: https://ice-6cnpiljqg-iceerp.vercel.app
-- Summary: Consolidate waybill-derived payments — one payment per counteragent+project+FC+currency group.
-- Changes:
-  - lib/waybills/sync-waybill-payment.ts: Rewritten steps 8+9 — group-based payment lookup (finds existing WB- payment with matching counteragent/project/FC/currency); if found, reuses it; if not, creates WB-{rs_id} as canonical. Ledger entries use DELETE+INSERT (matched by comment 'Waybill: {waybill_no}') to support project re-binding.
-  - AGENTS.md: Updated waybill-derived payments Key Rules to document group payment design.
-  - DB: _consolidate_wb_payments.js ran once — consolidated 12,880 WB- payments → 2,262 canonical payments (one per group); 11,458 ledger entries preserved.
-
-## 2026-05-29 Deployment #266
-- Commit: 016e9a8
-- Production: https://ice-dbwd12t9a-iceerp.vercel.app
-- Summary: Backfill waybill-derived payments for all existing bound waybills.
-- Changes:
-  - _backfill_waybills_from_api.js: Script to call syncWaybillPayment for all waybills with project_uuid set; created initial 12,880 WB- payments.
-
-## 2026-05-28 Deployment #265
-- Commit: d3a3478
-- Production: https://ice-3pmpgbzyn-iceerp.vercel.app
-- Summary: Waybill-derived payments — auto-create payment + ledger entry on project binding.
-- Changes:
-  - lib/waybills/sync-waybill-payment.ts: New core function; upserts WB-{rs_id} payment (waybill_derived=true, GEL, cost FC from project→income FC→default_code_fc or fallback 3.9.4) and one payments_ledger entry per waybill; negates amount for "უკან დაბრუნება" return type.
-  - app/api/waybills/route.ts (PATCH): Calls syncWaybillPayment after project_uuid/counteragent_uuid changes.
-  - app/api/waybills/bulk/route.ts (PATCH): Calls syncWaybillPayment for all updated waybills when project binding changes in bulk.
-  - app/api/payments-ledger/route.ts: GET includes waybill_derived flag; POST/DELETE return 403 for waybill-derived payments.
-  - components/figma/payments-ledger-table.tsx: waybillDerived field in PaymentLedgerEntry type; delete button replaced with "WB" badge for waybill-derived entries.
-  - prisma/schema.prisma: Removed @@unique on payments composite key (now managed as partial DB index).
-  - DB: Dropped payments_project_uuid_counteragent_uuid_financial_code_uu_key constraint; added partial unique index payments_composite_unique_non_waybill (WHERE waybill_derived = FALSE).
-  - _apply_waybill_payments_constraint.js: Migration script for the constraint change.
-  - AGENTS.md: Documented waybill-derived payments architecture.
-
-## 2026-05-28 Deployment #264
-- Commit: dcd6bb9
-- Production: https://ice-9875h469b-iceerp.vercel.app
-- Summary: Sync similar waybill checks across address/waybill views + show default cost FC in financial codes table.
-
-
-- Commit: 1158f1b
-- Production: https://ice-j7b5zo8tr-iceerp.vercel.app
-- Summary: Project selector + LLM similar-address binding in waybill items dialog.
-- Changes:
-  - components/figma/waybills-table.tsx: Project combobox in items dialog header; shows current project, saves immediately on change; "Find similar addresses" button triggers LLM search; suggestions panel with checkboxes pre-checked at ≥70% confidence; "Bind N waybills to project" bulk action.
-  - app/api/waybills/similar-address/route.ts: New POST endpoint; accepts project_uuid to exclude already-bound waybills; pg_trgm GIN-indexed candidate search + Groq llama-3.3-70b-versatile refinement (is_match/confidence/reason); returns numeric id per candidate for direct bulk binding.
-  - DB: pg_trgm extension + GIN index on rs_waybills_in_api.shipping_address (enabled in prior session).
-  - Vercel: GROQ_API_KEY added to production environment.
-  - package.json: openai 6.39.0 dependency added.
-
-## 2026-05-27 Deployment #262
-- Commit: d06e060
-- Production: https://ice-ndqxw0wk1-iceerp.vercel.app
-- Summary: Waybill items inventory bindings + project sync via DB triggers and junction table.
-- Changes:
-  - DB: Applied 8,695 inventory_uuid bindings to rs_waybills_in_items from RS.GE - WB_Items_IN.xlsx (waybill_no + goods_name match key).
-  - DB: Trigger trg_sync_waybill_items_project on rs_waybills_in_api — propagates project_uuid to follower items when waybill project changes.
-  - DB: Backfilled 9,822 items with project_uuid from their parent waybill.
-  - DB: Created rs_waybills_in_projects junction table (rs_id, project_uuid) for many-to-many waybill↔project bindings; backfilled 5,385 rows.
-  - DB: Trigger trg_refresh_waybill_project_bindings on rs_waybills_in_items — maintains junction table automatically on item project changes.
-  - prisma/schema.prisma: Added rs_waybills_in_projects model with relations to rs_waybills_in_api and projects; added waybill_projects back-relation on rs_waybills_in_api and projects.
+  - app/api/projects-report/route.ts: allJobRows query now uses job_projects JOIN jobs instead of jobs.project_uuid direct column — fixes Add Ledger / FC Bulk / Proj Bulk dialogs missing jobs bound via junction table.
+  - app/api/waybills/route.ts: Advanced text filter support (contains/notContains/equals/notEquals/startsWith/endsWith/blank/notBlank) applied server-side; counteragent_name resolved via ILIKE on counteragents table.
+  - components/figma/waybills-table.tsx: advancedFilters state + serialization; ColumnFilterPopover wired for text columns; ClearFiltersButton includes advancedFilters.size.
+  - components/figma/payments-report-table.tsx: Fixed ClearFiltersButton activeCount overcounting (removed incorrect hasActiveFilters boolean addition).
 
 ## 2026-05-26 Deployment #261
 - Commit: 4cc0ecd
