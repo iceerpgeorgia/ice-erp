@@ -1,5 +1,20 @@
 # Deployment Log
 
+## 2026-06-01 Deployment #265
+- Commit: b32bf12
+- Production: https://ice-1en25wpqo-iceerp.vercel.app
+- Summary: Phase 2+3 UI refactor — app shell, sidebar, home page, dictionaries index redesign.
+- Changes:
+  - app/app-shell.tsx: New — SidebarProvider + AppSidebar + Topbar (trigger + PageTitle + user dropdown)
+  - components/app-sidebar.tsx: New — 6 nav groups, 40+ items, collapsible icon mode
+  - components/shared/page-header.tsx: New — reusable page header with breadcrumb + actions slot
+  - app/page.tsx: Redesigned home — welcome header, quick access card grid, insider selector with shadcn components
+  - app/dictionaries/page.tsx: Redesigned as categorized card grid (Banking/Waybills/Finance/Reports/Reference/Admin)
+  - app/layout.tsx: Uses AppShell wrapper
+  - app/page-title.tsx: Added className prop to render title as span in topbar
+  - app/globals.css + tailwind.config.js: Added sidebar design tokens (brand scale, sidebar color vars)
+  - components/ui/*.tsx: Stripped @version suffixes from all shadcn imports; added @radix-ui/react-separator
+
 ## 2026-06-01 Deployment #264
 - Commit: 82116b8
 - Production: https://ice-c6x0zt35a-iceerp.vercel.app
