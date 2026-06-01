@@ -524,7 +524,11 @@ export function BankAccountsTable() {
       return;
     }
 
-    if (queryFromDate > queryToDate) {
+    const toIso = (v: string) => { const m = v.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : v; };
+    const isoFrom = toIso(queryFromDate);
+    const isoTo = toIso(queryToDate);
+
+    if (isoFrom > isoTo) {
       setQueryError('From date must be less than or equal to To date.');
       return;
     }
@@ -534,8 +538,8 @@ export function BankAccountsTable() {
       setQueryError(null);
 
       const params = new URLSearchParams({
-        from: queryFromDate,
-        to: queryToDate,
+        from: isoFrom,
+        to: isoTo,
       });
 
       if (queryAccountUuid !== 'all') {
@@ -586,7 +590,7 @@ export function BankAccountsTable() {
         ? (fixedInsider?.insiderUuid || '')
         : (account.insiderUuid || fixedInsider?.insiderUuid || insidersList[0]?.insiderUuid || ''),
       balance: account.balance?.toString() || '',
-      balanceDate: account.balanceDate || '',
+      balanceDate: account.balanceDate ? (() => { const dt = new Date(account.balanceDate); const dd = String(dt.getDate()).padStart(2,'0'); const mm = String(dt.getMonth()+1).padStart(2,'0'); return `${dd}.${mm}.${dt.getFullYear()}`; })() : '',
       parsingSchemeUuid: account.parsingSchemeUuid || '',
       rawTableName: account.rawTableName || '',
     });
@@ -604,7 +608,7 @@ export function BankAccountsTable() {
       insider_uuid: formData.insiderUuid || null,
       rawTableName: formData.rawTableName || null,
       balance: formData.balance ? parseFloat(formData.balance) : null,
-      balanceDate: formData.balanceDate || null,
+      balanceDate: (() => { if (!formData.balanceDate) return null; const m = formData.balanceDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : formData.balanceDate; })(),
       parsingSchemeUuid: formData.parsingSchemeUuid || null,
     };
 
@@ -761,12 +765,27 @@ export function BankAccountsTable() {
 
                   <div className="space-y-2">
                     <Label>Balance Date</Label>
-                    <Input
-                      type="date"
-                      value={formData.balanceDate}
-                      onChange={(e) => setFormData({ ...formData, balanceDate: e.target.value })}
-                      className="border-2 border-gray-400"
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        value={formData.balanceDate}
+                        onChange={(e) => {
+                          let v = e.target.value.replace(/[^\d.]/g, '');
+                          if (v.length === 2 && !v.includes('.')) v += '.';
+                          else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                          if (v.length <= 10) setFormData({ ...formData, balanceDate: v });
+                        }}
+                        placeholder="dd.mm.yyyy"
+                        maxLength={10}
+                        className="border-2 border-gray-400 flex-1"
+                      />
+                      <input
+                        type="date"
+                        onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setFormData({ ...formData, balanceDate: `${d}.${m}.${y}` }); } }}
+                        className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
+                        title="Pick date from calendar"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -848,12 +867,18 @@ export function BankAccountsTable() {
 
                   <div className="space-y-1">
                     <Label>From</Label>
-                    <Input type="date" value={queryFromDate} onChange={(e) => setQueryFromDate(e.target.value)} />
+                    <div className="flex gap-2">
+                      <Input type="text" value={queryFromDate} onChange={(e) => { let v = e.target.value.replace(/[^\d.]/g, ''); if (v.length === 2 && !v.includes('.')) v += '.'; else if (v.length === 5 && v.split('.').length === 2) v += '.'; if (v.length <= 10) setQueryFromDate(v); }} placeholder="dd.mm.yyyy" maxLength={10} className="flex-1" />
+                      <input type="date" onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setQueryFromDate(`${d}.${m}.${y}`); } }} className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0" title="Pick date" />
+                    </div>
                   </div>
 
                   <div className="space-y-1">
                     <Label>To</Label>
-                    <Input type="date" value={queryToDate} onChange={(e) => setQueryToDate(e.target.value)} />
+                    <div className="flex gap-2">
+                      <Input type="text" value={queryToDate} onChange={(e) => { let v = e.target.value.replace(/[^\d.]/g, ''); if (v.length === 2 && !v.includes('.')) v += '.'; else if (v.length === 5 && v.split('.').length === 2) v += '.'; if (v.length <= 10) setQueryToDate(v); }} placeholder="dd.mm.yyyy" maxLength={10} className="flex-1" />
+                      <input type="date" onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setQueryToDate(`${d}.${m}.${y}`); } }} className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0" title="Pick date" />
+                    </div>
                   </div>
 
                   <div className="flex items-end">

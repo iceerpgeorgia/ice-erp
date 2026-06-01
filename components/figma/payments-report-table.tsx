@@ -427,13 +427,18 @@ export function PaymentsReportTable() {
     if (savedDateFilter) {
       try {
         const { mode, date } = JSON.parse(savedDateFilter);
-        const isValidDateString = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date);
+        const isValidDateString = typeof date === 'string' && (/^\d{4}-\d{2}-\d{2}$/.test(date) || /^\d{2}\.\d{2}\.\d{4}$/.test(date));
 
         if (mode === 'today') {
           setDateFilterMode('today');
         } else if (mode === 'custom' && isValidDateString) {
           setDateFilterMode('custom');
-          setCustomDate(date);
+          if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            const [y, m, d] = date.split('-');
+            setCustomDate(`${d}.${m}.${y}`);
+          } else {
+            setCustomDate(date);
+          }
         } else {
           setDateFilterMode('none');
           setCustomDate('');
@@ -1061,8 +1066,10 @@ export function PaymentsReportTable() {
       return getLocalTodayIso();
     }
     if (dateFilterMode === 'custom' && customDate) {
-      const isValidDateString = /^\d{4}-\d{2}-\d{2}$/.test(customDate);
-      return isValidDateString ? customDate : null;
+      const m = customDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+      if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(customDate)) return customDate;
+      return null;
     }
     return null;
   }, [dateFilterMode, customDate, getLocalTodayIso]);
@@ -1081,10 +1088,11 @@ export function PaymentsReportTable() {
         params.set('maxDate', today);
         console.log('[Payments Report] Filtering by today:', today);
       } else if (dateFilterMode === 'custom' && customDate) {
-        const isValidDateString = /^\d{4}-\d{2}-\d{2}$/.test(customDate);
-        if (isValidDateString) {
-          params.set('maxDate', customDate);
-          console.log('[Payments Report] Filtering by custom date:', customDate);
+        const mc = customDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+        const isoCustom = mc ? `${mc[3]}-${mc[2]}-${mc[1]}` : (/^\d{4}-\d{2}-\d{2}$/.test(customDate) ? customDate : null);
+        if (isoCustom) {
+          params.set('maxDate', isoCustom);
+          console.log('[Payments Report] Filtering by custom date:', isoCustom);
         } else {
           console.warn('[Payments Report] Ignoring invalid custom date filter:', customDate);
         }
@@ -3306,12 +3314,27 @@ export function PaymentsReportTable() {
 
                     {dateFilterMode === 'custom' && (
                       <div className="ml-6">
-                        <Input
-                          type="date"
-                          value={customDate}
-                          onChange={(e) => setCustomDate(e.target.value)}
-                          className="w-full text-sm"
-                        />
+                        <div className="flex gap-2">
+                          <Input
+                            type="text"
+                            value={customDate}
+                            onChange={(e) => {
+                              let v = e.target.value.replace(/[^\d.]/g, '');
+                              if (v.length === 2 && !v.includes('.')) v += '.';
+                              else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                              if (v.length <= 10) setCustomDate(v);
+                            }}
+                            placeholder="dd.mm.yyyy"
+                            maxLength={10}
+                            className="w-full text-sm flex-1"
+                          />
+                          <input
+                            type="date"
+                            onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setCustomDate(`${d}.${m}.${y}`); } }}
+                            className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
+                            title="Pick date from calendar"
+                          />
+                        </div>
                         <p className="text-xs text-muted-foreground mt-1">
                           Show records with latest date ≤ selected date
                         </p>

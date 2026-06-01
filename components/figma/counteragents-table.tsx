@@ -707,7 +707,7 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
           body: JSON.stringify({
             name: formData.name,
             identification_number: formData.identificationNumber || null,
-            birth_or_incorporation_date: formData.birthOrIncorporationDate || null,
+            birth_or_incorporation_date: (() => { if (!formData.birthOrIncorporationDate) return null; const bm = formData.birthOrIncorporationDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return bm ? `${bm[3]}-${bm[2]}-${bm[1]}` : formData.birthOrIncorporationDate; })(),
             sex: formData.sex || null,
             pension_scheme: formData.pensionScheme === 'true' ? true : formData.pensionScheme === 'false' ? false : null,
             // Don't send country/entity_type - let trigger populate from UUIDs
@@ -773,7 +773,7 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
           body: JSON.stringify({
             name: formData.name,
             identification_number: formData.identificationNumber || null,
-            birth_or_incorporation_date: formData.birthOrIncorporationDate || null,
+            birth_or_incorporation_date: (() => { if (!formData.birthOrIncorporationDate) return null; const bm = formData.birthOrIncorporationDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return bm ? `${bm[3]}-${bm[2]}-${bm[1]}` : formData.birthOrIncorporationDate; })(),
             sex: formData.sex || null,
             pension_scheme: formData.pensionScheme === 'true' ? true : formData.pensionScheme === 'false' ? false : null,
             // Don't send country/entity_type - let trigger populate from UUIDs
@@ -866,12 +866,15 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
 
   const startEdit = (counteragent: Counteragent) => {
     setEditingEntityType(counteragent);
-    // Format date to YYYY-MM-DD for input[type="date"]
+    // Format date to DD.MM.YYYY for display
     const formatDateForInput = (dateStr: string | null) => {
       if (!dateStr) return '';
       try {
         const date = new Date(dateStr);
-        return date.toISOString().split('T')[0];
+        if (isNaN(date.getTime())) return '';
+        const d = String(date.getDate()).padStart(2, '0');
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        return `${d}.${m}.${date.getFullYear()}`;
       } catch {
         return '';
       }
@@ -1172,16 +1175,28 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
                     Birth/Inc Date
                   </Label>
                   <div className="col-span-3">
-                    <Input
-                      id="add-birthDate"
-                      type="date"
-                      value={formData.birthOrIncorporationDate}
-                      onChange={(e) => {
-                        setFormData({...formData, birthOrIncorporationDate: e.target.value});
-                        if (formErrors.birthOrIncorporationDate) setFormErrors({...formErrors, birthOrIncorporationDate: ''});
-                      }}
-                      className={formErrors.birthOrIncorporationDate ? 'border-red-500' : ''}
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        id="add-birthDate"
+                        type="text"
+                        value={formData.birthOrIncorporationDate}
+                        onChange={(e) => {
+                          let v = e.target.value.replace(/[^\d.]/g, '');
+                          if (v.length === 2 && !v.includes('.')) v += '.';
+                          else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                          if (v.length <= 10) { setFormData({...formData, birthOrIncorporationDate: v}); if (formErrors.birthOrIncorporationDate) setFormErrors({...formErrors, birthOrIncorporationDate: ''}); }
+                        }}
+                        placeholder="dd.mm.yyyy"
+                        maxLength={10}
+                        className={formErrors.birthOrIncorporationDate ? 'border-red-500 flex-1' : 'flex-1'}
+                      />
+                      <input
+                        type="date"
+                        onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setFormData({...formData, birthOrIncorporationDate: `${d}.${m}.${y}`}); if (formErrors.birthOrIncorporationDate) setFormErrors({...formErrors, birthOrIncorporationDate: ''}); } }}
+                        className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
+                        title="Pick date from calendar"
+                      />
+                    </div>
                     {formErrors.birthOrIncorporationDate && <p className="text-xs text-red-500 mt-1">{formErrors.birthOrIncorporationDate}</p>}
                   </div>
                 </div>
@@ -1513,16 +1528,28 @@ export function CounteragentsTable({ data, initialSearch }: { data?: Counteragen
                     Birth/Inc Date
                   </Label>
                   <div className="col-span-3">
-                    <Input
-                      id="edit-birthDate"
-                      type="date"
-                      value={formData.birthOrIncorporationDate}
-                      onChange={(e) => {
-                        setFormData({...formData, birthOrIncorporationDate: e.target.value});
-                        if (formErrors.birthOrIncorporationDate) setFormErrors({...formErrors, birthOrIncorporationDate: ''});
-                      }}
-                      className={formErrors.birthOrIncorporationDate ? 'border-red-500' : ''}
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        id="edit-birthDate"
+                        type="text"
+                        value={formData.birthOrIncorporationDate}
+                        onChange={(e) => {
+                          let v = e.target.value.replace(/[^\d.]/g, '');
+                          if (v.length === 2 && !v.includes('.')) v += '.';
+                          else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                          if (v.length <= 10) { setFormData({...formData, birthOrIncorporationDate: v}); if (formErrors.birthOrIncorporationDate) setFormErrors({...formErrors, birthOrIncorporationDate: ''}); }
+                        }}
+                        placeholder="dd.mm.yyyy"
+                        maxLength={10}
+                        className={formErrors.birthOrIncorporationDate ? 'border-red-500 flex-1' : 'flex-1'}
+                      />
+                      <input
+                        type="date"
+                        onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setFormData({...formData, birthOrIncorporationDate: `${d}.${m}.${y}`}); if (formErrors.birthOrIncorporationDate) setFormErrors({...formErrors, birthOrIncorporationDate: ''}); } }}
+                        className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
+                        title="Pick date from calendar"
+                      />
+                    </div>
                     {formErrors.birthOrIncorporationDate && <p className="text-xs text-red-500 mt-1">{formErrors.birthOrIncorporationDate}</p>}
                   </div>
                 </div>

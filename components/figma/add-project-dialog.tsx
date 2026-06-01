@@ -209,7 +209,7 @@ export function AddProjectDialog({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectName: formData.projectName,
-          date: formData.date,
+          date: (() => { if (!formData.date) return ''; const m = formData.date.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : formData.date; })(),
           value: parseFloat(formData.value),
           oris1630: formData.oris1630 || null,
           address: formData.address || null,
@@ -305,12 +305,27 @@ export function AddProjectDialog({
           <div className="grid grid-cols-4 items-center gap-4">
             <Label className="text-right">Date *</Label>
             <div className="col-span-3">
-              <Input
-                type="date"
-                value={formData.date}
-                onChange={(e) => { setFormData({ ...formData, date: e.target.value }); if (formErrors.date) setFormErrors({ ...formErrors, date: '' }); }}
-                className={formErrors.date ? 'border-red-500' : ''}
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={formData.date}
+                  onChange={(e) => {
+                    let v = e.target.value.replace(/[^\d.]/g, '');
+                    if (v.length === 2 && !v.includes('.')) v += '.';
+                    else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                    if (v.length <= 10) { setFormData({ ...formData, date: v }); if (formErrors.date) setFormErrors({ ...formErrors, date: '' }); }
+                  }}
+                  placeholder="dd.mm.yyyy"
+                  maxLength={10}
+                  className={formErrors.date ? 'border-red-500 flex-1' : 'flex-1'}
+                />
+                <input
+                  type="date"
+                  onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setFormData({ ...formData, date: `${d}.${m}.${y}` }); if (formErrors.date) setFormErrors({ ...formErrors, date: '' }); } }}
+                  className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
+                  title="Pick date from calendar"
+                />
+              </div>
               {formErrors.date && <p className="text-xs text-red-500 mt-1">{formErrors.date}</p>}
             </div>
           </div>

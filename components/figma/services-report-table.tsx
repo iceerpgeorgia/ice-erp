@@ -407,8 +407,13 @@ export function ServicesReportTable() {
       }
     }
 
-    if (savedMaxDate && /^\d{4}-\d{2}-\d{2}$/.test(savedMaxDate)) {
-      setMaxDate(savedMaxDate);
+    if (savedMaxDate) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(savedMaxDate)) {
+        const [y, m, d] = savedMaxDate.split('-');
+        setMaxDate(`${d}.${m}.${y}`);
+      } else if (/^\d{2}\.\d{2}\.\d{4}$/.test(savedMaxDate)) {
+        setMaxDate(savedMaxDate);
+      }
     }
 
     if (savedColumns) {
@@ -494,7 +499,7 @@ export function ServicesReportTable() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentIds: Array.from(selectedPaymentIds),
-          maxDate: maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate) ? maxDate : null,
+          maxDate: (() => { const m = maxDate?.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); if (m) return `${m[3]}-${m[2]}-${m[1]}`; return maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate) ? maxDate : null; })(),
         }),
       });
       if (!response.ok) {
@@ -521,7 +526,7 @@ export function ServicesReportTable() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentIds: Array.from(selectedPaymentIds),
-          maxDate: maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate) ? maxDate : null,
+          maxDate: (() => { const m = maxDate?.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); if (m) return `${m[3]}-${m[2]}-${m[1]}`; return maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate) ? maxDate : null; })(),
         }),
       });
       if (!response.ok) {
@@ -554,7 +559,10 @@ export function ServicesReportTable() {
     try {
       const params = new URLSearchParams();
       params.set('financialCodeUuids', Array.from(selectedFinancialCodeUuids).join(','));
-      if (maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate)) {
+      if (maxDate && /^\d{2}\.\d{2}\.\d{4}$/.test(maxDate)) {
+        const [dd, mm, yyyy] = maxDate.split('.');
+        params.set('maxDate', `${yyyy}-${mm}-${dd}`);
+      } else if (maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate)) {
         params.set('maxDate', maxDate);
       }
       if (selectedInsiderUuids.length > 0) {
@@ -1276,12 +1284,27 @@ export function ServicesReportTable() {
             </div>
           </PopoverContent>
         </Popover>
-        <Input
-          type="date"
-          value={maxDate}
-          onChange={(event) => setMaxDate(event.target.value)}
-          className="w-[180px]"
-        />
+        <div className="flex gap-2 items-center">
+          <Input
+            type="text"
+            value={maxDate}
+            onChange={(event) => {
+              let v = event.target.value.replace(/[^\d.]/g, '');
+              if (v.length === 2 && !v.includes('.')) v += '.';
+              else if (v.length === 5 && v.split('.').length === 2) v += '.';
+              if (v.length <= 10) setMaxDate(v);
+            }}
+            placeholder="dd.mm.yyyy"
+            maxLength={10}
+            className="w-[180px]"
+          />
+          <input
+            type="date"
+            onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setMaxDate(`${d}.${m}.${y}`); } }}
+            className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
+            title="Pick date from calendar"
+          />
+        </div>
         <Input
           placeholder="Search in report..."
           value={search}

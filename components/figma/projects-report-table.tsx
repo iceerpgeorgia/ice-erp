@@ -329,7 +329,7 @@ export function ProjectsReportTable() {
   const [fcBulkLabel, setFcBulkLabel] = useState('');
   const [fcBulkJobs, setFcBulkJobs] = useState<Array<{
     jobUuid: string | null; jobLabel: string;
-    accrual: string; order: string; date: string;
+    accrual: string; order: string; date: string; comment: string;
   }>>([]);
   const [isFcBulkSubmitting, setIsFcBulkSubmitting] = useState(false);
 
@@ -344,7 +344,7 @@ export function ProjectsReportTable() {
   const [projBulkFcUuid, setProjBulkFcUuid] = useState('');
   const [projBulkRows, setProjBulkRows] = useState<Array<{
     jobUuid: string | null; jobLabel: string;
-    accrual: string; order: string; date: string;
+    accrual: string; order: string; date: string; comment: string;
   }>>([]);
   const [isProjBulkSubmitting, setIsProjBulkSubmitting] = useState(false);
   const [fcBulkSums, setFcBulkSums] = useState<Map<string, { accrual: number; order: number }>>(new Map());
@@ -421,7 +421,14 @@ export function ProjectsReportTable() {
         if (Array.isArray(parsed)) setSelectedProjectUuids(new Set(parsed.map(String)));
       } catch { /* ignore */ }
     }
-    if (savedMaxDate && /^\d{4}-\d{2}-\d{2}$/.test(savedMaxDate)) setMaxDate(savedMaxDate);
+    if (savedMaxDate) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(savedMaxDate)) {
+        const [y, m, d] = savedMaxDate.split('-');
+        setMaxDate(`${d}.${m}.${y}`);
+      } else if (/^\d{2}\.\d{2}\.\d{4}$/.test(savedMaxDate)) {
+        setMaxDate(savedMaxDate);
+      }
+    }
     if (savedMetrics) {
       try {
         const parsed = JSON.parse(savedMetrics);
@@ -733,7 +740,8 @@ export function ProjectsReportTable() {
         Array.from(currencyGroups.entries()).map(async ([curr, uuids]) => {
           const gParams = new URLSearchParams();
           gParams.set('projectUuids', uuids.join(','));
-          if (maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate)) gParams.set('maxDate', maxDate);
+          if (maxDate && /^\d{2}\.\d{2}\.\d{4}$/.test(maxDate)) { const [dd, mm, yyyy] = maxDate.split('.'); gParams.set('maxDate', `${yyyy}-${mm}-${dd}`); }
+          else if (maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate)) gParams.set('maxDate', maxDate);
           if (selectedInsiderUuids.length > 0) gParams.set('insiderUuids', selectedInsiderUuids.join(','));
           gParams.set('targetCurrency', curr);
           const res = await fetch(`/api/projects-report?${gParams}`);
@@ -989,7 +997,7 @@ export function ProjectsReportTable() {
     setFcBulkJobs(
       ctx.jobs
         .filter(j => j.key !== NULL_JOB_KEY)
-        .map(j => ({ jobUuid: j.jobUuid, jobLabel: j.label, accrual: '', order: '', date: '' }))
+        .map(j => ({ jobUuid: j.jobUuid, jobLabel: j.label, accrual: '', order: '', date: '', comment: '' }))
     );
     if (dlgCounterAgents.length === 0) fetchDlgCounterAgents();
     if (dlgCurrencies.length === 0) fetchDlgDictionaries();
@@ -1036,7 +1044,7 @@ export function ProjectsReportTable() {
         const ledgerRes = await fetch('/api/payments-ledger', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentId, effectiveDate: isoDate, accrual: accrualVal, order: orderVal }),
+          body: JSON.stringify({ paymentId, effectiveDate: isoDate, accrual: accrualVal, order: orderVal, comment: row.comment || undefined }),
         });
         if (!ledgerRes.ok) { const e = await ledgerRes.json(); throw new Error(e.error || 'Failed to create ledger entry'); }
       }
@@ -1063,7 +1071,7 @@ export function ProjectsReportTable() {
     setProjBulkRows(
       ctx.jobs
         .filter(j => j.key !== NULL_JOB_KEY)
-        .map(j => ({ jobUuid: j.jobUuid, jobLabel: j.label, accrual: '', order: '', date: '' }))
+        .map(j => ({ jobUuid: j.jobUuid, jobLabel: j.label, accrual: '', order: '', date: '', comment: '' }))
     );
     if (dlgCounterAgents.length === 0) fetchDlgCounterAgents();
     if (dlgCurrencies.length === 0 || dlgFinancialCodes.length === 0) fetchDlgDictionaries();
@@ -1111,7 +1119,7 @@ export function ProjectsReportTable() {
         const ledgerRes = await fetch('/api/payments-ledger', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentId, effectiveDate: isoDate, accrual: accrualVal, order: orderVal }),
+          body: JSON.stringify({ paymentId, effectiveDate: isoDate, accrual: accrualVal, order: orderVal, comment: row.comment || undefined }),
         });
         if (!ledgerRes.ok) { const e = await ledgerRes.json(); throw new Error(e.error || 'Failed to create ledger entry'); }
       }
@@ -1823,7 +1831,10 @@ export function ProjectsReportTable() {
         {/* Max date */}
         <div className="flex items-center gap-1">
           <label className="text-xs text-gray-500 shrink-0">As of:</label>
-          <Input type="date" value={maxDate} onChange={(e) => setMaxDate(e.target.value)} className="h-7 text-xs w-36" />
+          <div className="flex items-center gap-1">
+            <Input type="text" value={maxDate} onChange={(e) => { let v = e.target.value.replace(/[^\d.]/g, ''); if (v.length === 2 && !v.includes('.')) v += '.'; else if (v.length === 5 && v.split('.').length === 2) v += '.'; if (v.length <= 10) setMaxDate(v); }} placeholder="dd.mm.yyyy" maxLength={10} className="h-7 text-xs w-36" />
+            <input type="date" onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setMaxDate(`${d}.${m}.${y}`); } }} className="border border-input rounded-md px-1 cursor-pointer h-7 w-8 flex-shrink-0" title="Pick date" />
+          </div>
           {maxDate && (
             <button onClick={() => setMaxDate('')} className="text-gray-400 hover:text-gray-600"><X className="h-3.5 w-3.5" /></button>
           )}
@@ -2763,7 +2774,8 @@ export function ProjectsReportTable() {
                       <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Job</th>
                       <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-28">Accrual</th>
                       <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-28">Order</th>
-                      <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-36">Date</th>
+                      <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-40">Date</th>
+                      <th className="text-left px-2 py-2 text-xs font-semibold text-gray-600">Comment</th>
                       <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-28">In Ledger</th>
                     </tr>
                   </thead>
@@ -2811,18 +2823,35 @@ export function ProjectsReportTable() {
                           </div>
                         </td>
                         <td className="px-2 py-1">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="text"
+                              value={row.date}
+                              onChange={(e) => {
+                                let v = e.target.value.replace(/[^\d.]/g, '');
+                                if (v.length === 2 && !v.includes('.')) v += '.';
+                                else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                                if (v.length <= 10) setFcBulkJobs(prev => prev.map((r, j) => j === i ? { ...r, date: v } : r));
+                              }}
+                              placeholder="dd.mm.yyyy"
+                              maxLength={10}
+                              className="h-7 text-xs text-center flex-1"
+                            />
+                            <input
+                              type="date"
+                              onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setFcBulkJobs(prev => prev.map((r, j) => j === i ? { ...r, date: `${d}.${m}.${y}` } : r)); } }}
+                              className="border border-gray-300 rounded cursor-pointer w-7 h-7 flex-shrink-0 text-[0px] [color-scheme:light]"
+                              title="Pick date"
+                            />
+                          </div>
+                        </td>
+                        <td className="px-2 py-1">
                           <Input
                             type="text"
-                            value={row.date}
-                            onChange={(e) => {
-                              let v = e.target.value.replace(/[^\d.]/g, '');
-                              if (v.length === 2 && !v.includes('.')) v += '.';
-                              else if (v.length === 5 && v.split('.').length === 2) v += '.';
-                              if (v.length <= 10) setFcBulkJobs(prev => prev.map((r, j) => j === i ? { ...r, date: v } : r));
-                            }}
-                            placeholder="dd.mm.yyyy"
-                            maxLength={10}
-                            className="h-7 text-xs text-center"
+                            value={row.comment}
+                            onChange={(e) => setFcBulkJobs(prev => prev.map((r, j) => j === i ? { ...r, comment: e.target.value } : r))}
+                            placeholder="Optional note"
+                            className="h-7 text-xs"
                           />
                         </td>
                         <td className="px-2 py-1.5 text-center">
@@ -2926,7 +2955,8 @@ export function ProjectsReportTable() {
                       <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Job</th>
                       <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-24">Accrual</th>
                       <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-24">Order</th>
-                      <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-28">Date</th>
+                      <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-40">Date</th>
+                      <th className="text-left px-2 py-2 text-xs font-semibold text-gray-600">Comment</th>
                       <th className="text-center px-2 py-2 text-xs font-semibold text-gray-600 w-32">In Ledger</th>
                     </tr>
                   </thead>
@@ -2982,15 +3012,32 @@ export function ProjectsReportTable() {
                             </div>
                           </td>
                           <td className="px-2 py-1">
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="text" value={row.date}
+                                onChange={(e) => {
+                                  let v = e.target.value.replace(/[^\d.]/g, '');
+                                  if (v.length === 2 && !v.includes('.')) v += '.';
+                                  else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                                  if (v.length <= 10) setProjBulkRows(prev => prev.map((r, j) => j === i ? { ...r, date: v } : r));
+                                }}
+                                placeholder="dd.mm.yyyy" maxLength={10} className="h-7 text-xs text-center flex-1"
+                              />
+                              <input
+                                type="date"
+                                onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setProjBulkRows(prev => prev.map((r, j) => j === i ? { ...r, date: `${d}.${m}.${y}` } : r)); } }}
+                                className="border border-gray-300 rounded cursor-pointer w-7 h-7 flex-shrink-0 text-[0px] [color-scheme:light]"
+                                title="Pick date"
+                              />
+                            </div>
+                          </td>
+                          <td className="px-2 py-1">
                             <Input
-                              type="text" value={row.date}
-                              onChange={(e) => {
-                                let v = e.target.value.replace(/[^\d.]/g, '');
-                                if (v.length === 2 && !v.includes('.')) v += '.';
-                                else if (v.length === 5 && v.split('.').length === 2) v += '.';
-                                if (v.length <= 10) setProjBulkRows(prev => prev.map((r, j) => j === i ? { ...r, date: v } : r));
-                              }}
-                              placeholder="dd.mm.yyyy" maxLength={10} className="h-7 text-xs text-center"
+                              type="text"
+                              value={row.comment}
+                              onChange={(e) => setProjBulkRows(prev => prev.map((r, j) => j === i ? { ...r, comment: e.target.value } : r))}
+                              placeholder="Optional note"
+                              className="h-7 text-xs"
                             />
                           </td>
                           <td className="px-2 py-1.5 text-center">

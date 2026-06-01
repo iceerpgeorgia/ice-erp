@@ -1015,7 +1015,7 @@ export function BankTransactionsTable({
     const transactionDateInput = toInputDate(transaction.date);
     const correctionInput = toInputDate(transaction.correctionDate);
     const initialCorrectionDate =
-      correctionInput && correctionInput !== transactionDateInput ? correctionInput : '';
+      correctionInput && correctionInput !== transactionDateInput ? (() => { const [y,m,d] = correctionInput.split('-'); return `${d}.${m}.${y}`; })() : '';
 
     // Initialize form with transaction data - use paymentId (not UUID) for the Select value
     const initialFormData = {
@@ -1473,7 +1473,7 @@ export function BankTransactionsTable({
 
   useEffect(() => {
     if (!editingTransaction) return;
-    const effectiveDate = formData.correction_date || toInputDate(editingTransaction.date);
+    const effectiveDate = toInputDate(formData.correction_date) || toInputDate(editingTransaction.date);
     if (!effectiveDate || effectiveDate === exchangeRateDate) return;
     const fetchRates = async () => {
       try {
@@ -1653,10 +1653,11 @@ export function BankTransactionsTable({
         updateData.nominal_currency_uuid = formData.nominal_currency_uuid || null;
       }
       const transactionDateInput = toInputDate(editingTransaction.date);
-      if (formData.correction_date !== toInputDate(editingTransaction.correctionDate)) {
+      if (toInputDate(formData.correction_date) !== toInputDate(editingTransaction.correctionDate)) {
+        const isoCorrection = toInputDate(formData.correction_date);
         updateData.correction_date =
-          formData.correction_date && formData.correction_date !== transactionDateInput
-            ? formData.correction_date
+          isoCorrection && isoCorrection !== transactionDateInput
+            ? isoCorrection
             : null;
       }
       if (formData.parsing_lock !== Boolean(editingTransaction.parsingLock)) {
@@ -3025,17 +3026,27 @@ export function BankTransactionsTable({
                   
                   <div className="space-y-1">
                     <Label className="text-xs text-gray-600">Correction Date</Label>
-                    <Input
-                      type="date"
-                      value={formData.correction_date}
-                      onChange={(event) => {
-                        setFormData((prev) => ({ ...prev, correction_date: event.target.value }));
-                        if (saveNotice) {
-                          setSaveNotice(null);
-                        }
-                      }}
-                      className="bg-white border-gray-300"
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        value={formData.correction_date}
+                        onChange={(event) => {
+                          let v = event.target.value.replace(/[^\d.]/g, '');
+                          if (v.length === 2 && !v.includes('.')) v += '.';
+                          else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                          if (v.length <= 10) { setFormData((prev) => ({ ...prev, correction_date: v })); if (saveNotice) setSaveNotice(null); }
+                        }}
+                        placeholder="dd.mm.yyyy"
+                        maxLength={10}
+                        className="bg-white border-gray-300 flex-1"
+                      />
+                      <input
+                        type="date"
+                        onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setFormData((prev) => ({ ...prev, correction_date: `${d}.${m}.${y}` })); if (saveNotice) setSaveNotice(null); } }}
+                        className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
+                        title="Pick date from calendar"
+                      />
+                    </div>
                   </div>
                 </div>
                 

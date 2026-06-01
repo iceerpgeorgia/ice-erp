@@ -114,7 +114,10 @@ export function CounteragentFormDialog({
         if (!dateStr) return '';
         try {
           const date = new Date(dateStr);
-          return date.toISOString().split('T')[0];
+          if (isNaN(date.getTime())) return '';
+          const d = String(date.getDate()).padStart(2, '0');
+          const m = String(date.getMonth() + 1).padStart(2, '0');
+          return `${d}.${m}.${date.getFullYear()}`;
         } catch {
           return '';
         }
@@ -253,7 +256,7 @@ export function CounteragentFormDialog({
       const payload = {
         name: formData.name,
         identification_number: formData.identificationNumber || null,
-        birth_or_incorporation_date: formData.birthOrIncorporationDate || null,
+        birth_or_incorporation_date: (() => { if (!formData.birthOrIncorporationDate) return null; const bm = formData.birthOrIncorporationDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return bm ? `${bm[3]}-${bm[2]}-${bm[1]}` : formData.birthOrIncorporationDate; })(),
         sex: isNaturalPerson ? (formData.sex || null) : null,
         pension_scheme: isNaturalPerson
           ? (formData.pensionScheme === 'true' ? true : formData.pensionScheme === 'false' ? false : null)
@@ -355,12 +358,28 @@ export function CounteragentFormDialog({
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="birthDate" className="text-right">Birth/Inc Date</Label>
             <div className="col-span-3">
-              <Input
-                id="birthDate"
-                type="date"
-                value={formData.birthOrIncorporationDate}
-                onChange={(e) => updateField('birthOrIncorporationDate', e.target.value)}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="birthDate"
+                  type="text"
+                  value={formData.birthOrIncorporationDate}
+                  onChange={(e) => {
+                    let v = e.target.value.replace(/[^\d.]/g, '');
+                    if (v.length === 2 && !v.includes('.')) v += '.';
+                    else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                    if (v.length <= 10) updateField('birthOrIncorporationDate', v);
+                  }}
+                  placeholder="dd.mm.yyyy"
+                  maxLength={10}
+                  className="flex-1"
+                />
+                <input
+                  type="date"
+                  onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); updateField('birthOrIncorporationDate', `${d}.${m}.${y}`); } }}
+                  className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
+                  title="Pick date from calendar"
+                />
+              </div>
             </div>
           </div>
 

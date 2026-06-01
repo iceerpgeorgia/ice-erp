@@ -136,7 +136,7 @@ export default function NBGRatesPage() {
   const handleAddNew = () => {
     setEditingRate(null);
     setFormData({
-      date: new Date().toISOString().split('T')[0],
+      date: (() => { const dt = new Date(); const dd = String(dt.getDate()).padStart(2,'0'); const mm = String(dt.getMonth()+1).padStart(2,'0'); return `${dd}.${mm}.${dt.getFullYear()}`; })(),
       usd: "",
       eur: "",
       cny: "",
@@ -153,7 +153,7 @@ export default function NBGRatesPage() {
   const handleEdit = (rate: NBGRate) => {
     setEditingRate(rate);
     setFormData({
-      date: rate.date,
+      date: rate.date ? (() => { const dt = new Date(rate.date); const dd = String(dt.getDate()).padStart(2,'0'); const mm = String(dt.getMonth()+1).padStart(2,'0'); return `${dd}.${mm}.${dt.getFullYear()}`; })() : '',
       usd: rate.usd?.toString() || "",
       eur: rate.eur?.toString() || "",
       cny: rate.cny?.toString() || "",
@@ -197,7 +197,7 @@ export default function NBGRatesPage() {
       
       const method = editingRate ? "PATCH" : "POST";
 
-      const payload: any = { date: formData.date };
+      const payload: any = { date: (() => { if (!formData.date) return formData.date; const m = formData.date.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : formData.date; })() };
       
       // Only include non-empty rates
       if (formData.usd) payload.usd = parseFloat(formData.usd);
@@ -258,7 +258,7 @@ export default function NBGRatesPage() {
   // Filter rates based on search
   const filteredRates = rates.filter(rate => {
     if (!searchDate) return true;
-    return rate.date.includes(searchDate);
+    return formatDate(rate.date).includes(searchDate);
   });
 
   // Pagination
@@ -345,13 +345,16 @@ export default function NBGRatesPage() {
       <div className="flex gap-4 mb-4">
         <div className="flex-1">
           <Input
-            type="date"
-            placeholder="Search by date..."
+            type="text"
+            placeholder="Search by date (dd.mm.yyyy)..."
             value={searchDate}
             onChange={(e) => {
-              setSearchDate(e.target.value);
-              setCurrentPage(1);
+              let v = e.target.value.replace(/[^\d.]/g, '');
+              if (v.length === 2 && !v.includes('.')) v += '.';
+              else if (v.length === 5 && v.split('.').length === 2) v += '.';
+              if (v.length <= 10) { setSearchDate(v); setCurrentPage(1); }
             }}
+            maxLength={10}
           />
         </div>
         <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
@@ -511,15 +514,28 @@ export default function NBGRatesPage() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="date">Date *</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) =>
-                    setFormData({ ...formData, date: e.target.value })
-                  }
-                  required
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="date"
+                    type="text"
+                    value={formData.date}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/[^\d.]/g, '');
+                      if (v.length === 2 && !v.includes('.')) v += '.';
+                      else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                      if (v.length <= 10) setFormData({ ...formData, date: v });
+                    }}
+                    placeholder="dd.mm.yyyy"
+                    maxLength={10}
+                    className="flex-1"
+                  />
+                  <input
+                    type="date"
+                    onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setFormData({ ...formData, date: `${d}.${m}.${y}` }); } }}
+                    className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
+                    title="Pick date from calendar"
+                  />
+                </div>
                 {formErrors.date && (
                   <p className="text-sm text-red-500 mt-1">{formErrors.date}</p>
                 )}

@@ -1237,7 +1237,8 @@ export default function CounteragentStatementPage() {
     setEditingLedgerId(row.ledgerId);
     setEditPaymentId(row.paymentId || '');
     const fallbackDate = row.effectiveDateRaw ?? (row.dateSort ? new Date(row.dateSort) : null);
-    setEditEffectiveDate(toInputDate(fallbackDate));
+    const isoDate = toInputDate(fallbackDate);
+    setEditEffectiveDate(isoDate ? (() => { const [y,m,d] = isoDate.split('-'); return `${d}.${m}.${y}`; })() : '');
     setEditAccrual(row.accrual ? String(row.accrual) : '');
     setEditOrder(row.order ? String(row.order) : '');
     setEditComment(row.comment || '');
@@ -1253,13 +1254,10 @@ export default function CounteragentStatementPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentId: editPaymentId,
-          effectiveDate: editEffectiveDate,
+          effectiveDate: (() => { if (!editEffectiveDate) return editEffectiveDate; const m = editEffectiveDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : editEffectiveDate; })(),
           accrual: editAccrual ? Number(editAccrual) : 0,
-          order: editOrder ? Number(editOrder) : 0,
-          comment: editComment || null,
         }),
       });
-
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to update ledger entry');
@@ -2131,12 +2129,27 @@ export default function CounteragentStatementPage() {
             </div>
             <div>
               <label className="text-sm font-medium">Effective Date</label>
-              <Input
-                type="date"
-                value={editEffectiveDate}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditEffectiveDate(e.target.value)}
-                className="mt-1"
-              />
+              <div className="flex gap-2 mt-1">
+                <Input
+                  type="text"
+                  value={editEffectiveDate}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    let v = e.target.value.replace(/[^\d.]/g, '');
+                    if (v.length === 2 && !v.includes('.')) v += '.';
+                    else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                    if (v.length <= 10) setEditEffectiveDate(v);
+                  }}
+                  placeholder="dd.mm.yyyy"
+                  maxLength={10}
+                  className="flex-1"
+                />
+                <input
+                  type="date"
+                  onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setEditEffectiveDate(`${d}.${m}.${y}`); } }}
+                  className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
+                  title="Pick date from calendar"
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

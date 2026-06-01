@@ -28,6 +28,7 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       is_emploee: data.is_emploee === true ? "true" : data.is_emploee === false ? "false" : "",
       was_emploee: data.was_emploee === true ? "true" : data.was_emploee === false ? "false" : "",
       department: data.department ?? "",
+      birth_or_incorporation_date: (() => { if (!data.birth_or_incorporation_date) return ''; try { const dt = new Date(data.birth_or_incorporation_date); if (isNaN(dt.getTime())) return ''; const dd = String(dt.getDate()).padStart(2,'0'); const mm = String(dt.getMonth()+1).padStart(2,'0'); return `${dd}.${mm}.${dt.getFullYear()}`; } catch { return ''; } })(),
       job_title: data.job_title ?? "",
     };
   };
@@ -174,6 +175,10 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
       else v.was_emploee = null;
 
       const payload = { ...v };
+      if (payload.birth_or_incorporation_date) {
+        const bm = payload.birth_or_incorporation_date.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+        if (bm) payload.birth_or_incorporation_date = `${bm[3]}-${bm[2]}-${bm[1]}`;
+      }
       const method = mode === "create" ? "POST" : "PUT";
       const res = await fetch("/dictionaries/counteragents/api", {
         method,
@@ -201,8 +206,20 @@ export default function CounteragentForm({ mode, initial, countries, entityTypes
     field("Name","name", inputText("name"), mandatory.name),
     field("ID","identification_number", inputText("identification_number"), mandatory.identification_number),
     field("Birth or Incorporation Date","birth_or_incorporation_date",
-      <input className="w-full border rounded px-3 py-2" type="date"
-        value={v.birth_or_incorporation_date ?? ""} onChange={(e)=>setV((s:any)=>({ ...s, birth_or_incorporation_date:e.target.value }))} />,
+      <div className="flex gap-2">
+        <input className="w-full border rounded px-3 py-2 flex-1" type="text"
+          value={v.birth_or_incorporation_date ?? ""}
+          onChange={(e) => {
+            let val = e.target.value.replace(/[^\d.]/g, '');
+            if (val.length === 2 && !val.includes('.')) val += '.';
+            else if (val.length === 5 && val.split('.').length === 2) val += '.';
+            if (val.length <= 10) setV((s:any) => ({ ...s, birth_or_incorporation_date: val }));
+          }}
+          placeholder="dd.mm.yyyy"
+          maxLength={10}
+        />
+        <input type="date" onChange={(e) => { if (e.target.value) { const [y,m,d] = e.target.value.split('-'); setV((s:any) => ({ ...s, birth_or_incorporation_date: `${d}.${m}.${y}` })); } }} className="border rounded px-2 cursor-pointer w-12 flex-shrink-0" title="Pick date from calendar" />
+      </div>,
       mandatory.birth_or_incorporation_date),
     field("Entity Type","entity_type",
       <select className="w-full border rounded px-3 py-2" value={etUuid || ""}

@@ -17,7 +17,7 @@ import { Combobox } from '@/components/ui/combobox';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
-import { Search, Upload, Eye, Edit2, Settings, ArrowUp, ArrowDown, UserPlus } from 'lucide-react';
+import { Search, Upload, Eye, Edit2, Settings, ArrowUp, ArrowDown, UserPlus, FileText } from 'lucide-react';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
@@ -1118,13 +1118,36 @@ export function WaybillsTable() {
                 )}
               >
                 {col.key === 'waybill_no' ? (
-                  <button
-                    type="button"
-                    className="text-blue-600 hover:underline font-medium truncate block w-full text-left"
-                    onClick={() => fetchItemsForWaybill(row)}
-                  >
-                    {row.waybill_no || ''}
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      className="text-blue-600 hover:underline font-medium truncate text-left flex-1 min-w-0"
+                      onClick={() => fetchItemsForWaybill(row)}
+                    >
+                      {row.waybill_no || ''}
+                    </button>
+                    {row.rs_id && (
+                      <button
+                        type="button"
+                        title="Download PDF"
+                        className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            const res = await fetch(`/api/waybills/pdf?rs_id=${encodeURIComponent(row.rs_id!)}`);
+                            if (!res.ok) throw new Error('Failed');
+                            const blob = await res.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url; a.download = `waybill-${row.rs_id}.pdf`; a.click();
+                            URL.revokeObjectURL(url);
+                          } catch { alert('PDF download failed'); }
+                        }}
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 ) : col.key === 'counteragent_name'
                   ? row.counteragent_name || row.counteragent || ''
                   : formatCell(getCellValue(row, col.key), col.format)}

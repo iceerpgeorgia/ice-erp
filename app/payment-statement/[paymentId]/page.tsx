@@ -691,7 +691,11 @@ export default function PaymentStatementPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentId: statementData.payment.paymentId,
-          effectiveDate: addEffectiveDate || undefined,
+          effectiveDate: (() => {
+            if (!addEffectiveDate) return undefined;
+            const m = addEffectiveDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+            return m ? `${m[3]}-${m[2]}-${m[1]}` : addEffectiveDate;
+          })(),
           accrual: accrualValue,
           order: orderValue,
           comment: addComment || undefined,
@@ -765,9 +769,15 @@ export default function PaymentStatementPage() {
     if (!adj) return;
     resetAdjustmentForm();
     setEditingAdjustmentId(adj.id);
-    // Format date for input[type=date]
+    // Format date as dd.mm.yyyy
     const d = adj.effectiveDate ? new Date(adj.effectiveDate) : null;
-    setAdjEffectiveDate(d && !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : '');
+    if (d && !isNaN(d.getTime())) {
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      setAdjEffectiveDate(`${day}.${month}.${d.getFullYear()}`);
+    } else {
+      setAdjEffectiveDate('');
+    }
     setAdjAmount(adj.amount ? String(adj.amount) : '');
     setAdjComment(adj.comment || '');
     setAdjFaceCurrency(adj.faceCurrencyCode || '');
@@ -804,7 +814,10 @@ export default function PaymentStatementPage() {
         ? { id: editingAdjustmentId }
         : { paymentId: statementData.payment.paymentId };
 
-      payload.effectiveDate = adjEffectiveDate || undefined;
+      if (adjEffectiveDate) {
+        const m = adjEffectiveDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+        payload.effectiveDate = m ? `${m[3]}-${m[2]}-${m[1]}` : adjEffectiveDate;
+      }
       payload.comment = adjComment || undefined;
 
       if (useFaceCurrency) {
@@ -972,10 +985,6 @@ export default function PaymentStatementPage() {
 
   const handleEditEntry = (row: TransactionRow) => {
     if (row.type === 'ledger' && row.ledgerId) {
-      // Convert dd.mm.yyyy to yyyy-MM-dd for input[type="date"]
-      const dateParts = row.date.split('.');
-      const isoDate = dateParts.length === 3 ? `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}` : '';
-      
       setEditingEntry({
         id: row.ledgerId,
         paymentId: statementData.payment.paymentId,
@@ -985,7 +994,7 @@ export default function PaymentStatementPage() {
         comment: row.comment === '-' ? '' : row.comment
       });
       setNewPaymentId(statementData.payment.paymentId);
-      setNewDate(isoDate);
+      setNewDate(row.date); // keep as dd.mm.yyyy
       setNewAccrual(row.accrual.toString());
       setNewOrder(row.order.toString());
       setNewComment(row.comment === '-' ? '' : row.comment);
@@ -1020,7 +1029,7 @@ export default function PaymentStatementPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentId: newPaymentId,
-          effectiveDate: newDate,
+          effectiveDate: (() => { const m = newDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : (newDate || undefined); })(),
           accrual: parseFloat(newAccrual) || 0,
           order: parseFloat(newOrder) || 0,
           comment: newComment || null
@@ -1895,12 +1904,28 @@ export default function PaymentStatementPage() {
                 <label className="block text-sm font-medium text-gray-700">
                   Effective Date
                 </label>
-                <input
-                  type="date"
-                  value={addEffectiveDate}
-                  onChange={(e) => setAddEffectiveDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={addEffectiveDate}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/[^\d.]/g, '');
+                      if (v.length === 2 && !v.includes('.')) v += '.';
+                      else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                      if (v.length <= 10) setAddEffectiveDate(v);
+                    }}
+                    placeholder="dd.mm.yyyy"
+                    maxLength={10}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                  <input
+                    type="date"
+                    onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setAddEffectiveDate(`${d}.${m}.${y}`); } }}
+                    className="border border-gray-300 rounded-md px-3 cursor-pointer w-12 flex-shrink-0"
+                    title="Pick date from calendar"
+                  />
+                </div>
+                <p className="text-xs text-gray-500">Optional. Defaults to today if not set. Format: dd.mm.yyyy</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -1997,12 +2022,27 @@ export default function PaymentStatementPage() {
                 <label className="block text-sm font-medium text-gray-700">
                   Effective Date
                 </label>
-                <input
-                  type="date"
-                  value={adjEffectiveDate}
-                  onChange={(e) => setAdjEffectiveDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={adjEffectiveDate}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/[^\d.]/g, '');
+                      if (v.length === 2 && !v.includes('.')) v += '.';
+                      else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                      if (v.length <= 10) setAdjEffectiveDate(v);
+                    }}
+                    placeholder="dd.mm.yyyy"
+                    maxLength={10}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                  <input
+                    type="date"
+                    onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setAdjEffectiveDate(`${d}.${m}.${y}`); } }}
+                    className="border border-gray-300 rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
+                    title="Pick date from calendar"
+                  />
+                </div>
               </div>
 
               {/* Face Currency Section */}
@@ -2249,12 +2289,27 @@ export default function PaymentStatementPage() {
                 <label className="block text-sm font-medium text-gray-700">
                   Effective Date <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newDate}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/[^\d.]/g, '');
+                      if (v.length === 2 && !v.includes('.')) v += '.';
+                      else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                      if (v.length <= 10) setNewDate(v);
+                    }}
+                    placeholder="dd.mm.yyyy"
+                    maxLength={10}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="date"
+                    onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setNewDate(`${d}.${m}.${y}`); } }}
+                    className="border border-gray-300 rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
+                    title="Pick date from calendar"
+                  />
+                </div>
               </div>
 
               {/* Comment Field */}

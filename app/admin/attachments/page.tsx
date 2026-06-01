@@ -924,7 +924,7 @@ export default function AttachmentsPage() {
                 </div>
                 <div>
                   <Label>Document Date</Label>
-                  <Input type="date" defaultValue={editAttachment.documentDate || ''} />
+                  <Input type="text" defaultValue={editAttachment.documentDate ? (() => { const dt = new Date(editAttachment.documentDate); const dd = String(dt.getDate()).padStart(2,'0'); const mm = String(dt.getMonth()+1).padStart(2,'0'); return `${dd}.${mm}.${dt.getFullYear()}`; })() : ''} placeholder="dd.mm.yyyy" maxLength={10} />
                 </div>
                 <div>
                   <Label>Document No</Label>

@@ -399,18 +399,10 @@ export function PaymentAttachments({
           paymentId,
           fileName: selectedFile.name,
           documentTypeUuid: selectedDocumentType,
-          documentDate: documentDate,
+          documentDate: (() => { if (!documentDate) return undefined; const m = documentDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : documentDate; })(),
           documentNo: documentNo || undefined,
-          documentValue: documentValue ? parseFloat(documentValue) : undefined,
-          documentCurrencyUuid: documentCurrency || undefined,
-          linkedProjectUuid: selectedProject || undefined,
         }),
       });
-
-      if (!uploadUrlResponse.ok) {
-        const errorData = await uploadUrlResponse.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to get upload URL. Please ensure the Supabase Storage bucket "payment-attachments" is created.');
-      }
 
       const uploadData = await uploadUrlResponse.json();
 
@@ -439,16 +431,14 @@ export function PaymentAttachments({
           mimeType: selectedFile.type,
           fileSizeBytes: selectedFile.size,
           documentTypeUuid: selectedDocumentType,
-          documentDate: documentDate,
+          documentDate: (() => { if (!documentDate) return undefined; const m = documentDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : documentDate; })(),
           documentNo: documentNo || undefined,
-          documentValue: documentValue ? parseFloat(documentValue) : undefined,
-          documentCurrencyUuid: documentCurrency || undefined,
-          linkedProjectUuid: selectedProject || undefined,
         }),
       });
 
       if (!confirmResponse.ok) {
-        throw new Error('Failed to confirm upload');
+        const err = await confirmResponse.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to confirm upload');
       }
 
       // Success - reload attachments and reset form
@@ -584,7 +574,7 @@ export function PaymentAttachments({
   const handleEdit = (attachment: Attachment) => {
     setEditingAttachment(attachment);
     setSelectedDocumentType(attachment.documentTypeUuid || '');
-    setDocumentDate(attachment.documentDate ? new Date(attachment.documentDate).toISOString().split('T')[0] : '');
+    setDocumentDate(attachment.documentDate ? (() => { const dt = new Date(attachment.documentDate); const dd = String(dt.getDate()).padStart(2,'0'); const mm = String(dt.getMonth()+1).padStart(2,'0'); return `${dd}.${mm}.${dt.getFullYear()}`; })() : '');
     setDocumentNo(attachment.documentNo || '');
     setDocumentValue(attachment.documentValue?.toString() || '');
     setDocumentCurrency(attachment.documentCurrencyUuid || '');
@@ -629,7 +619,7 @@ export function PaymentAttachments({
         body: JSON.stringify({
           attachmentUuid: editingAttachment.attachmentUuid,
           documentTypeUuid: selectedDocumentType,
-          documentDate: documentDate,
+          documentDate: (() => { if (!documentDate) return null; const m = documentDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : documentDate; })(),
           documentNo: documentNo || null,
           documentValue: documentValue ? parseFloat(documentValue) : null,
           documentCurrencyUuid: documentCurrency || null,
@@ -951,13 +941,30 @@ export function PaymentAttachments({
                       <Label htmlFor="document-date" className="text-sm">
                         Document Date{documentTypes.find(d => d.uuid === selectedDocumentType)?.requireDate && <span className="text-destructive"> *</span>}
                       </Label>
-                      <Input
-                        id="document-date"
-                        type="date"
-                        value={documentDate}
-                        onChange={(e) => setDocumentDate(e.target.value)}
-                        disabled={uploading}
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          id="document-date"
+                          type="text"
+                          value={documentDate}
+                          onChange={(e) => {
+                            let v = e.target.value.replace(/[^\d.]/g, '');
+                            if (v.length === 2 && !v.includes('.')) v += '.';
+                            else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                            if (v.length <= 10) setDocumentDate(v);
+                          }}
+                          placeholder="dd.mm.yyyy"
+                          maxLength={10}
+                          disabled={uploading}
+                          className="flex-1"
+                        />
+                        <input
+                          type="date"
+                          onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setDocumentDate(`${d}.${m}.${y}`); } }}
+                          disabled={uploading}
+                          className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
+                          title="Pick date from calendar"
+                        />
+                      </div>
                     </div>
                   </div>
 

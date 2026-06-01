@@ -187,7 +187,7 @@ export function PaymentsLedgerTable() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentId: selectedPaymentId,
-          effectiveDate: effectiveDate || undefined,
+          effectiveDate: (() => { if (!effectiveDate) return undefined; const m = effectiveDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : effectiveDate; })(),
           accrual: accrualValue,
           order: orderValue,
           comment: comment || undefined,
@@ -452,11 +452,27 @@ export function PaymentsLedgerTable() {
 
               <div className="space-y-2">
                 <Label>Effective Date (optional, defaults to now)</Label>
-                <Input
-                  type="date"
-                  value={effectiveDate}
-                  onChange={(e) => setEffectiveDate(e.target.value)}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={effectiveDate}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/[^\d.]/g, '');
+                      if (v.length === 2 && !v.includes('.')) v += '.';
+                      else if (v.length === 5 && v.split('.').length === 2) v += '.';
+                      if (v.length <= 10) setEffectiveDate(v);
+                    }}
+                    placeholder="dd.mm.yyyy"
+                    maxLength={10}
+                    className="flex-1"
+                  />
+                  <input
+                    type="date"
+                    onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setEffectiveDate(`${d}.${m}.${y}`); } }}
+                    className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
+                    title="Pick date from calendar"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
