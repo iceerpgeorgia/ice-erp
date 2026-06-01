@@ -23,7 +23,7 @@ import { ClearFiltersButton } from './shared/clear-filters-button';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
 import { useRequiredInsiderName } from './shared/use-required-insider';
 import { BLANK_FACET_TOKEN } from './shared/table-filters';
-import type { ColumnFormat } from './shared/table-filters';
+import type { ColumnFilter, ColumnFormat } from './shared/table-filters';
 import * as XLSX from 'xlsx';
 import { CounteragentFormDialog } from './CounteragentFormDialog';
 
@@ -172,6 +172,7 @@ export function WaybillsTable() {
   const [financialCodes, setFinancialCodes] = useState<any[]>([]);
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [advancedFilters, setAdvancedFilters] = useState<Map<ColumnKey, ColumnFilter>>(new Map());
   const [sorting, setSorting] = useState<SortingState>([{ id: 'activation_time', desc: true }]);
   const [showMissingCounteragents, setShowMissingCounteragents] = useState(false);
   const [missingCounteragentCount, setMissingCounteragentCount] = useState(0);
@@ -533,6 +534,15 @@ export function WaybillsTable() {
           }
           setColumnFilters(restored);
         }
+        if (parsed.advancedFilters && typeof parsed.advancedFilters === 'object') {
+          const restoredAdvanced = new Map<ColumnKey, ColumnFilter>();
+          for (const [key, raw] of Object.entries(parsed.advancedFilters as Record<string, any>)) {
+            if (raw?.mode === 'text' && raw.operator) {
+              restoredAdvanced.set(key as ColumnKey, { mode: 'text', operator: raw.operator, value: raw.value });
+            }
+          }
+          if (restoredAdvanced.size > 0) setAdvancedFilters(restoredAdvanced);
+        }
       } catch (error) {
         console.error('Failed to parse saved filters:', error);
       }
@@ -554,6 +564,9 @@ export function WaybillsTable() {
       filters: columnFilters
         .filter((filter) => typeof filter.id === 'string' && Array.isArray(filter.value))
         .map((filter) => [filter.id, filter.value]),
+      advancedFilters: advancedFilters.size > 0
+        ? Object.fromEntries(Array.from(advancedFilters.entries()))
+        : undefined,
     };
     localStorage.setItem(filtersStorageKey, JSON.stringify(serialized));
   }, [
@@ -567,6 +580,7 @@ export function WaybillsTable() {
     pageSize,
     showMissingCounteragents,
     columnFilters,
+    advancedFilters,
     filtersStorageKey,
   ]);
 
@@ -616,8 +630,15 @@ export function WaybillsTable() {
     if (serializedFilters.length > 0) {
       params.set('filters', JSON.stringify(serializedFilters));
     }
+    if (advancedFilters.size > 0) {
+      const advancedArr: Array<[string, any]> = [];
+      advancedFilters.forEach((filter, key) => {
+        advancedArr.push([key, filter]);
+      });
+      params.set('advancedFilters', JSON.stringify(advancedArr));
+    }
     return params;
-  }, [appliedSearch, periodFrom, periodTo, currentPage, pageSize, showMissingCounteragents, sortColumn, sortDirection, columnFilters]);
+  }, [appliedSearch, periodFrom, periodTo, currentPage, pageSize, showMissingCounteragents, sortColumn, sortDirection, columnFilters, advancedFilters]);
 
   const fetchWaybills = useCallback(async (options?: { page?: number; pageSize?: number }) => {
     setLoading(true);
@@ -1207,6 +1228,7 @@ export function WaybillsTable() {
 
   const handleClearFilters = () => {
     setColumnFilters([]);
+    setAdvancedFilters(new Map());
     setSearch('');
     setAppliedSearch('');
     setPeriodFrom('');
@@ -1406,6 +1428,7 @@ export function WaybillsTable() {
           <ClearFiltersButton
             activeCount={
               columnFilters.length +
+              advancedFilters.size +
               (appliedSearch ? 1 : 0) +
               (periodFrom ? 1 : 0) +
               (periodTo ? 1 : 0) +
@@ -1612,16 +1635,29 @@ export function WaybillsTable() {
                         columnLabel={col.label}
                         values={getUniqueValues(col.key)}
                         activeFilters={filtersMap.get(col.key) || new Set()}
+                        activeFilter={advancedFilters.get(col.key)}
                         onFilterChange={(values) => {
                           table
                             .getColumn(col.key)
                             ?.setFilterValue(values.size === 0 ? undefined : Array.from(values));
                           setCurrentPage(1);
                         }}
+                        {...(!col.format || col.format === 'text' ? {
+                          onAdvancedFilterChange: (filter: ColumnFilter | null) => {
+                            setAdvancedFilters((prev) => {
+                              const next = new Map(prev);
+                              if (filter) next.set(col.key, filter);
+                              else next.delete(col.key);
+                              return next;
+                            });
+                            setCurrentPage(1);
+                          },
+                        } : {})}
                         onSort={(direction) => {
                           table.setSorting([{ id: col.key, desc: direction === 'desc' }]);
                           setCurrentPage(1);
                         }}
+                        columnFormat={col.format}
                         renderValue={(value) => renderFilterValue(col.key, value)}
                         sortValues={
                           col.key === 'period'

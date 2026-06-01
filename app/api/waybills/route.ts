@@ -181,6 +181,19 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Parse advanced (text condition) filters
+    const advancedFiltersParam = searchParams.get('advancedFilters');
+    type ParsedAdvancedFilter = { mode: string; operator: string; value?: string };
+    let parsedAdvancedFilters: Array<[string, ParsedAdvancedFilter]> = [];
+    if (advancedFiltersParam) {
+      try {
+        const parsed = JSON.parse(advancedFiltersParam);
+        parsedAdvancedFilters = (Array.isArray(parsed) ? parsed : []) as Array<[string, ParsedAdvancedFilter]>;
+      } catch {
+        parsedAdvancedFilters = [];
+      }
+    }
+
     const buildFilterClauses = async (
       excludeColumnKey?: string
     ): Promise<Prisma.rs_waybills_in_apiWhereInput[]> => {
@@ -361,6 +374,68 @@ export async function GET(req: NextRequest) {
           clauses.push({ OR: [{ [key]: null } as Prisma.rs_waybills_in_apiWhereInput, { [key]: '' } as Prisma.rs_waybills_in_apiWhereInput] });
         }
       });
+
+      // Apply advanced text condition filters
+      for (const [key, filter] of parsedAdvancedFilters) {
+        if (!allowedFilterFields.has(key)) continue;
+        if (key === excludeColumnKey) continue;
+        if (filter.mode !== 'text') continue;
+        const op = filter.operator;
+        const val = filter.value ?? '';
+
+        if (op === 'blank') {
+          clauses.push({ OR: [{ [key]: null } as Prisma.rs_waybills_in_apiWhereInput, { [key]: '' } as Prisma.rs_waybills_in_apiWhereInput] });
+          continue;
+        }
+        if (op === 'notBlank') {
+          clauses.push({ AND: [{ [key]: { not: null } } as Prisma.rs_waybills_in_apiWhereInput, { [key]: { not: '' } } as Prisma.rs_waybills_in_apiWhereInput] });
+          continue;
+        }
+        if (!val) continue;
+
+        if (key === 'counteragent_name') {
+          // For counteragent_name: search both linked counteragents table and raw counteragent_name field
+          const counteragents = await prisma.counteragents.findMany({
+            where: {
+              OR: [
+                { counteragent: { contains: val, mode: Prisma.QueryMode.insensitive } },
+                { name: { contains: val, mode: Prisma.QueryMode.insensitive } },
+              ],
+            },
+            select: { counteragent_uuid: true },
+          });
+          const uuids = counteragents.map((row) => row.counteragent_uuid).filter(Boolean) as string[];
+          const nameClause: Prisma.rs_waybills_in_apiWhereInput = op === 'notContains'
+            ? {
+                AND: [
+                  uuids.length > 0 ? { counteragent_uuid: { notIn: uuids } } : {},
+                  { OR: [{ counteragent_name: null }, { counteragent_name: { not: { contains: val, mode: Prisma.QueryMode.insensitive } } }] },
+                ] as Prisma.rs_waybills_in_apiWhereInput[],
+              }
+            : {
+                OR: [
+                  ...(uuids.length > 0 ? [{ counteragent_uuid: { in: uuids } } as Prisma.rs_waybills_in_apiWhereInput] : []),
+                  { counteragent_name: { contains: val, mode: Prisma.QueryMode.insensitive } },
+                ],
+              };
+          clauses.push(nameClause);
+          continue;
+        }
+
+        // Generic text conditions for other string fields
+        const prismaOp: Prisma.StringFilter = (() => {
+          switch (op) {
+            case 'contains':    return { contains: val, mode: Prisma.QueryMode.insensitive };
+            case 'notContains': return { not: { contains: val, mode: Prisma.QueryMode.insensitive } };
+            case 'equals':      return { equals: val, mode: Prisma.QueryMode.insensitive };
+            case 'notEquals':   return { not: { equals: val, mode: Prisma.QueryMode.insensitive } };
+            case 'startsWith':  return { startsWith: val, mode: Prisma.QueryMode.insensitive };
+            case 'endsWith':    return { endsWith: val, mode: Prisma.QueryMode.insensitive };
+            default:            return { contains: val, mode: Prisma.QueryMode.insensitive };
+          }
+        })();
+        clauses.push({ [key]: prismaOp } as Prisma.rs_waybills_in_apiWhereInput);
+      }
 
       return clauses;
     };

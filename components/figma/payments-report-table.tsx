@@ -2419,7 +2419,6 @@ export function PaymentsReportTable() {
   };
 
   const visibleColumns = columns.filter(col => col.visible);
-  const hasActiveFilters = activeFilterCount > 0 || searchTerm.length > 0;
 
   const resetAllFilters = () => {
     clearFilters();
@@ -3175,7 +3174,7 @@ export function PaymentsReportTable() {
             </div>
             
             <ClearFiltersButton
-              activeCount={(hasActiveFilters ? 1 : 0) + activeFilterCount}
+              activeCount={activeFilterCount + (searchTerm.length > 0 ? 1 : 0)}
               onClear={resetAllFilters}
             />
 

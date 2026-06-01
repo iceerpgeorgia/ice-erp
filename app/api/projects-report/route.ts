@@ -311,11 +311,12 @@ export async function GET(request: NextRequest) {
 
     // Fetch all active jobs per project (not just those with payments)
     const allJobRows = await prisma.$queryRawUnsafe<{ project_uuid: string; job_uuid: string; job_name: string; floors: number }[]>(
-      `SELECT project_uuid::text, job_uuid::text, COALESCE(job_name, '') AS job_name, COALESCE(floors, 0) AS floors
-       FROM jobs
-       WHERE project_uuid IN (${projectPlaceholders})
-         AND is_active = true
-       ORDER BY job_name ASC`,
+      `SELECT jp.project_uuid::text, j.job_uuid::text, COALESCE(j.job_name, '') AS job_name, COALESCE(j.floors, 0) AS floors
+       FROM job_projects jp
+       INNER JOIN jobs j ON j.job_uuid = jp.job_uuid
+       WHERE jp.project_uuid IN (${projectPlaceholders})
+         AND j.is_active = true
+       ORDER BY j.job_name ASC`,
       ...projectUuids
     );
     const allJobsByProject = new Map<string, { jobUuid: string; jobName: string; floors: number }[]>();
