@@ -62,13 +62,15 @@ const resolveTitle = (pathname: string) => {
   return toTitleCase(segments[segments.length - 1]);
 };
 
-export default function PageTitle() {
+export default function PageTitle({ className }: { className?: string }) {
   const pathname = usePathname();
+  const title = resolveTitle(pathname);
 
   useEffect(() => {
     if (!pathname) return;
-    document.title = resolveTitle(pathname);
-  }, [pathname]);
+    document.title = `${title} | ICE ERP`;
+  }, [pathname, title]);
 
-  return null;
+  if (!className) return null;
+  return <span className={className}>{title}</span>;
 }

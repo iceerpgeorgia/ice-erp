@@ -157,6 +157,16 @@
 	--sidebar-width: 248px;
 	--sidebar-width-collapsed: 64px;
 	--topbar-height: 56px;
+
+	/* Sidebar surface (dark panel) */
+	--sidebar: #0f172a;
+	--sidebar-foreground: #94a3b8;
+	--sidebar-primary: var(--brand-600);
+	--sidebar-primary-foreground: #ffffff;
+	--sidebar-accent: rgba(255,255,255,0.07);
+	--sidebar-accent-foreground: #e2e8f0;
+	--sidebar-border: rgba(255,255,255,0.08);
+	--sidebar-ring: var(--brand-500);
 }
 
 .dark {
@@ -198,6 +208,14 @@
 	--table-row-selected: rgba(99, 102, 241, 0.12);
 	--table-zebra: rgba(255, 255, 255, 0.02);
 	--table-border: var(--gray-700);
+	--sidebar: var(--gray-800);
+	--sidebar-foreground: var(--gray-400);
+	--sidebar-primary: var(--brand-500);
+	--sidebar-primary-foreground: #ffffff;
+	--sidebar-accent: rgba(255,255,255,0.06);
+	--sidebar-accent-foreground: var(--gray-100);
+	--sidebar-border: rgba(255,255,255,0.07);
+	--sidebar-ring: var(--brand-400);
 }
 
 /* Tailwind v4 token bridge: expose color tokens for utilities like bg-background, text-muted-foreground, border-border */
