@@ -1,5 +1,10 @@
 # Deployment Log
 
+## 2026-06-01 Deployment #266
+- Commit: 6c94779 (main, merged from ui-refactor-minimalist-corporate)
+- Production: https://ice-erp.vercel.app → https://ice-9rjp9h072-iceerp.vercel.app
+- Summary: Merge ui-refactor-minimalist-corporate into main; canonical alias updated.
+
 ## 2026-06-01 Deployment #265
 - Commit: b32bf12
 - Production: https://ice-1en25wpqo-iceerp.vercel.app
