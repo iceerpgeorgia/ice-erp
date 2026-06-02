@@ -1,0 +1,20 @@
+INSERT INTO dimensions (uuid, dimension, is_active, created_at, updated_at) VALUES
+  ('294e4db3-55b8-4437-9232-b86625a7e187', 'მეტრი',      true, now(), now()),
+  (gen_random_uuid(),                       'კგ',         true, now(), now()),
+  (gen_random_uuid(),                       'კომპლექტი',  true, now(), now()),
+  ('2a7b3769-e90a-451f-a30c-3cbf285659f4', 'ლიტრი',      true, now(), now()),
+  ('8572b430-f3d3-4d9f-af30-73c737f874ee', 'მ²',          true, now(), now()),
+  ('14fdde93-0ee3-45a6-ad6a-8e13c66fbaad', 'მ³',          true, now(), now()),
+  ('e827fca5-c231-4de7-91a9-a566934a3d2e', 'მილილიტრი',  true, now(), now()),
+  ('b2651488-6445-4b2a-ab6a-47cb8808a15d', 'ნაკრები',     true, now(), now()),
+  ('8dc4cfdc-878c-401b-bb0a-11334e50c2d3', 'რულონი',      true, now(), now()),
+  ('f9f4bcb1-f01b-4a7f-9b88-10c33444c290', 'სხვადასხვა',  true, now(), now()),
+  ('7aaea885-07c7-4ef0-a413-2f7dfa75c736', 'ტომარა',      true, now(), now()),
+  ('375876df-adf0-4739-b0cd-9ad4cc0ceb21', 'ტონა',        true, now(), now()),
+  ('db74eeb2-4ee7-4e48-9850-db10af3c8d5c', 'ყუთი',        true, now(), now()),
+  ('e562e3ac-8ddf-4752-b9c2-809f169feabb', 'შეკვრა',      true, now(), now()),
+  ('f32683dc-3dcc-4faf-a238-97d223da848e', 'ცალი',        true, now(), now()),
+  ('5d4a9c39-9eab-4087-885b-05bfdbf44215', 'წყვილი',      true, now(), now()),
+  ('7687bb25-d76b-46ef-80aa-003272adb6ed', 'მომსახურება', true, now(), now()),
+  ('ec043a52-1a0f-40c3-b3ed-0a8ed433c2f5', 'გრამი',       true, now(), now())
+ON CONFLICT (uuid) DO NOTHING;

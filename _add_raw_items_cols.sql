@@ -1,0 +1,23 @@
+-- Add raw API fields to rs_waybills_in_items
+ALTER TABLE "rs_waybills_in_items"
+  ADD COLUMN IF NOT EXISTS "type"             TEXT,
+  ADD COLUMN IF NOT EXISTS "create_date"      TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "activate_date"    TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "begin_date"       TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "cancel_date"      TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "seller_tin"       TEXT,
+  ADD COLUMN IF NOT EXISTS "seller_name"      TEXT,
+  ADD COLUMN IF NOT EXISTS "start_address"    TEXT,
+  ADD COLUMN IF NOT EXISTS "end_address"      TEXT,
+  ADD COLUMN IF NOT EXISTS "driver_tin"       TEXT,
+  ADD COLUMN IF NOT EXISTS "driver_name"      TEXT,
+  ADD COLUMN IF NOT EXISTS "transport_cost"   DECIMAL(20,2),
+  ADD COLUMN IF NOT EXISTS "full_amount"      DECIMAL(20,2),
+  ADD COLUMN IF NOT EXISTS "car_number"       TEXT,
+  ADD COLUMN IF NOT EXISTS "tran_cost_payer"  TEXT,
+  ADD COLUMN IF NOT EXISTS "trans_id"         TEXT,
+  ADD COLUMN IF NOT EXISTS "is_confirmed"     TEXT,
+  ADD COLUMN IF NOT EXISTS "status"           TEXT,
+  ADD COLUMN IF NOT EXISTS "unit_id"          TEXT,
+  ADD COLUMN IF NOT EXISTS "vat_type"         TEXT,
+  ADD COLUMN IF NOT EXISTS "a_id"             TEXT;

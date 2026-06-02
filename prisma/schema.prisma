@@ -79,6 +79,38 @@ model User {
   UserPermission        UserPermission[]
   PaymentNotificationToken PaymentNotificationToken[]
   ProjectReportView     ProjectReportView[]
+  UserNavFolder         UserNavFolder[]
+  UserNavItem           UserNavItem[]
+}
+
+model UserNavFolder {
+  id        String        @id @default(cuid())
+  userId    String
+  name      String        @db.VarChar(100)
+  icon      String        @default("Folder") @db.VarChar(50)
+  sortOrder Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     UserNavItem[]
+
+  @@index([userId])
+  @@map("user_nav_folders")
+}
+
+model UserNavItem {
+  id        String         @id @default(cuid())
+  userId    String
+  routeKey  String         @db.VarChar(255)
+  icon      String?        @db.VarChar(50)
+  folderId  String?
+  sortOrder Int            @default(0)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder    UserNavFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, routeKey])
+  @@index([userId])
+  @@map("user_nav_items")
 }
 
 model ProjectReportView {

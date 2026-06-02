@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useMemo } from 'react';
 import {
   Sidebar,
   SidebarContent,
@@ -42,8 +43,12 @@ import {
   UserCheck,
   Settings,
   PanelLeftClose,
+  LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/components/ui/utils';
+import { useNavConfig } from '@/components/nav-config-context';
+import { MASTER_NAV } from '@/lib/nav/master';
+import { getIcon } from '@/lib/nav/icons';
 
 type NavItem = {
   label: string;
@@ -130,8 +135,72 @@ function isActive(pathname: string, item: NavItem): boolean {
 export function AppSidebar() {
   const pathname = usePathname();
   const { setOpen } = useSidebar();
+  const { config } = useNavConfig();
 
   const handleNavClick = () => setOpen(false);
+
+  // Build nav groups: dynamic if user has folders, otherwise static fallback
+  const navGroups = useMemo<NavGroup[]>(() => {
+    if (!config || config.folders.length === 0) return NAV;
+
+    const itemsMap = Object.fromEntries(config.items.map(i => [i.routeKey, i]));
+
+    // Map master items into folder buckets
+    const grouped: Record<string, typeof MASTER_NAV> = {};
+    const uncategorized: typeof MASTER_NAV = [];
+
+    MASTER_NAV.forEach(master => {
+      const override = itemsMap[master.routeKey];
+      const folderId = override?.folderId ?? null;
+      if (folderId) {
+        if (!grouped[folderId]) grouped[folderId] = [];
+        grouped[folderId].push(master);
+      } else {
+        uncategorized.push(master);
+      }
+    });
+
+    const groups: NavGroup[] = [];
+
+    // User-defined folders (only if they have items)
+    for (const folder of config.folders) {
+      const folderItems = grouped[folder.id];
+      if (!folderItems?.length) continue;
+      groups.push({
+        title: folder.name,
+        items: folderItems.map(m => ({
+          label: m.label,
+          href: m.routeKey,
+          icon: getIcon(itemsMap[m.routeKey]?.icon ?? m.defaultIcon) as React.ElementType,
+          matchPrefix: m.routeKey !== '/' ? m.routeKey : undefined,
+        })),
+      });
+    }
+
+    // Uncategorized items grouped by default group
+    const byDefault: Record<string, typeof MASTER_NAV> = {};
+    uncategorized.forEach(m => {
+      if (!byDefault[m.defaultGroup]) byDefault[m.defaultGroup] = [];
+      byDefault[m.defaultGroup].push(m);
+    });
+    const defaultGroupOrder = ['Overview', 'Banking', 'Finance', 'Reports', 'Dictionaries', 'Admin'];
+    const sortedDefaultGroups = Object.keys(byDefault).sort(
+      (a, b) => (defaultGroupOrder.indexOf(a) - defaultGroupOrder.indexOf(b))
+    );
+    for (const group of sortedDefaultGroups) {
+      groups.push({
+        title: group,
+        items: byDefault[group].map(m => ({
+          label: m.label,
+          href: m.routeKey,
+          icon: getIcon(itemsMap[m.routeKey]?.icon ?? m.defaultIcon) as React.ElementType,
+          matchPrefix: m.routeKey !== '/' ? m.routeKey : undefined,
+        })),
+      });
+    }
+
+    return groups;
+  }, [config]);
 
   return (
     <Sidebar collapsible="icon" variant="sidebar">
@@ -149,7 +218,7 @@ export function AppSidebar() {
 
       {/* Navigation */}
       <SidebarContent className="py-2">
-        {NAV.map((group) => (
+        {navGroups.map((group) => (
           <SidebarGroup key={group.title} className="px-2">
             <SidebarGroupLabel className="px-2 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/50">
               {group.title}

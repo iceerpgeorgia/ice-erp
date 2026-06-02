@@ -1,0 +1,1 @@
+﻿TRUNCATE TABLE "rs_waybills_in_items" RESTART IDENTITY;

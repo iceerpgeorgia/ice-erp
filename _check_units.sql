@@ -1,0 +1,1 @@
+SELECT unit, unit_id, COUNT(*) as cnt FROM rs_waybills_in_items GROUP BY unit, unit_id ORDER BY cnt DESC;

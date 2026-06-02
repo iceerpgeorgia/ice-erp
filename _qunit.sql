@@ -1,0 +1,1 @@
+SELECT unit_id, COUNT(*)::int as cnt FROM rs_waybills_in_items GROUP BY unit_id ORDER BY cnt DESC;

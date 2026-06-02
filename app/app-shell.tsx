@@ -2,6 +2,7 @@
 
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
+import { NavConfigProvider } from '@/components/nav-config-context';
 import { useSession, signOut } from 'next-auth/react';
 import {
   DropdownMenu,
@@ -59,14 +60,16 @@ function Topbar() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <div className="flex flex-1 flex-col min-w-0 min-h-svh">
-        <Topbar />
-        <main className="flex-1 min-h-0">
-          {children}
-        </main>
-      </div>
-    </SidebarProvider>
+    <NavConfigProvider>
+      <SidebarProvider>
+        <AppSidebar />
+        <div className="flex flex-1 flex-col min-w-0 min-h-svh">
+          <Topbar />
+          <main className="flex-1 min-h-0">
+            {children}
+          </main>
+        </div>
+      </SidebarProvider>
+    </NavConfigProvider>
   );
 }

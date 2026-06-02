@@ -1,0 +1,1528 @@
+=== PAGE 1 ===
+ელექტრონული ზედნადების სერვისის აღწერა 
+
+=== PAGE 2 ===
+ვერსია 4.0.4 
+მომზადებულია სსიპ შემოსავლების სამსახურის 
+საინფორმაციო ტექნოლოგიების ცენტრის მიერ 
+2012-2023 წელი 
+დოკუმენტის ისტორია: 
+განხორციელებული ცვლილება 
+თარიღი 
+1. get_waybills_v1 მეთოდი დააბრუნებს ზედნადებებს სადაც, 
+ავტორიზებული მომხმარებელი იქნება, როგორც მის მიერ 
+შესყიდული ასევე მის მიერ გაყიდული ზედნადებები კონკრეტულ 
+კომპანიასთან. 
+2. get_waybills_v1 მეთოდის last_update_date_s და last_update_date_e 
+პარამეტრების თარიღის სიზუსტე შეიცვალა დღის სიზუსტიდან 
+საათის, წუთის დ წამის სიზუსტემდე. 
+03.10.2024 
+დაემატა save_waybill მეთოდში goods_list-ის და მისი „შვილობილი“ 
+ველების ვალიდაცია. 
+15.05.2024 
+დაემატა მეთოდი get_waybills_v1 - აბრუნებს განახლების 
+თარიღის მიხედვით ზედნადებებს. 
+05.09.2023 
+გამყიდველის ზედანდებების რეესტრის მეთოდს დაემატა ველი 
+13.05.2014 
+მყიდველის ზედანდებების რეესტრის მეთოდს დაემატა ველი 
+13.05.2014 
+დაემატა ახალი ფუნქცია, ფილტრის ველით 
+16.05.2014 
+დაემატა 
+ახალი მეთოდები: ელექტრონული ზედნადების 
+გადამზიდავისთვის გადაგზავნა; გადამზიდავის მიერ 
+ზედნადები ველების გადმოგზავნა; გადამზიდავის მიერ 
+ზედნადების დახურვა 
+1.07.2014 
+ფინანსთა მინისტრის N257 ბრძანების თანახმად დაემატა ხე-ტყის 
+სასაქონლო ზედნადების კატეგორია 
+10.08.2015 
+დაემატა ზედნადების დადასტურება 
+03.02.2016 
+ფინანსთა მინისტრის 15.06.2016წლის N122 ბრძანების თანახმად 
+შიცვალა ხე-ტყის კატეგორიის სასაქონლო ზედნადების ფორმა: 
+გაუქმდა 21-ე ველი-„ფირნიშის ნომრები“. დაემატა ახალი VIII სვეტი 
+პროდუქციის 
+რეესტრში - „ფირნიშის ნომერი“. 
+01.08.2016 
+მედიკამენტების ზედნადების ინტერგირება 
+15.03.2023 
+
+=== PAGE 3 ===
+1 
+დოკუმენტის შესახებ 
+დოკუმენტის მიზანია: 
+- 
+აღწეროს ელექტრონული ურთიერთობის პროცესი; 
+- 
+აღწეროს ელექტრონული ურთიერთობის ტექნკური მოთხოვნები; 
+-  შემოსავლების სამსახურსა და სერვისის მომხმარებელს შორის 
+მიღებული და შეთანხმებული იქნას ელექტრონული 
+ურთიერთობების ტექნიკური სტანდარტი და პროტოკოლი; 
+- მიღებული და შეთანხმებული იქნას ელექტრონული 
+ურთუიერთობების პირობები. 
+განმარტებები: 
+1. 
+შემოსავლების სამსახური - სსიპ შემოსავლების სამსახური; 
+2. 
+სამუშაო საათები - შეუზღუდავი; 
+3. გამყიდველი - „გადამხდელი პორტალი“-ს მომხმარებელი იურიდიული 
+პირი; 
+4. მყიდველი - ელექტრონული ზედნადების მიმღები იურიდიული ან 
+ფიზიკური პირი; 
+5. გააქტიურება - ტრანსპორტირების დაწყების აღიარება; 
+6. დასრულებული - მყიდველზე ჩაბარებული ელექტრონული ზედნადები. 
+
+=== PAGE 4 ===
+2 
+შემოსავლების სამსახურის საინფორმაციო სისტემასთან დაკავშირება და 
+ელექტრონული ურთიერთობის მეთოდი 
+ელექტრონული ურთიერთობა უზრუნველყოფილი ვებ სერვისებით. 
+ვებ სერვისის მისამართი: https://services.rs.ge/WayBillService/WayBillService.asmx 
+ვებ სერვისის ტესტირებისას შეგიძლიათ გამოიყენოთ შემდეგი სატესტო მონაცემები: 
+მომხმარებელი: 
+tbilisi 
+პაროლი: 
+123456 
+საიდენტიფიკაციო 
+ნომერი: 
+206322102 
+მომხმარებელი: satesto2 
+პაროლი: 123456 
+საიდენტიფიკაციო ნომერი: 
+12345678910 
+პროცესის აღწერა 
+ელექტრონული სასაქონლო ზედნადების წარმოება ითვალისწინებს 
+ელექტრონული ზედანდების (ხუთი ტიპის სასაქონლო ზედნადების) გამოწერას, 
+კორექტირებას, გაუქმებას, ტრანსპორტირების დაწყების ფაქტის აღიარებას, და 
+ელექტრონული 
+სასაქონლო 
+ზედანდების 
+რეესტრის 
+წარმოებას. 
+ასევე 
+ითვალისწინებს, 
+ გადამხდელთან 
+ არსებული 
+სასაქონლო 
+კოდების, 
+ნომენკლატურის   შენარჩუნებას, 
+მისი 
+რეესტრის 
+ წარმოებას  
+და 
+დისტრიბუციისათვის განსაზღვრული სატრანსპორტო საშალებების აღრიცხვას. 
+საქონლის მიწოდების სახიდან გამომდინარე ელექტრონული სასაქონლო 
+ზედანადები არის ხუთი ტიპის: 
+1. 
+შიდა გადაზიდვა; 
+2. 
+მიწოდება ტრანსპორტირებით; 
+3. 
+მიწოდება ტრანსპორტირების გარეშე; 
+
+=== PAGE 5 ===
+3 
+4. 
+დისტრიბუცია 
+(მოიცავს ძირითად 
+ზედნადებს 
+და 
+მასზე 
+დამოკიდებულ ქვე-ზედნადებებს); 5. 
+საქონლის უკან დაბრუნება. 
+ელექტრონული 
+სასაქონლო 
+ზედანდები 
+იყენებს 
+შემოსავლების 
+სამსახურის საინფორმაციო სისტემაში არსებულ მონაცემთა ცნობარს; 
+1. 
+მყიდველის (მიმღების) საიდენტიფიკაციო/პირადი ნომერი; 
+2. 
+მყიდველის (მიმღების) დასახელება; 
+3. 
+დღგ-ს გადამხდელის შემოწმება; 
+4. 
+საქონლის 
+დასახელება 
+შტრიხოდების 
+და 
+კოდების 
+ცნობარი 
+ინდივიდუალურად გადამხდელის მიხედვით 
+5. 
+ზომის ერთეული. 
+6. 
+მძღოლის პირადი ნომრის შემოწმება 
+7. 
+სატრანსპორტო საშუალებების აღრიცხვის საშუალება. 
+ელექტრონული სასაქონლო ზედნადების შევსების შემდეგ, ხდება მისი 
+გააქტიურება (ტრანსპორტირების დროის მითითებით), რის შემდეგ 
+ელექტრონულ სასაქონლო ზედნადებს ენიება უნიკალური ნომერი. 
+ტრანსპორტირების დასრულების შემდეგ შესაძლებელია (არა აუცილებელი) 
+საქონლის მიმღები პირის შესახებ მონაცემების შევსება და ელექტრონული 
+სასაქონლო ზედნადების დასრულება. 
+დისტრიბუციის შემთხვევაში, ძირითადი სასაქონლო ზედნადების 
+ფარგლებში, შესაძლებელია, კონკრეტულ მყიდველებზე ქვე-ზედნადებების 
+გამოწერა. 
+იმ 
+შემთხვევაში, როდესაც 
+ტრანსპორტირება 
+ხორციელდება 
+გადამზიდავი კომპანიის საშუალებით, გამყიდველს აქვს საშუალება ორი სახის 
+სასაქონლო ზედნადები (მიწოდება ტრანსპორტირებით და შიდა გადაზიდვა) 
+გადააგზავნოს გადამზიდავ კომპანიასთან. გადამზიდავი კომპანია, მიღებულ 
+ზედნადებზე, ახორციელებს მისთვის განკუთვნილი ველების შევსებას და 
+ტრანსპორტირების დაწყების თარიღის მითითებით ააქტიურებს სასაქონლო 
+ზედნადებს. გადამზიდავ კომპანიას აქვს საშუალება შეიტანოს ცვლილება 
+
+=== PAGE 6 ===
+4 
+(რედაქტირება) მისთვის 
+განკუთვნილი 
+ველებში 
+და 
+ტრანსპორტირები დასრულების შემდეგ დაასრულოს სასაქონლო ზედნადები. 
+ხე-ტყის სასაქონლო ზედნადების შემთხვევაში, საჭიროა, კატეგორია 
+„ხე-ტყის“ განსაზღვრა. აღნიშნული ზედნადების შევსება სავალდებულოა შემდეგ 
+საქონელზე: მრგვალ ხე-ტყეზე (მორი), მრგვალი ხე-ტყის (მორის) ან ხე- მცენარის 
+პირველადი გადამუშავების პროდუქტზე, ხე-მცენარეზე; ერთ მეტრამდე სიგრძის 
+დაკოტრილ მრგვალ ხე-ტყეზე. აღნიშნული სასაქონლო ზედნადების შევსებისას 
+საჭიროა დამატებითი ველების შევსება: ხე-ტყის საქონლის წარმოშობის 
+დოკუმენტის დასახელება; ნომერი; გაცემის თარიღი და ფირნიშის ნომრების 
+რეესტრი. 
+ხე-ტყის საქონლის ექსპორტისას, საბაჟო გამშვები პუნქტის მიერ ხორციელდება 
+დოკუმენტის (სასაქონლო ზედნადების) დადასტურება, რის შემდეგაც 
+სასაქონლო ზედნადებში ცვლილებების განხორციელება შეუძლებელია. 
+სასაქონლო ზედნადებებიდან შესაძლებელია საგადასახადო ანგარიშ 
+ფაქტურების შექმნა. 
+გამყიდველის მხრიდან ხდება ზედნადების შევსება, რის შემდეგაც 
+მყიდველს შეუძლია დაადასტუროს, ან არ დაეთანხმოს ზედნადებში შევსებულ 
+ინფორმციას. „მივიღე“ და „არ ვეთანხმები“ ფუნქცია გამოიყენება მხოლოდ 
+მყიდველ-გამყიდველს შორის ურთიერთობისთვის. 
+სერვისის მომხმარებლის ადმინისტრირება: 
+სერვისის ახალი მომხმარებლის შექმნა ხორციელდება შემოსავლების 
+სამსახურის ელექტრონული სერვისების ავტორიზებული მომხმარებლის 
+გვერდიდან. მომხმარებლის სახელის, მომხმარებლის პაროლის და სათანადო 
+უფლებების (დაშვებების) განსაზღვრით. 
+სერვისის მომხმარებლის მართვის მეთოდები: 
+
+=== PAGE 7 ===
+5 
+1. მომხმარებლის განახლება 
+public bool update_service_user(string user_name, string user_password, string ip, string 
+name, string su, string sp) 
+გადაეცემა: 
+user_name - ელექტრონული დეკლარირების მომხმარებლის სახელი; 
+user_password - ელექტრონული დეკლარირების 
+მომხმარებლისპაროლი; ip - საიდანც, მოხდება სერვისების 
+გამოყენება; name - ობიექტის სახელი; su - სერვისის მომხმარებელი; 
+sp - სერვისის მომხმარებლის პაროლი. 
+აბრუნებს: 
+ლოგიკურ ცვლადს - true იმ შემთხვევაში, თუ მომხმარებელის მონაცემები 
+განახლდა, false იმ შემთხვევაში, თუ არ განახლდა ; 
+2. მომხმარებლების სიის გამოტანა 
+ 
+public XmlNode get_service_users(string user_name, string user_password) გადაეცემა: 
+user_name - დეკლარირების მომხმარებლის სახელი; user_password 
+- დეკლარირების პაროლი; 
+აბრუნებს: 
+შემდეგი სახის Xml-ს 
+<ServiceUsers> 
+<ServiceUser> 
+<ID>62</ID> 
+<USER_NAME>tbilisi</USER_NAME> 
+<UN_ID>731937</UN_ID> 
+<IP>12.12.12.12</IP> 
+<NAME>test_wb</NAME> 
+</ServiceUser> 
+</ServiceUsers> 
+
+=== PAGE 8 ===
+6 
+სადაც, ID - სერვისის მომხმარებლის ID-ია; 
+USER_NAME - მომხმარებლის სახელი; 
+UN_ID - გადამხდელის უნიკალური ნომერი; 
+IP – IP მისამართი; 
+NAME - მაღაზიის სახელი; 
+3. მომხმარებლის პაროლის შემოწმება 
+ 
+public bool chek_service_user(string su, string sp, out int un_id, out int s_user_id) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი; sp - 
+სერვისის მომხმარებლის პაროლი; 
+აბრუნებს: 
+un_id - გადამხდელის უნიკალური ნომერი; s_user_id 
+- სერვისის მომხმარებლის ID-ია; 
+სერვისის ცნობარის მიღება: 
+სისტემა იყენებს შემდეგი სახის ცნობარებს: აქციზური საქონლის კოდები, სასაქონლო ზედნადებების 
+ტიპის გამოტანა, საქონლის ერთეულების გამოტანა, ტრანსპორტირების ტიპის 
+გამოტანა. 
+1.  აქციზური საქონლის კოდები 
+public XmlNode get_akciz_codes (string su, string sp) 
+გადაეცემა: 
+
+=== PAGE 9 ===
+7 
+su - სერვისის მომხმარებელი; sp 
+- სერვისის პაროლი; 
+აბრუნებს: 
+შემდეგი სახის Xml-ს 
+<AKCIZ_CODES> 
+<AKCIZ_CODE> 
+<ID>224</ID> 
+<TITLE>ეთილის სპირტი(2207)_ლიტრი _ (2.6)</TITLE> 
+<MEASUREMENT>ლიტრი</MEASUREMENT> 
+<SAKON_KODI>2207</SAKON_KODI> <AKCIS_GANAKV>2.6</AKCIS_GANAKV> 
+</AKCIZ_CODE> 
+</AKCIZ_CODES> 
+სადაც, ID – აქციზის ID; 
+TITLE - აქციზური საქონლის დასახელება; 
+MEASUREMENT - ზომის ერთეული 
+SAKON_KODI - აქციზის კოდი 
+AKCIS_GANAKV- აქციზის განაკვეთი 
+2. სასაქონლო ზედნადებების ტიპების გამოტანა 
+public XmlNode get_waybill_types(string su, string sp) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი; sp - 
+სერვისის მომხმარებლის პაროლი; 
+აბრუნებს: 
+შემდეგი სახის Xml-ს 
+<WAYBILL_TYPES> 
+
+=== PAGE 10 ===
+8 
+<WAYBILL_TYPE> 
+<ID>6</ID> 
+<NAME>ქვე-ზედნადები</NAME> 
+</WAYBILL_TYPE> 
+</WAYBILL_TYPES> 
+სადაც:  ID – ზედნადების ტიპის ID; 
+NAME - ტიპის დასახელება; 
+3. საქონლის ერთეულების გამოტანა 
+public XmlNode get_waybill_units(string su, string sp) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი; sp - 
+სერვისის მომხმარებლის პაროლი; 
+აბრუნებს: შემდეგი სახის Xml-ს 
+<WAYBILL_UNITS> 
+<WAYBILL_UNIT><ID>1</ID> 
+<NAME>ცალი</NAME> 
+</WAYBILL_UNIT> 
+</WAYBILL_UNITS> სადაც, 
+ID – ერთეულის ID; 
+NAME - დასახელება; 
+
+=== PAGE 11 ===
+9 
+4. ტრანსპორტირების ტიპის გამოტანა 
+public XmlNode get_trans_types(string su, string sp) გადაეცემა: 
+su - სერვისის მომხმარებელი; sp - 
+სერვისის მომხმარებლის პაროლი; 
+აბრუნებს: შემდეგი სახის Xml-ს 
+<TRANSPORT_TYPES> <TRANSPORT_TYPE> 
+<ID>1</ID> 
+<NAME>დასახელება</NAME> 
+</TRANSPORT_TYPE> 
+</TRANSPORT_TYPES> სადაც, ID – 
+ტრასნპორტირების ტიპის 
+ID; NAME - დასახელება; 
+ 
+5. 
+ხეტყის ტიპების გამოტანა 
+public 
+XmlNode 
+get_wood_types(string 
+su, 
+string 
+sp) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი; sp - 
+სერვისის მომხმარებლის პაროლი; 
+აბრუნებს: შემდეგი სახის Xml-ს 
+<WOOD_TYPES> 
+< WOOD_TYPES > 
+<ID>1</ID> 
+<NAME>დასახელება</NAME> 
+<DESCRIPTION>დასახელება< 
+/DESCRIPTION> 
+</ WOOD_TYPES> 
+</ WOOD_TYPES > 
+სერვისის ელექტრონული სასაქონლო ზედნადების წარმოების მეთოდები: 
+
+=== PAGE 12 ===
+10 
+სასაქონლო ზედნადებების ძირითადი ფუნქციები: 
+1. ზედნადების შენახვა 
+public XmlNode save_waybill(string su, string sp, XmlNode waybill) გადაეცემა: 
+su - სერვისის მომხმარებელი; sp - 
+სერვისის მომხმარებლის პაროლი; 
+შემდეგი სახის Xml-ი 
+<WAYBILL> 
+<SUB_WAYBILLS></SUB_WAYBILLS> 
+<GOODS_LIST> 
+<GOODS> 
+<ID>0</ID> 
+<W_NAME>წამალი #001</W_NAME> 
+<UNIT_ID>1</UNIT_ID> 
+<UNIT_TXT>წამალი</UNIT_TXT>  
+<QUANTITY>5</QUANTITY> 
+<PRICE>4</PRICE>  
+<STATUS>1</STATUS> 
+<AMOUNT>20</AMOUNT> 
+ <BAR_CODE>psp101</BAR_CODE> 
+<A_ID>0</A_ID> 
+ <VAT_TYPE>1</VAT_TYPE> 
+<QUANTITY_EXT>5</QUANTITY_EXT> 
+<WOOD_LABEL>asd</ WOOD_LABEL> 
+<W_ID>1</ W_ID > 
+</GOODS> 
+<GOODS> 
+<ID>109416</ID> 
+<W_NAME>წამალი #002</W_NAME> 
+<UNIT_ID>1</UNIT_ID> 
+<UNIT_TXT>წამალი</UNIT_TXT> 
+<QUANTITY>5</QUANTITY> <PRICE>3</PRICE> 
+<STATUS>1</STATUS> <AMOUNT>15</AMOUNT> 
+<BAR_CODE>psp102</BAR_CODE> <A_ID>0</A_ID> 
+<VAT_TYPE>0</VAT_TYPE> 
+<QUANTITY_EXT>5</QUANTITY_EXT> 
+<WOOD_LABEL>asd</ WOOD_LABEL> 
+<W_ID>1</ W_ID > 
+</GOODS> 
+</GOODS_LIST> 
+
+=== PAGE 13 ===
+11 
+<WOOD_DOCS_LIST> 
+<WOODDOCUMENT> 
+<ID>0</ID> 
+<DOC_N>ხე1</DOC_N> 
+<DOC_DATE>2012-03-09T12:15:21</DOC_DATE> 
+<DOC_DESC>ლიცენზია</ DOC_DESC > 
+<STATUS>1</STATUS> </WOODDOCUMENT> 
+<WOODDOCUMENT> 
+<ID>0</ID> 
+<DOC_N>ხე2</DOC_N> 
+<DOC_DATE>2012-03-09T12:15:21</DOC_DATE> 
+<DOC_DESC>ლიცენზია</ DOC_DESC > 
+<STATUS>1</STATUS> 
+</WOODDOCUMENT> 
+</WOOD_DOCS_LIST> 
+<ID>0</ID> 
+<TYPE>2</TYPE> 
+<BUYER_TIN>12345678910</BUYER_TIN> 
+<CHEK_BUYER_TIN>0</CHEK_BUYER_TIN> 
+<BUYER_NAME>გიორგი გიორგაძე</BUYER_NAME> 
+<START_ADDRESS>თბილისი, საბურთალოს ქუჩა</START_ADDRESS> 
+<END_ADDRESS>თბილისი, გულუას ქუჩა</END_ADDRESS> 
+<DRIVER_TIN>1</DRIVER_TIN> 
+<CHEK_DRIVER_TIN></CHEK_DRIVER_TIN> 
+<DRIVER_NAME>ირაკლი</DRIVER_NAME> 
+<TRANSPORT_COAST>0</TRANSPORT_COAST> 
+<RECEPTION_INFO></RECEPTION_INFO> 
+<RECEIVER_INFO></RECEIVER_INFO> 
+<DELIVERY_DATE></DELIVERY_DATE> 
+<STATUS>1</STATUS> 
+<SELER_UN_ID>731937</SELER_UN_ID> 
+<PAR_ID></PAR_ID> 
+<FULL_AMOUNT>35</FULL_AMOUNT> 
+<CAR_NUMBER></CAR_NUMBER> 
+<WAYBILL_NUMBER>0000014722</WAYBILL_NUMBER> 
+<S_USER_ID>20350</S_USER_ID> 
+
+=== PAGE 14 ===
+12 
+<BEGIN_DATE>2012-03-09T12:15:21</BEGIN_DATE> 
+<TRAN_COST_PAYER>1</TRAN_COST_PAYER> 
+<TRANS_ID>1</TRANS_ID> 
+<TRANS_TXT>სატვირთო მანქანა</TRANS_TXT> 
+<COMMENT></COMMENT> 
+<CATEGORY><CATEGORY > 
+<IS_MED></IS_MED> 
+<WOOD_LABELS><WOOD_DOC_LABELS > ამოღებულია 2016.08.01 
+</WAYBILL> 
+სადაც: 
+ID - ზედნადების ID, გადაეცემა 0 თუ იქმნება ახალი; 
+TYPE - ზედნადების ტიპი; 
+BUYER_TIN - მყიდველის პირადი ან საიდენტიფიკაციო ნომერი 
+CHEK_BUYER_TIN –თუ უცხოელია 0 თუ საქართველოს მოქალაქე 1 
+BUYER_NAME - მყიდველის სახელი 
+START_ADDRESS - ტრანსპორტირების დაწყების ადგილი 
+END_ADDRESS -ტრანსპორტირების დასრულების ადგილი 
+DRIVER_TIN - მძღოლის პირადი ნომერი 
+CHEK_DRIVER_TIN -–თუ უცხოელია 0 თუ საქართველოს მოქალაქე 1 
+DRIVER_NAME -მძღოლის სახელი 
+TRANSPORT_COAST -ტრანსპორტირების ღირებულება 
+RECEPTION_INFO - მიმწოდებლის ინფორმაცია 
+RECEIVER_INFO - მიმღების ინფორმაცია 
+DELIVERY_DATE 
+- 
+მიწოდების 
+თარიღი, 
+ივსება 
+უკვე 
+არსებული 
+ზედნადების დასრულების წინ 
+STATUS - ზედნადების 
+სტატუსი: 0-შენახული 
+1-აქტივირებული 
+2 
+დასრულებული 
+SELER_UN_ID 
+- 
+გამყიდველის 
+უნიკალური 
+ნომერი. 
+გიბრუნებთ 
+chek_service_user 
+PAR_ID - მშობელი ზედნადების ID ქვე ზედნადების დროს TYPE=6 
+CAR_NUMBER - მანქანის ნომერი 
+BEGIN_DATE - ტრანსპორტირების დაწყების თარიღი 
+TRAN_COST_PAYER 
+- ტრანსპორტირების 
+ღირებულებას 
+თუ 
+იხდის მყიდველი - 1; გამყიდველი - 2; 
+
+=== PAGE 15 ===
+13 
+TRANS_ID - ტრანსპორტის ტიპის id 
+TRANS_TXT - ტრანსპორტირების ტიპი, თუ არჩეულია „სხვა“TRANS_ID=4 
+COMMENT - კომენტარი, შენიშვნა 
+CATEGORY - ცარიელი ან 0 :ჩვეულებრივი ; 1 ხე 
+IS_MED - ცარიელი ან 0 :ჩვეულებრივი ; 1 მედიკამენტი 
+WOOD_LABELS - ფირნიშის ნომერი 
+ID - ზედნადებში საქონლის ჩანაწერის ID (გადაეცემა 0 თუ იქმნება ახალი) 
+(თუ ტეგი/ველი არ გადაეცა ან გადაეცა ცარიელი, ავტომატურად ნიშნავს 0-ს) 
+W_NAME - საქონლის სახელი (სავალდებულო) 
+UNIT_ID - ერთეულის ID (სავალდებულო) 
+UNIT_TXT - ერთეულის სახელი აუცილებელია როდესაც UNIT_ID=99 
+(„სხვა“) 
+QUANTITY - რაოდენობა(სავალდებულო) 
+PRICE - ფასი (სავალდებულო) 
+STATUS – 1 ან -1 თუ გადაეცით -1 შესაბამისი საქონელი წაიშლება 
+AMOUNT - თანხა (სავალდებულო) 
+BAR_CODE - შტრიხკოდი, მედიკამენტის შემთხვევაში „მედიკამენტის 
+სარეგისტრაციო N“ (სავალდებულო) 
+A_ID - აქციზის ID. თუ აქციზური არ არის გადაეცით 0. 
+(თუ ტეგი/ველი არ გადაეცა ან გადაეცა ცარიელი, 
+ავტომატურად ნიშნავს 0-ს) 
+VAT_TYPE - დაბეგვრის ტიპი. 
+(თუ ტეგი/ველი არ გადაეცა ან გადაეცა ცარიელი, 
+ავტომატურად ნიშნავს 0-ს) 
+DOC_N - ხე-ტყის დოკუმენტის ნომერი 
+DOC_DESC - ხე-ტყის დოკუმენტის დასახელება DOC_DATE 
+- ხე-ტყის დოკუმენტის თარიღი 
+save_invoice ფუნქციით გამოიწერება ანგარიშ-ფაქტურა, 
+გადაეცემა შემდეგი მნიშვნელობები: 
+0 - ჩეულებრივი; 1 - ნულოვალი; 2 - დაუბეგრავი 
+QUANTITY_EXT- დამხმარე რაოდენობა (არა აუცილებელი ველი) 
+
+=== PAGE 16 ===
+14 
+აბრუნებს: შემდეგი სახის Xml-ს 
+<RESULT> 
+<STATUS>0</STATUS> 
+<ID>1551</ID> 
+<GOODS_LIST> 
+<GOODS> 
+<ERROR>-1</ERROR> 
+<ID>0</ID> 
+<W_NAME>ჩანთა</W_NAME> 
+<UNIT_ID>99</UNIT_ID> 
+<UNIT_TXT>test</UNIT_TXT> 
+<QUANTITY>5</QUANTITY> 
+<PRICE>4</PRICE> 
+<AMOUNT>20</AMOUNT> 
+<BAR_CODE>1</BAR_CODE> 
+<A_ID/> 
+<STATUS>1</STATUS> 
+</GOODS> 
+</GOODS_LIST> 
+</RESULT> 
+სადაც: 
+ STATUS – 0 ზედნადები შეინახა. უარყოფითი ცვლადის შემთხვევაში 
+შესაბამისი 
+შეცდომაა. 
+შეცდომების 
+კოდები 
+იხილეთ 
+get_error_codes 
+ფუნქციით. 
+თუ STATUS-ში იყო შეცდომა ზედნადები არ შეინახება, წინააღმდეგ 
+შემთხვევაში დაგიბრუნებთ ზედნადების ID-ს. 
+იმ შემთხვევაში, თუ ზედნადები არ შეინახა, არ შეინახავს სასაქონლოს სიას, 
+რის შემდეგაც ERROR-ში დაფიქსირდება შესაბამისი შეცდომა. აღნიშნული 
+სასაქონლო სია შეგიძლიათ იხილოთ GOODS_LIST-ში. 
+თუ ზედნადები შეინახა GOODS_LIST-ში იქნება საქონლის სია თავისი 
+ჩანაწერის ID ნომრებით. 
+2. ზედნადებების გამოტანა 
+public XmlNode get_waybill(string su, string sp, int waybill_id) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი; 
+sp 
+- 
+სერვისის 
+მომხმარებლის 
+პაროლი; 
+
+=== PAGE 17 ===
+15 
+waybill_id - ზედნადების ID 
+აბრუნებს: 
+აბრუნებს შემდეგი სახის XML-ს 
+<WAYBILL> 
+<SUB_WAYBILLS> 
+<SUB_WAYBILL> 
+<ID>1670</ID> 
+<WAYBILL_NUMBER>0000000002/1</WAYBILL_NUMBER> 
+</SUB_WAYBILL> 
+</SUB_WAYBILLS> 
+<GOODS_LIST> 
+<GOODS> 
+<ID>2774</ID> 
+<W_NAME>შაქარი</W_NAME> 
+<UNIT_ID>2</UNIT_ID> 
+<QUANTITY>1000</QUANTITY> 
+<PRICE>1</PRICE> 
+<AMOUNT>1000</AMOUNT> 
+<BAR_CODE>01</BAR_CODE> 
+<QUANTITY_EXT>5</QUANTITY_EXT> 
+<WOOD_LABEL>asd</ WOOD_LABEL> 
+<W_ID>1</ W_ID > 
+</GOODS> 
+</GOODS_LIST> 
+<WOOD_DOCS_LIST> 
+<WOODDOCUMENT> 
+<ID>0</ID> 
+<DOC_N>ხე1</DOC_N> 
+<DOC_DATE>2012-03-09T12:15:21</DOC_DATE> 
+<DOC_DESC>ხელშეკრულება</ DOC_DESC > 
+<STATUS>1</STATUS> </WOODDOCUMENT> 
+</WOOD_DOCS_LIST> 
+<ID>1669</ID> 
+<TYPE>4</TYPE> 
+<CREATE_DATE>2012-02-06T16:16:41</CREATE_DATE> 
+<BUYER_TIN></BUYER_TIN> 
+<CHEK_BUYER_TIN>0</CHEK_BUYER_TIN> 
+<BUYER_NAME></BUYER_NAME> 
+
+=== PAGE 18 ===
+16 
+<START_ADDRESS>თბილისი, საბურთალოს ქუჩა</START_ADDRESS> 
+<END_ADDRESS></END_ADDRESS> 
+<DRIVER_TIN>11111111111</DRIVER_TIN> 
+<CHEK_DRIVER_TIN>0</CHEK_DRIVER_TIN>  
+<DRIVER_NAME>ბახვა ხორავა</DRIVER_NAME> 
+<TRANSPORT_COAST>0</TRANSPORT_COAST> 
+<RECEPTION_INFO></RECEPTION_INFO> 
+<RECEIVER_INFO></RECEIVER_INFO> 
+<DELIVERY_DATE></DELIVERY_DATE> 
+<STATUS>-2</STATUS> 
+<SELER_UN_ID>731937</SELER_UN_ID> 
+<ACTIVATE_DATE>2012-02-06T16:16:41</ACTIVATE_DATE> 
+<PAR_ID></PAR_ID> 
+<FULL_AMOUNT>1000</FULL_AMOUNT> 
+<CAR_NUMBER>aaa555</CAR_NUMBER> 
+<WAYBILL_NUMBER>0000000002</WAYBILL_NUMBER> 
+<CLOSE_DATE>2012-02-06T16:22:43</CLOSE_DATE> 
+<S_USER_ID>0</S_USER_ID> 
+<BEGIN_DATE>2012-02-06T16:16:38</BEGIN_DATE> 
+<TRAN_COST_PAYER>2</TRAN_COST_PAYER> 
+<TRANS_ID>1</TRANS_ID> 
+<TRANS_TXT></TRANS_TXT> 
+<COMMENT>კომენტარი</COMMENT> 
+<CATEGORY >< CATEGORY > 
+<IS_MED >< IS_MED > 
+<WOOD_LABELS><WOOD_DOC_LABELS > 
+<CUST_STATUS>< CUST_STATUS > 
+<CUST_NAME>< CUST_NAME > 
+</WAYBILL> 
+სადაც, ID - ზედნადების უნიკალური ნომერი; 
+TYPE - ზედნადების ტიპი; 
+CREATE_DATE – შექმნის თარიღი; 
+BUYER_TIN - მყიდველის პირადი ან საიდენტიფიკაციო ნომერი; 
+CHEK_BUYER_TIN –თუ უცხოელია 0, თუ საქართველოს მოქალაქე 1; 
+BUYER_NAME - მყიდველის სახელი; 
+
+=== PAGE 19 ===
+17 
+START_ADDRESS - ტრანსპორტირების დაწყების ადგილი; 
+END_ADDRESS -ტრანსპორტირების დასრულების ადგილი; 
+DRIVER_TIN - მძღოლის პირადი ნომერი; 
+CHEK_DRIVER_TIN -თუ უცხოელია 0, თუ საქართველოს მოქალაქე 1; 
+DRIVER_NAME -მძღოლის სახელი 
+TRANSPORT_COAST -ტრანსპორტირების ღირებულება; 
+RECEPTION_INFO - მიმწოდებლის ინფორმაცია; 
+RECEIVER_INFO - მიმღების ინფორმაცია; 
+DELIVERY_DATE - მიწოდების თარიღი; 
+STATUS - ზედნადების სტატუსი; 
+SELER_UN_ID - გამყიდველის უნიკალური ნომერი; 
+ACTIVATE_DATE - აქტივაციის თარიღი; 
+PAR_ID - მშობელი ზედნადების ID ქვე ზედნადების დროს; 
+FULL_AMOUNT-ზედნადების სრული თანხა; 
+CAR_NUMBER - მანქანის ნომერი; 
+WAYBILL_NUMBER - ზედნადების ნომერი; 
+CLOSE_DATE - ზედნადების დასრულების თარიღი; 
+S_USER_ID - სერვისის მომხმარებლის ID; 
+BEGIN_DATE - ტრანსპორტირების დაწყების თარიღი; 
+TRAN_COST_PAYER 
+- ტრანსპორტირების 
+ღირებულებას 
+თუ 
+იხდის მყიდველი - 1; გამყიდველი - 2; 
+TRANS_ID - ტრანსპორტის ტიპის ID 
+TRANS_TXT - ტრანსპორტირების ტიპი, თუ არჩეულია „სხვა“ 
+COMMENT - კომენტარი 
+CUST_STATUS – 1:საბაჟოს მიერ დადასტურებული; 2:უარყოფილი 
+CUST_NAME - საბაჟოს სახელი 
+CATEGORY – 1:ხე ; 0 ან ცარიელი : ჩვეულებრივი 
+// GOODS 
+ID - საქონლის ID გადაეცემა 0 თუ ახალი იქმნება; 
+W_NAME - საქონლის სახელი; 
+
+=== PAGE 20 ===
+18 
+UNIT_ID - ერთეულის ID; 
+UNIT_TXT - ერთეულის სახელი; 
+QUANTITY - რაოდენობა 
+QUANTITY_EXT- დამხმარე რაოდენობა (აუცილებელი ველი) 
+PRICE - ფასი; 
+AMOUNT - თანხა; 
+BAR_CODE - შტრიხკოდი; 
+A_ID - აქციზის ID 
+W_ID- ხეტყის ტიპის ID 
+VAT_TYPE - დაბეგვრის ტიპი. გადაეცემა შემდეგი მნიშვნელობები 0 - 
+ჩვეულებრივი; 1 - ნულოვანი; 2 - დაუბეგრავი. 
+// SUB_WAYBILL 
+ID - ქვე ზედნადების ID 
+WAYBILL_NUMBER - ქვეზედნადების ნომერი 
+3. გამყიდველის მიერ გამოწერილი ზედნადებების სია (გამყიდველის მხარე) 
+public XmlNode get_waybills(string su, string sp, string itypes, 
+string 
+buyer_tin, 
+string 
+statuses, 
+string car_number, 
+DateTime begin_date_s, 
+DateTimebegin_date_e, 
+DateTime create_date_s, 
+DateTime create_date_e, 
+string driver_tin, 
+DateTimedelivery_date_s, 
+DateTime 
+delivery_date_e, 
+decimal 
+full_amount,  
+ string 
+waybill_number, 
+DateTime 
+close_date_s, 
+DateTime 
+close_date_e, 
+
+=== PAGE 21 ===
+19 
+strings_user_ids, 
+ string 
+comment) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი; 
+sp - სერვისის პაროლი; 
+types - ზედნადების ტიპები გამოყოფილი „ , “ -ით 
+buyer_tin - მყიდველის პირადი ნომერი ან საიდენტიფიკაციო კოდი 
+statuses -ზედნადების სტატუსები გამოყოფილი „ , “- ით car_number 
+- მანქანის ნომერი 
+begin_date_s - ზედნადების ტრანსპორტირების თარიღის შუალედის 
+დასაწყისი 
+begin_date_e 
+- ტრანსპორტირების 
+დაწყების 
+თარიღის შუალედის 
+დასასრული 
+create_date_s - ზედნადების შექმნის თარიღის პერიოდის დასაწყისი 
+create_date_e - შექმნის თარიღი შუალედის დასასრული 
+driver_tin - მძღოლის პირადი ნომერი ან სადიენფიკაციო კოდი 
+delivery_date_s - მიტანის თარიღი შუალედის დასაწყისი 
+delivery_date_e - მიტანის თარიღი შუალედის დასასრული 
+full_amount - მთლიანი თანხა 
+waybill_number - ზედნადების ნომერი 
+close_date_s - დახურვის თარიღი შუალედის დასაწყისი 
+close_date_e - დახურვის თარიღი შუალედის დასასრული 
+s_user_id - სერვისის მომხმარებლის id-ები გამოყოფილი 
+‘,’-ით comment - კომენტარი 
+აბრუნებს: შემდეგი სახის xml-ს 
+<WAYBILL_LIST> 
+<WAYBILL> 
+<ID>1668</ID> 
+<TYPE>1</TYPE> 
+<CREATE_DATE>2012-02-06</CREATE_DATE> 
+<BUYER_NAME>გიორგი გიორგაძე</ BUYER_NAME > 
+
+=== PAGE 22 ===
+20 
+<START_ADDRESS>თბილისი, საბურთალოს ქუჩა</START_ADDRESS> 
+<END_ADDRESS>თბილისი, ნუცუბიძის ქუჩა</END_ADDRESS> 
+<DRIVER_TIN>12345678910</ DRIVER_TIN > 
+<TRANSPORT_COAST>0</TRANSPORT_COAST> 
+<RECEPTION_INFO>ინფორმაცია</RECEPTION_INFO> 
+<RECEIVER_INFO>ინფორმაცია</ RECEIVER_INFO > 
+<DELIVERY_DATE>2012-02-06</ DELIVERY_DATE > 
+<STATUS>0</STATUS> 
+<ACTIVATE_DATE>2012-02-06</ACTIVATE_DATE> 
+<PAR_ID></PAR_ID> 
+<FULL_AMOUNT>3</FULL_AMOUNT> 
+ <CAR_NUMBER>BBB123</ CAR_NUMBER > 
+<WAYBILL_NUMBER>0000000003</WAYBILL_NUMBER> 
+<CLOSE_DATE>2012-02-06</CLOSE_DATE> 
+<S_USER_ID>0</S_USER_ID> 
+<BEGIN_DATE>2012-02-06</BEGIN_DATE> 
+<WAYBILL_COMMENT>sdfg</ WAYBILL_COMMENT > 
+<BUYER_ST>0</ BUYER_ST > 
+</WAYBILL> 
+</WAYBILL_LIST> 
+სადაც:  Id - ზედნადების Id type - ზედნადების ტიპი  
+create_date - შექმნის თარიღი  
+buyer_tin - მყიდველის პ/ნ ან ს/ნ  
+buyer_name- მყიდველის დასახელება 
+start_address - ტრანსპორტირების დაწყების ადგილი  
+end_address - ტრანსპორტირების დასრულების ადგილი 
+driver_tin - მძღოლის პირადი ნომერი  
+transport_coast - ტრანსპორტირების ღირებულება  
+reception_info - მიმწოდებლის ინფრომაცია 
+ receiver_info - მიმღების ინფორმაცია  
+delivery_date - მიწოდების თარიღი  
+status - ზედნადების სტატუსი  
+activate_date - გააქტიურების თარიღი  
+par_id - ძირითადის id 
+full_amount - მთლიანი თანხა  
+
+=== PAGE 23 ===
+21 
+car_number - მანქანის ნომერი  
+waybill_number - ზედნადების ნომერი  
+close_date - დასრულების თარიღი  
+s_user_id - სერვისის მომხმარებლის ID  
+begin_date - ტრანსპორტირების დაწყების თარიღი 
+waybill_comment - კომენტარი 
+buyer_st – (0) სტატუსის გარეშე (1) მიკრო ბიზნესის სტატუსი; (2) მცირე 
+ბიზნესის სტატუსი; 
+ 
+5.  მყიდველის მიერ მიღებული ზედნადებებისსია (მყიდველის მხარე) 
+public XmlNode get_buyer_waybills (string su, string sp, string itypes, string seller_tin, 
+string statuses, string 
+car_number, 
+DateTime? begin_date_s, 
+DateTime? begin_date_e, 
+DateTime? create_date_s, 
+DateTime? 
+create_date_e, 
+string 
+driver_tin, 
+DateTime? 
+delivery_date_s, 
+DateTime? delivery_date_e, 
+decimal? full_amount, string 
+waybill_number, 
+DateTime? close_date_s, 
+DateTime? 
+close_date_e, 
+string 
+s_user_ids, 
+string 
+comment) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი;  
+sp - სერვისის პაროლი; 
+
+=== PAGE 24 ===
+22 
+itypes - ზედნადების ტიპი ები გამოყოფილი „ , “ით 
+seller_tin - გამყიდველის პირადი ნომერი ან საიდენტიფიკაციო კოდი 
+statuses - სტატუსები გამოყოფილი „ , “ით მაგალითი ერთი 
+სტატუსის შემთხვევაში: ,1, მაგალითი რამდენიმე სტატუსის 
+შემთხვევაში: ,1,2, 
+Statuses მნიშვნელობები: 
+0 - შენახული; 
+1 - აქტიური; 
+ 
+2 - დასრულებული; 
+8 - გადამზიდავთან გადაგზავნილი; 
+ 
+-1 - წაშლილი; 
+-2 - გაუქმებული;  
+car_number - მანქანის ნომერი 
+begin_date_s 
+ -  დაწყების    თარიღი    შუალედის   დასაწყისი 
+begin_date_e - დაწყების  თარიღი  შუალედის  დასასრული 
+create_date_s   -   შექმნის   თარიღი   შუალედის  დასაწყისი 
+create_date_e  -   შექმნის 
+თარიღი 
+შუალედის 
+დასასრული 
+driver_tin - მძღოლის პირადი ნომერი ან სადიენფიკაციო ნომერი 
+delivery_date_s - მიტანის თარიღი შუალედის დასაწყისი 
+delivery_date_e - მიტანის თარიღი შუალედის დასასრული 
+full_amount 
+ -   მთლიანი     თანხა 
+  
+waybill_number- ზედნადების ნომერი 
+close_date_s - დახურვის თარიღი შუალედის დასაწყისი 
+close_date_e - დახურვის თარიღი შუალედის დასასრული 
+s_user_id - სერვისის მომხმარებლის id-ები გამოყოფილი ‘,’- 
+ით 
+აბრუნებს: 
+შემდეგი სახის xml-ს 
+<WAYBILL_LIST> 
+
+=== PAGE 25 ===
+23 
+<WAYBILL> 
+<ID>1668</ID> 
+<TYPE>1</TYPE> 
+<CREATE_DATE>2012-02-06</CREATE_DATE> 
+<BUYER_NAME>გიორგი გიორგაძე</ BUYER_NAME > 
+<SELLER_NAME>ირაკლი</ SELLER_NAME > 
+<SELLER_TIN>12345678910</ SELLER_ TIN > 
+<START_ADDRESS>თბილისი, საბურთალოს ქუჩა</START_ADDRESS> 
+<END_ADDRESS>თბილისი, ნუცუბიძის ქუჩა</END_ADDRESS> 
+<DRIVER_TIN>12345678910</ DRIVER_TIN > 
+<TRANSPORT_COAST>0</TRANSPORT_COAST> 
+<RECEPTION_INFO>ინფორმაცია</RECEPTION_INFO> 
+<RECEIVER_INFO>ინფორმაცია</ RECEIVER_INFO > 
+<DELIVERY_DATE>2012-02-06</ DELIVERY_DATE > 
+<STATUS>0</STATUS> 
+<ACTIVATE_DATE>2012-02-06</ACTIVATE_DATE> 
+<PAR_ID></PAR_ID> 
+<FULL_AMOUNT>3</FULL_AMOUNT>  
+<CAR_NUMBER>BBB123</ CAR_NUMBER > 
+<WAYBILL_NUMBER>0000000003</WAYBILL_NUMBER> 
+<CLOSE_DATE>2012-02-06</CLOSE_DATE> 
+<S_USER_ID>0</S_USER_ID> 
+<BEGIN_DATE>2012-02-06</BEGIN_DATE> 
+<WAYBILL_COMMENT>კომენტარი</ WAYBILL_COMMENT > 
+<SELLER_ST>0</ SELLER_ST > 
+</WAYBILL> 
+</WAYBILL_LIST> 
+სადაც:  Id - ზედნადების Id 
+type - ზედნადების ტიპი  
+create_date - შექმნის თარიღი  
+buyer_tin - მყიდველის პ/ნ ან ს/ნ  
+buyer_name - მყიდველის დასახელება 
+seller_tin – გამყიდველის კოდი 
+seller_name -გამყიდველის დასახელება  
+
+=== PAGE 26 ===
+24 
+start_address - ტრანსპორტირების დაწყების ადგილი  
+end_address - ტრანსპორტირების დასრულების ადგილი 
+driver_tin - მძღოლის პირადი ნომერი  
+transport_coast - ტრანსპორტირების ღირებულება  
+reception_info - მიმწოდებლის ინფორმაცია  
+receiver_info - მიმღების ინფორმაცია  
+delivery_date - მიწოდების თარიღი 
+status  -  ზედნადების  სტატუსი   
+activate_date  - გააქტიურების თარიღი  
+par_id - ძირითადის id  
+full_amount - მთლიანი თანხა  
+car_number - მანქანის ნომერი  
+waybill_number - ზედნადების ნომერი  
+close_date - დასრულების თარიღი  
+s_user_id - სერვისის მომხმარებლის ID  
+begin_date - ტრანსპორტირების დაწყების თარიღი 
+seller_st – (0) სტატუსის გარეშე (1) მიკრო ბიზნესის სტატუსი; (2) მცირე 
+ბიზნესის სტატუსი; 
+6. 
+გამყიდველის მიერ გამოწერილი ზედნადებების სია პარამეტრების ფილტრით 
+(გამყიდველის მხარე) 
+public XmlNode get_waybills_ex (string su, string sp, string itypes, 
+string 
+buyer_tin, 
+string 
+statuses, 
+string 
+car_number, 
+DateTime? begin_date_s, 
+DateTime? begin_date_e, 
+DateTime? create_date_s, 
+DateTime? create_date_e, 
+string driver_tin, 
+DateTime? delivery_date_s, 
+DateTime? delivery_date_e, 
+decimal? full_amount, 
+string waybill_number, 
+DateTime? close_date_s, 
+
+=== PAGE 27 ===
+25 
+DateTime? close_date_e, 
+string s_user_ids, 
+string comment, 
+int is_confirmed) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი; 
+sp - სერვისის პაროლი; 
+itypes - ზედნადების ტიპები გამოყოფილი „ , “ -ით 
+buyer_tin - მყიდველის პირადი ნომერი ან საიდენტიფიკაციო 
+კოდი statuses - სტატუსები გამოყოფილი „ , “- ით  
+car_number - მანქანის ნომერი 
+begin_date_s - დაწყების თარიღი შუალედის დასაწყისი 
+begin_date_e - დაწყების თარიღი შუალედის დასასრული; 
+create_date_s 
+- 
+შექმნის 
+თარიღი 
+შუალედის 
+დასაწყისი 
+create_date_e - შექმნის თარიღი შუალედის დასასრული 
+driver_tin - მძღოლის პირადი ნომერი ან სადიენფიკაციო კოდი 
+delivery_date_s - მიტანის თარიღი შუალედის დასაწყისი 
+delivery_date_e - მიტანის თარიღი შუალედის დასასრული 
+full_amount - მთლიანი თანხა 
+waybill_number - ზედნადების ნომერი 
+close_date_s - დახურვის თარიღი შუალედის დასაწყისი 
+close_date_e - დახურვის თარიღი შუალედის დასასრული 
+s_user_id - სერვისის მომხმარებლის id-ები გამოყოფილი 
+‘,’-ით comment - კომენტარი; 
+is_confirmed – 0-დაუდასტურებლები; 1-დადასტურებულები; - 1 
+უარყოფილები 
+აბრუნებს: 
+შემდეგი სახის xml-ს 
+<WAYBILL_LIST> 
+<WAYBILL> 
+<ID>1668</ID> 
+
+=== PAGE 28 ===
+26 
+<TYPE>1</TYPE> 
+<CREATE_DATE>2012-02-06</CREATE_DATE> 
+<BUYER_NAME>გიორგი გიორგაძე</ BUYER_NAME > 
+<START_ADDRESS>თბილისი, საბურთალოს ქუჩა</START_ADDRESS> 
+<END_ADDRESS>თბილისი, ნუცუბიძის ქუჩა</END_ADDRESS> 
+<DRIVER_TIN>12345678910</ DRIVER_TIN > 
+<TRANSPORT_COAST>0</TRANSPORT_COAST> 
+<RECEPTION_INFO>ინფორმცია</RECEPTION_INFO> 
+<RECEIVER_INFO>ინფორმაცია</ RECEIVER_INFO > 
+<DELIVERY_DATE>2012-02-06</ DELIVERY_DATE > 
+<STATUS>0</STATUS> 
+<ACTIVATE_DATE>2012-02-06</ACTIVATE_DATE> 
+<PAR_ID></PAR_ID> 
+<FULL_AMOUNT>3</FULL_AMOUNT>  
+<CAR_NUMBER>BBB123</ CAR_NUMBER > 
+<WAYBILL_NUMBER>0000000003</WAYBILL_NUMBER> 
+<CLOSE_DATE>2012-02-06</CLOSE_DATE> 
+<S_USER_ID>0</S_USER_ID> 
+<BEGIN_DATE>2012-02-06</BEGIN_DATE> 
+<WAYBILL_COMMENT>კომენტარი</ WAYBILL_COMMENT > 
+<BUYER_STt>0</ BUYER_STt> 
+< is_confirmed>-1</ is_confirmed> 
+</WAYBILL> 
+</WAYBILL_LIST> 
+სადაც:  Id - ზედნადების Id  
+type - ზედნადების ტიპი  
+create_date - შექმნის თარიღი  
+buyer_tin - მყიდველის პ/ნ ან ს/ნ  
+buyer_name- მყიდველის დასახელება 
+start_address - ტრანსპორტირების დაწყების ადგილი  
+end_address - ტრანსპორტირების დასრულების ადგილი 
+driver_tin - მძღოლის პირადი ნომერი  
+transport_coast - ტრანსპორტირების ღირებულება 
+reception_info - მიმწოდებლის ინფრომაცია  
+receiver_info - მიმღების ინფორმაცია  
+
+=== PAGE 29 ===
+27 
+delivery_date - მიწოდების თარიღი  
+status - ზედნადების სტატუსი  
+activate_date - გააქტიურების თარიღი  
+par_id - ძირითადის id 
+full_amount - მთლიანი თანხა  
+car_number - მანქანის ნომერი  
+waybill_number - ზედნადების ნომერი  
+close_date - დასრულების თარიღი  
+s_user_id - სერვისის მომხმარებლის ID 
+begin_date - ტრანსპორტირების დაწყების თარიღი  
+waybill_comment - კომენტარი 
+buyer_st – (0) სტატუსის გარეშე (1) მიკრო ბიზნესის სტატუსი; (2) მცირე ბიზნესის 
+სტატუსი; 
+7. მყიდველის მიერ მიღებული ზედნადებების სია პარამეტრების ფილტრით 
+(მყიდველის მხარე) 
+public XmlNode get_buyer_waybills _ex (string su, string sp, string itypes, string 
+seller_tin, string statuses, 
+string car_number, 
+DateTime? begin_date_s, 
+DateTime? begin_date_e, 
+DateTime? 
+create_date_s, 
+DateTime? 
+create_date_e, string driver_tin, 
+DateTime? delivery_date_s, 
+DateTime? delivery_date_e, 
+decimal? full_amount, string 
+waybill_number, 
+DateTime? close_date_s, 
+DateTime? 
+close_date_e, 
+string 
+
+=== PAGE 30 ===
+28 
+s_user_ids, 
+string comment, 
+int is_confirmed) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი; sp 
+- სერვისის პაროლი; 
+itypes - ზედნადების ტიპი ები გამოყოფილი „ ,“ით 
+seller_tin - გამყიდველის პირადი ნომერი ან საიდენტიფიკაციო კოდი 
+statuses - სტატუსები გამოყოფილი „ ,“ით  
+car_number - მანქანის ნომერი 
+begin_date_s  -  დაწყების  თარიღი  შუალედის  დასაწყისი 
+begin_date_e - დაწყების თარიღი შუალედის დასასრული 
+create_date_s 
+ -   შექმნის  თარიღი  შუალედის  დასაწყისი 
+create_date_e 
+-  შექმნის 
+თარიღი 
+შუალედის 
+დასასრული 
+driver_tin - მძღოლის პირადი ნომერი ან სადიენფიკაციო ნომერი 
+delivery_date_s  -   მიტანის  თარიღი   შუალედის   დასაწყისი 
+delivery_date_e - მიტანის თარიღი შუალედის დასასრული 
+full_amount - მთლიანი თანხა  
+waybill_number - ზედნადების ნომერი 
+close_date_s 
+- 
+დახურვის 
+თარიღი 
+შუალედის 
+დასაწყისი 
+close_date_e - დახურვის თარიღი შუალედის დასასრული 
+s_user_id - სერვისის მომხმარებლის id-ები გამოყოფილი ‘,’-ით 
+is_confirmed – 0-დაუდასტურებლები; 1-დადასტურებულები; - 1 
+უარყოფილები 
+აბრუნებს: 
+შემდეგი სახის xml-ს 
+<WAYBILL_LIST> 
+<WAYBILL> 
+<ID>1668</ID> 
+<TYPE>1</TYPE> 
+<CREATE_DATE>2012-02-06</CREATE_DATE> 
+
+=== PAGE 31 ===
+29 
+<BUYER_NAME>გიორგი გიორგაძე</ BUYER_NAME > 
+<SELLER_NAME>ირაკლი ასათიანი</ SELLER_NAME > 
+<SELLER_TIN>12345678910</ SELLER_ TIN > 
+<START_ADDRESS>თბილისი, საბურთალოს ქუჩა</START_ADDRESS> 
+<END_ADDRESS>თბილისი, ნუცუბიძის ქუჩა</END_ADDRESS> 
+<DRIVER_TIN>11223344551</ DRIVER_TIN > 
+<TRANSPORT_COAST>0</TRANSPORT_COAST> 
+<RECEPTION_INFO>ინფორმაცია</RECEPTION_INFO> 
+<RECEIVER_INFO>ინფორმაცია</ RECEIVER_INFO > 
+<DELIVERY_DATE>2012-02-06</ DELIVERY_DATE > 
+<STATUS>0</STATUS> 
+<ACTIVATE_DATE>2012-02-06</ACTIVATE_DATE> 
+<PAR_ID></PAR_ID> 
+<FULL_AMOUNT>3</FULL_AMOUNT> 
+<CAR_NUMBER>BBB123</ CAR_NUMBER > 
+<WAYBILL_NUMBER>0000000003</WAYBILL_NUMBER> 
+<CLOSE_DATE>2012-02-06</CLOSE_DATE> 
+<S_USER_ID>0</S_USER_ID> 
+<BEGIN_DATE>2012-02-06</BEGIN_DATE> 
+<WAYBILL_COMMENT>კომენტარი</ WAYBILL_COMMENT > 
+<SELLER_ST>0</ SELLER_ST > 
+<IS_CONFIRMED>-1</ IS_CONFIRMED > 
+</WAYBILL> 
+</WAYBILL_LIST> 
+სადაც: Id - ზედნადების Id 
+type - ზედნადების ტიპი 
+create_date - შექმნის თარიღი 
+buyer_tin - მყიდველის პ/ნ ან ს/ნ 
+buyer_name - მყიდველის დასახელება 
+seller_tin – გამყიდველის კოდი 
+seller_name -გამყიდველის დასახელება 
+start_address - ტრანსპორტირების დაწყების ადგილი 
+end_address - ტრანსპორტირების დასრულების ადგილი 
+driver_tin - მძღოლის პირადი ნომერი 
+transport_coast 
+- 
+ტრანსპორტირების 
+ღირებულება 
+reception_info - მიმწოდებლის ინფორმაცია 
+
+=== PAGE 32 ===
+30 
+receiver_info - მიმღების ინფორმაცია 
+delivery_date - მიწოდების თარიღი 
+status - ზედნადების სტატუსი 
+activate_date - გააქტიურების თარიღი 
+par_id - ძირითადის id 
+full_amount - მთლიანი თანხა 
+car_number - მანქანის ნომერი 
+waybill_number - ზედნადების ნომერი 
+close_date - დასრულების თარიღი 
+s_user_id - სერვისის მომხმარებლის ID 
+begin_date - ტრანსპორტირების დაწყების თარიღი 
+seller_st – (0) სტატუსის გარეშე (1) მიკრო ბიზნესის სტატუსი; (2) მცირე ბიზნესის 
+სტატუსი; 
+8. 
+ზედნადებების სია პარამეტრების ფილტრით 
+public XmlNode get_waybills_v1(string su, string sp, string? buyer_tin, DateTime 
+last_update_date_s, DateTime last_update_date_e) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი; 
+sp - სერვისის პაროლი; 
+buyer_tin - მომხმარებლის საიდენტიფიკაციო ნომერი 
+last_update_date_s - ბოლო განახლების თარიღი (დიაპაზონის დასაწყისი) 
+მაგ: 2024-10-07T12:08:47 
+last_update_date_e - ბოლო განახლების თარიღი (დიაპაზონის დასასრული) 
+მაგ: 2024-10-07T14:34:49 
+აბრუნებს: 
+ზედნდებების სიას ფილტრით მითითებულ დროის ჭრილში. 
+დაბრუნდება ის ზედნადებები, რომელიც ვებზე მოდის როგროც მიღებულ ისე გაცემულ 
+ტაბებში, ავტორიზებული მომხმარებელი იქნება როგორც buyer_tin ასევე seller_tin 
+ანუ წამოვა მის მიერ შესყიდული და მის მიერ გაყიდული ზედნადებები კონკრეტულ 
+კომპანიასთან. 
+შეზღუდვები: 
+დროის მაქსიმალური დიაპაზონი 3 დღე 
+9. 
+ზედნადების აქტივაცია 
+public string send_waybill(string su, string sp, int waybill_id) გადაეცემა: 
+su - სერვისის მომხმარებელი ; 
+
+=== PAGE 33 ===
+31 
+sp - სერვისის მომხმარებლის პაროლი; 
+waybill_id - ზედნადების ID 
+აბრუნებს: ზედნადების ნომერს 
+10. ზედნადების დადასტურება 
+public bool confirm_waybill (string su, string sp, int waybill_id) გადაეცემა: 
+su - სერვისის მომხმარებელი ; 
+sp - სერვისის 
+მომხმარებლის 
+პაროლი; 
+waybill_id - ზედნადების ID 
+აბრუნებს: 
+true თუ დადასტურდა 
+False თუ არ დადასტურდა 
+11. ზედნადების 
+აქტივაცია აქტივაციის (ტრანსპორტირების 
+დაწყების) 
+თარიღის მითითებით 
+public string send_waybill_vd (string su, string sp, DateTime begin_date, int waybill_id) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი ; 
+sp - სერვისის პაროლი; 
+begin_date 
+-ტრანსპორტირების 
+დაწყების 
+თარიღი; 
+waybill_id - ზედნადების ID 
+აბრუნებს: 
+ზედნადების ნომერს 
+12. ზედნადების დასრულება 
+public int close_waybill(string su, string sp, int waybill_id) გადაეცემა: 
+su - სერვისის მომხმარებელი ; 
+sp - სერვისის მომხმარებლის პაროლი; 
+waybill_id - ზედნადების ID 
+
+=== PAGE 34 ===
+32 
+აბრუნებს: 
+1-დაიხურა; -1 არა; -101 სხვისი ზედნადებია და ვერ დახურავთ; -100 სერვისის 
+მომხმარებლი ან მომხმარებლის პაროლი არასწორია. 
+13. ზედნადების დასრულება მიწოდების თარიღის მითითებით 
+public int close_waybill_vd (string su, string sp,DateTime delivery_date ,int waybill_id) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი ; 
+sp - სერვისის მომხმარებლის პაროლი; 
+delivery_date – მიწოდების თარიღი; 
+waybill_id - ზედნადების ID 
+აბრუნებს: 
+1-დაიხურა; -1 არა; -101 სხვისი ზედნადებია და ვერ დახურავთ; -100 სერვისის 
+მომხმარებლეი ან პაროლი არასწორია. 
+14. ზედნადების წაშლა 
+public int del_waybill(string su, string sp, int waybill_id) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი ; 
+sp 
+- 
+სერვისის 
+პაროლი; 
+waybill_id - ზედნადების ID 
+აბრუნებს: 
+1-დასრულებულია; -1 არა; -101 სხვისი ზედნადებია და ვერ წაშლით -100 
+სერვისის მომხმარებელი ან მომხმარებლის პაროლი არასწორია 
+15. ზედნადების გაუქმება 
+public int ref_waybill (string su, string sp, int waybill_id) გადაეცემა: 
+su - სერვისის მომხმარებელი ; 
+sp - სერვისის მომხმარებლის პაროლი; 
+waybill_id - ზედნადების ID 
+აბრუნებს: 
+
+=== PAGE 35 ===
+33 
+1-დასრულებულია; -1 არა; -101 სხვისი ზედნადებია და ვერ 
+წაშლით -100 სერვისის მომხმარებელი ან მომხმარებლის 
+პაროლი არასწორია 
+ზედნადების აქტივაცია გადამზიდავი კომპანიით ტრანსპორტირებისას 
+1. 
+გადამზიდველის მიერ სასაქონლო ზედნადების შენახვა 
+int save_waybill_transporter(string su, string sp, int waybill_id, string car_number, string 
+driver_tin, int chek_driver_tin, string driver_name, 
+int trans_id, string trans_txt, string reception_info, string receiver_info) 
+გადაეცემა string su, string sp სერვისის მომხმარებელი და 
+მომხმარებლის პაროლი სადაც: 
+waybill_id ზედნადების ID 
+car_number მანქანის ნომერი driver_tin 
+მძღოლის 
+პირადი 
+ნომერი 
+chek_driver_tin მძღოლის მოქალაქეობა 
+driver_name მძღოლის სახელი 
+trans_id ტრანსპორტირების ტიპის id 
+trans_txt ტრანსპორტირების ტიპის დასხელება 
+reception_info- 
+მიმწოდებლის 
+ინფორმაცია 
+receiver_inf-მიმღების ინფორმაცია 
+2. 
+სასაქონლო ზედნადების გადაგზავნა 
+int send_waybill_transporter(string su, string sp, int waybill_id, DateTime begin_date, out string 
+waybill_number) 
+გადაეცემა 
+
+=== PAGE 36 ===
+34 
+string su, string sp სერვისის მომხმარებელი და მომხმარებლის პაროლი სადაც: 
+waybill_id ზედნადების id 
+begin_date ტრანსპორტირების დაწყების თარიღი waybill_number 
+ზედნადების ნომერი 
+3. 
+ზედნადების უარყოფა მყიდველისგან 
+Bool reject_waybill(string su, string sp, int waybill_id) 
+4. 
+ზედნადების დასრულება 
+int close_waybill_transporter(string su, string sp, int waybill_id, string reception_info, string 
+receiver_info, DateTime delivery_date) 
+გადაეცემა 
+string su, string sp სერვისის მომხმარებელი და მომხმარებლის პაროლი სადაც: 
+waybill_id ზედნადების id 
+reception_info- მიმწოდებლის ინფორმაცია 
+receiver_inf- 
+მიმღების 
+ინფორმაცია 
+delivery_date მიწოდების თარიღი 
+XmlNode save_waybill(string su, string sp, XmlNode waybill) 
+Waybill – Xml ში 
+ტეგი TRANSPORTER_TIN გადამზიდავი კომპანიის საიდენტიფიკაციო კოდი 
+სერვისი ელ. ზედნადებიდან ელ. ანგარიშ/ფაქტურის წარმოების მეთოდი - 
+ანგარიშფაქტურის გამოწერა 
+1. ანგარიშ ფაქტურის გამოწერა ზედნადებზე 
+public int save_invoice(string su, string sp, int waybill_id, int in_inv_id, out 
+int out_inv_id) გადაეცემა: 
+su - სერვისის მომხმარებელი ; 
+
+=== PAGE 37 ===
+35 
+sp 
+- 
+სერვისის 
+პაროლი; 
+waybill_id - ზედნადების ID; 
+in_inv_id ფაქტურის ნომერი ან 0 თუ ახალია 
+აბრუნებს: 
+out_inv_id - ფაქტურის ნომერი და 1-ფაქტურა შეიქმნა; -1 არა;-101 სხვისი 
+ზედნადებზე და ვერ გამოწერთ; -100 სერვისის მომხმარებელი ან პაროლი 
+არასწორია 
+ზედნადების შაბლონები (გამოიყება მხლოდ პორტალზე მუშაობისთვის) 
+1.  ზედნადების შაბლონის შენახვა 
+public int save_waybill_tamplate(string su, string sp, string v_name, XmlNode waybill) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი; sp - 
+სერვისის 
+მომხმარებლის 
+პაროლი; 
+v_name- შაბლონის სახელი; 
+waybill - შაბლონი იგივე XML-ი როგორიც save_waybill გადაეცემა 
+აბრუნებს: 
+1-შეინახა; -1 არა;-100 სერვისის მომხმარებელი ან მომხმარებლის პაროლი 
+არასწორია 
+2. 
+შენახული შაბლონების სიის გამოტანა 
+public int get_waybill_tamplates(string su, string sp, out XmlNode waybill_tamplates) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი ; sp - 
+სერვისის მომხმარებლის პაროლი; 
+აბრუნებს: 
+waybill_tamplates XML ს სადაც, არის შაბლონების სახელები და ID-ები 
+
+=== PAGE 38 ===
+36 
+1-ოპერაცია შესრულდა; -1 არა;-100 სერვისის მომხმარებელი ან 
+მომხმარებლის პაროლი არასწორია 
+3. 
+შაბლონის გამოტანა 
+public int get_waybill_tamplate(string 
+su, string 
+sp, int id, out XmlNode 
+waybill_tamplate) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი ; sp - 
+სერვისის მომხმარებლის პაროლი; id - 
+შაბლონის ID 
+აბრუნებს: 
+waybill_tamplate იგივენაირ XML-ს რაც save_waybill გადაეცემა 
+1-ოპერაცია შესრულდა; -1 არა;-100 სერვისის მომხმარებელი ან 
+მომხმარებლის პაროლი არასწორია 
+4. 
+შაბლონის წაშლა 
+public int delete_waybill_tamplate(string su, string sp, int id) გადაეცემა: 
+su - სერვისის მომხმარებელი ; sp - 
+სერვისის მომხმარებლის პაროლი; id 
+- შაბლონის ID 
+აბრუნებს: 
+1-ოპერაცია შესრულდა; -1 არა;-100 სერვისის მომხმარებელი ან მომხმარებლის 
+პაროლი არასწორია 
+პირადი ცნობარების წარმოების მეთოდი 
+სასაქონლო კოდების აღრიცხვა (შტრიხკოდების ბაზა) (გამოიყება მხლოლოდ 
+პორტალზე მუშაობისთვის) 
+1. შტრიხკოდის შენახვა 
+public int save_bar_code(string su, string sp, string bar_code, string goods_name, int 
+
+=== PAGE 39 ===
+37 
+unit_id, string unit_txt, int a_id) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი;  
+sp - სერვისის მომხმარებლის პაროლი; 
+bar_code – სასაქონლო კოდი - შტრიხკოდი 
+goods_name- საქონლის სახელი  
+unit_id- ერთეულის ID  
+unit_txt-ერთეული   
+a_id - აქციზის ID  
+ 
+აბრუნებს: 
+1-ოპერაცია შესრულდა;  
+-1 არა; 
+-100 სერვისის მომხმარებელი ან მომხმარებლის პაროლი არასწორია 
+2. 
+შტრიხკოდის წაშლა 
+public int delete_bar_code(string su, string sp, string bar_code) გადაეცემა: 
+su - სერვისის მომხმარებელი ; 
+sp - სერვისის 
+მომხმარებლის 
+პაროლი;  
+bar_code – შტრიხკოდი 
+აბრუნებს: 
+1-ოპერაცია შესრულდა;  
+-1 არა; 
+-100 სერვისის მომხმარებელი ან მომხმარებლის პაროლი არასწორია 
+3.  შტრიხკოდების სიის გამოტანა 
+public int get_bar_codes(string su, string sp, string bar_code, out XmlNode bar_codes) 
+გადაეცემა: 
+su - სერვისის მომხმარებელი;  
+
+=== PAGE 40 ===
+38 
+sp 
+- 
+სერვისის 
+მომხმარებლის 
+პაროლი;  
+bar_code – შტრიხკოდი 
+აბრუნებს: 
+1-ოპერაცია შესრულდა;  
+-1 არა; 
+-100 სერვისის მომხმარებელი ან მომხმარებლის პაროლი არასწორია 
+bar_codes- xml-ი სადაც, წერია  
+bar_code – შტრიხკოდი  
+goods_name-საქონლის სახელი 
+unit_id- ერთეულის ID  
+unit_txt-ერთეული  
+a_id- აქციზის ID 
+ 
+დისტრიბუციისათვის განკუთვნილი ავტომობილების აღრიცხვის მითოდი 
+1. 
+მანქანის ნომრის შენახვა 
+public int save_car_numbers(string su, string sp, string car_number) გადაეცემა: 
+su - სერვისის მომხმარებელი;  
+sp - სერვისის მომხმარებლის პაროლი;  
+car_number – მანქანის ნომერი 
+აბრუნებს: 
+1-ოპერაცია შესრულდა;  
+-1 არა; 
+-100 სერვისის მომხმარებელი ან მომხმარებლის პაროლი არასწორია 
+ 
+ 
+
+=== PAGE 41 ===
+39 
+2. 
+მანქანის ნომრის წაშლა 
+public int delete_car_numbers(string su, string sp, string car_number) 
+გადაეცემა: 
+su 
+- 
+სერვისის 
+მომხმარებელი 
+;  
+sp - სერვისის მომხმარებლის პაროლი; 
+car_number – მანქანის ნომერი 
+აბრუნებს: 
+1-ოპერაცია შესრულდა;  
+-1 არა; 
+-100 სერვისის მომხმარებელი ან მომხმარებლის პაროლი არასწორია 
+3. 
+მანქანის ნომრების სიის გამოტანა 
+public int get_car_numbers(string su, string sp, XmlNode car_numbers) გადაეცემა: 
+su - სერვისის მომხმარებელი ; sp - 
+სერვისის მომხმარებლის პაროლი; 
+აბრუნებს: 
+car_numbers xml-ს სადაც, არის მანქანის ნომრები 
+1-ოპერაცია 
+შესრულდა; 
+ 
+-1 
+არა; 
+-100 
+სერვისის 
+მომხმარებელი 
+ან 
+მომხმარებლის 
+პაროლი არასწორია 
+დამხმარე ფუქციები 
+1. საიდენტიფიკაციო კოდით ან პირადი ნომრით სახელის გამოტანა public 
+string get_name_from_tin(string su, string sp, string tin) 
+
+=== PAGE 42 ===
+40 
+გადაეცემა: 
+su - სერვისის მომხმარებელი ;  
+sp - სერვისის მომხმარებლის პაროლი; 
+tin -გადამხდელის საიდენტიფიკაციო ნომერი ან პირადი ნომერი 
+აბრუნებს: 
+მყიდველის სახელს 
+2. შეცდომების კოდები 
+public XmlNode get_error_codes (string su, string sp) გადაეცემა: 
+su - სერვისის მომხმარებელი; 
+sp - სერვისის მომხმარებლის პაროლი; 
+აბრუნებს: 
+შემდეგი სახის Xml-ს 
+<WAYBILL_TYPES> 
+<WAYBILL_TYPE> 
+<ID>-1000</ID> 
+<TEXT>ტექსტი</ TEXT > 
+<TYPE>1</ TYPE > 
+</WAYBILL_TYPE> 
+</WAYBILL_TYPES> 
+ 
+სადაც, ID – შეცდომის კოდი ID; 
+TEXT - შეცდომის დასახელება; 
+TYPE – 1 ძირითადი ზედნადების, 2 საქონლის ჩანაწერების, 3 
+ანგარიშ ფაქტურის გამოწერის შეცდომები. 
+
