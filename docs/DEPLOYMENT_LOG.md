@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-02 Deployment #267
+- Commit: 8a42281
+- Production: https://ice-erp.vercel.app → https://ice-i6zhz6rek-iceerp.vercel.app
+- Summary: Fix sidebar offcanvas mode to prevent table column overlap.
+- Changes:
+  - components/app-sidebar.tsx: Switch collapsible from "icon" to "offcanvas"; remove useSidebar/collapsed guards; remove unused useSidebar import
+  - app/app-shell.tsx: Remove unused usePathname import
+
 ## 2026-06-01 Deployment #266
 - Commit: 6c94779 (main, merged from ui-refactor-minimalist-corporate)
 - Production: https://ice-erp.vercel.app → https://ice-9rjp9h072-iceerp.vercel.app
