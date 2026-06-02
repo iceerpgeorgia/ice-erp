@@ -25,25 +25,20 @@ export async function POST(req: NextRequest) {
 
   const { folders, items } = parsed.data;
 
-  await prisma.$transaction(async (tx) => {
-    if (folders?.length) {
-      for (const { id, sortOrder } of folders) {
-        await tx.userNavFolder.updateMany({
-          where: { id, userId },
-          data: { sortOrder, updatedAt: new Date() },
-        });
-      }
-    }
-    if (items?.length) {
-      for (const { routeKey, folderId, sortOrder } of items) {
-        await tx.userNavItem.upsert({
-          where: { userId_routeKey: { userId, routeKey } },
-          create: { id: crypto.randomUUID(), userId, routeKey, folderId, sortOrder, icon: null },
-          update: { folderId, sortOrder },
-        });
-      }
-    }
-  });
+  const folderOps = (folders ?? []).map(({ id, sortOrder }) =>
+    prisma.userNavFolder.updateMany({
+      where: { id, userId },
+      data: { sortOrder, updatedAt: new Date() },
+    })
+  );
+  const itemOps = (items ?? []).map(({ routeKey, folderId, sortOrder }) =>
+    prisma.userNavItem.upsert({
+      where: { userId_routeKey: { userId, routeKey } },
+      create: { id: crypto.randomUUID(), userId, routeKey, folderId, sortOrder, icon: null },
+      update: { folderId, sortOrder },
+    })
+  );
+  await Promise.all([...folderOps, ...itemOps]);
 
   return NextResponse.json({ ok: true });
 }
