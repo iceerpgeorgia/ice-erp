@@ -1,14 +1,5 @@
-import BankTransactionsTestTableFigma from "./BankTransactionsTestTableFigma";
-
-export const metadata = {
-  title: "Bank Transactions Test",
-  description: "View deconsolidated bank transaction records",
-};
+import { redirect } from 'next/navigation';
 
 export default function BankTransactionsTestPage() {
-  return (
-    <div className="w-full">
-      <BankTransactionsTestTableFigma />
-    </div>
-  );
+  redirect('/dictionaries/bank-transactions');
 }

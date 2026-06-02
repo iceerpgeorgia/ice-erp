@@ -1,4 +1,4 @@
-import BankTransactionsTableFigma from "./BankTransactionsTableFigma";
+import BankTransactionsTestTableFigma from "../bank-transactions-test/BankTransactionsTestTableFigma";
 
 export const metadata = {
   title: "Bank Transactions",
@@ -8,7 +8,7 @@ export const metadata = {
 export default function BankTransactionsPage() {
   return (
     <div className="w-full">
-      <BankTransactionsTableFigma />
+      <BankTransactionsTestTableFigma />
     </div>
   );
 }

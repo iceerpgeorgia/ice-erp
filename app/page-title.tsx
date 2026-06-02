@@ -14,7 +14,6 @@ const routeTitles: Record<string, string> = {
   '/dictionaries': 'Dictionaries',
   '/dictionaries/bank-accounts': 'Bank Accounts',
   '/dictionaries/bank-transactions': 'Bank Transactions',
-  '/dictionaries/bank-transactions-test': 'Bank Transactions Test',
   '/dictionaries/banks': 'Banks',
   '/dictionaries/counteragents': 'Counteragents',
   '/dictionaries/currencies': 'Currencies',
