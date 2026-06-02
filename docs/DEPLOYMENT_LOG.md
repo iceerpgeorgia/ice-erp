@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-06-02 Deployment #271
+- Commit: 0e00407
+- Production: https://ice-4e34hnzw5-iceerp.vercel.app
+- Summary: Full WYSIWYG sidebar structure editor — drag folders and pages to reorder, move pages between folders, rename folders inline, change icons on folders and pages, bulk sortOrder persistence via new reorder API.
+- Changes:
+  - app/api/nav/reorder/route.ts: New `POST /api/nav/reorder` endpoint for bulk-updating folder and item sortOrder in a single Prisma transaction.
+  - app/dictionaries/page.tsx: Full rewrite as WYSIWYG nav organizer with HTML5 DnD for folder reorder, page reorder within folders, page movement between folders, inline rename, icon picker, folder create/delete.
+  - components/app-sidebar.tsx: Fixed navGroups useMemo to sort items within each user folder by sortOrder (was ignoring it); also sorts uncategorized items by sortOrder before grouping by defaultGroup.
+
 ## 2026-06-02 Deployment #270
 - Commit: de6999a
 - Production: https://ice-erp.vercel.app → https://ice-pn60l1v0q-iceerp.vercel.app
