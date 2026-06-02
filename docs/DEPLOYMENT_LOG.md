@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-02 Deployment #276
+- Commit: ce6bbf0
+- Production: https://ice-pm3xmju9y-iceerp.vercel.app
+- Summary: Deleted unused BankTransactionsTableFigma.tsx (407 lines removed).
+- Changes:
+  - app/dictionaries/bank-transactions/BankTransactionsTableFigma.tsx: deleted
+
 ## 2026-06-02 Deployment #275
 - Commit: ff6a6d5
 - Production: https://ice-jzgiokaaw-iceerp.vercel.app
