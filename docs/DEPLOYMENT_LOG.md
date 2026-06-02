@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-02 Deployment #274
+- Commit: ee92792
+- Production: https://ice-3l1u6661b-iceerp.vercel.app
+- Summary: Fix P2028 Prisma transaction timeout on Vercel. Replaced interactive `$transaction` callback with `Promise.all` of individual queries. The interactive transaction held an open DB connection across multiple awaits, timing out in the serverless environment.
+- Changes:
+  - app/api/nav/reorder/route.ts: Replaced `prisma.$transaction(async tx => { for...await })` with parallel `Promise.all([...folderOps, ...itemOps])`.
+
 ## 2026-06-02 Deployment #273
 - Commit: 2cf4d67
 - Production: https://ice-2663w4plz-iceerp.vercel.app
