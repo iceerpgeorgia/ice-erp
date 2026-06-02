@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-02 Deployment #268
+- Commit: 2ff0093
+- Production: https://ice-erp.vercel.app → https://ice-8nleta9b9-iceerp.vercel.app
+- Summary: Fix sidebar overlap — switch from offcanvas (drawer overlay) to icon mode (push layout). Auto-collapse sidebar on nav click.
+- Changes:
+  - components/app-sidebar.tsx: collapsible="offcanvas" → collapsible="icon"; import useSidebar; handleNavClick collapses sidebar on nav link click; hide ICE ERP text and footer copyright in collapsed state
+
 ## 2026-06-02 Deployment #267
 - Commit: 8a42281
 - Production: https://ice-erp.vercel.app → https://ice-i6zhz6rek-iceerp.vercel.app
