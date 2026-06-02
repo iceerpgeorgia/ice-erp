@@ -9,7 +9,7 @@ import { IconPicker } from '@/components/nav-icon-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { FolderPlus, Pencil, Trash2, FolderOpen, ExternalLink, GripVertical, Check, X } from 'lucide-react';
+import { FolderPlus, Pencil, Trash2, FolderOpen, ExternalLink, GripVertical, Check, X, Save } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -71,6 +71,8 @@ export default function NavOrganizerPage() {
   const [editingFolder, setEditingFolder] = useState<string | null>(null);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [isDirty, setIsDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // ── Sync from config on first load ──────────────────────────────────────────
 
@@ -104,7 +106,7 @@ export default function NavOrganizerPage() {
 
   // ── Persistence ───────────────────────────────────────────────────────────────
 
-  const saveStructure = (
+  const saveStructure = async (
     newFolders: NavFolder[],
     newItemsByFolder: Record<string, string[]>,
     newUnassigned: string[],
@@ -116,12 +118,18 @@ export default function NavOrganizerPage() {
     });
     newUnassigned.forEach((rk, i) => itemPayload.push({ routeKey: rk, folderId: null, sortOrder: i }));
 
-    fetch('/api/nav/reorder', {
+    setSaving(true);
+    await fetch('/api/nav/reorder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ folders: folderPayload, items: itemPayload }),
-    }).then(() => refresh());
+    });
+    setSaving(false);
+    setIsDirty(false);
+    refresh();
   };
+
+  const handleSave = () => saveStructure(folders, itemsByFolder, unassigned);
 
   // ── Folder operations ─────────────────────────────────────────────────────────
 
@@ -230,8 +238,8 @@ export default function NavOrganizerPage() {
       const idx = newFolders.findIndex(f => f.id === targetId);
       newFolders.splice(pos === 'before' ? idx : idx + 1, 0, srcFolder);
       setFolders(newFolders);
+      setIsDirty(true);
       resetDrag();
-      saveStructure(newFolders, itemsByFolder, unassigned);
     } else if (dragging?.kind === 'page') {
       dropPageIntoFolder(targetId);
     }
@@ -275,8 +283,8 @@ export default function NavOrganizerPage() {
 
     setItemsByFolder(ibf);
     setUnassigned(una);
+    setIsDirty(true);
     resetDrag();
-    saveStructure(folders, ibf, una);
   };
 
   const dropPageIntoFolder = (targetFolderId: string) => {
@@ -287,8 +295,8 @@ export default function NavOrganizerPage() {
     ibf[targetFolderId] = [...(ibf[targetFolderId] ?? []), srcRoute];
     setItemsByFolder(ibf);
     setUnassigned(una);
+    setIsDirty(true);
     resetDrag();
-    saveStructure(folders, ibf, una);
   };
 
   const dropPageToUnassigned = (e: React.DragEvent) => {
@@ -300,8 +308,8 @@ export default function NavOrganizerPage() {
     una = [...una, srcRoute];
     setItemsByFolder(ibf);
     setUnassigned(una);
+    setIsDirty(true);
     resetDrag();
-    saveStructure(folders, ibf, una);
   };
 
   // ── Computed ──────────────────────────────────────────────────────────────────
@@ -380,11 +388,25 @@ export default function NavOrganizerPage() {
       )}
 
       {/* Header */}
-      <div className="border-b border-border pb-5">
-        <h1 className="text-2xl font-semibold text-foreground">Navigation Organizer</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Drag folders to reorder them. Drag pages to reorder within a folder or move between folders. Click any icon to change it.
-        </p>
+      <div className="border-b border-border pb-5 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Navigation Organizer</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Drag folders to reorder them. Drag pages to reorder within a folder or move between folders. Click any icon to change it.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 pt-1">
+          {isDirty && <span className="text-xs text-muted-foreground">Unsaved changes</span>}
+          <Button
+            onClick={handleSave}
+            disabled={!isDirty || saving}
+            size="sm"
+            className="gap-1.5"
+          >
+            <Save className="h-3.5 w-3.5" />
+            {saving ? 'Saving…' : 'Save'}
+          </Button>
+        </div>
       </div>
 
       {loading ? (
