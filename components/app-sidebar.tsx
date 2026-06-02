@@ -253,10 +253,27 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border px-4 py-3">
-        <p className="text-[10px] text-sidebar-foreground/40 group-data-[state=collapsed]:hidden">
-          © 2026 ICE ERP
-        </p>
+      <SidebarFooter className="border-t border-sidebar-border px-2 py-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={pathname === '/dictionaries'}
+              tooltip="Navigation Organizer"
+              className={cn(
+                'h-8 rounded-md px-2 text-[13px] font-medium transition-colors',
+                pathname === '/dictionaries'
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+              )}
+            >
+              <Link href="/dictionaries" onClick={handleNavClick}>
+                <Settings className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate group-data-[state=collapsed]:hidden">Navigation Organizer</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
 
       <SidebarRail />
