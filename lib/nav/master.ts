@@ -7,8 +7,6 @@ export type MasterNavItem = {
 };
 
 export const MASTER_NAV: MasterNavItem[] = [
-  { routeKey: '/', label: 'Home', defaultIcon: 'Home', defaultGroup: 'Overview', desc: 'Dashboard home' },
-
   // Banking
   { routeKey: '/dictionaries/bank-transactions', label: 'Bank Transactions', defaultIcon: 'Landmark', defaultGroup: 'Banking', desc: 'BOG/NBG statement import' },
   { routeKey: '/bank-transaction-batches', label: 'TX Batches', defaultIcon: 'Layers2', defaultGroup: 'Banking', desc: 'Batch payment processing' },
@@ -46,9 +44,7 @@ export const MASTER_NAV: MasterNavItem[] = [
   { routeKey: '/admin/financial-codes', label: 'Financial Codes', defaultIcon: 'BookOpen', defaultGroup: 'Admin', desc: 'Chart of accounts' },
   { routeKey: '/admin/attachments', label: 'Attachments', defaultIcon: 'FileSpreadsheet', defaultGroup: 'Admin', desc: 'File attachments' },
   { routeKey: '/admin/document-types', label: 'Document Types', defaultIcon: 'ClipboardList', defaultGroup: 'Admin', desc: 'Document registry' },
-  { routeKey: '/admin/modules', label: 'Modules', defaultIcon: 'Layers2', defaultGroup: 'Admin', desc: 'Module config' },
   { routeKey: '/admin/permissions', label: 'Permissions', defaultIcon: 'ShieldCheck', defaultGroup: 'Admin', desc: 'Role permissions' },
-  { routeKey: '/admin/analytics', label: 'Analytics', defaultIcon: 'BarChart3', defaultGroup: 'Admin', desc: 'Usage analytics' },
 ];
 
 export const MASTER_BY_ROUTE = Object.fromEntries(MASTER_NAV.map(i => [i.routeKey, i]));

@@ -64,12 +64,6 @@ type NavGroup = {
 
 const NAV: NavGroup[] = [
   {
-    title: 'Overview',
-    items: [
-      { label: 'Home', href: '/', icon: Home },
-    ],
-  },
-  {
     title: 'Banking',
     items: [
       { label: 'Bank Transactions', href: '/dictionaries/bank-transactions', icon: Landmark, matchPrefix: '/dictionaries/bank-transactions' },
@@ -120,9 +114,7 @@ const NAV: NavGroup[] = [
       { label: 'Financial Codes', href: '/admin/financial-codes', icon: BookOpen },
       { label: 'Attachments', href: '/admin/attachments', icon: FileSpreadsheet },
       { label: 'Document Types', href: '/admin/document-types', icon: ClipboardList },
-      { label: 'Modules', href: '/admin/modules', icon: Layers2 },
       { label: 'Permissions', href: '/admin/permissions', icon: ShieldCheck },
-      { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
     ],
   },
 ];
@@ -210,15 +202,37 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" variant="sidebar">
-      {/* Logo / App name */}
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
-        <div className="flex items-center gap-2 overflow-hidden">
+      {/* Logo / App name + pinned Home */}
+      <SidebarHeader className="border-b border-sidebar-border">
+        <div className="px-4 py-3 flex items-center gap-2 overflow-hidden">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-sidebar-primary">
             <span className="text-xs font-bold text-sidebar-primary-foreground">IC</span>
           </div>
           <span className="truncate text-sm font-semibold text-sidebar-accent-foreground tracking-tight group-data-[state=collapsed]:hidden">
             ICE ERP
           </span>
+        </div>
+        <div className="px-2 pb-2">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === '/'}
+                tooltip="Home"
+                className={cn(
+                  'h-8 rounded-md px-2 text-[13px] font-medium transition-colors',
+                  pathname === '/'
+                    ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                )}
+              >
+                <Link href="/" onClick={handleNavClick}>
+                  <Home className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">Home</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </div>
       </SidebarHeader>
 
