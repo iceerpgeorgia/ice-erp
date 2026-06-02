@@ -13,7 +13,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  useSidebar,
 } from '@/components/ui/sidebar';
 import {
   Home,
@@ -129,22 +128,17 @@ function isActive(pathname: string, item: NavItem): boolean {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { state } = useSidebar();
-  const collapsed = state === 'collapsed';
-
   return (
-    <Sidebar collapsible="icon" variant="sidebar">
+    <Sidebar collapsible="offcanvas" variant="sidebar">
       {/* Logo / App name */}
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
         <div className="flex items-center gap-2 overflow-hidden">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-sidebar-primary">
             <span className="text-xs font-bold text-sidebar-primary-foreground">IC</span>
           </div>
-          {!collapsed && (
-            <span className="truncate text-sm font-semibold text-sidebar-accent-foreground tracking-tight">
-              ICE ERP
-            </span>
-          )}
+          <span className="truncate text-sm font-semibold text-sidebar-accent-foreground tracking-tight">
+            ICE ERP
+          </span>
         </div>
       </SidebarHeader>
 
@@ -186,11 +180,9 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border px-4 py-3">
-        {!collapsed && (
-          <p className="text-[10px] text-sidebar-foreground/40">
-            © 2026 ICE ERP
-          </p>
-        )}
+        <p className="text-[10px] text-sidebar-foreground/40">
+          © 2026 ICE ERP
+        </p>
       </SidebarFooter>
 
       <SidebarRail />

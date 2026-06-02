@@ -2,7 +2,6 @@
 
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
-import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import {
   DropdownMenu,
