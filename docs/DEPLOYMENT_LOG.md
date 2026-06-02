@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-02 Deployment #272
+- Commit: bd82fa0
+- Production: https://ice-nq49uzclf-iceerp.vercel.app
+- Summary: Expanded icon picker library from ~50 to 200+ Lucide icons across 10 categories (Navigation, Files, Finance, Charts, People, Places, Communication, Documents, Shopping, Tech, Media). Widened picker dialog to max-w-2xl with 8-column grid and taller scroll area.
+- Changes:
+  - lib/nav/icons.ts: Expanded ICON_MAP from ~50 to 200+ icons organized by category.
+  - components/nav-icon-picker.tsx: Dialog widened to max-w-2xl, grid-cols-8, max-h-96.
+
 ## 2026-06-02 Deployment #271
 - Commit: 0e00407
 - Production: https://ice-4e34hnzw5-iceerp.vercel.app
