@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-02 Deployment #273
+- Commit: 2cf4d67
+- Production: https://ice-2663w4plz-iceerp.vercel.app
+- Summary: Added explicit Save button to nav organizer. Drag operations now stage changes locally; Save button (with "Unsaved changes" indicator) persists them to the DB. Saving… state during the request.
+- Changes:
+  - app/dictionaries/page.tsx: Added isDirty/saving state; drag handlers set isDirty instead of auto-saving; new handleSave calls saveStructure; Save button with disabled/loading state in header.
+
 ## 2026-06-02 Deployment #272
 - Commit: bd82fa0
 - Production: https://ice-nq49uzclf-iceerp.vercel.app
