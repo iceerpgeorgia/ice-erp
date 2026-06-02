@@ -33,9 +33,6 @@ function Topbar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-brand-700 text-xs font-semibold">
-                {(session.user.name ?? session.user.email ?? 'U')[0].toUpperCase()}
-              </div>
               <span className="hidden sm:block max-w-[140px] truncate">
                 {session.user.name ?? session.user.email}
               </span>

@@ -212,7 +212,7 @@ export function AppSidebar() {
             ICE ERP
           </span>
         </div>
-        <div className="px-2 pb-2">
+        <div className="pb-2">
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
