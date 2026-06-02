@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-06-02 Deployment #278
+- Commit: a81a42b
+- Production: https://ice-dyixt5fj8-iceerp.vercel.app
+- Summary: Fix Home icon alignment in collapsed sidebar, remove green avatar from topbar user button, auto-seed default nav config (7 folders, 29 items) for new users on first login.
+- Changes:
+  - components/app-sidebar.tsx: removed extra px-2 from Home wrapper div (SidebarHeader already provides p-2, double padding caused icon offset vs other nav items)
+  - app/app-shell.tsx: removed green avatar circle from topbar user dropdown trigger; username text and dropdown remain
+  - app/api/nav/config/route.ts: added auto-seeding logic — when a user has 0 folders, seeds their nav from DEFAULT_FOLDERS/DEFAULT_ITEMS template before returning
+  - lib/nav/default-config.ts: new file — canonical default nav layout (Giorgi's config) with 7 folders and 29 items used for seeding new users
+
 ## 2026-06-02 Deployment #277
 - Commit: 0b6b4a9
 - Production: https://ice-37i71pw1r-iceerp.vercel.app
