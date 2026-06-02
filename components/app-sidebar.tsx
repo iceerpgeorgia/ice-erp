@@ -166,9 +166,12 @@ export function AppSidebar() {
     for (const folder of config.folders) {
       const folderItems = grouped[folder.id];
       if (!folderItems?.length) continue;
+      const sortedFolderItems = [...folderItems].sort(
+        (a, b) => (itemsMap[a.routeKey]?.sortOrder ?? 999) - (itemsMap[b.routeKey]?.sortOrder ?? 999)
+      );
       groups.push({
         title: folder.name,
-        items: folderItems.map(m => ({
+        items: sortedFolderItems.map(m => ({
           label: m.label,
           href: m.routeKey,
           icon: getIcon(itemsMap[m.routeKey]?.icon ?? m.defaultIcon) as React.ElementType,
@@ -177,9 +180,12 @@ export function AppSidebar() {
       });
     }
 
-    // Uncategorized items grouped by default group
+    // Uncategorized items grouped by default group, sorted by sortOrder within each group
+    const sortedUncategorized = [...uncategorized].sort(
+      (a, b) => (itemsMap[a.routeKey]?.sortOrder ?? 999) - (itemsMap[b.routeKey]?.sortOrder ?? 999)
+    );
     const byDefault: Record<string, typeof MASTER_NAV> = {};
-    uncategorized.forEach(m => {
+    sortedUncategorized.forEach(m => {
       if (!byDefault[m.defaultGroup]) byDefault[m.defaultGroup] = [];
       byDefault[m.defaultGroup].push(m);
     });
