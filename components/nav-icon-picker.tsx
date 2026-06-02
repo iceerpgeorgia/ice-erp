@@ -27,7 +27,7 @@ export function IconPicker({ open, current, onSelect, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Choose Icon</DialogTitle>
         </DialogHeader>
@@ -38,7 +38,7 @@ export function IconPicker({ open, current, onSelect, onClose }: Props) {
           className="h-8 text-sm"
           autoFocus
         />
-        <div className="grid grid-cols-6 gap-1 max-h-72 overflow-y-auto pt-1">
+        <div className="grid grid-cols-8 gap-1 max-h-96 overflow-y-auto pt-1 pr-1">
           {filtered.map(name => {
             const Icon = getIcon(name);
             const isSelected = name === current;
