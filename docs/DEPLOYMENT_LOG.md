@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-06-02 Deployment #275
+- Commit: ff6a6d5
+- Production: https://ice-jzgiokaaw-iceerp.vercel.app
+- Summary: Promoted test bank transactions table to sole bank transactions page. `/dictionaries/bank-transactions` now renders the test component (bulk selection, `/api/bank-transactions-test` backend). `/dictionaries/bank-transactions-test` redirects to the main route.
+- Changes:
+  - app/dictionaries/bank-transactions/page.tsx: imports BankTransactionsTestTableFigma instead of old component
+  - app/dictionaries/bank-transactions-test/page.tsx: redirect to /dictionaries/bank-transactions
+  - app/page-title.tsx: removed duplicate "Bank Transactions Test" entry
+
 ## 2026-06-02 Deployment #274
 - Commit: ee92792
 - Production: https://ice-3l1u6661b-iceerp.vercel.app
