@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-02 Deployment #277
+- Commit: 0b6b4a9
+- Production: https://ice-37i71pw1r-iceerp.vercel.app
+- Summary: Pinned Home button to sidebar header (always visible at top). Removed Modules and Analytics nav items. Removed Home from MASTER_NAV (it's now hardcoded in the header, not user-configurable).
+- Changes:
+  - components/app-sidebar.tsx: Home button moved to SidebarHeader; removed Modules/Analytics from static NAV fallback; removed Overview group
+  - lib/nav/master.ts: Removed Home ('/'), '/admin/modules', '/admin/analytics' entries
+
 ## 2026-06-02 Deployment #276
 - Commit: ce6bbf0
 - Production: https://ice-pm3xmju9y-iceerp.vercel.app
