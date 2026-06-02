@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-02 Deployment #269
+- Commit: 28c3949
+- Production: https://ice-erp.vercel.app → https://ice-48dbjodo4-iceerp.vercel.app
+- Summary: Fix sidebar content overlap — replace Tailwind v4 CSS variable syntax (`w-(--var)`) with v3-compatible `w-[var(--var)]` and `theme(spacing.4)` in sidebar.tsx gap spacer and container divs.
+- Changes:
+  - components/ui/sidebar.tsx: 8 occurrences of `w-(--sidebar-width)`, `w-(--sidebar-width-icon)`, `(--spacing(4))` replaced with Tailwind v3 equivalents
+
 ## 2026-06-02 Deployment #268
 - Commit: 2ff0093
 - Production: https://ice-erp.vercel.app → https://ice-8nleta9b9-iceerp.vercel.app
