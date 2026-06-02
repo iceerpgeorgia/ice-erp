@@ -13,6 +13,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import {
   Home,
@@ -128,15 +129,19 @@ function isActive(pathname: string, item: NavItem): boolean {
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { setOpen } = useSidebar();
+
+  const handleNavClick = () => setOpen(false);
+
   return (
-    <Sidebar collapsible="offcanvas" variant="sidebar">
+    <Sidebar collapsible="icon" variant="sidebar">
       {/* Logo / App name */}
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
         <div className="flex items-center gap-2 overflow-hidden">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-sidebar-primary">
             <span className="text-xs font-bold text-sidebar-primary-foreground">IC</span>
           </div>
-          <span className="truncate text-sm font-semibold text-sidebar-accent-foreground tracking-tight">
+          <span className="truncate text-sm font-semibold text-sidebar-accent-foreground tracking-tight group-data-[state=collapsed]:hidden">
             ICE ERP
           </span>
         </div>
@@ -166,7 +171,7 @@ export function AppSidebar() {
                           : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                       )}
                     >
-                      <Link href={item.href}>
+                      <Link href={item.href} onClick={handleNavClick}>
                         <Icon className="h-3.5 w-3.5 shrink-0" />
                         <span className="truncate">{item.label}</span>
                       </Link>
@@ -180,7 +185,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border px-4 py-3">
-        <p className="text-[10px] text-sidebar-foreground/40">
+        <p className="text-[10px] text-sidebar-foreground/40 group-data-[state=collapsed]:hidden">
           © 2026 ICE ERP
         </p>
       </SidebarFooter>
