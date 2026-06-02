@@ -1,5 +1,24 @@
 # Deployment Log
 
+## 2026-06-02 Deployment #270
+- Commit: de6999a
+- Production: https://ice-erp.vercel.app → https://ice-pn60l1v0q-iceerp.vercel.app
+- Summary: Per-user navigation organizer — users can create folders with custom icons, assign pages to folders, and customize page icons. Sidebar is rebuilt dynamically from user config stored in DB.
+- Changes:
+  - prisma/schema.prisma: Added `UserNavFolder` and `UserNavItem` models
+  - DB: Tables `user_nav_folders` and `user_nav_items` created via raw SQL
+  - lib/nav/icons.ts: Icon registry with ~50 curated Lucide icons
+  - lib/nav/master.ts: Master list of 33 navigable pages with default icons and groups
+  - app/api/nav/config/route.ts: GET — returns user's folders + item overrides
+  - app/api/nav/folders/route.ts: POST — create folder
+  - app/api/nav/folders/[id]/route.ts: PATCH/DELETE — update/delete folder
+  - app/api/nav/items/route.ts: PATCH — upsert item icon/folder override
+  - components/nav-config-context.tsx: React context providing nav config to entire app
+  - components/nav-icon-picker.tsx: Icon picker dialog with search
+  - app/dictionaries/page.tsx: Replaced static card grid with full NavOrganizerPage
+  - components/app-sidebar.tsx: Made dynamic — builds sidebar from user folder assignments; falls back to static NAV
+  - app/app-shell.tsx: Wrapped with NavConfigProvider
+
 ## 2026-06-02 Deployment #269
 - Commit: 28c3949
 - Production: https://ice-erp.vercel.app → https://ice-48dbjodo4-iceerp.vercel.app
