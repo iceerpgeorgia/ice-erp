@@ -39,6 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from './ui/table';
+import { HandoverPaymentsGrid } from './handover-payments-grid';
 
 type ColumnKey = keyof Job;
 
@@ -722,6 +723,11 @@ export function HandoversTable() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Income Payments Grid */}
+      {selectedProjectUuid && (
+        <HandoverPaymentsGrid projectUuid={selectedProjectUuid} />
       )}
 
       {/* Edit Job Dialog */}

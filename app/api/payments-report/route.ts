@@ -25,6 +25,10 @@ export async function GET(request: NextRequest) {
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const maxDate = searchParams.get('maxDate');
+    const projectUuidParam = searchParams.get('projectUuid');
+    // Validate UUID format to prevent SQL injection (used in queryRawUnsafe)
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const safeProjectUuid = projectUuidParam && UUID_REGEX.test(projectUuidParam) ? projectUuidParam : null;
 
     // Load ALL source tables regardless of insider selection — the payments report is a
     // global cross-entity report. Filtering by the user's current insider cookie caused
@@ -207,6 +211,7 @@ export async function GET(request: NextRequest) {
       ) bank_agg ON p.payment_id = bank_agg.payment_id
       WHERE p.is_active = true
       ${insiderWhereClause}
+      ${safeProjectUuid ? `AND p.project_uuid = '${safeProjectUuid}'::uuid` : ''}
       ORDER BY p.payment_id DESC
     `;
 
