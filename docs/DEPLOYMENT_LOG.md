@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #295
+- Commit: c1d64ab
+- Production: https://ice-cy4zcoih5-iceerp.vercel.app
+- Summary: Parent FC aggregate rows in handovers income payments grid + hardcoded lift cert document type UUID.
+- Changes:
+  - lib/attachments.ts: Replaced `ILIKE '%ექსპლუატაციაში%'` pattern with hardcoded UUID `77e8c811-3b1c-409d-a1e4-7cc40e1b0132` for lift certificate document type (faster, more reliable query without JOIN)
+  - components/figma/handover-payments-grid.tsx: Implemented parent FC aggregate rows matching payments-report bundle pattern — groups payments by (counteragent + project + parent FC + currency), displays aggregate sums in `italic bg-blue-50/40` rows, hides checkbox/actions on aggregates, only creates aggregate when ≥2 payments share same parent FC
+  - Note: Auto-refresh already fully working — job edits refresh jobs grid, payment edits/ledger additions refresh payments grid
+
 ## 2026-06-04 Deployment #294
 - Commit: 24475d6
 - Production: https://ice-qk49l0n8s-iceerp.vercel.app
