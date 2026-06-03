@@ -202,17 +202,9 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" variant="sidebar">
-      {/* Logo / App name + pinned Home */}
+      {/* Pinned Home */}
       <SidebarHeader className="border-b border-sidebar-border">
-        <div className="px-4 py-3 flex items-center gap-2 overflow-hidden">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-sidebar-primary">
-            <span className="text-xs font-bold text-sidebar-primary-foreground">IC</span>
-          </div>
-          <span className="truncate text-sm font-semibold text-sidebar-accent-foreground tracking-tight group-data-[state=collapsed]:hidden">
-            ICE ERP
-          </span>
-        </div>
-        <div className="pb-2">
+        <div className="pb-2 pt-1">
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
