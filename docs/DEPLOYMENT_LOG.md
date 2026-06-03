@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-03 Deployment #280
+- Commit: ff383ac
+- Production: https://ice-iclla956v-iceerp.vercel.app
+- Summary: Remove "IC" green thumbnail and "ICE ERP" branding from sidebar header. Home button now sits at the very top of the sidebar.
+- Changes:
+  - components/app-sidebar.tsx: removed the logo block (green IC circle + "ICE ERP" text div) from SidebarHeader; Home button now directly at top with pt-1 spacing
+
 ## 2026-06-03 Deployment #279
 - Commit: aae8a85
 - Production: https://ice-lwwardrhk-iceerp.vercel.app
