@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #289
+- Commit: c6aa2c5
+- Production: https://ice-abtuig9lw-iceerp.vercel.app
+- Summary: Handovers income payments grid — native table format matching payments-report, parent FC column, default sort by financial code ASC, refresh buttons on both grids.
+- Changes:
+  - components/figma/handover-payments-grid.tsx: Converted Shadcn Table to native `<table>` with fixed layout, column background colors (accrual=#ffebee, order=#fff9e6, payment=#e8f5e9), row conditional formatting (confirmed+due=0 → gray, confirmed+due>0 → green), Copy button on Payment ID; added parentFinancialCode column; default sort changed to financialCode ASC; storage version bumped to 2; added RefreshCw refresh button to toolbar
+  - components/figma/handovers-table.tsx: Added RefreshCw refresh button to jobs toolbar
+
 ## 2026-06-04 Deployment #288
 - Commit: a30f48c
 - Production: https://ice-7zch2pfwn-iceerp.vercel.app
