@@ -85,7 +85,12 @@ type FormData = {
 export function HandoversTable() {
   // ── Project / Job state ──────────────────────────────────────────────────
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjectUuid, setSelectedProjectUuid] = useState('');
+  const [selectedProjectUuid, setSelectedProjectUuid] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('handovers-last-project') ?? '';
+    }
+    return '';
+  });
   const [jobs, setJobs] = useState<Job[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [insidersList, setInsidersList] = useState<{ insiderUuid: string; insiderName: string }[]>([]);
@@ -458,7 +463,13 @@ export function HandoversTable() {
             <Combobox
               options={projectOptions}
               value={selectedProjectUuid}
-              onValueChange={setSelectedProjectUuid}
+              onValueChange={(uuid) => {
+                setSelectedProjectUuid(uuid);
+                if (typeof window !== 'undefined') {
+                  if (uuid) localStorage.setItem('handovers-last-project', uuid);
+                  else localStorage.removeItem('handovers-last-project');
+                }
+              }}
               placeholder={loadingProjects ? 'Loading projects…' : 'Select a project…'}
               searchPlaceholder="Search projects…"
               emptyText="No project found."
