@@ -38,7 +38,6 @@ import type { ColumnFormat } from './shared/table-filters';
 
 type IncomeColKey =
   | 'paymentId'
-  | 'parentFinancialCode'
   | 'financialCode'
   | 'accrual'
   | 'order'
@@ -85,8 +84,7 @@ type IncomePaymentRow = {
 
 const defaultIncomeColumns: IncomeColumnConfig[] = [
   { key: 'paymentId', label: 'Payment ID', width: 150, visible: true, sortable: true, filterable: false },
-  { key: 'parentFinancialCode', label: 'Parent FC', width: 140, visible: true, sortable: true, filterable: true },
-  { key: 'financialCode', label: 'Financial Code', width: 180, visible: true, sortable: true, filterable: true },
+  { key: 'financialCode', label: 'Financial Code', width: 200, visible: true, sortable: true, filterable: true },
   { key: 'accrual', label: 'Accrual', width: 120, visible: true, sortable: true, filterable: false, format: 'currency' },
   { key: 'order', label: 'Order', width: 120, visible: true, sortable: true, filterable: false, format: 'currency' },
   { key: 'payment', label: 'Payment', width: 120, visible: true, sortable: true, filterable: false, format: 'currency' },
@@ -96,7 +94,7 @@ const defaultIncomeColumns: IncomeColumnConfig[] = [
 ];
 
 const INCOME_STORAGE_KEY = 'handovers-income-payments-columns';
-const INCOME_STORAGE_VERSION = '2';
+const INCOME_STORAGE_VERSION = '3';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -771,6 +769,13 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                                 >
                                   <Copy className="h-3.5 w-3.5" />
                                 </button>
+                              </div>
+                            ) : col.key === 'financialCode' ? (
+                              <div className="flex flex-col min-w-0">
+                                <span className="truncate">{row.financialCode || '-'}</span>
+                                {row.parentFinancialCode && (
+                                  <span className="truncate text-xs text-gray-400">{row.parentFinancialCode}</span>
+                                )}
                               </div>
                             ) : (
                               <span className="truncate block">
