@@ -147,6 +147,14 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
   const [draggedColumn, setDraggedColumn] = useState<IncomeColKey | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<IncomeColKey | null>(null);
 
+  // ── Row selection ─────────────────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleRow = (id: string) =>
+    setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleAll = () =>
+    setSelectedIds(prev => prev.size === paginatedData.length && paginatedData.every(r => prev.has(r.paymentId))
+      ? new Set() : new Set(paginatedData.map(r => r.paymentId)));
+
   // ── Edit payment dialog ───────────────────────────────────────────────────
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editRowId, setEditRowId] = useState<number | null>(null);
@@ -580,6 +588,21 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
         </Button>
 
+        {selectedIds.size > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const records = paginatedData.filter(r => selectedIds.has(r.paymentId));
+              const payload = records.map(r => ({ paymentId: r.paymentId, amount: Math.abs(r.due) }));
+              navigator.clipboard.writeText(JSON.stringify(payload)).catch(() => {});
+            }}
+          >
+            <Copy className="h-4 w-4 mr-2" />
+            Copy for Batch ({selectedIds.size})
+          </Button>
+        )}
+
         <span className="text-sm text-muted-foreground ml-auto">
           {loading
             ? 'Loading…'
@@ -593,6 +616,14 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
           <table style={{ tableLayout: 'fixed', width: '100%' }} className="border-collapse">
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b-2 border-gray-200">
+                <th className="sticky top-0 z-10 bg-white px-3 py-3 w-9 min-w-[36px]" style={{ width: 36, minWidth: 36 }}>
+                  <input
+                    type="checkbox"
+                    className="cursor-pointer"
+                    checked={paginatedData.length > 0 && paginatedData.every(r => selectedIds.has(r.paymentId))}
+                    onChange={toggleAll}
+                  />
+                </th>
                 {visibleColumns.map(column => {
                   let bgColor = '';
                   if (column.key === 'accrual') bgColor = '#ffebee';
@@ -684,13 +715,13 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4 text-gray-500">
+                  <td colSpan={visibleColumns.length + 2} className="text-center py-8 px-4 text-gray-500">
                     Loading…
                   </td>
                 </tr>
               ) : paginatedData.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4 text-gray-500">
+                  <td colSpan={visibleColumns.length + 2} className="text-center py-8 px-4 text-gray-500">
                     {sortedData.length === 0 && !searchTerm && activeFilterCount === 0
                       ? 'No income payments for this project.'
                       : 'No payments match the current filters.'}
@@ -700,13 +731,17 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                 paginatedData.map((row, idx) => {
                   const isConfirmedPaid = Boolean(row.confirmed && row.due === 0);
                   const isConfirmedDue = Boolean(row.confirmed && row.due > 0);
+                  const isSelected = selectedIds.has(row.paymentId);
                   return (
                     <tr
                       key={`${row.paymentId}-${idx}`}
                       className={`border-b border-gray-200 hover:bg-gray-50 ${
-                        isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : ''
+                        isSelected ? 'bg-blue-50' : isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : ''
                       }`}
                     >
+                      <td className="px-3 py-2" style={{ width: 36, minWidth: 36 }}>
+                        <input type="checkbox" className="cursor-pointer" checked={isSelected} onChange={() => toggleRow(row.paymentId)} />
+                      </td>
                       {visibleColumns.map(col => {
                         let bgColor = '';
                         if (col.key === 'accrual') bgColor = '#ffebee';
