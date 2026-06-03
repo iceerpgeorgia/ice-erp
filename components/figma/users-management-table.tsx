@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
-import { Download, Shield, Bell, BellOff } from 'lucide-react';
+import { Download, Shield, Bell, BellOff, Settings } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Checkbox } from '../ui/checkbox';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -59,6 +61,29 @@ type Module = {
   ModuleFeature: ModuleFeature[];
 };
 
+type UserColKey = 'email' | 'name' | 'counteragent' | 'role' | 'isAuthorized' | 'paymentNotifications' | 'authorizedBy' | 'authorizedAt';
+
+type UserColumnConfig = {
+  key: UserColKey;
+  label: string;
+  width: number;
+  visible: boolean;
+};
+
+const USER_STORAGE_KEY = 'users-management-table-columns';
+const USER_STORAGE_VERSION = '1';
+
+const defaultUserColumns: UserColumnConfig[] = [
+  { key: 'email', label: 'Email', width: 200, visible: true },
+  { key: 'name', label: 'Name', width: 140, visible: true },
+  { key: 'counteragent', label: 'Counteragent', width: 200, visible: true },
+  { key: 'role', label: 'Role', width: 160, visible: true },
+  { key: 'isAuthorized', label: 'Authorized', width: 160, visible: true },
+  { key: 'paymentNotifications', label: 'Notifications', width: 200, visible: true },
+  { key: 'authorizedBy', label: 'Authorized By', width: 150, visible: true },
+  { key: 'authorizedAt', label: 'Authorized At', width: 140, visible: true },
+];
+
 export default function UsersManagementTable() {
   const { data: session } = useSession();
   const [users, setUsers] = useState<User[]>([]);
@@ -69,6 +94,21 @@ export default function UsersManagementTable() {
   const [addingUser, setAddingUser] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [updatingPaymentNotificationIds, setUpdatingPaymentNotificationIds] = useState<Set<string>>(new Set());
+
+  // Column management
+  const [userColumns, setUserColumns] = useState<UserColumnConfig[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(USER_STORAGE_KEY);
+        const version = localStorage.getItem(`${USER_STORAGE_KEY}-v`);
+        if (saved && version === USER_STORAGE_VERSION) return JSON.parse(saved);
+      } catch {}
+    }
+    return defaultUserColumns;
+  });
+  const [isResizing, setIsResizing] = useState<{ column: UserColKey; startX: number; startWidth: number } | null>(null);
+  const [draggedColumn, setDraggedColumn] = useState<UserColKey | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<UserColKey | null>(null);
   
   // Counteragents list for binding
   const [counteragents, setCounterAgents] = useState<CounterAgent[]>([]);
@@ -85,6 +125,71 @@ export default function UsersManagementTable() {
     fetchUsers();
     fetchCounterAgents();
   }, []);
+
+  // Persist column config
+  useEffect(() => {
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userColumns));
+    localStorage.setItem(`${USER_STORAGE_KEY}-v`, USER_STORAGE_VERSION);
+  }, [userColumns]);
+
+  // Resize mouse events
+  useEffect(() => {
+    if (!isResizing) {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      return;
+    }
+    const onMove = (e: MouseEvent) => {
+      const diff = e.clientX - isResizing.startX;
+      const newWidth = Math.max(80, isResizing.startWidth + diff);
+      setUserColumns(cols =>
+        cols.map(c => (c.key === isResizing.column ? { ...c, width: newWidth } : c)),
+      );
+    };
+    const onUp = () => setIsResizing(null);
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+  }, [isResizing]);
+
+  const toggleUserColumnVisibility = (key: UserColKey) =>
+    setUserColumns(cols => cols.map(c => (c.key === key ? { ...c, visible: !c.visible } : c)));
+
+  const handleColDragStart = (e: React.DragEvent<HTMLTableCellElement>, key: UserColKey) => {
+    setDraggedColumn(key);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  const handleColDragOver = (e: React.DragEvent<HTMLTableCellElement>, key: UserColKey) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedColumn && draggedColumn !== key) setDragOverColumn(key);
+  };
+  const handleColDragLeave = () => setDragOverColumn(null);
+  const handleColDrop = (e: React.DragEvent<HTMLTableCellElement>, targetKey: UserColKey) => {
+    e.preventDefault();
+    if (!draggedColumn || draggedColumn === targetKey) {
+      setDraggedColumn(null);
+      setDragOverColumn(null);
+      return;
+    }
+    const from = userColumns.findIndex(c => c.key === draggedColumn);
+    const to = userColumns.findIndex(c => c.key === targetKey);
+    if (from === -1 || to === -1) return;
+    const next = [...userColumns];
+    const [removed] = next.splice(from, 1);
+    next.splice(to, 0, removed);
+    setUserColumns(next);
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+  const handleColDragEnd = () => { setDraggedColumn(null); setDragOverColumn(null); };
+
+  const visibleUserColumns = useMemo(() => userColumns.filter(c => c.visible), [userColumns]);
 
   const fetchCounterAgents = async () => {
     try {
@@ -477,28 +582,77 @@ export default function UsersManagementTable() {
         </div>
       )}
 
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <Input
           placeholder="Search by email or name..."
           value={searchTerm}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
           className="max-w-sm"
         />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Settings className="h-4 w-4 mr-2" />
+              Columns
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-52">
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm">Toggle Columns</h4>
+              {userColumns.map(col => (
+                <div key={col.key} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`ucol-${col.key}`}
+                    checked={col.visible}
+                    onCheckedChange={() => toggleUserColumnVisibility(col.key)}
+                  />
+                  <Label htmlFor={`ucol-${col.key}`} className="text-sm cursor-pointer">
+                    {col.label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-hidden">
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Email</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Counteragent</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Authorized</TableHead>
-              <TableHead>Payment Notifications</TableHead>
-              <TableHead>Authorized By</TableHead>
-              <TableHead>Authorized At</TableHead>
-              <TableHead>Actions</TableHead>
+              {visibleUserColumns.map(col => (
+                <TableHead
+                  key={col.key}
+                  draggable={!isResizing}
+                  onDragStart={e => handleColDragStart(e, col.key)}
+                  onDragOver={e => handleColDragOver(e, col.key)}
+                  onDragLeave={handleColDragLeave}
+                  onDrop={e => handleColDrop(e, col.key)}
+                  onDragEnd={handleColDragEnd}
+                  className={[
+                    'bg-muted/50 relative select-none',
+                    draggedColumn === col.key ? 'opacity-50' : '',
+                    dragOverColumn === col.key ? 'border-l-4 border-l-blue-500' : '',
+                  ].join(' ')}
+                  style={{ width: col.width, minWidth: col.width }}
+                >
+                  {col.label}
+                  {/* Resize handle */}
+                  <div
+                    className="absolute top-0 bottom-0 z-30 w-3 cursor-col-resize"
+                    style={{ right: '-6px' }}
+                    draggable={false}
+                    onMouseDown={e => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsResizing({ column: col.key, startX: e.clientX, startWidth: col.width });
+                    }}
+                    onClick={e => e.stopPropagation()}
+                  />
+                </TableHead>
+              ))}
+              <TableHead className="bg-muted/50">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -506,106 +660,128 @@ export default function UsersManagementTable() {
               const canTogglePaymentNotifications = user.isAuthorized && Boolean(user.email);
               const isUpdatingPaymentNotifications = updatingPaymentNotificationIds.has(user.id);
 
+              const renderUserCell = (key: UserColKey) => {
+                switch (key) {
+                  case 'email':
+                    return <TableCell key={key} className="font-medium" style={{ width: userColumns.find(c=>c.key===key)?.width }}>{user.email}</TableCell>;
+                  case 'name':
+                    return <TableCell key={key} style={{ width: userColumns.find(c=>c.key===key)?.width }}>{user.name || '-'}</TableCell>;
+                  case 'counteragent':
+                    return (
+                      <TableCell key={key} style={{ width: userColumns.find(c=>c.key===key)?.width }}>
+                        <Select
+                          value={user.counteragentUuid ?? '__none__'}
+                          onValueChange={(value) =>
+                            handleCounterAgentChange(user.id, value === '__none__' ? null : value)
+                          }
+                          disabled={updatingCounterAgentIds.has(user.id)}
+                        >
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="— none —" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">— none —</SelectItem>
+                            {counteragents.map((ca) => (
+                              <SelectItem key={ca.counteragent_uuid} value={ca.counteragent_uuid}>
+                                {ca.counteragent || ca.name || ca.counteragent_uuid}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                    );
+                  case 'role':
+                    return (
+                      <TableCell key={key} style={{ width: userColumns.find(c=>c.key===key)?.width }}>
+                        <Select
+                          value={user.role}
+                          onValueChange={(value: string) => handleRoleChange(user.id, value)}
+                          disabled={session?.user?.email === user.email}
+                        >
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="user">User</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="system_admin">System Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                    );
+                  case 'isAuthorized':
+                    return (
+                      <TableCell key={key} style={{ width: userColumns.find(c=>c.key===key)?.width }}>
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            checked={user.isAuthorized}
+                            onCheckedChange={() => handleAuthorizationToggle(user.id, user.isAuthorized)}
+                            disabled={session?.user?.email === user.email}
+                          />
+                          {user.isAuthorized ? (
+                            <Badge variant="default">Authorized</Badge>
+                          ) : (
+                            <Badge variant="destructive">Unauthorized</Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                    );
+                  case 'paymentNotifications':
+                    return (
+                      <TableCell key={key} style={{ width: userColumns.find(c=>c.key===key)?.width }}>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => handlePaymentNotificationsToggle(user.id, user.paymentNotifications)}
+                            disabled={!canTogglePaymentNotifications || isUpdatingPaymentNotifications}
+                            className="flex items-center space-x-2 disabled:cursor-not-allowed disabled:opacity-60"
+                            aria-label={user.paymentNotifications ? 'Disable payment notifications' : 'Enable payment notifications'}
+                          >
+                            {user.paymentNotifications ? (
+                              <Bell className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <BellOff className="h-4 w-4 text-gray-400" />
+                            )}
+                            {user.paymentNotifications ? (
+                              <Badge variant="default" className="text-xs">
+                                {isUpdatingPaymentNotifications ? 'Saving...' : 'Enabled'}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">
+                                {isUpdatingPaymentNotifications
+                                  ? 'Saving...'
+                                  : !user.isAuthorized
+                                    ? 'Requires Authorization'
+                                    : !user.email
+                                      ? 'No Email'
+                                      : 'Disabled'}
+                              </Badge>
+                            )}
+                          </button>
+                          <Switch
+                            checked={user.paymentNotifications}
+                            onCheckedChange={() => handlePaymentNotificationsToggle(user.id, user.paymentNotifications)}
+                            disabled={!canTogglePaymentNotifications || isUpdatingPaymentNotifications}
+                          />
+                        </div>
+                      </TableCell>
+                    );
+                  case 'authorizedBy':
+                    return <TableCell key={key} className="text-sm text-muted-foreground" style={{ width: userColumns.find(c=>c.key===key)?.width }}>{user.authorizedBy || '-'}</TableCell>;
+                  case 'authorizedAt':
+                    return (
+                      <TableCell key={key} className="text-sm text-muted-foreground" style={{ width: userColumns.find(c=>c.key===key)?.width }}>
+                        {user.authorizedAt ? new Date(user.authorizedAt).toLocaleDateString() : '-'}
+                      </TableCell>
+                    );
+                  default:
+                    return null;
+                }
+              };
+
               return (
               <TableRow key={user.id}>
-                <TableCell className="font-medium">{user.email}</TableCell>
-                <TableCell>{user.name || '-'}</TableCell>
-                <TableCell>
-                  <Select
-                    value={user.counteragentUuid ?? '__none__'}
-                    onValueChange={(value) =>
-                      handleCounterAgentChange(user.id, value === '__none__' ? null : value)
-                    }
-                    disabled={updatingCounterAgentIds.has(user.id)}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="— none —" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">— none —</SelectItem>
-                      {counteragents.map((ca) => (
-                        <SelectItem key={ca.counteragent_uuid} value={ca.counteragent_uuid}>
-                          {ca.counteragent || ca.name || ca.counteragent_uuid}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Select
-                    value={user.role}
-                    onValueChange={(value: string) => handleRoleChange(user.id, value)}
-                    disabled={session?.user?.email === user.email}
-                  >
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">User</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="system_admin">System Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={user.isAuthorized}
-                      onCheckedChange={() => handleAuthorizationToggle(user.id, user.isAuthorized)}
-                      disabled={session?.user?.email === user.email}
-                    />
-                    {user.isAuthorized ? (
-                      <Badge variant="default">Authorized</Badge>
-                    ) : (
-                      <Badge variant="destructive">Unauthorized</Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => handlePaymentNotificationsToggle(user.id, user.paymentNotifications)}
-                      disabled={!canTogglePaymentNotifications || isUpdatingPaymentNotifications}
-                      className="flex items-center space-x-2 disabled:cursor-not-allowed disabled:opacity-60"
-                      aria-label={user.paymentNotifications ? 'Disable payment notifications' : 'Enable payment notifications'}
-                    >
-                      {user.paymentNotifications ? (
-                        <Bell className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <BellOff className="h-4 w-4 text-gray-400" />
-                      )}
-                      {user.paymentNotifications ? (
-                        <Badge variant="default" className="text-xs">
-                          {isUpdatingPaymentNotifications ? 'Saving...' : 'Enabled'}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-xs">
-                          {isUpdatingPaymentNotifications
-                            ? 'Saving...'
-                            : !user.isAuthorized
-                              ? 'Requires Authorization'
-                              : !user.email
-                                ? 'No Email'
-                                : 'Disabled'}
-                        </Badge>
-                      )}
-                    </button>
-                    <Switch
-                      checked={user.paymentNotifications}
-                      onCheckedChange={() => handlePaymentNotificationsToggle(user.id, user.paymentNotifications)}
-                      disabled={!canTogglePaymentNotifications || isUpdatingPaymentNotifications}
-                    />
-                  </div>
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {user.authorizedBy || '-'}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {user.authorizedAt
-                    ? new Date(user.authorizedAt).toLocaleDateString()
-                    : '-'}
-                </TableCell>
+                {visibleUserColumns.map(col => renderUserCell(col.key))}
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Button
@@ -635,6 +811,7 @@ export default function UsersManagementTable() {
             })}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       <div className="text-sm text-muted-foreground">

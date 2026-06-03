@@ -955,7 +955,7 @@ export function JobsTable() {
 }
 
 // Job Form Component
-function JobForm({
+export function JobForm({
   formData,
   setFormData,
   projects,

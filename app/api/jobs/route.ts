@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
       console.log('[GET /api/jobs] Fetching jobs for project:', projectUuid);
       const jobs = await withRetry(() => prisma.$queryRawUnsafe(`
         SELECT 
+          j.id,
           j.job_uuid,
           j.job_name,
           j.floors,
@@ -50,6 +51,7 @@ export async function GET(req: NextRequest) {
       `, projectUuid));
 
       const serialized = (jobs as any[]).map((job: any) => ({
+        id: Number(job.id),
         jobUuid: job.job_uuid,
         jobName: job.job_name,
         floors: job.floors,
