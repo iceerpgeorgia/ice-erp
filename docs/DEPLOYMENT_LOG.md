@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-03 Deployment #287
+- Commit: 0efe378
+- Production: https://ice-b11kipglo-iceerp.vercel.app
+- Summary: Handovers page remembers last selected project via localStorage.
+- Changes:
+  - components/figma/handovers-table.tsx: selectedProjectUuid initialized from and persisted to localStorage key 'handovers-last-project'
+
 ## 2026-06-03 Deployment #286
 - Commit: d9fb6b3
 - Production: https://ice-gxw39hr1w-iceerp.vercel.app
