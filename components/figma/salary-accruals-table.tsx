@@ -48,6 +48,7 @@ type SalaryAccrual = {
   counteragent_uuid: string;
   counteragent_name: string;
   identification_number?: string | null;
+  entity_type?: string | null;
   department?: string | null;
   job_title?: string | null;
   sex?: string | null;
@@ -78,6 +79,16 @@ type SalaryAccrual = {
 };
 
 type ColumnKey = keyof SalaryAccrual;
+
+function formatEmployee(
+  name: string | null | undefined,
+  inn: string | null | undefined,
+  entityType: string | null | undefined,
+): string {
+  if (!name) return '-';
+  if (inn && entityType) return `${name} (ს.კ. ${inn}) - ${entityType}`;
+  return name;
+}
 
 type ColumnConfig = {
   key: ColumnKey;
@@ -2012,7 +2023,7 @@ export function SalaryAccrualsTable() {
                           {selectedRecords.map((row) => (
                             <tr key={row.id} className="border-t">
                               <td className="px-3 py-2">{row.payment_id}</td>
-                              <td className="px-3 py-2">{row.counteragent_name || '-'}</td>
+                              <td className="px-3 py-2">{formatEmployee(row.counteragent_name, row.identification_number, row.entity_type)}</td>
                               <td className="px-3 py-2">{formatMonthLabel(row.salary_month)}</td>
                               <td className="px-3 py-2 text-right">{formatValue(getRowValue(row, 'month_balance'), 'currency')}</td>
                             </tr>
@@ -2068,7 +2079,7 @@ export function SalaryAccrualsTable() {
                           {selectedRecords.map((row) => (
                             <tr key={row.id} className="border-t">
                               <td className="px-3 py-2">{row.payment_id}</td>
-                              <td className="px-3 py-2">{row.counteragent_name || '-'}</td>
+                              <td className="px-3 py-2">{formatEmployee(row.counteragent_name, row.identification_number, row.entity_type)}</td>
                               <td className="px-3 py-2">{formatMonthLabel(row.salary_month)}</td>
                               <td className="px-3 py-2 text-right">{formatValue(getRowValue(row, 'month_balance'), 'currency')}</td>
                             </tr>
@@ -3080,7 +3091,7 @@ export function SalaryAccrualsTable() {
                         ) : col.key === 'counteragent_name' ? (
                           <div className="flex items-center gap-2 min-w-0">
                             <span className={`truncate ${isNegativeCumulBalance ? 'font-bold text-red-600' : ''}`}>
-                              {formatValue(accrual[col.key], col.format)}
+                              {formatEmployee(accrual.counteragent_name, accrual.identification_number, accrual.entity_type)}
                             </span>
                             <a
                               href={accrual.counteragent_uuid ? `/counteragent-statement/${accrual.counteragent_uuid}` : '#'}

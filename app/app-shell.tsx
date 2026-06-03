@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LogOut, User } from 'lucide-react';
 import PageTitle from './page-title';
+import { NavIconTitleSync } from '@/components/nav-icon-title-sync';
 
 function Topbar() {
   const { data: session } = useSession();
@@ -58,6 +59,7 @@ function Topbar() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <NavConfigProvider>
+      <NavIconTitleSync />
       <SidebarProvider>
         <AppSidebar />
         <div className="flex flex-1 flex-col min-w-0 min-h-svh">
