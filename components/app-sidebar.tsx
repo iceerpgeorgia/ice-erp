@@ -81,6 +81,7 @@ const NAV: NavGroup[] = [
       { label: 'Salary Accruals', href: '/dictionaries/salary-accruals', icon: DollarSign },
       { label: 'NBG Rates', href: '/dictionaries/nbg-rates', icon: TrendingUp },
       { label: 'Conversions', href: '/dictionaries/conversions', icon: Scale },
+      { label: 'Handovers', href: '/handovers', icon: ClipboardList },
     ],
   },
   {

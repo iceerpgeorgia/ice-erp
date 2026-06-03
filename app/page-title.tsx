@@ -20,6 +20,7 @@ const routeTitles: Record<string, string> = {
   '/dictionaries/entity-types': 'Entity Types',
   '/dictionaries/financial-codes': 'Financial Codes',
   '/dictionaries/jobs': 'Jobs',
+  '/handovers': 'Handovers',
   '/dictionaries/nbg-rates': 'NBG Rates',
   '/dictionaries/parsing-scheme-rules': 'Parsing Scheme Rules',
   '/dictionaries/payments': 'Payments',
