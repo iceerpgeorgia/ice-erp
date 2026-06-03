@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-06-03 Deployment #281
+- Commit: c7ff72a
+- Production: https://ice-3ti1xqt0a-iceerp.vercel.app
+- Summary: Jobs selling price field added; emoji tab icon prefix removed.
+- Changes:
+  - prisma/schema.prisma + migration: added selling_price field to jobs model
+  - app/api/jobs/route.ts: expose selling_price in API
+  - components/figma/jobs-table.tsx: selling_price column in jobs table
+  - app/app-shell.tsx: removed NavIconTitleSync (emoji tab prefix feature)
+
 ## 2026-06-03 Deployment #280
 - Commit: ff383ac
 - Production: https://ice-iclla956v-iceerp.vercel.app
