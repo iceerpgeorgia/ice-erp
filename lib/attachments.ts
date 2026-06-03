@@ -679,7 +679,7 @@ export async function getJobLiftCertInfo(
        WHERE al.owner_table = 'jobs'
          AND a.is_active = true
          AND al.owner_uuid IN (${placeholders})
-         AND dt.name = 'ექსპლუატაციაში მიღების სერტიფიკატი (ლიფტები)'
+         AND dt.name ILIKE '%ექსპლუატაციაში%'
        ORDER BY al.owner_uuid, a.document_date ASC NULLS LAST`,
       ...unique,
     ),

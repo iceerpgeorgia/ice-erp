@@ -62,13 +62,12 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'weight', label: 'Weight (kg)', width: 110, visible: true, sortable: true, filterable: true },
   { key: 'sellingPrice', label: 'Selling Price', width: 140, visible: true, sortable: true, filterable: true, format: 'number' },
   { key: 'isFf', label: 'FF', width: 80, visible: true, sortable: true, filterable: true },
-  { key: 'certificateDate', label: 'Certificate Date', width: 150, visible: true, sortable: true, filterable: false },
   { key: 'liftCertDate', label: 'Cert. Date', width: 130, visible: true, sortable: true, filterable: false },
   { key: 'liftCertDocNo', label: 'Doc. No', width: 150, visible: true, sortable: true, filterable: false },
 ];
 
 const STORAGE_KEY = 'handovers-table-columns';
-const STORAGE_VERSION = '2';
+const STORAGE_VERSION = '3';
 
 type Project = { projectUuid: string; projectIndex: string; projectName: string };
 type InsiderOption = { value: string; label: string; keywords?: string };
@@ -271,11 +270,8 @@ export function HandoversTable() {
         const data: any[] = await res.json();
         const jobUuids = data.map((j: any) => j.jobUuid).filter(Boolean);
 
-        // Bulk-fetch certificate dates, lift cert info, and attachment counts in parallel
-        const [certRes, countRes, liftRes] = await Promise.all([
-          jobUuids.length > 0
-            ? fetch(`/api/jobs/attachments?certDates=1&jobUuids=${encodeURIComponent(jobUuids.join(','))}`)
-            : Promise.resolve(null),
+        // Bulk-fetch lift cert info and attachment counts in parallel
+        const [countRes, liftRes] = await Promise.all([
           jobUuids.length > 0
             ? fetch(`/api/jobs/attachments?countsOnly=1&jobUuids=${encodeURIComponent(jobUuids.join(','))}`)
             : Promise.resolve(null),
@@ -284,7 +280,6 @@ export function HandoversTable() {
             : Promise.resolve(null),
         ]);
 
-        const certDatesMap: Record<string, string | null> = certRes?.ok ? (await certRes.json()).dates ?? {} : {};
         const countsMap: Record<string, number> = countRes?.ok ? (await countRes.json()).counts ?? {} : {};
         const liftCertMap: Record<string, { date: string | null; docNo: string | null }> = liftRes?.ok ? (await liftRes.json()).info ?? {} : {};
 
@@ -310,7 +305,7 @@ export function HandoversTable() {
             createdAt: '',
             updatedAt: '',
             insiderName: job.insiderName ?? null,
-            certificateDate: certDatesMap[job.jobUuid] ?? null,
+            certificateDate: null,
             liftCertDate: liftCertMap[job.jobUuid]?.date ?? null,
             liftCertDocNo: liftCertMap[job.jobUuid]?.docNo ?? null,
             _rowKey: String(job.jobUuid ?? idx),
@@ -427,12 +422,6 @@ export function HandoversTable() {
   // ── Cell renderer ─────────────────────────────────────────────────────────
   const renderCell = (job: Job, col: ColumnConfig) => {
     switch (col.key) {
-      case 'certificateDate':
-        return job.certificateDate ? (
-          <span className="text-sm">{new Date(job.certificateDate).toLocaleDateString()}</span>
-        ) : (
-          <span className="text-muted-foreground text-sm">—</span>
-        );
       case 'liftCertDate':
         return job.liftCertDate ? (
           <span className="text-sm">{new Date(job.liftCertDate).toLocaleDateString()}</span>

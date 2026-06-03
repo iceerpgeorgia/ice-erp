@@ -774,7 +774,7 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                               <div className="flex flex-col min-w-0">
                                 <span className="truncate">{row.financialCode || '-'}</span>
                                 {row.parentFinancialCode && (
-                                  <span className="truncate text-xs text-gray-400">{row.parentFinancialCode}</span>
+                                  <span className="truncate text-xs text-gray-400 italic">{row.parentFinancialCode}</span>
                                 )}
                               </div>
                             ) : (
