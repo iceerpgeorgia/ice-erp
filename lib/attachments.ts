@@ -667,6 +667,7 @@ export async function getJobLiftCertInfo(
   const unique = Array.from(new Set(jobUuids.filter((v) => typeof v === 'string' && v.length > 0)));
   if (unique.length === 0) return {};
   const placeholders = unique.map((_, i) => `$${i + 1}::uuid`).join(', ');
+  const LIFT_CERT_DOC_TYPE_UUID = '77e8c811-3b1c-409d-a1e4-7cc40e1b0132'; // ექსპლუატაციაში მიღების სერტიფიკატი (ლიფტი)
   const rows = await withRetry(() =>
     prisma.$queryRawUnsafe<Array<{ owner_uuid: string; document_date: string | null; document_no: string | null }>>(
       `SELECT DISTINCT ON (al.owner_uuid)
@@ -675,13 +676,13 @@ export async function getJobLiftCertInfo(
          a.document_no
        FROM attachment_links al
        JOIN attachments a ON a.uuid = al.attachment_uuid
-       JOIN document_types dt ON dt.uuid = a.document_type_uuid
        WHERE al.owner_table = 'jobs'
          AND a.is_active = true
          AND al.owner_uuid IN (${placeholders})
-         AND dt.name ILIKE '%ექსპლუატაციაში%'
+         AND a.document_type_uuid = $${unique.length + 1}::uuid
        ORDER BY al.owner_uuid, a.document_date ASC NULLS LAST`,
       ...unique,
+      LIFT_CERT_DOC_TYPE_UUID,
     ),
   );
   const out: Record<string, { date: string | null; docNo: string | null }> = {};

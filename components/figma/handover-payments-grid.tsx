@@ -78,6 +78,7 @@ type IncomePaymentRow = {
   isActive: boolean;
   label: string | null;
   confirmed: boolean;
+  isBundleAggregate?: boolean;
 };
 
 // ── Column definitions ────────────────────────────────────────────────────────
@@ -364,6 +365,49 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
     setDragOverColumn(null);
   };
 
+  // ── Bundle aggregates ─────────────────────────────────────────────────────
+  const dataWithBundleAggregates = useMemo(() => {
+    // Find payments that have a parent FC
+    const bundleRows = incomeRows.filter(r => r.parentFinancialCode);
+    if (bundleRows.length === 0) return incomeRows;
+
+    // Group by counteragent + project + parent FC + currency
+    const groups = new Map<string, IncomePaymentRow[]>();
+    for (const row of bundleRows) {
+      const key = `${row.counteragentUuid || 'null'}|${row.projectUuid || 'null'}|${row.parentFinancialCode}|${row.currencyUuid || 'null'}`;
+      const arr = groups.get(key);
+      if (arr) arr.push(row); else groups.set(key, [row]);
+    }
+
+    // Build aggregate rows
+    const aggregates: IncomePaymentRow[] = [];
+    for (const [, children] of groups) {
+      if (children.length < 2) continue; // only aggregate when there are multiple children
+      const first = children[0];
+      const totalAccrual = children.reduce((s, r) => s + r.accrual, 0);
+      const totalOrder = children.reduce((s, r) => s + r.order, 0);
+      const totalPayment = children.reduce((s, r) => s + r.payment, 0);
+      aggregates.push({
+        ...first,
+        paymentId: '',
+        isBundleAggregate: true,
+        financialCode: first.parentFinancialCode || first.financialCode,
+        parentFinancialCode: null,
+        label: null,
+        accrual: parseFloat(totalAccrual.toFixed(2)),
+        order: parseFloat(totalOrder.toFixed(2)),
+        payment: parseFloat(totalPayment.toFixed(2)),
+        confirmed: children.every(r => r.confirmed),
+        paidPercent: totalAccrual !== 0 ? parseFloat(((Math.abs(totalPayment) / totalAccrual) * 100).toFixed(2)) : 0,
+        due: parseFloat((totalOrder - Math.abs(totalPayment)).toFixed(2)),
+        latestDate: children.reduce((max, r) => !max ? r.latestDate : (!r.latestDate ? max : r.latestDate > max ? r.latestDate : max), null as string | null),
+      });
+    }
+
+    // Merge aggregates with original data
+    return [...aggregates, ...incomeRows];
+  }, [incomeRows]);
+
   // ── Table filters ─────────────────────────────────────────────────────────
   const {
     filters,
@@ -385,7 +429,7 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
     clearFilters,
     activeFilterCount,
   } = useTableFilters<IncomePaymentRow, IncomeColKey>({
-    data: incomeRows,
+    data: dataWithBundleAggregates,
     columns,
     defaultSortColumn: 'financialCode',
     defaultSortDirection: 'asc',
@@ -731,15 +775,18 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                   const isConfirmedDue = Boolean(row.confirmed && row.due > 0);
                   const isSelected = selectedIds.has(row.paymentId);
                   const hasParentFC = Boolean(row.parentFinancialCode);
+                  const isBundleAgg = Boolean(row.isBundleAggregate);
                   return (
                     <tr
-                      key={`${row.paymentId}-${idx}`}
+                      key={`${row.paymentId}-${row.financialCode}-${idx}`}
                       className={`border-b border-gray-200 hover:bg-gray-50 ${
-                        hasParentFC ? 'italic bg-blue-50/40' : isSelected ? 'bg-blue-50' : isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : ''
+                        isBundleAgg ? 'italic bg-blue-50/40' : hasParentFC ? 'italic bg-blue-50/40' : isSelected ? 'bg-blue-50' : isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : ''
                       }`}
                     >
                       <td className="px-3 py-2" style={{ width: 36, minWidth: 36 }}>
-                        <input type="checkbox" className="cursor-pointer" checked={isSelected} onChange={() => toggleRow(row.paymentId)} />
+                        {!isBundleAgg && (
+                          <input type="checkbox" className="cursor-pointer" checked={isSelected} onChange={() => toggleRow(row.paymentId)} />
+                        )}
                       </td>
                       {visibleColumns.map(col => {
                         let bgColor = '';
@@ -774,7 +821,7 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                             ) : col.key === 'financialCode' ? (
                               <div className="flex flex-col min-w-0">
                                 <span className="truncate">{row.financialCode || '-'}</span>
-                                {row.parentFinancialCode && (
+                                {row.parentFinancialCode && !isBundleAgg && (
                                   <span className="truncate text-xs text-gray-400">{row.parentFinancialCode}</span>
                                 )}
                               </div>
@@ -787,6 +834,7 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                         );
                       })}
                       <td className="px-4 py-2 text-sm" style={{ width: 190, minWidth: 190 }}>
+                        {!isBundleAgg && (
                         <div className="flex items-center gap-1">
                           <PaymentAttachments
                             paymentId={row.paymentId}
@@ -838,6 +886,7 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                             <User className="w-4 h-4" />
                           </a>
                         </div>
+                        )}
                       </td>
                     </tr>
                   );
