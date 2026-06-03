@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-06-03 Deployment #285
+- Commit: fdd4d70
+- Production: https://ice-jrij78mv7-iceerp.vercel.app
+- Summary: Handovers edit job dialog + column resize/reorder/visibility for all tables.
+- Changes:
+  - components/figma/jobs-table.tsx: exported JobForm component
+  - app/api/jobs/route.ts: project-scoped GET now returns job id field
+  - components/figma/handovers-table.tsx: full rewrite — column resize, reorder, visibility popover, filters, pagination, edit job dialog (via JobForm)
+  - components/figma/users-management-table.tsx: added column resize, drag reorder, Columns visibility popover with localStorage persistence
+
 ## 2026-06-03 Deployment #284
 - Commit: c149e09
 - Production: https://ice-dx1jqnp4t-iceerp.vercel.app
