@@ -423,11 +423,10 @@ export function HandoversTable() {
   const renderCell = (job: Job, col: ColumnConfig) => {
     switch (col.key) {
       case 'liftCertDate':
-        return job.liftCertDate ? (
-          <span className="text-sm">{new Date(job.liftCertDate).toLocaleDateString()}</span>
-        ) : (
-          <span className="text-muted-foreground text-sm">—</span>
-        );
+        if (!job.liftCertDate) return <span className="text-muted-foreground text-sm">—</span>;
+        const d = new Date(job.liftCertDate);
+        const formatted = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+        return <span className="text-sm">{formatted}</span>;
       case 'liftCertDocNo':
         return job.liftCertDocNo ? (
           <span className="text-sm font-mono">{job.liftCertDocNo}</span>

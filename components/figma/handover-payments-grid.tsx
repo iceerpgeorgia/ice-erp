@@ -730,11 +730,12 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                   const isConfirmedPaid = Boolean(row.confirmed && row.due === 0);
                   const isConfirmedDue = Boolean(row.confirmed && row.due > 0);
                   const isSelected = selectedIds.has(row.paymentId);
+                  const hasParentFC = Boolean(row.parentFinancialCode);
                   return (
                     <tr
                       key={`${row.paymentId}-${idx}`}
                       className={`border-b border-gray-200 hover:bg-gray-50 ${
-                        isSelected ? 'bg-blue-50' : isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : ''
+                        hasParentFC ? 'italic bg-blue-50/40' : isSelected ? 'bg-blue-50' : isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : ''
                       }`}
                     >
                       <td className="px-3 py-2" style={{ width: 36, minWidth: 36 }}>
@@ -774,7 +775,7 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                               <div className="flex flex-col min-w-0">
                                 <span className="truncate">{row.financialCode || '-'}</span>
                                 {row.parentFinancialCode && (
-                                  <span className="truncate text-xs text-gray-400 italic">{row.parentFinancialCode}</span>
+                                  <span className="truncate text-xs text-gray-400">{row.parentFinancialCode}</span>
                                 )}
                               </div>
                             ) : (
