@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #288
+- Commit: a30f48c
+- Production: https://ice-7zch2pfwn-iceerp.vercel.app
+- Summary: Handovers — income payments sub-grid below jobs grid, filtered to selected project.
+- Changes:
+  - app/api/payments-report/route.ts: Added projectUuid query param (UUID-validated) to filter results to a single project
+  - components/figma/handover-payments-grid.tsx: New HandoverPaymentsGrid component with 8 columns (Payment ID, Financial Code, Accrual, Order, Payment, Paid %, Due, Latest Date), full column resize/drag/visibility, search+filter toolbar, actions column (PaymentAttachments, Eye, Edit, Plus, FileText, User), Edit Payment dialog, Add Ledger dialog, Base Info dialog
+  - components/figma/handovers-table.tsx: Imported and rendered HandoverPaymentsGrid below the jobs grid when a project is selected
+
 ## 2026-06-03 Deployment #287
 - Commit: 0efe378
 - Production: https://ice-b11kipglo-iceerp.vercel.app
