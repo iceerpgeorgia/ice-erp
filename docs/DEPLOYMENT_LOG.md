@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-06-03 Deployment #283
+- Commit: e4339a0
+- Production: https://ice-1kkj54mq1-iceerp.vercel.app
+- Summary: Handovers page with project selector, jobs grid, and attachment support.
+- Changes:
+  - app/handovers/page.tsx: new Handovers page route
+  - components/figma/handovers-table.tsx: project dropdown (single-select), jobs grid (job name, factory no, brand, floors, weight, selling price, FF), JobAttachments button per row
+  - app/api/jobs/route.ts: selling_price included in project-scoped GET response
+  - components/app-sidebar.tsx: Handovers added to Finance nav section
+  - app/page-title.tsx: /handovers route title registered
+
 ## 2026-06-03 Deployment #282
 - Commit: 141ec55
 - Production: https://ice-2brokvm4j-iceerp.vercel.app
