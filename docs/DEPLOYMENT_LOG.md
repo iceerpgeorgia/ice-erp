@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #290
+- Commit: ea53375
+- Production: https://ice-a8ucodo4p-iceerp.vercel.app
+- Summary: Jobs grid white background; income payments grid row selection + Copy for Batch button.
+- Changes:
+  - components/figma/handovers-table.tsx: Changed jobs table wrapper from `border rounded-lg overflow-hidden` to `rounded-lg border bg-white overflow-hidden`
+  - components/figma/handover-payments-grid.tsx: Added `selectedIds` state with toggle/toggleAll helpers; added checkbox column in header and each row; added "Copy for Batch (N)" button in toolbar that copies `[{paymentId, amount}]` JSON to clipboard; selected rows highlight blue; colSpan updated to `visibleColumns.length + 2`
+
 ## 2026-06-04 Deployment #289
 - Commit: c6aa2c5
 - Production: https://ice-abtuig9lw-iceerp.vercel.app
