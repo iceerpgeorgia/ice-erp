@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #291
+- Commit: d0e39f3
+- Production: https://ice-5p4oypmyh-iceerp.vercel.app
+- Summary: Parent Financial Code shown as grey sub-line inside the Financial Code cell (not a separate column).
+- Changes:
+  - components/figma/handover-payments-grid.tsx: Removed `parentFinancialCode` from `IncomeColKey` and column definitions; `financialCode` cell now renders a `<div className="flex flex-col">` with the FC on top and parent FC as `text-xs text-gray-400` below when present; Financial Code column width widened to 200; storage version bumped to 3
+
 ## 2026-06-04 Deployment #290
 - Commit: ea53375
 - Production: https://ice-a8ucodo4p-iceerp.vercel.app
