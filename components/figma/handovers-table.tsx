@@ -8,6 +8,7 @@ import {
   Search,
   Edit2,
   Settings,
+  RefreshCw,
 } from 'lucide-react';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -534,6 +535,16 @@ export function HandoversTable() {
                 </div>
               </PopoverContent>
             </Popover>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchJobs(selectedProjectUuid)}
+              disabled={loadingJobs}
+              title="Refresh jobs"
+            >
+              <RefreshCw className={`h-4 w-4 ${loadingJobs ? 'animate-spin' : ''}`} />
+            </Button>
 
             <span className="text-sm text-muted-foreground ml-auto">
               {loadingJobs

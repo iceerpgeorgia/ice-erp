@@ -12,6 +12,8 @@ import {
   Plus,
   FileText,
   User,
+  Copy,
+  RefreshCw,
 } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -31,19 +33,12 @@ import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { useTableFilters } from './shared/use-table-filters';
 import type { ColumnFormat } from './shared/table-filters';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from './ui/table';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type IncomeColKey =
   | 'paymentId'
+  | 'parentFinancialCode'
   | 'financialCode'
   | 'accrual'
   | 'order'
@@ -67,6 +62,7 @@ type IncomePaymentRow = {
   paymentRowId: number | null;
   financialCode: string;
   financialCodeUuid: string | null;
+  parentFinancialCode: string | null;
   accrual: number;
   order: number;
   payment: number;
@@ -82,12 +78,14 @@ type IncomePaymentRow = {
   isRecurring: boolean;
   isActive: boolean;
   label: string | null;
+  confirmed: boolean;
 };
 
 // ── Column definitions ────────────────────────────────────────────────────────
 
 const defaultIncomeColumns: IncomeColumnConfig[] = [
   { key: 'paymentId', label: 'Payment ID', width: 150, visible: true, sortable: true, filterable: false },
+  { key: 'parentFinancialCode', label: 'Parent FC', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'financialCode', label: 'Financial Code', width: 180, visible: true, sortable: true, filterable: true },
   { key: 'accrual', label: 'Accrual', width: 120, visible: true, sortable: true, filterable: false, format: 'currency' },
   { key: 'order', label: 'Order', width: 120, visible: true, sortable: true, filterable: false, format: 'currency' },
@@ -98,7 +96,7 @@ const defaultIncomeColumns: IncomeColumnConfig[] = [
 ];
 
 const INCOME_STORAGE_KEY = 'handovers-income-payments-columns';
-const INCOME_STORAGE_VERSION = '1';
+const INCOME_STORAGE_VERSION = '2';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -238,6 +236,7 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
           paymentRowId: r.paymentRowId,
           financialCode: r.financialCode || '',
           financialCodeUuid: r.financialCodeUuid || null,
+          parentFinancialCode: r.parentFinancialCode || null,
           accrual: r.accrual,
           order: r.order,
           payment: r.payment,
@@ -253,6 +252,7 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
           isRecurring: Boolean(r.isRecurring),
           isActive: r.isActive ?? true,
           label: r.label || null,
+          confirmed: Boolean(r.confirmed),
         })),
       );
       if (incomeOnly.length > 0) {
@@ -381,8 +381,8 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
   } = useTableFilters<IncomePaymentRow, IncomeColKey>({
     data: incomeRows,
     columns,
-    defaultSortColumn: 'paymentId',
-    defaultSortDirection: 'desc',
+    defaultSortColumn: 'financialCode',
+    defaultSortDirection: 'asc',
     filtersStorageKey: 'handovers-income-payments:filters',
   });
 
@@ -570,6 +570,16 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
           </PopoverContent>
         </Popover>
 
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fetchIncomePayments(projectUuid)}
+          disabled={loading}
+          title="Refresh payments"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+        </Button>
+
         <span className="text-sm text-muted-foreground ml-auto">
           {loading
             ? 'Loading…'
@@ -578,34 +588,36 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
       </div>
 
       {/* Table */}
-      <div className="border rounded-lg overflow-hidden">
+      <div className="rounded-lg border bg-white overflow-hidden">
         <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {visibleColumns.map(column => (
-                  <TableHead
-                    key={column.key}
-                    draggable={!isResizing}
-                    onDragStart={e => handleDragStart(e, column.key)}
-                    onDragOver={e => handleDragOver(e, column.key)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={e => handleDrop(e, column.key)}
-                    onDragEnd={handleDragEnd}
-                    className={[
-                      'bg-muted/50 relative group select-none',
-                      draggedColumn === column.key ? 'opacity-50' : '',
-                      dragOverColumn === column.key ? 'border-l-4 border-l-blue-500' : '',
-                    ].join(' ')}
-                    style={{ width: column.width, minWidth: column.width }}
-                  >
-                    <div className="flex items-center justify-between gap-1 pr-3">
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs font-medium">{column.label}</span>
+          <table style={{ tableLayout: 'fixed', width: '100%' }} className="border-collapse">
+            <thead className="sticky top-0 z-10 bg-white">
+              <tr className="border-b-2 border-gray-200">
+                {visibleColumns.map(column => {
+                  let bgColor = '';
+                  if (column.key === 'accrual') bgColor = '#ffebee';
+                  if (column.key === 'payment') bgColor = '#e8f5e9';
+                  if (column.key === 'order') bgColor = '#fff9e6';
+                  return (
+                    <th
+                      key={column.key}
+                      className={`relative font-semibold cursor-move overflow-hidden text-left px-4 py-3 text-sm sticky top-0 z-10 ${
+                        draggedColumn === column.key ? 'opacity-50' : ''
+                      } ${dragOverColumn === column.key ? 'border-l-4 border-blue-500' : ''}`}
+                      style={{ width: column.width, minWidth: column.width, maxWidth: column.width, backgroundColor: bgColor || '#fff' }}
+                      draggable={!isResizing}
+                      onDragStart={e => handleDragStart(e, column.key)}
+                      onDragOver={e => handleDragOver(e, column.key)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={e => handleDrop(e, column.key)}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <div className="flex items-center gap-2 pr-4 overflow-hidden">
+                        <span className="truncate font-medium">{column.label}</span>
                         {column.sortable && (
                           <button
                             onClick={() => handleSort(column.key)}
-                            className="hover:bg-accent rounded p-0.5 shrink-0"
+                            className="hover:bg-gray-100 rounded p-0.5 shrink-0"
                           >
                             {sortColumn === column.key ? (
                               sortDirection === 'asc' ? (
@@ -614,156 +626,184 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                                 <ArrowDown className="h-3 w-3" />
                               )
                             ) : (
-                              <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+                              <ArrowUpDown className="h-3 w-3 text-gray-400" />
                             )}
                           </button>
                         )}
+                        {column.filterable && (
+                          <ColumnFilterPopover
+                            columnKey={column.key}
+                            columnLabel={column.label}
+                            values={getColumnValues(column.key)}
+                            activeFilters={
+                              filters.get(column.key)?.mode === 'facet'
+                                ? (filters.get(column.key) as any).values
+                                : new Set<string>()
+                            }
+                            activeFilter={filters.get(column.key)}
+                            columnFormat={column.format as ColumnFormat | undefined}
+                            onAdvancedFilterChange={f => handleFilterChange(column.key, f)}
+                            onFilterChange={vals =>
+                              handleFilterChange(
+                                column.key,
+                                vals.size > 0 ? { mode: 'facet', values: vals } : null,
+                              )
+                            }
+                            onSort={dir => {
+                              setSortColumn(column.key);
+                              setSortDirection(dir);
+                            }}
+                          />
+                        )}
                       </div>
-                      {column.filterable && (
-                        <ColumnFilterPopover
-                          columnKey={column.key}
-                          columnLabel={column.label}
-                          values={getColumnValues(column.key)}
-                          activeFilters={
-                            filters.get(column.key)?.mode === 'facet'
-                              ? (filters.get(column.key) as any).values
-                              : new Set<string>()
-                          }
-                          activeFilter={filters.get(column.key)}
-                          columnFormat={column.format as ColumnFormat | undefined}
-                          onAdvancedFilterChange={f => handleFilterChange(column.key, f)}
-                          onFilterChange={vals =>
-                            handleFilterChange(
-                              column.key,
-                              vals.size > 0 ? { mode: 'facet', values: vals } : null,
-                            )
-                          }
-                          onSort={dir => {
-                            setSortColumn(column.key);
-                            setSortDirection(dir);
-                          }}
-                        />
-                      )}
-                    </div>
-                    {/* Resize handle */}
-                    <div
-                      className="absolute top-0 bottom-0 z-30 w-3 cursor-col-resize"
-                      style={{ right: '-6px' }}
-                      draggable={false}
-                      onMouseDown={e => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setIsResizing({
-                          column: column.key,
-                          startX: e.clientX,
-                          startWidth: column.width,
-                        });
-                      }}
-                      onClick={e => e.stopPropagation()}
-                    />
-                  </TableHead>
-                ))}
-                <TableHead className="bg-muted/50 w-44 shrink-0">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+                      {/* Resize handle */}
+                      <div
+                        className="absolute top-0 right-0 bottom-0 w-5 cursor-col-resize hover:bg-blue-500/20 z-50"
+                        style={{ marginRight: '-10px' }}
+                        draggable={false}
+                        onMouseDown={e => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsResizing({ column: column.key, startX: e.clientX, startWidth: column.width });
+                        }}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div className="absolute right-2 top-0 bottom-0 w-1 bg-gray-300 hover:bg-blue-500 transition-colors" />
+                      </div>
+                    </th>
+                  );
+                })}
+                <th
+                  className="sticky top-0 z-10 bg-white px-4 py-3 text-left text-sm font-semibold border-b-2 border-gray-200"
+                  style={{ width: 190, minWidth: 190 }}
+                >
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
               {loading ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={visibleColumns.length + 1}
-                    className="text-center py-8 text-muted-foreground"
-                  >
+                <tr>
+                  <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4 text-gray-500">
                     Loading…
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ) : paginatedData.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={visibleColumns.length + 1}
-                    className="text-center py-8 text-muted-foreground"
-                  >
+                <tr>
+                  <td colSpan={visibleColumns.length + 1} className="text-center py-8 px-4 text-gray-500">
                     {sortedData.length === 0 && !searchTerm && activeFilterCount === 0
                       ? 'No income payments for this project.'
                       : 'No payments match the current filters.'}
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ) : (
-                paginatedData.map(row => (
-                  <TableRow key={row.paymentId}>
-                    {visibleColumns.map(col => (
-                      <TableCell
-                        key={col.key}
-                        style={{ width: col.width, maxWidth: col.width }}
-                      >
-                        <span className="text-sm truncate block">
-                          {fmtVal((row as any)[col.key], col.format, col.key)}
-                        </span>
-                      </TableCell>
-                    ))}
-                    <TableCell className="w-44">
-                      <div className="flex items-center gap-1 flex-wrap">
-                        <PaymentAttachments
-                          paymentId={row.paymentId}
-                          initialCount={attachmentCounts[row.paymentId] ?? 0}
-                        />
-                        <button
-                          onClick={() => openBaseInfo(row.paymentId)}
-                          className="inline-block text-gray-600 hover:text-gray-800 hover:bg-gray-50 p-1 rounded transition-colors"
-                          title="View payment info"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => openEditDialog(row)}
-                          className="inline-block text-gray-600 hover:text-gray-800 hover:bg-gray-50 p-1 rounded transition-colors"
-                          title="Edit payment"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => openAddLedger(row.paymentId)}
-                          className="inline-block text-green-600 hover:text-green-800 hover:bg-green-50 p-1 rounded transition-colors"
-                          title="Add ledger entry"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
-                        <a
-                          href={`/payment-statement/${row.paymentId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-block text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
-                          title="View statement (opens in new tab)"
-                        >
-                          <FileText className="w-4 h-4" />
-                        </a>
-                        <a
-                          href={
-                            row.counteragentUuid
-                              ? `/counteragent-statement/${row.counteragentUuid}`
-                              : '#'
-                          }
-                          target={row.counteragentUuid ? '_blank' : undefined}
-                          rel={row.counteragentUuid ? 'noopener noreferrer' : undefined}
-                          className={`inline-block p-1 rounded transition-colors ${
-                            row.counteragentUuid
-                              ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50'
-                              : 'text-gray-400'
-                          }`}
-                          aria-disabled={!row.counteragentUuid}
-                          title="View counteragent statement (opens in new tab)"
-                          onClick={e => {
-                            if (!row.counteragentUuid) e.preventDefault();
-                          }}
-                        >
-                          <User className="w-4 h-4" />
-                        </a>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                paginatedData.map((row, idx) => {
+                  const isConfirmedPaid = Boolean(row.confirmed && row.due === 0);
+                  const isConfirmedDue = Boolean(row.confirmed && row.due > 0);
+                  return (
+                    <tr
+                      key={`${row.paymentId}-${idx}`}
+                      className={`border-b border-gray-200 hover:bg-gray-50 ${
+                        isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : ''
+                      }`}
+                    >
+                      {visibleColumns.map(col => {
+                        let bgColor = '';
+                        if (col.key === 'accrual') bgColor = '#ffebee';
+                        if (col.key === 'payment') bgColor = '#e8f5e9';
+                        if (col.key === 'order') bgColor = '#fff9e6';
+                        return (
+                          <td
+                            key={col.key}
+                            className="overflow-hidden px-4 py-2 text-sm"
+                            style={{
+                              width: col.width,
+                              minWidth: col.width,
+                              maxWidth: col.width,
+                              backgroundColor: bgColor || (isConfirmedPaid ? '#f3f4f6' : isConfirmedDue ? '#e8f5e9' : undefined),
+                            }}
+                          >
+                            {col.key === 'paymentId' ? (
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="truncate">{row.paymentId}</span>
+                                <button
+                                  type="button"
+                                  className="text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded p-1 shrink-0"
+                                  title="Copy payment ID"
+                                  onClick={async () => {
+                                    try { await navigator.clipboard.writeText(row.paymentId); } catch {}
+                                  }}
+                                >
+                                  <Copy className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="truncate block">
+                                {fmtVal((row as any)[col.key], col.format, col.key)}
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="px-4 py-2 text-sm" style={{ width: 190, minWidth: 190 }}>
+                        <div className="flex items-center gap-1">
+                          <PaymentAttachments
+                            paymentId={row.paymentId}
+                            initialCount={attachmentCounts[row.paymentId] ?? 0}
+                          />
+                          <button
+                            onClick={() => openBaseInfo(row.paymentId)}
+                            className="inline-block text-gray-600 hover:text-gray-800 hover:bg-gray-50 p-1 rounded transition-colors"
+                            title="View payment info"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => openEditDialog(row)}
+                            className="inline-block text-gray-600 hover:text-gray-800 hover:bg-gray-50 p-1 rounded transition-colors"
+                            title="Edit payment"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => openAddLedger(row.paymentId)}
+                            className="inline-block text-green-600 hover:text-green-800 hover:bg-green-50 p-1 rounded transition-colors"
+                            title="Add ledger entry"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                          <a
+                            href={`/payment-statement/${row.paymentId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 rounded transition-colors"
+                            title="View statement (opens in new tab)"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </a>
+                          <a
+                            href={row.counteragentUuid ? `/counteragent-statement/${row.counteragentUuid}` : '#'}
+                            target={row.counteragentUuid ? '_blank' : undefined}
+                            rel={row.counteragentUuid ? 'noopener noreferrer' : undefined}
+                            className={`inline-block p-1 rounded transition-colors ${
+                              row.counteragentUuid
+                                ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50'
+                                : 'text-gray-400'
+                            }`}
+                            aria-disabled={!row.counteragentUuid}
+                            title="View counteragent statement (opens in new tab)"
+                            onClick={e => { if (!row.counteragentUuid) e.preventDefault(); }}
+                          >
+                            <User className="w-4 h-4" />
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
       </div>
 
