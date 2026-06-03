@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-06-03 Deployment #279
+- Commit: aae8a85
+- Production: https://ice-lwwardrhk-iceerp.vercel.app
+- Summary: Emoji icons in browser tab titles for nav pages; salary accruals Employee column shows full format (name + INN + entity type) when both are available.
+- Changes:
+  - lib/nav/icon-to-emoji.ts: new file — maps ~200 Lucide icon names to emoji for tab titles
+  - components/nav-icon-title-sync.tsx: new client component that prepends emoji to document.title on navigation using user's nav config icon or MASTER_NAV default
+  - app/app-shell.tsx: renders NavIconTitleSync inside NavConfigProvider
+  - components/figma/salary-accruals-table.tsx: added entity_type to SalaryAccrual type; formatEmployee helper renders "name (ს.კ. INN) - entity_type" only when both INN and entity type are present
+  - app/api/salary-accruals/route.ts: added c.entity_type to all 3 SELECT queries
+
 ## 2026-06-02 Deployment #278
 - Commit: a81a42b
 - Production: https://ice-dyixt5fj8-iceerp.vercel.app
