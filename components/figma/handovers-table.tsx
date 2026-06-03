@@ -63,10 +63,12 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'sellingPrice', label: 'Selling Price', width: 140, visible: true, sortable: true, filterable: true, format: 'number' },
   { key: 'isFf', label: 'FF', width: 80, visible: true, sortable: true, filterable: true },
   { key: 'certificateDate', label: 'Certificate Date', width: 150, visible: true, sortable: true, filterable: false },
+  { key: 'liftCertDate', label: 'Cert. Date', width: 130, visible: true, sortable: true, filterable: false },
+  { key: 'liftCertDocNo', label: 'Doc. No', width: 150, visible: true, sortable: true, filterable: false },
 ];
 
 const STORAGE_KEY = 'handovers-table-columns';
-const STORAGE_VERSION = '1';
+const STORAGE_VERSION = '2';
 
 type Project = { projectUuid: string; projectIndex: string; projectName: string };
 type InsiderOption = { value: string; label: string; keywords?: string };
@@ -269,18 +271,22 @@ export function HandoversTable() {
         const data: any[] = await res.json();
         const jobUuids = data.map((j: any) => j.jobUuid).filter(Boolean);
 
-        // Bulk-fetch certificate dates and attachment counts in parallel
-        const [certRes, countRes] = await Promise.all([
+        // Bulk-fetch certificate dates, lift cert info, and attachment counts in parallel
+        const [certRes, countRes, liftRes] = await Promise.all([
           jobUuids.length > 0
             ? fetch(`/api/jobs/attachments?certDates=1&jobUuids=${encodeURIComponent(jobUuids.join(','))}`)
             : Promise.resolve(null),
           jobUuids.length > 0
             ? fetch(`/api/jobs/attachments?countsOnly=1&jobUuids=${encodeURIComponent(jobUuids.join(','))}`)
             : Promise.resolve(null),
+          jobUuids.length > 0
+            ? fetch(`/api/jobs/attachments?liftCertInfo=1&jobUuids=${encodeURIComponent(jobUuids.join(','))}`)
+            : Promise.resolve(null),
         ]);
 
         const certDatesMap: Record<string, string | null> = certRes?.ok ? (await certRes.json()).dates ?? {} : {};
         const countsMap: Record<string, number> = countRes?.ok ? (await countRes.json()).counts ?? {} : {};
+        const liftCertMap: Record<string, { date: string | null; docNo: string | null }> = liftRes?.ok ? (await liftRes.json()).info ?? {} : {};
 
         setAttachmentCounts(countsMap);
         setJobs(
@@ -305,6 +311,8 @@ export function HandoversTable() {
             updatedAt: '',
             insiderName: job.insiderName ?? null,
             certificateDate: certDatesMap[job.jobUuid] ?? null,
+            liftCertDate: liftCertMap[job.jobUuid]?.date ?? null,
+            liftCertDocNo: liftCertMap[job.jobUuid]?.docNo ?? null,
             _rowKey: String(job.jobUuid ?? idx),
           })),
         );
@@ -422,6 +430,18 @@ export function HandoversTable() {
       case 'certificateDate':
         return job.certificateDate ? (
           <span className="text-sm">{new Date(job.certificateDate).toLocaleDateString()}</span>
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        );
+      case 'liftCertDate':
+        return job.liftCertDate ? (
+          <span className="text-sm">{new Date(job.liftCertDate).toLocaleDateString()}</span>
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        );
+      case 'liftCertDocNo':
+        return job.liftCertDocNo ? (
+          <span className="text-sm font-mono">{job.liftCertDocNo}</span>
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
         );
@@ -666,37 +686,68 @@ export function HandoversTable() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    paginatedJobs.map(job => (
-                      <TableRow key={job._rowKey}>
-                        {visibleColumns.map(col => (
-                          <TableCell
-                            key={col.key}
-                            style={{ width: col.width, maxWidth: col.width }}
-                          >
-                            {renderCell(job, col)}
-                          </TableCell>
-                        ))}
-                        <TableCell className="w-24">
-                          <div className="flex items-center gap-1">
-                            <JobAttachments
-                              jobUuid={job.jobUuid}
-                              jobName={job.jobName}
-                              triggerTitle="Attachments"
-                              initialCount={attachmentCounts[job.jobUuid] ?? null}
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              title="Edit job"
-                              onClick={() => openEditDialog(job)}
-                              disabled={!job.id}
+                    <>
+                      {paginatedJobs.map(job => (
+                        <TableRow key={job._rowKey}>
+                          {visibleColumns.map(col => (
+                            <TableCell
+                              key={col.key}
+                              style={{ width: col.width, maxWidth: col.width }}
                             >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                              {renderCell(job, col)}
+                            </TableCell>
+                          ))}
+                          <TableCell className="w-24">
+                            <div className="flex items-center gap-1">
+                              <JobAttachments
+                                jobUuid={job.jobUuid}
+                                jobName={job.jobName}
+                                triggerTitle="Attachments"
+                                initialCount={attachmentCounts[job.jobUuid] ?? null}
+                              />
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="Edit job"
+                                onClick={() => openEditDialog(job)}
+                                disabled={!job.id}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {(() => {
+                        const totalFloors = sortedJobs.reduce((s, j) => s + (j.floors ?? 0), 0);
+                        const totalPrice = sortedJobs.reduce((s, j) => s + (j.sellingPrice ?? 0), 0);
+                        const hasFloors = visibleColumns.some(c => c.key === 'floors');
+                        const hasPrice = visibleColumns.some(c => c.key === 'sellingPrice');
+                        if (!hasFloors && !hasPrice) return null;
+                        return (
+                          <TableRow className="bg-muted/40 font-semibold border-t-2">
+                            {visibleColumns.map(col => (
+                              <TableCell
+                                key={col.key}
+                                style={{ width: col.width, maxWidth: col.width }}
+                                className="text-xs"
+                              >
+                                {col.key === 'jobName' ? (
+                                  <span className="text-muted-foreground">
+                                    Total ({sortedJobs.length})
+                                  </span>
+                                ) : col.key === 'floors' ? (
+                                  <span>{totalFloors.toLocaleString()}</span>
+                                ) : col.key === 'sellingPrice' ? (
+                                  <span>{totalPrice.toLocaleString()}</span>
+                                ) : null}
+                              </TableCell>
+                            ))}
+                            <TableCell className="w-24" />
+                          </TableRow>
+                        );
+                      })()}
+                    </>
                   )}
                 </TableBody>
               </Table>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getJobAttachments, getJobAttachmentCounts, getJobCertificateDates } from '@/lib/attachments';
+import { getJobAttachments, getJobAttachmentCounts, getJobCertificateDates, getJobLiftCertInfo } from '@/lib/attachments';
 
 export const revalidate = 0;
 
@@ -28,6 +28,13 @@ export async function GET(request: NextRequest) {
       const uuids = jobUuidsCsv.split(',').map((s) => s.trim()).filter(Boolean);
       const dates = await getJobCertificateDates(uuids);
       return NextResponse.json({ dates });
+    }
+
+    const liftCertInfo = searchParams.get('liftCertInfo');
+    if (liftCertInfo && jobUuidsCsv) {
+      const uuids = jobUuidsCsv.split(',').map((s) => s.trim()).filter(Boolean);
+      const info = await getJobLiftCertInfo(uuids);
+      return NextResponse.json({ info });
     }
 
     if (!jobUuid) {

@@ -75,6 +75,8 @@ export type Job = {
   updatedAt: string;
   insiderName?: string | null;
   certificateDate?: string | null;
+  liftCertDate?: string | null;
+  liftCertDocNo?: string | null;
   _rowKey: string;
 };
 
