@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #292
+- Commit: fb21721
+- Production: https://ice-j1esfb7gt-iceerp.vercel.app
+- Summary: Handovers jobs grid — totals footer row + lift certificate date/doc no columns.
+- Changes:
+  - lib/attachments.ts: Added `getJobLiftCertInfo()` — bulk fetches date + doc_no of earliest "ექსპლუატაციაში მიღების სერტიფიკატი (ლიფტები)" attachment per jobUuid (ORDER BY document_date ASC)
+  - app/api/jobs/attachments/route.ts: Added `liftCertInfo=1` query branch returning `{ info }` map
+  - components/figma/jobs-table.tsx: Added `liftCertDate` and `liftCertDocNo` optional fields to `Job` type
+  - components/figma/handovers-table.tsx: Added totals footer row (floors sum + selling price sum + job count); added "Cert. Date" and "Doc. No" columns fetched in parallel with existing bulk calls; STORAGE_VERSION bumped to '2'
+
 ## 2026-06-04 Deployment #291
 - Commit: d0e39f3
 - Production: https://ice-5p4oypmyh-iceerp.vercel.app
