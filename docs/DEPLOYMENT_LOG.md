@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #294
+- Commit: 24475d6
+- Production: https://ice-qk49l0n8s-iceerp.vercel.app
+- Summary: Date format dd.mm.yyyy + parent FC row styling matching bundle aggregates.
+- Changes:
+  - components/figma/handovers-table.tsx: Changed liftCertDate format from `toLocaleDateString()` to `dd.mm.yyyy` format
+  - components/figma/handover-payments-grid.tsx: Rows with parent FC now styled with `italic bg-blue-50/40` (matching bundle aggregate rows in payments-report); removed italic from parent FC sub-line itself since entire row is now italic
+
 ## 2026-06-04 Deployment #293
 - Commit: d9377ad
 - Production: https://ice-3kdva9s01-iceerp.vercel.app
