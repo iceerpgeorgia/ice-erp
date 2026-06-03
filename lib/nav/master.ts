@@ -20,6 +20,7 @@ export const MASTER_NAV: MasterNavItem[] = [
   { routeKey: '/dictionaries/salary-accruals', label: 'Salary Accruals', defaultIcon: 'DollarSign', defaultGroup: 'Finance', desc: 'Payroll accruals' },
   { routeKey: '/dictionaries/nbg-rates', label: 'NBG Rates', defaultIcon: 'TrendingUp', defaultGroup: 'Finance', desc: 'Exchange rates' },
   { routeKey: '/dictionaries/conversions', label: 'Conversions', defaultIcon: 'Scale', defaultGroup: 'Finance', desc: 'Currency conversions' },
+  { routeKey: '/handovers', label: 'Handovers', defaultIcon: 'ClipboardList', defaultGroup: 'Finance', desc: 'Project job handovers' },
 
   // Reports
   { routeKey: '/dictionaries/payments-report', label: 'Payments Report', defaultIcon: 'FileBarChart2', defaultGroup: 'Reports', desc: 'By project & code' },
