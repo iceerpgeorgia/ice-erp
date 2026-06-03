@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-03 Deployment #284
+- Commit: c149e09
+- Production: https://ice-dx1jqnp4t-iceerp.vercel.app
+- Summary: Fix Handovers missing from sidebar for users with custom nav folders.
+- Changes:
+  - lib/nav/master.ts: added Handovers entry to MASTER_NAV (Finance group) so it appears for all users regardless of nav config
+
 ## 2026-06-03 Deployment #283
 - Commit: e4339a0
 - Production: https://ice-1kkj54mq1-iceerp.vercel.app
