@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-06-03 Deployment #286
+- Commit: d9fb6b3
+- Production: https://ice-gxw39hr1w-iceerp.vercel.app
+- Summary: Handovers — project attachments panel, job certificate date column, bulk attachment counts.
+- Changes:
+  - components/figma/handovers-table.tsx: ProjectAttachments button next to project selector; bulk cert-date fetch; bulk attachment count fetch; Certificate Date column in grid
+  - lib/attachments.ts: new getJobCertificateDates() bulk query
+  - app/api/jobs/attachments/route.ts: new certDates query mode
+  - components/figma/jobs-table.tsx: certificateDate field added to Job type
+
 ## 2026-06-03 Deployment #285
 - Commit: fdd4d70
 - Production: https://ice-jrij78mv7-iceerp.vercel.app
