@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #293
+- Commit: d9377ad
+- Production: https://ice-3kdva9s01-iceerp.vercel.app
+- Summary: Fix parent FC rendering in handover-payments-grid + remove duplicate Certificate Date column.
+- Changes:
+  - components/figma/handover-payments-grid.tsx: Parent FC sub-line now uses `italic` to match payments-report aggregate row style
+  - components/figma/handovers-table.tsx: Removed duplicate `certificateDate` column; `liftCertInfo` query changed to `ILIKE '%ექსპლუატაციაში%'`; STORAGE_VERSION bumped to '3'; removed unused `certDates` fetch
+
 ## 2026-06-04 Deployment #292
 - Commit: fb21721
 - Production: https://ice-j1esfb7gt-iceerp.vercel.app
