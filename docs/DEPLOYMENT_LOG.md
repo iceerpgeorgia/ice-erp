@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-03 Deployment #282
+- Commit: 141ec55
+- Production: https://ice-2brokvm4j-iceerp.vercel.app
+- Summary: Restored emoji tab title sync (NavIconTitleSync) that was accidentally removed in #281.
+- Changes:
+  - app/app-shell.tsx: re-added NavIconTitleSync import and component
+
 ## 2026-06-03 Deployment #281
 - Commit: c7ff72a
 - Production: https://ice-3ti1xqt0a-iceerp.vercel.app
