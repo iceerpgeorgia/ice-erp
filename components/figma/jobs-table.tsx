@@ -62,6 +62,7 @@ export type Job = {
   floors: number | null;
   weight: number | null;
   isFf: boolean;
+  sellingPrice: number | null;
   brandUuid: string | null;
   brandName: string;
   jobIndex: string;
@@ -101,6 +102,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'brandName', label: 'Brand', width: 150, visible: true, sortable: true, filterable: true },
   { key: 'floors', label: 'Floors', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'weight', label: 'Weight (kg)', width: 120, visible: true, sortable: true, filterable: true },
+  { key: 'sellingPrice', label: 'Selling Price', width: 140, visible: true, sortable: true, filterable: true, format: 'number' },
   { key: 'isFf', label: 'FF', width: 80, visible: true, sortable: true, filterable: true },
   { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true, format: 'date' },
@@ -168,6 +170,7 @@ export function JobsTable() {
     factoryNo: '',
     floors: '' as string | number,
     weight: '' as string | number,
+    sellingPrice: '' as string | number,
     isFf: false,
     brandUuid: '',
     insiderUuid: '',
@@ -270,6 +273,7 @@ export function JobsTable() {
               factoryNo: job.factoryNo || job.factory_no || null,
               floors: job.floors ?? null,
               weight: job.weight ?? null,
+              sellingPrice: job.sellingPrice !== undefined && job.sellingPrice !== null ? Number(job.sellingPrice) : null,
               isFf: job.isFf ?? job.is_ff ?? false,
               brandUuid: job.brandUuid || job.brand_uuid || null,
               brandName: job.brandName || job.brand_name,
@@ -360,6 +364,7 @@ export function JobsTable() {
         factoryNo: formData.factoryNo.trim() || null,
         floors: formData.floors === '' ? null : Number(formData.floors),
         weight: formData.weight === '' ? null : Number(formData.weight),
+        sellingPrice: formData.sellingPrice === '' ? null : Number(formData.sellingPrice),
       };
       const res = await fetch('/api/jobs', {
         method: 'POST',
@@ -388,6 +393,7 @@ export function JobsTable() {
         factoryNo: formData.factoryNo.trim() || null,
         floors: formData.floors === '' ? null : Number(formData.floors),
         weight: formData.weight === '' ? null : Number(formData.weight),
+        sellingPrice: formData.sellingPrice === '' ? null : Number(formData.sellingPrice),
       };
       const res = await fetch('/api/jobs', {
         method: 'PUT',
@@ -434,6 +440,7 @@ export function JobsTable() {
       factoryNo: job.factoryNo || '',
       floors: job.floors ?? '',
       weight: job.weight ?? '',
+      sellingPrice: job.sellingPrice ?? '',
       isFf: job.isFf,
       brandUuid: job.brandUuid || '',
       insiderUuid: isInsiderFixed ? (fixedInsider?.insiderUuid || '') : '',
@@ -492,6 +499,7 @@ export function JobsTable() {
       factoryNo: '',
       floors: '',
       weight: '',
+      sellingPrice: '',
       isFf: false,
       brandUuid: '',
       insiderUuid: fixedInsider?.insiderUuid || insidersList[0]?.insiderUuid || '',
@@ -1083,6 +1091,25 @@ function JobForm({
             })
           }
           placeholder="Enter weight in kg"
+        />
+      </div>
+
+      {/* Selling Price */}
+      <div>
+        <Label htmlFor="sellingPrice">Selling Price</Label>
+        <Input
+          id="sellingPrice"
+          type="number"
+          min="0"
+          step="0.01"
+          value={formData.sellingPrice}
+          onChange={(e) =>
+            setFormData({
+              ...formData,
+              sellingPrice: e.target.value === '' ? '' : e.target.value,
+            })
+          }
+          placeholder="Enter selling price"
         />
       </div>
 
