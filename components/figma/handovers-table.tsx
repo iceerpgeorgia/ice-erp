@@ -14,6 +14,7 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Combobox } from '@/components/ui/combobox';
 import { JobAttachments } from './job-attachments';
+import { ProjectAttachments } from './project-attachments';
 import { JobForm } from './jobs-table';
 import type { Job, Brand } from './jobs-table';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -59,6 +60,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'weight', label: 'Weight (kg)', width: 110, visible: true, sortable: true, filterable: true },
   { key: 'sellingPrice', label: 'Selling Price', width: 140, visible: true, sortable: true, filterable: true, format: 'number' },
   { key: 'isFf', label: 'FF', width: 80, visible: true, sortable: true, filterable: true },
+  { key: 'certificateDate', label: 'Certificate Date', width: 150, visible: true, sortable: true, filterable: false },
 ];
 
 const STORAGE_KEY = 'handovers-table-columns';
@@ -91,6 +93,8 @@ export function HandoversTable() {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(false);
 
+  // ── Attachment state ──────────────────────────────────────────────────────
+  const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
   // ── Edit dialog ──────────────────────────────────────────────────────────
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
@@ -248,6 +252,7 @@ export function HandoversTable() {
   const fetchJobs = async (projectUuid: string) => {
     if (!projectUuid) {
       setJobs([]);
+      setAttachmentCounts({});
       return;
     }
     setLoadingJobs(true);
@@ -255,6 +260,22 @@ export function HandoversTable() {
       const res = await fetch(`/api/jobs?projectUuid=${encodeURIComponent(projectUuid)}`);
       if (res.ok) {
         const data: any[] = await res.json();
+        const jobUuids = data.map((j: any) => j.jobUuid).filter(Boolean);
+
+        // Bulk-fetch certificate dates and attachment counts in parallel
+        const [certRes, countRes] = await Promise.all([
+          jobUuids.length > 0
+            ? fetch(`/api/jobs/attachments?certDates=1&jobUuids=${encodeURIComponent(jobUuids.join(','))}`)
+            : Promise.resolve(null),
+          jobUuids.length > 0
+            ? fetch(`/api/jobs/attachments?countsOnly=1&jobUuids=${encodeURIComponent(jobUuids.join(','))}`)
+            : Promise.resolve(null),
+        ]);
+
+        const certDatesMap: Record<string, string | null> = certRes?.ok ? (await certRes.json()).dates ?? {} : {};
+        const countsMap: Record<string, number> = countRes?.ok ? (await countRes.json()).counts ?? {} : {};
+
+        setAttachmentCounts(countsMap);
         setJobs(
           data.map((job, idx) => ({
             id: Number(job.id ?? 0),
@@ -276,6 +297,7 @@ export function HandoversTable() {
             createdAt: '',
             updatedAt: '',
             insiderName: job.insiderName ?? null,
+            certificateDate: certDatesMap[job.jobUuid] ?? null,
             _rowKey: String(job.jobUuid ?? idx),
           })),
         );
@@ -390,6 +412,12 @@ export function HandoversTable() {
   // ── Cell renderer ─────────────────────────────────────────────────────────
   const renderCell = (job: Job, col: ColumnConfig) => {
     switch (col.key) {
+      case 'certificateDate':
+        return job.certificateDate ? (
+          <span className="text-sm">{new Date(job.certificateDate).toLocaleDateString()}</span>
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        );
       case 'isFf':
         return (
           <Badge variant={job.isFf ? 'default' : 'secondary'}>
@@ -423,16 +451,27 @@ export function HandoversTable() {
       </div>
 
       {/* Project selector */}
-      <div className="max-w-xl space-y-1">
+      <div className="space-y-1">
         <label className="text-sm font-medium">Project</label>
-        <Combobox
-          options={projectOptions}
-          value={selectedProjectUuid}
-          onValueChange={setSelectedProjectUuid}
-          placeholder={loadingProjects ? 'Loading projects…' : 'Select a project…'}
-          searchPlaceholder="Search projects…"
-          emptyText="No project found."
-        />
+        <div className="flex items-center gap-3">
+          <div className="max-w-xl flex-1">
+            <Combobox
+              options={projectOptions}
+              value={selectedProjectUuid}
+              onValueChange={setSelectedProjectUuid}
+              placeholder={loadingProjects ? 'Loading projects…' : 'Select a project…'}
+              searchPlaceholder="Search projects…"
+              emptyText="No project found."
+            />
+          </div>
+          {selectedProjectUuid && (
+            <ProjectAttachments
+              projectUuid={selectedProjectUuid}
+              projectName={projects.find(p => p.projectUuid === selectedProjectUuid)?.projectName ?? null}
+              lazyLoad={false}
+            />
+          )}
+        </div>
       </div>
 
       {/* Jobs grid — only shown when a project is selected */}
@@ -620,6 +659,7 @@ export function HandoversTable() {
                               jobUuid={job.jobUuid}
                               jobName={job.jobName}
                               triggerTitle="Attachments"
+                              initialCount={attachmentCounts[job.jobUuid] ?? null}
                             />
                             <Button
                               variant="ghost"

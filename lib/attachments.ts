@@ -636,6 +636,30 @@ export async function getJobAttachmentCounts(jobUuids: string[]): Promise<Record
   return out;
 }
 
+/** Bulk fetch: most-recent certificate attachment date per jobUuid (matches document type name containing 'certificate'). */
+export async function getJobCertificateDates(jobUuids: string[]): Promise<Record<string, string | null>> {
+  const unique = Array.from(new Set(jobUuids.filter((v) => typeof v === 'string' && v.length > 0)));
+  if (unique.length === 0) return {};
+  const placeholders = unique.map((_, i) => `$${i + 1}::uuid`).join(', ');
+  const rows = await withRetry(() => prisma.$queryRawUnsafe<Array<{ owner_uuid: string; document_date: string | null }>>(
+    `SELECT DISTINCT ON (al.owner_uuid)
+       al.owner_uuid::text AS owner_uuid,
+       a.document_date
+     FROM attachment_links al
+     JOIN attachments a ON a.uuid = al.attachment_uuid
+     JOIN document_types dt ON dt.uuid = a.document_type_uuid
+     WHERE al.owner_table = 'jobs'
+       AND a.is_active = true
+       AND al.owner_uuid IN (${placeholders})
+       AND LOWER(dt.name) LIKE '%certificate%'
+     ORDER BY al.owner_uuid, a.document_date DESC NULLS LAST`,
+    ...unique
+  ));
+  const out: Record<string, string | null> = {};
+  for (const r of rows) out[r.owner_uuid] = r.document_date;
+  return out;
+}
+
 /** Create attachment row + link to a job. */
 export async function createJobAttachment(params: {
   jobUuid: string;

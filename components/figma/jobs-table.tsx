@@ -74,6 +74,7 @@ export type Job = {
   createdAt: string;
   updatedAt: string;
   insiderName?: string | null;
+  certificateDate?: string | null;
   _rowKey: string;
 };
 

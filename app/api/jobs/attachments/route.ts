@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getJobAttachments, getJobAttachmentCounts } from '@/lib/attachments';
+import { getJobAttachments, getJobAttachmentCounts, getJobCertificateDates } from '@/lib/attachments';
 
 export const revalidate = 0;
 
@@ -21,6 +21,13 @@ export async function GET(request: NextRequest) {
       const uuids = jobUuidsCsv.split(',').map((s) => s.trim()).filter(Boolean);
       const counts = await getJobAttachmentCounts(uuids);
       return NextResponse.json({ counts });
+    }
+
+    const certDates = searchParams.get('certDates');
+    if (certDates && jobUuidsCsv) {
+      const uuids = jobUuidsCsv.split(',').map((s) => s.trim()).filter(Boolean);
+      const dates = await getJobCertificateDates(uuids);
+      return NextResponse.json({ dates });
     }
 
     if (!jobUuid) {
