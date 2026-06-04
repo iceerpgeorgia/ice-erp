@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #296
+- Commit: 89577d4
+- Production: https://ice-arnzumbjc-iceerp.vercel.app
+- Summary: Align parent FC rendering in handovers grid with payments report style.
+- Changes:
+  - components/figma/handover-payments-grid.tsx: Removed the parent FC sub-line text from the financial code cell. The entire row is already styled as an aggregate (italic, blue background), making the sub-line redundant and inconsistent with the main payments report's bundle aggregate style.
+
 ## 2026-06-04 Deployment #295
 - Commit: c1d64ab
 - Production: https://ice-cy4zcoih5-iceerp.vercel.app
