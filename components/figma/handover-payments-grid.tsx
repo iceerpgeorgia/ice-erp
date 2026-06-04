@@ -819,12 +819,7 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                                 </button>
                               </div>
                             ) : col.key === 'financialCode' ? (
-                              <div className="flex flex-col min-w-0">
-                                <span className="truncate">{row.financialCode || '-'}</span>
-                                {row.parentFinancialCode && !isBundleAgg && (
-                                  <span className="truncate text-xs text-gray-400">{row.parentFinancialCode}</span>
-                                )}
-                              </div>
+                              <span className="truncate">{row.financialCode || '-'}</span>
                             ) : (
                               <span className="truncate block">
                                 {fmtVal((row as any)[col.key], col.format, col.key)}
