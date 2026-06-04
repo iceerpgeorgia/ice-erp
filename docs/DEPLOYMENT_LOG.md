@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #303
+- Commit: f82d07b
+- Production: https://ice-nckx41mnp-iceerp.vercel.app
+- Summary: Update handovers job distribution UI and add project filter to bank-transactions API.
+- Changes:
+  - app/api/bank-transactions/route.ts: Added server-side project filtering (projectUuid/project_uuid), filtered conversion entries and skipped balance records when project filter is set.
+  - components/figma/handover-job-distributions-grid.tsx: Render bank-transaction-style rows with required columns and drive distributions from payment ID rows.
+  - components/figma/job-distribution-grid.tsx: Simplified distribution modes to All (default, weighted) and Manual; fixed job initialization.
+  - AGENTS.md: Documented bank-transactions project filter behavior.
+
 ## 2026-06-04 Deployment #302
 - Commit: b3b71c4
 - Production: https://ice-k7tfwibi8-iceerp.vercel.app
