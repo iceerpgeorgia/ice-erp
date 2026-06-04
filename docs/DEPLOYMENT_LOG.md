@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #302
+- Commit: b3b71c4
+- Production: https://ice-k7tfwibi8-iceerp.vercel.app
+- Summary: Fix Job Distributions grid to display all income payments for selected project.
+- Changes:
+  - components/figma/handover-job-distributions-grid.tsx: Refactored to fetch both job distributions AND all income payments from payments-report API; merged data to show every income payment with its distributions (or "No distributions yet" message); added JobDistributionGrid button for all payments; fixed import for JobDistributionGrid component; fixed infinite loop in useCallback; fixed JSX syntax error (missing closing brace); fixed type definitions to match API response format (snake_case).
+
 ## 2026-06-04 Deployment #301
 - Commit: 6fca3c7
 - Production: https://ice-mt4b8z23h-iceerp.vercel.app
