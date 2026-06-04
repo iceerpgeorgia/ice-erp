@@ -1,5 +1,17 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #300
+- Commit: b6a42cc
+- Production: https://ice-effpz9bkq-iceerp.vercel.app
+- Summary: Implement job distribution feature.
+- Changes:
+  - prisma/schema.prisma: Enhanced `payments_jobs` model with 8 new fields for full distribution feature (amount_account_curr, allocation_type, allocation_percent, is_auto_distributed, weight_snapshot, created_by, updated_by, is_auto_distributed index).
+  - app/api/payments-jobs/route.ts: New route for CRUD operations on job distributions.
+  - app/api/payments-jobs/auto-distribute/route.ts: New route for automatic weighted distribution.
+  - app/api/payments-jobs/recalculate/route.ts: New route for recalculating distributions.
+  - components/figma/job-distribution-grid.tsx: New UI component for managing job distributions.
+  - app/api/jobs/route.ts: Updated to accept `project_uuid` as a parameter.
+
 ## 2026-06-04 Deployment #299
 - Commit: 6dff7aa
 - Production: https://ice-7qxx2yh5o-iceerp.vercel.app
