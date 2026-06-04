@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #308
+- Commit: c4565f7
+- Production: https://ice-pvhuaqyab-iceerp.vercel.app
+- Summary: Fix saved job-distribution grid settings persistence by loading any existing localStorage layout and keeping the Actions header visible.
+- Changes:
+  - components/figma/handover-job-distributions-grid.tsx: Removed the strict version gate on saved column settings, normalized persisted layouts on load, and kept the Actions column header explicit.
+
 ## 2026-06-04 Deployment #307
 - Commit: 57d6522
 - Production: https://ice-6rogv7a8c-iceerp.vercel.app
