@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #305
+- Commit: a532d8a
+- Production: https://ice-oyt1nnai3-iceerp.vercel.app
+- Summary: Add advanced table features to job distributions grid and debugging logs for payment autonomy issue.
+- Changes:
+  - components/figma/handover-job-distributions-grid.tsx: Added column resizing (drag resize handle), column reordering (drag column headers), column visibility toggle (Columns dropdown), filtering (per-column filter icon), sorting (per-column sort icon), global search (search bar), and localStorage persistence (handovers-job-distributions-columns). Added console logging to track payment_uuid resolution and distribution loading.
+  - components/figma/job-distribution-grid.tsx: Added console logging to track payment_uuid in save operations.
+  - AGENTS.md: Documented new table features and debugging logs in Handovers Job Distribution UI section.
+
 ## 2026-06-04 Deployment #304
 - Commit: 94b6867
 - Production: https://ice-nrbhcak7n-iceerp.vercel.app
