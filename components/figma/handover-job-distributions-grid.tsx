@@ -70,7 +70,7 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
     setLoading(true);
     try {
       const [txRes, paymentsRes, distRes] = await Promise.all([
-        fetch('/api/bank-transactions-test?limit=0'),
+        fetch(`/api/bank-transactions?project_uuid=${encodeURIComponent(projectUuid)}&limit=0`),
         fetch(`/api/payments-report?projectUuid=${encodeURIComponent(projectUuid)}`),
         fetch(`/api/payments-jobs?project_uuid=${encodeURIComponent(projectUuid)}`),
       ]);
@@ -82,26 +82,30 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
           ? txPayload.data
           : [];
 
-      const filteredRows = txRows.filter((row: any) =>
-        row.project_uuid === projectUuid &&
-        !row.is_balance_record &&
-        (row.payment_id || row.batch_id)
-      );
-      setTransactions(filteredRows);
-
       const nextPaymentMap = new Map<string, PaymentMapEntry>();
+      const incomePaymentIds = new Set<string>();
       if (paymentsRes.ok) {
         const paymentsData = await paymentsRes.json();
-        paymentsData.forEach((payment: any) => {
+        const incomePayments = paymentsData.filter((payment: any) => payment.financialCodeIsIncome);
+        incomePayments.forEach((payment: any) => {
           if (payment.paymentId && payment.paymentUuid) {
             nextPaymentMap.set(payment.paymentId, {
               paymentUuid: payment.paymentUuid,
               currencyCode: payment.currencyCode ?? null,
             });
+            incomePaymentIds.add(payment.paymentId);
           }
         });
       }
       setPaymentMap(nextPaymentMap);
+
+      const filteredRows = txRows.filter((row: any) =>
+        row.project_uuid === projectUuid &&
+        !row.is_balance_record &&
+        row.payment_id &&
+        incomePaymentIds.has(row.payment_id)
+      );
+      setTransactions(filteredRows);
 
       const nextDistributionMap = new Map<string, JobDistributionRow[]>();
       if (distRes.ok) {

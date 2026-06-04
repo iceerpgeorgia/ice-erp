@@ -298,7 +298,6 @@ export function JobDistributionGrid({
         className="gap-2"
       >
         <Briefcase className="h-4 w-4" />
-        Job Distribution
         {distributionCount > 0 && (
           <Badge variant="secondary" className="ml-1">
             {distributionCount}

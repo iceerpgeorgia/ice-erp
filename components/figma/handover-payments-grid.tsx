@@ -14,7 +14,6 @@ import {
   User,
   Copy,
   RefreshCw,
-  Briefcase,
 } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -35,7 +34,6 @@ import { ClearFiltersButton } from './shared/clear-filters-button';
 import { useTableFilters } from './shared/use-table-filters';
 import type { ColumnFormat } from './shared/table-filters';
 import { BundleDistributionGrid, type BundleDistributionRow } from './bundle-distribution-grid';
-import { JobDistributionGrid, type JobDistributionRow } from './job-distribution-grid';
 import { LayoutGrid } from 'lucide-react';
 import {
   DropdownMenu,
@@ -994,19 +992,6 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                             paymentId={row.paymentId}
                             initialCount={attachmentCounts[row.paymentId] ?? 0}
                           />
-                          {row.projectUuid && row.paymentUuid && (
-                            <JobDistributionGrid
-                              paymentUuid={row.paymentUuid}
-                              paymentId={row.paymentId}
-                              paymentAmount={row.accrual || 0}
-                              paymentCurrencyCode={row.currencyCode || 'GEL'}
-                              accountCurrencyRate={1}
-                              projectUuid={row.projectUuid}
-                              value={[]}
-                              onChange={() => {}}
-                              onSave={() => fetchIncomePayments(projectUuid)}
-                            />
-                          )}
                           <button
                             onClick={() => openBaseInfo(row.paymentId)}
                             className="inline-block text-gray-600 hover:text-gray-800 hover:bg-gray-50 p-1 rounded transition-colors"
