@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #309
+- Commit: 40a411c
+- Production: https://ice-fe1n5nhc7-iceerp.vercel.app
+- Summary: Preserve dragged column order in the Handovers Job Distributions grid on reload.
+- Changes:
+  - components/figma/handover-job-distributions-grid.tsx: Normalized saved column layouts using the actual saved order instead of resetting to the default order, so drag-reordered columns survive refreshes.
+  - AGENTS.md: Documented that saved column layouts preserve user-dragged order across reloads.
+
 ## 2026-06-04 Deployment #308
 - Commit: c4565f7
 - Production: https://ice-pvhuaqyab-iceerp.vercel.app
