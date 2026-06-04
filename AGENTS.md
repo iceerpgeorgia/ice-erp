@@ -155,6 +155,9 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - `scripts/process-bog-gel-counteragents-first.js`: Original three-stage processor (Python implementation now matches this)
 - `scripts/parse-bog-gel-comprehensive.js`: Original comprehensive parser (Python implementation now matches this)
 
+## Bank Transactions API Filters
+- `GET /api/bank-transactions` supports `project_uuid` or `projectUuid` for server-side filtering. Conversion entries are filtered by `project_uuid`, and balance records are omitted when a project filter is set.
+
 ## RS.ge Waybill Sync
 
 ### Architecture Overview
@@ -247,6 +250,11 @@ When a waybill is bound (or re-bound) to a project, the system automatically cre
 
 ### Open Issue — Item-Level Priority
 When waybill items are bound to different projects, item-level binding should take priority over waybill-level payment derivation. This is not yet implemented; the current implementation operates at the waybill level only.
+
+## Handovers Job Distribution UI
+- The Job Distributions grid on Handovers renders bank-transaction-style rows (date, account, CA account, amount, nominal amount, financial code, nom ISO, payment ID, batch ID, description, ID1, ID2) from `/api/bank-transactions-test`, filtered by `project_uuid`.
+- The distribution dialog supports only two modes: All (default) and Manual. All uses weighted distribution by job selling price and applies both nominal and account-currency amounts; Manual allows user edits.
+- The dialog resolves `payment_uuid` via `/api/payments-report` and preloads existing allocations from `/api/payments-jobs`.
 
 ## Build, Test, and Development Commands
 Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, API, and workers concurrently while developing. Whenever `prisma/schema.prisma` changes, run `pnpm prisma migrate dev --name <feature>` followed by `pnpm prisma generate` to refresh the client. After adding new models to the schema, run `python scripts/auto-generate-templates.py` to automatically create Excel import templates in the `templates/` folder. Execute `pnpm test` for Jest coverage and `pnpm test:e2e` when end-to-end verification is required; append `--watch` for quick feedback loops.

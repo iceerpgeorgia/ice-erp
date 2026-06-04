@@ -67,7 +67,7 @@ export function JobDistributionGrid({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [localValue, setLocalValue] = useState<JobDistributionRow[]>([]);
-  const [distributionMode, setDistributionMode] = useState<'percentage' | 'nominal' | 'auto'>('nominal');
+  const [distributionMode, setDistributionMode] = useState<'all' | 'manual'>('all');
 
   // Load jobs when dialog opens
   useEffect(() => {
@@ -86,20 +86,22 @@ export function JobDistributionGrid({
           }));
           setJobs(jobsList);
 
-          // Initialize local value if empty
-          if (value.length === 0) {
-            const initialDistribution = data.map(job => ({
-              jobUuid: job.uuid,
-              jobName: job.name,
-              factoryNo: job.factory_no,
-              sellingPrice: job.selling_price,
-              percentage: '',
-              amount: '',
-              amountAccountCurr: '',
-            }));
-            setLocalValue(initialDistribution);
-          } else {
-            setLocalValue(value);
+          const nextValue = value.length === 0
+            ? jobsList.map(job => ({
+                jobUuid: job.uuid,
+                jobName: job.name,
+                factoryNo: job.factory_no,
+                sellingPrice: job.selling_price,
+                percentage: '',
+                amount: '',
+                amountAccountCurr: '',
+              }))
+            : value;
+
+          setLocalValue(nextValue);
+
+          if (value.length === 0 && distributionMode === 'all') {
+            handleAutoDistribute(nextValue);
           }
         }
         setLoading(false);
@@ -167,7 +169,7 @@ export function JobDistributionGrid({
   };
 
   // Auto-distribute by selling price
-  const handleAutoDistribute = async () => {
+  const handleAutoDistribute = async (baseRows = localValue) => {
     setLoading(true);
     try {
       const response = await fetch('/api/payments-jobs/auto-distribute', {
@@ -186,7 +188,7 @@ export function JobDistributionGrid({
       if (!response.ok) throw new Error(data.error || 'Failed to auto-distribute');
 
       // Update local value with auto-distributed amounts
-      const updated = localValue.map(row => {
+      const updated = baseRows.map(row => {
         const dist = data.distributions.find((d: any) => d.job_uuid === row.jobUuid);
         if (dist) {
           return {
@@ -201,11 +203,7 @@ export function JobDistributionGrid({
       });
 
       setLocalValue(updated);
-      setDistributionMode('auto');
       setLoading(false);
-
-      // Auto-save after auto-distribute
-      await handleSave(updated);
     } catch (error: any) {
       console.error('Auto-distribute error:', error);
       alert(error.message || 'Failed to auto-distribute');
@@ -225,9 +223,9 @@ export function JobDistributionGrid({
           project_uuid: projectUuid,
           amount: parseFloat(row.amount),
           amount_account_curr: parseFloat(row.amountAccountCurr) || null,
-          allocation_type: distributionMode === 'auto' ? 'auto_weighted' : distributionMode,
+          allocation_type: distributionMode === 'all' ? 'auto_weighted' : 'manual',
           allocation_percent: parseFloat(row.percentage) || null,
-          is_auto_distributed: distributionMode === 'auto',
+          is_auto_distributed: distributionMode === 'all',
           weight_snapshot: row.weight || null,
         }));
 
@@ -328,27 +326,31 @@ export function JobDistributionGrid({
                 <Label>Distribution Mode:</Label>
                 <Select
                   value={distributionMode}
-                  onValueChange={(val: any) => setDistributionMode(val)}
+                  onValueChange={(val: 'all' | 'manual') => {
+                    setDistributionMode(val);
+                    if (val === 'all') {
+                      handleAutoDistribute();
+                    }
+                  }}
                 >
                   <SelectTrigger className="w-[200px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="nominal">Manual (Amount)</SelectItem>
-                    <SelectItem value="percentage">Manual (Percent)</SelectItem>
-                    <SelectItem value="auto">Auto (Selling Price)</SelectItem>
+                    <SelectItem value="all">All (Weighted)</SelectItem>
+                    <SelectItem value="manual">Manual</SelectItem>
                   </SelectContent>
                 </Select>
 
-                {distributionMode === 'auto' && (
+                {distributionMode === 'all' && (
                   <Button
                     type="button"
-                    onClick={handleAutoDistribute}
+                    onClick={() => handleAutoDistribute()}
                     disabled={loading || !projectUuid}
                     className="gap-2"
                   >
                     <TrendingUp className="h-4 w-4" />
-                    Calculate
+                    Recalculate
                   </Button>
                 )}
               </div>
@@ -385,7 +387,7 @@ export function JobDistributionGrid({
                             value={row.percentage}
                             onChange={(e) => handlePercentageChange(index, e.target.value)}
                             className="text-right"
-                            disabled={distributionMode === 'auto'}
+                            disabled={distributionMode === 'all'}
                           />
                         </td>
                         <td className="p-2">
@@ -395,7 +397,7 @@ export function JobDistributionGrid({
                             value={row.amount}
                             onChange={(e) => handleAmountChange(index, e.target.value)}
                             className="text-right"
-                            disabled={distributionMode === 'auto'}
+                            disabled={distributionMode === 'all'}
                           />
                         </td>
                         {accountCurrencyRate !== 1 && (
@@ -429,13 +431,13 @@ export function JobDistributionGrid({
               </div>
 
               {/* Validation Messages */}
-              {!totals.percentValid && distributionMode === 'percentage' && (
+              {distributionMode === 'manual' && !totals.percentValid && (
                 <div className="flex items-center gap-2 text-sm text-amber-600">
                   <AlertCircle className="h-4 w-4" />
                   <span>Total percentage must equal 100%</span>
                 </div>
               )}
-              {!totals.amountValid && distributionMode === 'nominal' && (
+              {distributionMode === 'manual' && !totals.amountValid && (
                 <div className="flex items-center gap-2 text-sm text-amber-600">
                   <AlertCircle className="h-4 w-4" />
                   <span>Total amount must equal payment amount</span>
@@ -464,7 +466,7 @@ export function JobDistributionGrid({
                   <Button
                     type="button"
                     onClick={() => handleSave()}
-                    disabled={saving || (!totals.percentValid && distributionMode === 'percentage') || (!totals.amountValid && distributionMode === 'nominal')}
+                    disabled={saving || (distributionMode === 'manual' && !totals.amountValid)}
                   >
                     {saving ? (
                       <>

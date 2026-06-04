@@ -339,12 +339,26 @@ export async function GET(req: NextRequest) {
     const idsParam = searchParams.get('ids');      // Comma-separated IDs for fetching specific records
     const rawRecordUuid = searchParams.get('rawRecordUuid');
     const recordUuid = searchParams.get('recordUuid'); // UUID of the raw table record (cba.uuid)
+    const projectUuidParam = searchParams.get('projectUuid') || searchParams.get('project_uuid');
     const limitParam = searchParams.get('limit');  // Optional limit override (default: 1000)
     const offsetParam = searchParams.get('offset'); // Optional offset for pagination (default: 0)
     const debugParam = searchParams.get('debug');
     const includeDebug = debugParam === '1' || debugParam?.toLowerCase() === 'true';
+    const safeProjectUuid = projectUuidParam && /^[0-9a-fA-F-]{36}$/.test(projectUuidParam)
+      ? projectUuidParam
+      : null;
 
-    console.log('[API] Query params:', { fromDate, toDate, idsParam, rawRecordUuid, recordUuid, limitParam, offsetParam, debugParam });
+    console.log('[API] Query params:', { fromDate, toDate, idsParam, rawRecordUuid, recordUuid, projectUuid: safeProjectUuid, limitParam, offsetParam, debugParam });
+
+    const projectFilterSql = safeProjectUuid
+      ? ` AND COALESCE(cba.batch_project_uuid, cba.project_uuid) = '${safeProjectUuid}'::uuid`
+      : '';
+    const projectWhereSql = safeProjectUuid
+      ? ` WHERE COALESCE(cba.batch_project_uuid, cba.project_uuid) = '${safeProjectUuid}'::uuid`
+      : '';
+    const conversionProjectWhereSql = safeProjectUuid
+      ? ` WHERE ce.project_uuid = '${safeProjectUuid}'::uuid`
+      : '';
 
     const toJsonSafe = (value: any): any => {
       if (typeof value === 'bigint') return value.toString();
@@ -398,7 +412,7 @@ export async function GET(req: NextRequest) {
     
     // Limit to recent 1000 records by default unless specific IDs requested
     const defaultLimit = 1000;
-    const isUnfiltered = !fromDate && !toDate && !idsParam && !rawRecordUuid && !recordUuid;
+    const isUnfiltered = !fromDate && !toDate && !idsParam && !rawRecordUuid && !recordUuid && !safeProjectUuid;
     let limit = (idsParam || recordUuid)
       ? undefined
       : (limitParam ? (limitParam === '0' ? undefined : parseInt(limitParam)) : (isUnfiltered ? undefined : defaultLimit));
@@ -433,7 +447,7 @@ export async function GET(req: NextRequest) {
          LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid) = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
          LEFT JOIN currencies curr_nom ON COALESCE(cba.batch_nominal_currency_uuid, cba.nominal_currency_uuid) = curr_nom.uuid
-         WHERE cba.raw_record_uuid::text = $1::text
+         WHERE cba.raw_record_uuid::text = $1::text${projectFilterSql}
          ORDER BY cba.transaction_date DESC, cba.id DESC`,
         rawRecordUuid
       );
@@ -456,7 +470,7 @@ export async function GET(req: NextRequest) {
          LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid) = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
          LEFT JOIN currencies curr_nom ON COALESCE(cba.batch_nominal_currency_uuid, cba.nominal_currency_uuid) = curr_nom.uuid
-         WHERE cba.uuid::text = $1::text
+         WHERE cba.uuid::text = $1::text${projectFilterSql}
          ORDER BY cba.transaction_date DESC, cba.id DESC`,
         recordUuid
       );
@@ -480,7 +494,7 @@ export async function GET(req: NextRequest) {
          LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid) = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
          LEFT JOIN currencies curr_nom ON COALESCE(cba.batch_nominal_currency_uuid, cba.nominal_currency_uuid) = curr_nom.uuid
-         WHERE cba.synthetic_id = ANY($1::bigint[])
+         WHERE cba.synthetic_id = ANY($1::bigint[])${projectFilterSql}
          ORDER BY cba.transaction_date DESC, cba.id DESC`,
         idsArray
       );
@@ -504,6 +518,7 @@ export async function GET(req: NextRequest) {
          LEFT JOIN financial_codes fc ON COALESCE(cba.batch_financial_code_uuid, cba.financial_code_uuid) = fc.uuid
          LEFT JOIN currencies curr_acc ON cba.account_currency_uuid = curr_acc.uuid
          LEFT JOIN currencies curr_nom ON COALESCE(cba.batch_nominal_currency_uuid, cba.nominal_currency_uuid) = curr_nom.uuid
+        ${projectWhereSql}
         ORDER BY cba.transaction_date DESC, cba.id DESC${limitSql}`
       );
     }
@@ -511,7 +526,7 @@ export async function GET(req: NextRequest) {
     
     console.log('[API] Step 2: Getting total count...');
     // Get total count for pagination (only when not fetching specific IDs and limit is set)
-    const totalCount = idsParam || recordUuid || !limit
+    const totalCount = idsParam || recordUuid || !limit || safeProjectUuid
       ? undefined
       : (await prisma.$queryRawUnsafe<Array<{count: bigint}>>(
           `SELECT SUM(count)::bigint as count FROM (
@@ -587,8 +602,9 @@ export async function GET(req: NextRequest) {
            ce.financial_code,
            ce.project_index,
            ce.source_table
-         FROM conversion_entries ce
-         ORDER BY ce.transaction_date DESC, ce.id DESC`
+        FROM conversion_entries ce
+        ${conversionProjectWhereSql}
+        ORDER BY ce.transaction_date DESC, ce.id DESC`
       );
 
       const fromComparable = toComparableDate(fromDate);
@@ -671,33 +687,36 @@ export async function GET(req: NextRequest) {
     const rawRecordUuids = [...new Set(filteredTransactions.map(t => t.raw_record_uuid).filter(Boolean))];
     console.log('[API] Step 4 complete: Will fetch applied_rule_id for', rawRecordUuids.length, 'raw records');
     
+    const includeBalances = !safeProjectUuid;
     console.log('[API] Step 5: Fetching balance records...');
     // Fetch balance records from bank_accounts table
-    const balanceRecords = await prisma.bankAccount.findMany({
-      where: {
-        balance: { not: null },
-        balanceDate: { not: null },
-        isActive: true
-      },
-      select: {
-        id: true,
-        uuid: true,
-        accountNumber: true,
-        currencyUuid: true,
-        balance: true,
-        balanceDate: true,
-        bank: {
-          select: {
-            bankName: true,
+    const balanceRecords = includeBalances
+      ? await prisma.bankAccount.findMany({
+          where: {
+            balance: { not: null },
+            balanceDate: { not: null },
+            isActive: true
           },
-        },
-        currency: {
           select: {
-            code: true,
-          },
-        },
-      }
-    });
+            id: true,
+            uuid: true,
+            accountNumber: true,
+            currencyUuid: true,
+            balance: true,
+            balanceDate: true,
+            bank: {
+              select: {
+                bankName: true,
+              },
+            },
+            currency: {
+              select: {
+                code: true,
+              },
+            },
+          }
+        })
+      : [];
     console.log('[API] Step 5 complete: Got', balanceRecords.length, 'balance records');
 
     // Fetch applied_rule_id from raw table (optional - may not exist on all environments)
