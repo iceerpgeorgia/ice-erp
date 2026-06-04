@@ -828,16 +828,22 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                 </tr>
               ) : (
                 paginatedData.map((row, idx) => {
-                  const isConfirmedPaid = Boolean(row.confirmed && row.due === 0);
-                  const isConfirmedDue = Boolean(row.confirmed && row.due > 0);
                   const isSelected = selectedIds.has(row.paymentId);
-                  const hasParentFC = Boolean(row.parentFinancialCode);
                   const isBundleAgg = Boolean(row.isBundleAggregate);
+
                   return (
                     <tr
                       key={`${row.paymentId}-${row.financialCode}-${idx}`}
                       className={`border-b border-gray-200 hover:bg-gray-50 ${
-                        isBundleAgg ? 'italic bg-blue-50/40' : hasParentFC ? 'italic bg-blue-50/40' : isSelected ? 'bg-blue-50' : isConfirmedPaid ? 'bg-gray-100' : isConfirmedDue ? 'bg-[#e8f5e9]' : ''
+                        isSelected
+                          ? 'bg-blue-50'
+                          : isBundleAgg
+                          ? 'italic bg-blue-50/40'
+                          : row.isActive === false
+                          ? 'bg-gray-100 text-gray-400'
+                          : row.paidPercent === 100
+                          ? 'bg-green-50/40'
+                          : ''
                       }`}
                     >
                       <td className="px-3 py-2" style={{ width: 36, minWidth: 36 }}>
@@ -858,7 +864,7 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                               width: col.width,
                               minWidth: col.width,
                               maxWidth: col.width,
-                              backgroundColor: bgColor || (isConfirmedPaid ? '#f3f4f6' : isConfirmedDue ? '#e8f5e9' : undefined),
+                              backgroundColor: bgColor || undefined,
                             }}
                           >
                             {col.key === 'paymentId' ? (
