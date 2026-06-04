@@ -53,6 +53,8 @@ type BankTxColumnConfig = {
 type BankTransactionRow = {
   id: number;
   transaction_date: string | null;
+  counteragent_uuid?: string | null;
+  financial_code_uuid?: string | null;
   account_number: string | null;
   counteragent_account_number: string | null;
   account_currency_amount: string | number | null;
@@ -71,6 +73,7 @@ type BankTransactionRow = {
 type PaymentMapEntry = {
   paymentUuid: string;
   currencyCode: string | null;
+  paymentId: string | null;
 };
 
 type Props = {
@@ -171,6 +174,34 @@ const formatDate = (dateString: string | null | undefined): string => {
   return `${day}.${month}.${year}`;
 };
 
+function makePaymentLookupKey(
+  paymentId?: string | null,
+  projectUuid?: string | null,
+  counteragentUuid?: string | null,
+  financialCodeUuid?: string | null,
+  currencyCode?: string | null,
+) {
+  return [
+    paymentId ?? '',
+    projectUuid ?? '',
+    counteragentUuid ?? '',
+    financialCodeUuid ?? '',
+    currencyCode ?? '',
+  ].join('|');
+}
+
+function resolvePaymentInfo(row: BankTransactionRow, paymentMap: Map<string, PaymentMapEntry>) {
+  const compositeKey = makePaymentLookupKey(
+    row.payment_id,
+    row.project_uuid,
+    row.counteragent_uuid,
+    row.financial_code_uuid,
+    row.nominal_currency_code,
+  );
+
+  return paymentMap.get(compositeKey) ?? paymentMap.get(row.payment_id ?? '') ?? null;
+}
+
 const exportKeyMap: Record<BankTxColKey, string> = {
   actions: 'actions',
   date: 'date',
@@ -195,7 +226,7 @@ function buildDistributionExportRows(
   const exportRows: Record<string, any>[] = [];
 
   rows.forEach((row) => {
-    const paymentInfo = row.payment_id ? paymentMap.get(row.payment_id) : null;
+    const paymentInfo = resolvePaymentInfo(row, paymentMap);
     const paymentUuid = paymentInfo?.paymentUuid ?? null;
     const distributions = paymentUuid ? (distributionMap.get(paymentUuid) ?? []) : [];
 
@@ -224,15 +255,15 @@ function buildDistributionExportRows(
     }
 
     distributions.forEach((dist) => {
-      const distributedAmount = Number(dist.amount || 0);
-      const distributedAmountAccountCurr = Number(dist.amountAccountCurr || 0);
+      const distributedAmount = dist.amount != null ? Number(dist.amount) : null;
+      const distributedAmountAccountCurr = dist.amountAccountCurr != null ? Number(dist.amountAccountCurr) : null;
 
       exportRows.push({
         date: row.transaction_date ?? '',
         account: row.account_number ?? '',
         caAccount: row.counteragent_account_number ?? '',
-        amount: distributedAmountAccountCurr || row.account_currency_amount || '',
-        nominalAmount: distributedAmount || row.nominal_amount || '',
+        amount: distributedAmountAccountCurr ?? row.account_currency_amount ?? '',
+        nominalAmount: distributedAmount ?? row.nominal_amount ?? '',
         financialCode: row.financial_code ?? '',
         nomIso: row.nominal_currency_code ?? '',
         paymentId: row.payment_id ?? '',
@@ -344,15 +375,27 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
         console.log('[Job Dist] Income payments count:', incomePayments.length);
         incomePayments.forEach((payment: any) => {
           if (payment.paymentId && payment.paymentUuid) {
-            nextPaymentMap.set(payment.paymentId, {
+            const lookupKey = makePaymentLookupKey(
+              payment.paymentId,
+              payment.projectUuid,
+              payment.counteragentUuid,
+              payment.financialCodeUuid,
+              payment.currencyCode,
+            );
+            const entry = {
               paymentUuid: payment.paymentUuid,
               currencyCode: payment.currencyCode ?? null,
-            });
+              paymentId: payment.paymentId ?? null,
+            };
+
+            nextPaymentMap.set(lookupKey, entry);
+            nextPaymentMap.set(payment.paymentId, entry);
             incomePaymentIds.add(payment.paymentId);
             console.log('[Job Dist] Payment mapping:', {
               paymentId: payment.paymentId,
               paymentUuid: payment.paymentUuid,
-              financialCode: payment.financialCodeCode,
+              lookupKey,
+              financialCode: payment.financialCode,
             });
           }
         });
@@ -568,6 +611,13 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
     return sorted;
   }, [filteredData, sortColumn, sortDirection]);
 
+  const totals = useMemo(() => {
+    return {
+      amount: sortedData.reduce((sum, row) => sum + Number(row.account_currency_amount ?? 0), 0),
+      nominalAmount: sortedData.reduce((sum, row) => sum + Number(row.nominal_amount ?? 0), 0),
+    };
+  }, [sortedData]);
+
   const handleExportXlsx = useCallback(() => {
     if (!sortedData.length) return;
 
@@ -577,6 +627,7 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
         key: exportKeyMap[column.key],
         label: column.label,
         visible: true,
+        format: column.format,
       }));
 
     const exportRows = buildDistributionExportRows(sortedData, paymentMap, distributionMap);
@@ -775,7 +826,7 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {sortedData.map((row, idx) => {
-                const paymentInfo = row.payment_id ? paymentMap.get(row.payment_id) : null;
+                const paymentInfo = resolvePaymentInfo(row, paymentMap);
                 const paymentUuid = paymentInfo?.paymentUuid ?? null;
                 const distributionValue = paymentUuid ? (distributionMap.get(paymentUuid) ?? []) : [];
 
@@ -864,8 +915,41 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
                   </tr>
                 );
               })}
-            </tbody>
-          </table>
+              </tbody>
+              <tfoot className="bg-gray-50 font-semibold text-sm">
+                <tr className="border-t border-gray-200">
+                  {visibleColumns.map((column, index) => {
+                    if (index === 0) {
+                      return (
+                        <td key="totals-label" className="px-4 py-3 text-sm font-semibold" style={{ width: column.width }}>
+                          Total
+                        </td>
+                      );
+                    }
+
+                    if (column.key === 'amount') {
+                      return (
+                        <td key="totals-amount" className="px-4 py-3 text-sm text-right tabular-nums" style={{ width: column.width }}>
+                          {fmtVal(totals.amount, column.format, column.key)}
+                        </td>
+                      );
+                    }
+
+                    if (column.key === 'nominalAmount') {
+                      return (
+                        <td key="totals-nominal" className="px-4 py-3 text-sm text-right tabular-nums" style={{ width: column.width }}>
+                          {fmtVal(totals.nominalAmount, column.format, column.key)}
+                        </td>
+                      );
+                    }
+
+                    return (
+                      <td key={`totals-${column.key}`} className="px-4 py-3 text-sm" style={{ width: column.width }} />
+                    );
+                  })}
+                </tr>
+              </tfoot>
+            </table>
         </div>
       </div>
     )}

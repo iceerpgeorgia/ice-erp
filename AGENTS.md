@@ -273,6 +273,21 @@ Favor tests on public contracts: API handlers, Prisma services, and UI state red
 ## Commit & Pull Request Guidelines
 Use Conventional Commits (for example `feat(auth): add oauth screen` or `fix(orders): correct pagination`) and mention migration identifiers in commit bodies when schema changes occur. Pull requests need a concise summary, linked Jira issue, updated tests, and UI screenshots whenever the webapp shifts. Call out manual steps (migrations, env vars, or backfills) so reviewers can reproduce outcomes.
 
+## Deploying Instructions
+Only run deployment when explicitly asked with the command `deploy`.
+
+Build locally before any deployment. A successful local production build is mandatory before you push or deploy.
+
+Use this exact procedure for every production release:
+1. Verify the change set locally with the project checks that apply (`pnpm exec tsc --noEmit --pretty false`, `pnpm lint`, and `pnpm build`).
+2. Commit the implementation changes with a Conventional Commit message.
+3. Push the commit with `"[skip ci]"` in the commit message so Vercel Git auto-deploy does not run.
+4. Run exactly one manual production deploy with `npx vercel --prod --yes`.
+5. Record the production URL and commit reference in [docs/DEPLOYMENT_LOG.md](docs/DEPLOYMENT_LOG.md).
+6. Commit and push the deployment-log update with `"[skip ci]"` in the commit message.
+
+This keeps production deploys single-shot, traceable, and free of duplicate Vercel builds.
+
 ## Deployment Logging Policy
 Only commit, push, and deploy when explicitly instructed with the command "deploy".
 

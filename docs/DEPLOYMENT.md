@@ -139,6 +139,15 @@ DESIGN_SOURCE=figma
 2. Wait for deployment to complete (~2-3 minutes)
 3. You'll get a URL like: `https://ice-erp.vercel.app`
 
+### 4.4 Record the deployment
+
+After every production deploy, append a deployment entry to [docs/DEPLOYMENT_LOG.md](docs/DEPLOYMENT_LOG.md) with:
+- the commit reference,
+- the production URL,
+- and a short summary of what changed.
+
+Also follow the repo policy in [AGENTS.md](../AGENTS.md): use a single manual production deploy, push with `"[skip ci]"`, and update the log after the deploy.
+
 ---
 
 ## Step 5: Run Database Migrations
