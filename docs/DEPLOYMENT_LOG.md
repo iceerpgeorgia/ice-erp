@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-05 Deployment #314
+- Commit: ec74b06
+- Production: https://ice-cew5pqd2y-iceerp.vercel.app
+- Summary: Fix XLSX export numeric values and add a regression test for the distribution export path.
+- Changes:
+  - lib/export-xlsx.ts: Normalize locale-formatted numeric values and Excel serial dates to real number cells in generated workbooks.
+  - lib/export-xlsx.test.ts: Added regression coverage to confirm exported numeric values are written as real numeric cells.
+
 ## 2026-06-05 Deployment #313
 - Commit: 90c2865
 - Production: https://ice-5wwd0bgpl-iceerp.vercel.app
