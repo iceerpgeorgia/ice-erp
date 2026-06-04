@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #311
+- Commit: 7b65f23
+- Production: https://ice-4l1vwk5o9-iceerp.vercel.app
+- Summary: Improve handovers payment lookup/export path and clarify deployment instructions.
+- Changes:
+  - components/figma/handover-job-distributions-grid.tsx: Enhanced payment resolution and export handling for the handovers distributions grid.
+  - app/api/payments-jobs/route.ts: Refined payment-job persistence behavior used by distribution flows.
+  - lib/export-xlsx.ts: Improved export formatting and amount handling for XLSX output.
+  - AGENTS.md + docs/DEPLOYMENT.md: Added and clarified the local-build-before-deploy and deployment-log instructions.
+
 ## 2026-06-04 Deployment #310
 - Commit: e51e55e
 - Production: https://ice-5smwxnzm1-iceerp.vercel.app
