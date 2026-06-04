@@ -229,6 +229,13 @@ export function JobDistributionGrid({
           weight_snapshot: row.weight || null,
         }));
 
+      console.log('[Job Dist Save] Saving distributions:', {
+        payment_uuid: paymentUuid,
+        payment_id: paymentId,
+        distributions_count: distributions.length,
+        replace_all: true,
+      });
+
       const response = await fetch('/api/payments-jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -242,6 +249,7 @@ export function JobDistributionGrid({
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to save');
 
+      console.log('[Job Dist Save] Save successful');
       onChange(dataToSave);
       setSaving(false);
       setIsOpen(false);
