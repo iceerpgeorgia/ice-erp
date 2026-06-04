@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #301
+- Commit: 6fca3c7
+- Production: https://ice-mt4b8z23h-iceerp.vercel.app
+- Summary: Integrate job distribution feature into handovers page as 3rd grid.
+- Changes:
+  - components/figma/handover-job-distributions-grid.tsx: New read-only grid showing job distributions grouped by payment with allocation summaries.
+  - components/figma/handovers-table.tsx: Added HandoverJobDistributionsGrid as third grid below payments grid.
+  - components/figma/handover-payments-grid.tsx: Added JobDistributionGrid button to actions column for per-payment distribution editing; added paymentUuid and currencyCode fields to IncomePaymentRow type.
+  - app/api/payments-report/route.ts: Added payment_uuid (record_uuid) and currency_code to SELECT and response mapping.
+
 ## 2026-06-04 Deployment #300
 - Commit: b6a42cc
 - Production: https://ice-effpz9bkq-iceerp.vercel.app
