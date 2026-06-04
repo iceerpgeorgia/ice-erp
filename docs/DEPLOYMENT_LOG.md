@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #310
+- Commit: e51e55e
+- Production: https://ice-5smwxnzm1-iceerp.vercel.app
+- Summary: Add XLSX export for job-distribution allocation splits and document the Handovers grid behavior.
+- Changes:
+  - components/figma/handover-job-distributions-grid.tsx: Added export support that flattens each payment into one row per job allocation, with amount and nominal amount reflecting the split.
+  - AGENTS.md: Documented the allocation-aware XLSX export behavior for the Handovers Job Distributions grid.
+
 ## 2026-06-04 Deployment #309
 - Commit: 40a411c
 - Production: https://ice-fe1n5nhc7-iceerp.vercel.app
