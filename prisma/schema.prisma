@@ -31,26 +31,15 @@ model AuditLog {
   id         BigInt   @id @default(autoincrement())
   created_at DateTime @default(now())
   table      String
-  record_id  String
+  record_id  BigInt
   action     String
   user_email String?
   user_id    String?
   changes    Json?
 
-  @@index([table, record_id, created_at])
-}
-
-model Entry {
-  id        String   @id
-  userId    String
-  project   String
-  hours     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([createdAt])
-  @@index([userId])
+  @@index([created_at(sort: Desc)])
+  @@index([table, record_id])
+  @@index([user_email])
 }
 
 model Session {
@@ -59,28 +48,32 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model User {
-  id                    String                     @id
-  name                  String?
-  email                 String?                    @unique
-  emailVerified         DateTime?
-  image                 String?
-  role                  String                     @default("user")
-  isAuthorized          Boolean                    @default(false)
-  authorizedAt          DateTime?
-  authorizedBy          String?
-  paymentNotifications  Boolean                    @default(false) @map("payment_notifications")
-  counteragentUuid      String?                    @map("counteragent_uuid") @db.Uuid
-  Account               Account[]
-  Entry                 Entry[]
-  Session               Session[]
-  UserPermission        UserPermission[]
+  id                       String                     @id
+  name                     String?
+  email                    String?                    @unique
+  emailVerified            DateTime?
+  image                    String?
+  role                     String                     @default("user")
+  isAuthorized             Boolean                    @default(false)
+  authorizedAt             DateTime?
+  authorizedBy             String?
+  paymentNotifications     Boolean                    @default(false) @map("payment_notifications")
+  counteragentUuid         String?                    @map("counteragent_uuid") @db.Uuid
+  Account                  Account[]
   PaymentNotificationToken PaymentNotificationToken[]
-  ProjectReportView     ProjectReportView[]
-  UserNavFolder         UserNavFolder[]
-  UserNavItem           UserNavItem[]
+  Session                  Session[]
+  UserPermission           UserPermission[]
+  ProjectReportView        ProjectReportView[]
+  UserNavFolder            UserNavFolder[]
+  UserNavItem              UserNavItem[]
+
+  @@index([isAuthorized])
+  @@index([role])
 }
 
 model UserNavFolder {
@@ -90,11 +83,11 @@ model UserNavFolder {
   icon      String        @default("Folder") @db.VarChar(50)
   sortOrder Int           @default(0)
   createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt DateTime      @default(now()) @updatedAt
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   items     UserNavItem[]
 
-  @@index([userId])
+  @@index([userId], map: "user_nav_folders_userid_idx")
   @@map("user_nav_folders")
 }
 
@@ -105,11 +98,11 @@ model UserNavItem {
   icon      String?        @db.VarChar(50)
   folderId  String?
   sortOrder Int            @default(0)
-  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  folder    UserNavFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  folder    UserNavFolder? @relation(fields: [folderId], references: [id], onUpdate: NoAction)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([userId, routeKey])
-  @@index([userId])
+  @@index([userId], map: "user_nav_items_userid_idx")
   @@map("user_nav_items")
 }
 
@@ -118,48 +111,48 @@ model ProjectReportView {
   uuid      String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String   @map("user_id")
   name      String   @db.VarChar(100)
-  config    Json
+  config    Json     @default("{}")
   isDefault Boolean  @default(false) @map("is_default")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@index([userId])
+  @@index([userId], map: "idx_project_report_views_user_id")
   @@map("project_report_views")
 }
 
 model Module {
-  id             BigInt          @id @default(autoincrement())
-  uuid           String          @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name           String          @db.VarChar(100)
-  key            String          @unique @db.VarChar(100)
-  description    String?
-  icon           String?         @db.VarChar(50)
-  route          String?         @db.VarChar(255)
-  displayOrder   Int             @default(0) @map("display_order")
-  isActive       Boolean         @default(true) @map("is_active")
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @updatedAt @map("updated_at")
-  ModuleFeature  ModuleFeature[]
+  id            BigInt          @id @default(autoincrement())
+  uuid          String          @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String          @db.VarChar(100)
+  key           String          @unique @db.VarChar(100)
+  description   String?
+  icon          String?         @db.VarChar(50)
+  route         String?         @db.VarChar(255)
+  displayOrder  Int             @default(0) @map("display_order")
+  isActive      Boolean         @default(true) @map("is_active")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  ModuleFeature ModuleFeature[]
 
   @@index([isActive])
 }
 
 model ModuleFeature {
-  id               BigInt           @id @default(autoincrement())
-  uuid             String           @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  moduleId         BigInt           @map("module_id")
-  moduleUuid       String           @map("module_uuid") @db.Uuid
-  name             String           @db.VarChar(100)
-  key              String           @db.VarChar(100)
-  description      String?
-  featureType      String           @default("action") @map("feature_type") @db.VarChar(50)
-  isActive         Boolean          @default(true) @map("is_active")
-  createdAt        DateTime         @default(now()) @map("created_at")
-  updatedAt        DateTime         @updatedAt @map("updated_at")
-  module           Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  UserPermission   UserPermission[]
-  RolePermission   RolePermission[]
+  id             BigInt           @id @default(autoincrement())
+  uuid           String           @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  moduleId       BigInt           @map("module_id")
+  moduleUuid     String           @map("module_uuid") @db.Uuid
+  name           String           @db.VarChar(100)
+  key            String           @db.VarChar(100)
+  description    String?
+  featureType    String           @default("action") @map("feature_type") @db.VarChar(50)
+  isActive       Boolean          @default(true) @map("is_active")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  module         Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  RolePermission RolePermission[]
+  UserPermission UserPermission[]
 
   @@unique([moduleId, key])
   @@index([moduleId])
@@ -179,8 +172,8 @@ model UserPermission {
   isActive          Boolean       @default(true) @map("is_active")
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @updatedAt @map("updated_at")
-  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   moduleFeature     ModuleFeature @relation(fields: [moduleFeatureId], references: [id], onDelete: Cascade)
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, moduleFeatureId])
   @@index([userId])
@@ -207,15 +200,15 @@ model RolePermission {
 }
 
 model PaymentNotificationToken {
-  id             BigInt   @id @default(autoincrement())
-  uuid           String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  token          String   @unique
-  userId         String   @map("user_id")
-  paymentId      String   @map("payment_id")
-  expiresAt      DateTime @map("expires_at")
-  usedAt         DateTime? @map("used_at")
-  createdAt      DateTime @default(now()) @map("created_at")
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        BigInt    @id @default(autoincrement())
+  uuid      String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token     String    @unique
+  userId    String    @map("user_id")
+  paymentId String    @map("payment_id")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
   @@index([userId])
@@ -232,30 +225,33 @@ model VerificationToken {
 }
 
 model BankAccount {
-  id                       BigInt                    @id @default(autoincrement())
-  uuid                     String                    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  accountNumber            String                    @map("account_number")
-  currencyUuid             String                    @map("currency_uuid") @db.Uuid
-  isActive                 Boolean                   @default(true) @map("is_active")
-  createdAt                DateTime                  @default(now()) @map("created_at")
-  updatedAt                DateTime                  @updatedAt @map("updated_at")
-  bankUuid                 String?                   @map("bank_uuid") @db.Uuid
-  balance                  Decimal?                  @db.Decimal(18, 2)
-  balanceDate              DateTime?                 @map("balance_date") @db.Date
-  insiderUuid              String?                   @map("insider_uuid") @db.Uuid
-  parsingSchemeUuid        String?                   @map("parsing_scheme_uuid") @db.Uuid
-  rawTableName             String?                   @map("raw_table_name") @db.VarChar(255)
-  parsingSchemeId          BigInt?                   @map("parsing_scheme_id")
-  bank                     Bank?                     @relation(fields: [bankUuid], references: [uuid])
-  currency                 currencies                @relation(fields: [currencyUuid], references: [uuid])
-  consolidatedBankAccounts ConsolidatedBankAccount[]
-  bankAccountBalances      BankAccountBalance[]
+  id                        BigInt                      @id @default(autoincrement())
+  uuid                      String                      @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  accountNumber             String                      @map("account_number")
+  currencyUuid              String                      @map("currency_uuid") @db.Uuid
+  isActive                  Boolean                     @default(true) @map("is_active")
+  createdAt                 DateTime                    @default(now()) @map("created_at")
+  updatedAt                 DateTime                    @updatedAt @map("updated_at")
+  bankUuid                  String?                     @map("bank_uuid") @db.Uuid
+  balance                   Decimal?                    @db.Decimal(18, 2)
+  balanceDate               DateTime?                   @map("balance_date") @db.Date
+  parsingSchemeUuid         String?                     @map("parsing_scheme_uuid") @db.Uuid
+  rawTableName              String?                     @map("raw_table_name") @db.VarChar(255)
+  parsingSchemeId           BigInt?                     @map("parsing_scheme_id")
+  insiderUuid               String                      @map("insider_uuid") @db.Uuid
+  bankAccountBalances       BankAccountBalance[]
+  bank                      Bank?                       @relation(fields: [bankUuid], references: [uuid])
+  currency                  currencies                  @relation(fields: [currencyUuid], references: [uuid])
+  parsing_schemes           parsing_schemes?            @relation(fields: [parsingSchemeUuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+  bog_gel_raw_statements    bog_gel_raw_statements[]
+  raw_bank_statements       raw_bank_statements[]
+  standardized_transactions standardized_transactions[]
 
   @@unique([accountNumber, currencyUuid])
   @@index([bankUuid])
   @@index([currencyUuid])
-  @@index([insiderUuid])
   @@index([parsingSchemeId])
+  @@index([insiderUuid], map: "idx_bank_accounts_insider_uuid")
   @@map("bank_accounts")
 }
 
@@ -264,15 +260,15 @@ model BankAccountBalance {
   accountUuid           String      @map("account_uuid") @db.Uuid
   openingDate           DateTime    @map("opening_date") @db.Date
   openingBalance        Decimal     @map("opening_balance") @db.Decimal(20, 2)
-  openingBalanceBankApi Decimal?    @map("opening_balance_bank_api") @db.Decimal(20, 2)
   inflow                Decimal     @default(0) @db.Decimal(20, 2)
-  inflowBankApi         Decimal?    @map("inflow_bank_api") @db.Decimal(20, 2)
   outflow               Decimal     @default(0) @db.Decimal(20, 2)
-  outflowBankApi        Decimal?    @map("outflow_bank_api") @db.Decimal(20, 2)
   closingDate           DateTime    @map("closing_date") @db.Date
-  closingBalance        Decimal     @map("closing_balance") @db.Decimal(20, 2)
+  closingBalance        Decimal?    @default(dbgenerated("((opening_balance + inflow) - outflow)")) @map("closing_balance") @db.Decimal(20, 2)
+  openingBalanceBankApi Decimal?    @map("opening_balance_bank_api") @db.Decimal(20, 2)
+  inflowBankApi         Decimal?    @map("inflow_bank_api") @db.Decimal(20, 2)
+  outflowBankApi        Decimal?    @map("outflow_bank_api") @db.Decimal(20, 2)
   closingBalanceBankApi Decimal?    @map("closing_balance_bank_api") @db.Decimal(20, 2)
-  bankAccount           BankAccount @relation(fields: [accountUuid], references: [uuid], onDelete: Cascade)
+  bankAccount           BankAccount @relation(fields: [accountUuid], references: [uuid], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([accountUuid, openingDate], map: "uq_bank_account_balances_account_opening_date")
   @@index([accountUuid], map: "idx_bank_account_balances_account_uuid")
@@ -283,7 +279,7 @@ model BankAccountBalance {
 
 model Bank {
   id           BigInt        @id @default(autoincrement())
-  uuid         String        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  uuid         String        @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   bankName     String        @map("bank_name")
   isActive     Boolean       @default(true) @map("is_active")
   createdAt    DateTime      @default(now()) @map("created_at")
@@ -296,7 +292,7 @@ model Bank {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model bog_gel_raw_893486000 {
   id                     BigInt   @id @default(autoincrement())
-  uuid                   String   @db.Uuid
+  uuid                   String   @unique @db.Uuid
   cancopydocument        String?
   canviewdocument        String?
   canprintdocument       String?
@@ -347,24 +343,35 @@ model bog_gel_raw_893486000 {
   docpayername           String?
   docpayerinn            String?
   import_batch_id        String?
-  import_date            DateTime @default(now()) @db.Timestamp(6)
+  import_date            DateTime @default(now())
   is_processed           Boolean  @default(false)
-  created_at             DateTime @default(now()) @db.Timestamp(6)
-  updated_at             DateTime @default(now()) @db.Timestamp(6)
+  created_at             DateTime @default(now())
+  updated_at             DateTime @default(now())
   counteragent_processed Boolean? @default(false)
-  counteragent_inn_blank Boolean? @default(false)
-  parsing_rule_dominance Boolean? @default(false)
   parsing_rule_processed Boolean? @default(false)
   payment_id_processed   Boolean? @default(false)
   counteragent_inn       String?
-  processing_case        String?
+  processing_case        String?  @default(dbgenerated("\nCASE\n    WHEN (counteragent_processed = true) THEN 'CASE 1: Counteragent Matched'::text\n    WHEN ((counteragent_processed = false) AND (counteragent_inn IS NOT NULL)) THEN 'CASE 2: INN Found - No Counteragent'::text\n    ELSE 'CASE 3: No INN Found'::text\nEND"))
   counteragent_found     Boolean? @default(false)
+  counteragent_inn_blank Boolean? @default(false)
   counteragent_missing   Boolean? @default(false)
   payment_id_matched     Boolean? @default(false)
   payment_id_conflict    Boolean? @default(false)
   parsing_rule_applied   Boolean? @default(false)
   parsing_rule_conflict  Boolean? @default(false)
+  parsing_rule_dominance Boolean? @default(false)
   applied_rule_id        Int?
+
+  @@index([docrecdate])
+  @@index([import_batch_id])
+  @@index([is_processed])
+  @@index([counteragent_processed, parsing_rule_processed, payment_id_processed], map: "idx_bog_gel_all_processed")
+  @@index([counteragent_inn], map: "idx_bog_gel_raw_counteragent_inn")
+  @@index([counteragent_processed], map: "idx_bog_gel_raw_counteragent_processed")
+  @@index([docvaluedate], map: "idx_bog_gel_raw_docvaluedate")
+  @@index([parsing_rule_processed], map: "idx_bog_gel_raw_parsing_rule_processed")
+  @@index([payment_id_processed], map: "idx_bog_gel_raw_payment_id_processed")
+  @@index([processing_case], map: "idx_raw_processing_case")
 }
 
 model brands {
@@ -374,7 +381,7 @@ model brands {
   counteragent_uuids String[] @default([]) @db.Uuid
   is_active          Boolean  @default(true)
   created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
+  updated_at         DateTime @default(now()) @updatedAt
   jobs               jobs[]
 
   @@index([name], map: "idx_brands_name")
@@ -383,50 +390,52 @@ model brands {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model ConsolidatedBankAccount {
-  id                        BigInt      @id @default(autoincrement())
-  uuid                      String      @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  bankAccountUuid           String      @map("bank_account_uuid") @db.Uuid
-  rawRecordUuid             String      @map("raw_record_uuid") @db.Uuid
-  transactionDate           String      @map("transaction_date")
+  id                        BigInt    @id @default(autoincrement())
+  uuid                      String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bankAccountUuid           String    @map("bank_account_uuid") @db.Uuid
+  rawRecordUuid             String    @map("raw_record_uuid") @db.Uuid
+  transactionDate           String    @map("transaction_date")
   description               String?
-  counteragentUuid          String?     @map("counteragent_uuid") @db.Uuid
-  projectUuid               String?     @map("project_uuid") @db.Uuid
-  financialCodeUuid         String?     @map("financial_code_uuid") @db.Uuid
-  accountCurrencyUuid       String      @map("account_currency_uuid") @db.Uuid
-  accountCurrencyAmount     Decimal     @map("account_currency_amount") @db.Decimal(20, 2)
-  nominalCurrencyUuid       String      @map("nominal_currency_uuid") @db.Uuid
-  nominalAmount             Decimal     @map("nominal_amount") @db.Decimal(20, 2)
-  createdAt                 DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt                 DateTime    @updatedAt @map("updated_at") @db.Timestamp(6)
-  processingCase            String?     @map("processing_case")
-  counteragentAccountNumber String?     @map("counteragent_account_number")
-  paymentId                 String?     @map("payment_id") @db.VarChar(255)
-  insiderUuid               String?     @map("insider_uuid") @db.Uuid
-  correctionDate            DateTime?   @map("correction_date") @db.Date
-  exchangeRate              Decimal?    @map("exchange_rate") @db.Decimal(20, 10)
-  bankAccount               BankAccount @relation(fields: [bankAccountUuid], references: [uuid])
+  counteragentUuid          String?   @map("counteragent_uuid") @db.Uuid
+  projectUuid               String?   @map("project_uuid") @db.Uuid
+  financialCodeUuid         String?   @map("financial_code_uuid") @db.Uuid
+  accountCurrencyUuid       String    @map("account_currency_uuid") @db.Uuid
+  accountCurrencyAmount     Decimal   @map("account_currency_amount") @db.Decimal(20, 2)
+  nominalCurrencyUuid       String    @map("nominal_currency_uuid") @db.Uuid
+  nominalAmount             Decimal   @map("nominal_amount") @db.Decimal(20, 2)
+  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt                 DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  counteragentAccountNumber String?   @map("counteragent_account_number")
+  processingCase            String?   @map("processing_case")
+  paymentId                 String?   @map("payment_id")
+  case_description          String?
+  applied_rule_id           Int?
+  raw_table_name            String?
+  correctionDate            DateTime? @map("correction_date") @db.Date
+  exchangeRate              Decimal?  @map("exchange_rate") @db.Decimal(20, 10)
 
   @@index([bankAccountUuid], map: "idx_consolidated_bank_account_uuid")
-  @@index([correctionDate], map: "idx_consolidated_correction_date")
   @@index([counteragentUuid], map: "idx_consolidated_counteragent_uuid")
-  @@index([insiderUuid], map: "idx_consolidated_insider_uuid")
   @@index([paymentId], map: "idx_consolidated_payment_id")
-  @@index([processingCase], map: "idx_consolidated_processing_case")
   @@index([projectUuid], map: "idx_consolidated_project_uuid")
   @@index([rawRecordUuid], map: "idx_consolidated_raw_record_uuid")
   @@index([transactionDate], map: "idx_consolidated_transaction_date")
+  @@index([processingCase], map: "idx_consolidated_bank_processing_case")
+  @@index([transactionDate, id], map: "idx_consolidated_bank_transaction_date_id")
   @@map("consolidated_bank_accounts")
 }
 
 model counteragents {
-  id                          BigInt         @id @default(autoincrement())
-  created_at                  DateTime       @default(now())
-  updated_at                  DateTime       @updatedAt
-  ts                          DateTime       @default(now()) @db.Timestamptz(6)
+  id                          BigInt                     @id @default(autoincrement())
+  created_at                  DateTime                   @default(now())
+  updated_at                  DateTime                   @updatedAt
+  ts                          DateTime                   @default(now()) @db.Timestamptz(6)
   name                        String?
-  identification_number       String?        @unique
+  identification_number       String?                    @unique
   birth_or_incorporation_date DateTime?
+  entity_type                 String?
   sex                         String?
+  country                     String?
   address_line_1              String?
   address_line_2              String?
   zip_code                    String?
@@ -437,25 +446,28 @@ model counteragents {
   email                       String?
   phone                       String?
   oris_id                     String?
-  country_uuid                String?        @db.Uuid
-  entity_type_uuid            String?        @db.Uuid
-  counteragent_uuid           String         @unique @db.Uuid
-  entity_type                 String?
-  country                     String?
   counteragent                String?
+  country_uuid                String?                    @db.Uuid
+  entity_type_uuid            String?                    @db.Uuid
+  counteragent_uuid           String                     @unique @db.Uuid
   internal_number             String?
   pension_scheme              Boolean?
-  is_emploee                  Boolean        @default(false)
+  is_emploee                  Boolean                    @default(false)
+  is_active                   Boolean                    @default(true)
+  was_emploee                 Boolean                    @default(false)
+  insider                     Boolean?                   @default(false)
+  insider_uuid                String?                    @db.Uuid
+  insider_name                String?
   department                  String?
   job_title                   String?
-  is_active                   Boolean        @default(true)
-  was_emploee                 Boolean        @default(false)
-  insider                     Boolean        @default(false)
-  insider_uuid                String?        @db.Uuid
-  insider_name                String?
-  transactions                transactions[]
+  bank_transaction_batches    bank_transaction_batches[]
+  counteragent_audit_log      counteragent_audit_log[]
 
-  @@index([insider_uuid])
+  @@index([counteragent], map: "idx_counteragents_counteragent")
+  @@index([country], map: "idx_counteragents_country")
+  @@index([entity_type], map: "idx_counteragents_entity_type")
+  @@index([insider_uuid], map: "idx_counteragents_insider_uuid")
+  @@index([ts], map: "idx_counteragents_ts")
 }
 
 model countries {
@@ -474,55 +486,61 @@ model countries {
 }
 
 model currencies {
-  id           BigInt        @id @default(autoincrement())
-  uuid         String        @unique @db.Uuid
-  code         String        @unique
-  name         String
-  is_active    Boolean       @default(true)
-  created_at   DateTime      @default(now())
-  updated_at   DateTime      @updatedAt
-  bankAccounts BankAccount[]
-  attachments  attachments[]
+  id                       BigInt                     @id @default(autoincrement())
+  uuid                     String                     @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                     String                     @unique @db.VarChar(10)
+  name                     String
+  is_active                Boolean                    @default(true)
+  created_at               DateTime                   @default(now()) @db.Timestamp(6)
+  updated_at               DateTime                   @default(now()) @updatedAt @db.Timestamp(6)
+  bankAccounts             BankAccount[]
+  bank_transaction_batches bank_transaction_batches[]
+  attachments              attachments[]
+
+  @@index([code], map: "idx_currencies_code")
+  @@index([is_active], map: "idx_currencies_is_active")
 }
 
 model document_types {
-  id                  BigInt   @id @default(autoincrement())
-  uuid                String   @unique @db.Uuid
-  name                String   @unique
-  is_active           Boolean  @default(true)
-  require_date        Boolean  @default(false)
-  require_value       Boolean  @default(false)
-  require_currency    Boolean  @default(false)
-  require_document_no Boolean  @default(false)
-  require_project     Boolean  @default(false)
-  created_at          DateTime @default(now())
-  updated_at          DateTime @updatedAt
+  id                  BigInt        @id @default(autoincrement())
+  uuid                String        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                String        @unique
+  is_active           Boolean       @default(true)
+  created_at          DateTime      @default(now())
+  updated_at          DateTime      @default(now()) @updatedAt
+  require_date        Boolean       @default(false)
+  require_value       Boolean       @default(false)
+  require_currency    Boolean       @default(false)
+  require_document_no Boolean       @default(false)
+  require_project     Boolean       @default(false)
   attachments         attachments[]
+
+  @@index([is_active], map: "idx_document_types_is_active")
 }
 
 model attachments {
-  id                      BigInt             @id @default(autoincrement())
-  uuid                    String             @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  document_type_uuid      String?            @db.Uuid
-  document_date           DateTime?
-  document_no             String?
-  document_value          Decimal?           @db.Decimal(15, 2)
-  document_currency_uuid  String?            @db.Uuid
-  storage_provider        String             @default("supabase")
-  storage_bucket          String?
-  storage_path            String
-  file_name               String
-  mime_type               String?
-  file_size_bytes         BigInt?
-  file_hash_sha256        String?
-  metadata                Json?
-  uploaded_by_user_id     String?
-  is_active               Boolean            @default(true)
-  created_at              DateTime           @default(now())
-  updated_at              DateTime           @updatedAt
-  document_type           document_types?    @relation(fields: [document_type_uuid], references: [uuid], onDelete: SetNull)
-  document_currency       currencies?        @relation(fields: [document_currency_uuid], references: [uuid], onDelete: SetNull)
-  links                   attachment_links[]
+  id                     BigInt             @id @default(autoincrement())
+  uuid                   String             @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_type_uuid     String?            @db.Uuid
+  storage_provider       String             @default("supabase")
+  storage_bucket         String?
+  storage_path           String
+  file_name              String
+  mime_type              String?
+  file_size_bytes        BigInt?
+  file_hash_sha256       String?
+  metadata               Json?
+  uploaded_by_user_id    String?
+  is_active              Boolean            @default(true)
+  created_at             DateTime           @default(now())
+  updated_at             DateTime           @default(now()) @updatedAt
+  document_date          DateTime?
+  document_no            String?
+  document_value         Decimal?           @db.Decimal(15, 2)
+  document_currency_uuid String?            @db.Uuid
+  links                  attachment_links[]
+  document_type          document_types?    @relation(fields: [document_type_uuid], references: [uuid], onUpdate: NoAction, map: "fk_attachments_document_type_uuid")
+  document_currency      currencies?        @relation(fields: [document_currency_uuid], references: [uuid], onUpdate: NoAction)
 
   @@unique([storage_provider, storage_bucket, storage_path], map: "uq_attachments_storage_location")
   @@index([document_type_uuid], map: "idx_attachments_document_type_uuid")
@@ -540,8 +558,8 @@ model attachment_links {
   is_primary         Boolean     @default(false)
   created_by_user_id String?
   created_at         DateTime    @default(now())
-  updated_at         DateTime    @updatedAt
-  attachment         attachments @relation(fields: [attachment_uuid], references: [uuid], onDelete: Cascade)
+  updated_at         DateTime    @default(now()) @updatedAt
+  attachment         attachments @relation(fields: [attachment_uuid], references: [uuid], onDelete: Cascade, onUpdate: NoAction, map: "fk_attachment_links_attachment_uuid")
 
   @@unique([attachment_uuid, owner_table, owner_uuid, owner_field], map: "uq_attachment_links_owner_binding")
   @@index([attachment_uuid], map: "idx_attachment_links_attachment_uuid")
@@ -555,60 +573,59 @@ model entity_types {
   updated_at        DateTime @updatedAt
   ts                DateTime @default(now()) @db.Timestamptz(6)
   entity_type_uuid  String   @unique @db.Uuid
+  code              String
   name_en           String
   name_ka           String
+  is_active         Boolean  @default(true)
   is_natural_person Boolean  @default(false)
   is_id_exempt      Boolean  @default(false)
-  is_active         Boolean  @default(true)
 }
 
 model financial_codes {
-  id            BigInt         @id @default(autoincrement())
-  uuid          String         @unique @db.Uuid
-  code          String         @unique
-  name          String
-  validation    String?
-  applies_to_pl Boolean        @default(false)
-  applies_to_cf Boolean        @default(false)
-  is_income     Boolean        @default(false)
-  parent_uuid   String?        @db.Uuid
-  description   String?
-  depth         Int            @default(1)
-  sort_order    Int            @default(0)
-  is_active             Boolean        @default(true)
-  automated_payment_id  Boolean        @default(false)
-  is_bundle             Boolean        @default(false)
-  default_code_fc       String?        @db.Uuid
-  created_at            DateTime       @default(now())
-  updated_at            DateTime       @updatedAt
-  transactions          transactions[]
+  id                       BigInt                     @id @default(autoincrement())
+  uuid                     String?                    @unique @db.Uuid
+  code                     String                     @unique
+  name                     String
+  validation               String?
+  applies_to_pl            Boolean?
+  applies_to_cf            Boolean?
+  is_income                Boolean?
+  parent_uuid              String?                    @db.Uuid
+  description              String?
+  depth                    Int?
+  sort_order               Int?
+  is_active                Boolean?                   @default(true)
+  created_at               DateTime?                  @default(now()) @db.Timestamp(6)
+  updated_at               DateTime?                  @default(now()) @updatedAt @db.Timestamp(6)
+  automated_payment_id     Boolean                    @default(false)
+  is_bundle                Boolean                    @default(false)
+  default_code_fc          String?                    @db.Uuid
+  bank_transaction_batches bank_transaction_batches[]
+  financial_codes          financial_codes?           @relation("financial_codesTofinancial_codes", fields: [parent_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+  other_financial_codes    financial_codes[]          @relation("financial_codesTofinancial_codes")
 
-  @@index([applies_to_cf])
-  @@index([applies_to_pl])
-  @@index([code])
-  @@index([is_active])
-  @@index([is_income])
-  @@index([parent_uuid])
-  @@index([parent_uuid, sort_order])
-  @@index([uuid])
+  @@index([code], map: "idx_financial_codes_code")
+  @@index([parent_uuid], map: "idx_financial_codes_parent")
+  @@index([uuid], map: "idx_financial_codes_uuid")
 }
 
 model jobs {
-  id           BigInt   @id @default(autoincrement())
-  job_uuid     String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  project_uuid String?  @db.Uuid
-  job_name     String
-  floors       Int?
-  weight       Int?
-  is_ff        Boolean  @default(false)
-  is_active    Boolean  @default(true)
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-  brand_uuid     String?  @db.Uuid
-  insider_uuid   String?  @db.Uuid
-  factory_no     String?  @db.VarChar(255)
-  selling_price  Decimal? @db.Decimal(18, 2)
-  brands         brands?  @relation(fields: [brand_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "fk_jobs_brand_uuid")
+  id            BigInt   @id @default(autoincrement())
+  job_uuid      String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_uuid  String?  @db.Uuid
+  job_name      String
+  floors        Int?
+  weight        Int?
+  is_ff         Boolean  @default(false)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @default(now()) @updatedAt
+  brand_uuid    String?  @db.Uuid
+  insider_uuid  String   @db.Uuid
+  factory_no    String?
+  selling_price Decimal? @db.Decimal(18, 2)
+  brands        brands?  @relation(fields: [brand_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "fk_jobs_brand_uuid")
+  payments_jobs payments_jobs[]
 
   @@index([job_uuid], map: "idx_jobs_job_uuid")
   @@index([insider_uuid], map: "idx_jobs_insider_uuid")
@@ -619,7 +636,7 @@ model job_projects {
   id           BigInt   @id @default(autoincrement())
   job_uuid     String   @db.Uuid
   project_uuid String   @db.Uuid
-  created_at   DateTime @default(now())
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
 
   @@unique([job_uuid, project_uuid], map: "uq_job_projects_job_project")
   @@index([project_uuid], map: "idx_job_projects_project_uuid")
@@ -628,7 +645,7 @@ model job_projects {
 
 model nbg_exchange_rates {
   id         BigInt   @id @default(autoincrement())
-  uuid       String   @unique @db.Uuid
+  uuid       String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   date       DateTime @unique @db.Date
   usd_rate   Decimal? @db.Decimal(18, 6)
   eur_rate   Decimal? @db.Decimal(18, 6)
@@ -638,77 +655,80 @@ model nbg_exchange_rates {
   try_rate   Decimal? @db.Decimal(18, 6)
   aed_rate   Decimal? @db.Decimal(18, 6)
   kzt_rate   Decimal? @db.Decimal(18, 6)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamp(6)
+
+  @@index([date(sort: Desc)], map: "idx_nbg_exchange_rates_date")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model parsing_scheme_rules {
-  id                    BigInt   @id @default(autoincrement())
-  scheme_uuid           String   @db.Uuid
-  column_name           String?  @db.VarChar(100)
+  id                    BigInt          @id @default(autoincrement())
+  scheme_uuid           String          @db.Uuid
+  column_name           String?         @db.VarChar(100)
   condition             String
-  payment_id            String?  @db.VarChar(255)
+  payment_id            String?         @db.VarChar(255)
   condition_script      String?
-  counteragent_uuid     String?  @db.Uuid
-  financial_code_uuid   String?  @db.Uuid
-  nominal_currency_uuid String?  @db.Uuid
-  active                Boolean? @default(true)
+  counteragent_uuid     String?         @db.Uuid
+  financial_code_uuid   String?         @db.Uuid
+  nominal_currency_uuid String?         @db.Uuid
+  active                Boolean?        @default(true)
+  parsing_schemes       parsing_schemes @relation(fields: [scheme_uuid], references: [uuid], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([scheme_uuid])
 }
 
 model parsing_schemes {
-  scheme String @id @db.VarChar(50)
-  uuid   String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scheme               String                 @id @db.VarChar(50)
+  uuid                 String                 @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bank_accounts        BankAccount[]
+  parsing_scheme_rules parsing_scheme_rules[]
 }
 
 model payment_bundles {
-  id         Int      @id @default(autoincrement())
-  uuid       String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  label      String?  @db.Text
-  is_active  Boolean  @default(true)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id         Int        @id @default(autoincrement())
+  uuid       String     @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  label      String?
+  is_active  Boolean    @default(true)
+  created_at DateTime   @default(now())
+  updated_at DateTime   @updatedAt
   payments   payments[]
 }
 
 model payments {
-  id                    BigInt              @id @default(autoincrement())
-  project_uuid          String?             @db.Uuid
-  counteragent_uuid     String              @db.Uuid
-  financial_code_uuid   String              @db.Uuid
-  job_uuid              String?             @db.Uuid
-  payment_id            String              @unique
-  record_uuid           String              @unique
-  is_active             Boolean             @default(true)
-  created_at            DateTime            @default(now())
-  updated_at            DateTime            @updatedAt
-  income_tax            Boolean             @default(false)
-  currency_uuid         String              @db.Uuid
-  accrual_source        String?             @db.VarChar(50)
-  label                 String?             @db.Text
-  insider_uuid          String?             @db.Uuid
-  is_project_derived    Boolean             @default(false)
-  is_bundle_payment     Boolean             @default(false)
-  is_recurring          Boolean             @default(false)
-  waybill_derived       Boolean             @default(false)
-  payment_bundle_uuid   String?             @db.Uuid
-  payment_bundle        payment_bundles?    @relation(fields: [payment_bundle_uuid], references: [uuid])
-  payments_ledger       payments_ledger[]
-  payment_adjustments   payment_adjustments[]
+  id                  BigInt                @id @default(autoincrement())
+  project_uuid        String?               @db.Uuid
+  counteragent_uuid   String                @db.Uuid
+  financial_code_uuid String                @db.Uuid
+  job_uuid            String?               @db.Uuid
+  payment_id          String                @unique
+  record_uuid         String                @unique
+  is_active           Boolean               @default(true)
+  created_at          DateTime              @default(now())
+  updated_at          DateTime              @updatedAt
+  income_tax          Boolean               @default(false)
+  currency_uuid       String                @db.Uuid
+  accrual_source      String?               @db.VarChar(50)
+  label               String?
+  insider_uuid        String                @db.Uuid
+  is_project_derived  Boolean               @default(false)
+  is_bundle_payment   Boolean               @default(false)
+  payment_bundle_uuid String?               @db.Uuid
+  is_recurring        Boolean               @default(false)
+  waybill_derived     Boolean               @default(false)
+  payment_adjustments payment_adjustments[]
+  payment_bundle      payment_bundles?      @relation(fields: [payment_bundle_uuid], references: [uuid])
+  payments_ledger     payments_ledger[]
+  payments_jobs       payments_jobs[]
 
-  // NOTE: Composite uniqueness is enforced by partial index payments_composite_unique_non_waybill
-  // (WHERE waybill_derived = FALSE) managed via raw SQL migration, not Prisma @@unique,
-  // to allow multiple waybill-derived payments with the same composite key.
-  @@index([project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid])
+  @@unique([project_uuid, counteragent_uuid, financial_code_uuid, job_uuid, income_tax, currency_uuid], map: "payments_project_uuid_counteragent_uuid_financial_code_uu_key")
   @@index([counteragent_uuid])
   @@index([currency_uuid])
   @@index([financial_code_uuid])
-  @@index([insider_uuid])
   @@index([job_uuid])
   @@index([project_uuid])
   @@index([payment_bundle_uuid])
+  @@index([insider_uuid], map: "idx_payments_insider_uuid")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -721,113 +741,102 @@ model payments_ledger {
   record_uuid    String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_email     String
   created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
+  updated_at     DateTime @default(now()) @updatedAt
   comment        String?
-  is_deleted     Boolean  @default(false)
-  insider_uuid   String?  @db.Uuid
-  payments       payments @relation(fields: [payment_id], references: [payment_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_ledger_payment")
+  is_deleted     Boolean? @default(false)
+  confirmed      Boolean  @default(false)
+  insider_uuid   String   @db.Uuid
+  payments       payments @relation(fields: [payment_id], references: [payment_id], onUpdate: NoAction, map: "fk_payment_ledger_payment")
 
   @@index([effective_date])
-  @@index([insider_uuid])
   @@index([payment_id])
+  @@index([insider_uuid], map: "idx_payments_ledger_insider_uuid")
+  @@index([is_deleted])
 }
 
 model payment_adjustments {
   id                 BigInt   @id @default(autoincrement())
   payment_id         String
-  effective_date     DateTime
+  effective_date     DateTime @db.Timestamp(6)
   amount             Decimal  @db.Decimal(18, 2)
+  comment            String?
+  record_uuid        String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_email         String
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  is_deleted         Boolean  @default(false)
+  insider_uuid       String?  @db.Uuid
   face_currency_code String?
   face_amount        Decimal? @db.Decimal(18, 2)
   manual_rate        Decimal? @db.Decimal(18, 6)
   nominal_amount     Decimal? @db.Decimal(18, 2)
-  comment            String?
-  record_uuid        String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_email         String
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
-  is_deleted         Boolean  @default(false)
-  insider_uuid       String?  @db.Uuid
   payments           payments @relation(fields: [payment_id], references: [payment_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_adjustment_payment")
 
-  @@index([effective_date])
-  @@index([insider_uuid])
-  @@index([payment_id])
+  @@index([effective_date], map: "idx_payment_adjustments_effective_date")
+  @@index([insider_uuid], map: "idx_payment_adjustments_insider_uuid")
+  @@index([payment_id], map: "idx_payment_adjustments_payment_id")
 }
 
 model project_employees {
   id            BigInt   @id @default(autoincrement())
-  project_id    BigInt
+  project_uuid  String   @db.Uuid
   employee_uuid String   @db.Uuid
-  employee_name String?
-  isActive      Boolean  @default(true)
-  assignedAt    DateTime @default(now())
-  projects      projects @relation(fields: [project_id], references: [id])
+  created_at    DateTime @default(now()) @db.Timestamp(6)
+  projects      projects @relation(fields: [project_uuid], references: [project_uuid], onDelete: Cascade)
 
+  @@unique([project_uuid, employee_uuid])
   @@index([employee_uuid])
-  @@index([project_id])
+  @@index([project_uuid])
 }
 
 model project_states {
-  id         BigInt   @id @default(autoincrement())
-  uuid       String   @unique @db.Uuid
-  name       String   @unique
-  is_active  Boolean  @default(true)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id         BigInt     @id @default(autoincrement())
+  uuid       String     @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String     @unique
+  is_active  Boolean    @default(true)
+  created_at DateTime   @default(now()) @db.Timestamp(6)
+  updated_at DateTime   @default(now()) @updatedAt @db.Timestamp(6)
+  projects   projects[]
+
+  @@index([is_active], map: "idx_project_states_is_active")
 }
 
 model projects {
-  id                  BigInt              @id @default(autoincrement())
-  created_at          DateTime            @default(now())
-  updated_at          DateTime            @updatedAt
-  project_uuid        String              @unique @db.Uuid
-  counteragent_uuid   String              @db.Uuid
-  financial_code_uuid String              @db.Uuid
-  currency_uuid       String              @db.Uuid
-  state_uuid          String              @db.Uuid
-  project_name        String
-  date                DateTime            @db.Date
-  value               Decimal             @db.Decimal(15, 2)
-  oris_1630           String?
-  counteragent        String?
-  financial_code      String?
-  currency            String?
-  state               String?
-  contract_no         String?
-  address             String?
-  department          String?
-  service_state       String?
-  project_index       String?
-  insider_uuid        String?             @db.Uuid
-  project_employees   project_employees[]
-  waybill_projects    rs_waybills_in_projects[]
+  id                       BigInt                     @id @default(autoincrement())
+  created_at               DateTime                   @default(now()) @db.Timestamp(6)
+  updated_at               DateTime                   @default(now()) @updatedAt @db.Timestamp(6)
+  ts                       DateTime                   @default(now()) @db.Timestamptz(6)
+  project_uuid             String                     @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  counteragent_uuid        String                     @db.Uuid
+  project_name             String
+  financial_code_uuid      String                     @db.Uuid
+  date                     DateTime                   @db.Date
+  value                    Decimal                    @db.Decimal(18, 2)
+  currency_uuid            String                     @db.Uuid
+  state_uuid               String                     @db.Uuid
+  oris_1630                String?
+  contract_no              String?
+  project_index            String?
+  financial_code           String?
+  currency                 String?
+  state                    String?
+  counteragent             String?
+  department               String?
+  service_state            String?
+  insider_uuid             String                     @db.Uuid
+  address                  String?
+  bank_transaction_batches bank_transaction_batches[]
+  project_employees        project_employees[]
+  project_states           project_states             @relation(fields: [state_uuid], references: [uuid])
+  waybill_projects         rs_waybills_in_projects[]
+  payments_jobs            payments_jobs[]
 
   @@index([counteragent_uuid])
   @@index([currency_uuid])
   @@index([date])
   @@index([financial_code_uuid])
-  @@index([insider_uuid])
   @@index([state_uuid])
-}
-
-model transactions {
-  id                String          @id @db.Uuid
-  date              DateTime        @db.Date
-  amount            Decimal         @db.Decimal(15, 2)
-  description       String
-  financial_code_id BigInt
-  counteragent_id   BigInt?
-  created_at        DateTime        @default(now())
-  created_by        String?
-  updated_at        DateTime        @updatedAt
-  updated_by        String?
-  counteragents     counteragents?  @relation(fields: [counteragent_id], references: [id])
-  financial_codes   financial_codes @relation(fields: [financial_code_id], references: [id])
-
-  @@index([counteragent_id])
-  @@index([date])
-  @@index([financial_code_id, date])
+  @@index([insider_uuid], map: "idx_projects_insider_uuid")
 }
 
 model salary_accruals {
@@ -843,21 +852,43 @@ model salary_accruals {
   deducted_insurance    Decimal? @db.Decimal(15, 2)
   deducted_fitness      Decimal? @db.Decimal(15, 2)
   deducted_fine         Decimal? @db.Decimal(15, 2)
-  confirmed             Boolean  @default(false)
-  insider_uuid          String?  @db.Uuid
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
+  created_at            DateTime @default(now()) @db.Timestamp(6)
+  updated_at            DateTime @default(now()) @updatedAt @db.Timestamp(6)
   created_by            String   @db.VarChar(255)
   updated_by            String   @db.VarChar(255)
+  insurance_limit       Decimal? @db.Decimal(15, 2)
+  confirmed             Boolean  @default(false)
+  insider_uuid          String   @db.Uuid
 
-  @@index([counteragent_uuid])
-  @@index([financial_code_uuid])
-  @@index([salary_month])
-  @@index([payment_id])
-  @@index([insider_uuid])
-  @@index([nominal_currency_uuid])
-  @@index([salary_month, counteragent_uuid])
-  @@unique([counteragent_uuid, financial_code_uuid, salary_month], name: "salary_accruals_ca_fc_month_unique")
+  @@unique([counteragent_uuid, financial_code_uuid, salary_month], name: "salary_accruals_ca_fc_month_unique", map: "salary_accruals_ca_fc_month_unique")
+  @@index([counteragent_uuid], map: "idx_salary_accruals_counteragent")
+  @@index([nominal_currency_uuid], map: "idx_salary_accruals_currency")
+  @@index([financial_code_uuid], map: "idx_salary_accruals_financial_code")
+  @@index([insider_uuid], map: "idx_salary_accruals_insider_uuid")
+  @@index([salary_month, counteragent_uuid], map: "idx_salary_accruals_month_counteragent")
+  @@index([payment_id], map: "idx_salary_accruals_payment_id")
+  @@index([salary_month], map: "idx_salary_accruals_salary_month")
+}
+
+model payments_jobs {
+  id           BigInt   @id @default(autoincrement())
+  uuid         String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_uuid String
+  job_uuid     String   @db.Uuid
+  project_uuid String   @db.Uuid
+  amount       Decimal  @db.Decimal(18, 2)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  payment payments @relation(fields: [payment_uuid], references: [record_uuid], onDelete: Cascade)
+  job     jobs     @relation(fields: [job_uuid], references: [job_uuid], onDelete: Restrict)
+  project projects @relation(fields: [project_uuid], references: [project_uuid], onDelete: Restrict)
+
+  @@unique([payment_uuid, job_uuid, project_uuid])
+  @@index([payment_uuid])
+  @@index([job_uuid])
+  @@index([project_uuid])
+  @@map("payments_jobs")
 }
 
 model rs_waybills_in {
@@ -871,7 +902,6 @@ model rs_waybills_in {
   counteragent_inn              String?
   counteragent_name             String?
   counteragent_uuid             String?   @db.Uuid
-  insider_uuid                  String?   @db.Uuid
   vat                           Boolean   @default(false)
   sum                           Decimal?  @db.Decimal(20, 2)
   driver                        String?
@@ -881,10 +911,10 @@ model rs_waybills_in {
   transportation_sum            Decimal?  @db.Decimal(20, 2)
   departure_address             String?
   shipping_address              String?
-  activation_time               DateTime?
-  transportation_beginning_time DateTime?
-  submission_time               DateTime?
-  cancellation_time             DateTime?
+  activation_time               DateTime? @db.Timestamp(6)
+  transportation_beginning_time DateTime? @db.Timestamp(6)
+  submission_time               DateTime? @db.Timestamp(6)
+  cancellation_time             DateTime? @db.Timestamp(6)
   note                          String?
   vat_doc_id                    String?
   stat                          String?
@@ -896,25 +926,32 @@ model rs_waybills_in {
   date                          String?
   period                        String?
   import_batch_id               String?
-  created_at                    DateTime  @default(now())
-  updated_at                    DateTime  @updatedAt
+  created_at                    DateTime  @default(now()) @db.Timestamp(6)
+  updated_at                    DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+  insider_uuid                  String    @db.Uuid
+  invoice_id                    String?
+  is_confirmed                  Boolean   @default(false)
+  is_corrected                  Boolean   @default(false)
+  is_med                        Boolean   @default(false)
+  create_date                   DateTime? @db.Timestamptz(6)
+  seller_st                     String?
 
   @@unique([rs_id, waybill_no])
-  @@index([waybill_no])
-  @@index([counteragent_inn])
-  @@index([activation_time])
-  @@index([counteragent_uuid])
-  @@index([insider_uuid])
-  @@index([driver_uuid])
-  @@index([project_uuid])
-  @@index([financial_code_uuid])
-  @@index([rs_id])
+  @@index([activation_time], map: "idx_rs_waybills_in_activation_time")
+  @@index([counteragent_inn], map: "idx_rs_waybills_in_counteragent_inn")
+  @@index([counteragent_uuid], map: "idx_rs_waybills_in_counteragent_uuid")
+  @@index([driver_uuid], map: "idx_rs_waybills_in_driver_uuid")
+  @@index([financial_code_uuid], map: "idx_rs_waybills_in_financial_code_uuid")
+  @@index([insider_uuid], map: "idx_rs_waybills_in_insider_uuid")
+  @@index([project_uuid], map: "idx_rs_waybills_in_project_uuid")
+  @@index([rs_id], map: "idx_rs_waybills_in_rs_id")
+  @@index([waybill_no], map: "idx_rs_waybills_in_waybill_no")
   @@map("rs_waybills_in")
 }
 
 model rs_waybills_in_api {
-  id                            BigInt    @id @default(autoincrement())
-  rs_id                         String    @unique
+  id                            BigInt                    @id(map: "rs_waybills_api_pkey") @default(autoincrement())
+  rs_id                         String                    @unique(map: "rs_waybills_api_rs_id_key")
   waybill_no                    String?
   state                         String?
   condition                     String?
@@ -923,38 +960,38 @@ model rs_waybills_in_api {
   counteragent                  String?
   counteragent_inn              String?
   counteragent_name             String?
-  counteragent_uuid             String?   @db.Uuid
-  insider_uuid                  String?   @db.Uuid
-  vat                           Boolean   @default(false)
-  sum                           Decimal?  @db.Decimal(20, 2)
+  counteragent_uuid             String?                   @db.Uuid
+  insider_uuid                  String?                   @db.Uuid
+  vat                           Boolean                   @default(false)
+  sum                           Decimal?                  @db.Decimal(20, 2)
   driver                        String?
   driver_id                     String?
-  driver_uuid                   String?   @db.Uuid
+  driver_uuid                   String?                   @db.Uuid
   vehicle                       String?
-  transportation_sum            Decimal?  @db.Decimal(20, 2)
+  transportation_sum            Decimal?                  @db.Decimal(20, 2)
   departure_address             String?
   shipping_address              String?
-  activation_time               DateTime?
-  transportation_beginning_time DateTime?
-  submission_time               DateTime?
-  cancellation_time             DateTime?
+  activation_time               DateTime?                 @db.Timestamptz(6)
+  transportation_beginning_time DateTime?                 @db.Timestamptz(6)
+  submission_time               DateTime?                 @db.Timestamptz(6)
+  cancellation_time             DateTime?                 @db.Timestamptz(6)
   note                          String?
   vat_doc_id                    String?
   stat                          String?
-  transportation_cost           Decimal?  @db.Decimal(20, 2)
+  transportation_cost           Decimal?                  @db.Decimal(20, 2)
   invoice_id                    String?
-  is_confirmed                  Boolean   @default(false)
-  is_corrected                  Boolean   @default(false)
-  is_med                        Boolean   @default(false)
-  create_date                   DateTime?
+  is_confirmed                  Boolean                   @default(false)
+  is_corrected                  Boolean                   @default(false)
+  is_med                        Boolean                   @default(false)
+  create_date                   DateTime?                 @db.Timestamptz(6)
   seller_st                     String?
   date                          String?
   period                        String?
-  project_uuid                  String?   @db.Uuid
-  financial_code_uuid           String?   @db.Uuid
+  synced_at                     DateTime                  @default(now()) @db.Timestamptz(6)
+  project_uuid                  String?                   @db.Uuid
+  financial_code_uuid           String?                   @db.Uuid
   corresponding_account         String?
   import_batch_id               String?
-  synced_at                     DateTime  @default(now())
   waybill_items                 rs_waybills_in_items[]
   waybill_projects              rs_waybills_in_projects[]
 
@@ -963,9 +1000,9 @@ model rs_waybills_in_api {
   @@index([activation_time])
   @@index([counteragent_uuid])
   @@index([insider_uuid])
-  @@index([driver_uuid])
   @@index([project_uuid])
   @@index([financial_code_uuid])
+  @@index([shipping_address(ops: raw("gin_trgm_ops"))], map: "idx_gin_waybill_shipping_address", type: Gin)
   @@map("rs_waybills_in_api")
 }
 
@@ -973,27 +1010,27 @@ model rs_waybills_in_projects {
   id           BigInt             @id @default(autoincrement())
   rs_id        String
   project_uuid String             @db.Uuid
-  created_at   DateTime           @default(now())
-  waybill      rs_waybills_in_api @relation(fields: [rs_id], references: [rs_id], onDelete: Cascade)
-  project      projects           @relation(fields: [project_uuid], references: [project_uuid], onDelete: Cascade)
+  created_at   DateTime           @default(now()) @db.Timestamptz(6)
+  project      projects           @relation(fields: [project_uuid], references: [project_uuid], onDelete: Cascade, onUpdate: NoAction)
+  waybill      rs_waybills_in_api @relation(fields: [rs_id], references: [rs_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([rs_id, project_uuid])
-  @@index([rs_id])
-  @@index([project_uuid])
+  @@index([project_uuid], map: "idx_rs_wip_project_uuid")
+  @@index([rs_id], map: "idx_rs_wip_rs_id")
   @@map("rs_waybills_in_projects")
 }
 
 model dimensions {
-  id               BigInt             @id @default(autoincrement())
-  uuid             String             @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  dimension        String             @unique
-  is_active        Boolean            @default(true)
-  created_at       DateTime           @default(now())
-  updated_at       DateTime           @updatedAt
-  inventory_groups    inventory_groups[]
-  inventories         inventories[]
-  rs_unit_dim_maps    rs_unit_dimension_map[]
-  waybill_items       rs_waybills_in_items[]
+  id                 BigInt                  @id @default(autoincrement())
+  uuid               String                  @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dimension          String                  @unique
+  is_active          Boolean                 @default(true)
+  created_at         DateTime                @default(now())
+  updated_at         DateTime                @default(now()) @updatedAt
+  inventories        inventories[]
+  inventory_groups   inventory_groups[]
+  rs_unit_dim_maps   rs_unit_dimension_map[]
+  waybill_items      rs_waybills_in_items[]
 
   @@map("dimensions")
 }
@@ -1005,9 +1042,9 @@ model inventory_groups {
   dimension_uuid String        @db.Uuid
   is_active      Boolean       @default(true)
   created_at     DateTime      @default(now())
-  updated_at     DateTime      @updatedAt
-  dimension      dimensions    @relation(fields: [dimension_uuid], references: [uuid])
+  updated_at     DateTime      @default(now()) @updatedAt
   inventories    inventories[]
+  dimension      dimensions    @relation(fields: [dimension_uuid], references: [uuid])
 
   @@index([dimension_uuid])
   @@map("inventory_groups")
@@ -1018,7 +1055,6 @@ model inventories {
   uuid                 String                 @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name                 String
   producer_uuid        String?                @db.Uuid
-  insider_uuid         String?                @db.Uuid
   inventory_group_uuid String?                @db.Uuid
   dimension_uuid       String?                @db.Uuid
   internal_number      String?
@@ -1026,23 +1062,23 @@ model inventories {
   is_capex             Boolean                @default(false)
   is_active            Boolean                @default(true)
   created_at           DateTime               @default(now())
-  updated_at           DateTime               @updatedAt
-  inventory_group      inventory_groups?      @relation(fields: [inventory_group_uuid], references: [uuid])
+  updated_at           DateTime               @default(now()) @updatedAt
+  insider_uuid         String                 @db.Uuid
   dimension            dimensions?            @relation(fields: [dimension_uuid], references: [uuid])
+  inventory_group      inventory_groups?      @relation(fields: [inventory_group_uuid], references: [uuid])
   waybill_items        rs_waybills_in_items[]
 
   @@index([producer_uuid])
-  @@index([insider_uuid])
   @@index([inventory_group_uuid])
   @@index([dimension_uuid])
   @@index([internal_number])
+  @@index([insider_uuid], map: "idx_inventories_insider_uuid")
   @@map("inventories")
 }
 
 model rs_waybills_in_items {
   id                    BigInt              @id @default(autoincrement())
   uuid                  String              @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  rs_id                 String?
   waybill_no            String?
   goods_code            String?
   goods_name            String?
@@ -1051,6 +1087,15 @@ model rs_waybills_in_items {
   unit_price            Decimal?            @db.Decimal(20, 4)
   total_price           Decimal?            @db.Decimal(20, 2)
   taxation              String?
+  inventory_uuid        String?             @db.Uuid
+  project_uuid          String?             @db.Uuid
+  financial_code_uuid   String?             @db.Uuid
+  corresponding_account String?
+  import_batch_id       String?
+  created_at            DateTime            @default(now())
+  updated_at            DateTime            @default(now()) @updatedAt
+  insider_uuid          String              @db.Uuid
+  rs_id                 String?
   type                  String?
   create_date           DateTime?
   activate_date         DateTime?
@@ -1072,41 +1117,2038 @@ model rs_waybills_in_items {
   unit_id               String?
   vat_type              String?
   a_id                  String?
-  inventory_uuid        String?             @db.Uuid
-  insider_uuid          String?             @db.Uuid
-  project_uuid          String?             @db.Uuid
-  financial_code_uuid   String?             @db.Uuid
   dimension_uuid        String?             @db.Uuid
-  corresponding_account String?
-  import_batch_id       String?
-  created_at            DateTime            @default(now())
-  updated_at            DateTime            @updatedAt
+  dimension             dimensions?         @relation(fields: [dimension_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
   inventory             inventories?        @relation(fields: [inventory_uuid], references: [uuid])
-  dimension             dimensions?         @relation(fields: [dimension_uuid], references: [uuid])
   waybill               rs_waybills_in_api? @relation(fields: [rs_id], references: [rs_id])
 
   @@index([rs_id])
   @@index([waybill_no])
   @@index([inventory_uuid])
-  @@index([insider_uuid])
   @@index([project_uuid])
   @@index([financial_code_uuid])
   @@index([dimension_uuid])
   @@index([goods_code])
+  @@index([insider_uuid], map: "idx_rs_waybills_in_items_insider_uuid")
   @@map("rs_waybills_in_items")
 }
 
 model rs_unit_dimension_map {
   id             BigInt      @id @default(autoincrement())
   uuid           String      @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  unit_text      String      @unique
   dimension_uuid String?     @db.Uuid
   is_active      Boolean     @default(true)
-  created_at     DateTime    @default(now())
-  updated_at     DateTime    @updatedAt
-  dimension      dimensions? @relation(fields: [dimension_uuid], references: [uuid])
+  created_at     DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
+  unit_text      String      @unique
+  dimension      dimensions? @relation(fields: [dimension_uuid], references: [uuid], onUpdate: NoAction)
 
-  @@index([dimension_uuid])
+  @@index([dimension_uuid], map: "rs_unit_dim_map_dim_uuid_idx")
   @@map("rs_unit_dimension_map")
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GE39TB7856036150100001_TBC_EUR {
+  id                          BigInt    @id @default(autoincrement())
+  uuid                        String    @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime
+  is_processed                Boolean
+  created_at                  DateTime
+  updated_at                  DateTime
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String    @db.Uuid
+  raw_record_uuid             String    @db.Uuid
+  transaction_date            String
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String    @db.Uuid
+  account_currency_amount     Decimal   @db.Decimal(20, 2)
+  nominal_currency_uuid       String    @db.Uuid
+  nominal_amount              Decimal   @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?  @default(false)
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GE39TB7856036150100001_TBC_USD {
+  id                          BigInt    @id @default(autoincrement())
+  uuid                        String    @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime
+  is_processed                Boolean
+  created_at                  DateTime
+  updated_at                  DateTime
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String    @db.Uuid
+  raw_record_uuid             String    @db.Uuid
+  transaction_date            String
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String    @db.Uuid
+  account_currency_amount     Decimal   @db.Decimal(20, 2)
+  nominal_currency_uuid       String    @db.Uuid
+  nominal_amount              Decimal   @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?  @default(false)
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GE43BG0000000609494201_BOG_GEL {
+  id                          BigInt    @default(autoincrement())
+  uuid                        String    @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime
+  is_processed                Boolean
+  created_at                  DateTime
+  updated_at                  DateTime
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String    @db.Uuid
+  raw_record_uuid             String    @db.Uuid
+  transaction_date            String
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String    @db.Uuid
+  account_currency_amount     Decimal   @db.Decimal(20, 2)
+  nominal_currency_uuid       String    @db.Uuid
+  nominal_amount              Decimal   @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?  @default(false)
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+  conversion_id               String?   @db.Uuid
+
+  @@ignore
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GE43BG0000000609494201_BOG_USD {
+  id                          BigInt    @default(autoincrement())
+  uuid                        String    @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime
+  is_processed                Boolean
+  created_at                  DateTime
+  updated_at                  DateTime
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String    @db.Uuid
+  raw_record_uuid             String    @db.Uuid
+  transaction_date            String
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String    @db.Uuid
+  account_currency_amount     Decimal   @db.Decimal(20, 2)
+  nominal_currency_uuid       String    @db.Uuid
+  nominal_amount              Decimal   @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?  @default(false)
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+  conversion_id               String?   @db.Uuid
+
+  @@ignore
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GE52TB7856045067800005_TBC_GEL {
+  id                          BigInt    @id @default(autoincrement())
+  uuid                        String    @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime
+  is_processed                Boolean
+  created_at                  DateTime
+  updated_at                  DateTime
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String    @db.Uuid
+  raw_record_uuid             String    @db.Uuid
+  transaction_date            String
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String    @db.Uuid
+  account_currency_amount     Decimal   @db.Decimal(20, 2)
+  nominal_currency_uuid       String    @db.Uuid
+  nominal_amount              Decimal   @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?  @default(false)
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GE65TB7856036050100002_TBC_GEL {
+  id                          BigInt    @id(map: "GE65TB7856036050100002_TBC_GEL_pk") @default(autoincrement())
+  uuid                        String    @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime
+  is_processed                Boolean
+  created_at                  DateTime
+  updated_at                  DateTime
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String    @db.Uuid
+  raw_record_uuid             String    @db.Uuid
+  transaction_date            String
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String    @db.Uuid
+  account_currency_amount     Decimal   @db.Decimal(20, 2)
+  nominal_currency_uuid       String    @db.Uuid
+  nominal_amount              Decimal   @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?  @default(false)
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GE74BG0000000586388146_BOG_USD {
+  id                          BigInt    @default(autoincrement())
+  uuid                        String    @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime
+  is_processed                Boolean
+  created_at                  DateTime
+  updated_at                  DateTime
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String    @db.Uuid
+  raw_record_uuid             String    @db.Uuid
+  transaction_date            String
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String    @db.Uuid
+  account_currency_amount     Decimal   @db.Decimal(20, 2)
+  nominal_currency_uuid       String    @db.Uuid
+  nominal_amount              Decimal   @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?  @default(false)
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+  conversion_id               String?   @db.Uuid
+
+  @@ignore
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GE78BG0000000893486000_BOG_AED {
+  id                          BigInt    @default(autoincrement())
+  uuid                        String    @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime
+  is_processed                Boolean
+  created_at                  DateTime
+  updated_at                  DateTime
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String    @db.Uuid
+  raw_record_uuid             String    @db.Uuid
+  transaction_date            String
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String    @db.Uuid
+  account_currency_amount     Decimal   @db.Decimal(20, 2)
+  nominal_currency_uuid       String    @db.Uuid
+  nominal_amount              Decimal   @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?  @default(false)
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+  conversion_id               String?   @db.Uuid
+
+  @@ignore
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GE78BG0000000893486000_BOG_CNY {
+  id                          BigInt    @default(autoincrement())
+  uuid                        String    @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime
+  is_processed                Boolean
+  created_at                  DateTime
+  updated_at                  DateTime
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String    @db.Uuid
+  raw_record_uuid             String    @db.Uuid
+  transaction_date            String
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String    @db.Uuid
+  account_currency_amount     Decimal   @db.Decimal(20, 2)
+  nominal_currency_uuid       String    @db.Uuid
+  nominal_amount              Decimal   @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?  @default(false)
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+  conversion_id               String?   @db.Uuid
+
+  @@ignore
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GE78BG0000000893486000_BOG_EUR {
+  id                          BigInt    @default(autoincrement())
+  uuid                        String    @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime
+  is_processed                Boolean
+  created_at                  DateTime
+  updated_at                  DateTime
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String    @db.Uuid
+  raw_record_uuid             String    @db.Uuid
+  transaction_date            String
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String    @db.Uuid
+  account_currency_amount     Decimal   @db.Decimal(20, 2)
+  nominal_currency_uuid       String    @db.Uuid
+  nominal_amount              Decimal   @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?  @default(false)
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+  conversion_id               String?   @db.Uuid
+
+  @@ignore
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GE78BG0000000893486000_BOG_GBP {
+  id                          BigInt    @default(autoincrement())
+  uuid                        String    @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime
+  is_processed                Boolean
+  created_at                  DateTime
+  updated_at                  DateTime
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String    @db.Uuid
+  raw_record_uuid             String    @db.Uuid
+  transaction_date            String
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String    @db.Uuid
+  account_currency_amount     Decimal   @db.Decimal(20, 2)
+  nominal_currency_uuid       String    @db.Uuid
+  nominal_amount              Decimal   @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?  @default(false)
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+  conversion_id               String?   @db.Uuid
+
+  @@ignore
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GE78BG0000000893486000_BOG_GEL {
+  id                          BigInt
+  uuid                        String    @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime
+  is_processed                Boolean
+  created_at                  DateTime
+  updated_at                  DateTime
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String    @db.Uuid
+  raw_record_uuid             String    @db.Uuid
+  transaction_date            String
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String    @db.Uuid
+  account_currency_amount     Decimal   @db.Decimal(20, 2)
+  nominal_currency_uuid       String    @db.Uuid
+  nominal_amount              Decimal   @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?  @default(false)
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+  conversion_id               String?   @db.Uuid
+
+  @@ignore
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GE78BG0000000893486000_BOG_KZT {
+  id                          BigInt    @default(autoincrement())
+  uuid                        String    @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime
+  is_processed                Boolean
+  created_at                  DateTime
+  updated_at                  DateTime
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String    @db.Uuid
+  raw_record_uuid             String    @db.Uuid
+  transaction_date            String
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String    @db.Uuid
+  account_currency_amount     Decimal   @db.Decimal(20, 2)
+  nominal_currency_uuid       String    @db.Uuid
+  nominal_amount              Decimal   @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?  @default(false)
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+  conversion_id               String?   @db.Uuid
+
+  @@ignore
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GE78BG0000000893486000_BOG_TRY {
+  id                          BigInt    @default(autoincrement())
+  uuid                        String    @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime
+  is_processed                Boolean
+  created_at                  DateTime
+  updated_at                  DateTime
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String    @db.Uuid
+  raw_record_uuid             String    @db.Uuid
+  transaction_date            String
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String    @db.Uuid
+  account_currency_amount     Decimal   @db.Decimal(20, 2)
+  nominal_currency_uuid       String    @db.Uuid
+  nominal_amount              Decimal   @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?  @default(false)
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+  conversion_id               String?   @db.Uuid
+
+  @@ignore
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GE78BG0000000893486000_BOG_USD {
+  id                          BigInt    @default(autoincrement())
+  uuid                        String    @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime
+  is_processed                Boolean
+  created_at                  DateTime
+  updated_at                  DateTime
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String    @db.Uuid
+  raw_record_uuid             String    @db.Uuid
+  transaction_date            String
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String    @db.Uuid
+  account_currency_amount     Decimal   @db.Decimal(20, 2)
+  nominal_currency_uuid       String    @db.Uuid
+  nominal_amount              Decimal   @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?  @default(false)
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+  conversion_id               String?   @db.Uuid
+
+  @@ignore
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GE79TB7856045067800004_TBC_GEL {
+  id                          BigInt    @id @default(autoincrement())
+  uuid                        String    @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime
+  is_processed                Boolean
+  created_at                  DateTime
+  updated_at                  DateTime
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String    @db.Uuid
+  raw_record_uuid             String    @db.Uuid
+  transaction_date            String
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String    @db.Uuid
+  account_currency_amount     Decimal   @db.Decimal(20, 2)
+  nominal_currency_uuid       String    @db.Uuid
+  nominal_amount              Decimal   @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?  @default(false)
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model bank_transaction_batches {
+  id                    BigInt           @id @default(autoincrement())
+  uuid                  String           @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bank_account_uuid     String           @db.Uuid
+  raw_record_id_1       String
+  raw_record_id_2       String
+  raw_record_uuid       String
+  batch_uuid            String           @db.Uuid
+  partition_amount      Decimal          @db.Decimal(20, 2)
+  partition_sequence    Int
+  payment_uuid          String?
+  payment_id            String?
+  counteragent_uuid     String?          @db.Uuid
+  project_uuid          String?          @db.Uuid
+  financial_code_uuid   String?          @db.Uuid
+  nominal_currency_uuid String?          @db.Uuid
+  nominal_amount        Decimal?         @db.Decimal(20, 2)
+  partition_note        String?
+  created_at            DateTime         @default(now()) @db.Timestamp(6)
+  updated_at            DateTime         @default(now()) @db.Timestamp(6)
+  created_by            String?
+  batch_id              String?          @db.VarChar(64)
+  counteragents         counteragents?   @relation(fields: [counteragent_uuid], references: [counteragent_uuid], onDelete: NoAction, onUpdate: NoAction)
+  financial_codes       financial_codes? @relation(fields: [financial_code_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+  currencies            currencies?      @relation(fields: [nominal_currency_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+  projects              projects?        @relation(fields: [project_uuid], references: [project_uuid], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([bank_account_uuid], map: "idx_bank_transaction_batches_account")
+  @@index([batch_uuid], map: "idx_bank_transaction_batches_batch_uuid")
+  @@index([payment_uuid], map: "idx_bank_transaction_batches_payment")
+  @@index([raw_record_id_1, raw_record_id_2], map: "idx_bank_transaction_batches_raw_record")
+  @@index([raw_record_uuid], map: "idx_bank_transaction_batches_raw_uuid")
+}
+
+/// This table is a partition table and requires additional setup for migrations. Visit https://pris.ly/d/partition-tables for more info.
+model bog_gel_raw_statements {
+  id                  BigInt      @default(autoincrement())
+  uuid                String      @db.Uuid
+  bank_account_uuid   String      @db.Uuid
+  doc_key             String?
+  entries_id          String?
+  doc_rec_date        String?
+  doc_value_date      String?
+  doc_actual_date     String?
+  doc_branch          String?
+  doc_department      String?
+  doc_prod_group      String?
+  doc_no              String?
+  doc_nomination      String?
+  doc_information     String?
+  doc_comment         String?
+  entry_comment       String?
+  doc_sender_name     String?
+  doc_sender_inn      String?
+  doc_sender_acct_no  String?
+  doc_sender_bic      String?
+  doc_sender_bic_name String?
+  doc_benef_name      String?
+  doc_benef_inn       String?
+  doc_benef_acct_no   String?
+  doc_benef_bic       String?
+  doc_benef_bic_name  String?
+  doc_payer_name      String?
+  doc_payer_inn       String?
+  doc_cor_acct        String?
+  doc_cor_bic         String?
+  doc_cor_bank_name   String?
+  doc_src_amt         String?
+  doc_src_ccy         String?
+  doc_dst_amt         String?
+  doc_dst_ccy         String?
+  entry_db_amt        String?
+  entry_db_amt_base   String?
+  entry_cr_amt        String?
+  entry_cr_amt_base   String?
+  entry_amt_base      String?
+  out_balance         String?
+  entry_p_date        String?
+  entry_doc_no        String?
+  entry_l_acct        String?
+  entry_l_acct_old    String?
+  entry_department    String?
+  entry_acct_point    String?
+  ccy_rate            String?
+  can_copy_document   String?
+  can_view_document   String?
+  can_print_document  String?
+  is_reval            String?
+  import_batch_id     String?
+  import_date         DateTime    @default(now())
+  is_processed        Boolean     @default(false)
+  processing_error    String?
+  created_at          DateTime    @default(now())
+  updated_at          DateTime    @default(now())
+  bank_accounts       BankAccount @relation(fields: [bank_account_uuid], references: [uuid])
+
+  @@id([id, bank_account_uuid])
+  @@unique([uuid, bank_account_uuid])
+  @@index([doc_rec_date])
+  @@index([import_batch_id])
+  @@index([is_processed])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model conversion {
+  id                BigInt   @id @default(autoincrement())
+  uuid              String   @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date              DateTime @db.Date
+  key_value         String
+  account_out_uuid  String   @db.Uuid
+  account_in_uuid   String   @db.Uuid
+  currency_out_uuid String   @db.Uuid
+  currency_in_uuid  String   @db.Uuid
+  amount_out        Decimal  @db.Decimal(20, 6)
+  amount_in         Decimal  @db.Decimal(20, 6)
+  fee               Decimal? @db.Decimal(20, 6)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @db.Timestamptz(6)
+  bank_uuid         String?  @db.Uuid
+  insider_uuid      String   @db.Uuid
+
+  @@unique([key_value, account_out_uuid, account_in_uuid], map: "conversion_key_unique")
+  @@index([bank_uuid])
+  @@index([date])
+  @@index([key_value], map: "conversion_key_idx")
+  @@index([insider_uuid], map: "idx_conversion_insider_uuid")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model conversion_entries {
+  id                          BigInt    @id @default(autoincrement())
+  conversion_id               BigInt?
+  conversion_uuid             String?   @db.Uuid
+  entry_type                  String
+  bank_account_uuid           String?   @db.Uuid
+  raw_record_uuid             String?   @db.Uuid
+  dockey                      String?
+  entriesid                   String?
+  transaction_date            String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  description                 String?
+  comment                     String?
+  counteragent_uuid           String?   @db.Uuid
+  counteragent_account_number String?
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String?   @db.Uuid
+  account_currency_amount     Decimal?  @db.Decimal(20, 6)
+  nominal_currency_uuid       String?   @db.Uuid
+  nominal_amount              Decimal?  @db.Decimal(20, 6)
+  payment_id                  String?
+  processing_case             String?
+  created_at                  DateTime? @db.Timestamptz(6)
+  updated_at                  DateTime? @db.Timestamptz(6)
+  parsing_lock                Boolean?
+  applied_rule_id             Int?
+  batch_id                    String?
+  account_number              String?
+  bank_name                   String?
+  account_currency_code       String?
+  nominal_currency_code       String?
+  usd_gel_rate                Decimal?  @db.Decimal(20, 10)
+  counteragent_name           String?
+  financial_code              String?
+  project_index               String?
+  source_table                String?   @default("conversion_entries")
+  insider_uuid                String    @db.Uuid
+
+  @@unique([conversion_uuid, entry_type], map: "conversion_entries_unique")
+  @@index([batch_id], map: "conversion_entries_batch_idx")
+  @@index([transaction_date], map: "conversion_entries_date_idx")
+  @@index([insider_uuid], map: "idx_conversion_entries_insider_uuid")
+}
+
+model counteragent_audit_log {
+  id              BigInt        @id @default(autoincrement())
+  counteragent_id BigInt
+  changed_at      DateTime      @default(now()) @db.Timestamptz(6)
+  changed_by      String?
+  field_name      String
+  old_value       String?
+  new_value       String?
+  operation       String
+  counteragents   counteragents @relation(fields: [counteragent_id], references: [id], onDelete: Cascade)
+
+  @@index([changed_at])
+  @@index([counteragent_id])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model counteragents_audit {
+  audit_id          Int       @id @default(autoincrement())
+  counteragent_uuid String    @db.Uuid
+  changed_by        String?
+  change_type       String?
+  old_country_uuid  String?   @db.Uuid
+  new_country_uuid  String?   @db.Uuid
+  changed_at        DateTime? @default(now()) @db.Timestamp(6)
+  details           Json?
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model incident_backup_synthetic_bog_gel_20260311201530 {
+  id                          BigInt?
+  uuid                        String?   @db.Uuid
+  cancopydocument             String?
+  canviewdocument             String?
+  canprintdocument            String?
+  isreval                     String?
+  docnomination               String?
+  docinformation              String?
+  docsrcamt                   String?
+  docsrcccy                   String?
+  docdstamt                   String?
+  docdstccy                   String?
+  dockey                      String?
+  docrecdate                  String?
+  docbranch                   String?
+  docdepartment               String?
+  docprodgroup                String?
+  docno                       String?
+  docvaluedate                String?
+  docsendername               String?
+  docsenderinn                String?
+  docsenderacctno             String?
+  docsenderbic                String?
+  docactualdate               String?
+  doccoracct                  String?
+  doccorbic                   String?
+  doccorbankname              String?
+  entriesid                   String?
+  doccomment                  String?
+  ccyrate                     String?
+  entrypdate                  String?
+  entrydocno                  String?
+  entrylacct                  String?
+  entrylacctold               String?
+  entrydbamt                  String?
+  entrydbamtbase              String?
+  entrycramt                  String?
+  entrycramtbase              String?
+  outbalance                  String?
+  entryamtbase                String?
+  entrycomment                String?
+  entrydepartment             String?
+  entryacctpoint              String?
+  docsenderbicname            String?
+  docbenefname                String?
+  docbenefinn                 String?
+  docbenefacctno              String?
+  docbenefbic                 String?
+  docbenefbicname             String?
+  docpayername                String?
+  docpayerinn                 String?
+  import_batch_id             String?
+  import_date                 DateTime?
+  is_processed                Boolean?
+  created_at                  DateTime?
+  updated_at                  DateTime?
+  counteragent_processed      Boolean?
+  parsing_rule_processed      Boolean?
+  payment_id_processed        Boolean?
+  counteragent_inn            String?
+  processing_case             String?
+  counteragent_found          Boolean?
+  counteragent_inn_blank      Boolean?
+  counteragent_missing        Boolean?
+  payment_id_matched          Boolean?
+  payment_id_conflict         Boolean?
+  parsing_rule_applied        Boolean?
+  parsing_rule_conflict       Boolean?
+  parsing_rule_dominance      Boolean?
+  applied_rule_id             Int?
+  bank_account_uuid           String?   @db.Uuid
+  raw_record_uuid             String?   @db.Uuid
+  transaction_date            String?
+  description                 String?
+  counteragent_uuid           String?   @db.Uuid
+  project_uuid                String?   @db.Uuid
+  financial_code_uuid         String?   @db.Uuid
+  account_currency_uuid       String?   @db.Uuid
+  account_currency_amount     Decimal?  @db.Decimal(20, 2)
+  nominal_currency_uuid       String?   @db.Uuid
+  nominal_amount              Decimal?  @db.Decimal(20, 2)
+  counteragent_account_number String?
+  payment_id                  String?
+  case_description            String?
+  raw_table_name              String?
+  correction_date             DateTime? @db.Date
+  exchange_rate               Decimal?  @db.Decimal(20, 10)
+  parsing_lock                Boolean?
+  nominal_exchange_rate       Decimal?  @db.Decimal
+  comment                     String?
+  conversion_id               String?   @db.Uuid
+
+  @@ignore
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model payment_id_duplicates {
+  id                   Int       @id @default(autoincrement())
+  master_payment_id    String    @db.VarChar(255)
+  duplicate_payment_id String    @unique @db.VarChar(255)
+  project_uuid         String?   @db.Uuid
+  counteragent_uuid    String    @db.Uuid
+  financial_code_uuid  String    @db.Uuid
+  job_uuid             String?   @db.Uuid
+  income_tax           Boolean
+  currency_uuid        String    @db.Uuid
+  created_at           DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([duplicate_payment_id], map: "idx_payment_duplicates_duplicate")
+  @@index([master_payment_id], map: "idx_payment_duplicates_master")
+}
+
+model project_bundle_payments {
+  id                  BigInt    @id @default(autoincrement())
+  uuid                String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_uuid        String    @db.Uuid
+  financial_code_uuid String    @db.Uuid
+  percentage          Decimal?  @db.Decimal(5, 2)
+  amount              Decimal?  @db.Decimal(18, 2)
+  created_at          DateTime  @default(now())
+  updated_at          DateTime
+  payment_id          String?
+  accrual_date        DateTime?
+  order_date          DateTime?
+
+  @@unique([project_uuid, financial_code_uuid], map: "uq_project_bundle_payments_project_fc")
+  @@index([financial_code_uuid])
+  @@index([payment_id])
+  @@index([project_uuid])
+}
+
+/// This table is a partition table and requires additional setup for migrations. Visit https://pris.ly/d/partition-tables for more info.
+model raw_bank_statements {
+  id                   BigInt      @default(autoincrement())
+  uuid                 String      @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  bank_account_uuid    String      @db.Uuid
+  transaction_date     DateTime    @db.Date
+  value_date           DateTime?   @db.Date
+  document_number      String?
+  description          String
+  counterparty_name    String?
+  counterparty_code    String?
+  counterparty_account String?
+  debit                Decimal?    @db.Decimal(18, 2)
+  credit               Decimal?    @db.Decimal(18, 2)
+  balance              Decimal?    @db.Decimal(18, 2)
+  bank_format          String
+  import_batch_id      String?
+  raw_data             Json?
+  is_parsed            Boolean     @default(false)
+  is_reconciled        Boolean     @default(false)
+  created_at           DateTime    @default(now())
+  updated_at           DateTime
+  bank_accounts        BankAccount @relation(fields: [bank_account_uuid], references: [uuid])
+
+  @@id([id, bank_account_uuid])
+  @@unique([uuid, bank_account_uuid], map: "raw_bank_statements_uuid_bank_account_key")
+  @@index([bank_account_uuid])
+  @@index([import_batch_id])
+  @@index([is_parsed])
+  @@index([is_reconciled])
+  @@index([transaction_date])
+}
+
+model standardized_transactions {
+  id                      BigInt      @id @default(autoincrement())
+  uuid                    String      @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  bank_account_uuid       String      @db.Uuid
+  raw_bank_statement_uuid String?     @db.Uuid
+  transaction_date        DateTime    @db.Date
+  value_date              DateTime?   @db.Date
+  document_number         String?
+  description             String
+  counteragent_uuid       String?     @db.Uuid
+  project_uuid            String?     @db.Uuid
+  financial_code_uuid     String?     @db.Uuid
+  job_uuid                String?     @db.Uuid
+  debit                   Decimal?    @db.Decimal(18, 2)
+  credit                  Decimal?    @db.Decimal(18, 2)
+  balance                 Decimal?    @db.Decimal(18, 2)
+  currency_uuid           String      @db.Uuid
+  is_reconciled           Boolean     @default(false)
+  is_verified             Boolean     @default(false)
+  needs_review            Boolean     @default(false)
+  notes                   String?
+  created_at              DateTime    @default(now())
+  updated_at              DateTime
+  bank_accounts           BankAccount @relation(fields: [bank_account_uuid], references: [uuid])
+
+  @@index([bank_account_uuid])
+  @@index([counteragent_uuid])
+  @@index([financial_code_uuid])
+  @@index([is_reconciled])
+  @@index([is_verified])
+  @@index([project_uuid])
+  @@index([transaction_date])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model tbc_gel_raw_6050100002 {
+  id                     BigInt   @id(map: "GE65TB7856036050100002_TBC_GEL_pkey") @default(autoincrement())
+  uuid                   String   @unique(map: "ge65tb7856036050100002_tbc_gel_uuid_key") @db.Uuid
+  date                   String?
+  paid_in                String?
+  paid_out               String?
+  balance                String?
+  description            String?
+  additional_information String?
+  additional_description String?
+  transaction_type       String?
+  document_date          String?
+  document_number        String?
+  partner_account_number String?
+  partner_name           String?
+  partner_bank_code      String?
+  partner_bank_name      String?
+  operation_code         String?
+  partner_tax_code       String?
+  taxpayer_code          String?
+  taxpayer_name          String?
+  transaction_id         String?
+  import_batch_id        String?
+  import_date            DateTime @default(now()) @db.Timestamp(6)
+  counteragent_processed Boolean  @default(false)
+  counteragent_found     Boolean  @default(false)
+  counteragent_missing   Boolean  @default(false)
+  parsing_rule_processed Boolean  @default(false)
+  parsing_rule_applied   Boolean  @default(false)
+  parsing_rule_conflict  Boolean  @default(false)
+  payment_id_processed   Boolean  @default(false)
+  payment_id_matched     Boolean  @default(false)
+  payment_id_conflict    Boolean  @default(false)
+  counteragent_inn       String?
+  applied_rule_id        Int?
+  processing_case        String?
+  is_processed           Boolean  @default(false)
+  created_at             DateTime @default(now()) @db.Timestamp(6)
+  updated_at             DateTime @default(now()) @db.Timestamp(6)
+}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBuyerWaybillGoodsListByNumber, getRsCredentialsMap } from '@/lib/integrations/rsge/client';
 import { prisma } from '@/lib/prisma';
+import { getRequiredInsider } from '@/lib/required-insider';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuthOrCron(req);
   if (isAuthError(auth)) return auth;
 
+  const insider = await getRequiredInsider();
   const credMap = getRsCredentialsMap();
   if (credMap.length === 0)
     return NextResponse.json({ error: 'No RS API credentials configured' }, { status: 503 });
@@ -173,7 +175,7 @@ export async function POST(req: NextRequest) {
         const records = goods.map((g) => ({
           rs_id: rsId,
           waybill_no: meta.waybill_no ?? null,
-          insider_uuid: meta.insider_uuid ?? null,
+          insider_uuid: meta.insider_uuid ?? insider.insiderUuid,
           import_batch_id: batchId,
           // Waybill-level fields from rs_waybills_in_api
           type: meta.type ?? null,

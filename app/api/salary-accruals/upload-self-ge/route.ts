@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import * as XLSX from 'xlsx';
+import { getRequiredInsider } from '@/lib/required-insider';
 
 const prisma = new PrismaClient();
 
@@ -460,6 +461,7 @@ const handleCreateSingleCounteragent = async (body: any) => {
 };
 
 const handleAddToSalary = async (body: any) => {
+  const insider = await getRequiredInsider();
   const counteragentUuid = body?.counteragent_uuid;
   const financialCodeUuid = body?.financial_code_uuid;
   const month = body?.month;
@@ -504,6 +506,7 @@ const handleAddToSalary = async (body: any) => {
 
   const accrual = await prisma.salary_accruals.create({
     data: {
+      insider_uuid: insider.insiderUuid,
       counteragent_uuid: counteragentUuid,
       financial_code_uuid: financialCodeUuid,
       nominal_currency_uuid: currencyUuid,

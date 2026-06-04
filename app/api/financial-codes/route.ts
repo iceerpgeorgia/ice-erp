@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
           .filter(c => c.parent_uuid === parentUuid)
           .sort((a, b) => {
             if (a.sort_order !== b.sort_order) {
-              return a.sort_order - b.sort_order;
+              return (a.sort_order ?? 0) - (b.sort_order ?? 0);
             }
             
             // Custom sort: codes starting with "0" should come after "9"
@@ -261,6 +261,7 @@ export async function POST(req: NextRequest) {
 
     const created = await prisma.financial_codes.create({
       data: {
+        uuid: crypto.randomUUID(),
         code: payload.code,
         name: payload.name,
         ...(payload.description && { description: payload.description }),
@@ -281,7 +282,7 @@ export async function POST(req: NextRequest) {
     // Use uuid as recordId for audit logging
     await logAudit({
       table: "financial_codes",
-      recordId: created.uuid,
+      recordId: created.uuid!,
       action: "create",
     });
 
@@ -387,7 +388,7 @@ export async function PATCH(req: NextRequest) {
     if (Object.keys(changes).length > 0) {
       await logAudit({
         table: "financial_codes",
-        recordId: updated.uuid,
+        recordId: updated.uuid!,
         action: "update",
         changes,
       });
@@ -433,7 +434,7 @@ export async function DELETE(req: NextRequest) {
 
     await logAudit({
       table: "financial_codes",
-      recordId: updated.uuid,
+      recordId: updated.uuid!,
       action: "delete",
     });
 

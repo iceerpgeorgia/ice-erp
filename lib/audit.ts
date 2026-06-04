@@ -115,21 +115,19 @@ export async function loadLatestEditors(
 ) {
   if (ids.length === 0) return new Map<string, string>();
   
-  // Convert all IDs to strings for comparison
-  const stringIds = ids.map(id => 
-    typeof id === 'bigint' ? id.toString() : 
-    typeof id === 'number' ? id.toString() : 
-    id
+  // Convert all IDs to BigInt for the query
+  const bigintIds = ids.map(id => 
+    typeof id === 'bigint' ? id : BigInt(Number(id))
   );
   
   const rows = await prisma.auditLog.findMany({
-    where: { table, record_id: { in: stringIds } },
+    where: { table, record_id: { in: bigintIds } },
     orderBy: { created_at: "desc" },
     select: { record_id: true, user_email: true },
   });
   const map = new Map<string, string>();
   for (const r of rows) {
-    const key = r.record_id;
+    const key = r.record_id.toString();
     if (!map.has(key)) map.set(key, r.user_email ?? "");
   }
   return map;

@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
     const created = await prisma.inventories.create({
       data: {
         uuid: crypto.randomUUID(),
+        insider_uuid: insider.insiderUuid,
         name: payload.name,
         producer_uuid: payload.producer_uuid,
         inventory_group_uuid: payload.inventory_group_uuid,

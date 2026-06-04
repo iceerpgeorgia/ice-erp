@@ -5,18 +5,20 @@ import { requireAuth, isAuthError } from "@/lib/auth-guard";
 
 function validatePayload(body: any) {
   const errors: Record<string, string> = {};
+  const code = typeof body?.code === "string" ? body.code.trim() : "";
   const name_en = typeof body?.name_en === "string" ? body.name_en.trim() : "";
   const name_ka = typeof body?.name_ka === "string" ? body.name_ka.trim() : "";
   const is_active = typeof body?.is_active === "boolean" ? body.is_active : true;
   const is_natural_person = typeof body?.is_natural_person === "boolean" ? body.is_natural_person : false;
   const is_id_exempt = typeof body?.is_id_exempt === "boolean" ? body.is_id_exempt : false;
 
+  if (!code) errors.code = "Code is required";
   if (!name_en) errors.name_en = "English name is required";
   if (!name_ka) errors.name_ka = "Georgian name is required";
 
   return {
     errors,
-    payload: { name_en, name_ka, is_active, is_natural_person, is_id_exempt },
+    payload: { code, name_en, name_ka, is_active, is_natural_person, is_id_exempt },
   } as const;
 }
 
@@ -31,6 +33,7 @@ export async function GET() {
         updated_at: true,
         ts: true,
         entity_type_uuid: true,
+        code: true,
         name_en: true,
         name_ka: true,
         is_natural_person: true,
@@ -48,6 +51,7 @@ export async function GET() {
         updated_at: true,
         ts: true,
         entity_type_uuid: true,
+        code: true,
         name_en: true,
         name_ka: true,
         is_active: true,
@@ -70,6 +74,7 @@ export async function GET() {
     updatedAt: formatDate(row.updated_at),
     ts: formatDate(row.ts),
     entity_type_uuid: row.entity_type_uuid,
+    code: row.code,
     name_en: row.name_en,
     name_ka: row.name_ka,
     nameEn: row.name_en,
@@ -99,6 +104,7 @@ export async function POST(req: NextRequest) {
       newEntityType = await prisma.entity_types.create({
         data: {
           entity_type_uuid: randomUUID(),
+          code: payload.code,
           name_en: payload.name_en,
           name_ka: payload.name_ka,
           is_natural_person: payload.is_natural_person,
@@ -112,6 +118,7 @@ export async function POST(req: NextRequest) {
       newEntityType = await prisma.entity_types.create({
         data: {
           entity_type_uuid: randomUUID(),
+          code: payload.code,
           name_en: payload.name_en,
           name_ka: payload.name_ka,
           is_active: payload.is_active,

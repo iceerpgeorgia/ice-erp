@@ -123,6 +123,7 @@ export async function POST(req: NextRequest) {
     const created = await prisma.rs_waybills_in_items.create({
       data: {
         uuid: crypto.randomUUID(),
+        insider_uuid: insider.insiderUuid,
         waybill_no: payload.waybill_no,
         rs_id: payload.rs_id,
         goods_code: payload.goods_code,

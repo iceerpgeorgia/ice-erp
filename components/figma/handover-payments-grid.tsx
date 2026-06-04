@@ -35,6 +35,12 @@ import { useTableFilters } from './shared/use-table-filters';
 import type { ColumnFormat } from './shared/table-filters';
 import { BundleDistributionGrid, type BundleDistributionRow } from './bundle-distribution-grid';
 import { LayoutGrid } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -200,6 +206,14 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
   const [baseInfoLoading, setBaseInfoLoading] = useState(false);
   const [baseInfoError, setBaseInfoError] = useState<string | null>(null);
   const [baseInfo, setBaseInfo] = useState<any>(null);
+
+  // -- Confirmation dialogs --------------------------------------------------
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [isDeconfirmOpen, setIsDeconfirmOpen] = useState(false);
+  const [isDeconfirming, setIsDeconfirming] = useState(false);
+  const [deconfirmError, setDeconfirmError] = useState<string | null>(null);
 
   // ── Dictionaries (lazy loaded) ────────────────────────────────────────────
   const [counteragents, setCounteragents] = useState<any[]>([]);
@@ -620,6 +634,54 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
     }
   };
 
+  const handleConfirm = async () => {
+    if (selectedIds.size === 0) return;
+    setIsConfirming(true);
+    setConfirmError(null);
+    try {
+      const res = await fetch('/api/payments-ledger/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentIds: Array.from(selectedIds) }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to confirm payments');
+      }
+      await fetchIncomePayments(projectUuid);
+      setIsConfirmOpen(false);
+      setSelectedIds(new Set());
+    } catch (e: any) {
+      setConfirmError(e.message);
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  const handleDeconfirm = async () => {
+    if (selectedIds.size === 0) return;
+    setIsDeconfirming(true);
+    setDeconfirmError(null);
+    try {
+      const res = await fetch('/api/payments-ledger/deconfirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentIds: Array.from(selectedIds) }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to de-confirm payments');
+      }
+      await fetchIncomePayments(projectUuid);
+      setIsDeconfirmOpen(false);
+      setSelectedIds(new Set());
+    } catch (e: any) {
+      setDeconfirmError(e.message);
+    } finally {
+      setIsDeconfirming(false);
+    }
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-3">
@@ -688,18 +750,30 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
         </Button>
 
         {selectedIds.size > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const records = paginatedData.filter(r => selectedIds.has(r.paymentId));
-              const payload = records.map(r => ({ paymentId: r.paymentId, amount: Math.abs(r.due) }));
-              navigator.clipboard.writeText(JSON.stringify(payload)).catch(() => {});
-            }}
-          >
-            <Copy className="h-4 w-4 mr-2" />
-            Copy for Batch ({selectedIds.size})
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                Bulk Actions ({selectedIds.size})
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => setIsConfirmOpen(true)}>
+                Confirm
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsDeconfirmOpen(true)}>
+                De-confirm
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  const records = paginatedData.filter(r => selectedIds.has(r.paymentId));
+                  const payload = records.map(r => ({ paymentId: r.paymentId, amount: Math.abs(r.due) }));
+                  navigator.clipboard.writeText(JSON.stringify(payload)).catch(() => {});
+                }}
+              >
+                Copy for Batch
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
 
         <span className="text-sm text-muted-foreground ml-auto">
@@ -1004,66 +1078,46 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
 
       {/* ── Dialogs ───────────────────────────────────────────────────────── */}
 
-      {/* Bundle Distribution Dialog */}
-      <Dialog open={isBundleDistributionOpen} onOpenChange={setIsBundleDistributionOpen}>
-        <DialogContent className="max-w-4xl">
+      <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Bundle Distribution</DialogTitle>
+            <DialogTitle>Confirm Payments</DialogTitle>
             <DialogDescription>
-              {bundleDistributionProject
-                ? `Distribute value across child financial codes for project: ${bundleDistributionProject.projectName}`
-                : 'Loading...'}
+              Are you sure you want to confirm {selectedIds.size} selected payment(s)? This action cannot be undone easily.
             </DialogDescription>
           </DialogHeader>
-          {bundleDistributionLoading ? (
-            <div className="text-center py-8 text-gray-500">Loading bundle distribution data...</div>
-          ) : bundleDistributionProject ? (
-            <BundleDistributionGrid
-              value={bundleDistributionData}
-              onChange={setBundleDistributionData}
-              bundleFinancialCodeUuid={bundleDistributionProject.financialCodeUuid}
-              projectValue={bundleDistributionProject.value}
-            />
-          ) : (
-            <div className="text-center py-8 text-red-600">Failed to load project data</div>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsBundleDistributionOpen(false)}>
-              Close
+          {confirmError && <p className="text-red-500 text-sm">{confirmError}</p>}
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setIsConfirmOpen(false)} disabled={isConfirming}>
+              Cancel
             </Button>
-            {bundleDistributionProject && (
-              <Button
-                onClick={async () => {
-                  setBundleDistributionSaving(true);
-                  try {
-                    const res = await fetch(`/api/projects?id=${bundleDistributionProject.projectId}`, {
-                      method: 'PATCH',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ bundleDistribution: bundleDistributionData })
-                    });
-                    if (!res.ok) {
-                      const err = await res.json();
-                      alert(`Failed to save: ${err.error || 'Unknown error'}`);
-                    } else {
-                      setIsBundleDistributionOpen(false);
-                      fetchIncomePayments(projectUuid);
-                    }
-                  } catch (e) {
-                    alert('Failed to save distribution');
-                  } finally {
-                    setBundleDistributionSaving(false);
-                  }
-                }}
-                disabled={bundleDistributionSaving}
-              >
-                {bundleDistributionSaving ? 'Saving...' : 'Save'}
-              </Button>
-            )}
+            <Button onClick={handleConfirm} disabled={isConfirming}>
+              {isConfirming ? 'Confirming…' : 'Confirm'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Payment Dialog */}
+      <Dialog open={isDeconfirmOpen} onOpenChange={setIsDeconfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>De-confirm Payments</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to de-confirm {selectedIds.size} selected payment(s)?
+            </DialogDescription>
+          </DialogHeader>
+          {deconfirmError && <p className="text-red-500 text-sm">{deconfirmError}</p>}
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setIsDeconfirmOpen(false)} disabled={isDeconfirming}>
+              Cancel
+            </Button>
+            <Button onClick={handleDeconfirm} disabled={isDeconfirming} variant="destructive">
+              {isDeconfirming ? 'De-confirming…' : 'De-confirm'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -1200,7 +1254,6 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
         </DialogContent>
       </Dialog>
 
-      {/* Add Ledger Entry Dialog */}
       <Dialog
         open={isAddLedgerOpen}
         onOpenChange={open => {
@@ -1268,7 +1321,6 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
         </DialogContent>
       </Dialog>
 
-      {/* Base Info Dialog */}
       <Dialog open={isBaseInfoOpen} onOpenChange={setIsBaseInfoOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
