@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #307
+- Commit: pending
+- Production: pending
+- Summary: Restore the handovers job-distribution action icon by normalizing persisted column config and always keeping the first Actions column visible.
+- Changes:
+  - components/figma/handover-job-distributions-grid.tsx: Added column-config normalization so older saved layouts regain the action button column and the new first-column icon remains visible.
+
 ## 2026-06-04 Deployment #306
 - Commit: 21a9233
 - Production: https://ice-n8u5h5089-iceerp.vercel.app

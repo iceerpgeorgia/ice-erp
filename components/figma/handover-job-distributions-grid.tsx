@@ -94,9 +94,38 @@ const defaultBankTxColumns: BankTxColumnConfig[] = [
 ];
 
 const JOB_DIST_STORAGE_KEY = 'handovers-job-distributions-columns';
-const JOB_DIST_STORAGE_VERSION = '1';
+const JOB_DIST_STORAGE_VERSION = '2';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+function normalizeColumns(saved: unknown): BankTxColumnConfig[] {
+  const base = defaultBankTxColumns.map(col => ({ ...col }));
+
+  if (!Array.isArray(saved)) return base;
+
+  const savedMap = new Map(saved.map((col: any) => [col?.key, col]));
+  const normalized = base.map(def => {
+    const candidate = savedMap.get(def.key);
+    return {
+      ...def,
+      ...(candidate && typeof candidate === 'object' ? candidate : {}),
+      width: Number.isFinite(Number(candidate?.width)) ? Number(candidate.width) : def.width,
+      visible: candidate?.visible !== false,
+    };
+  });
+
+  const actionsIndex = normalized.findIndex(col => col.key === 'actions');
+  if (actionsIndex === -1) {
+    normalized.unshift({ ...defaultBankTxColumns[0], visible: true, width: 56 });
+  } else if (actionsIndex !== 0) {
+    const [actionsCol] = normalized.splice(actionsIndex, 1);
+    normalized.unshift({ ...actionsCol, visible: true, width: 56 });
+  } else {
+    normalized[0] = { ...normalized[0], visible: true, width: 56 };
+  }
+
+  return normalized;
+}
 
 function fmtVal(value: any, format?: ColumnFormat, key?: string): string {
   if (value === null || value === undefined) return '-';
@@ -147,10 +176,12 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
       try {
         const saved = localStorage.getItem(JOB_DIST_STORAGE_KEY);
         const version = localStorage.getItem(`${JOB_DIST_STORAGE_KEY}-v`);
-        if (saved && version === JOB_DIST_STORAGE_VERSION) return JSON.parse(saved);
+        if (saved && version === JOB_DIST_STORAGE_VERSION) {
+          return normalizeColumns(JSON.parse(saved));
+        }
       } catch {}
     }
-    return defaultBankTxColumns;
+    return normalizeColumns(null);
   });
 
   // ── Search & filters ──────────────────────────────────────────────────────
