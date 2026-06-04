@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #312
+- Commit: 43691db
+- Production: https://ice-ru3414uhx-iceerp.vercel.app
+- Summary: Fix handovers payment lookup ambiguity and improve XLSX export fidelity for distribution rows.
+- Changes:
+  - components/figma/handover-job-distributions-grid.tsx: Resolve distributions via the full composite payment key first and only fall back to unique payment-id aliases to prevent wrong-payment mapping.
+  - lib/handovers-job-distributions.ts: Added shared lookup helpers and regression coverage for ambiguous payment-id cases.
+  - lib/export-xlsx.ts: Added explicit currency/number and date formatting so exported XLSX values preserve Excel-friendly formatting.
+  - lib/__tests__/handover-job-distributions.test.ts: Added regression tests for the payment lookup path.
+
 ## 2026-06-04 Deployment #311
 - Commit: 7b65f23
 - Production: https://ice-4l1vwk5o9-iceerp.vercel.app
