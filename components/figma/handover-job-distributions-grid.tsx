@@ -104,16 +104,28 @@ function normalizeColumns(saved: unknown): BankTxColumnConfig[] {
   if (!Array.isArray(saved)) return base;
 
   const savedMap = new Map(saved.map((col: any) => [col?.key, col]));
-  const normalized = base.map(def => {
-    const candidate = savedMap.get(def.key);
-    return {
-      ...def,
-      ...(candidate && typeof candidate === 'object' ? candidate : {}),
-      label: candidate?.label || def.label || 'Actions',
-      width: Number.isFinite(Number(candidate?.width)) ? Number(candidate.width) : def.width,
-      visible: candidate?.visible !== false,
-    };
-  });
+  const savedOrder = saved
+    .map((col: any) => (typeof col?.key === 'string' ? col.key : null))
+    .filter((key): key is BankTxColKey => key !== null);
+
+  const normalized = base
+    .map(def => {
+      const candidate = savedMap.get(def.key);
+      return {
+        ...def,
+        ...(candidate && typeof candidate === 'object' ? candidate : {}),
+        label: candidate?.label || def.label || 'Actions',
+        width: Number.isFinite(Number(candidate?.width)) ? Number(candidate.width) : def.width,
+        visible: candidate?.visible !== false,
+      };
+    })
+    .sort((a, b) => {
+      const aIndex = savedOrder.indexOf(a.key);
+      const bIndex = savedOrder.indexOf(b.key);
+      const aRank = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex;
+      const bRank = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex;
+      return aRank - bRank;
+    });
 
   const actionsIndex = normalized.findIndex(col => col.key === 'actions');
   if (actionsIndex === -1) {
