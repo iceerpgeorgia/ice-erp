@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #297
+- Commit: fa02e32
+- Production: https://ice-k6qubk2i5-iceerp.vercel.app
+- Summary: Add bundle editor to handovers grid and fix UI inconsistencies.
+- Changes:
+  - components/figma/handover-payments-grid.tsx:
+    - Added bundle distribution editor functionality, mirroring the main payments report.
+    - Hid the "Copy Payment ID" button for aggregate rows, which do not have a payment ID.
+
 ## 2026-06-04 Deployment #296
 - Commit: 89577d4
 - Production: https://ice-arnzumbjc-iceerp.vercel.app
