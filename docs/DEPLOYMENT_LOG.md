@@ -1,5 +1,25 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #299
+- Commit: 6dff7aa
+- Production: https://ice-7qxx2yh5o-iceerp.vercel.app
+- Summary: Add payments_jobs table with cascade guards and fix multiple build errors.
+- Changes:
+  - prisma/schema.prisma: Added `payments_jobs` table with payment_uuid (String), job_uuid, project_uuid, amount, onDelete: Cascade for payment, onDelete: Restrict for job/project
+  - prisma/migrations/20260604000000_add_payments_jobs_table/migration.sql: Manual migration file for payments_jobs table
+  - app/api/financial-codes/route.ts: Added uuid generation, fixed null handling for sort_order and uuid fields
+  - app/api/entity-types/route.ts: Added code field to all handlers
+  - app/dictionaries/entity-types/actions.ts: Added code field to createEntityType
+  - app/api/inventories/route.ts: Added insider_uuid to create operation
+  - app/api/salary-accruals/upload-period/route.ts: Added insider_uuid to create operation
+  - app/api/salary-accruals/upload-self-ge/route.ts: Added insider_uuid to handleAddToSalary
+  - app/api/waybill-items/route.ts: Added insider_uuid to create operation
+  - app/api/waybills/backfill-items-per-waybill/route.ts: Added insider_uuid fallback
+  - app/api/attachments/[uuid]/route.ts: Fixed document_currency relation
+  - lib/audit.ts: Fixed BigInt conversion for record_id queries
+  - Removed: app/api/entries/route.ts (legacy unused route)
+  - Removed: Old migration files (20250819193953_init, 20250826173901_add_entity_types, 20250827101639_add_counteragents)
+
 ## 2026-06-04 Deployment #298
 - Commit: 13ace6f
 - Production: https://ice-o2f1pgqks-iceerp.vercel.app
