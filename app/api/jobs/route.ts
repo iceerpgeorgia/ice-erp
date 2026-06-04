@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const insider = selection.primaryInsider;
     const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
     const { searchParams } = new URL(req.url);
-    const projectUuid = searchParams.get('projectUuid');
+    const projectUuid = searchParams.get('projectUuid') || searchParams.get('project_uuid');
 
     // If projectUuid provided, return jobs linked to that project via job_projects.
     // Insider filter is intentionally NOT applied here — the project itself is the

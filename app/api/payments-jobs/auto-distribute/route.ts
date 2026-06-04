@@ -1,0 +1,138 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { requireAuth, isAuthError } from '@/lib/auth-guard';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
+
+// POST /api/payments-jobs/auto-distribute
+// Distributes a payment across all jobs in a project based on selling price weights
+export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
+
+  const session = await getServerSession(authOptions);
+  const userEmail = session?.user?.email || 'system';
+
+  try {
+    const body = await req.json();
+    const {
+      payment_uuid,
+      project_uuid,
+      payment_amount,
+      payment_currency_code,
+      account_currency_rate = 1, // Rate to convert to GEL (account currency)
+    } = body;
+
+    if (!payment_uuid || !project_uuid || !payment_amount) {
+      return NextResponse.json(
+        { error: 'payment_uuid, project_uuid, and payment_amount are required' },
+        { status: 400 }
+      );
+    }
+
+    // Fetch all active jobs for this project with selling prices
+    const jobs = await prisma.jobs.findMany({
+      where: {
+        project_uuid,
+        is_active: true,
+        selling_price: {
+          not: null,
+          gt: 0,
+        },
+      },
+      select: {
+        job_uuid: true,
+        job_name: true,
+        selling_price: true,
+      },
+    });
+
+    if (jobs.length === 0) {
+      return NextResponse.json(
+        { error: 'No active jobs with selling prices found for this project' },
+        { status: 400 }
+      );
+    }
+
+    // Calculate total selling price
+    const totalSellingPrice = jobs.reduce(
+      (sum, job) => sum + Number(job.selling_price || 0),
+      0
+    );
+
+    if (totalSellingPrice === 0) {
+      return NextResponse.json(
+        { error: 'Total selling price is zero' },
+        { status: 400 }
+      );
+    }
+
+    // Calculate weighted distributions
+    const distributions = jobs.map((job) => {
+      const sellingPrice = Number(job.selling_price || 0);
+      const weight = sellingPrice / totalSellingPrice;
+      const amount = Math.round(payment_amount * weight * 100) / 100;
+      const amountAccountCurr =
+        account_currency_rate !== 1
+          ? Math.round(amount * account_currency_rate * 100) / 100
+          : amount;
+
+      return {
+        job_uuid: job.job_uuid,
+        project_uuid,
+        amount,
+        amount_account_curr: amountAccountCurr,
+        allocation_type: 'auto_weighted',
+        allocation_percent: Math.round(weight * 10000) / 100, // Percentage with 2 decimals
+        is_auto_distributed: true,
+        weight_snapshot: weight,
+      };
+    });
+
+    // Replace all existing distributions with new auto-weighted ones
+    await prisma.$transaction(async (tx) => {
+      await tx.payments_jobs.deleteMany({
+        where: { payment_uuid },
+      });
+
+      await tx.payments_jobs.createMany({
+        data: distributions.map((d) => ({
+          payment_uuid,
+          job_uuid: d.job_uuid,
+          project_uuid: d.project_uuid,
+          amount: d.amount,
+          amount_account_curr: d.amount_account_curr,
+          allocation_type: d.allocation_type,
+          allocation_percent: d.allocation_percent,
+          is_auto_distributed: d.is_auto_distributed,
+          weight_snapshot: d.weight_snapshot,
+          created_by: userEmail,
+          updated_by: userEmail,
+        })),
+      });
+    });
+
+    return NextResponse.json({
+      success: true,
+      distributed_to: jobs.length,
+      total_selling_price: totalSellingPrice,
+      distributions: distributions.map((d, i) => ({
+        job_uuid: d.job_uuid,
+        job_name: jobs[i].job_name,
+        selling_price: Number(jobs[i].selling_price),
+        weight: d.weight_snapshot,
+        percent: d.allocation_percent,
+        amount: d.amount,
+        amount_account_curr: d.amount_account_curr,
+      })),
+    });
+  } catch (error: any) {
+    console.error('[payments-jobs/auto-distribute] POST error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to auto-distribute payment' },
+      { status: 500 }
+    );
+  }
+}
