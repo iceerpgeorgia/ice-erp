@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #306
+- Commit: 21a9233
+- Production: https://ice-n8u5h5089-iceerp.vercel.app
+- Summary: Move the job-distribution icon to the first column of the handovers job distributions grid.
+- Changes:
+  - components/figma/handover-job-distributions-grid.tsx: Added an explicit first Actions column and moved the distribution button there.
+
 ## 2026-06-04 Deployment #305
 - Commit: a532d8a
 - Production: https://ice-oyt1nnai3-iceerp.vercel.app
