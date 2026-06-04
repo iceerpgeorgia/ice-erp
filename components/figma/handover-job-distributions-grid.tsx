@@ -78,7 +78,7 @@ type Props = {
 // ── Column definitions ────────────────────────────────────────────────────────
 
 const defaultBankTxColumns: BankTxColumnConfig[] = [
-  { key: 'actions', label: '', width: 56, visible: true, sortable: false, filterable: false },
+  { key: 'actions', label: 'Actions', width: 56, visible: true, sortable: false, filterable: false },
   { key: 'date', label: 'Date', width: 110, visible: true, sortable: true, filterable: false, format: 'date' },
   { key: 'account', label: 'Account', width: 150, visible: true, sortable: true, filterable: true },
   { key: 'caAccount', label: 'CA Account', width: 150, visible: true, sortable: true, filterable: true },
@@ -94,7 +94,7 @@ const defaultBankTxColumns: BankTxColumnConfig[] = [
 ];
 
 const JOB_DIST_STORAGE_KEY = 'handovers-job-distributions-columns';
-const JOB_DIST_STORAGE_VERSION = '2';
+const JOB_DIST_STORAGE_VERSION = '3';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -109,6 +109,7 @@ function normalizeColumns(saved: unknown): BankTxColumnConfig[] {
     return {
       ...def,
       ...(candidate && typeof candidate === 'object' ? candidate : {}),
+      label: candidate?.label || def.label || 'Actions',
       width: Number.isFinite(Number(candidate?.width)) ? Number(candidate.width) : def.width,
       visible: candidate?.visible !== false,
     };
@@ -175,9 +176,11 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem(JOB_DIST_STORAGE_KEY);
-        const version = localStorage.getItem(`${JOB_DIST_STORAGE_KEY}-v`);
-        if (saved && version === JOB_DIST_STORAGE_VERSION) {
-          return normalizeColumns(JSON.parse(saved));
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return normalizeColumns(parsed);
+          }
         }
       } catch {}
     }
@@ -320,7 +323,8 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
   // ── Persist columns to localStorage ───────────────────────────────────────
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(JOB_DIST_STORAGE_KEY, JSON.stringify(columns));
+      const normalizedColumns = normalizeColumns(columns);
+      localStorage.setItem(JOB_DIST_STORAGE_KEY, JSON.stringify(normalizedColumns));
       localStorage.setItem(`${JOB_DIST_STORAGE_KEY}-v`, JOB_DIST_STORAGE_VERSION);
     }
   }, [columns]);
@@ -580,7 +584,7 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
                       onDragEnd={handleDragEnd}
                     >
                       <div className="flex items-center gap-2 pr-4 overflow-hidden">
-                        <span className="truncate font-medium">{column.label}</span>
+                        <span className="truncate font-medium">{column.label || defaultBankTxColumns.find(c => c.key === column.key)?.label || 'Actions'}</span>
                         {column.sortable && (
                           <button
                             onClick={() => handleSort(column.key)}
