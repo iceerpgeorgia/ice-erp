@@ -14,12 +14,14 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Download,
 } from 'lucide-react';
 import { JobDistributionGrid, type JobDistributionRow } from './job-distribution-grid';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import type { ColumnFilter, FilterState } from './shared/table-filters';
 import type { ColumnFormat } from './shared/table-filters';
+import { exportRowsToXlsx } from '@/lib/export-xlsx';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -169,12 +171,87 @@ const formatDate = (dateString: string | null | undefined): string => {
   return `${day}.${month}.${year}`;
 };
 
-const formatAmount = (value: string | number | null | undefined): string => {
-  if (value == null || value === '') return '';
-  const num = Number(value);
-  if (Number.isNaN(num)) return '';
-  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const exportKeyMap: Record<BankTxColKey, string> = {
+  actions: 'actions',
+  date: 'date',
+  account: 'account',
+  caAccount: 'caAccount',
+  amount: 'amount',
+  nominalAmount: 'nominalAmount',
+  financialCode: 'financialCode',
+  nomIso: 'nomIso',
+  paymentId: 'paymentId',
+  batchId: 'batchId',
+  description: 'description',
+  id1: 'id1',
+  id2: 'id2',
 };
+
+function buildDistributionExportRows(
+  rows: BankTransactionRow[],
+  paymentMap: Map<string, PaymentMapEntry>,
+  distributionMap: Map<string, JobDistributionRow[]>,
+) {
+  const exportRows: Record<string, any>[] = [];
+
+  rows.forEach((row) => {
+    const paymentInfo = row.payment_id ? paymentMap.get(row.payment_id) : null;
+    const paymentUuid = paymentInfo?.paymentUuid ?? null;
+    const distributions = paymentUuid ? (distributionMap.get(paymentUuid) ?? []) : [];
+
+    if (distributions.length === 0) {
+      exportRows.push({
+        date: row.transaction_date ?? '',
+        account: row.account_number ?? '',
+        caAccount: row.counteragent_account_number ?? '',
+        amount: row.account_currency_amount ?? '',
+        nominalAmount: row.nominal_amount ?? '',
+        financialCode: row.financial_code ?? '',
+        nomIso: row.nominal_currency_code ?? '',
+        paymentId: row.payment_id ?? '',
+        batchId: row.batch_id ?? '',
+        description: row.description ?? '',
+        id1: row.dockey ?? '',
+        id2: row.entriesid ?? '',
+        jobName: '',
+        factoryNo: '',
+        sellingPrice: '',
+        allocationPercent: '',
+        distributedAmount: '',
+        distributedAmountAccountCurr: '',
+      });
+      return;
+    }
+
+    distributions.forEach((dist) => {
+      const distributedAmount = Number(dist.amount || 0);
+      const distributedAmountAccountCurr = Number(dist.amountAccountCurr || 0);
+
+      exportRows.push({
+        date: row.transaction_date ?? '',
+        account: row.account_number ?? '',
+        caAccount: row.counteragent_account_number ?? '',
+        amount: distributedAmountAccountCurr || row.account_currency_amount || '',
+        nominalAmount: distributedAmount || row.nominal_amount || '',
+        financialCode: row.financial_code ?? '',
+        nomIso: row.nominal_currency_code ?? '',
+        paymentId: row.payment_id ?? '',
+        batchId: row.batch_id ?? '',
+        description: row.description ?? '',
+        id1: row.dockey ?? '',
+        id2: row.entriesid ?? '',
+        jobName: dist.jobName ?? '',
+        factoryNo: dist.factoryNo ?? '',
+        sellingPrice: dist.sellingPrice ?? '',
+        allocationPercent: dist.percentage ?? '',
+        distributedAmount,
+        distributedAmountAccountCurr,
+      });
+    });
+  });
+
+  return exportRows;
+}
 
 export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
   // ── Data ──────────────────────────────────────────────────────────────────
@@ -491,6 +568,35 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
     return sorted;
   }, [filteredData, sortColumn, sortDirection]);
 
+  const handleExportXlsx = useCallback(() => {
+    if (!sortedData.length) return;
+
+    const exportColumns = visibleColumns
+      .filter(column => column.key !== 'actions')
+      .map(column => ({
+        key: exportKeyMap[column.key],
+        label: column.label,
+        visible: true,
+      }));
+
+    const exportRows = buildDistributionExportRows(sortedData, paymentMap, distributionMap);
+
+    exportRowsToXlsx({
+      rows: exportRows,
+      columns: [
+        ...exportColumns,
+        { key: 'jobName', label: 'Job Name', visible: true },
+        { key: 'factoryNo', label: 'Factory No', visible: true },
+        { key: 'sellingPrice', label: 'Selling Price', visible: true },
+        { key: 'allocationPercent', label: 'Allocation %', visible: true },
+        { key: 'distributedAmount', label: 'Distributed Amount', visible: true },
+        { key: 'distributedAmountAccountCurr', label: 'Distributed Amount (Account Curr)', visible: true },
+      ],
+      fileName: `job-distributions-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheetName: 'Job Distributions',
+    });
+  }, [distributionMap, paymentMap, sortedData, visibleColumns]);
+
   if (!projectUuid) {
     return (
       <div className="rounded-lg border bg-white p-8 text-center text-muted-foreground">
@@ -548,6 +654,16 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
             </div>
           </PopoverContent>
         </Popover>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportXlsx}
+          disabled={loading || sortedData.length === 0}
+          title="Export job distributions to XLSX"
+        >
+          <Download className="h-4 w-4" />
+        </Button>
 
         <Button
           variant="outline"
