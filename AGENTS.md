@@ -257,6 +257,8 @@ When waybill items are bound to different projects, item-level binding should ta
 - Column configuration is persisted to localStorage (`handovers-job-distributions-columns`) including width, visibility, and user-dragged order; the restore path normalizes saved layouts without resetting the order on reload.
 - The Job Distribution action appears only in the bank-transactions-style grid as a briefcase icon; the income payments grid does not show a distribution action.
 - The distribution dialog supports only two modes: All (default) and Manual. All uses weighted distribution by job selling price and applies both nominal and account-currency amounts; Manual allows user edits.
+- Server-side distribution saves and auto-distribute/recalculate paths recompute account-currency amounts using bank transaction rates when stored values are missing or equal to nominal despite a non-1 rate.
+- Backfill script `scripts/backfill-payments-jobs-account-curr.js` recalculates historical `payments_jobs.amount_account_curr` using consolidated/raw bank amounts (prefers consolidated when present).
 - The grid now provides an XLSX export action that flattens each payment into one row per job allocation so the exported amount and nominal amount reflect the distribution split.
 - The dialog resolves `payment_uuid` via `/api/payments-report` and preloads existing allocations from `/api/payments-jobs`.
 - **Debugging**: Console logs track payment_uuid resolution (`[Job Dist]` prefix) including payment mapping, distribution loading, row payment lookup, and save operations. This helps diagnose cases where distributions might incorrectly appear across multiple payments.

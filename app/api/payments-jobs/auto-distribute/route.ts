@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { applyAccountCurrencyRate, resolveAccountCurrencyRate } from '@/lib/payments-jobs-rate';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,15 +70,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const { rate: resolvedRate } = await resolveAccountCurrencyRate(
+      payment_uuid,
+      project_uuid,
+      account_currency_rate,
+    );
+
     // Calculate weighted distributions
     const distributions = jobs.map((job) => {
       const sellingPrice = Number(job.selling_price || 0);
       const weight = sellingPrice / totalSellingPrice;
       const amount = Math.round(payment_amount * weight * 100) / 100;
-      const amountAccountCurr =
-        account_currency_rate !== 1
-          ? Math.round(amount * account_currency_rate * 100) / 100
-          : amount;
+      const amountAccountCurr = applyAccountCurrencyRate(amount, null, resolvedRate);
 
       return {
         job_uuid: job.job_uuid,

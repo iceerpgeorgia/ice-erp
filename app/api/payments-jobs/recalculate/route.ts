@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { applyAccountCurrencyRate, resolveAccountCurrencyRate } from '@/lib/payments-jobs-rate';
 
 export const dynamic = 'force-dynamic';
 
@@ -119,6 +120,12 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
+      const { rate: resolvedRate } = await resolveAccountCurrencyRate(
+        payment_uuid,
+        project_uuid,
+        null,
+      );
+
       const newDistributions = jobs.map((job) => {
         const sellingPrice = Number(job.selling_price || 0);
         const weight = sellingPrice / totalSellingPrice;
@@ -128,7 +135,7 @@ export async function POST(req: NextRequest) {
           job_uuid: job.job_uuid,
           project_uuid,
           amount,
-          amount_account_curr: amount, // Assuming same currency for now
+          amount_account_curr: applyAccountCurrencyRate(amount, null, resolvedRate),
           allocation_type: 'auto_weighted',
           allocation_percent: Math.round(weight * 10000) / 100,
           is_auto_distributed: true,

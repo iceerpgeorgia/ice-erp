@@ -14,6 +14,24 @@ type ExportOptions<T> = {
   sheetName?: string;
 };
 
+function toNumericValue(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
 function toExcelDateSerial(value: unknown): number | null {
   if (value === null || value === undefined) return null;
 
@@ -67,6 +85,17 @@ export function exportRowsToXlsx<T extends Record<string, any>>({
       if (col.format === 'date') {
         const serial = toExcelDateSerial(value);
         return serial ?? value;
+      }
+
+      if (col.format === 'currency' || col.format === 'number') {
+        const numericValue = toNumericValue(value);
+        return numericValue ?? value;
+      }
+
+      if (col.format === 'percent') {
+        const numericValue = toNumericValue(value);
+        if (numericValue === null) return value;
+        return Math.abs(numericValue) > 1 ? numericValue / 100 : numericValue;
       }
 
       return value;

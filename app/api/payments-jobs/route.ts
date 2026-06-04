@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { applyAccountCurrencyRate, resolveAccountCurrencyRate } from '@/lib/payments-jobs-rate';
 
 export const dynamic = 'force-dynamic';
 
@@ -172,6 +173,25 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const { rate: resolvedRate } = await resolveAccountCurrencyRate(
+      payment_uuid,
+      distributions[0]?.project_uuid ?? null,
+      null,
+    );
+
+    const normalizedDistributions = distributions.map((dist: any) => {
+      const amount = Number(dist.amount);
+      const amountAccountCurr = dist.amount_account_curr != null
+        ? Number(dist.amount_account_curr)
+        : null;
+
+      return {
+        ...dist,
+        amount,
+        amount_account_curr: applyAccountCurrencyRate(amount, amountAccountCurr, resolvedRate),
+      };
+    });
+
     let result;
 
     if (replace_all) {
@@ -182,7 +202,7 @@ export async function POST(req: NextRequest) {
         });
 
         const created = await tx.payments_jobs.createMany({
-          data: distributions.map((d: any) => ({
+          data: normalizedDistributions.map((d: any) => ({
             payment_uuid,
             job_uuid: d.job_uuid,
             project_uuid: d.project_uuid,
@@ -202,7 +222,7 @@ export async function POST(req: NextRequest) {
     } else {
       // Upsert individual distributions
       result = await prisma.$transaction(
-        distributions.map((d: any) =>
+        normalizedDistributions.map((d: any) =>
           prisma.payments_jobs.upsert({
             where: {
               payment_uuid_job_uuid_project_uuid: {

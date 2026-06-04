@@ -204,6 +204,13 @@ function buildDistributionExportRows(
     const paymentInfo = resolvePaymentInfo(row, paymentMap, paymentIdMap);
     const paymentUuid = paymentInfo?.paymentUuid ?? null;
     const distributions = paymentUuid ? (distributionMap.get(paymentUuid) ?? []) : [];
+    const accountAmount = Number(row.account_currency_amount ?? 0);
+    const nominalAmount = Number(row.nominal_amount ?? 0);
+    const hasRowRate = Number.isFinite(accountAmount)
+      && Number.isFinite(nominalAmount)
+      && nominalAmount !== 0;
+    const rowRate = hasRowRate ? accountAmount / nominalAmount : null;
+    const shouldRecalcAccount = rowRate !== null && Number.isFinite(rowRate) && Math.abs(rowRate - 1) > 0.01;
 
     if (distributions.length === 0) {
       exportRows.push({
@@ -231,14 +238,20 @@ function buildDistributionExportRows(
 
     distributions.forEach((dist) => {
       const distributedAmount = dist.amount != null ? Number(dist.amount) : null;
-      const distributedAmountAccountCurr = dist.amountAccountCurr != null ? Number(dist.amountAccountCurr) : null;
+      const distributedAmountAccountCurrRaw = dist.amountAccountCurr != null ? Number(dist.amountAccountCurr) : null;
+      const distributedAmountAccountCurr = shouldRecalcAccount
+        && distributedAmount != null
+        && (distributedAmountAccountCurrRaw == null
+          || Math.abs(distributedAmountAccountCurrRaw - distributedAmount) < 0.01)
+        ? distributedAmount * rowRate!
+        : distributedAmountAccountCurrRaw;
 
       exportRows.push({
         date: row.transaction_date ?? '',
         account: row.account_number ?? '',
         caAccount: row.counteragent_account_number ?? '',
-        amount: distributedAmountAccountCurr ?? row.account_currency_amount ?? '',
-        nominalAmount: distributedAmount ?? row.nominal_amount ?? '',
+        amount: row.account_currency_amount ?? '',
+        nominalAmount: row.nominal_amount ?? '',
         financialCode: row.financial_code ?? '',
         nomIso: row.nominal_currency_code ?? '',
         paymentId: row.payment_id ?? '',
@@ -600,10 +613,10 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
         ...exportColumns,
         { key: 'jobName', label: 'Job Name', visible: true },
         { key: 'factoryNo', label: 'Factory No', visible: true },
-        { key: 'sellingPrice', label: 'Selling Price', visible: true },
-        { key: 'allocationPercent', label: 'Allocation %', visible: true },
-        { key: 'distributedAmount', label: 'Distributed Amount', visible: true },
-        { key: 'distributedAmountAccountCurr', label: 'Distributed Amount (Account Curr)', visible: true },
+        { key: 'sellingPrice', label: 'Selling Price', visible: true, format: 'currency' },
+        { key: 'allocationPercent', label: 'Allocation %', visible: true, format: 'percent' },
+        { key: 'distributedAmount', label: 'Distributed Amount', visible: true, format: 'currency' },
+        { key: 'distributedAmountAccountCurr', label: 'Distributed Amount (Account Curr)', visible: true, format: 'currency' },
       ],
       fileName: `job-distributions-${new Date().toISOString().slice(0, 10)}.xlsx`,
       sheetName: 'Job Distributions',
