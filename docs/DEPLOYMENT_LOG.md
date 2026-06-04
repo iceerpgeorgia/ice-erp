@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #298
+- Commit: 13ace6f
+- Production: https://ice-o2f1pgqks-iceerp.vercel.app
+- Summary: Aligned handovers grid row formatting with the main payments report.
+- Changes:
+  - components/figma/handover-payments-grid.tsx: Updated the conditional row styling to match the logic in `payments-report-table.tsx`, using `isActive`, `paidPercent`, and `isBundleAgg` flags for consistent visual cues.
+
 ## 2026-06-04 Deployment #297
 - Commit: fa02e32
 - Production: https://ice-k6qubk2i5-iceerp.vercel.app
