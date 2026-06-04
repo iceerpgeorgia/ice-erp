@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-06-05 Deployment #313
+- Commit: 90c2865
+- Production: https://ice-5wwd0bgpl-iceerp.vercel.app
+- Summary: Fix exported job-distribution numeric cells and remove the temporary backfill script before deployment.
+- Changes:
+  - lib/export-xlsx.ts: Normalize numeric and percentage values to real Excel number cells instead of text, so exported allocation %, amounts, and selling prices preserve numeric formatting.
+  - components/figma/handover-job-distributions-grid.tsx: Keep original amount/nominal values in the export rows and only use the split distribution values in the dedicated distribution columns, preventing duplicated amount fields in the XLSX output.
+  - Removed: scripts/backfill-payments-jobs-account-curr.js
+
 ## 2026-06-04 Deployment #312
 - Commit: 43691db
 - Production: https://ice-ru3414uhx-iceerp.vercel.app
