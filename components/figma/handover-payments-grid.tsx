@@ -33,6 +33,8 @@ import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { useTableFilters } from './shared/use-table-filters';
 import type { ColumnFormat } from './shared/table-filters';
+import { BundleDistributionGrid, type BundleDistributionRow } from './bundle-distribution-grid';
+import { LayoutGrid } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -179,6 +181,19 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
   const [addLedgerComment, setAddLedgerComment] = useState('');
   const [addLedgerSubmitting, setAddLedgerSubmitting] = useState(false);
   const [addLedgerError, setAddLedgerError] = useState<string | null>(null);
+
+  // ── Bundle Distribution dialog state ────────────────────────────────────
+  const [isBundleDistributionOpen, setIsBundleDistributionOpen] = useState(false);
+  const [bundleDistributionData, setBundleDistributionData] = useState<BundleDistributionRow[]>([]);
+  const [bundleDistributionProject, setBundleDistributionProject] = useState<{
+    projectId: number;
+    projectUuid: string;
+    projectName: string;
+    financialCodeUuid: string;
+    value: number;
+  } | null>(null);
+  const [bundleDistributionLoading, setBundleDistributionLoading] = useState(false);
+  const [bundleDistributionSaving, setBundleDistributionSaving] = useState(false);
 
   // ── Base info dialog ──────────────────────────────────────────────────────
   const [isBaseInfoOpen, setIsBaseInfoOpen] = useState(false);
@@ -435,6 +450,48 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
     defaultSortDirection: 'asc',
     filtersStorageKey: 'handovers-income-payments:filters',
   });
+
+  const handleOpenBundleDistribution = async (projectUuid: string, financialCodeUuid: string) => {
+    setBundleDistributionLoading(true);
+    setIsBundleDistributionOpen(true);
+    
+    try {
+      // Fetch project data
+      const projectRes = await fetch(`/api/projects?uuid=${projectUuid}`);
+      const projects = await projectRes.json();
+      const project = Array.isArray(projects) ? projects[0] : projects;
+
+      if (!project) throw new Error('Project not found');
+
+      // Fetch bundle distribution data
+      const distributionRes = await fetch(`/api/financial-codes/bundle-children?parentUuid=${financialCodeUuid}`);
+      const distribution = await distributionRes.json();
+
+      const aggregateRow = dataWithBundleAggregates.find(
+        r => r.isBundleAggregate && r.projectUuid === projectUuid && r.financialCodeUuid === financialCodeUuid
+      );
+
+      setBundleDistributionProject({
+        projectId: project.id,
+        projectUuid: project.project_uuid,
+        projectName: project.project_name,
+        financialCodeUuid: financialCodeUuid,
+        value: aggregateRow?.accrual || 0,
+      });
+
+      setBundleDistributionData(distribution.map((d: any) => ({
+        ...d,
+        value: project.bundle_distribution?.find((bd: any) => bd.financialCodeUuid === d.uuid)?.value || 0,
+      })));
+
+    } catch (error) {
+      console.error("Failed to load bundle distribution data:", error);
+      setBundleDistributionProject(null);
+      setBundleDistributionData([]);
+    } finally {
+      setBundleDistributionLoading(false);
+    }
+  };
 
   // ── Action handlers ───────────────────────────────────────────────────────
   const openEditDialog = (row: IncomePaymentRow) => {
@@ -807,6 +864,7 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                             {col.key === 'paymentId' ? (
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="truncate">{row.paymentId}</span>
+                                {!isBundleAgg && row.paymentId && (
                                 <button
                                   type="button"
                                   className="text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded p-1 shrink-0"
@@ -817,6 +875,7 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                                 >
                                   <Copy className="h-3.5 w-3.5" />
                                 </button>
+                                )}
                               </div>
                             ) : col.key === 'financialCode' ? (
                               <span className="truncate">{row.financialCode || '-'}</span>
@@ -829,6 +888,15 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                         );
                       })}
                       <td className="px-4 py-2 text-sm" style={{ width: 190, minWidth: 190 }}>
+                        {isBundleAgg && row.projectUuid && row.financialCodeUuid && (
+                          <button
+                            onClick={() => handleOpenBundleDistribution(row.projectUuid!, row.financialCodeUuid!)}
+                            className="inline-block text-purple-600 hover:text-purple-800 hover:bg-purple-50 p-1 rounded transition-colors"
+                            title="Bundle distribution"
+                          >
+                            <LayoutGrid className="w-4 h-4" />
+                          </button>
+                        )}
                         {!isBundleAgg && (
                         <div className="flex items-center gap-1">
                           <PaymentAttachments
@@ -924,6 +992,65 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
       )}
 
       {/* ── Dialogs ───────────────────────────────────────────────────────── */}
+
+      {/* Bundle Distribution Dialog */}
+      <Dialog open={isBundleDistributionOpen} onOpenChange={setIsBundleDistributionOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Bundle Distribution</DialogTitle>
+            <DialogDescription>
+              {bundleDistributionProject
+                ? `Distribute value across child financial codes for project: ${bundleDistributionProject.projectName}`
+                : 'Loading...'}
+            </DialogDescription>
+          </DialogHeader>
+          {bundleDistributionLoading ? (
+            <div className="text-center py-8 text-gray-500">Loading bundle distribution data...</div>
+          ) : bundleDistributionProject ? (
+            <BundleDistributionGrid
+              value={bundleDistributionData}
+              onChange={setBundleDistributionData}
+              bundleFinancialCodeUuid={bundleDistributionProject.financialCodeUuid}
+              projectValue={bundleDistributionProject.value}
+            />
+          ) : (
+            <div className="text-center py-8 text-red-600">Failed to load project data</div>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsBundleDistributionOpen(false)}>
+              Close
+            </Button>
+            {bundleDistributionProject && (
+              <Button
+                onClick={async () => {
+                  setBundleDistributionSaving(true);
+                  try {
+                    const res = await fetch(`/api/projects?id=${bundleDistributionProject.projectId}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ bundleDistribution: bundleDistributionData })
+                    });
+                    if (!res.ok) {
+                      const err = await res.json();
+                      alert(`Failed to save: ${err.error || 'Unknown error'}`);
+                    } else {
+                      setIsBundleDistributionOpen(false);
+                      fetchIncomePayments(projectUuid);
+                    }
+                  } catch (e) {
+                    alert('Failed to save distribution');
+                  } finally {
+                    setBundleDistributionSaving(false);
+                  }
+                }}
+                disabled={bundleDistributionSaving}
+              >
+                {bundleDistributionSaving ? 'Saving...' : 'Save'}
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Payment Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
