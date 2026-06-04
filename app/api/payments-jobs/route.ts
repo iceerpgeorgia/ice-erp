@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/payments-jobs?payment_uuid=xxx
+// GET /api/payments-jobs?payment_uuid=xxx&project_uuid=xxx
 export async function GET(req: NextRequest) {
   const auth = await requireAuth();
   if (isAuthError(auth)) return auth;
@@ -14,11 +14,13 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const paymentUuid = searchParams.get('payment_uuid');
   const jobUuid = searchParams.get('job_uuid');
+  const projectUuid = searchParams.get('project_uuid');
 
   try {
     const where: any = {};
     if (paymentUuid) where.payment_uuid = paymentUuid;
     if (jobUuid) where.job_uuid = jobUuid;
+    if (projectUuid) where.project_uuid = projectUuid;
 
     const distributions = await prisma.payments_jobs.findMany({
       where,
@@ -37,6 +39,14 @@ export async function GET(req: NextRequest) {
             project_name: true,
           },
         },
+        payment: {
+          select: {
+            payment_id: true,
+            counteragent_uuid: true,
+            financial_code_uuid: true,
+            currency_uuid: true,
+          },
+        },
       },
       orderBy: [
         { is_auto_distributed: 'desc' },
@@ -44,10 +54,62 @@ export async function GET(req: NextRequest) {
       ],
     });
 
+    // Get unique UUIDs for batch queries
+    const counteragentUuids = [...new Set(distributions.map(d => d.payment.counteragent_uuid))];
+    const fcUuids = [...new Set(distributions.map(d => d.payment.financial_code_uuid))];
+    const currencyUuids = [...new Set(distributions.map(d => d.payment.currency_uuid))];
+    const paymentUuids = [...new Set(distributions.map(d => d.payment_uuid))];
+
+    // Batch fetch related data
+    const [counteragents, financialCodes, currencies, ledgerTotals] = await Promise.all([
+      prisma.counteragents.findMany({
+        where: { counteragent_uuid: { in: counteragentUuids } },
+        select: { counteragent_uuid: true, name: true },
+      }),
+      prisma.financial_codes.findMany({
+        where: { uuid: { in: fcUuids } },
+        select: { uuid: true, code: true },
+      }),
+      prisma.currencies.findMany({
+        where: { uuid: { in: currencyUuids } },
+        select: { uuid: true, code: true },
+      }),
+      prisma.payments_ledger.groupBy({
+        by: ['payment_id'],
+        where: {
+          payment_id: { in: distributions.map(d => d.payment.payment_id) },
+          is_deleted: false,
+        },
+        _sum: {
+          accrual: true,
+          order: true,
+        },
+      }),
+    ]);
+
+    // Create lookup maps
+    const counteragentMap = new Map(counteragents.map(c => [c.counteragent_uuid, c.name]));
+    const fcMap = new Map(financialCodes.map(fc => [fc.uuid, fc.code]));
+    const currencyMap = new Map(currencies.map(cur => [cur.uuid, cur.code]));
+    const ledgerMap = new Map(
+      ledgerTotals.map(l => [
+        l.payment_id,
+        {
+          accrual: Number(l._sum.accrual || 0),
+          order: Number(l._sum.order || 0),
+        },
+      ])
+    );
+
     const result = distributions.map(d => ({
       id: Number(d.id),
       uuid: d.uuid,
       payment_uuid: d.payment_uuid,
+      payment_id: d.payment.payment_id,
+      payment_amount: ledgerMap.get(d.payment.payment_id)?.accrual || 0,
+      payment_currency_code: currencyMap.get(d.payment.currency_uuid) || 'GEL',
+      counteragent_name: counteragentMap.get(d.payment.counteragent_uuid) || null,
+      financial_code_code: fcMap.get(d.payment.financial_code_uuid) || null,
       job_uuid: d.job_uuid,
       job_name: d.job.job_name,
       job_selling_price: d.job.selling_price ? Number(d.job.selling_price) : null,

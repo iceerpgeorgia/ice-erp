@@ -94,6 +94,7 @@ export async function GET(request: NextRequest) {
       SELECT 
         p.id as payment_row_id,
         p.payment_id,
+        p.record_uuid as payment_uuid,
         to_jsonb(p)->>'label' as label,
         p.project_uuid,
         p.counteragent_uuid,
@@ -219,6 +220,7 @@ export async function GET(request: NextRequest) {
 
     const formattedData = (reportData as any[]).map(row => ({
       paymentId: row.payment_id,
+      paymentUuid: row.payment_uuid,
       paymentRowId: row.payment_row_id ? Number(row.payment_row_id) : null,
       label: row.label ?? null,
       counteragentUuid: row.counteragent_uuid,
@@ -227,6 +229,7 @@ export async function GET(request: NextRequest) {
       financialCodeUuid: row.financial_code_uuid,
       jobUuid: row.job_uuid,
       currencyUuid: row.currency_uuid,
+      currencyCode: row.currency_code,
       isActive: row.is_active,
       isProjectDerived: row.is_project_derived ?? false,
       isBundlePayment: row.is_bundle_payment ?? false,
