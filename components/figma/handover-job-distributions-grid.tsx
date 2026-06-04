@@ -24,6 +24,7 @@ import type { ColumnFormat } from './shared/table-filters';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type BankTxColKey =
+  | 'actions'
   | 'date'
   | 'account'
   | 'caAccount'
@@ -77,6 +78,7 @@ type Props = {
 // ── Column definitions ────────────────────────────────────────────────────────
 
 const defaultBankTxColumns: BankTxColumnConfig[] = [
+  { key: 'actions', label: '', width: 56, visible: true, sortable: false, filterable: false },
   { key: 'date', label: 'Date', width: 110, visible: true, sortable: true, filterable: false, format: 'date' },
   { key: 'account', label: 'Account', width: 150, visible: true, sortable: true, filterable: true },
   { key: 'caAccount', label: 'CA Account', width: 150, visible: true, sortable: true, filterable: true },
@@ -378,6 +380,7 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
   // ── Get row value by column key ───────────────────────────────────────────
   const getRowValue = (row: BankTransactionRow, key: BankTxColKey): any => {
     switch (key) {
+      case 'actions': return null;
       case 'date': return row.transaction_date;
       case 'account': return row.account_number;
       case 'caAccount': return row.counteragent_account_number;
@@ -642,26 +645,30 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
                       const value = getRowValue(row, column.key);
                       const formatted = fmtVal(value, column.format, column.key);
 
-                      // Special handling for paymentId column with distribution button
+                      if (column.key === 'actions') {
+                        return (
+                          <td key={column.key} className="px-4 py-2 text-sm" style={{ width: column.width }}>
+                            {paymentUuid && row.payment_id ? (
+                              <JobDistributionGrid
+                                paymentUuid={paymentUuid}
+                                paymentId={row.payment_id}
+                                paymentAmount={paymentAmount}
+                                paymentCurrencyCode={paymentCurrencyCode}
+                                accountCurrencyRate={accountCurrencyRate}
+                                projectUuid={projectUuid}
+                                value={distributionValue}
+                                onChange={() => {}}
+                                onSave={fetchData}
+                              />
+                            ) : null}
+                          </td>
+                        );
+                      }
+
                       if (column.key === 'paymentId') {
                         return (
                           <td key={column.key} className="px-4 py-2 text-sm" style={{ width: column.width }}>
-                            <div className="flex items-center gap-2">
-                              <span>{row.payment_id || ''}</span>
-                              {paymentUuid && row.payment_id && (
-                                <JobDistributionGrid
-                                  paymentUuid={paymentUuid}
-                                  paymentId={row.payment_id}
-                                  paymentAmount={paymentAmount}
-                                  paymentCurrencyCode={paymentCurrencyCode}
-                                  accountCurrencyRate={accountCurrencyRate}
-                                  projectUuid={projectUuid}
-                                  value={distributionValue}
-                                  onChange={() => {}}
-                                  onSave={fetchData}
-                                />
-                              )}
-                            </div>
+                            {row.payment_id || ''}
                           </td>
                         );
                       }
