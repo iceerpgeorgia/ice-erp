@@ -22,6 +22,11 @@ import { ClearFiltersButton } from './shared/clear-filters-button';
 import type { ColumnFilter, FilterState } from './shared/table-filters';
 import type { ColumnFormat } from './shared/table-filters';
 import { exportRowsToXlsx } from '@/lib/export-xlsx';
+import {
+  buildPaymentLookupMaps,
+  resolvePaymentInfo,
+  type PaymentLookupEntry,
+} from '@/lib/handovers-job-distributions';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -70,11 +75,7 @@ type BankTransactionRow = {
   is_balance_record?: boolean | null;
 };
 
-type PaymentMapEntry = {
-  paymentUuid: string;
-  currencyCode: string | null;
-  paymentId: string | null;
-};
+type PaymentMapEntry = PaymentLookupEntry;
 
 type Props = {
   projectUuid: string;
@@ -174,33 +175,6 @@ const formatDate = (dateString: string | null | undefined): string => {
   return `${day}.${month}.${year}`;
 };
 
-function makePaymentLookupKey(
-  paymentId?: string | null,
-  projectUuid?: string | null,
-  counteragentUuid?: string | null,
-  financialCodeUuid?: string | null,
-  currencyCode?: string | null,
-) {
-  return [
-    paymentId ?? '',
-    projectUuid ?? '',
-    counteragentUuid ?? '',
-    financialCodeUuid ?? '',
-    currencyCode ?? '',
-  ].join('|');
-}
-
-function resolvePaymentInfo(row: BankTransactionRow, paymentMap: Map<string, PaymentMapEntry>) {
-  const compositeKey = makePaymentLookupKey(
-    row.payment_id,
-    row.project_uuid,
-    row.counteragent_uuid,
-    row.financial_code_uuid,
-    row.nominal_currency_code,
-  );
-
-  return paymentMap.get(compositeKey) ?? paymentMap.get(row.payment_id ?? '') ?? null;
-}
 
 const exportKeyMap: Record<BankTxColKey, string> = {
   actions: 'actions',
@@ -221,12 +195,13 @@ const exportKeyMap: Record<BankTxColKey, string> = {
 function buildDistributionExportRows(
   rows: BankTransactionRow[],
   paymentMap: Map<string, PaymentMapEntry>,
+  paymentIdMap: Map<string, PaymentMapEntry[]>,
   distributionMap: Map<string, JobDistributionRow[]>,
 ) {
   const exportRows: Record<string, any>[] = [];
 
   rows.forEach((row) => {
-    const paymentInfo = resolvePaymentInfo(row, paymentMap);
+    const paymentInfo = resolvePaymentInfo(row, paymentMap, paymentIdMap);
     const paymentUuid = paymentInfo?.paymentUuid ?? null;
     const distributions = paymentUuid ? (distributionMap.get(paymentUuid) ?? []) : [];
 
@@ -288,6 +263,7 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
   // ── Data ──────────────────────────────────────────────────────────────────
   const [transactions, setTransactions] = useState<BankTransactionRow[]>([]);
   const [paymentMap, setPaymentMap] = useState<Map<string, PaymentMapEntry>>(new Map());
+  const [paymentIdMap, setPaymentIdMap] = useState<Map<string, PaymentMapEntry[]>>(new Map());
   const [distributionMap, setDistributionMap] = useState<Map<string, JobDistributionRow[]>>(new Map());
   const [loading, setLoading] = useState(false);
 
@@ -367,40 +343,26 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
           ? txPayload.data
           : [];
 
-      const nextPaymentMap = new Map<string, PaymentMapEntry>();
       const incomePaymentIds = new Set<string>();
+      let nextPaymentMap = new Map<string, PaymentMapEntry>();
+      let nextPaymentIdMap = new Map<string, PaymentMapEntry[]>();
       if (paymentsRes.ok) {
         const paymentsData = await paymentsRes.json();
         const incomePayments = paymentsData.filter((payment: any) => payment.financialCodeIsIncome);
         console.log('[Job Dist] Income payments count:', incomePayments.length);
-        incomePayments.forEach((payment: any) => {
-          if (payment.paymentId && payment.paymentUuid) {
-            const lookupKey = makePaymentLookupKey(
-              payment.paymentId,
-              payment.projectUuid,
-              payment.counteragentUuid,
-              payment.financialCodeUuid,
-              payment.currencyCode,
-            );
-            const entry = {
-              paymentUuid: payment.paymentUuid,
-              currencyCode: payment.currencyCode ?? null,
-              paymentId: payment.paymentId ?? null,
-            };
 
-            nextPaymentMap.set(lookupKey, entry);
-            nextPaymentMap.set(payment.paymentId, entry);
+        const lookupData = buildPaymentLookupMaps(incomePayments);
+        nextPaymentMap = lookupData.paymentMap;
+        nextPaymentIdMap = lookupData.paymentIdMap;
+
+        incomePayments.forEach((payment: any) => {
+          if (payment.paymentId) {
             incomePaymentIds.add(payment.paymentId);
-            console.log('[Job Dist] Payment mapping:', {
-              paymentId: payment.paymentId,
-              paymentUuid: payment.paymentUuid,
-              lookupKey,
-              financialCode: payment.financialCode,
-            });
           }
         });
       }
       setPaymentMap(nextPaymentMap);
+      setPaymentIdMap(nextPaymentIdMap);
 
       const filteredRows = txRows.filter((row: any) =>
         row.project_uuid === projectUuid &&
@@ -630,7 +592,7 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
         format: column.format,
       }));
 
-    const exportRows = buildDistributionExportRows(sortedData, paymentMap, distributionMap);
+    const exportRows = buildDistributionExportRows(sortedData, paymentMap, paymentIdMap, distributionMap);
 
     exportRowsToXlsx({
       rows: exportRows,
@@ -646,7 +608,7 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
       fileName: `job-distributions-${new Date().toISOString().slice(0, 10)}.xlsx`,
       sheetName: 'Job Distributions',
     });
-  }, [distributionMap, paymentMap, sortedData, visibleColumns]);
+  }, [distributionMap, paymentIdMap, paymentMap, sortedData, visibleColumns]);
 
   if (!projectUuid) {
     return (
@@ -826,7 +788,7 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {sortedData.map((row, idx) => {
-                const paymentInfo = resolvePaymentInfo(row, paymentMap);
+                const paymentInfo = resolvePaymentInfo(row, paymentMap, paymentIdMap);
                 const paymentUuid = paymentInfo?.paymentUuid ?? null;
                 const distributionValue = paymentUuid ? (distributionMap.get(paymentUuid) ?? []) : [];
 

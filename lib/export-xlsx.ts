@@ -50,6 +50,12 @@ export function exportRowsToXlsx<T extends Record<string, any>>({
   const dateColumnIndexes = visibleColumns
     .map((col, index) => (col.format === 'date' ? index : -1))
     .filter((index) => index >= 0);
+  const currencyColumnIndexes = visibleColumns
+    .map((col, index) => (col.format === 'currency' || col.format === 'number' ? index : -1))
+    .filter((index) => index >= 0);
+  const percentColumnIndexes = visibleColumns
+    .map((col, index) => (col.format === 'percent' ? index : -1))
+    .filter((index) => index >= 0);
 
   const header = visibleColumns.map((col) => col.label);
   const dataRows = rows.map((row) =>
@@ -75,6 +81,26 @@ export function exportRowsToXlsx<T extends Record<string, any>>({
       const cell = worksheet[cellRef];
       if (cell) {
         cell.z = 'dd.mm.yyyy';
+      }
+    }
+  });
+
+  currencyColumnIndexes.forEach((columnIndex) => {
+    for (let rowIndex = 1; rowIndex <= rows.length; rowIndex += 1) {
+      const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex });
+      const cell = worksheet[cellRef];
+      if (cell) {
+        cell.z = '#,##0.00';
+      }
+    }
+  });
+
+  percentColumnIndexes.forEach((columnIndex) => {
+    for (let rowIndex = 1; rowIndex <= rows.length; rowIndex += 1) {
+      const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex });
+      const cell = worksheet[cellRef];
+      if (cell) {
+        cell.z = '0.00%';
       }
     }
   });
