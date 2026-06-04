@@ -830,6 +830,9 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                 paginatedData.map((row, idx) => {
                   const isSelected = selectedIds.has(row.paymentId);
                   const isBundleAgg = Boolean(row.isBundleAggregate);
+                  const isConditionalFormattingEligible = row.isActive !== false;
+                  const isConfirmedPaid = Boolean(isConditionalFormattingEligible && row.confirmed && row.due === 0);
+                  const isConfirmedDue = Boolean(isConditionalFormattingEligible && row.confirmed && row.due > 0);
 
                   return (
                     <tr
@@ -839,10 +842,12 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                           ? 'bg-blue-50'
                           : isBundleAgg
                           ? 'italic bg-blue-50/40'
+                          : isConfirmedPaid
+                          ? 'bg-gray-100'
+                          : isConfirmedDue
+                          ? 'bg-[#e8f5e9]'
                           : row.isActive === false
                           ? 'bg-gray-100 text-gray-400'
-                          : row.paidPercent === 100
-                          ? 'bg-green-50/40'
                           : ''
                       }`}
                     >
