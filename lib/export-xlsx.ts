@@ -22,10 +22,43 @@ function toNumericValue(value: unknown): number | null {
   }
 
   if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (!trimmed) return null;
+    const normalized = value
+      .trim()
+      .replace(/\u00a0/g, ' ')
+      .replace(/\s+/g, '')
+      .replace(/[^0-9,.-]/g, '');
 
-    const parsed = Number(trimmed);
+    if (!normalized || normalized === '.' || normalized === '-.' || normalized === '+.') {
+      return null;
+    }
+
+    const hasDot = normalized.includes('.');
+    const hasComma = normalized.includes(',');
+
+    let canonical = normalized;
+    if (hasDot && hasComma) {
+      const lastDot = normalized.lastIndexOf('.');
+      const lastComma = normalized.lastIndexOf(',');
+      const decimalSeparator = lastDot > lastComma ? '.' : ',';
+      const thousandsSeparator = decimalSeparator === '.' ? ',' : '.';
+
+      canonical = normalized
+        .replaceAll(thousandsSeparator, '')
+        .replace(decimalSeparator, '.');
+    } else if (hasComma) {
+      const commaParts = normalized.split(',');
+      const lastPart = commaParts[commaParts.length - 1];
+      const hasTwoOrFewerDigits = lastPart.length <= 2;
+      const hasMultipleCommas = commaParts.length > 2;
+
+      if (hasTwoOrFewerDigits && !hasMultipleCommas) {
+        canonical = normalized.replaceAll(',', '.');
+      } else {
+        canonical = normalized.replaceAll(',', '');
+      }
+    }
+
+    const parsed = Number(canonical);
     return Number.isFinite(parsed) ? parsed : null;
   }
 
