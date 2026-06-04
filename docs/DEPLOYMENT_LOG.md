@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-06-04 Deployment #304
+- Commit: 94b6867
+- Production: https://ice-nrbhcak7n-iceerp.vercel.app
+- Summary: Filter job distribution grid to income payments and refine UI placement.
+- Changes:
+  - components/figma/handover-job-distributions-grid.tsx: Filter bank transactions to only those with payment_id in income payments list (exclude parent FC); use /api/bank-transactions with project filter instead of test endpoint.
+  - components/figma/job-distribution-grid.tsx: Display only briefcase icon on button (no text label).
+  - components/figma/handover-payments-grid.tsx: Remove job distribution action from income payments grid.
+  - AGENTS.md: Document that job distribution action appears only in bank-transactions grid as briefcase icon.
+
 ## 2026-06-04 Deployment #303
 - Commit: f82d07b
 - Production: https://ice-nckx41mnp-iceerp.vercel.app
