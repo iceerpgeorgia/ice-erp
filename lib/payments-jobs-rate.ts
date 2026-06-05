@@ -22,7 +22,7 @@ const calcRate = (accountSum: unknown, nominalSum: unknown): number | null => {
 
 const buildProjectFilter = (projectUuid: string | null | undefined, startIndex: number) => {
   if (!projectUuid) return { sql: '', params: [] as string[] };
-  return { sql: ` AND project_uuid = $${startIndex}`, params: [projectUuid] };
+  return { sql: ` AND project_uuid = $${startIndex}::uuid`, params: [projectUuid] };
 };
 
 const queryConsolidatedRate = async (paymentId: string, projectUuid?: string | null) => {
@@ -60,7 +60,7 @@ export const resolveAccountCurrencyRate = async (
   fallbackRate?: number | null,
 ) => {
   const paymentRows = await prisma.$queryRawUnsafe(
-    'SELECT payment_id, project_uuid FROM payments WHERE record_uuid = $1',
+    'SELECT payment_id, project_uuid FROM payments WHERE record_uuid = $1::uuid',
     paymentUuid,
   );
   const payment = Array.isArray(paymentRows) ? paymentRows[0] : null;
