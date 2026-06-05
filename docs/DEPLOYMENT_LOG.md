@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-05 Deployment #325
+- Commit: 903eac8
+- Production: https://ice-ca5oonvky-iceerp.vercel.app
+- Summary: Fix job distribution XLSX export to use batch/raw composite keys so per-transaction allocations populate job columns.
+- Changes:
+  - components/figma/handover-job-distributions-grid.tsx: Export distributions via composite key matching the grid.
+  - AGENTS.md: Document export mapping for batch/raw distribution rows.
+
 ## 2026-06-05 Deployment #324
 - Commit: ce2ced1
 - Production: https://ice-cpr7evkx5-iceerp.vercel.app
