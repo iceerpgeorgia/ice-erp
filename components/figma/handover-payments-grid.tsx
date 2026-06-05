@@ -119,7 +119,7 @@ function fmtVal(value: any, format?: ColumnFormat, key?: string): string {
   if (format === 'percent') return `${Number(value).toFixed(2)}%`;
   if (format === 'currency' || format === 'number') {
     const num = Number(value);
-    const display = key === 'due' ? num : Math.abs(num);
+    const display = Math.abs(num);
     return display.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
   return String(value);
@@ -809,7 +809,7 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                   return (
                     <th
                       key={column.key}
-                      className={`relative font-semibold cursor-move overflow-hidden text-left px-4 py-3 text-sm sticky top-0 z-10 ${
+                      className={`font-semibold cursor-move overflow-hidden text-left px-4 py-3 text-sm sticky top-0 z-10 ${
                         draggedColumn === column.key ? 'opacity-50' : ''
                       } ${dragOverColumn === column.key ? 'border-l-4 border-blue-500' : ''}`}
                       style={{ width: column.width, minWidth: column.width, maxWidth: column.width, backgroundColor: bgColor || '#fff' }}
@@ -939,10 +939,12 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
                         if (col.key === 'accrual') bgColor = '#ffebee';
                         if (col.key === 'payment') bgColor = '#e8f5e9';
                         if (col.key === 'order') bgColor = '#fff9e6';
+                        const isNumeric = col.key === 'paidPercent' || col.key === 'due';
+                        const isLegacyFormat = col.key === 'accrual' || col.key === 'order' || col.key === 'payment';
                         return (
                           <td
                             key={col.key}
-                            className="overflow-hidden px-4 py-2 text-sm"
+                            className={`overflow-hidden px-4 py-2 text-sm ${isNumeric && !isLegacyFormat ? 'text-right tabular-nums' : ''}`}
                             style={{
                               width: col.width,
                               minWidth: col.width,

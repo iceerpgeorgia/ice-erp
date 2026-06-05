@@ -49,8 +49,8 @@ type HandoverJob = Job & {
   paidNominal: number;
   paidGel: number;
   debitNominal: number;
-  debitGel: number;
-  totalGel: number;
+  debitGel: number | null;
+  totalGel: number | null;
 };
 
 type HandoverProject = {
@@ -183,20 +183,21 @@ export function HandoversTable() {
     [projects, selectedProjectUuid],
   );
 
-  const formatMoney = (value: number) => value.toLocaleString('en-US', {
+  const formatMoney = (value: number) => Math.abs(value).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 
-  const rateCache = useMemo(() => new Map<string, number>(), []);
+  const rateCache = useMemo(() => new Map<string, number | null>(), []);
 
   const lookupNbgRate = useCallback(async (date: string | null, currencyCode: string | null) => {
-    const normalizedCurrency = (currencyCode || 'GEL').toUpperCase();
-    if (!date || normalizedCurrency === 'GEL') return 1;
+    const normalizedCurrency = currencyCode ? currencyCode.toUpperCase() : null;
+    if (!date || !normalizedCurrency) return null;
+    if (normalizedCurrency === 'GEL') return 1;
 
     const cacheKey = `${date}|${normalizedCurrency}`;
     if (rateCache.has(cacheKey)) {
-      return rateCache.get(cacheKey) ?? 1;
+      return rateCache.get(cacheKey) ?? null;
     }
 
     const res = await fetch(
@@ -205,12 +206,12 @@ export function HandoversTable() {
     );
 
     if (!res.ok) {
-      return 1;
+      return null;
     }
 
     const data = await res.json().catch(() => null);
     const rate = Number(data?.rate);
-    const normalizedRate = Number.isFinite(rate) && rate > 0 ? rate : 1;
+    const normalizedRate = Number.isFinite(rate) && rate > 0 ? rate : null;
     rateCache.set(cacheKey, normalizedRate);
     return normalizedRate;
   }, [rateCache]);
@@ -355,6 +356,7 @@ export function HandoversTable() {
         }
 
         const paidNominalByJob = new Map<string, number>();
+        const paidGelByJob = new Map<string, number>();
         if (paymentJobsRes.ok) {
           const paymentJobsData = await paymentJobsRes.json();
           if (Array.isArray(paymentJobsData)) {
@@ -366,6 +368,13 @@ export function HandoversTable() {
                 String(dist.job_uuid),
                 (paidNominalByJob.get(String(dist.job_uuid)) ?? 0) + amount,
               );
+              const amountAccount = Number(dist.amount_account_curr ?? 0);
+              if (Number.isFinite(amountAccount) && amountAccount !== 0) {
+                paidGelByJob.set(
+                  String(dist.job_uuid),
+                  (paidGelByJob.get(String(dist.job_uuid)) ?? 0) + amountAccount,
+                );
+              }
             });
           }
         }
@@ -378,7 +387,7 @@ export function HandoversTable() {
           ),
         );
 
-        const rateByDate = new Map<string, number>();
+        const rateByDate = new Map<string, number | null>();
         await Promise.all(uniqueCertDates.map(async (date) => {
           rateByDate.set(date, await lookupNbgRate(date, projectCurrencyCode));
         }));
@@ -409,10 +418,20 @@ export function HandoversTable() {
             liftCertDate: liftCertMap[job.jobUuid]?.date ?? null,
             liftCertDocNo: liftCertMap[job.jobUuid]?.docNo ?? null,
             paidNominal: paidNominalByJob.get(String(job.jobUuid)) ?? 0,
-            paidGel: (paidNominalByJob.get(String(job.jobUuid)) ?? 0) * (rateByDate.get(liftCertMap[job.jobUuid]?.date ?? '') ?? 1),
+            paidGel: paidGelByJob.get(String(job.jobUuid)) ?? 0,
             debitNominal: (job.sellingPrice != null ? Number(job.sellingPrice) : 0) - (paidNominalByJob.get(String(job.jobUuid)) ?? 0),
-            debitGel: ((job.sellingPrice != null ? Number(job.sellingPrice) : 0) - (paidNominalByJob.get(String(job.jobUuid)) ?? 0)) * (rateByDate.get(liftCertMap[job.jobUuid]?.date ?? '') ?? 1),
-            totalGel: (job.sellingPrice != null ? Number(job.sellingPrice) : 0) * (rateByDate.get(liftCertMap[job.jobUuid]?.date ?? '') ?? 1),
+            debitGel: (() => {
+              const certDate = liftCertMap[job.jobUuid]?.date ?? null;
+              const rate = certDate ? rateByDate.get(certDate) ?? null : null;
+              const debitNominal = (job.sellingPrice != null ? Number(job.sellingPrice) : 0) - (paidNominalByJob.get(String(job.jobUuid)) ?? 0);
+              return rate != null ? debitNominal * rate : null;
+            })(),
+            totalGel: (() => {
+              const certDate = liftCertMap[job.jobUuid]?.date ?? null;
+              const rate = certDate ? rateByDate.get(certDate) ?? null : null;
+              const nominal = job.sellingPrice != null ? Number(job.sellingPrice) : 0;
+              return rate != null ? nominal * rate : null;
+            })(),
             _rowKey: String(job.jobUuid ?? idx),
           })),
         );
@@ -539,8 +558,14 @@ export function HandoversTable() {
       case 'debitNominal':
         return <span>{formatMoney(job.debitNominal)}</span>;
       case 'debitGel':
+        if (!job.liftCertDate || job.debitGel == null) {
+          return <span className="text-muted-foreground text-sm">—</span>;
+        }
         return <span>{formatMoney(job.debitGel)}</span>;
       case 'totalGel':
+        if (!job.liftCertDate || job.totalGel == null) {
+          return <span className="text-muted-foreground text-sm">—</span>;
+        }
         return <span>{formatMoney(job.totalGel)}</span>;
       case 'liftCertDocNo':
         return job.liftCertDocNo ? (
@@ -560,7 +585,7 @@ export function HandoversTable() {
         return <span>{job.weight == null ? '—' : `${job.weight} kg`}</span>;
       case 'sellingPrice':
         return (
-          <span>{job.sellingPrice == null ? '—' : job.sellingPrice.toLocaleString()}</span>
+          <span>{job.sellingPrice == null ? '—' : formatMoney(job.sellingPrice)}</span>
         );
       case 'factoryNo':
         return <span className="font-mono text-sm">{job.factoryNo ?? '—'}</span>;
@@ -796,6 +821,18 @@ export function HandoversTable() {
                             <TableCell
                               key={col.key}
                               style={{ width: col.width, maxWidth: col.width }}
+                              className={[
+                                col.key === 'floors' ||
+                                col.key === 'weight' ||
+                                col.key === 'sellingPrice' ||
+                                col.key === 'paidNominal' ||
+                                col.key === 'paidGel' ||
+                                col.key === 'debitNominal' ||
+                                col.key === 'debitGel' ||
+                                col.key === 'totalGel'
+                                  ? 'text-right tabular-nums'
+                                  : '',
+                              ].join(' ')}
                             >
                               {renderCell(job, col)}
                             </TableCell>
