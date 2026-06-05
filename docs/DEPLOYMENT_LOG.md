@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-05 Deployment #318
+- Commit: a36bf94
+- Production: https://ice-m0w1lxwi3-iceerp.vercel.app
+- Summary: Fix UUID type cast errors in payments-jobs auto-distribute API route.
+- Changes:
+  - lib/payments-jobs-rate.ts: Added explicit ::uuid casts to project_uuid and record_uuid query parameters to prevent "operator does not exist: uuid = text" errors in the auto-distribute flow.
+
 ## 2026-06-05 Deployment #317
 - Commit: cfe5a21
 - Production: https://ice-hlh2xsjcg-iceerp.vercel.app
