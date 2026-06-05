@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-05 Deployment #317
+- Commit: eb58866
+- Production: https://ice-fmnr4qjh2-iceerp.vercel.app
+- Summary: Re-deploy the latest main-branch state after restoring project-value scaling for auto-managed payments.
+- Changes:
+  - Production redeploy of current main branch after the project-value scaling fix and its deployment-log update.
+
 ## 2026-06-05 Deployment #316
 - Commit: a96e6da
 - Production: https://ice-p1yn5fjy1-iceerp.vercel.app
