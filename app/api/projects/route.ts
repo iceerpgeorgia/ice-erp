@@ -714,14 +714,16 @@ export async function PATCH(req: NextRequest) {
 
     const project: any = Array.isArray(result) ? result[0] : result;
 
-    // If value changed, proportionally scale auto-generated payment ledger entries for this project
-    // (is_project_derived = true: main project payment; is_bundle_payment = true: bundle child payments)
+    // If value changed, proportionally scale auto-managed payment ledger entries for this project.
+    // Primary selector: payments flagged is_project_derived / is_bundle_payment.
+    // Legacy fallback (to preserve older behavior): include the project FC payment and bundle-child FC payments
+    // when they look auto-managed (no job, not waybill-derived, not income tax), even if the flags were never set.
     if (value && oldProjectValue && oldProjectValue > 0 && oldProjectUuid) {
       const newProjectValue = parseFloat(value);
       if (Math.abs(newProjectValue - oldProjectValue) > 0.001) {
         const scaleFactor = newProjectValue / oldProjectValue;
 
-        // If requested, deconfirm auto-generated ledger entries first so the scale UPDATE can reach them
+        // If requested, deconfirm auto-managed ledger entries first so the scale UPDATE can reach them
         if (deconfirmBeforeScale) {
           await prisma.$transaction([
             prisma.$executeRaw`SELECT set_config('app.allow_deconfirm', 'true', true)`,
@@ -729,12 +731,33 @@ export async function PATCH(req: NextRequest) {
               `UPDATE payments_ledger pl
                SET confirmed = false
                WHERE pl.payment_id IN (
-                 SELECT payment_id FROM payments
-                 WHERE project_uuid = $1::uuid
-                   AND (is_project_derived = true OR is_bundle_payment = true)
+                 SELECT p.payment_id
+                 FROM payments p
+                 WHERE p.project_uuid = $1::uuid
+                   AND p.is_active = true
+                   AND (
+                     p.is_project_derived = true
+                     OR p.is_bundle_payment = true
+                     OR (
+                       p.waybill_derived = false
+                       AND p.job_uuid IS NULL
+                       AND p.income_tax = false
+                       AND (
+                         p.financial_code_uuid = $2::uuid
+                         OR EXISTS (
+                           SELECT 1
+                           FROM financial_codes fc
+                           WHERE fc.parent_uuid = $2::uuid
+                             AND fc.is_active = true
+                             AND fc.uuid = p.financial_code_uuid
+                         )
+                       )
+                     )
+                   )
                )
                AND (pl.is_deleted = false OR pl.is_deleted IS NULL)`,
-              oldProjectUuid
+              oldProjectUuid,
+              oldProjectFcUuid
             ),
           ]);
         }
@@ -745,14 +768,35 @@ export async function PATCH(req: NextRequest) {
                "order" = ROUND(pl."order" * $1::numeric, 2),
                updated_at = NOW()
            WHERE pl.payment_id IN (
-             SELECT payment_id FROM payments
-             WHERE project_uuid = $2::uuid
-               AND (is_project_derived = true OR is_bundle_payment = true)
+             SELECT p.payment_id
+             FROM payments p
+             WHERE p.project_uuid = $2::uuid
+               AND p.is_active = true
+               AND (
+                 p.is_project_derived = true
+                 OR p.is_bundle_payment = true
+                 OR (
+                   p.waybill_derived = false
+                   AND p.job_uuid IS NULL
+                   AND p.income_tax = false
+                   AND (
+                     p.financial_code_uuid = $3::uuid
+                     OR EXISTS (
+                       SELECT 1
+                       FROM financial_codes fc
+                       WHERE fc.parent_uuid = $3::uuid
+                         AND fc.is_active = true
+                         AND fc.uuid = p.financial_code_uuid
+                     )
+                   )
+                 )
+               )
            )
            AND (pl.is_deleted = false OR pl.is_deleted IS NULL)
            AND (pl.confirmed IS NULL OR pl.confirmed = false)`,
           scaleFactor,
-          oldProjectUuid
+          oldProjectUuid,
+          oldProjectFcUuid
         );
       }
     }

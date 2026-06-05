@@ -41,6 +41,20 @@ export async function PUT(
       );
     }
 
+    // Fetch current project value before update so we can scale ledger entries proportionally.
+    const currentProjectRows = await prisma.$queryRawUnsafe<
+      Array<{ project_uuid: string; value: any; financial_code_uuid: string | null }>
+    >(
+      `SELECT project_uuid, value, financial_code_uuid::text
+       FROM projects
+       WHERE id = $1
+       LIMIT 1`,
+      id
+    );
+    const oldProjectValue = currentProjectRows.length > 0 ? parseFloat(currentProjectRows[0].value) : null;
+    const oldProjectUuid = currentProjectRows.length > 0 ? currentProjectRows[0].project_uuid : null;
+    const oldProjectFcUuid = currentProjectRows.length > 0 ? currentProjectRows[0].financial_code_uuid : null;
+
     // Update project
     await prisma.$queryRaw`
       UPDATE projects
@@ -56,6 +70,52 @@ export async function PUT(
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
+
+    // If value changed, proportionally scale auto-managed ledger entries for this project.
+    // (unconfirmed-only; this route does not support deconfirmBeforeScale)
+    if (value && oldProjectValue && oldProjectValue > 0 && oldProjectUuid) {
+      const newProjectValue = parseFloat(value);
+      if (Math.abs(newProjectValue - oldProjectValue) > 0.001) {
+        const scaleFactor = newProjectValue / oldProjectValue;
+
+        await prisma.$queryRawUnsafe(
+          `UPDATE payments_ledger pl
+           SET accrual = ROUND(pl.accrual * $1::numeric, 2),
+               "order" = ROUND(pl."order" * $1::numeric, 2),
+               updated_at = NOW()
+           WHERE pl.payment_id IN (
+             SELECT p.payment_id
+             FROM payments p
+             WHERE p.project_uuid = $2::uuid
+               AND p.is_active = true
+               AND (
+                 p.is_project_derived = true
+                 OR p.is_bundle_payment = true
+                 OR (
+                   p.waybill_derived = false
+                   AND p.job_uuid IS NULL
+                   AND p.income_tax = false
+                   AND (
+                     p.financial_code_uuid = $3::uuid
+                     OR EXISTS (
+                       SELECT 1
+                       FROM financial_codes fc
+                       WHERE fc.parent_uuid = $3::uuid
+                         AND fc.is_active = true
+                         AND fc.uuid = p.financial_code_uuid
+                     )
+                   )
+                 )
+               )
+           )
+           AND (pl.is_deleted = false OR pl.is_deleted IS NULL)
+           AND (pl.confirmed IS NULL OR pl.confirmed = false)`,
+          scaleFactor,
+          oldProjectUuid,
+          oldProjectFcUuid
+        );
+      }
+    }
 
     // Update employees: delete all and re-insert
     if (employees && Array.isArray(employees)) {

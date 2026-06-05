@@ -158,6 +158,13 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 ## Bank Transactions API Filters
 - `GET /api/bank-transactions` supports `project_uuid` or `projectUuid` for server-side filtering. Conversion entries are filtered by `project_uuid`, and balance records are omitted when a project filter is set.
 
+## Project Value Scaling
+- When a project's `value` changes via the Projects API update routes, the system proportionally scales the related **auto-managed** `payments_ledger` rows (accrual + order) by `scaleFactor = newValue / oldValue`.
+- Selection rules for payments to scale:
+  - Always include `payments.is_project_derived = true` (main project payment) and `payments.is_bundle_payment = true` (bundle child payments).
+  - Legacy fallback: also include payments for the project's financial code and its active bundle-child financial codes when they look auto-managed (`job_uuid IS NULL`, `income_tax = false`, `waybill_derived = false`).
+- Only non-deleted, unconfirmed ledger rows are scaled by default; UI/API can optionally deconfirm first when explicitly requested.
+
 ## RS.ge Waybill Sync
 
 ### Architecture Overview
