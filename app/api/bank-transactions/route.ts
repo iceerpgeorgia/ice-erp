@@ -125,6 +125,7 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
       ${baseAlias}.id as source_id,
       '${table.name}' as source_table,
       NULL::bigint as batch_partition_id,
+      NULL::uuid as batch_partition_uuid,
       NULL::numeric as batch_partition_amount,
       NULL::text as batch_payment_id,
       NULL::text as batch_payment_id_raw,
@@ -173,6 +174,7 @@ const UNION_SQL = SOURCE_TABLES.map((table) => {
       ${baseAlias}.id as source_id,
       '${table.name}' as source_table,
       btb.id as batch_partition_id,
+      btb.uuid as batch_partition_uuid,
       (btb.partition_amount * CASE WHEN ${baseAlias}.account_currency_amount < 0 THEN -1 ELSE 1 END) as batch_partition_amount,
       COALESCE(
         CASE WHEN btb.payment_id ILIKE 'BTC_%' THEN NULL ELSE btb.payment_id END,
@@ -273,6 +275,7 @@ function toApi(row: any) {
     payment_id_raw: row.payment_id ?? null,
     batch_id: batchId ?? null,
     batch_partition_id: hasBatch ? Number(row.batch_partition_id) : null,
+    batch_partition_uuid: hasBatch ? row.batch_partition_uuid : null,
     is_batch: hasBatch,
     parsing_lock: hasBatch ? true : (row.parsing_lock ?? false),
     processing_case: row.processing_case,

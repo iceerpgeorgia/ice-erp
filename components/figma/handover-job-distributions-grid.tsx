@@ -73,6 +73,8 @@ type BankTransactionRow = {
   entriesid: string | null;
   project_uuid: string | null;
   is_balance_record?: boolean | null;
+  raw_record_uuid?: string | null;
+  batch_partition_uuid?: string | null;
 };
 
 type PaymentMapEntry = PaymentLookupEntry;
@@ -379,6 +381,14 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
         console.log('[Job Dist] Loaded distributions:', distData.length);
         distData.forEach((dist: any) => {
           if (!dist.payment_uuid) return;
+          
+          // Create composite key: payment_uuid or payment_uuid:batch_partition_uuid or payment_uuid:raw_record_uuid
+          const key = dist.batch_partition_uuid
+            ? `${dist.payment_uuid}:batch:${dist.batch_partition_uuid}`
+            : dist.raw_record_uuid
+            ? `${dist.payment_uuid}:raw:${dist.raw_record_uuid}`
+            : dist.payment_uuid;
+          
           const row: JobDistributionRow = {
             jobUuid: dist.job_uuid,
             jobName: dist.job_name,
@@ -388,14 +398,17 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
             amount: dist.amount != null ? Number(dist.amount) : '',
             amountAccountCurr: dist.amount_account_curr != null ? Number(dist.amount_account_curr) : '',
           };
-          const current = nextDistributionMap.get(dist.payment_uuid) || [];
+          const current = nextDistributionMap.get(key) || [];
           current.push(row);
-          nextDistributionMap.set(dist.payment_uuid, current);
+          nextDistributionMap.set(key, current);
           console.log('[Job Dist] Distribution for payment_uuid:', {
             payment_uuid: dist.payment_uuid,
+            batch_partition_uuid: dist.batch_partition_uuid,
+            raw_record_uuid: dist.raw_record_uuid,
             payment_id: dist.payment_id,
             job_name: dist.job_name,
             amount: dist.amount,
+            key,
           });
         });
       }
@@ -791,14 +804,27 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
                 {sortedData.map((row, idx) => {
                 const paymentInfo = resolvePaymentInfo(row, paymentMap, paymentIdMap);
                 const paymentUuid = paymentInfo?.paymentUuid ?? null;
-                const distributionValue = paymentUuid ? (distributionMap.get(paymentUuid) ?? []) : [];
+                
+                // Build composite key matching the distribution map key format
+                const distributionKey = paymentUuid
+                  ? (row.batch_partition_uuid
+                    ? `${paymentUuid}:batch:${row.batch_partition_uuid}`
+                    : row.raw_record_uuid
+                    ? `${paymentUuid}:raw:${row.raw_record_uuid}`
+                    : paymentUuid)
+                  : null;
+                
+                const distributionValue = distributionKey ? (distributionMap.get(distributionKey) ?? []) : [];
 
                 if (idx < 5) { // Only log first 5 rows to avoid spam
                   console.log('[Job Dist] Row payment lookup:', {
                     rowId: row.id,
                     payment_id: row.payment_id,
+                    batch_partition_uuid: row.batch_partition_uuid,
+                    raw_record_uuid: row.raw_record_uuid,
                     financial_code: row.financial_code,
                     resolved_payment_uuid: paymentUuid,
+                    distribution_key: distributionKey,
                     has_distributions: distributionValue.length > 0,
                     distribution_count: distributionValue.length,
                   });
@@ -828,6 +854,8 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
                             {paymentUuid && row.payment_id ? (
                               <JobDistributionGrid
                                 paymentUuid={paymentUuid}
+                                batchPartitionUuid={row.batch_partition_uuid}
+                                rawRecordUuid={row.raw_record_uuid}
                                 paymentId={row.payment_id}
                                 paymentAmount={paymentAmount}
                                 paymentCurrencyCode={paymentCurrencyCode}

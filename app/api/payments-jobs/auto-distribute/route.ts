@@ -24,6 +24,8 @@ export async function POST(req: NextRequest) {
       payment_amount,
       payment_currency_code,
       account_currency_rate = 1, // Rate to convert to GEL (account currency)
+      batch_partition_uuid, // Optional: link to specific batch partition
+      raw_record_uuid, // Optional: link to specific raw bank transaction (fallback)
     } = body;
 
     if (!payment_uuid || !project_uuid || !payment_amount) {
@@ -97,13 +99,22 @@ export async function POST(req: NextRequest) {
 
     // Replace all existing distributions with new auto-weighted ones
     await prisma.$transaction(async (tx) => {
+      const deleteWhere: any = { payment_uuid };
+      if (batch_partition_uuid) {
+        deleteWhere.batch_partition_uuid = batch_partition_uuid;
+      } else if (raw_record_uuid) {
+        deleteWhere.raw_record_uuid = raw_record_uuid;
+      }
+
       await tx.payments_jobs.deleteMany({
-        where: { payment_uuid },
+        where: deleteWhere,
       });
 
       await tx.payments_jobs.createMany({
         data: distributions.map((d) => ({
           payment_uuid,
+          batch_partition_uuid: batch_partition_uuid || null,
+          raw_record_uuid: raw_record_uuid || null,
           job_uuid: d.job_uuid,
           project_uuid: d.project_uuid,
           amount: d.amount,

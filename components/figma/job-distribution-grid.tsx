@@ -39,6 +39,8 @@ function toNumber(value: number | string | null | undefined): number {
 
 type JobDistributionGridProps = {
   paymentUuid: string;
+  batchPartitionUuid?: string | null;
+  rawRecordUuid?: string | null;
   paymentId: string;
   paymentAmount: number;
   paymentCurrencyCode: string;
@@ -52,6 +54,8 @@ type JobDistributionGridProps = {
 
 export function JobDistributionGrid({
   paymentUuid,
+  batchPartitionUuid,
+  rawRecordUuid,
   paymentId,
   paymentAmount,
   paymentCurrencyCode,
@@ -182,6 +186,8 @@ export function JobDistributionGrid({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           payment_uuid: paymentUuid,
+          batch_partition_uuid: batchPartitionUuid,
+          raw_record_uuid: rawRecordUuid,
           project_uuid: projectUuid,
           payment_amount: paymentAmount,
           payment_currency_code: paymentCurrencyCode,
@@ -236,6 +242,8 @@ export function JobDistributionGrid({
 
       console.log('[Job Dist Save] Saving distributions:', {
         payment_uuid: paymentUuid,
+        batch_partition_uuid: batchPartitionUuid,
+        raw_record_uuid: rawRecordUuid,
         payment_id: paymentId,
         distributions_count: distributions.length,
         replace_all: true,
@@ -246,6 +254,8 @@ export function JobDistributionGrid({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           payment_uuid: paymentUuid,
+          batch_partition_uuid: batchPartitionUuid,
+          raw_record_uuid: rawRecordUuid,
           distributions,
           replace_all: true,
         }),
@@ -272,7 +282,13 @@ export function JobDistributionGrid({
 
     setSaving(true);
     try {
-      const response = await fetch(`/api/payments-jobs?payment_uuid=${paymentUuid}`, {
+      const deleteUrl = batchPartitionUuid
+        ? `/api/payments-jobs?payment_uuid=${paymentUuid}&batch_partition_uuid=${batchPartitionUuid}`
+        : rawRecordUuid
+        ? `/api/payments-jobs?payment_uuid=${paymentUuid}&raw_record_uuid=${rawRecordUuid}`
+        : `/api/payments-jobs?payment_uuid=${paymentUuid}`;
+
+      const response = await fetch(deleteUrl, {
         method: 'DELETE',
       });
 

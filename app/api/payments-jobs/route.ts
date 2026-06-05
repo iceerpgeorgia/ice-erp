@@ -7,7 +7,7 @@ import { applyAccountCurrencyRate, resolveAccountCurrencyRate } from '@/lib/paym
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/payments-jobs?payment_uuid=xxx&project_uuid=xxx
+// GET /api/payments-jobs?payment_uuid=xxx&project_uuid=xxx&raw_record_uuid=xxx
 export async function GET(req: NextRequest) {
   const auth = await requireAuth();
   if (isAuthError(auth)) return auth;
@@ -16,12 +16,14 @@ export async function GET(req: NextRequest) {
   const paymentUuid = searchParams.get('payment_uuid');
   const jobUuid = searchParams.get('job_uuid');
   const projectUuid = searchParams.get('project_uuid');
+  const rawRecordUuid = searchParams.get('raw_record_uuid');
 
   try {
     const where: any = {};
     if (paymentUuid) where.payment_uuid = paymentUuid;
     if (jobUuid) where.job_uuid = jobUuid;
     if (projectUuid) where.project_uuid = projectUuid;
+    if (rawRecordUuid) where.raw_record_uuid = rawRecordUuid;
 
     const distributions = await prisma.payments_jobs.findMany({
       where,
@@ -123,6 +125,8 @@ export async function GET(req: NextRequest) {
       allocation_percent: d.allocation_percent != null ? Number(d.allocation_percent) : null,
       is_auto_distributed: d.is_auto_distributed,
       weight_snapshot: d.weight_snapshot ? Number(d.weight_snapshot) : null,
+      raw_record_uuid: d.raw_record_uuid,
+      batch_partition_uuid: d.batch_partition_uuid,
       created_at: d.created_at.toISOString(),
       updated_at: d.updated_at.toISOString(),
       created_by: d.created_by,
@@ -151,6 +155,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       payment_uuid,
+      batch_partition_uuid, // Optional: link to specific batch partition (takes precedence)
+      raw_record_uuid, // Optional: link to specific raw bank transaction (fallback for non-batched)
       distributions, // Array of { job_uuid, project_uuid, amount, amount_account_curr?, allocation_type?, allocation_percent?, is_auto_distributed?, weight_snapshot? }
       replace_all = false, // If true, delete existing and insert new
     } = body;
@@ -195,15 +201,24 @@ export async function POST(req: NextRequest) {
     let result;
 
     if (replace_all) {
-      // Delete existing distributions and insert new ones
+      // Delete existing distributions (filtered by batch_partition_uuid or raw_record_uuid if provided) and insert new ones
       result = await prisma.$transaction(async (tx) => {
+        const deleteWhere: any = { payment_uuid };
+        if (batch_partition_uuid) {
+          deleteWhere.batch_partition_uuid = batch_partition_uuid;
+        } else if (raw_record_uuid) {
+          deleteWhere.raw_record_uuid = raw_record_uuid;
+        }
+
         await tx.payments_jobs.deleteMany({
-          where: { payment_uuid },
+          where: deleteWhere,
         });
 
         const created = await tx.payments_jobs.createMany({
           data: normalizedDistributions.map((d: any) => ({
             payment_uuid,
+            batch_partition_uuid: batch_partition_uuid || null,
+            raw_record_uuid: raw_record_uuid || null,
             job_uuid: d.job_uuid,
             project_uuid: d.project_uuid,
             amount: d.amount,
@@ -221,17 +236,28 @@ export async function POST(req: NextRequest) {
       });
     } else {
       // Upsert individual distributions
-      result = await prisma.$transaction(
-        normalizedDistributions.map((d: any) =>
-          prisma.payments_jobs.upsert({
-            where: {
-              payment_uuid_job_uuid_project_uuid: {
-                payment_uuid,
-                job_uuid: d.job_uuid,
-                project_uuid: d.project_uuid,
-              },
-            },
-            update: {
+      // For transaction-specific distributions, we need to find by all fields including raw_record_uuid
+      const upsertResults = [];
+      for (const d of normalizedDistributions) {
+        const findWhere: any = {
+          payment_uuid,
+          job_uuid: d.job_uuid,
+          project_uuid: d.project_uuid,
+        };
+        if (batch_partition_uuid) {
+          findWhere.batch_partition_uuid = batch_partition_uuid;
+        } else if (raw_record_uuid) {
+          findWhere.raw_record_uuid = raw_record_uuid;
+        }
+
+        const existing = await prisma.payments_jobs.findFirst({
+          where: findWhere,
+        });
+
+        if (existing) {
+          const updated = await prisma.payments_jobs.update({
+            where: { uuid: existing.uuid },
+            data: {
               amount: d.amount,
               amount_account_curr: d.amount_account_curr || null,
               allocation_type: d.allocation_type || 'nominal',
@@ -240,8 +266,14 @@ export async function POST(req: NextRequest) {
               weight_snapshot: d.weight_snapshot || null,
               updated_by: userEmail,
             },
-            create: {
+          });
+          upsertResults.push(updated);
+        } else {
+          const created = await prisma.payments_jobs.create({
+            data: {
               payment_uuid,
+              batch_partition_uuid: batch_partition_uuid || null,
+              raw_record_uuid: raw_record_uuid || null,
               job_uuid: d.job_uuid,
               project_uuid: d.project_uuid,
               amount: d.amount,
@@ -253,11 +285,12 @@ export async function POST(req: NextRequest) {
               created_by: userEmail,
               updated_by: userEmail,
             },
-          })
-        )
-      );
+          });
+          upsertResults.push(created);
+        }
+      }
 
-      result = { action: 'upserted', count: result.length };
+      result = { action: 'upserted', count: upsertResults.length };
     }
 
     return NextResponse.json({
@@ -273,7 +306,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE /api/payments-jobs?uuid=xxx or ?payment_uuid=xxx
+// DELETE /api/payments-jobs?uuid=xxx or ?payment_uuid=xxx&batch_partition_uuid=xxx
 export async function DELETE(req: NextRequest) {
   const auth = await requireAuth();
   if (isAuthError(auth)) return auth;
@@ -281,6 +314,7 @@ export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const uuid = searchParams.get('uuid');
   const paymentUuid = searchParams.get('payment_uuid');
+  const batchPartitionUuid = searchParams.get('batch_partition_uuid');
 
   try {
     if (uuid) {
@@ -290,9 +324,14 @@ export async function DELETE(req: NextRequest) {
       });
       return NextResponse.json({ success: true, deleted: 1 });
     } else if (paymentUuid) {
-      // Delete all distributions for a payment
+      // Delete distributions for a payment (optionally filtered by batch_partition_uuid)
+      const deleteWhere: any = { payment_uuid: paymentUuid };
+      if (batchPartitionUuid) {
+        deleteWhere.batch_partition_uuid = batchPartitionUuid;
+      }
+
       const result = await prisma.payments_jobs.deleteMany({
-        where: { payment_uuid: paymentUuid },
+        where: deleteWhere,
       });
       return NextResponse.json({ success: true, deleted: result.count });
     } else {

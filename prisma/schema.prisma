@@ -871,31 +871,36 @@ model salary_accruals {
 }
 
 model payments_jobs {
-  id                  BigInt   @id @default(autoincrement())
-  uuid                String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  payment_uuid        String
-  job_uuid            String   @db.Uuid
-  project_uuid        String   @db.Uuid
-  amount              Decimal  @db.Decimal(18, 2)
-  amount_account_curr Decimal? @db.Decimal(18, 2)
-  allocation_type     String   @default("nominal")
-  allocation_percent  Decimal? @db.Decimal(5, 2)
-  is_auto_distributed Boolean  @default(false)
-  weight_snapshot     Decimal? @db.Decimal(10, 6)
-  created_at          DateTime @default(now())
-  updated_at          DateTime @updatedAt
-  created_by          String?
-  updated_by          String?
+  id                   BigInt                        @id @default(autoincrement())
+  uuid                 String                        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_uuid         String
+  job_uuid             String                        @db.Uuid
+  project_uuid         String                        @db.Uuid
+  amount               Decimal                       @db.Decimal(18, 2)
+  amount_account_curr  Decimal?                      @db.Decimal(18, 2)
+  allocation_type      String                        @default("nominal")
+  allocation_percent   Decimal?                      @db.Decimal(5, 2)
+  is_auto_distributed  Boolean                       @default(false)
+  weight_snapshot      Decimal?                      @db.Decimal(10, 6)
+  raw_record_uuid      String?                       @db.Uuid
+  batch_partition_uuid String?                       @db.Uuid
+  created_at           DateTime                      @default(now())
+  updated_at           DateTime                      @updatedAt
+  created_by           String?
+  updated_by           String?
 
-  payment payments @relation(fields: [payment_uuid], references: [record_uuid], onDelete: Cascade)
-  job     jobs     @relation(fields: [job_uuid], references: [job_uuid], onDelete: Restrict)
-  project projects @relation(fields: [project_uuid], references: [project_uuid], onDelete: Restrict)
+  payment                  payments                      @relation(fields: [payment_uuid], references: [record_uuid], onDelete: Cascade)
+  job                      jobs                          @relation(fields: [job_uuid], references: [job_uuid], onDelete: Restrict)
+  project                  projects                      @relation(fields: [project_uuid], references: [project_uuid], onDelete: Restrict)
+  bank_transaction_batches bank_transaction_batches?     @relation(fields: [batch_partition_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([payment_uuid, job_uuid, project_uuid])
   @@index([payment_uuid])
   @@index([job_uuid])
   @@index([project_uuid])
   @@index([is_auto_distributed])
+  @@index([raw_record_uuid], map: "idx_payments_jobs_raw_record_uuid")
+  @@index([batch_partition_uuid], map: "idx_payments_jobs_batch_partition_uuid")
   @@map("payments_jobs")
 }
 
@@ -2743,6 +2748,7 @@ model bank_transaction_batches {
   financial_codes       financial_codes? @relation(fields: [financial_code_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
   currencies            currencies?      @relation(fields: [nominal_currency_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
   projects              projects?        @relation(fields: [project_uuid], references: [project_uuid], onDelete: NoAction, onUpdate: NoAction)
+  payments_jobs         payments_jobs[]
 
   @@index([bank_account_uuid], map: "idx_bank_transaction_batches_account")
   @@index([batch_uuid], map: "idx_bank_transaction_batches_batch_uuid")
