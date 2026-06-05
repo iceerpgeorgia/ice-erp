@@ -204,13 +204,6 @@ function buildDistributionExportRows(
     const paymentInfo = resolvePaymentInfo(row, paymentMap, paymentIdMap);
     const paymentUuid = paymentInfo?.paymentUuid ?? null;
     const distributions = paymentUuid ? (distributionMap.get(paymentUuid) ?? []) : [];
-    const accountAmount = Number(row.account_currency_amount ?? 0);
-    const nominalAmount = Number(row.nominal_amount ?? 0);
-    const hasRowRate = Number.isFinite(accountAmount)
-      && Number.isFinite(nominalAmount)
-      && nominalAmount !== 0;
-    const rowRate = hasRowRate ? accountAmount / nominalAmount : null;
-    const shouldRecalcAccount = rowRate !== null && Number.isFinite(rowRate) && Math.abs(rowRate - 1) > 0.01;
 
     if (distributions.length === 0) {
       exportRows.push({
@@ -237,14 +230,9 @@ function buildDistributionExportRows(
     }
 
     distributions.forEach((dist) => {
-      const distributedAmount = dist.amount != null ? Number(dist.amount) : null;
-      const distributedAmountAccountCurrRaw = dist.amountAccountCurr != null ? Number(dist.amountAccountCurr) : null;
-      const distributedAmountAccountCurr = shouldRecalcAccount
-        && distributedAmount != null
-        && (distributedAmountAccountCurrRaw == null
-          || Math.abs(distributedAmountAccountCurrRaw - distributedAmount) < 0.01)
-        ? distributedAmount * rowRate!
-        : distributedAmountAccountCurrRaw;
+      const exportRowNumber = exportRows.length + 2;
+      const distributedAmount = `=B${exportRowNumber}*N${exportRowNumber}`;
+      const distributedAmountAccountCurr = `=D${exportRowNumber}*N${exportRowNumber}`;
 
       exportRows.push({
         date: row.transaction_date ?? '',
@@ -395,10 +383,10 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
             jobUuid: dist.job_uuid,
             jobName: dist.job_name,
             factoryNo: dist.factory_no,
-            sellingPrice: dist.selling_price,
-            percentage: dist.allocation_percent != null ? Number(dist.allocation_percent).toFixed(2) : '',
-            amount: dist.amount != null ? Number(dist.amount).toFixed(2) : '',
-            amountAccountCurr: dist.amount_account_curr != null ? Number(dist.amount_account_curr).toFixed(2) : '',
+            sellingPrice: dist.selling_price != null ? Number(dist.selling_price) : null,
+            percentage: dist.allocation_percent != null ? Number(dist.allocation_percent) : '',
+            amount: dist.amount != null ? Number(dist.amount) : '',
+            amountAccountCurr: dist.amount_account_curr != null ? Number(dist.amount_account_curr) : '',
           };
           const current = nextDistributionMap.get(dist.payment_uuid) || [];
           current.push(row);

@@ -26,11 +26,16 @@ export type JobDistributionRow = {
   jobName: string;
   factoryNo: string | null;
   sellingPrice: number | null;
-  percentage: string;
-  amount: string;
-  amountAccountCurr: string;
+  percentage: number | string;
+  amount: number | string;
+  amountAccountCurr: number | string;
   weight?: number;
 };
+
+function toNumber(value: number | string | null | undefined): number {
+  if (value === null || value === undefined || value === '') return 0;
+  return typeof value === 'number' ? value : parseFloat(value);
+}
 
 type JobDistributionGridProps = {
   paymentUuid: string;
@@ -115,15 +120,15 @@ export function JobDistributionGrid({
   // Calculate totals
   const totals = useMemo(() => {
     const totalPercent = localValue.reduce(
-      (sum, row) => sum + (parseFloat(row.percentage) || 0),
+      (sum, row) => sum + (toNumber(row.percentage) || 0),
       0
     );
     const totalAmount = localValue.reduce(
-      (sum, row) => sum + (parseFloat(row.amount) || 0),
+      (sum, row) => sum + (toNumber(row.amount) || 0),
       0
     );
     const totalAmountAcct = localValue.reduce(
-      (sum, row) => sum + (parseFloat(row.amountAccountCurr) || 0),
+      (sum, row) => sum + (toNumber(row.amountAccountCurr) || 0),
       0
     );
 
@@ -142,7 +147,7 @@ export function JobDistributionGrid({
     updated[index].percentage = value;
 
     // Auto-calculate amount
-    const percent = parseFloat(value) || 0;
+    const percent = toNumber(value) || 0;
     if (percent > 0) {
       const amount = (paymentAmount * percent) / 100;
       updated[index].amount = amount.toFixed(2);
@@ -158,7 +163,7 @@ export function JobDistributionGrid({
     updated[index].amount = value;
 
     // Auto-calculate percentage and account currency amount
-    const amount = parseFloat(value) || 0;
+    const amount = toNumber(value) || 0;
     if (amount > 0 && paymentAmount > 0) {
       const percent = (amount / paymentAmount) * 100;
       updated[index].percentage = percent.toFixed(2);
@@ -217,14 +222,14 @@ export function JobDistributionGrid({
     try {
       // Filter out rows with no amount
       const distributions = dataToSave
-        .filter(row => parseFloat(row.amount) > 0)
+        .filter(row => toNumber(row.amount) > 0)
         .map(row => ({
           job_uuid: row.jobUuid,
           project_uuid: projectUuid,
-          amount: parseFloat(row.amount),
-          amount_account_curr: parseFloat(row.amountAccountCurr) || null,
+          amount: toNumber(row.amount),
+          amount_account_curr: toNumber(row.amountAccountCurr) || null,
           allocation_type: distributionMode === 'all' ? 'auto_weighted' : 'manual',
-          allocation_percent: parseFloat(row.percentage) || null,
+          allocation_percent: toNumber(row.percentage) || null,
           is_auto_distributed: distributionMode === 'all',
           weight_snapshot: row.weight || null,
         }));
@@ -293,7 +298,7 @@ export function JobDistributionGrid({
     }
   };
 
-  const distributionCount = value.filter(v => parseFloat(v.amount) > 0).length;
+  const distributionCount = value.filter(v => toNumber(v.amount) > 0).length;
 
   return (
     <>

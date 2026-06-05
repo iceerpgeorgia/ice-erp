@@ -14,6 +14,17 @@ jest.mock('xlsx', () => {
         rows.forEach((row, rowIndex) => {
           row.forEach((value, colIndex) => {
             const cellRef = actual.utils.encode_cell({ r: rowIndex, c: colIndex });
+
+            if (typeof value === 'string' && value.startsWith('=')) {
+              worksheet[cellRef] = {
+                t: 'n',
+                f: value,
+                v: value,
+                z: '',
+              };
+              return;
+            }
+
             worksheet[cellRef] = {
               t: typeof value === 'number' ? 'n' : 's',
               v: value,
@@ -32,9 +43,32 @@ jest.mock('xlsx', () => {
 });
 
 describe('exportRowsToXlsx', () => {
+  it('preserves formula strings in exported cells', () => {
+    const writeFileMock = XLSX.writeFile as jest.Mock;
+    const aoaToSheetMock = XLSX.utils.aoa_to_sheet as unknown as jest.Mock;
+    writeFileMock.mockClear();
+    aoaToSheetMock.mockClear();
+
+    exportRowsToXlsx({
+      rows: [{ distributedAmount: '=B2*N2' }],
+      columns: [{ key: 'distributedAmount', label: 'Distributed Amount', format: 'currency' }],
+      fileName: 'formula.xlsx',
+      sheetName: 'Report',
+    });
+
+    const worksheet = aoaToSheetMock.mock.results[0]?.value as Record<string, any>;
+
+    expect(worksheet.A2).toBeDefined();
+    expect(worksheet.A2.f).toBe('=B2*N2');
+    expect(worksheet.A2.t).toBe('n');
+    expect(writeFileMock).toHaveBeenCalledTimes(1);
+  });
+
   it('writes numeric currency strings as real numeric Excel values', () => {
     const writeFileMock = XLSX.writeFile as jest.Mock;
+    const aoaToSheetMock = XLSX.utils.aoa_to_sheet as unknown as jest.Mock;
     writeFileMock.mockClear();
+    aoaToSheetMock.mockClear();
 
     exportRowsToXlsx({
       rows: [{ amount: '233,110.00' }],
@@ -43,7 +77,6 @@ describe('exportRowsToXlsx', () => {
       sheetName: 'Report',
     });
 
-    const aoaToSheetMock = (XLSX.utils.aoa_to_sheet as unknown) as jest.Mock;
     const worksheet = aoaToSheetMock.mock.results[0]?.value as Record<string, any>;
 
     expect(worksheet.A2).toBeDefined();

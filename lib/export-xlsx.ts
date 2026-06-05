@@ -22,8 +22,12 @@ function toNumericValue(value: unknown): number | null {
   }
 
   if (typeof value === 'string') {
-    const normalized = value
-      .trim()
+    const trimmed = value.trim();
+    if (trimmed.startsWith('=')) {
+      return null;
+    }
+
+    const normalized = trimmed
       .replace(/\u00a0/g, ' ')
       .replace(/\s+/g, '')
       .replace(/[^0-9,.-]/g, '');
@@ -136,6 +140,14 @@ export function exportRowsToXlsx<T extends Record<string, any>>({
   );
 
   const worksheet = XLSX.utils.aoa_to_sheet([header, ...dataRows]);
+
+  Object.values(worksheet).forEach((cell: any) => {
+    if (cell && typeof cell.v === 'string' && cell.v.trim().startsWith('=')) {
+      cell.t = 'n';
+      cell.f = cell.v;
+      cell.v = undefined;
+    }
+  });
 
   dateColumnIndexes.forEach((columnIndex) => {
     for (let rowIndex = 1; rowIndex <= rows.length; rowIndex += 1) {
