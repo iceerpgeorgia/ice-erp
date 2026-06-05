@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-05 Deployment #319
+- Commit: af5d313
+- Production: https://ice-2q96e0z8j-iceerp.vercel.app
+- Summary: Rewrite payment-jobs rate queries with Prisma tagged templates for proper UUID type handling.
+- Changes:
+  - lib/payments-jobs-rate.ts: Replaced `$queryRawUnsafe` with type-safe `$queryRaw` tagged templates (`Prisma.sql`) to properly handle UUID parameter binding and avoid "operator does not exist: text = uuid" errors.
+
 ## 2026-06-05 Deployment #318
 - Commit: a36bf94
 - Production: https://ice-m0w1lxwi3-iceerp.vercel.app
