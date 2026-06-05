@@ -26,6 +26,17 @@ function validateRatePayload(body: any) {
   return { errors, date };
 }
 
+async function lookupRateOnOrBefore(date: Date) {
+  return prisma.nbg_exchange_rates.findFirst({
+    where: {
+      date: {
+        lte: date,
+      },
+    },
+    orderBy: { date: 'desc' },
+  });
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -38,10 +49,7 @@ export async function GET(req: NextRequest) {
     if (dateParam && currencyParam) {
       const date = new Date(`${dateParam}T00:00:00Z`);
       const currency = currencyParam.toUpperCase();
-      
-      const rate = await prisma.nbg_exchange_rates.findUnique({
-        where: { date },
-      });
+      const rate = await lookupRateOnOrBefore(date);
 
       if (!rate) {
         return NextResponse.json(
@@ -81,9 +89,7 @@ export async function GET(req: NextRequest) {
 
     if (dateParam) {
       const date = new Date(`${dateParam}T00:00:00Z`);
-      const rate = await prisma.nbg_exchange_rates.findUnique({
-        where: { date },
-      });
+      const rate = await lookupRateOnOrBefore(date);
 
       if (!rate) {
         return NextResponse.json(

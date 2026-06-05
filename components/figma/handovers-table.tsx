@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   ArrowUpDown,
   ArrowUp,
@@ -43,7 +43,22 @@ import {
 import { HandoverPaymentsGrid } from './handover-payments-grid';
 import { HandoverJobDistributionsGrid } from './handover-job-distributions-grid';
 
-type ColumnKey = keyof Job;
+type ColumnKey = keyof HandoverJob;
+
+type HandoverJob = Job & {
+  paidNominal: number;
+  paidGel: number;
+  debitNominal: number;
+  debitGel: number;
+  totalGel: number;
+};
+
+type HandoverProject = {
+  projectUuid: string;
+  projectIndex: string;
+  projectName: string;
+  currencyCode: string | null;
+};
 
 type ColumnConfig = {
   key: ColumnKey;
@@ -62,15 +77,20 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'floors', label: 'Floors', width: 90, visible: true, sortable: true, filterable: true },
   { key: 'weight', label: 'Weight (kg)', width: 110, visible: true, sortable: true, filterable: true },
   { key: 'sellingPrice', label: 'Selling Price', width: 140, visible: true, sortable: true, filterable: true, format: 'number' },
+  { key: 'paidNominal', label: 'Paid Nominal', width: 140, visible: true, sortable: true, filterable: false, format: 'number' },
+  { key: 'paidGel', label: 'Paid GEL', width: 140, visible: true, sortable: true, filterable: false, format: 'number' },
+  { key: 'debitNominal', label: 'Debit Nominal', width: 140, visible: true, sortable: true, filterable: false, format: 'number' },
+  { key: 'debitGel', label: 'Debit GEL', width: 140, visible: true, sortable: true, filterable: false, format: 'number' },
+  { key: 'totalGel', label: 'Total GEL', width: 140, visible: true, sortable: true, filterable: false, format: 'number' },
   { key: 'isFf', label: 'FF', width: 80, visible: true, sortable: true, filterable: true },
   { key: 'liftCertDate', label: 'Cert. Date', width: 130, visible: true, sortable: true, filterable: false },
   { key: 'liftCertDocNo', label: 'Doc. No', width: 150, visible: true, sortable: true, filterable: false },
 ];
 
 const STORAGE_KEY = 'handovers-table-columns';
-const STORAGE_VERSION = '3';
+const STORAGE_VERSION = '4';
 
-type Project = { projectUuid: string; projectIndex: string; projectName: string };
+type Project = HandoverProject;
 type InsiderOption = { value: string; label: string; keywords?: string };
 
 type FormData = {
@@ -95,7 +115,7 @@ export function HandoversTable() {
     }
     return '';
   });
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobs, setJobs] = useState<HandoverJob[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [insidersList, setInsidersList] = useState<{ insiderUuid: string; insiderName: string }[]>([]);
   const [selectedInsiderUuids, setSelectedInsiderUuids] = useState<string[]>([]);
@@ -158,6 +178,43 @@ export function HandoversTable() {
   );
   const visibleColumns = useMemo(() => columns.filter(c => c.visible), [columns]);
 
+  const selectedProject = useMemo(
+    () => projects.find(p => p.projectUuid === selectedProjectUuid) ?? null,
+    [projects, selectedProjectUuid],
+  );
+
+  const formatMoney = (value: number) => value.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  const rateCache = useMemo(() => new Map<string, number>(), []);
+
+  const lookupNbgRate = useCallback(async (date: string | null, currencyCode: string | null) => {
+    const normalizedCurrency = (currencyCode || 'GEL').toUpperCase();
+    if (!date || normalizedCurrency === 'GEL') return 1;
+
+    const cacheKey = `${date}|${normalizedCurrency}`;
+    if (rateCache.has(cacheKey)) {
+      return rateCache.get(cacheKey) ?? 1;
+    }
+
+    const res = await fetch(
+      `/api/exchange-rates?date=${encodeURIComponent(date)}&currency=${encodeURIComponent(normalizedCurrency)}`,
+      { cache: 'no-store' },
+    );
+
+    if (!res.ok) {
+      return 1;
+    }
+
+    const data = await res.json().catch(() => null);
+    const rate = Number(data?.rate);
+    const normalizedRate = Number.isFinite(rate) && rate > 0 ? rate : 1;
+    rateCache.set(cacheKey, normalizedRate);
+    return normalizedRate;
+  }, [rateCache]);
+
   // ── useTableFilters ───────────────────────────────────────────────────────
   const {
     filters,
@@ -178,7 +235,7 @@ export function HandoversTable() {
     handleFilterChange,
     clearFilters,
     activeFilterCount,
-  } = useTableFilters<Job, ColumnKey>({
+  } = useTableFilters<HandoverJob, ColumnKey>({
     data: jobs,
     columns,
     defaultSortColumn: 'jobName',
@@ -233,6 +290,7 @@ export function HandoversTable() {
               projectUuid: p.project_uuid,
               projectIndex: p.project_index,
               projectName: p.project_name,
+              currencyCode: p.currency ?? null,
             })),
           );
         }
@@ -258,7 +316,7 @@ export function HandoversTable() {
   }, []);
 
   // ── Jobs fetch ────────────────────────────────────────────────────────────
-  const fetchJobs = async (projectUuid: string) => {
+  const fetchJobs = async (projectUuid: string, projectCurrencyCode: string | null) => {
     if (!projectUuid) {
       setJobs([]);
       setAttachmentCounts({});
@@ -271,18 +329,59 @@ export function HandoversTable() {
         const data: any[] = await res.json();
         const jobUuids = data.map((j: any) => j.jobUuid).filter(Boolean);
 
-        // Bulk-fetch lift cert info and attachment counts in parallel
-        const [countRes, liftRes] = await Promise.all([
+        // Bulk-fetch lift cert info, attachment counts, payment distributions, and income payments in parallel
+        const [countRes, liftRes, paymentsRes, paymentJobsRes] = await Promise.all([
           jobUuids.length > 0
             ? fetch(`/api/jobs/attachments?countsOnly=1&jobUuids=${encodeURIComponent(jobUuids.join(','))}`)
             : Promise.resolve(null),
           jobUuids.length > 0
             ? fetch(`/api/jobs/attachments?liftCertInfo=1&jobUuids=${encodeURIComponent(jobUuids.join(','))}`)
             : Promise.resolve(null),
+          fetch(`/api/payments-report?projectUuid=${encodeURIComponent(projectUuid)}`),
+          fetch(`/api/payments-jobs?project_uuid=${encodeURIComponent(projectUuid)}`),
         ]);
 
         const countsMap: Record<string, number> = countRes?.ok ? (await countRes.json()).counts ?? {} : {};
         const liftCertMap: Record<string, { date: string | null; docNo: string | null }> = liftRes?.ok ? (await liftRes.json()).info ?? {} : {};
+
+        const incomePaymentIds = new Set<string>();
+        if (paymentsRes.ok) {
+          const paymentsData = await paymentsRes.json();
+          (Array.isArray(paymentsData) ? paymentsData : []).forEach((payment: any) => {
+            if (payment?.financialCodeIsIncome && payment?.paymentId) {
+              incomePaymentIds.add(String(payment.paymentId));
+            }
+          });
+        }
+
+        const paidNominalByJob = new Map<string, number>();
+        if (paymentJobsRes.ok) {
+          const paymentJobsData = await paymentJobsRes.json();
+          if (Array.isArray(paymentJobsData)) {
+            paymentJobsData.forEach((dist: any) => {
+              if (!dist?.job_uuid || !dist?.payment_id || !incomePaymentIds.has(String(dist.payment_id))) return;
+              const amount = Number(dist.amount ?? 0);
+              if (!Number.isFinite(amount) || amount === 0) return;
+              paidNominalByJob.set(
+                String(dist.job_uuid),
+                (paidNominalByJob.get(String(dist.job_uuid)) ?? 0) + amount,
+              );
+            });
+          }
+        }
+
+        const uniqueCertDates = Array.from(
+          new Set(
+            data
+              .map((job: any) => liftCertMap[job.jobUuid]?.date ?? null)
+              .filter((date: string | null): date is string => Boolean(date)),
+          ),
+        );
+
+        const rateByDate = new Map<string, number>();
+        await Promise.all(uniqueCertDates.map(async (date) => {
+          rateByDate.set(date, await lookupNbgRate(date, projectCurrencyCode));
+        }));
 
         setAttachmentCounts(countsMap);
         setJobs(
@@ -309,6 +408,11 @@ export function HandoversTable() {
             certificateDate: null,
             liftCertDate: liftCertMap[job.jobUuid]?.date ?? null,
             liftCertDocNo: liftCertMap[job.jobUuid]?.docNo ?? null,
+            paidNominal: paidNominalByJob.get(String(job.jobUuid)) ?? 0,
+            paidGel: (paidNominalByJob.get(String(job.jobUuid)) ?? 0) * (rateByDate.get(liftCertMap[job.jobUuid]?.date ?? '') ?? 1),
+            debitNominal: (job.sellingPrice != null ? Number(job.sellingPrice) : 0) - (paidNominalByJob.get(String(job.jobUuid)) ?? 0),
+            debitGel: ((job.sellingPrice != null ? Number(job.sellingPrice) : 0) - (paidNominalByJob.get(String(job.jobUuid)) ?? 0)) * (rateByDate.get(liftCertMap[job.jobUuid]?.date ?? '') ?? 1),
+            totalGel: (job.sellingPrice != null ? Number(job.sellingPrice) : 0) * (rateByDate.get(liftCertMap[job.jobUuid]?.date ?? '') ?? 1),
             _rowKey: String(job.jobUuid ?? idx),
           })),
         );
@@ -321,9 +425,9 @@ export function HandoversTable() {
   };
 
   useEffect(() => {
-    fetchJobs(selectedProjectUuid);
+    fetchJobs(selectedProjectUuid, selectedProject?.currencyCode ?? null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProjectUuid]);
+  }, [selectedProjectUuid, selectedProject?.currencyCode]);
 
   const projectOptions = useMemo(
     () =>
@@ -411,7 +515,7 @@ export function HandoversTable() {
         }),
       });
       if (res.ok) {
-        await fetchJobs(selectedProjectUuid);
+        await fetchJobs(selectedProjectUuid, selectedProject?.currencyCode ?? null);
         setIsEditDialogOpen(false);
         setEditingJob(null);
       }
@@ -421,13 +525,23 @@ export function HandoversTable() {
   };
 
   // ── Cell renderer ─────────────────────────────────────────────────────────
-  const renderCell = (job: Job, col: ColumnConfig) => {
+  const renderCell = (job: HandoverJob, col: ColumnConfig) => {
     switch (col.key) {
       case 'liftCertDate':
         if (!job.liftCertDate) return <span className="text-muted-foreground text-sm">—</span>;
         const d = new Date(job.liftCertDate);
         const formatted = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
         return <span className="text-sm">{formatted}</span>;
+      case 'paidNominal':
+        return <span>{formatMoney(job.paidNominal)}</span>;
+      case 'paidGel':
+        return <span>{formatMoney(job.paidGel)}</span>;
+      case 'debitNominal':
+        return <span>{formatMoney(job.debitNominal)}</span>;
+      case 'debitGel':
+        return <span>{formatMoney(job.debitGel)}</span>;
+      case 'totalGel':
+        return <span>{formatMoney(job.totalGel)}</span>;
       case 'liftCertDocNo':
         return job.liftCertDocNo ? (
           <span className="text-sm font-mono">{job.liftCertDocNo}</span>
@@ -548,7 +662,7 @@ export function HandoversTable() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => fetchJobs(selectedProjectUuid)}
+              onClick={() => fetchJobs(selectedProjectUuid, selectedProject?.currencyCode ?? null)}
               disabled={loadingJobs}
               title="Refresh jobs"
             >
@@ -710,9 +824,19 @@ export function HandoversTable() {
                       {(() => {
                         const totalFloors = sortedJobs.reduce((s, j) => s + (j.floors ?? 0), 0);
                         const totalPrice = sortedJobs.reduce((s, j) => s + (j.sellingPrice ?? 0), 0);
+                        const totalPaidNominal = sortedJobs.reduce((s, j) => s + (j.paidNominal ?? 0), 0);
+                        const totalPaidGel = sortedJobs.reduce((s, j) => s + (j.paidGel ?? 0), 0);
+                        const totalDebitNominal = sortedJobs.reduce((s, j) => s + (j.debitNominal ?? 0), 0);
+                        const totalDebitGel = sortedJobs.reduce((s, j) => s + (j.debitGel ?? 0), 0);
+                        const totalGel = sortedJobs.reduce((s, j) => s + (j.totalGel ?? 0), 0);
                         const hasFloors = visibleColumns.some(c => c.key === 'floors');
                         const hasPrice = visibleColumns.some(c => c.key === 'sellingPrice');
-                        if (!hasFloors && !hasPrice) return null;
+                        const hasPaidNominal = visibleColumns.some(c => c.key === 'paidNominal');
+                        const hasPaidGel = visibleColumns.some(c => c.key === 'paidGel');
+                        const hasDebitNominal = visibleColumns.some(c => c.key === 'debitNominal');
+                        const hasDebitGel = visibleColumns.some(c => c.key === 'debitGel');
+                        const hasTotalGel = visibleColumns.some(c => c.key === 'totalGel');
+                        if (!hasFloors && !hasPrice && !hasPaidNominal && !hasPaidGel && !hasDebitNominal && !hasDebitGel && !hasTotalGel) return null;
                         return (
                           <TableRow className="bg-muted/40 font-semibold border-t-2">
                             {visibleColumns.map(col => (
@@ -729,6 +853,16 @@ export function HandoversTable() {
                                   <span>{totalFloors.toLocaleString()}</span>
                                 ) : col.key === 'sellingPrice' ? (
                                   <span>{totalPrice.toLocaleString()}</span>
+                                ) : col.key === 'paidNominal' ? (
+                                  <span>{formatMoney(totalPaidNominal)}</span>
+                                ) : col.key === 'paidGel' ? (
+                                  <span>{formatMoney(totalPaidGel)}</span>
+                                ) : col.key === 'debitNominal' ? (
+                                  <span>{formatMoney(totalDebitNominal)}</span>
+                                ) : col.key === 'debitGel' ? (
+                                  <span>{formatMoney(totalDebitGel)}</span>
+                                ) : col.key === 'totalGel' ? (
+                                  <span>{formatMoney(totalGel)}</span>
                                 ) : null}
                               </TableCell>
                             ))}
