@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-06-05 Deployment #316
+- Commit: a96e6da
+- Production: https://ice-p1yn5fjy1-iceerp.vercel.app
+- Summary: Restore proportional project-value scaling for auto-managed ledger entries when project sum changes.
+- Changes:
+  - app/api/projects/route.ts: Expanded the scaling/deconfirm scope to cover legacy auto-managed payments in addition to flagged project/bundle payments, and kept the scale logic limited to unconfirmed, non-deleted ledger rows.
+  - app/api/projects/confirmed-check/route.ts: Aligned the confirmed-entry warning check with the same legacy auto-managed payment scope.
+  - app/api/projects/[id]/route.ts: Added the same proportional ledger scaling to the legacy project update path.
+  - AGENTS.md: Documented the project-value scaling rules and legacy fallback behavior.
+
 ## 2026-06-05 Deployment #315
 - Commit: ef12643
 - Production: https://ice-ecwgqz0zb-iceerp.vercel.app
