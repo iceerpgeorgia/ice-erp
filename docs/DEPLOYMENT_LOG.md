@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-05 Deployment #320
+- Commit: 7c5b444
+- Production: https://ice-5h6i8r33d-iceerp.vercel.app
+- Summary: Fix UUID type casting by casting columns to text instead of parameters to UUID.
+- Changes:
+  - lib/payments-jobs-rate.ts: Changed from `${param}::uuid` to `column::text = ${param}` in Prisma tagged templates. This resolves "operator does not exist: text = uuid" errors because Prisma binds parameters as text, so we cast the UUID columns to text for comparison instead.
+
 ## 2026-06-05 Deployment #319
 - Commit: af5d313
 - Production: https://ice-2q96e0z8j-iceerp.vercel.app
