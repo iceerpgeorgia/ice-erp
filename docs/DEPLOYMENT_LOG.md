@@ -1,7 +1,7 @@
 # Deployment Log
 
 ## 2026-06-05 Deployment #322
-- Commit: TBD
+- Commit: c6c8541
 - Production: https://ice-3x39y8021-iceerp.vercel.app
 - Summary: Fix unique constraint violation in job distributions by cleaning up legacy NULL batch_partition_uuid records during delete operations.
 - Changes:
