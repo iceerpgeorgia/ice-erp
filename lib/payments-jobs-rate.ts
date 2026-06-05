@@ -34,7 +34,7 @@ const queryConsolidatedRate = async (paymentId: string, projectUuid?: string | n
   const rows = await prisma.$queryRaw<{ account_sum: unknown; nominal_sum: unknown }[]>`
     SELECT SUM(account_currency_amount) as account_sum, SUM(nominal_amount) as nominal_sum 
     FROM consolidated_bank_accounts 
-    WHERE payment_id = ${paymentId} AND project_uuid = ${projectUuid}::uuid`;
+    WHERE payment_id = ${paymentId} AND project_uuid::text = ${projectUuid}`;
   const first = Array.isArray(rows) ? rows[0] : null;
   return calcRate(first?.account_sum, first?.nominal_sum);
 };
@@ -44,7 +44,7 @@ const queryRawRate = async (paymentId: string, projectUuid?: string | null) => {
   if (!sourceTables.length) return null;
 
   const projectFilter = projectUuid 
-    ? Prisma.sql` AND project_uuid = ${projectUuid}::uuid`
+    ? Prisma.sql` AND project_uuid::text = ${projectUuid}`
     : Prisma.empty;
 
   const unions = sourceTables.map((name) => 
@@ -67,7 +67,7 @@ export const resolveAccountCurrencyRate = async (
   const paymentRows = await prisma.$queryRaw<{ payment_id: string; project_uuid: string | null }[]>`
     SELECT payment_id, project_uuid::text as project_uuid 
     FROM payments 
-    WHERE record_uuid = ${paymentUuid}::uuid`;
+    WHERE record_uuid::text = ${paymentUuid}`;
   const payment = Array.isArray(paymentRows) ? paymentRows[0] : null;
   const paymentId = payment?.payment_id ?? null;
   const resolvedProject = projectUuid ?? payment?.project_uuid ?? null;
