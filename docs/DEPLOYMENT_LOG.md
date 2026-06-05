@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-06-05 Deployment #315
+- Commit: ef12643
+- Production: https://ice-ecwgqz0zb-iceerp.vercel.app
+- Summary: Preserve distribution export formula behavior and normalize numeric handling in the Handovers job-distribution flow.
+- Changes:
+  - components/figma/handover-job-distributions-grid.tsx: Keep the distribution export rows aligned with the sample workbook formula pattern and preserve split values in the export path.
+  - components/figma/job-distribution-grid.tsx: Normalize numeric/string values in the distribution dialog so the save and export paths use consistent numeric handling.
+  - lib/export-xlsx.ts: Preserve formula-style cells and real numeric values in generated XLSX exports.
+  - lib/export-xlsx.test.ts: Added regression coverage for formula-cell preservation and numeric currency export behavior.
+
 ## 2026-06-05 Deployment #314
 - Commit: ec74b06
 - Production: https://ice-cew5pqd2y-iceerp.vercel.app
