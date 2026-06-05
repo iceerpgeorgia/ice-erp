@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-06-05 Deployment #323
+- Commit: 4b60762
+- Production: https://ice-kap5o7ubh-iceerp.vercel.app
+- Summary: Add batch-aware uniqueness for payments_jobs so job distributions can coexist across batch partitions or raw records without unique constraint conflicts.
+- Changes:
+  - prisma/schema.prisma: Removed legacy @@unique([payment_uuid, job_uuid, project_uuid]) to allow partial unique indexes.
+  - prisma/migrations/20260605_update_payments_jobs_unique_indexes/migration.sql: Added partial unique indexes for batch_partition_uuid and raw_record_uuid; kept legacy unique for rows with both NULL.
+  - AGENTS.md: Documented payments_jobs uniqueness rules for batch-aware distributions.
+
 ## 2026-06-05 Deployment #322
 - Commit: c6c8541
 - Production: https://ice-3x39y8021-iceerp.vercel.app
