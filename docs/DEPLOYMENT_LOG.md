@@ -9,6 +9,15 @@
   - app/api/exchange-rates/route.ts: Use NBG rate on or before the requested date.
   - AGENTS.md: Document Handovers job summary and totals behavior.
 
+## 2026-06-06 Deployment #327
+- Commit: 0c8752f
+- Production: https://ice-1nb28y9kp-iceerp.vercel.app
+- Summary: Align Handovers grid formatting and fix paid/debit GEL calculations.
+- Changes:
+  - components/figma/handovers-table.tsx: Use account-currency sums for Paid GEL and cert-date NBG rates for Debit/Total GEL; render Debit GEL only when cert date exists.
+  - components/figma/handover-payments-grid.tsx: Align numeric cell formatting with the job distributions grid while keeping accrual/order/payment styling.
+  - AGENTS.md: Document the corrected Handovers job summary calculations.
+
 ## 2026-06-05 Deployment #325
 - Commit: 903eac8
 - Production: https://ice-ca5oonvky-iceerp.vercel.app
