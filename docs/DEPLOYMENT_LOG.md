@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-06-06 Deployment #326
+- Commit: 9b45281
+- Production: https://ice-8l1vv78uv-iceerp.vercel.app
+- Summary: Add Handovers job summary columns with cert-date NBG conversion and adjust exchange-rate date fallback.
+- Changes:
+  - components/figma/handovers-table.tsx: Compute and display Paid/Debit/Total columns in the jobs table with footer totals.
+  - app/api/exchange-rates/route.ts: Use NBG rate on or before the requested date.
+  - AGENTS.md: Document Handovers job summary and totals behavior.
+
 ## 2026-06-05 Deployment #325
 - Commit: 903eac8
 - Production: https://ice-ca5oonvky-iceerp.vercel.app
