@@ -894,7 +894,6 @@ model payments_jobs {
   project                  projects                      @relation(fields: [project_uuid], references: [project_uuid], onDelete: Restrict)
   bank_transaction_batches bank_transaction_batches?     @relation(fields: [batch_partition_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
 
-  @@unique([payment_uuid, job_uuid, project_uuid])
   @@index([payment_uuid])
   @@index([job_uuid])
   @@index([project_uuid])
