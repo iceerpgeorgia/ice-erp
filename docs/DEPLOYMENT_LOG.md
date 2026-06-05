@@ -1,5 +1,21 @@
 # Deployment Log
 
+## 2026-06-05 Deployment #321
+- Commit: 125867c
+- Production: https://ice-ndurn0qpc-iceerp.vercel.app
+- Summary: Add batch_partition_uuid for autonomous transaction-level job distributions. Distributions are now independent per batch partition instead of shared across all transactions with the same payment_id.
+- Changes:
+  - prisma/schema.prisma: Added `batch_partition_uuid` column to payments_jobs model with foreign key to bank_transaction_batches, and `payments_jobs[]` relation to bank_transaction_batches.
+  - prisma/migrations/20260605_add_batch_partition_uuid_to_payments_jobs/migration.sql: Created migration to add batch_partition_uuid column, index, and foreign key constraint.
+  - prisma/migrations/20260605_add_raw_record_uuid_to_payments_jobs/migration.sql: Created migration to add raw_record_uuid column and index (fallback for non-batched transactions).
+  - app/api/payments-jobs/route.ts: Updated GET, POST, DELETE endpoints to accept and filter by `batch_partition_uuid` (takes precedence over `raw_record_uuid`). Updated POST logic to include batch_partition_uuid in create/update operations for both replace_all and upsert modes. Updated DELETE to filter by batch_partition_uuid when provided.
+  - app/api/payments-jobs/auto-distribute/route.ts: Added batch_partition_uuid parameter to request body and included in distribution creation.
+  - app/api/bank-transactions/route.ts: Added batch_partition_uuid (btb.uuid) to batch SELECT queries and response mapping.
+  - components/figma/handover-job-distributions-grid.tsx: Updated BankTransactionRow type to include batch_partition_uuid. Modified distribution map key generation to use composite keys with batch partition or raw record UUIDs. Updated JobDistributionGrid prop to pass both batchPartitionUuid and rawRecordUuid.
+  - components/figma/job-distribution-grid.tsx: Updated component to accept batchPartitionUuid prop (takes precedence over rawRecordUuid). Modified all API calls (auto-distribute, save, clear) to include batch_partition_uuid when available.
+  - _apply_batch_partition_uuid.js: Created migration script to apply both raw_record_uuid and batch_partition_uuid schema changes to production database.
+- Migration Applied: ✅ Successfully added raw_record_uuid and batch_partition_uuid columns, indexes, foreign key constraint, and comments to production database.
+
 ## 2026-06-05 Deployment #320
 - Commit: 7c5b444
 - Production: https://ice-5h6i8r33d-iceerp.vercel.app
