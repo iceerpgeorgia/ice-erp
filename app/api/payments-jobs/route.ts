@@ -203,11 +203,30 @@ export async function POST(req: NextRequest) {
     if (replace_all) {
       // Delete existing distributions (filtered by batch_partition_uuid or raw_record_uuid if provided) and insert new ones
       result = await prisma.$transaction(async (tx) => {
-        const deleteWhere: any = { payment_uuid };
+        // Build delete WHERE clause to handle old NULL records
+        let deleteWhere: any;
+        
         if (batch_partition_uuid) {
-          deleteWhere.batch_partition_uuid = batch_partition_uuid;
+          // Distributing a batched transaction: delete this batch partition + old NULL records
+          deleteWhere = {
+            payment_uuid,
+            OR: [
+              { batch_partition_uuid },
+              { batch_partition_uuid: null, raw_record_uuid: null }, // Clean up old legacy data
+            ],
+          };
         } else if (raw_record_uuid) {
-          deleteWhere.raw_record_uuid = raw_record_uuid;
+          // Distributing a raw transaction: delete this raw record + old NULL records
+          deleteWhere = {
+            payment_uuid,
+            OR: [
+              { raw_record_uuid },
+              { batch_partition_uuid: null, raw_record_uuid: null }, // Clean up old legacy data
+            ],
+          };
+        } else {
+          // Distributing a regular payment: delete all distributions for this payment
+          deleteWhere = { payment_uuid };
         }
 
         await tx.payments_jobs.deleteMany({

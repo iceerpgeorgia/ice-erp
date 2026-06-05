@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-06-05 Deployment #322
+- Commit: TBD
+- Production: https://ice-3x39y8021-iceerp.vercel.app
+- Summary: Fix unique constraint violation in job distributions by cleaning up legacy NULL batch_partition_uuid records during delete operations.
+- Changes:
+  - app/api/payments-jobs/auto-distribute/route.ts: Updated delete WHERE clause to use OR logic that matches both the specific batch_partition_uuid AND legacy NULL records with the same payment_uuid. This prevents unique constraint violations when creating new distributions after old NULL-UUID distributions exist.
+  - app/api/payments-jobs/route.ts: Applied the same fix to the replace_all mode delete logic to handle legacy NULL batch_partition_uuid records.
+- Background: After deployment #321 added batch_partition_uuid for transaction-level distributions, existing distributions in production had NULL values. When attempting to create new distributions with proper batch_partition_uuid values, the unique constraint on (payment_uuid, job_uuid, project_uuid) would fail because the old NULL records weren't being deleted. The fix ensures both old legacy records and new transaction-specific records are removed before inserting new distributions.
+
 ## 2026-06-05 Deployment #321
 - Commit: 125867c
 - Production: https://ice-ndurn0qpc-iceerp.vercel.app
