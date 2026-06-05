@@ -205,7 +205,14 @@ function buildDistributionExportRows(
   rows.forEach((row) => {
     const paymentInfo = resolvePaymentInfo(row, paymentMap, paymentIdMap);
     const paymentUuid = paymentInfo?.paymentUuid ?? null;
-    const distributions = paymentUuid ? (distributionMap.get(paymentUuid) ?? []) : [];
+    const distributionKey = paymentUuid
+      ? (row.batch_partition_uuid
+        ? `${paymentUuid}:batch:${row.batch_partition_uuid}`
+        : row.raw_record_uuid
+        ? `${paymentUuid}:raw:${row.raw_record_uuid}`
+        : paymentUuid)
+      : null;
+    const distributions = distributionKey ? (distributionMap.get(distributionKey) ?? []) : [];
 
     if (distributions.length === 0) {
       exportRows.push({
