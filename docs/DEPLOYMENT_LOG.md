@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-06-05 Deployment #324
+- Commit: ce2ced1
+- Production: https://ice-cpr7evkx5-iceerp.vercel.app
+- Summary: Add per-row Fill action in the handovers job distribution dialog based on bundle distribution percentages and remaining payment amount.
+- Changes:
+  - components/figma/job-distribution-grid.tsx: Added per-row Fill button, bundle percent lookup, and remnant amount calculations.
+  - components/figma/handover-job-distributions-grid.tsx: Pass payment financial code to the distribution dialog.
+  - lib/handovers-job-distributions.ts: Include financial code UUID in payment lookup entries.
+  - AGENTS.md: Documented per-row Fill behavior in Handovers Job Distribution UI.
+
 ## 2026-06-05 Deployment #323
 - Commit: 4b60762
 - Production: https://ice-kap5o7ubh-iceerp.vercel.app
