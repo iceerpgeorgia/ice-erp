@@ -841,6 +841,7 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
                   : 1;
                 const accountCurrencyRate = Number.isFinite(rawRate) && rawRate !== 0 ? rawRate : 1;
                 const paymentCurrencyCode = row.nominal_currency_code || paymentInfo?.currencyCode || 'GEL';
+                const paymentFinancialCodeUuid = row.financial_code_uuid || paymentInfo?.financialCodeUuid || null;
 
                 return (
                   <tr key={row.id} className="hover:bg-gray-50">
@@ -861,6 +862,7 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
                                 paymentCurrencyCode={paymentCurrencyCode}
                                 accountCurrencyRate={accountCurrencyRate}
                                 projectUuid={projectUuid}
+                                financialCodeUuid={paymentFinancialCodeUuid}
                                 value={distributionValue}
                                 onChange={() => {}}
                                 onSave={fetchData}

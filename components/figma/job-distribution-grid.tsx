@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Button } from './ui/button';
@@ -46,6 +46,7 @@ type JobDistributionGridProps = {
   paymentCurrencyCode: string;
   accountCurrencyRate?: number;
   projectUuid: string;
+  financialCodeUuid?: string | null;
   value: JobDistributionRow[];
   onChange: (distribution: JobDistributionRow[]) => void;
   disabled?: boolean;
@@ -61,6 +62,7 @@ export function JobDistributionGrid({
   paymentCurrencyCode,
   accountCurrencyRate = 1,
   projectUuid,
+  financialCodeUuid = null,
   value,
   onChange,
   disabled = false,
@@ -74,9 +76,12 @@ export function JobDistributionGrid({
     selling_price: number | null;
   }>>([]);
   const [loading, setLoading] = useState(false);
+  const [fillDataLoading, setFillDataLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [localValue, setLocalValue] = useState<JobDistributionRow[]>([]);
   const [distributionMode, setDistributionMode] = useState<'all' | 'manual'>('all');
+  const [bundlePercent, setBundlePercent] = useState<number | null>(null);
+  const [otherAllocationsByJob, setOtherAllocationsByJob] = useState<Map<string, number>>(new Map());
 
   // Load jobs when dialog opens
   useEffect(() => {
@@ -120,6 +125,96 @@ export function JobDistributionGrid({
         setLoading(false);
       });
   }, [isOpen, projectUuid]);
+
+  useEffect(() => {
+    if (!isOpen || !projectUuid || !paymentUuid) return;
+
+    let isActive = true;
+
+    const loadFillData = async () => {
+      setFillDataLoading(true);
+      setBundlePercent(null);
+      setOtherAllocationsByJob(new Map());
+
+      try {
+        const bundleRequest = financialCodeUuid
+          ? fetch(`/api/projects/bundle-distribution?projectUuid=${encodeURIComponent(projectUuid)}`)
+          : Promise.resolve(null);
+        const paymentJobsRequest = fetch(
+          `/api/payments-jobs?payment_uuid=${encodeURIComponent(paymentUuid)}`,
+        );
+
+        const [bundleRes, paymentJobsRes] = await Promise.all([
+          bundleRequest,
+          paymentJobsRequest,
+        ]);
+
+        let nextBundlePercent: number | null = null;
+        if (bundleRes && bundleRes.ok && financialCodeUuid) {
+          const bundleData = await bundleRes.json();
+          const match = Array.isArray(bundleData)
+            ? bundleData.find((row: any) => row.financialCodeUuid === financialCodeUuid)
+            : null;
+          if (match?.percentage) {
+            const parsed = parseFloat(match.percentage);
+            if (Number.isFinite(parsed) && parsed > 0) {
+              nextBundlePercent = parsed;
+            }
+          }
+        }
+
+        const nextOtherTotals = new Map<string, number>();
+        if (paymentJobsRes.ok) {
+          const paymentsJobsData = await paymentJobsRes.json();
+          if (Array.isArray(paymentsJobsData)) {
+            paymentsJobsData.forEach((dist: any) => {
+              if (!dist?.job_uuid) return;
+
+              const isCurrentDistribution = batchPartitionUuid
+                ? dist.batch_partition_uuid === batchPartitionUuid
+                : rawRecordUuid
+                ? dist.raw_record_uuid === rawRecordUuid
+                : !dist.batch_partition_uuid && !dist.raw_record_uuid;
+
+              if (isCurrentDistribution) return;
+
+              const amount = Number(dist.amount ?? 0);
+              if (!Number.isFinite(amount) || amount === 0) return;
+
+              nextOtherTotals.set(
+                dist.job_uuid,
+                (nextOtherTotals.get(dist.job_uuid) ?? 0) + amount,
+              );
+            });
+          }
+        }
+
+        if (!isActive) return;
+        setBundlePercent(nextBundlePercent);
+        setOtherAllocationsByJob(nextOtherTotals);
+      } catch (error) {
+        console.error('Error loading fill data:', error);
+        if (!isActive) return;
+        setBundlePercent(null);
+        setOtherAllocationsByJob(new Map());
+      } finally {
+        if (isActive) setFillDataLoading(false);
+      }
+    };
+
+    loadFillData();
+
+    return () => {
+      isActive = false;
+    };
+  }, [
+    isOpen,
+    projectUuid,
+    paymentUuid,
+    financialCodeUuid,
+    batchPartitionUuid,
+    rawRecordUuid,
+  ]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -173,6 +268,41 @@ export function JobDistributionGrid({
       updated[index].percentage = percent.toFixed(2);
       updated[index].amountAccountCurr = (amount * accountCurrencyRate).toFixed(2);
     }
+
+    setLocalValue(updated);
+  };
+
+  const handleFillRow = (index: number) => {
+    if (distributionMode !== 'manual') return;
+
+    const row = localValue[index];
+    if (!row) return;
+
+    const percent = bundlePercent ?? 0;
+    const sellingPrice = toNumber(row.sellingPrice);
+    if (!percent || sellingPrice <= 0 || paymentAmount <= 0) return;
+
+    const targetAmount = (sellingPrice * percent) / 100;
+    const alreadyFilled = otherAllocationsByJob.get(row.jobUuid) ?? 0;
+
+    const otherRowsTotal = localValue.reduce(
+      (sum, item, idx) => (idx === index ? sum : sum + toNumber(item.amount)),
+      0,
+    );
+    const paymentRemaining = Math.max(paymentAmount - otherRowsTotal, 0);
+    const fillAmount = Math.max(Math.min(targetAmount - alreadyFilled, paymentRemaining), 0);
+
+    const updated = [...localValue];
+    updated[index] = {
+      ...row,
+      amount: fillAmount > 0 ? fillAmount.toFixed(2) : '',
+      percentage:
+        fillAmount > 0 && paymentAmount > 0
+          ? ((fillAmount / paymentAmount) * 100).toFixed(2)
+          : '',
+      amountAccountCurr:
+        fillAmount > 0 ? (fillAmount * accountCurrencyRate).toFixed(2) : '',
+    };
 
     setLocalValue(updated);
   };
@@ -393,6 +523,7 @@ export function JobDistributionGrid({
                       <th className="text-right p-2">Selling Price</th>
                       <th className="text-right p-2">Percent %</th>
                       <th className="text-right p-2">Amount ({paymentCurrencyCode})</th>
+                      <th className="text-center p-2">Fill</th>
                       {accountCurrencyRate !== 1 && (
                         <th className="text-right p-2">Amount (GEL)</th>
                       )}
@@ -428,6 +559,23 @@ export function JobDistributionGrid({
                             disabled={distributionMode === 'all'}
                           />
                         </td>
+                        <td className="p-2 text-center">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFillRow(index)}
+                            disabled={
+                              distributionMode !== 'manual' ||
+                              fillDataLoading ||
+                              !bundlePercent ||
+                              toNumber(row.sellingPrice) <= 0 ||
+                              paymentAmount <= 0
+                            }
+                          >
+                            Fill
+                          </Button>
+                        </td>
                         {accountCurrencyRate !== 1 && (
                           <td className="p-2 text-right text-muted-foreground">
                             {row.amountAccountCurr || '—'}
@@ -450,6 +598,7 @@ export function JobDistributionGrid({
                           {totals.amount.toFixed(2)}
                         </span>
                       </td>
+                      <td className="p-2" />
                       {accountCurrencyRate !== 1 && (
                         <td className="p-2 text-right">{totals.amountAcct.toFixed(2)}</td>
                       )}

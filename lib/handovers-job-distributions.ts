@@ -2,6 +2,7 @@ export type PaymentLookupEntry = {
   paymentUuid: string;
   currencyCode: string | null;
   paymentId: string | null;
+  financialCodeUuid: string | null;
 };
 
 export type PaymentLookupInput = {
@@ -40,6 +41,7 @@ export function buildPaymentLookupMaps(payments: PaymentLookupInput[]) {
       paymentUuid: payment.paymentUuid,
       currencyCode: payment.currencyCode ?? null,
       paymentId: payment.paymentId ?? null,
+      financialCodeUuid: payment.financialCodeUuid ?? null,
     };
 
     paymentMap.set(
