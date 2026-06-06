@@ -661,7 +661,7 @@ export async function PATCH(req: NextRequest) {
             if (!confirmBundleCleanup) {
               const paymentIds = bundlePayments.map((p: any) => p.payment_id).filter(Boolean) as string[];
               let ledgerCount = 0;
-              let bankCount = 0;
+              let bankCount = 0; // consolidated_bank_accounts removed - raw tables used instead
               if (paymentIds.length > 0) {
                 const placeholders = paymentIds.map((_: any, i: number) => `$${i + 1}`).join(',');
                 const lc = await prisma.$queryRawUnsafe<Array<{ cnt: bigint }>>(
@@ -669,11 +669,9 @@ export async function PATCH(req: NextRequest) {
                   ...paymentIds
                 );
                 ledgerCount = Number(lc[0]?.cnt ?? 0);
-                const bc = await prisma.$queryRawUnsafe<Array<{ cnt: bigint }>>(
-                  `SELECT COUNT(*) AS cnt FROM consolidated_bank_accounts WHERE payment_id IN (${placeholders})`,
-                  ...paymentIds
-                );
-                bankCount = Number(bc[0]?.cnt ?? 0);
+                // Note: Bank transaction check removed - consolidated_bank_accounts is obsolete
+                // Raw bank tables (GE65TB..._TBC_GEL, etc.) are now the primary source
+                // bankCount left at 0 for now
               }
               return NextResponse.json({
                 bundleCleanupRequired: true,
@@ -1185,10 +1183,8 @@ export async function PATCH(req: NextRequest) {
             `DELETE FROM payments_ledger WHERE payment_id = ANY($1::text[])`,
             paymentIds
           );
-          await prisma.$queryRawUnsafe(
-            `UPDATE consolidated_bank_accounts SET payment_id = NULL WHERE payment_id = ANY($1::text[])`,
-            paymentIds
-          );
+          // Note: consolidated_bank_accounts update removed - table is obsolete
+          // Raw bank tables are now the primary source and don't need cleanup
         }
         for (const bp of oldBundlePaymentsToCleanup) {
           await prisma.$queryRawUnsafe(

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAttachmentDownloadUrl } from '@/lib/attachments';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/payments/attachments/download?bucket=xxx&path=xxx
  * Get a signed download URL for an attachment

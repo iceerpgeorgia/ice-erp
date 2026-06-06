@@ -87,15 +87,15 @@ The three-phase hierarchy ensures data integrity:
   * Generate consolidated record with all gathered data
   * Update raw table processing flags
 
-**Stage 4: Consolidated Table Insertion**
-- Insert all consolidated records to `consolidated_bank_accounts` (Local DB)
-- Include counteragent_uuid, project_uuid, financial_code_uuid, payment_id
-- Store transaction_date, amounts, description, IDs
-
-**Stage 5: Raw Table Flag Updates**
+**Stage 4: Raw Table Flag Updates** (formerly: Consolidated Table Insertion - removed)
 - Update `bog_gel_raw_*` table (Supabase) with processing flags
 - Mark counteragent_processed, parsing_rule_processed, payment_id_processed
 - Set is_processed=TRUE when all three phases complete
+- **Note**: consolidated_bank_accounts table has been **removed** (2026-06-06)
+  - Raw bank account tables are now the **only** data source
+  - No consolidation step needed - raw tables are queried directly
+
+**Stage 5: (Deprecated)** - No longer applicable
 
 ### Priority Hierarchy
 1. **Counteragent** (FIRST): Identified from INN in raw data - cannot be overridden by rules or payments
@@ -159,6 +159,30 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 
 ## Bank Transactions API Filters
 - `GET /api/bank-transactions` supports `project_uuid` or `projectUuid` for server-side filtering. Conversion entries are filtered by `project_uuid`, and balance records are omitted when a project filter is set.
+
+## Bank Transactions Data Architecture
+
+**PRIMARY DATA SOURCE**: Raw bank account tables (e.g., `GE65TB7856036050100002_TBC_GEL`, `GE78BG0000000893486000_BOG_GEL`, etc.) are the **active** source of truth for all bank transactions.
+
+**REMOVED TABLE**: `consolidated_bank_accounts` was **permanently removed** from Supabase on 2026-06-06. This table is obsolete and no longer exists in the database schema or codebase.
+
+### API Data Flow
+- `/api/bank-transactions` queries raw tables via UNION across all bank accounts (see `SOURCE_TABLES` in route.ts)
+- Each raw table has a unique offset to generate synthetic IDs
+- Returns `raw_record_uuid` from the source raw table
+- Batch transactions are resolved from `bank_transaction_batches` table
+
+### Job Distribution Linkage
+- `payments_jobs` table links distributions to bank transactions via `raw_record_uuid` or `batch_partition_uuid`
+- `raw_record_uuid` references the UUID from raw bank account tables (NOT consolidated_bank_accounts)
+- When verifying distribution integrity, always check raw tables (e.g., `GE65TB7856036050100002_TBC_GEL`) not consolidated table
+- The `/api/payments-jobs/auto-distribute` endpoint receives `raw_record_uuid` from bank transaction UI and stores it in `payments_jobs` records
+
+### Investigation Guidelines
+- **NEVER** search `consolidated_bank_accounts` to verify `raw_record_uuid` references
+- **ALWAYS** search the specific raw table (e.g., `GE65TB7856036050100002_TBC_GEL`) or use `/api/bank-transactions`
+- Check `app/api/bank-transactions/route.ts` for the list of active source tables
+- Each bank account has its own table with naming pattern: `{IBAN}_{BANK}_{CURRENCY}`
 
 ## Project Value Scaling
 - When a project's `value` changes via the Projects API update routes, the system proportionally scales the related **auto-managed** `payments_ledger` rows (accrual + order) by `scaleFactor = newValue / oldValue`.

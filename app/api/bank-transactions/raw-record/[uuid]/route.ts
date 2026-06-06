@@ -71,60 +71,9 @@ export async function GET(
       );
     }
 
-    // Get the consolidated record to find the raw_record_uuid
-    const consolidated = await withRetry(() => prisma.consolidatedBankAccount.findFirst({
-      where: { uuid: uuid },
-      select: { rawRecordUuid: true }
-    }));
-
-    console.log('Consolidated record found:', !!consolidated);
-    console.log('Raw record UUID:', consolidated?.rawRecordUuid);
-
-    if (!consolidated?.rawRecordUuid) {
-      const localUrl = getPooledDatabaseUrl() || process.env.DATABASE_URL;
-      if (!localUrl) {
-        return NextResponse.json(
-          { error: 'Database connection not configured' },
-          { status: 500 }
-        );
-      }
-
-      pool = new Pool({
-        connectionString: localUrl,
-        max: 1
-      });
-
-      for (const tableName of ALLOWED_TABLES) {
-        const deconsolidated = await pool.query(
-          `SELECT * FROM "${tableName}" WHERE uuid = $1 LIMIT 1`,
-          [uuid]
-        );
-
-        if (deconsolidated.rows.length > 0) {
-          const record = deconsolidated.rows[0];
-          const serializable: Record<string, any> = {};
-
-          for (const [key, value] of Object.entries(record)) {
-            serializable[key] = typeof value === 'bigint' ? value.toString() : value;
-          }
-
-          await pool.end();
-          return NextResponse.json(serializable);
-        }
-      }
-
-      await pool.end();
-
-      return NextResponse.json(
-        { error: 'Raw record UUID not found for this transaction' },
-        { status: 404 }
-      );
-    }
-
-    // Fetch from LOCAL database where backparse updates the flags
+    // Search all raw bank tables for this UUID
+    // Note: consolidated_bank_accounts removed - searching raw tables directly
     const localUrl = getPooledDatabaseUrl() || process.env.DATABASE_URL;
-    console.log('Local DB URL configured:', !!localUrl);
-    
     if (!localUrl) {
       return NextResponse.json(
         { error: 'Database connection not configured' },
@@ -132,38 +81,36 @@ export async function GET(
       );
     }
 
-    // Use pg Pool for direct database access
-    console.log('Creating pg pool...');
     pool = new Pool({
       connectionString: localUrl,
       max: 1
     });
 
-    console.log('Executing query for raw_record_uuid:', consolidated.rawRecordUuid);
-    const result = await pool.query(
-      'SELECT * FROM bog_gel_raw_893486000 WHERE uuid = $1 LIMIT 1',
-      [consolidated.rawRecordUuid]
-    );
+    // Try each raw table
+    for (const tableName of ALLOWED_TABLES) {
+      const result = await pool.query(
+        `SELECT * FROM "${tableName}" WHERE uuid = $1 LIMIT 1`,
+        [uuid]
+      );
 
-    console.log('Query result rows:', result.rows.length);
-    await pool.end();
+      if (result.rows.length > 0) {
+        const record = result.rows[0];
+        const serializable: Record<string, any> = {};
 
-    if (result.rows.length > 0) {
-      // Convert BigInt values to strings for JSON serialization
-      const record = result.rows[0];
-      const serializable: Record<string, any> = {};
-      
-      for (const [key, value] of Object.entries(record)) {
-        serializable[key] = typeof value === 'bigint' ? value.toString() : value;
+        for (const [key, value] of Object.entries(record)) {
+          serializable[key] = typeof value === 'bigint' ? value.toString() : value;
+        }
+
+        await pool.end();
+        return NextResponse.json(serializable);
       }
-      
-      console.log('Returning serialized record');
-      return NextResponse.json(serializable);
     }
 
-    console.log('No records found');
+    await pool.end();
+
+    // UUID not found in any raw table
     return NextResponse.json(
-      { error: 'Raw record not found in database' },
+      { error: 'Raw record not found in any bank account table' },
       { status: 404 }
     );
   } catch (error: any) {

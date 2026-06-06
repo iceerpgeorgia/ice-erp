@@ -388,42 +388,9 @@ model brands {
   @@index([uuid], map: "idx_brands_uuid")
 }
 
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model ConsolidatedBankAccount {
-  id                        BigInt    @id @default(autoincrement())
-  uuid                      String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  bankAccountUuid           String    @map("bank_account_uuid") @db.Uuid
-  rawRecordUuid             String    @map("raw_record_uuid") @db.Uuid
-  transactionDate           String    @map("transaction_date")
-  description               String?
-  counteragentUuid          String?   @map("counteragent_uuid") @db.Uuid
-  projectUuid               String?   @map("project_uuid") @db.Uuid
-  financialCodeUuid         String?   @map("financial_code_uuid") @db.Uuid
-  accountCurrencyUuid       String    @map("account_currency_uuid") @db.Uuid
-  accountCurrencyAmount     Decimal   @map("account_currency_amount") @db.Decimal(20, 2)
-  nominalCurrencyUuid       String    @map("nominal_currency_uuid") @db.Uuid
-  nominalAmount             Decimal   @map("nominal_amount") @db.Decimal(20, 2)
-  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt                 DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  counteragentAccountNumber String?   @map("counteragent_account_number")
-  processingCase            String?   @map("processing_case")
-  paymentId                 String?   @map("payment_id")
-  case_description          String?
-  applied_rule_id           Int?
-  raw_table_name            String?
-  correctionDate            DateTime? @map("correction_date") @db.Date
-  exchangeRate              Decimal?  @map("exchange_rate") @db.Decimal(20, 10)
-
-  @@index([bankAccountUuid], map: "idx_consolidated_bank_account_uuid")
-  @@index([counteragentUuid], map: "idx_consolidated_counteragent_uuid")
-  @@index([paymentId], map: "idx_consolidated_payment_id")
-  @@index([projectUuid], map: "idx_consolidated_project_uuid")
-  @@index([rawRecordUuid], map: "idx_consolidated_raw_record_uuid")
-  @@index([transactionDate], map: "idx_consolidated_transaction_date")
-  @@index([processingCase], map: "idx_consolidated_bank_processing_case")
-  @@index([transactionDate, id], map: "idx_consolidated_bank_transaction_date_id")
-  @@map("consolidated_bank_accounts")
-}
+// ConsolidatedBankAccount model removed - table is obsolete
+// Raw bank account tables (GE65TB..._TBC_GEL, etc.) are now the primary data source
+// See: /api/bank-transactions/route.ts for SOURCE_TABLES
 
 model counteragents {
   id                          BigInt                     @id @default(autoincrement())

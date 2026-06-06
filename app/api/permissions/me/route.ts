@@ -3,6 +3,8 @@ import { requireAuth } from '@/lib/auth-guard';
 import { getUserPermissions, getUserModules } from '@/lib/permissions';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/permissions/me
  * Get current user's permissions and accessible modules
