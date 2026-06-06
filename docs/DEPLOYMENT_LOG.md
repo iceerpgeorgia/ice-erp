@@ -1,5 +1,23 @@
 # Deployment Log
 
+## 2026-06-07 Deployment #329
+- Commit: 3c1874d
+- Production: https://ice-25neeu0yj-iceerp.vercel.app
+- Summary: Add rounding correction for job distributions and fix dynamic server usage errors in API routes.
+- Changes:
+  - app/api/payments-jobs/auto-distribute/route.ts: Implement rounding correction logic that adjusts a random job's allocation when rounding errors occur, ensuring total distributed amount exactly matches payment amount for both nominal and account currency.
+  - app/api/insider-bank-accounts/route.ts: Add dynamic='force-dynamic' export.
+  - app/api/bank-accounts/daily-balances/route.ts: Add dynamic='force-dynamic' export.
+  - app/api/bank-accounts/balance-check/route.ts: Add dynamic='force-dynamic' export.
+  - app/api/payments/attachments/download/route.ts: Add dynamic='force-dynamic' export.
+  - app/api/permissions/me/route.ts: Add dynamic='force-dynamic' export.
+  - app/api/permissions/analytics/route.ts: Add dynamic='force-dynamic' export.
+  - app/api/public/payment-attachments/route.ts: Add dynamic='force-dynamic' export.
+  - prisma/schema.prisma: Removed ConsolidatedBankAccount model (table obsolete).
+  - app/api/projects/route.ts: Removed consolidated_bank_accounts queries.
+  - app/api/bank-transactions/raw-record/[uuid]/route.ts: Simplified to query raw tables directly.
+  - AGENTS.md: Updated bank transaction architecture documentation.
+
 ## 2026-06-06 Deployment #326
 - Commit: 9b45281
 - Production: https://ice-8l1vv78uv-iceerp.vercel.app
