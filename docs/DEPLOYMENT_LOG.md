@@ -18,6 +18,13 @@
   - components/figma/handover-payments-grid.tsx: Align numeric cell formatting with the job distributions grid while keeping accrual/order/payment styling.
   - AGENTS.md: Document the corrected Handovers job summary calculations.
 
+## 2026-06-06 Deployment #328
+- Commit: c5664cf
+- Production: https://ice-3h7o0vz88-iceerp.vercel.app
+- Summary: Re-deploy the current main-branch state after the latest docs update and push.
+- Changes:
+  - AGENTS.md: Document jobs `selling_price` support in schema, API, and UI wiring.
+
 ## 2026-06-05 Deployment #325
 - Commit: 903eac8
 - Production: https://ice-ca5oonvky-iceerp.vercel.app
