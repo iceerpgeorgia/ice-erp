@@ -6,6 +6,8 @@
 ## Project Structure & Module Organization
 The workspace is a single Next.js 14 application (App Router) with co-located API routes. Pages and components live in `app/` with co-located hooks and styles. API routes are in `app/api/` (50+ route files). Shared Prisma schema and migrations sit in `prisma/`, reusable types in `types/`, shared utilities in `lib/` (auth, Prisma client, audit logging, Zod schemas). Python scripts for bank XML processing live at the project root. Vercel cron jobs handle scheduled tasks (BOG import, NBG rates, cash accruals) via `vercel.json`.
 
+- Jobs CRUD now includes `selling_price` support in the Prisma schema, API handlers, and the Jobs table/form UI.
+
 ## BOG GEL Bank Statement Processing - Three-Stage Approach
 
 ### Consolidated Processing Architecture
