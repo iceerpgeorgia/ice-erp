@@ -880,7 +880,19 @@ export function HandoversTable() {
                               <TableCell
                                 key={col.key}
                                 style={{ width: col.width, maxWidth: col.width }}
-                                className="text-xs"
+                                className={[
+                                  'text-xs',
+                                  col.key === 'floors' ||
+                                  col.key === 'weight' ||
+                                  col.key === 'sellingPrice' ||
+                                  col.key === 'paidNominal' ||
+                                  col.key === 'paidGel' ||
+                                  col.key === 'debitNominal' ||
+                                  col.key === 'debitGel' ||
+                                  col.key === 'totalGel'
+                                    ? 'text-right tabular-nums'
+                                    : '',
+                                ].join(' ')}
                               >
                                 {col.key === 'jobName' ? (
                                   <span className="text-muted-foreground">
