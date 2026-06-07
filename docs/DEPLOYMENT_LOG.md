@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-07 Deployment #332
+- Commit: 696ef89
+- Production: https://ice-dnj8ih5yu-iceerp.vercel.app
+- Summary: Fix jobs table numeric column headers alignment using flex-row-reverse.
+- Changes:
+  - components/figma/handovers-table.tsx: Use flex-row-reverse justify-between for numeric column headers to position filter icon on left and label+sort icon on right, aligning with right-aligned data and footer totals.
+
 ## 2026-06-07 Deployment #331
 - Commit: de64390
 - Production: https://ice-kjxeivg58-iceerp.vercel.app
