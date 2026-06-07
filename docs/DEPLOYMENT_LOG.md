@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-07 Deployment #333
+- Commit: f8d0296
+- Production: https://ice-lj39zxfen-iceerp.vercel.app
+- Summary: Fix numeric column headers to use justify-end for consistent filter icon positioning.
+- Changes:
+  - components/figma/handovers-table.tsx: Use justify-end for numeric column headers instead of flex-row-reverse to keep filter icon on the right consistently across all numeric columns (Floors, Weight, Selling Price, Paid/Debit columns, Total GEL).
+
 ## 2026-06-07 Deployment #332
 - Commit: 696ef89
 - Production: https://ice-dnj8ih5yu-iceerp.vercel.app
