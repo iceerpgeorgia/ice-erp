@@ -720,11 +720,33 @@ export function HandoversTable() {
                           'bg-muted/50 relative group select-none',
                           draggedColumn === column.key ? 'opacity-50' : '',
                           dragOverColumn === column.key ? 'border-l-4 border-l-blue-500' : '',
+                          column.key === 'floors' ||
+                          column.key === 'weight' ||
+                          column.key === 'sellingPrice' ||
+                          column.key === 'paidNominal' ||
+                          column.key === 'paidGel' ||
+                          column.key === 'debitNominal' ||
+                          column.key === 'debitGel' ||
+                          column.key === 'totalGel'
+                            ? 'text-right'
+                            : '',
                         ].join(' ')}
                         style={{ width: column.width, minWidth: column.width }}
                       >
                         <div className="flex items-center justify-between gap-1 pr-3">
-                          <div className="flex items-center gap-1">
+                          <div className={[
+                            'flex items-center gap-1',
+                            column.key === 'floors' ||
+                            column.key === 'weight' ||
+                            column.key === 'sellingPrice' ||
+                            column.key === 'paidNominal' ||
+                            column.key === 'paidGel' ||
+                            column.key === 'debitNominal' ||
+                            column.key === 'debitGel' ||
+                            column.key === 'totalGel'
+                              ? 'justify-end'
+                              : '',
+                          ].join(' ')}>
                             <span className="text-xs font-medium">{column.label}</span>
                             {column.sortable && (
                               <button
