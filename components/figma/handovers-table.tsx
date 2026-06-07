@@ -330,8 +330,8 @@ export function HandoversTable() {
         const data: any[] = await res.json();
         const jobUuids = data.map((j: any) => j.jobUuid).filter(Boolean);
 
-        // Bulk-fetch lift cert info, attachment counts, distributions, and income payments in parallel
-        const [countRes, liftRes, paymentsRes, distRes] = await Promise.all([
+        // Bulk-fetch lift cert info, attachment counts, distributions, bank transactions, and income payments in parallel
+        const [countRes, liftRes, paymentsRes, distRes, bankTxRes] = await Promise.all([
           jobUuids.length > 0
             ? fetch(`/api/jobs/attachments?countsOnly=1&jobUuids=${encodeURIComponent(jobUuids.join(','))}`)
             : Promise.resolve(null),
@@ -340,6 +340,7 @@ export function HandoversTable() {
             : Promise.resolve(null),
           fetch(`/api/payments-report?projectUuid=${encodeURIComponent(projectUuid)}`),
           fetch(`/api/payments-jobs?project_uuid=${encodeURIComponent(projectUuid)}`),
+          fetch(`/api/bank-transactions?project_uuid=${encodeURIComponent(projectUuid)}&limit=0`),
         ]);
 
         const countsMap: Record<string, number> = countRes?.ok ? (await countRes.json()).counts ?? {} : {};
@@ -355,10 +356,14 @@ export function HandoversTable() {
           });
         }
 
-        // Calculate Paid Nominal and Paid GEL by summing distributions for income payments
+        // Calculate Paid Nominal and Paid GEL: sum bank transactions by job (matching bottom grid)
         const paidNominalByJob = new Map<string, number>();
         const paidGelByJob = new Map<string, number>();
 
+        // Build distribution map for matching bank transactions to jobs
+        const distributionsByBankTx = new Map<string, Array<{ jobUuid: string; amountAccount: number; amount: number }>>();
+        const unmappedDistributions: Array<{ jobUuid: string; amountAccount: number; amount: number }> = [];
+        
         if (distRes.ok) {
           const distData = await distRes.json();
           if (Array.isArray(distData)) {
@@ -367,18 +372,82 @@ export function HandoversTable() {
               if (!dist?.payment_id || !incomePaymentIds.has(String(dist.payment_id))) return;
               if (!dist?.job_uuid) return;
 
-              const jobKey = String(dist.job_uuid);
-              paidNominalByJob.set(
-                jobKey,
-                (paidNominalByJob.get(jobKey) ?? 0) + Number(dist.amount ?? 0),
-              );
-              paidGelByJob.set(
-                jobKey,
-                (paidGelByJob.get(jobKey) ?? 0) + Number(dist.amount_account_curr ?? 0),
-              );
+              const distEntry = {
+                jobUuid: String(dist.job_uuid),
+                amountAccount: Number(dist.amount_account_curr ?? 0),
+                amount: Number(dist.amount ?? 0),
+              };
+
+              // Try to match to bank transaction via composite key
+              let key: string | null = null;
+              if (dist.batch_partition_uuid) {
+                key = `batch:${dist.batch_partition_uuid}`;
+              } else if (dist.raw_record_uuid) {
+                key = `raw:${dist.raw_record_uuid}`;
+              }
+
+              if (key) {
+                if (!distributionsByBankTx.has(key)) {
+                  distributionsByBankTx.set(key, []);
+                }
+                distributionsByBankTx.get(key)?.push(distEntry);
+              } else {
+                // No key to match - store as unmapped
+                unmappedDistributions.push(distEntry);
+              }
             });
           }
         }
+
+        // First, add unmapped distributions directly to job totals
+        unmappedDistributions.forEach((dist) => {
+          const jobKey = String(dist.jobUuid);
+          paidNominalByJob.set(
+            jobKey,
+            (paidNominalByJob.get(jobKey) ?? 0) + dist.amount,
+          );
+          paidGelByJob.set(
+            jobKey,
+            (paidGelByJob.get(jobKey) ?? 0) + dist.amountAccount,
+          );
+        });
+
+        // Then, filter bank transactions (same filters as bottom grid) and sum by job via distributions
+        const bankTxPayload = bankTxRes.ok ? await bankTxRes.json() : null;
+        const bankTxRows = Array.isArray(bankTxPayload)
+          ? bankTxPayload
+          : Array.isArray(bankTxPayload?.data)
+          ? bankTxPayload.data
+          : [];
+
+        bankTxRows.forEach((row: any) => {
+          // Apply same filters as bottom grid: project, not balance, has payment_id, is income
+          if (row.project_uuid !== projectUuid || row.is_balance_record || !row.payment_id) return;
+          if (!incomePaymentIds.has(String(row.payment_id))) return;
+
+          // Find distributions for this bank transaction
+          let key: string | null = null;
+          if (row.batch_partition_uuid) {
+            key = `batch:${row.batch_partition_uuid}`;
+          } else if (row.raw_record_uuid) {
+            key = `raw:${row.raw_record_uuid}`;
+          }
+
+          if (key) {
+            const distributions = distributionsByBankTx.get(key) || [];
+            distributions.forEach((dist) => {
+              const jobKey = String(dist.jobUuid);
+              paidNominalByJob.set(
+                jobKey,
+                (paidNominalByJob.get(jobKey) ?? 0) + dist.amount,
+              );
+              paidGelByJob.set(
+                jobKey,
+                (paidGelByJob.get(jobKey) ?? 0) + dist.amountAccount,
+              );
+            });
+          }
+        });
 
         const uniqueCertDates = Array.from(
           new Set(
