@@ -355,29 +355,46 @@ export function HandoversTable() {
           });
         }
 
+        // Calculate paidGelByJob from bank transactions (bottom grid data source)
+        // to ensure top and bottom grids are consistent
         const paidNominalByJob = new Map<string, number>();
         const paidGelByJob = new Map<string, number>();
+        
+        // First, build distribution map from payments_jobs
+        const distributionsByPaymentId = new Map<string, Array<{ jobUuid: string; amountAccount: number; amount: number }>>();
         if (paymentJobsRes.ok) {
           const paymentJobsData = await paymentJobsRes.json();
           if (Array.isArray(paymentJobsData)) {
             paymentJobsData.forEach((dist: any) => {
-              if (!dist?.job_uuid || !dist?.payment_id || !incomePaymentIds.has(String(dist.payment_id))) return;
-              const amount = Number(dist.amount ?? 0);
-              if (!Number.isFinite(amount) || amount === 0) return;
-              paidNominalByJob.set(
-                String(dist.job_uuid),
-                (paidNominalByJob.get(String(dist.job_uuid)) ?? 0) + amount,
-              );
-              const amountAccount = Number(dist.amount_account_curr ?? 0);
-              if (Number.isFinite(amountAccount) && amountAccount !== 0) {
-                paidGelByJob.set(
-                  String(dist.job_uuid),
-                  (paidGelByJob.get(String(dist.job_uuid)) ?? 0) + amountAccount,
-                );
+              if (!dist?.payment_id || !incomePaymentIds.has(String(dist.payment_id))) return;
+              const key = String(dist.payment_id);
+              if (!distributionsByPaymentId.has(key)) {
+                distributionsByPaymentId.set(key, []);
               }
+              distributionsByPaymentId.get(key)?.push({
+                jobUuid: String(dist.job_uuid ?? ''),
+                amountAccount: Number(dist.amount_account_curr ?? 0),
+                amount: Number(dist.amount ?? 0),
+              });
             });
           }
         }
+
+        // Now calculate paidGelByJob from distributions
+        distributionsByPaymentId.forEach((dists) => {
+          dists.forEach((dist) => {
+            if (!dist.jobUuid) return;
+            const jobKey = String(dist.jobUuid);
+            paidNominalByJob.set(
+              jobKey,
+              (paidNominalByJob.get(jobKey) ?? 0) + dist.amount,
+            );
+            paidGelByJob.set(
+              jobKey,
+              (paidGelByJob.get(jobKey) ?? 0) + dist.amountAccount,
+            );
+          });
+        });
 
         const uniqueCertDates = Array.from(
           new Set(
