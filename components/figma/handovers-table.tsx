@@ -733,7 +733,7 @@ export function HandoversTable() {
                           column.key === 'debitNominal' ||
                           column.key === 'debitGel' ||
                           column.key === 'totalGel'
-                            ? 'flex-row-reverse justify-between'
+                            ? 'justify-end'
                             : 'justify-between',
                         ].join(' ')}>
                           <div className="flex items-center gap-1">
