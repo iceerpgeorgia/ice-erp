@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-07 Deployment #330
+- Commit: 8bfff24
+- Production: https://ice-qtykb0u9m-iceerp.vercel.app
+- Summary: Fix Handovers table footer alignment to match data row columns.
+- Changes:
+  - components/figma/handovers-table.tsx: Add text-right tabular-nums classes to numeric footer cells for proper alignment with data rows.
+
 ## 2026-06-07 Deployment #329
 - Commit: 3c1874d
 - Production: https://ice-25neeu0yj-iceerp.vercel.app
