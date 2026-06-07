@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-07 Deployment #331
+- Commit: de64390
+- Production: https://ice-kjxeivg58-iceerp.vercel.app
+- Summary: Fix jobs table header alignment with columns and totals.
+- Changes:
+  - components/figma/handovers-table.tsx: Add text-right class to TableHead for numeric columns and adjust inner div to use justify-end for proper header alignment.
+
 ## 2026-06-07 Deployment #330
 - Commit: 8bfff24
 - Production: https://ice-qtykb0u9m-iceerp.vercel.app
