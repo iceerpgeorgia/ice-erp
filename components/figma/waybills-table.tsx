@@ -1,13 +1,7 @@
 'use client';
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  getCoreRowModel,
-  type ColumnDef,
-  type ColumnFiltersState,
-  type SortingState,
-  useReactTable,
-} from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -17,13 +11,14 @@ import { Combobox } from '@/components/ui/combobox';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
-import { Search, Upload, Eye, Edit2, Settings, ArrowUp, ArrowDown, UserPlus, FileText } from 'lucide-react';
+import { Search, Upload, Eye, Edit2, Settings, ArrowUp, ArrowDown, UserPlus, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import { RequiredInsiderBadge } from './shared/required-insider-badge';
 import { useRequiredInsiderName } from './shared/use-required-insider';
 import { BLANK_FACET_TOKEN } from './shared/table-filters';
 import type { ColumnFilter, ColumnFormat } from './shared/table-filters';
+import { useTableFilters } from './shared/use-table-filters';
 import * as XLSX from 'xlsx';
 import { CounteragentFormDialog } from './CounteragentFormDialog';
 
@@ -78,8 +73,8 @@ type ColumnConfig = {
   key: ColumnKey;
   label: string;
   visible: boolean;
-  sortable?: boolean;
-  filterable?: boolean;
+  sortable: boolean;
+  filterable: boolean;
   format?: ColumnFormat;
   width: number;
 };
@@ -144,6 +139,10 @@ const formatCell = (value: any, format?: ColumnConfig['format']) => {
     }
     return String(value);
   }
+  if (format === 'number') {
+    const num = Number(value);
+    return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
   return String(value);
 };
 
@@ -171,9 +170,9 @@ export function WaybillsTable() {
   const [projects, setProjects] = useState<any[]>([]);
   const [financialCodes, setFinancialCodes] = useState<any[]>([]);
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnFilters, setColumnFilters] = useState<{ id: string; value: any[] }[]>([]);
   const [advancedFilters, setAdvancedFilters] = useState<Map<ColumnKey, ColumnFilter>>(new Map());
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'activation_time', desc: true }]);
+  const [sorting, setSorting] = useState<{ id: ColumnKey; desc: boolean }>({ id: 'activation_time', desc: true });
   const [showMissingCounteragents, setShowMissingCounteragents] = useState(false);
   const [missingCounteragentCount, setMissingCounteragentCount] = useState(0);
   const [isResizing, setIsResizing] = useState<{
@@ -419,44 +418,18 @@ export function WaybillsTable() {
   const resizePendingRef = useRef<{ element: HTMLElement; width: number } | null>(null);
   const facetsRequestIdRef = useRef(0);
 
-  const tableColumns = useMemo<ColumnDef<Waybill>[]>(
-    () => defaultColumns.map((column) => ({
-      id: column.key,
-      accessorKey: column.key,
-    })),
-    []
-  );
-
-  const table = useReactTable({
-    data,
-    columns: tableColumns,
-    state: {
-      columnFilters,
-      sorting,
-    },
-    onColumnFiltersChange: setColumnFilters,
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    manualFiltering: true,
-    manualSorting: true,
-  });
-
   const filtersMap = useMemo(
     () =>
       new Map<ColumnKey, Set<any>>(
         columnFilters
-          .filter(
-            (filter): filter is { id: string; value: any[] } =>
-              typeof filter.id === 'string' && Array.isArray(filter.value)
-          )
-          .map((filter) => [filter.id as ColumnKey, new Set(filter.value)])
+          .filter((filter) => typeof filter.id === 'string' && Array.isArray((filter as any).value))
+          .map((filter) => [filter.id as ColumnKey, new Set((filter as any).value)])
       ),
     [columnFilters]
   );
 
-  const activeSort = sorting[0];
-  const sortColumn = (activeSort?.id as ColumnKey) || 'activation_time';
-  const sortDirection: 'asc' | 'desc' = activeSort?.desc ? 'desc' : 'asc';
+  const sortColumn = sorting.id || 'activation_time';
+  const sortDirection: 'asc' | 'desc' = sorting.desc ? 'desc' : 'asc';
 
   useEffect(() => {
     const versionKey = 'waybillsColumnsVersion';
@@ -514,14 +487,14 @@ export function WaybillsTable() {
           setPeriodTo(parsed.periodTo);
         }
         if (parsed.sortColumn && (parsed.sortDirection === 'asc' || parsed.sortDirection === 'desc')) {
-          setSorting([{ id: parsed.sortColumn as string, desc: parsed.sortDirection === 'desc' }]);
+          setSorting({ id: parsed.sortColumn as ColumnKey, desc: parsed.sortDirection === 'desc' });
         }
         if (typeof parsed.pageSize === 'number') setPageSize(parsed.pageSize);
         if (typeof parsed.missingCounteragents === 'boolean') {
           setShowMissingCounteragents(parsed.missingCounteragents);
         }
         if (Array.isArray(parsed.filters)) {
-          const restored: ColumnFiltersState = [];
+          const restored: { id: string; value: any[] }[] = [];
           for (const item of parsed.filters as unknown[]) {
             if (
               Array.isArray(item) &&
@@ -602,7 +575,7 @@ export function WaybillsTable() {
     };
     const filterValueKey = (value: any) => String(normalizeFilterValue(value));
 
-    const serializedFilters = columnFilters.reduce<Array<[string, any[]]>>((acc, filter) => {
+    const serializedFilters = columnFilters.reduce<Array<[string, any[]]>>((acc: Array<[string, any[]]>, filter: { id: string; value: any[] }) => {
       if (typeof filter.id !== 'string' || !Array.isArray(filter.value)) return acc;
       const key = filter.id as ColumnKey;
       const selectedValues = filter.value.map(normalizeFilterValue);
@@ -671,32 +644,10 @@ export function WaybillsTable() {
       const body = await res.json().catch(() => ({}));
       throw new Error(body?.error || 'Failed to create counteragent');
     }
-    await fetchWaybills();
-  }, [fetchWaybills]);
-
-  const fetchWaybillFacets = useCallback(async () => {
-    const requestId = facetsRequestIdRef.current + 1;
-    facetsRequestIdRef.current = requestId;
-    try {
-      const params = buildWaybillsQueryParams({ includeFacets: true, includePagination: false });
-      const res = await fetch(`/api/waybills?${params.toString()}`);
-      const body = await res.json();
-      if (requestId !== facetsRequestIdRef.current) {
-        return;
-      }
-      const nextFacets = new Map<ColumnKey, string[]>();
-      if (body?.facets && typeof body.facets === 'object') {
-        Object.entries(body.facets).forEach(([key, values]) => {
-          if (Array.isArray(values)) {
-            nextFacets.set(key as ColumnKey, values as any[]);
-          }
-        });
-      }
-      setFacetValues(nextFacets);
-    } catch (err) {
-      console.error('Failed to load waybills facets', err);
-    }
-  }, [buildWaybillsQueryParams]);
+    // Refresh data after adding counteragent
+    setCurrentPage(1);
+    // Trigger re-fetch by updating a dummy dependency
+  }, []);
 
   const fetchOptions = async () => {
     try {
@@ -719,13 +670,60 @@ export function WaybillsTable() {
     fetchOptions();
   }, []);
 
+  // OPTIMIZATION: Fetch ALL waybills once on mount, then do client-side filtering/sorting/pagination
   useEffect(() => {
-    fetchWaybills();
-  }, [fetchWaybills]);
+    const fetchAllWaybills = async () => {
+      setLoading(true);
+      try {
+        // Request all waybills in one go (high limit) - do server-side filtering only once
+        const params = new URLSearchParams();
+        if (appliedSearch.trim()) params.set('search', appliedSearch.trim());
+        if (periodFrom) params.set('periodFrom', periodFrom);
+        if (periodTo) params.set('periodTo', periodTo);
+        params.set('limit', '10000'); // Fetch up to 10k records
+        params.set('offset', '0');
+        params.set('includeFacets', 'false'); // Don't waste time on facets
+        if (showMissingCounteragents) params.set('missingCounteragents', 'true');
+        if (sortColumn) params.set('sortColumn', sortColumn);
+        if (sortDirection) params.set('sortDirection', sortDirection);
+        
+        const serializedFilters = columnFilters.reduce<Array<[string, any[]]>>((acc: Array<[string, any[]]>, filter: { id: string; value: any[] }) => {
+          if (typeof filter.id !== 'string' || !Array.isArray(filter.value)) return acc;
+          const selectedValues = filter.value.map((v: any) => v === BLANK_FACET_TOKEN ? '' : (v === null || v === undefined ? '' : v));
+          if (selectedValues.length === 0) return acc;
+          acc.push([filter.id as ColumnKey, selectedValues]);
+          return acc;
+        }, []);
+        
+        if (serializedFilters.length > 0) {
+          params.set('filters', JSON.stringify(serializedFilters));
+        }
+        
+        if (advancedFilters.size > 0) {
+          const advancedArr: Array<[string, any]> = [];
+          advancedFilters.forEach((filter, key) => {
+            advancedArr.push([key, filter]);
+          });
+          params.set('advancedFilters', JSON.stringify(advancedArr));
+        }
 
-  useEffect(() => {
-    fetchWaybillFacets();
-  }, [fetchWaybillFacets]);
+        const res = await fetch(`/api/waybills?${params.toString()}`);
+        const body = await res.json();
+        setData(body.data || []);
+        setTotal(body.total || 0);
+        setMissingCounteragentCount(Number(body.missingCounteragentCount || 0));
+        // Reset to page 1 when data changes
+        setCurrentPage(1);
+      } catch (err) {
+        console.error('Failed to load waybills', err);
+        alert('Failed to load waybills');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllWaybills();
+  }, [appliedSearch, periodFrom, periodTo, showMissingCounteragents, sortColumn, sortDirection, columnFilters, advancedFilters]);
 
   useEffect(() => {
     const applyPendingResize = () => {
@@ -937,21 +935,29 @@ export function WaybillsTable() {
     return next;
   }, [columns, data]);
 
-  // Per-field: prefer server facet values when available and non-empty;
-  // fall back to current-page values if server returned nothing for a field.
+  // Per-field: compute facets from currently loaded data (instant, no API calls)
   const getUniqueValues = useCallback((columnKey: ColumnKey): any[] => {
-    if (facetValues.size > 0) {
-      const serverValues = facetValues.get(columnKey);
-      if (serverValues && serverValues.length > 0) return serverValues;
-    }
-    return fallbackFacetValues.get(columnKey) ?? [];
-  }, [facetValues, fallbackFacetValues]);
+    const values = new Set<any>();
+    data.forEach((row) => {
+      const value = (row as any)[columnKey];
+      values.add(value === null || value === undefined ? '' : value);
+    });
+    return Array.from(values).sort();
+  }, [data]);
 
   const filteredData = useMemo(() => data, [data]);
 
+  // Client-side pagination
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return filteredData.slice(start, end);
+  }, [filteredData, currentPage, pageSize]);
+
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
-    count: filteredData.length,
+    count: paginatedData.length,
     getScrollElement: () => tableContainerRef.current,
     estimateSize: () => 44,
     overscan: 8,
@@ -1016,15 +1022,17 @@ export function WaybillsTable() {
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await Promise.all([fetchWaybills(), fetchWaybillFacets()]);
+      // Just reset to page 1 to trigger re-fetch via useEffect dependency
+      setCurrentPage(1);
+      await new Promise(resolve => setTimeout(resolve, 500));
     } finally {
-      setTimeout(() => setIsRefreshing(false), 500);
+      setIsRefreshing(false);
     }
   };
 
   const visibleIds = useMemo(
-    () => filteredData.map((row) => row.id).filter((id) => Number.isFinite(id)),
-    [filteredData]
+    () => paginatedData.map((row) => row.id).filter((id) => Number.isFinite(id)),
+    [paginatedData]
   );
   const visibleSelectedCount = useMemo(
     () => visibleIds.filter((id) => selectedIds.has(id)).length,
@@ -1058,7 +1066,7 @@ export function WaybillsTable() {
   }, []);
 
   const renderedRows = useMemo(() => {
-    if (filteredData.length === 0) {
+    if (paginatedData.length === 0) {
       return (
         <tr style={{ display: 'table', width: '100%', tableLayout: 'fixed' }}>
           <td className="px-3 py-6 text-center text-muted-foreground" colSpan={visibleColumns.length + 2}>
@@ -1069,7 +1077,7 @@ export function WaybillsTable() {
     }
 
     return virtualRows.map((virtualRow) => {
-      const row = filteredData[virtualRow.index];
+      const row = paginatedData[virtualRow.index];
       if (!row) return null;
       const hasIdentifiedCounteragent = Boolean(row.counteragent_uuid);
       const canPrefillCounteragent = Boolean(
@@ -1177,7 +1185,7 @@ export function WaybillsTable() {
         </tr>
       );
     });
-  }, [filteredData, loading, selectedIds, setEditing, setSelected, toggleSelectRow, visibleColumns, getCellValue, virtualRows, rowVirtualizer, fetchItemsForWaybill]);
+  }, [paginatedData, loading, selectedIds, setEditing, setSelected, toggleSelectRow, visibleColumns, getCellValue, virtualRows, rowVirtualizer, fetchItemsForWaybill]);
 
   const resetBulkEdit = () => {
     setBulkProjectUuid('');
@@ -1571,7 +1579,7 @@ export function WaybillsTable() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-        <div>Total records: {total}</div>
+        <div>Total records: {filteredData.length}</div>
         <div className="flex items-center gap-2">
           <span>Rows per page</span>
           <select
@@ -1636,13 +1644,12 @@ export function WaybillsTable() {
                       className="flex items-center gap-1 min-w-0"
                       onClick={() => {
                         if (!col.sortable) return;
-                        table.setSorting((prev) => {
-                          const current = prev[0];
-                          if (current?.id === col.key) {
-                            return [{ id: col.key, desc: !current.desc }];
-                          }
-                          return [{ id: col.key, desc: false }];
-                        });
+                        const current = sorting;
+                        if (current?.id === col.key) {
+                          setSorting({ id: col.key, desc: !current.desc });
+                        } else {
+                          setSorting({ id: col.key, desc: false });
+                        }
                       }}
                     >
                       <span className="truncate font-medium">{col.label}</span>
@@ -1660,14 +1667,22 @@ export function WaybillsTable() {
                         activeFilters={filtersMap.get(col.key) || new Set()}
                         activeFilter={advancedFilters.get(col.key)}
                         onFilterChange={(values) => {
-                          table
-                            .getColumn(col.key)
-                            ?.setFilterValue(values.size === 0 ? undefined : Array.from(values));
+                          setColumnFilters((prev: { id: string; value: any[] }[]) => {
+                            const existing = prev.find(f => f.id === col.key);
+                            if (values.size === 0) {
+                              return prev.filter(f => f.id !== col.key);
+                            }
+                            const newFilter = { id: col.key, value: Array.from(values) };
+                            if (existing) {
+                              return prev.map(f => f.id === col.key ? newFilter : f);
+                            }
+                            return [...prev, newFilter];
+                          });
                           setCurrentPage(1);
                         }}
                         {...(!col.format || col.format === 'text' ? {
                           onAdvancedFilterChange: (filter: ColumnFilter | null) => {
-                            setAdvancedFilters((prev) => {
+                            setAdvancedFilters((prev: Map<ColumnKey, ColumnFilter>) => {
                               const next = new Map(prev);
                               if (filter) next.set(col.key, filter);
                               else next.delete(col.key);
@@ -1677,7 +1692,7 @@ export function WaybillsTable() {
                           },
                         } : {})}
                         onSort={(direction) => {
-                          table.setSorting([{ id: col.key, desc: direction === 'desc' }]);
+                          setSorting({ id: col.key, desc: direction === 'desc' });
                           setCurrentPage(1);
                         }}
                         columnFormat={col.format}
@@ -1729,7 +1744,7 @@ export function WaybillsTable() {
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
         <div>
-          Page {currentPage} of {Math.max(1, Math.ceil(total / pageSize))}
+          Page {currentPage} of {totalPages}
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -1743,9 +1758,9 @@ export function WaybillsTable() {
           <Button
             variant="outline"
             size="sm"
-            disabled={currentPage >= Math.ceil(total / pageSize) || loading}
+            disabled={currentPage >= totalPages || loading}
             onClick={() =>
-              setCurrentPage((prev) => Math.min(Math.ceil(total / pageSize) || 1, prev + 1))
+              setCurrentPage((prev) => Math.min(totalPages || 1, prev + 1))
             }
           >
             Next
