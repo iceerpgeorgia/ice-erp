@@ -302,18 +302,27 @@ export function HandoversTable() {
         if (projRes.ok) {
           const data = await projRes.json();
           console.log('[Handovers] Projects fetched:', { count: data?.length, firstProject: data?.[0] });
+          
+          // Safely extract projects, with fallback if not an array
+          const projectsArray = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+          console.log('[Handovers] Projects array after fallback:', { count: projectsArray.length });
+          
           setProjects(
-            data.map((p: any) => ({
-              projectUuid: p.project_uuid,
-              projectIndex: p.project_index,
-              projectName: p.project_name,
-              currencyCode: p.currency ?? null,
-            })),
+            projectsArray.map((p: any) => {
+              console.log('[Handovers] Mapping project:', { uuid: p.project_uuid, name: p.project_name });
+              return {
+                projectUuid: p.project_uuid,
+                projectIndex: p.project_index,
+                projectName: p.project_name,
+                currencyCode: p.currency ?? null,
+              };
+            }),
           );
         } else {
           console.error('[Handovers] projRes not ok:', { status: projRes.status });
           const text = await projRes.text();
           console.error('[Handovers] Response body:', text.substring(0, 500));
+          setProjects([]); // Set empty array on error
         }
         
         if (brandRes.ok) setBrands(await brandRes.json());
