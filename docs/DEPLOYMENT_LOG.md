@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-08 Deployment #334
+- Commit: 27cb254
+- Production: https://ice-cdd30fcb1-iceerp.vercel.app
+- Summary: Switch waybills table to client-side filtering and pagination for performance parity with payments report.
+- Changes:
+  - components/figma/waybills-table.tsx: Implement bulk data fetching (limit 10000) instead of per-page requests, client-side pagination for instant navigation, in-memory facet generation instead of 26+ parallel DB queries, removed TanStack React Table dependency, matches payments-report performance pattern.
+
 ## 2026-06-07 Deployment #333
 - Commit: f8d0296
 - Production: https://ice-lj39zxfen-iceerp.vercel.app
