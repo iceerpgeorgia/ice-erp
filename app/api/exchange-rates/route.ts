@@ -48,6 +48,12 @@ export async function GET(req: NextRequest) {
     // If specific date and currency requested
     if (dateParam && currencyParam) {
       const date = new Date(`${dateParam}T00:00:00Z`);
+      if (isNaN(date.getTime())) {
+        return NextResponse.json(
+          { error: `Invalid date format: ${dateParam}. Use YYYY-MM-DD format.` },
+          { status: 400 }
+        );
+      }
       const currency = currencyParam.toUpperCase();
       const rate = await lookupRateOnOrBefore(date);
 
@@ -89,6 +95,12 @@ export async function GET(req: NextRequest) {
 
     if (dateParam) {
       const date = new Date(`${dateParam}T00:00:00Z`);
+      if (isNaN(date.getTime())) {
+        return NextResponse.json(
+          { error: `Invalid date format: ${dateParam}. Use YYYY-MM-DD format.` },
+          { status: 400 }
+        );
+      }
       const rate = await lookupRateOnOrBefore(date);
 
       if (!rate) {
@@ -118,6 +130,13 @@ export async function GET(req: NextRequest) {
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
+      
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return NextResponse.json(
+          { error: `Invalid date format. Use ISO 8601 format (YYYY-MM-DD).` },
+          { status: 400 }
+        );
+      }
 
       const rates = await prisma.nbg_exchange_rates.findMany({
         where: {
