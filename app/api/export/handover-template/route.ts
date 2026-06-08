@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
 import fs from 'fs';
 import path from 'path';
+import { prisma } from '@/lib/prisma';
 
 /**
  * POST /api/export/handover-template
@@ -16,6 +17,7 @@ export async function POST(req: NextRequest) {
       counteragentInfo,
       companyName,
       fileName,
+      projectUuid,
     } = body;
 
     if (!Array.isArray(jobsData) || !certificateDate || !fileName) {
@@ -23,6 +25,41 @@ export async function POST(req: NextRequest) {
         { error: 'Missing required fields: jobsData, certificateDate, fileName' },
         { status: 400 }
       );
+    }
+
+    // Fetch project data if projectUuid provided
+    let projectData: any = {};
+    let counteragentData: any = {};
+    let insiderData: any = {};
+
+    if (projectUuid) {
+      try {
+        const project = await prisma.projects.findUnique({
+          where: { project_uuid: projectUuid },
+        });
+
+        if (project) {
+          projectData = project;
+
+          // Fetch counteragent
+          if (project.counteragent_uuid) {
+            const ca = await prisma.counteragents.findUnique({
+              where: { counteragent_uuid: project.counteragent_uuid },
+            });
+            if (ca) counteragentData = ca;
+          }
+
+          // Fetch insider
+          if (project.insider_uuid) {
+            const insider = await prisma.counteragents.findUnique({
+              where: { counteragent_uuid: project.insider_uuid },
+            });
+            if (insider) insiderData = insider;
+          }
+        }
+      } catch (error) {
+        console.warn('[Export Handover] Failed to fetch project data:', error);
+      }
     }
 
     // Load template
@@ -71,7 +108,44 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================
-    // 3. Populate or update Jobs sheet
+    // 3. Populate Placeholders sheet
+    // ============================================
+    let placeholdersSheet = workbook.Sheets['Placeholders'];
+    if (placeholdersSheet) {
+      const placeholders = [
+        { col: 'B', row: 1, key: 'Project_Department', value: projectData.department || '' },
+        { col: 'B', row: 2, key: 'Handover_Date', value: certificateDate },
+        { col: 'B', row: 3, key: 'Project_Counteragent_Entity_Type', value: counteragentData.entity_type || '' },
+        { col: 'B', row: 4, key: 'Project_Counteragent_Name', value: counteragentData.name || '' },
+        // Row 5: Project_Counteragent_Director_Genitive - SKIP (has formula)
+        { col: 'B', row: 6, key: 'Project_Counteragent_Director', value: counteragentData.director || '' },
+        { col: 'B', row: 7, key: 'Project_Counteragent_Address_Line_1', value: counteragentData.address_line_1 || '' },
+        { col: 'B', row: 8, key: 'Project_Counteragent_Address_Line_2', value: counteragentData.address_line_2 || '' },
+        { col: 'B', row: 9, key: 'Project_Counteragent_ID', value: counteragentData.identification_number || '' },
+        { col: 'B', row: 10, key: 'Project_Address', value: projectData.address || '' },
+        { col: 'B', row: 11, key: 'Project_Insider_Entity_Type', value: insiderData.entity_type || '' },
+        { col: 'B', row: 12, key: 'Project_Insider_Name', value: insiderData.name || insiderData.insider_name || '' },
+        { col: 'B', row: 13, key: 'Project_Insider_ID', value: insiderData.identification_number || '' },
+        { col: 'B', row: 14, key: 'Project_Insider_Address_Line1', value: insiderData.address_line_1 || '' },
+        { col: 'B', row: 15, key: 'Project_Insider_Address_Line2', value: insiderData.address_line_2 || '' },
+        // Row 16: Project_Insider_Director_Genitive - SKIP (has formula)
+        { col: 'B', row: 17, key: 'Project_Insider_Director_Normative', value: insiderData.director || '' },
+        // Row 18: Contract_Date - SKIP (leave blank)
+        { col: 'B', row: 19, key: 'Project_Currency', value: projectData.currency || '' },
+      ];
+
+      placeholders.forEach(ph => {
+        const cellRef = `${ph.col}${ph.row}`;
+        if (!placeholdersSheet[cellRef]) {
+          placeholdersSheet[cellRef] = {};
+        }
+        placeholdersSheet[cellRef].v = ph.value;
+        placeholdersSheet[cellRef].t = 's';
+      });
+    }
+
+    // ============================================
+    // 4. Populate or update Jobs sheet
     // ============================================
     let jobsSheet = workbook.Sheets['Jobs'];
     if (!jobsSheet) {
@@ -150,7 +224,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================
-    // 4. Export to buffer
+    // 5. Export to buffer
     // ============================================
     const outputBuffer = XLSX.write(workbook, {
       bookType: 'xlsx',
@@ -158,7 +232,7 @@ export async function POST(req: NextRequest) {
     }) as Buffer;
 
     // ============================================
-    // 5. Return file
+    // 6. Return file
     // ============================================
     const uint8Array = new Uint8Array(outputBuffer);
     const response = new NextResponse(uint8Array, {

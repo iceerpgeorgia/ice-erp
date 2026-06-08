@@ -768,6 +768,7 @@ export function HandoversTable() {
           counteragentInfo,
           companyName,
           fileName,
+          projectUuid: selectedProjectUuid,
         }),
       });
 
@@ -795,7 +796,7 @@ export function HandoversTable() {
       console.log('[Handovers Export] Falling back to programmatic export');
       handleGlobalExportLegacy();
     }
-  }, [sortedJobs, selectedProject]);
+  }, [sortedJobs, selectedProject, selectedProjectUuid]);
 
   // ── Legacy Export (Fallback) ───────────────────────────────────────────────
   const handleGlobalExportLegacy = useCallback(() => {
