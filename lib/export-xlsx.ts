@@ -223,8 +223,26 @@ export function exportMultiSheetsToXlsx<T extends Record<string, any>>({
     const header = visibleColumns.map((col) => col.label);
     const dataRows = rows.map((row) =>
       visibleColumns.map((col) => {
-        const value = row[col.key];
-        if (value === null || value === undefined) return '';
+        let value = row[col.key];
+        
+        // Handle missing or null/undefined values
+        if (value === undefined) {
+          // If key doesn't exist on row, try to return 0 for numeric columns, else empty string
+          if (col.format === 'currency' || col.format === 'number' || col.format === 'percent') {
+            value = 0;
+          } else {
+            return '';
+          }
+        }
+        
+        if (value === null) {
+          if (col.format === 'currency' || col.format === 'number' || col.format === 'percent') {
+            value = 0;
+          } else {
+            return '';
+          }
+        }
+        
         if (typeof value === 'boolean') return value ? 'Yes' : 'No';
 
         if (col.format === 'date') {
