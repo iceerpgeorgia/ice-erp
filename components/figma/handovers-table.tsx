@@ -286,13 +286,22 @@ export function HandoversTable() {
   useEffect(() => {
     (async () => {
       try {
+        console.log('[Handovers] Starting initial data fetch...');
         const [projRes, brandRes, insiderRes] = await Promise.all([
           fetch('/api/projects-v2', { credentials: 'include' }),
           fetch('/api/brands', { credentials: 'include' }),
           fetch('/api/insider-selection', { cache: 'no-store', credentials: 'include' }),
         ]);
+        
+        console.log('[Handovers] API responses:', { 
+          projRes: { ok: projRes.ok, status: projRes.status },
+          brandRes: { ok: brandRes.ok, status: brandRes.status },
+          insiderRes: { ok: insiderRes.ok, status: insiderRes.status }
+        });
+        
         if (projRes.ok) {
           const data = await projRes.json();
+          console.log('[Handovers] Projects fetched:', { count: data?.length, firstProject: data?.[0] });
           setProjects(
             data.map((p: any) => ({
               projectUuid: p.project_uuid,
@@ -301,10 +310,18 @@ export function HandoversTable() {
               currencyCode: p.currency ?? null,
             })),
           );
+        } else {
+          console.error('[Handovers] projRes not ok:', { status: projRes.status });
+          const text = await projRes.text();
+          console.error('[Handovers] Response body:', text.substring(0, 500));
         }
+        
         if (brandRes.ok) setBrands(await brandRes.json());
+        else console.error('[Handovers] brandRes not ok:', { status: brandRes.status });
+        
         if (insiderRes.ok) {
           const data = await insiderRes.json();
+          console.log('[Handovers] Insider data fetched:', data);
           const selectedUuids: string[] = Array.isArray(data?.selectedUuids) ? data.selectedUuids : [];
           const options: any[] = Array.isArray(data?.options) ? data.options : [];
           const selectedInsiders: any[] = Array.isArray(data?.selectedInsiders) ? data.selectedInsiders : [];
@@ -314,9 +331,12 @@ export function HandoversTable() {
           }));
           setSelectedInsiderUuids(selectedUuids);
           setInsidersList(list);
+        } else {
+          console.error('[Handovers] insiderRes not ok:', { status: insiderRes.status });
         }
       } catch (e) {
         console.error('Failed to fetch initial data:', e);
+        console.error('[Handovers] Error details:', { message: e instanceof Error ? e.message : String(e) });
       } finally {
         setLoadingProjects(false);
       }
