@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-06-08 Deployment #337
+- Commit: a417446
+- Production: https://ice-rnvapbeks-iceerp.vercel.app
+- Summary: Implement template-based handover export with FILTER formulas and placeholder injection.
+- Changes:
+  - app/api/export/handover-template/route.ts: New server-side API endpoint that loads handover template from public folder, populates placeholders (certificate date in V3, counteragent in C6, company in H69), updates Jobs sheet with filtered job data, and exports complete workbook with all 4 sheets (Handover, Jobs, Income Payments, Job Distributions) with FILTER formulas intact.
+  - components/figma/handovers-table.tsx: Updated handleGlobalExport to call new template-based API endpoint instead of client-side export utility, passes job data and placeholder values to server for processing.
+  - public/handover template.xlsx: Moved template file from project root to public folder and updated XLSX read options to preserve all sheets and formulas during read/write cycle.
+
 ## 2026-06-08 Deployment #336
 - Commit: 5dba868
 - Production: https://ice-gjxpzcgks-iceerp.vercel.app
