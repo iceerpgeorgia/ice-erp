@@ -675,18 +675,20 @@ export function WaybillsTable() {
     const fetchAllWaybills = async () => {
       setLoading(true);
       try {
-        // Request all waybills in one go (high limit) - do server-side filtering only once
-        const params = new URLSearchParams();
-        if (appliedSearch.trim()) params.set('search', appliedSearch.trim());
-        if (periodFrom) params.set('periodFrom', periodFrom);
-        if (periodTo) params.set('periodTo', periodTo);
-        params.set('limit', '10000'); // Fetch up to 10k records
-        params.set('offset', '0');
-        params.set('includeFacets', 'false'); // Don't waste time on facets
-        if (showMissingCounteragents) params.set('missingCounteragents', 'true');
-        if (sortColumn) params.set('sortColumn', sortColumn);
-        if (sortDirection) params.set('sortDirection', sortDirection);
-        
+        // Build request parameters
+        const requestParams = {
+          limit: 10000,
+          offset: 0,
+          includeFacets: false,
+          ...(appliedSearch.trim() && { search: appliedSearch.trim() }),
+          ...(periodFrom && { periodFrom }),
+          ...(periodTo && { periodTo }),
+          ...(showMissingCounteragents && { missingCounteragents: true }),
+          ...(sortColumn && { sortColumn }),
+          ...(sortDirection && { sortDirection }),
+        };
+
+        // Serialize filters
         const serializedFilters = columnFilters.reduce<Array<[string, any[]]>>((acc: Array<[string, any[]]>, filter: { id: string; value: any[] }) => {
           if (typeof filter.id !== 'string' || !Array.isArray(filter.value)) return acc;
           const selectedValues = filter.value.map((v: any) => v === BLANK_FACET_TOKEN ? '' : (v === null || v === undefined ? '' : v));
@@ -696,7 +698,7 @@ export function WaybillsTable() {
         }, []);
         
         if (serializedFilters.length > 0) {
-          params.set('filters', JSON.stringify(serializedFilters));
+          (requestParams as any).filters = serializedFilters;
         }
         
         if (advancedFilters.size > 0) {
@@ -704,10 +706,33 @@ export function WaybillsTable() {
           advancedFilters.forEach((filter, key) => {
             advancedArr.push([key, filter]);
           });
-          params.set('advancedFilters', JSON.stringify(advancedArr));
+          (requestParams as any).advancedFilters = advancedArr;
         }
 
-        const res = await fetch(`/api/waybills?${params.toString()}`);
+        // Check if URL would exceed typical browser limits (~2000 chars); use POST for large payloads
+        const queryString = new URLSearchParams();
+        Object.entries(requestParams).forEach(([key, value]) => {
+          if (value === undefined || value === null) return;
+          if (typeof value === 'boolean') queryString.set(key, String(value));
+          else if (typeof value === 'number') queryString.set(key, String(value));
+          else if (typeof value === 'string') queryString.set(key, value);
+          else queryString.set(key, JSON.stringify(value));
+        });
+
+        const urlLength = `/api/waybills?${queryString.toString()}`.length;
+        const usePost = urlLength > 2000;
+
+        let res;
+        if (usePost) {
+          res = await fetch('/api/waybills', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestParams),
+          });
+        } else {
+          res = await fetch(`/api/waybills?${queryString.toString()}`);
+        }
+
         const body = await res.json();
         setData(body.data || []);
         setTotal(body.total || 0);

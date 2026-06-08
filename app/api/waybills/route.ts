@@ -639,6 +639,44 @@ export async function GET(req: NextRequest) {
   }
 }
 
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    
+    // Build query parameters from body to reuse GET handler logic
+    const params = new URLSearchParams();
+    
+    if (body.limit !== undefined) params.set('limit', String(body.limit));
+    if (body.offset !== undefined) params.set('offset', String(body.offset));
+    if (body.search) params.set('search', body.search);
+    if (body.includeFacets !== undefined) params.set('includeFacets', String(body.includeFacets));
+    if (body.sortColumn) params.set('sortColumn', body.sortColumn);
+    if (body.sortDirection) params.set('sortDirection', body.sortDirection);
+    if (body.periodFrom) params.set('periodFrom', body.periodFrom);
+    if (body.periodTo) params.set('periodTo', body.periodTo);
+    if (body.missingCounteragents !== undefined) params.set('missingCounteragents', String(body.missingCounteragents));
+    if (body.exportAll !== undefined) params.set('exportAll', String(body.exportAll));
+    if (body.filters) params.set('filters', JSON.stringify(body.filters));
+    if (body.advancedFilters) params.set('advancedFilters', JSON.stringify(body.advancedFilters));
+    
+    // Create a GET request with query parameters to avoid URL length limits
+    const url = new URL(req.url);
+    url.search = params.toString();
+    const getRequest = new NextRequest(url, { 
+      method: 'GET',
+      headers: req.headers,
+    });
+    
+    return GET(getRequest);
+  } catch (error: any) {
+    console.error('[POST /api/waybills] Error:', error);
+    return NextResponse.json(
+      { error: error?.message || 'Failed to fetch waybills' },
+      { status: 400 }
+    );
+  }
+}
+
 const allowedUpdateFields = new Set([
   'project_uuid',
   'financial_code_uuid',
