@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   ArrowUpDown,
   ArrowUp,
@@ -188,7 +188,7 @@ export function HandoversTable() {
     maximumFractionDigits: 2,
   });
 
-  const rateCache = useMemo(() => new Map<string, number | null>(), []);
+  const rateCacheRef = useRef<Map<string, number | null>>(new Map());
 
   const lookupNbgRate = useCallback(async (date: string | null, currencyCode: string | null) => {
     const normalizedCurrency = currencyCode ? currencyCode.toUpperCase() : null;
@@ -196,25 +196,31 @@ export function HandoversTable() {
     if (normalizedCurrency === 'GEL') return 1;
 
     const cacheKey = `${date}|${normalizedCurrency}`;
-    if (rateCache.has(cacheKey)) {
-      return rateCache.get(cacheKey) ?? null;
+    if (rateCacheRef.current.has(cacheKey)) {
+      return rateCacheRef.current.get(cacheKey) ?? null;
     }
 
-    const res = await fetch(
-      `/api/exchange-rates?date=${encodeURIComponent(date)}&currency=${encodeURIComponent(normalizedCurrency)}`,
-      { cache: 'no-store' },
-    );
+    try {
+      const res = await fetch(
+        `/api/exchange-rates?date=${encodeURIComponent(date)}&currency=${encodeURIComponent(normalizedCurrency)}`,
+      );
 
-    if (!res.ok) {
+      if (!res.ok) {
+        rateCacheRef.current.set(cacheKey, null);
+        return null;
+      }
+
+      const data = await res.json().catch(() => null);
+      const rate = Number(data?.rate);
+      const normalizedRate = Number.isFinite(rate) && rate > 0 ? rate : null;
+      rateCacheRef.current.set(cacheKey, normalizedRate);
+      return normalizedRate;
+    } catch (e) {
+      console.error(`[Handovers] Failed to fetch rate for ${date} ${normalizedCurrency}:`, e);
+      rateCacheRef.current.set(cacheKey, null);
       return null;
     }
-
-    const data = await res.json().catch(() => null);
-    const rate = Number(data?.rate);
-    const normalizedRate = Number.isFinite(rate) && rate > 0 ? rate : null;
-    rateCache.set(cacheKey, normalizedRate);
-    return normalizedRate;
-  }, [rateCache]);
+  }, []);
 
   // ── useTableFilters ───────────────────────────────────────────────────────
   const {
