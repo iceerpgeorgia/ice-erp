@@ -203,6 +203,7 @@ export function HandoversTable() {
     try {
       const res = await fetch(
         `/api/exchange-rates?date=${encodeURIComponent(date)}&currency=${encodeURIComponent(normalizedCurrency)}`,
+        { credentials: 'include' }
       );
 
       if (!res.ok) {
@@ -286,9 +287,9 @@ export function HandoversTable() {
     (async () => {
       try {
         const [projRes, brandRes, insiderRes] = await Promise.all([
-          fetch('/api/projects-v2'),
-          fetch('/api/brands'),
-          fetch('/api/insider-selection', { cache: 'no-store' }),
+          fetch('/api/projects-v2', { credentials: 'include' }),
+          fetch('/api/brands', { credentials: 'include' }),
+          fetch('/api/insider-selection', { cache: 'no-store', credentials: 'include' }),
         ]);
         if (projRes.ok) {
           const data = await projRes.json();
@@ -331,7 +332,7 @@ export function HandoversTable() {
     }
     setLoadingJobs(true);
     try {
-      const res = await fetch(`/api/jobs?projectUuid=${encodeURIComponent(projectUuid)}`);
+      const res = await fetch(`/api/jobs?projectUuid=${encodeURIComponent(projectUuid)}`, { credentials: 'include' });
       if (res.ok) {
         const data: any[] = await res.json();
         const jobUuids = data.map((j: any) => j.jobUuid).filter(Boolean);
@@ -339,14 +340,14 @@ export function HandoversTable() {
         // Bulk-fetch lift cert info, attachment counts, distributions, bank transactions, and income payments in parallel
         const [countRes, liftRes, paymentsRes, distRes, bankTxRes] = await Promise.all([
           jobUuids.length > 0
-            ? fetch(`/api/jobs/attachments?countsOnly=1&jobUuids=${encodeURIComponent(jobUuids.join(','))}`)
+            ? fetch(`/api/jobs/attachments?countsOnly=1&jobUuids=${encodeURIComponent(jobUuids.join(','))}`, { credentials: 'include' })
             : Promise.resolve(null),
           jobUuids.length > 0
-            ? fetch(`/api/jobs/attachments?liftCertInfo=1&jobUuids=${encodeURIComponent(jobUuids.join(','))}`)
+            ? fetch(`/api/jobs/attachments?liftCertInfo=1&jobUuids=${encodeURIComponent(jobUuids.join(','))}`, { credentials: 'include' })
             : Promise.resolve(null),
-          fetch(`/api/payments-report?projectUuid=${encodeURIComponent(projectUuid)}`),
-          fetch(`/api/payments-jobs?project_uuid=${encodeURIComponent(projectUuid)}`),
-          fetch(`/api/bank-transactions?project_uuid=${encodeURIComponent(projectUuid)}&limit=0`),
+          fetch(`/api/payments-report?projectUuid=${encodeURIComponent(projectUuid)}`, { credentials: 'include' }),
+          fetch(`/api/payments-jobs?project_uuid=${encodeURIComponent(projectUuid)}`, { credentials: 'include' }),
+          fetch(`/api/bank-transactions?project_uuid=${encodeURIComponent(projectUuid)}&limit=0`, { credentials: 'include' }),
         ]);
 
         const countsMap: Record<string, number> = countRes?.ok ? (await countRes.json()).counts ?? {} : {};
@@ -610,7 +611,7 @@ export function HandoversTable() {
   const handleEdit = async () => {
     if (!editingJob) return;
     try {
-      const res = await fetch('/api/jobs', {
+      const res = await fetch('/api/jobs', { credentials: 'include',
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
