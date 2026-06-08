@@ -253,9 +253,12 @@ function buildDistributionExportRows(
     }
 
     distributions.forEach((dist) => {
-      const exportRowNumber = exportRows.length + 2;
-      const distributedAmount = `=E${exportRowNumber}*P${exportRowNumber}`;
-      const distributedAmountAccountCurr = `=D${exportRowNumber}*P${exportRowNumber}`;
+      // Calculate distributed amounts
+      const allocationPercent = Number(dist.percentage ?? 0) / 100;
+      const nominalAmount = Number(row.nominal_amount ?? 0);
+      const amount = Number(row.account_currency_amount ?? 0);
+      const distributedAmount = nominalAmount * allocationPercent;
+      const distributedAmountAccountCurr = amount * allocationPercent;
 
       exportRows.push({
         date: row.transaction_date ?? '',
