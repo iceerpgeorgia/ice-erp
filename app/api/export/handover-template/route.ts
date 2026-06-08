@@ -1,0 +1,196 @@
+import { NextRequest, NextResponse } from 'next/server';
+import * as XLSX from 'xlsx';
+import fs from 'fs';
+import path from 'path';
+
+/**
+ * POST /api/export/handover-template
+ * Exports handover document using template-based approach
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const {
+      jobsData,
+      certificateDate,
+      counteragentInfo,
+      companyName,
+      fileName,
+    } = body;
+
+    if (!Array.isArray(jobsData) || !certificateDate || !fileName) {
+      return NextResponse.json(
+        { error: 'Missing required fields: jobsData, certificateDate, fileName' },
+        { status: 400 }
+      );
+    }
+
+    // Load template
+    const templatePath = path.join(process.cwd(), 'public', 'handover template.xlsx');
+    if (!fs.existsSync(templatePath)) {
+      return NextResponse.json(
+        { error: `Handover template not found at ${templatePath}` },
+        { status: 404 }
+      );
+    }
+
+    const templateBuffer = fs.readFileSync(templatePath);
+    const workbook = XLSX.read(templateBuffer, { cellFormula: true });
+
+    // Get the Handover sheet
+    const handoverSheet = workbook.Sheets['Handover'];
+    if (!handoverSheet) {
+      return NextResponse.json(
+        { error: 'Handover sheet not found in template' },
+        { status: 400 }
+      );
+    }
+
+    // ============================================
+    // 1. Set certificate date in V3
+    // ============================================
+    const certDate = new Date(certificateDate);
+    const excelDateSerial = dateToExcelSerial(certDate);
+    if (!handoverSheet['V3']) {
+      handoverSheet['V3'] = {};
+    }
+    handoverSheet['V3'].v = excelDateSerial;
+    handoverSheet['V3'].t = 'n';
+
+    // ============================================
+    // 2. Replace placeholder text in Handover sheet
+    // ============================================
+    if (handoverSheet['C6']) {
+      handoverSheet['C6'].v = counteragentInfo || 'შ.პ.ს აკმე ელვატორი';
+      handoverSheet['C6'].t = 's';
+    }
+
+    if (handoverSheet['H69']) {
+      handoverSheet['H69'].v = companyName || 'შპს აი-სი-ი';
+      handoverSheet['H69'].t = 's';
+    }
+
+    // ============================================
+    // 3. Populate or update Jobs sheet
+    // ============================================
+    let jobsSheet = workbook.Sheets['Jobs'];
+    if (!jobsSheet) {
+      jobsSheet = {};
+      workbook.SheetNames.push('Jobs');
+      workbook.Sheets['Jobs'] = jobsSheet;
+    }
+
+    // Add headers if they don't exist
+    const headers = ['Counteragent ID', 'Factory No', 'Manufacturer', 'Floors', 'Weight', 'Nominal', '', '', '', '', 'GEL Amount', '', 'Date', 'Cert No'];
+    for (let i = 0; i < headers.length; i++) {
+      const colLetter = String.fromCharCode(65 + i);
+      if (!jobsSheet[`${colLetter}1`]) {
+        jobsSheet[`${colLetter}1`] = { v: headers[i], t: 's' };
+      }
+    }
+
+    // Clear existing job data (rows > 1)
+    const cellsToDelete = Object.keys(jobsSheet).filter((key) => {
+      if (key === '!ref' || key === '!merges' || key.startsWith('!')) return false;
+      const match = key.match(/\d+$/);
+      const rowNum = parseInt(match ? match[0] : '0');
+      return rowNum > 1;
+    });
+    cellsToDelete.forEach((key) => {
+      delete jobsSheet[key];
+    });
+
+    // Populate job data rows starting from row 2
+    jobsData.forEach((job, index) => {
+      const rowNum = index + 2;
+
+      if (job.counteragentId) {
+        jobsSheet[`A${rowNum}`] = { v: job.counteragentId, t: 's' };
+      }
+
+      if (job.factoryNo) {
+        jobsSheet[`B${rowNum}`] = { v: job.factoryNo, t: 's' };
+      }
+
+      if (job.manufacturerName) {
+        jobsSheet[`C${rowNum}`] = { v: job.manufacturerName, t: 's' };
+      }
+
+      if (job.floors !== undefined && job.floors !== null) {
+        jobsSheet[`D${rowNum}`] = { v: job.floors, t: 'n' };
+      }
+
+      if (job.weight !== undefined && job.weight !== null) {
+        jobsSheet[`E${rowNum}`] = { v: Number(job.weight), t: 'n' };
+      }
+
+      if (job.nominalAmount !== undefined && job.nominalAmount !== null) {
+        jobsSheet[`F${rowNum}`] = { v: Number(job.nominalAmount), t: 'n', z: '#,##0.00' };
+      }
+
+      if (job.gelAmount !== undefined && job.gelAmount !== null) {
+        jobsSheet[`K${rowNum}`] = { v: Number(job.gelAmount), t: 'n', z: '#,##0.00' };
+      }
+
+      if (job.liftCertDate) {
+        const jobCertDateSerial = dateToExcelSerial(
+          typeof job.liftCertDate === 'string' ? new Date(job.liftCertDate) : new Date(job.liftCertDate)
+        );
+        jobsSheet[`M${rowNum}`] = { v: jobCertDateSerial, t: 'n' };
+      }
+
+      if (job.certificateNo) {
+        jobsSheet[`N${rowNum}`] = { v: job.certificateNo, t: 's' };
+      }
+    });
+
+    // Update sheet dimensions
+    if (jobsData.length > 0) {
+      jobsSheet['!ref'] = `A1:N${jobsData.length + 1}`;
+    }
+
+    // ============================================
+    // 4. Export to buffer
+    // ============================================
+    const outputBuffer = XLSX.write(workbook, {
+      bookType: 'xlsx',
+      type: 'buffer',
+    }) as Buffer;
+
+    // ============================================
+    // 5. Return file
+    // ============================================
+    const uint8Array = new Uint8Array(outputBuffer);
+    const response = new NextResponse(uint8Array, {
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Length': outputBuffer.length.toString(),
+      },
+    });
+
+    return response;
+  } catch (error) {
+    console.error('[Export Handover] Error:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Export failed' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Convert JavaScript Date to Excel serial number
+ */
+function dateToExcelSerial(date: Date): number {
+  const excelEpoch = new Date(1900, 0, 1).getTime();
+  const dateTime = date.getTime();
+  const daysDiff = Math.floor((dateTime - excelEpoch) / (24 * 60 * 60 * 1000));
+  const serial = daysDiff + 1;
+
+  if (serial > 60) {
+    return serial + 1;
+  }
+
+  return serial;
+}
