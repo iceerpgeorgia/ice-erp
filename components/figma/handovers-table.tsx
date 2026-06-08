@@ -195,14 +195,17 @@ export function HandoversTable() {
     if (!date || !normalizedCurrency) return null;
     if (normalizedCurrency === 'GEL') return 1;
 
-    const cacheKey = `${date}|${normalizedCurrency}`;
+    // Extract just the date part (YYYY-MM-DD) from ISO date strings like "2026-05-27T00:00:00.000Z"
+    const dateOnly = date.split('T')[0];
+
+    const cacheKey = `${dateOnly}|${normalizedCurrency}`;
     if (rateCacheRef.current.has(cacheKey)) {
       return rateCacheRef.current.get(cacheKey) ?? null;
     }
 
     try {
       const res = await fetch(
-        `/api/exchange-rates?date=${encodeURIComponent(date)}&currency=${encodeURIComponent(normalizedCurrency)}`,
+        `/api/exchange-rates?date=${encodeURIComponent(dateOnly)}&currency=${encodeURIComponent(normalizedCurrency)}`,
         { credentials: 'include' }
       );
 
@@ -217,7 +220,7 @@ export function HandoversTable() {
       rateCacheRef.current.set(cacheKey, normalizedRate);
       return normalizedRate;
     } catch (e) {
-      console.error(`[Handovers] Failed to fetch rate for ${date} ${normalizedCurrency}:`, e);
+      console.error(`[Handovers] Failed to fetch rate for ${dateOnly} ${normalizedCurrency}:`, e);
       rateCacheRef.current.set(cacheKey, null);
       return null;
     }
