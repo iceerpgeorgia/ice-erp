@@ -492,15 +492,23 @@ export function HandoversTable() {
             debitNominal: (job.sellingPrice != null ? Number(job.sellingPrice) : 0) - (paidNominalByJob.get(String(job.jobUuid)) ?? 0),
             debitGel: (() => {
               const certDate = liftCertMap[job.jobUuid]?.date ?? null;
-              const rate = certDate ? rateByDate.get(certDate) ?? null : null;
+              if (!certDate) return null;
+              const rate = rateByDate.get(certDate) ?? null;
+              if (rate == null) return null;
               const debitNominal = (job.sellingPrice != null ? Number(job.sellingPrice) : 0) - (paidNominalByJob.get(String(job.jobUuid)) ?? 0);
-              return rate != null ? debitNominal * rate : null;
+              return Number((debitNominal * rate).toFixed(2));
             })(),
             totalGel: (() => {
               const certDate = liftCertMap[job.jobUuid]?.date ?? null;
-              const rate = certDate ? rateByDate.get(certDate) ?? null : null;
-              const nominal = job.sellingPrice != null ? Number(job.sellingPrice) : 0;
-              return rate != null ? nominal * rate : null;
+              if (!certDate) return null;
+              const paidGel = paidGelByJob.get(String(job.jobUuid)) ?? 0;
+              // Calculate debitGel for totalGel computation
+              const rate = rateByDate.get(certDate) ?? null;
+              if (rate == null) return null;
+              const debitNominal = (job.sellingPrice != null ? Number(job.sellingPrice) : 0) - (paidNominalByJob.get(String(job.jobUuid)) ?? 0);
+              const debitGel = Number((debitNominal * rate).toFixed(2));
+              // Total GEL = Paid GEL + Debit GEL (when cert date exists)
+              return Number((paidGel + debitGel).toFixed(2));
             })(),
             _rowKey: String(job.jobUuid ?? idx),
           })),
