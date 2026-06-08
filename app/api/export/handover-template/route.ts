@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     }
 
     const templateBuffer = fs.readFileSync(templatePath);
-    const workbook = XLSX.read(templateBuffer, { cellFormula: true });
+    const workbook = XLSX.read(templateBuffer, { cellFormula: false, cellNF: false, cellStyles: true });
 
     // Get the Handover sheet
     const handoverSheet = workbook.Sheets['Handover'];
