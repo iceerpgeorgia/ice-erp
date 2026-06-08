@@ -254,8 +254,8 @@ function buildDistributionExportRows(
 
     distributions.forEach((dist) => {
       const exportRowNumber = exportRows.length + 2;
-      const distributedAmount = `=B${exportRowNumber}*N${exportRowNumber}`;
-      const distributedAmountAccountCurr = `=D${exportRowNumber}*N${exportRowNumber}`;
+      const distributedAmount = `=E${exportRowNumber}*P${exportRowNumber}`;
+      const distributedAmountAccountCurr = `=D${exportRowNumber}*P${exportRowNumber}`;
 
       exportRows.push({
         date: row.transaction_date ?? '',
