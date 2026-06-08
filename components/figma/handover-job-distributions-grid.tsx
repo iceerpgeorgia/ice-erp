@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -14,14 +14,13 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Download,
 } from 'lucide-react';
 import { JobDistributionGrid, type JobDistributionRow } from './job-distribution-grid';
 import { ColumnFilterPopover } from './shared/column-filter-popover';
 import { ClearFiltersButton } from './shared/clear-filters-button';
 import type { ColumnFilter, FilterState } from './shared/table-filters';
 import type { ColumnFormat } from './shared/table-filters';
-import { exportRowsToXlsx } from '@/lib/export-xlsx';
+
 import {
   buildPaymentLookupMaps,
   resolvePaymentInfo,
@@ -81,6 +80,21 @@ type PaymentMapEntry = PaymentLookupEntry;
 
 type Props = {
   projectUuid: string;
+};
+
+export type HandoverJobDistributionsGridHandle = {
+  getExportData: () => {
+    rows: Record<string, any>[];
+    columns: ExportColumn[];
+    sheetName: string;
+  } | null;
+};
+
+type ExportColumn = {
+  key: string;
+  label: string;
+  visible?: boolean;
+  format?: string;
 };
 
 // ── Column definitions ────────────────────────────────────────────────────────
@@ -269,7 +283,7 @@ function buildDistributionExportRows(
   return exportRows;
 }
 
-export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
+export const HandoverJobDistributionsGrid = forwardRef<HandoverJobDistributionsGridHandle, Props>(function HandoverJobDistributionsGrid({ projectUuid }, ref) {
   // ── Data ──────────────────────────────────────────────────────────────────
   const [transactions, setTransactions] = useState<BankTransactionRow[]>([]);
   const [paymentMap, setPaymentMap] = useState<Map<string, PaymentMapEntry>>(new Map());
@@ -601,35 +615,40 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
     };
   }, [sortedData]);
 
-  const handleExportXlsx = useCallback(() => {
-    if (!sortedData.length) return;
+  // ── Export handle (exposed to parent via forwardRef) ──────────────────────
+  useImperativeHandle(ref, () => ({
+    getExportData: () => {
+      if (!sortedData.length) return null;
 
-    const exportColumns = visibleColumns
-      .filter(column => column.key !== 'actions')
-      .map(column => ({
-        key: exportKeyMap[column.key],
-        label: column.label,
-        visible: true,
-        format: column.format,
-      }));
+      const exportColumns = visibleColumns
+        .filter(column => column.key !== 'actions')
+        .map(column => ({
+          key: exportKeyMap[column.key],
+          label: column.label,
+          visible: true,
+          format: column.format,
+        }));
 
-    const exportRows = buildDistributionExportRows(sortedData, paymentMap, paymentIdMap, distributionMap);
+      const exportRows = buildDistributionExportRows(sortedData, paymentMap, paymentIdMap, distributionMap);
 
-    exportRowsToXlsx({
-      rows: exportRows,
-      columns: [
-        ...exportColumns,
-        { key: 'jobName', label: 'Job Name', visible: true },
-        { key: 'factoryNo', label: 'Factory No', visible: true },
-        { key: 'sellingPrice', label: 'Selling Price', visible: true, format: 'currency' },
-        { key: 'allocationPercent', label: 'Allocation %', visible: true, format: 'percent' },
-        { key: 'distributedAmount', label: 'Distributed Amount', visible: true, format: 'currency' },
-        { key: 'distributedAmountAccountCurr', label: 'Distributed Amount (Account Curr)', visible: true, format: 'currency' },
-      ],
-      fileName: `job-distributions-${new Date().toISOString().slice(0, 10)}.xlsx`,
-      sheetName: 'Job Distributions',
-    });
-  }, [distributionMap, paymentIdMap, paymentMap, sortedData, visibleColumns]);
+      return {
+        rows: exportRows,
+        columns: [
+          ...exportColumns,
+          { key: 'jobName', label: 'Job Name', visible: true },
+          { key: 'factoryNo', label: 'Factory No', visible: true },
+          { key: 'sellingPrice', label: 'Selling Price', visible: true, format: 'currency' },
+          { key: 'allocationPercent', label: 'Allocation %', visible: true, format: 'percent' },
+          { key: 'distributedAmount', label: 'Distributed Amount', visible: true, format: 'currency' },
+          { key: 'distributedAmountAccountCurr', label: 'Distributed Amount (Account Curr)', visible: true, format: 'currency' },
+        ],
+        sheetName: 'Job Distributions',
+      };
+    },
+  }), [distributionMap, paymentIdMap, paymentMap, sortedData, visibleColumns]);
+
+  // Export functionality moved to parent HandoversTable for global XLSX export
+  // This component now exposes data via props callback if needed
 
   if (!projectUuid) {
     return (
@@ -689,15 +708,7 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
           </PopoverContent>
         </Popover>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExportXlsx}
-          disabled={loading || sortedData.length === 0}
-          title="Export job distributions to XLSX"
-        >
-          <Download className="h-4 w-4" />
-        </Button>
+
 
         <Button
           variant="outline"
@@ -955,4 +966,6 @@ export function HandoverJobDistributionsGrid({ projectUuid }: Props) {
     )}
     </div>
   );
-}
+});
+
+HandoverJobDistributionsGrid.displayName = 'HandoverJobDistributionsGrid';

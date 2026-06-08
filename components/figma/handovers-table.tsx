@@ -9,6 +9,7 @@ import {
   Edit2,
   Settings,
   RefreshCw,
+  Download,
 } from 'lucide-react';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -42,6 +43,7 @@ import {
 } from './ui/table';
 import { HandoverPaymentsGrid } from './handover-payments-grid';
 import { HandoverJobDistributionsGrid } from './handover-job-distributions-grid';
+import { exportMultiSheetsToXlsx } from '@/lib/export-xlsx';
 
 type ColumnKey = keyof HandoverJob;
 
@@ -189,6 +191,10 @@ export function HandoversTable() {
   });
 
   const rateCacheRef = useRef<Map<string, number | null>>(new Map());
+
+  // ── Grid refs for global export ────────────────────────────────────────────
+  const paymentsGridRef = useRef<any>(null);
+  const distributionsGridRef = useRef<any>(null);
 
   const lookupNbgRate = useCallback(async (date: string | null, currencyCode: string | null) => {
     const normalizedCurrency = currencyCode ? currencyCode.toUpperCase() : null;
@@ -721,6 +727,78 @@ export function HandoversTable() {
     }
   };
 
+  // ── Global XLSX Export ─────────────────────────────────────────────────────
+  const handleGlobalExport = useCallback(() => {
+    const sheets: any[] = [];
+
+    // Sheet 1: Jobs Table
+    const jobsSheetRows = sortedJobs.map(job => ({
+      jobName: job.jobName || '',
+      factoryNo: job.factoryNo || '',
+      brandName: job.brandName || '',
+      floors: job.floors ?? '',
+      weight: job.weight ?? '',
+      sellingPrice: job.sellingPrice ?? 0,
+      paidNominal: job.paidNominal ?? 0,
+      paidGel: job.paidGel ?? 0,
+      debitNominal: job.debitNominal ?? 0,
+      debitGel: job.debitGel ?? 0,
+      totalGel: job.totalGel ?? 0,
+      isFf: job.isFf ? 'FF' : 'NOT FF',
+      liftCertDate: job.liftCertDate ? job.liftCertDate.split('T')[0] : '',
+      liftCertDocNo: job.liftCertDocNo || '',
+    }));
+
+    sheets.push({
+      name: 'Jobs',
+      rows: jobsSheetRows,
+      columns: [
+        { key: 'jobName', label: 'Job Name', visible: true },
+        { key: 'factoryNo', label: 'Factory No', visible: true },
+        { key: 'brandName', label: 'Brand Name', visible: true },
+        { key: 'floors', label: 'Floors', visible: true },
+        { key: 'weight', label: 'Weight (kg)', visible: true },
+        { key: 'sellingPrice', label: 'Selling Price', visible: true, format: 'currency' },
+        { key: 'paidNominal', label: 'Paid Nominal', visible: true, format: 'currency' },
+        { key: 'paidGel', label: 'Paid GEL', visible: true, format: 'currency' },
+        { key: 'debitNominal', label: 'Debit Nominal', visible: true, format: 'currency' },
+        { key: 'debitGel', label: 'Debit GEL', visible: true, format: 'currency' },
+        { key: 'totalGel', label: 'Total GEL', visible: true, format: 'currency' },
+        { key: 'isFf', label: 'Type', visible: true },
+        { key: 'liftCertDate', label: 'Lift Cert Date', visible: true, format: 'date' },
+        { key: 'liftCertDocNo', label: 'Lift Cert Doc No', visible: true },
+      ],
+    });
+
+    // Sheet 2: Income Payments
+    const paymentsData = paymentsGridRef.current?.getExportData?.();
+    if (paymentsData) {
+      sheets.push({
+        name: paymentsData.sheetName || 'Income Payments',
+        rows: paymentsData.rows,
+        columns: paymentsData.columns,
+      });
+    }
+
+    // Sheet 3: Job Distributions
+    const distributionsData = distributionsGridRef.current?.getExportData?.();
+    if (distributionsData) {
+      sheets.push({
+        name: distributionsData.sheetName || 'Job Distributions',
+        rows: distributionsData.rows,
+        columns: distributionsData.columns,
+      });
+    }
+
+    // Export to XLSX
+    if (sheets.length > 0) {
+      const today = new Date().toISOString().split('T')[0];
+      const projectName = selectedProject?.projectIndex || 'Handovers';
+      const fileName = `handovers-${projectName}-${today}.xlsx`;
+      exportMultiSheetsToXlsx({ sheets, fileName });
+    }
+  }, [sortedJobs, selectedProject]);
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="w-full p-6 space-y-6">
@@ -819,6 +897,17 @@ export function HandoversTable() {
               title="Refresh jobs"
             >
               <RefreshCw className={`h-4 w-4 ${loadingJobs ? 'animate-spin' : ''}`} />
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGlobalExport}
+              title="Export all grids to XLSX"
+              disabled={!selectedProjectUuid || sortedJobs.length === 0}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export
             </Button>
 
             <span className="text-sm text-muted-foreground ml-auto">
@@ -1100,13 +1189,13 @@ export function HandoversTable() {
 
       {/* Income Payments Grid */}
       {selectedProjectUuid && (
-        <HandoverPaymentsGrid projectUuid={selectedProjectUuid} />
+        <HandoverPaymentsGrid ref={paymentsGridRef} projectUuid={selectedProjectUuid} />
       )}
 
       {/* Job Distributions Grid */}
       {selectedProjectUuid && (
         <div className="mt-6">
-          <HandoverJobDistributionsGrid projectUuid={selectedProjectUuid} />
+          <HandoverJobDistributionsGrid ref={distributionsGridRef} projectUuid={selectedProjectUuid} />
         </div>
       )}
 

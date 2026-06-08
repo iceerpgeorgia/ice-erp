@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import {
   ArrowUpDown,
   ArrowUp,
@@ -91,6 +91,23 @@ type IncomePaymentRow = {
   isBundleAggregate?: boolean;
 };
 
+// ── Export handle type ────────────────────────────────────────────────────────
+
+type ExportColumn = {
+  key: string;
+  label: string;
+  visible: boolean;
+  format?: ColumnFormat;
+};
+
+type HandoverPaymentsGridHandle = {
+  getExportData: () => {
+    rows: Record<string, any>[];
+    columns: ExportColumn[];
+    sheetName: string;
+  } | null;
+};
+
 // ── Column definitions ────────────────────────────────────────────────────────
 
 const defaultIncomeColumns: IncomeColumnConfig[] = [
@@ -127,10 +144,11 @@ function fmtVal(value: any, format?: ColumnFormat, key?: string): string {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
-  // ── Data ──────────────────────────────────────────────────────────────────
-  const [incomeRows, setIncomeRows] = useState<IncomePaymentRow[]>([]);
-  const [loading, setLoading] = useState(false);
+export const HandoverPaymentsGrid = forwardRef<HandoverPaymentsGridHandle, { projectUuid: string }>(
+  ({ projectUuid }, ref) => {
+    // ── Data ──────────────────────────────────────────────────────────────────
+    const [incomeRows, setIncomeRows] = useState<IncomePaymentRow[]>([]);
+    const [loading, setLoading] = useState(false);
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
 
   // ── Column config ─────────────────────────────────────────────────────────
@@ -361,6 +379,37 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
 
   // ── Column helpers ────────────────────────────────────────────────────────
   const visibleColumns = useMemo(() => columns.filter(c => c.visible), [columns]);
+
+  // ── Export handle (exposed to parent via forwardRef) ──────────────────────
+  useImperativeHandle(ref, () => ({
+    getExportData: () => {
+      if (!incomeRows.length) return null;
+
+      const exportColumns = visibleColumns.map(column => ({
+        key: column.key,
+        label: column.label,
+        visible: true,
+        format: column.format,
+      }));
+
+      const exportRows = incomeRows.map(row => ({
+        paymentId: row.paymentId || '',
+        financialCode: row.financialCode || '',
+        accrual: row.accrual ?? 0,
+        order: row.order ?? 0,
+        payment: row.payment ?? 0,
+        paidPercent: row.paidPercent ?? 0,
+        due: row.due ?? 0,
+        latestDate: row.latestDate ? row.latestDate.split('T')[0] : '',
+      }));
+
+      return {
+        rows: exportRows,
+        columns: exportColumns,
+        sheetName: 'Income Payments',
+      };
+    },
+  }), [incomeRows, visibleColumns]);
 
   const toggleColVisibility = (key: IncomeColKey) =>
     setColumns(cols => cols.map(c => (c.key === key ? { ...c, visible: !c.visible } : c)));
@@ -1384,4 +1433,7 @@ export function HandoverPaymentsGrid({ projectUuid }: { projectUuid: string }) {
       </Dialog>
     </div>
   );
-}
+  }
+);
+
+HandoverPaymentsGrid.displayName = 'HandoverPaymentsGrid';

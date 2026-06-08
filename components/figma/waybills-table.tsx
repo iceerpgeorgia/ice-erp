@@ -422,8 +422,8 @@ export function WaybillsTable() {
     () =>
       new Map<ColumnKey, Set<any>>(
         columnFilters
-          .filter((filter) => typeof filter.id === 'string' && Array.isArray((filter as any).value))
-          .map((filter) => [filter.id as ColumnKey, new Set((filter as any).value)])
+          .filter((filter) => 'id' in filter && 'value' in filter && typeof filter.id === 'string' && Array.isArray(filter.value))
+          .map((filter) => [(filter as { id: ColumnKey; value: any[] }).id, new Set((filter as { id: any; value: any[] }).value)])
       ),
     [columnFilters]
   );

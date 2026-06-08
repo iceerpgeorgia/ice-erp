@@ -851,6 +851,8 @@ model payments_jobs {
   weight_snapshot      Decimal?                      @db.Decimal(10, 6)
   raw_record_uuid      String?                       @db.Uuid
   batch_partition_uuid String?                       @db.Uuid
+  emission_uuid        String?                       @db.Uuid
+  emission_date        DateTime?
   created_at           DateTime                      @default(now())
   updated_at           DateTime                      @updatedAt
   created_by           String?
@@ -860,6 +862,7 @@ model payments_jobs {
   job                      jobs                          @relation(fields: [job_uuid], references: [job_uuid], onDelete: Restrict)
   project                  projects                      @relation(fields: [project_uuid], references: [project_uuid], onDelete: Restrict)
   bank_transaction_batches bank_transaction_batches?     @relation(fields: [batch_partition_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
+  emission                 handover_emissions?          @relation(fields: [emission_uuid], references: [uuid], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([payment_uuid])
   @@index([job_uuid])
@@ -867,7 +870,19 @@ model payments_jobs {
   @@index([is_auto_distributed])
   @@index([raw_record_uuid], map: "idx_payments_jobs_raw_record_uuid")
   @@index([batch_partition_uuid], map: "idx_payments_jobs_batch_partition_uuid")
+  @@index([emission_uuid], map: "idx_payments_jobs_emission_uuid")
   @@map("payments_jobs")
+}
+
+model handover_emissions {
+  uuid              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at        DateTime              @default(now())
+  created_by        String?
+  description       String?
+  payments_jobs     payments_jobs[]
+
+  @@index([created_at(sort: Desc)])
+  @@map("handover_emissions")
 }
 
 model rs_waybills_in {
