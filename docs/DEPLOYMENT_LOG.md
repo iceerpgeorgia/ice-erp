@@ -1,5 +1,20 @@
 # Deployment Log
 
+## 2026-06-08 Deployment #336
+- Commit: 5dba868
+- Production: https://ice-gjxpzcgks-iceerp.vercel.app
+- Summary: Fix blank values for Debit GEL and Total GEL in XLSX export by handling undefined/null numeric columns.
+- Changes:
+  - lib/export-xlsx.ts: Improved data row building to convert undefined/null values to 0 for numeric columns (currency, number, percent formats) instead of empty strings, ensuring proper export of calculated values that may be null when cert dates or exchange rates are missing.
+
+## 2026-06-08 Deployment #335
+- Commit: d09cfd1
+- Production: https://ice-9ks8ssba9-iceerp.vercel.app
+- Summary: Enhance Excel export with professional table formatting, totals rows, and auto-adjusted column widths.
+- Changes:
+  - lib/export-xlsx.ts: Added Excel table creation with proper formatting, automatic totals rows for numeric columns with proper currency formatting and bold styling, smart column width calculation based on content length with padding.
+  - components/figma/handovers-table.tsx: Removed manual totals row since export function now handles it automatically, removed unused total variable calculations from handleGlobalExport.
+
 ## 2026-06-08 Deployment #334
 - Commit: 27cb254
 - Production: https://ice-cdd30fcb1-iceerp.vercel.app
