@@ -351,6 +351,7 @@ export function HandoversTable() {
 
         const countsMap: Record<string, number> = countRes?.ok ? (await countRes.json()).counts ?? {} : {};
         const liftCertMap: Record<string, { date: string | null; docNo: string | null }> = liftRes?.ok ? (await liftRes.json()).info ?? {} : {};
+        console.log(`[Handovers] Lift cert info fetched:`, { liftCertOk: liftRes?.ok, mapSize: Object.keys(liftCertMap).length });
 
         const incomePaymentIds = new Set<string>();
         if (paymentsRes.ok) {
@@ -464,9 +465,14 @@ export function HandoversTable() {
         );
 
         const rateByDate = new Map<string, number | null>();
-        await Promise.all(uniqueCertDates.map(async (date) => {
-          rateByDate.set(date, await lookupNbgRate(date, projectCurrencyCode));
-        }));
+        if (uniqueCertDates.length > 0) {
+          console.log(`[Handovers] Looking up rates for ${uniqueCertDates.length} unique cert dates, currency: ${projectCurrencyCode}`);
+          await Promise.all(uniqueCertDates.map(async (date) => {
+            const rate = await lookupNbgRate(date, projectCurrencyCode);
+            rateByDate.set(date, rate);
+            console.log(`[Handovers] Rate for ${date} (${projectCurrencyCode}): ${rate}`);
+          }));
+        }
 
         setAttachmentCounts(countsMap);
         setJobs(
@@ -499,22 +505,26 @@ export function HandoversTable() {
             debitGel: (() => {
               const certDate = liftCertMap[job.jobUuid]?.date ?? null;
               if (!certDate) return null;
-              const rate = rateByDate.get(certDate) ?? null;
-              if (rate == null) return null;
+              const rate = rateByDate.get(certDate);
+              if (rate === undefined) return null; // Rate not fetched yet
+              if (rate == null) return null; // Rate lookup failed
               const debitNominal = (job.sellingPrice != null ? Number(job.sellingPrice) : 0) - (paidNominalByJob.get(String(job.jobUuid)) ?? 0);
-              return Number((debitNominal * rate).toFixed(2));
+              const calculated = Number((debitNominal * rate).toFixed(2));
+              console.log(`[Handovers] Job ${job.jobUuid} debitGel: ${debitNominal} × ${rate} = ${calculated}`);
+              return calculated;
             })(),
             totalGel: (() => {
               const certDate = liftCertMap[job.jobUuid]?.date ?? null;
               if (!certDate) return null;
               const paidGel = paidGelByJob.get(String(job.jobUuid)) ?? 0;
-              // Calculate debitGel for totalGel computation
-              const rate = rateByDate.get(certDate) ?? null;
-              if (rate == null) return null;
+              const rate = rateByDate.get(certDate);
+              if (rate === undefined) return null; // Rate not fetched yet
+              if (rate == null) return null; // Rate lookup failed
               const debitNominal = (job.sellingPrice != null ? Number(job.sellingPrice) : 0) - (paidNominalByJob.get(String(job.jobUuid)) ?? 0);
               const debitGel = Number((debitNominal * rate).toFixed(2));
-              // Total GEL = Paid GEL + Debit GEL (when cert date exists)
-              return Number((paidGel + debitGel).toFixed(2));
+              const total = Number((paidGel + debitGel).toFixed(2));
+              console.log(`[Handovers] Job ${job.jobUuid} totalGel: ${paidGel} + ${debitGel} = ${total}`);
+              return total;
             })(),
             _rowKey: String(job.jobUuid ?? idx),
           })),
