@@ -198,6 +198,101 @@ export async function POST(req: NextRequest) {
       };
     });
 
+    // ── Validation: Check that distributions sum equals transaction amount ────────────────────
+    const totalDistributedNominal = normalizedDistributions.reduce(
+      (sum, d) => sum + Number(d.amount || 0),
+      0
+    );
+    const totalDistributedAccountCurr = normalizedDistributions.reduce(
+      (sum, d) => sum + Number(d.amount_account_curr || 0),
+      0
+    );
+
+    // Get expected transaction amounts
+    let expectedNominal = 0;
+    let expectedAccountCurr = 0;
+
+    if (batch_partition_uuid) {
+      // Get from batch partition
+      const batchPartition = await prisma.bank_transaction_batches.findUnique({
+        where: { uuid: batch_partition_uuid },
+      });
+      if (!batchPartition) {
+        return NextResponse.json(
+          { error: `Batch partition ${batch_partition_uuid} not found` },
+          { status: 404 }
+        );
+      }
+      expectedNominal = Number(batchPartition.partition_amount || 0);
+      expectedAccountCurr = Number(batchPartition.partition_amount || 0);
+    } else if (raw_record_uuid) {
+      // Get from raw bank transaction tables
+      // Try both tables
+      let rawTx: any = await prisma.$queryRaw`
+        SELECT nominal_amount, account_currency_amount FROM "GE78BG0000000893486000_BOG_GEL"
+        WHERE uuid::text = ${raw_record_uuid}::text
+        UNION ALL
+        SELECT nominal_amount, account_currency_amount FROM "GE65TB7856036050100002_TBC_GEL"
+        WHERE uuid::text = ${raw_record_uuid}::text
+        LIMIT 1
+      `;
+      if (rawTx && rawTx.length > 0) {
+        expectedNominal = Number(rawTx[0].nominal_amount || 0);
+        expectedAccountCurr = Number(rawTx[0].account_currency_amount || 0);
+      }
+    }
+
+    // Allow 0.02 GEL tolerance for rounding
+    const TOLERANCE = 0.02;
+    if (Math.abs(totalDistributedNominal - expectedNominal) > TOLERANCE) {
+      return NextResponse.json(
+        {
+          error: 'Distribution validation failed: nominal amounts do not match transaction',
+          details: {
+            transaction_nominal: expectedNominal,
+            distributed_nominal: totalDistributedNominal,
+            gap: expectedNominal - totalDistributedNominal,
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    if (Math.abs(totalDistributedAccountCurr - expectedAccountCurr) > TOLERANCE) {
+      return NextResponse.json(
+        {
+          error: 'Distribution validation failed: account currency amounts do not match transaction',
+          details: {
+            transaction_account_curr: expectedAccountCurr,
+            distributed_account_curr: totalDistributedAccountCurr,
+            gap: expectedAccountCurr - totalDistributedAccountCurr,
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    // ── Apply rounding correction to ensure exact match ─────────────────────────────────────────
+    // Calculate remaining gaps after all distributions
+    const nominalRemnant = Number((expectedNominal - totalDistributedNominal).toFixed(2));
+    const accountCurrRemnant = Number((expectedAccountCurr - totalDistributedAccountCurr).toFixed(2));
+
+    // Apply corrections to last distribution to ensure exact sum
+    if (normalizedDistributions.length > 0 && (Math.abs(nominalRemnant) > 0.001 || Math.abs(accountCurrRemnant) > 0.001)) {
+      const lastIdx = normalizedDistributions.length - 1;
+      normalizedDistributions[lastIdx].amount = Number((normalizedDistributions[lastIdx].amount + nominalRemnant).toFixed(2));
+      normalizedDistributions[lastIdx].amount_account_curr = Number(((normalizedDistributions[lastIdx].amount_account_curr || 0) + accountCurrRemnant).toFixed(2));
+
+      console.log('[Payments-Jobs] Applied rounding correction:', {
+        payment_uuid,
+        batch_partition_uuid,
+        raw_record_uuid,
+        nominal_remnant: nominalRemnant,
+        account_curr_remnant: accountCurrRemnant,
+        applied_to_job_idx: lastIdx,
+      });
+    }
+
     let result;
 
     if (replace_all) {

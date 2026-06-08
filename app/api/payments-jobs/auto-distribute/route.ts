@@ -97,22 +97,18 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    // Correct for rounding errors
+    // Correct for rounding errors - apply remnant to first job to ensure exact match
     const totalDistributed = distributions.reduce((sum, d) => sum + d.amount, 0);
-    const nominalRemnant = payment_amount - totalDistributed;
+    const nominalRemnant = Math.round((payment_amount - totalDistributed) * 100) / 100;
 
     const totalDistributedAccountCurr = distributions.reduce((sum, d) => sum + d.amount_account_curr, 0);
-    const totalPaymentAccountCurr = applyAccountCurrencyRate(payment_amount, null, resolvedRate);
-    const accountCurrRemnant = totalPaymentAccountCurr - totalDistributedAccountCurr;
+    const totalPaymentAccountCurr = Math.round(applyAccountCurrencyRate(payment_amount, null, resolvedRate) * 100) / 100;
+    const accountCurrRemnant = Math.round((totalPaymentAccountCurr - totalDistributedAccountCurr) * 100) / 100;
 
-    if (distributions.length > 0 && (nominalRemnant !== 0 || accountCurrRemnant !== 0)) {
-      const correctionIndex = Math.floor(Math.random() * distributions.length); // Correct a random job
-      distributions[correctionIndex].amount += nominalRemnant;
-      distributions[correctionIndex].amount_account_curr += accountCurrRemnant;
-
-      // Round again after correction
-      distributions[correctionIndex].amount = Math.round(distributions[correctionIndex].amount * 100) / 100;
-      distributions[correctionIndex].amount_account_curr = Math.round(distributions[correctionIndex].amount_account_curr * 100) / 100;
+    // Apply corrections to first job - add remnant directly WITHOUT rounding again to maintain exact match
+    if (distributions.length > 0 && (Math.abs(nominalRemnant) > 0.001 || Math.abs(accountCurrRemnant) > 0.001)) {
+      distributions[0].amount = Number((distributions[0].amount + nominalRemnant).toFixed(2));
+      distributions[0].amount_account_curr = Number((distributions[0].amount_account_curr + accountCurrRemnant).toFixed(2));
     }
 
     // Replace all existing distributions with new auto-weighted ones
