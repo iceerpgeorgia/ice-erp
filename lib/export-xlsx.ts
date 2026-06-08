@@ -216,6 +216,9 @@ export function exportMultiSheetsToXlsx<T extends Record<string, any>>({
     const percentColumnIndexes = visibleColumns
       .map((col, index) => (col.format === 'percent' ? index : -1))
       .filter((index) => index >= 0);
+    const numberColumnIndexes = visibleColumns
+      .map((col, index) => (col.format === 'currency' || col.format === 'number' || col.format === 'percent' ? index : -1))
+      .filter((index) => index >= 0);
 
     const header = visibleColumns.map((col) => col.label);
     const dataRows = rows.map((row) =>
@@ -244,7 +247,40 @@ export function exportMultiSheetsToXlsx<T extends Record<string, any>>({
       })
     );
 
-    const worksheet = XLSX.utils.aoa_to_sheet([header, ...dataRows]);
+    // Build totals row for numeric columns
+    const totalsRow = visibleColumns.map((col, index) => {
+      if (numberColumnIndexes.includes(index)) {
+        // Sum all numeric values in this column
+        const sum = dataRows.reduce((acc, row) => {
+          const value = row[index];
+          const numValue = toNumericValue(value);
+          return acc + (numValue ?? 0);
+        }, 0);
+        return sum;
+      }
+      return '';
+    });
+
+    // Create worksheet data with header, data rows, and totals row
+    const allData = [header, ...dataRows, totalsRow];
+    const worksheet = XLSX.utils.aoa_to_sheet(allData);
+
+    // Set up column widths with auto-adjustment
+    const columnWidths = visibleColumns.map((col, colIndex) => {
+      let maxWidth = col.label.length;
+      
+      // Check all data rows for width
+      dataRows.forEach((row) => {
+        const value = row[colIndex];
+        const strValue = String(value ?? '').length;
+        maxWidth = Math.max(maxWidth, strValue);
+      });
+      
+      // Add padding
+      return Math.min(maxWidth + 2, 50); // Cap at 50 for very long content
+    });
+
+    worksheet['!cols'] = columnWidths.map(width => ({ wch: width }));
 
     Object.values(worksheet).forEach((cell: any) => {
       if (cell && typeof cell.v === 'string' && cell.v.trim().startsWith('=')) {
@@ -272,6 +308,13 @@ export function exportMultiSheetsToXlsx<T extends Record<string, any>>({
           cell.z = '#,##0.00';
         }
       }
+      // Format totals row currency as well
+      const totalsRowRef = XLSX.utils.encode_cell({ r: rows.length + 1, c: columnIndex });
+      const totalsCell = worksheet[totalsRowRef];
+      if (totalsCell) {
+        totalsCell.z = '#,##0.00';
+        totalsCell.s = { b: true }; // Bold
+      }
     });
 
     percentColumnIndexes.forEach((columnIndex) => {
@@ -283,6 +326,33 @@ export function exportMultiSheetsToXlsx<T extends Record<string, any>>({
         }
       }
     });
+
+    // Add table formatting
+    const tableRange = {
+      s: { r: 0, c: 0 },
+      e: { r: dataRows.length, c: visibleColumns.length - 1 },
+    };
+
+    if (!worksheet['!table']) {
+      worksheet['!table'] = {
+        ref: XLSX.utils.encode_range(tableRange),
+        name: `Table_${name}`,
+        displayName: name,
+        showHeader: 1,
+        showFirstColumn: 0,
+        showLastColumn: 0,
+        showRowStripes: 1,
+        showColumnStripes: 0,
+        totalsRow: 1, // Show totals row
+        tableStyleInfo: {
+          name: 'TableStyleMedium2',
+          showFirstColumn: false,
+          showLastColumn: false,
+          showRowStripes: true,
+          showColumnStripes: false,
+        },
+      };
+    }
 
     XLSX.utils.book_append_sheet(workbook, worksheet, name);
   });

@@ -732,15 +732,6 @@ export function HandoversTable() {
     const sheets: any[] = [];
 
     // Sheet 1: Jobs Table
-    // Use sortedJobs (same data as footer) and add a TOTALS row at the end
-    const totalFloors = sortedJobs.reduce((s, j) => s + (j.floors ?? 0), 0);
-    const totalPrice = sortedJobs.reduce((s, j) => s + (j.sellingPrice ?? 0), 0);
-    const totalPaidNominal = sortedJobs.reduce((s, j) => s + (j.paidNominal ?? 0), 0);
-    const totalPaidGel = sortedJobs.reduce((s, j) => s + (j.paidGel ?? 0), 0);
-    const totalDebitNominal = sortedJobs.reduce((s, j) => s + (j.debitNominal ?? 0), 0);
-    const totalDebitGel = sortedJobs.reduce((s, j) => s + (j.debitGel ?? 0), 0);
-    const totalGel = sortedJobs.reduce((s, j) => s + (j.totalGel ?? 0), 0);
-
     const jobsSheetRows = sortedJobs.map(job => ({
       jobName: job.jobName || '',
       factoryNo: job.factoryNo || '',
@@ -757,24 +748,6 @@ export function HandoversTable() {
       liftCertDate: job.liftCertDate ? job.liftCertDate.split('T')[0] : '',
       liftCertDocNo: job.liftCertDocNo || '',
     }));
-
-    // Add totals row at the end for reference
-    jobsSheetRows.push({
-      jobName: '*** TOTALS ***',
-      factoryNo: '',
-      brandName: '',
-      floors: totalFloors,
-      weight: '',
-      sellingPrice: totalPrice,
-      paidNominal: totalPaidNominal,
-      paidGel: totalPaidGel,
-      debitNominal: totalDebitNominal,
-      debitGel: totalDebitGel,
-      totalGel: totalGel,
-      isFf: '',
-      liftCertDate: '',
-      liftCertDocNo: '',
-    });
 
     sheets.push({
       name: 'Jobs',
