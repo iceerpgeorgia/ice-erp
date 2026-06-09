@@ -63,10 +63,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Load template
-    const templatePath = path.join(process.cwd(), 'public', 'handover template.xlsx');
+    let templatePath = path.join(process.cwd(), 'handover template.xlsx');
+    if (!fs.existsSync(templatePath)) {
+      templatePath = path.join(process.cwd(), 'public', 'handover template.xlsx');
+    }
     if (!fs.existsSync(templatePath)) {
       return NextResponse.json(
-        { error: `Handover template not found at ${templatePath}` },
+        { error: `Handover template not found at root or public folder` },
         { status: 404 }
       );
     }
@@ -107,11 +110,14 @@ export async function POST(req: NextRequest) {
     if (handoverSheet['C6']) {
       handoverSheet['C6'].v = counteragentInfo || 'შ.პ.ს აკმე ელვატორი';
       handoverSheet['C6'].t = 's';
+      // Preserve existing formatting (alignment, wrapping, fonts, fills)
+      // Only update the value, keep all other properties
     }
 
     if (handoverSheet['H69']) {
       handoverSheet['H69'].v = companyName || 'შპს აი-სი-ი';
       handoverSheet['H69'].t = 's';
+      // Preserve existing formatting
     }
 
     // ============================================
@@ -189,43 +195,55 @@ export async function POST(req: NextRequest) {
     jobsData.forEach((job, index) => {
       const rowNum = index + 2;
 
+      // Helper to preserve formatting when setting cell value
+      const setCellValue = (cellRef: string, value: any, type: string, format?: string) => {
+        if (!jobsSheet[cellRef]) {
+          jobsSheet[cellRef] = {};
+        }
+        jobsSheet[cellRef].v = value;
+        jobsSheet[cellRef].t = type;
+        if (format) {
+          jobsSheet[cellRef].z = format;
+        }
+      };
+
       if (job.counteragentId) {
-        jobsSheet[`A${rowNum}`] = { v: job.counteragentId, t: 's' };
+        setCellValue(`A${rowNum}`, job.counteragentId, 's');
       }
 
       if (job.factoryNo) {
-        jobsSheet[`B${rowNum}`] = { v: job.factoryNo, t: 's' };
+        setCellValue(`B${rowNum}`, job.factoryNo, 's');
       }
 
       if (job.manufacturerName) {
-        jobsSheet[`C${rowNum}`] = { v: job.manufacturerName, t: 's' };
+        setCellValue(`C${rowNum}`, job.manufacturerName, 's');
       }
 
       if (job.floors !== undefined && job.floors !== null) {
-        jobsSheet[`D${rowNum}`] = { v: job.floors, t: 'n' };
+        setCellValue(`D${rowNum}`, job.floors, 'n');
       }
 
       if (job.weight !== undefined && job.weight !== null) {
-        jobsSheet[`E${rowNum}`] = { v: Number(job.weight), t: 'n' };
+        setCellValue(`E${rowNum}`, Number(job.weight), 'n');
       }
 
       if (job.nominalAmount !== undefined && job.nominalAmount !== null) {
-        jobsSheet[`F${rowNum}`] = { v: Number(job.nominalAmount), t: 'n', z: '#,##0.00' };
+        setCellValue(`F${rowNum}`, Number(job.nominalAmount), 'n', '#,##0.00');
       }
 
       if (job.gelAmount !== undefined && job.gelAmount !== null) {
-        jobsSheet[`K${rowNum}`] = { v: Number(job.gelAmount), t: 'n', z: '#,##0.00' };
+        setCellValue(`K${rowNum}`, Number(job.gelAmount), 'n', '#,##0.00');
       }
 
       if (job.liftCertDate) {
         const jobCertDateSerial = dateToExcelSerial(
           typeof job.liftCertDate === 'string' ? new Date(job.liftCertDate) : new Date(job.liftCertDate)
         );
-        jobsSheet[`M${rowNum}`] = { v: jobCertDateSerial, t: 'n' };
+        setCellValue(`M${rowNum}`, jobCertDateSerial, 'n', 'dd.mm.yyyy');
       }
 
       if (job.certificateNo) {
-        jobsSheet[`N${rowNum}`] = { v: job.certificateNo, t: 's' };
+        setCellValue(`N${rowNum}`, job.certificateNo, 's');
       }
     });
 
@@ -235,7 +253,29 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================
-    // 5. Export to buffer - preserve all sheets
+    // 5. Clean up formula namespace prefixes (_xlws., _xlfn.)
+    // ============================================
+    Object.keys(workbook.Sheets).forEach((sheetName) => {
+      const sheet = workbook.Sheets[sheetName];
+      Object.keys(sheet).forEach((cellRef) => {
+        const cell = sheet[cellRef];
+        // Skip metadata cells (start with !)
+        if (cellRef.startsWith('!')) return;
+        
+        // Remove namespace prefixes from formulas
+        if (cell && cell.f && typeof cell.f === 'string') {
+          // Remove _xlws. (worksheet namespace)
+          cell.f = cell.f.replace(/^_xlws\./, '');
+          // Remove _xlfn. (function namespace)
+          cell.f = cell.f.replace(/_xlfn\./g, '');
+          // Clean up any remaining namespace patterns
+          cell.f = cell.f.replace(/^_[a-z]+\./gi, '');
+        }
+      });
+    });
+
+    // ============================================
+    // 6. Export to buffer - preserve all sheets
     // ============================================
     console.log('[Export Handover] Exporting sheets:', workbook.SheetNames);
     
@@ -245,7 +285,7 @@ export async function POST(req: NextRequest) {
     }) as Buffer;
 
     // ============================================
-    // 6. Return file
+    // 7. Return file
     // ============================================
     console.log('[Export Handover] Returning buffer, size:', outputBuffer.length);
 
