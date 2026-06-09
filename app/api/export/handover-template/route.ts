@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
     await originalZip.loadAsync(templateBuffer);
 
     // Extract and modify the Placeholders sheet XML
-    const placeholdersXml = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
+    let placeholdersXml = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
     if (!placeholdersXml) {
       console.error('[Export Handover] ERROR: Placeholders sheet (sheet2.xml) not found!');
       return Response.json(
@@ -135,13 +135,8 @@ export async function POST(req: NextRequest) {
 
     console.log('[Export Handover] Placeholders XML loaded, size:', placeholdersXml.length);
 
-    // Parse XML and update cell values
-    let modifiedXml = placeholdersXml;
-
+    // Process each placeholder cell
     Object.entries(placeholderData).forEach(([cellRef, value]) => {
-      console.log(`[Export Handover] Updating ${cellRef}: ${String(value).substring(0, 50)}`);
-      
-      // Create an escaped string value for the cell
       const escapedValue = String(value)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -149,37 +144,42 @@ export async function POST(req: NextRequest) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&apos;');
 
-      // For date cells (B2, B18), use numeric type 'n', otherwise string type 's'
       const isDateCell = cellRef === 'B2' || cellRef === 'B18';
       const cellType = isDateCell ? 'n' : 's';
 
-      // Replace the cell value in the XML
-      // Pattern: <c r="B1" t="s"><v>old_value</v></c>
-      // We look for the cell reference and update the value inside
-      const cellPattern = new RegExp(`(<c r="${cellRef}"[^>]*>)([^<]*<v>)[^<]*(</v>)`, 'g');
-      const replacement = `$1$2${escapedValue}$3`;
-      const beforeLen = modifiedXml.length;
-      modifiedXml = modifiedXml.replace(cellPattern, replacement);
+      console.log(`[Export Handover]   Processing ${cellRef}`);
+
+      // Strategy 1: Try to replace existing <v> content in cell
+      let replaced = false;
       
-      if (modifiedXml.length !== beforeLen) {
-        console.log(`[Export Handover]   ✓ Updated ${cellRef}`);
-      } else {
-        console.log(`[Export Handover]   ⚠ Pattern not found for ${cellRef}, trying alternative...`);
-        // Try alternative pattern in case structure is different
-        const altPattern = new RegExp(`<c r="${cellRef}"[^>]*t="${cellType}"[^>]*><v>[^<]*</v></c>`, 'g');
-        const altReplacement = `<c r="${cellRef}" t="${cellType}"><v>${escapedValue}</v></c>`;
-        const altBeforeLen = modifiedXml.length;
-        modifiedXml = modifiedXml.replace(altPattern, altReplacement);
-        if (modifiedXml.length !== altBeforeLen) {
-          console.log(`[Export Handover]   ✓ Updated ${cellRef} (alt pattern)`);
+      // Pattern for cells with existing values: <c r="B1"...><v>old</v></c>
+      const pattern1 = new RegExp(`(<c r="${cellRef}"[^>]*>.*?)<v>[^<]*</v>(.*?</c>)`, 's');
+      if (pattern1.test(placeholdersXml)) {
+        placeholdersXml = placeholdersXml.replace(pattern1, `$1<v>${escapedValue}</v>$2`);
+        console.log(`[Export Handover]     ✓ Updated ${cellRef}`);
+        replaced = true;
+      }
+
+      // Pattern for empty cells with <v/>: <c r="B2" s="13"/>
+      if (!replaced) {
+        const pattern2 = new RegExp(`<c r="${cellRef}"([^>]*)/>`, 's');
+        if (pattern2.test(placeholdersXml)) {
+          placeholdersXml = placeholdersXml.replace(pattern2, `<c r="${cellRef}"$1><v>${escapedValue}</v></c>`);
+          console.log(`[Export Handover]     ✓ Updated ${cellRef} (converted from empty)`);
+          replaced = true;
         }
+      }
+
+      // If cell doesn't exist in template, it's OK - just log it
+      if (!replaced && !new RegExp(`<c r="${cellRef}"`, 's').test(placeholdersXml)) {
+        console.log(`[Export Handover]     ⓘ Cell ${cellRef} not in template (OK - will use formulas)`);
       }
     });
 
-    console.log('[Export Handover] Replacing sheet2.xml in original ZIP...');
+    console.log('[Export Handover] Updating sheet2.xml in ZIP...');
 
-    // Simply update sheet2.xml in the original ZIP (don't recreate)
-    originalZip.file('xl/worksheets/sheet2.xml', modifiedXml);
+    // Update sheet2.xml in the original ZIP
+    originalZip.file('xl/worksheets/sheet2.xml', placeholdersXml);
 
     console.log('[Export Handover] JSZip modifications complete, generating output...');
 
