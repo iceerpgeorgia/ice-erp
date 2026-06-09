@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm build",
+  "buildCommand": "node scripts/prisma-generate-safe.js && pnpm build",
   "installCommand": "pnpm install --no-optional",
   "framework": "nextjs",
   "git": {
