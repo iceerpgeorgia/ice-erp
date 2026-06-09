@@ -124,8 +124,8 @@ export async function POST(req: NextRequest) {
     await originalZip.loadAsync(templateBuffer);
 
     // Extract and modify the Placeholders sheet XML
-    let placeholdersXml = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
-    if (!placeholdersXml) {
+    const placeholdersXmlMaybe = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
+    if (!placeholdersXmlMaybe) {
       console.error('[Export Handover] ERROR: Placeholders sheet (sheet2.xml) not found!');
       return Response.json(
         { error: 'Placeholders sheet not found in template' },
@@ -133,6 +133,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // TypeScript type assertion: we've confirmed it's not undefined
+    let placeholdersXml: string = placeholdersXmlMaybe;
     console.log('[Export Handover] Placeholders XML loaded, size:', placeholdersXml.length);
 
     // B5 and B16 have genitive formulas - skip them (let them compute from B6 and B17)
