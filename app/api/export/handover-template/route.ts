@@ -69,20 +69,31 @@ export async function POST(req: NextRequest) {
       };
 
       // Fill placeholder cells based on data provided
+      console.log('[Export Handover] Filling placeholders with:', {
+        certificateDate,
+        counteragentInfo,
+        companyName,
+      });
+
       if (certificateDate) {
         const dateObj = new Date(certificateDate);
         // Convert to Excel serial for proper date handling
         const excelSerial = Math.floor((dateObj.getTime() - new Date(1900, 0, 1).getTime()) / (24 * 60 * 60 * 1000)) + 2;
+        console.log('[Export Handover] Setting B2 (date) to serial:', excelSerial);
         setCell('B2', excelSerial, 'n'); // Handover_Date
       }
 
       if (counteragentInfo) {
+        console.log('[Export Handover] Setting B4 (counteragent) to:', counteragentInfo);
         setCell('B4', counteragentInfo, 's'); // Project_Counteragent_Name
       }
 
       if (companyName) {
+        console.log('[Export Handover] Setting B12 (company) to:', companyName);
         setCell('B12', companyName, 's'); // Project_Insider_Name
       }
+    } else {
+      console.error('[Export Handover] ERROR: Placeholders sheet not found in workbook!');
     }
 
     // Strip namespace prefixes from ALL formulas in ALL sheets

@@ -43,6 +43,7 @@ import {
 } from './ui/table';
 import { HandoverPaymentsGrid } from './handover-payments-grid';
 import { HandoverJobDistributionsGrid } from './handover-job-distributions-grid';
+import { ErrorBoundary } from './error-boundary';
 import { exportMultiSheetsToXlsx } from '@/lib/export-xlsx';
 
 type ColumnKey = keyof HandoverJob;
@@ -774,12 +775,14 @@ export function HandoversTable() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('[Handovers Export] API error:', errorData);
+        console.error('[Handovers Export] API error - Status:', response.status, 'Error:', errorData);
         throw new Error(errorData.error || `Export failed with status ${response.status}`);
       }
 
       // Get the file from response
       const blob = await response.blob();
+      console.log('[Handovers Export] Received blob, size:', blob.size, 'type:', blob.type);
+      
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -1260,13 +1263,39 @@ export function HandoversTable() {
 
       {/* Income Payments Grid */}
       {selectedProjectUuid && (
-        <HandoverPaymentsGrid ref={paymentsGridRef} projectUuid={selectedProjectUuid} />
+        <ErrorBoundary fallback={(error, retry) => (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-6">
+            <h3 className="text-lg font-semibold text-red-900 mb-2">Failed to load income payments</h3>
+            <p className="text-sm text-red-800 mb-4 font-mono break-all">{error.message}</p>
+            <button
+              onClick={retry}
+              className="px-3 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+            >
+              Retry
+            </button>
+          </div>
+        )}>
+          <HandoverPaymentsGrid ref={paymentsGridRef} projectUuid={selectedProjectUuid} />
+        </ErrorBoundary>
       )}
 
       {/* Job Distributions Grid */}
       {selectedProjectUuid && (
         <div className="mt-6">
-          <HandoverJobDistributionsGrid ref={distributionsGridRef} projectUuid={selectedProjectUuid} />
+          <ErrorBoundary fallback={(error, retry) => (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-6">
+              <h3 className="text-lg font-semibold text-red-900 mb-2">Failed to load job distributions</h3>
+              <p className="text-sm text-red-800 mb-4 font-mono break-all">{error.message}</p>
+              <button
+                onClick={retry}
+                className="px-3 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+              >
+                Retry
+              </button>
+            </div>
+          )}>
+            <HandoverJobDistributionsGrid ref={distributionsGridRef} projectUuid={selectedProjectUuid} />
+          </ErrorBoundary>
         </div>
       )}
 
