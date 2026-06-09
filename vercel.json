@@ -1,6 +1,6 @@
 {
-  "buildCommand": "node scripts/prisma-generate-safe.js && pnpm build",
-  "installCommand": "pnpm install --no-optional",
+  "buildCommand": "node scripts/vercel-build.js",
+  "installCommand": "pnpm install --ignore-scripts",
   "framework": "nextjs",
   "git": {
     "deploymentEnabled": false
