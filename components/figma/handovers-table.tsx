@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   ArrowUpDown,
   ArrowUp,
@@ -109,10 +110,19 @@ type FormData = {
 };
 
 export function HandoversTable() {
+  // ── Get URL search params ────────────────────────────────────────────────
+  const searchParams = useSearchParams();
+  
   // ── Project / Job state ──────────────────────────────────────────────────
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectUuid, setSelectedProjectUuid] = useState<string>(() => {
     if (typeof window !== 'undefined') {
+      // Try to get from URL params first, then fallback to localStorage
+      const urlProjectUuid = searchParams.get('projectUuid');
+      if (urlProjectUuid) {
+        localStorage.setItem('handovers-last-project', urlProjectUuid);
+        return urlProjectUuid;
+      }
       return localStorage.getItem('handovers-last-project') ?? '';
     }
     return '';
