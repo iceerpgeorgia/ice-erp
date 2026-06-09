@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-10 Deployment #338
+- Commit: 9049c61
+- Production: https://ice-reors6j5i-iceerp.vercel.app
+- Summary: Fix XLSX sheet preservation in handover template export — all 5 sheets now included.
+- Changes:
+  - app/api/export/handover-template/route.ts: Enhanced XLSX.read() options with cellFormula, cellNF, cellStyles, and sheetStubs flags to preserve all sheet metadata during export, ensuring all 5 sheets (Handover, Placeholders, Jobs, Income Payments, Job Distributions) are included in the final XLSX output instead of losing Income Payments and Job Distributions sheets.
+
 ## 2026-06-08 Deployment #337
 - Commit: a417446
 - Production: https://ice-rnvapbeks-iceerp.vercel.app
