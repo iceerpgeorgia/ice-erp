@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-10 Deployment #342
+- Commit: fa475a1
+- Production: https://ice-lj925flpo-iceerp.vercel.app
+- Summary: Preserve Handover sheet formatting and formulas exactly from template during export.
+- Changes:
+  - app/api/export/handover-template/route.ts: Enhanced setCell function to use spread operator preserving existing cell properties (formatting, formulas) during value updates: `{ ...existingCell, v: value, t: type }`; restricted formula namespace prefix stripping to Placeholders sheet only (line 143) to ensure Handover sheet formulas remain completely unchanged; removed invalid XLSX.write() options (cellFormula, cellStyles) that don't exist in WritingOptions type.
+
 ## 2026-06-10 Deployment #341
 - Commit: b7b67ac
 - Production: https://ice-18g7ti88y-iceerp.vercel.app
