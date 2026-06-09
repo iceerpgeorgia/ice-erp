@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import * as XLSX from 'xlsx';
 import { PrismaClient } from '@prisma/client';
+import { toGenitiveCase } from '@/lib/georgian-genitive';
 
 const prisma = new PrismaClient();
 
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest) {
         'B2': dateToExcelSerial(project.date), // Handover_Date (A2)
         'B3': counteragent?.entity_type || '', // Project_Counteragent_Entity_Type (A3)
         'B4': counteragent?.name || '', // Project_Counteragent_Name (A4)
-        'B5': counteragent?.director || '', // Project_Counteragent_Director_Genitive (A5)
+        'B5': toGenitiveCase(counteragent?.director), // Project_Counteragent_Director_Genitive (A5)
         'B6': counteragent?.director || '', // Project_Counteragent_Director (A6)
         'B7': counteragent?.address_line_1 || '', // Project_Counteragent_Address_Line_1 (A7)
         'B8': counteragent?.address_line_2 || '', // Project_Counteragent_Address_Line_2 (A8)
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest) {
         'B13': insider?.identification_number || '', // Project_Insider_ID (A13)
         'B14': insider?.address_line_1 || '', // Project_Insider_Address_Line1 (A14)
         'B15': insider?.address_line_2 || '', // Project_Insider_Address_Line2 (A15)
-        'B16': insider?.director || '', // Project_Insider_Director_Genitive (A16)
+        'B16': toGenitiveCase(insider?.director), // Project_Insider_Director_Genitive (A16)
         'B17': insider?.director || '', // Project_Insider_Director_Normative (A17)
         'B18': dateToExcelSerial(project.date), // Contract_Date (A18)
         'B19': currency?.code || '', // Project_Currency (A19)
