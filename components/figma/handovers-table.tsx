@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
 import {
   ArrowUpDown,
   ArrowUp,
@@ -110,9 +109,6 @@ type FormData = {
 };
 
 export function HandoversTable() {
-  // ── Get URL search params ────────────────────────────────────────────────
-  const searchParams = useSearchParams();
-  
   // ── Project / Job state ──────────────────────────────────────────────────
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectUuid, setSelectedProjectUuid] = useState<string>(() => {
@@ -294,15 +290,6 @@ export function HandoversTable() {
       document.removeEventListener('mouseup', onUp);
     };
   }, [isResizing]);
-
-  // ── Read projectUuid from URL search params ───────────────────────────────
-  useEffect(() => {
-    const urlProjectUuid = searchParams.get('projectUuid');
-    if (urlProjectUuid && urlProjectUuid !== selectedProjectUuid) {
-      setSelectedProjectUuid(urlProjectUuid);
-      localStorage.setItem('handovers-last-project', urlProjectUuid);
-    }
-  }, [searchParams]);
 
   // ── Initial data fetch ────────────────────────────────────────────────────
   useEffect(() => {
