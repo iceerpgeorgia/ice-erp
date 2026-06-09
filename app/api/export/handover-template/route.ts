@@ -1,50 +1,50 @@
 import { NextRequest } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 import * as XLSX from 'xlsx';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 /**
  * POST /api/export/handover-template
- * Loads exact template from public folder and fills Placeholders sheet
+ * Loads exact template from public folder and fills ALL 19 Placeholders from database
+ * 
+ * Required body fields:
+ * - fileName: output filename
+ * - projectUuid: project UUID to load data for
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const {
-      fileName,
-      certificateDate,
-      counteragentInfo,
-      companyName,
-    } = body;
+    const { fileName, projectUuid } = body;
 
-    if (!fileName) {
+    if (!fileName || !projectUuid) {
       return Response.json(
-        { error: 'Missing required field: fileName' },
+        { error: 'Missing required fields: fileName, projectUuid' },
         { status: 400 }
       );
     }
 
-    // Load template: fetch from static asset (works on dev and Vercel production)
+    console.log('[Export Handover] Starting export for project:', projectUuid);
+
+    // Fetch template from public folder
     let templateBuffer: Buffer;
-    
-    // Get the host from request headers
     const host = req.headers.get('host') || 'localhost:3000';
     const protocol = req.headers.get('x-forwarded-proto') || (host.startsWith('localhost') ? 'http' : 'https');
     const templateUrl = `${protocol}://${host}/handover%20template.xlsx`;
-    
+
     console.log('[Export Handover] Fetching template from:', templateUrl);
-    
+
     try {
       const fetchRes = await fetch(templateUrl, { cache: 'no-store' });
       if (!fetchRes.ok) {
         console.error(`[Export Handover] Failed to fetch template: ${fetchRes.status} ${fetchRes.statusText}`);
         return Response.json(
-          { error: `Template fetch failed (${fetchRes.status}): ${templateUrl}` },
+          { error: `Template fetch failed (${fetchRes.status})` },
           { status: 404 }
         );
       }
       templateBuffer = Buffer.from(await fetchRes.arrayBuffer());
-      console.log('[Export Handover] Template fetched successfully, size:', templateBuffer.length);
+      console.log('[Export Handover] Template fetched, size:', templateBuffer.length);
     } catch (fetchErr) {
       console.error('[Export Handover] Template fetch error:', fetchErr);
       return Response.json(
@@ -52,6 +52,38 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Query project and all related data
+    console.log('[Export Handover] Querying database for project:', projectUuid);
+
+    const project = await prisma.projects.findUnique({
+      where: { project_uuid: projectUuid },
+    });
+
+    if (!project) {
+      console.error('[Export Handover] Project not found:', projectUuid);
+      return Response.json(
+        { error: `Project not found: ${projectUuid}` },
+        { status: 404 }
+      );
+    }
+
+    // Query counteragent (supplier/contractor)
+    const counteragent = await prisma.counteragents.findUnique({
+      where: { counteragent_uuid: project.counteragent_uuid },
+    });
+
+    // Query insider (our company)
+    const insider = await prisma.counteragents.findUnique({
+      where: { counteragent_uuid: project.insider_uuid },
+    });
+
+    // Query currency
+    const currency = await prisma.currencies.findUnique({
+      where: { uuid: project.currency_uuid },
+    });
+
+    console.log('[Export Handover] Data loaded - project:', project.project_name, 'counteragent:', counteragent?.name, 'insider:', insider?.name);
 
     // Read workbook preserving all formatting and formulas
     const workbook = XLSX.read(templateBuffer, {
@@ -61,75 +93,82 @@ export async function POST(req: NextRequest) {
       sheetStubs: true,
     });
 
-    console.log('[Export Handover] Sheets:', workbook.SheetNames);
-
-    // Fill Placeholders sheet
+    // Fill Placeholders sheet with ALL 19 fields from database
     if (workbook.Sheets['Placeholders']) {
       const sheet = workbook.Sheets['Placeholders'];
 
-      // Helper to set cell value while preserving formatting
       const setCell = (cellRef: string, value: any, type: string) => {
         if (!sheet[cellRef]) sheet[cellRef] = {};
         sheet[cellRef].v = value;
         sheet[cellRef].t = type;
       };
 
-      // Fill placeholder cells based on data provided
-      console.log('[Export Handover] Filling placeholders with:', {
-        certificateDate,
-        counteragentInfo,
-        companyName,
+      // Convert date to Excel serial
+      const dateToExcelSerial = (date: Date | string | null): number => {
+        if (!date) return 0;
+        const d = typeof date === 'string' ? new Date(date) : date;
+        return Math.floor((d.getTime() - new Date(1900, 0, 1).getTime()) / (24 * 60 * 60 * 1000)) + 2;
+      };
+
+      const placeholderData = {
+        'B1': project.department || '', // Project_Department (A1)
+        'B2': dateToExcelSerial(project.date), // Handover_Date (A2)
+        'B3': counteragent?.entity_type || '', // Project_Counteragent_Entity_Type (A3)
+        'B4': counteragent?.name || '', // Project_Counteragent_Name (A4)
+        'B5': counteragent?.director || '', // Project_Counteragent_Director_Genitive (A5)
+        'B6': counteragent?.director || '', // Project_Counteragent_Director (A6)
+        'B7': counteragent?.address_line_1 || '', // Project_Counteragent_Address_Line_1 (A7)
+        'B8': counteragent?.address_line_2 || '', // Project_Counteragent_Address_Line_2 (A8)
+        'B9': counteragent?.identification_number || '', // Project_Counteragent_ID (A9)
+        'B10': project.address || '', // Project_Address (A10)
+        'B11': insider?.entity_type || '', // Project_Insider_Entity_Type (A11)
+        'B12': insider?.name || '', // Project_Insider_Name (A12)
+        'B13': insider?.identification_number || '', // Project_Insider_ID (A13)
+        'B14': insider?.address_line_1 || '', // Project_Insider_Address_Line1 (A14)
+        'B15': insider?.address_line_2 || '', // Project_Insider_Address_Line2 (A15)
+        'B16': insider?.director || '', // Project_Insider_Director_Genitive (A16)
+        'B17': insider?.director || '', // Project_Insider_Director_Normative (A17)
+        'B18': dateToExcelSerial(project.date), // Contract_Date (A18)
+        'B19': currency?.code || '', // Project_Currency (A19)
+      };
+
+      console.log('[Export Handover] Filling all 19 placeholders:');
+      Object.entries(placeholderData).forEach(([cell, value]) => {
+        const isDateCell = cell === 'B2' || cell === 'B18';
+        const type = isDateCell ? 'n' : 's';
+        setCell(cell, value, type);
+        console.log(`[Export Handover] ${cell}: ${String(value).substring(0, 50)}`);
       });
-
-      if (certificateDate) {
-        const dateObj = new Date(certificateDate);
-        // Convert to Excel serial for proper date handling
-        const excelSerial = Math.floor((dateObj.getTime() - new Date(1900, 0, 1).getTime()) / (24 * 60 * 60 * 1000)) + 2;
-        console.log('[Export Handover] Setting B2 (date) to serial:', excelSerial);
-        setCell('B2', excelSerial, 'n'); // Handover_Date
-      }
-
-      if (counteragentInfo) {
-        console.log('[Export Handover] Setting B4 (counteragent) to:', counteragentInfo);
-        setCell('B4', counteragentInfo, 's'); // Project_Counteragent_Name
-      }
-
-      if (companyName) {
-        console.log('[Export Handover] Setting B12 (company) to:', companyName);
-        setCell('B12', companyName, 's'); // Project_Insider_Name
-      }
     } else {
-      console.error('[Export Handover] ERROR: Placeholders sheet not found in workbook!');
+      console.error('[Export Handover] ERROR: Placeholders sheet not found!');
+      return Response.json(
+        { error: 'Placeholders sheet not found in template' },
+        { status: 500 }
+      );
     }
 
-    // Strip namespace prefixes from ALL formulas in ALL sheets
+    // Strip namespace prefixes from ALL formulas
     Object.keys(workbook.Sheets).forEach((sheetName) => {
       const sheet = workbook.Sheets[sheetName];
       Object.keys(sheet).forEach((cellRef) => {
         const cell = sheet[cellRef];
-        // Skip metadata cells (start with !)
         if (cellRef.startsWith('!')) return;
-        
-        // Remove namespace prefixes from formulas
         if (cell && cell.f && typeof cell.f === 'string') {
-          // Remove _xlws. (worksheet namespace)
           cell.f = cell.f.replace(/^_xlws\./, '');
           cell.f = cell.f.replace(/_xlws\./g, '');
-          // Remove _xlfn. (function namespace)
           cell.f = cell.f.replace(/_xlfn\./g, '');
-          // Clean up any remaining namespace patterns
           cell.f = cell.f.replace(/^_[a-z]+\./gi, '');
         }
       });
     });
 
-    // Write back to buffer
+    // Write to buffer
     const outputBuffer = XLSX.write(workbook, {
       type: 'buffer',
       bookType: 'xlsx',
     });
 
-    console.log('[Export Handover] Placeholders filled, formulas cleaned, size:', outputBuffer.length);
+    console.log('[Export Handover] Export complete, file size:', outputBuffer.length);
 
     return new Response(new Uint8Array(outputBuffer), {
       headers: {
@@ -144,5 +183,7 @@ export async function POST(req: NextRequest) {
       { error: error instanceof Error ? error.message : 'Export failed' },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

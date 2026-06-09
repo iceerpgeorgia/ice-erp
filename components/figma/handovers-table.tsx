@@ -735,39 +735,12 @@ export function HandoversTable() {
       const projectName = selectedProject?.projectIndex || 'Handovers';
       const fileName = `handovers-${projectName}-${today}.xlsx`;
 
-      // Get the most recent certificate date from jobs (for template filtering)
-      const jobsWithCertDate = sortedJobs.filter((job) => job.liftCertDate);
-      const certificateDate = jobsWithCertDate.length > 0 
-        ? new Date(jobsWithCertDate[0].liftCertDate!)
-        : new Date();
-
-      // Prepare jobs data for template
-      const jobsDataForTemplate = sortedJobs.map((job) => ({
-        counteragentId: job.jobName || '',
-        factoryNo: job.factoryNo || '',
-        manufacturerName: job.brandName || '',
-        weight: job.weight ?? 0,
-        floors: job.floors ?? 0,
-        nominalAmount: job.sellingPrice ?? 0,
-        gelAmount: job.paidGel ?? 0,
-        certificateNo: job.liftCertDocNo || '',
-        liftCertDate: job.liftCertDate || today,
-      }));
-
-      // Prepare counteragent and company info
-      const counteragentInfo = 'შ.პ.ს აკმე ელვატორი'; // TODO: fetch from project
-      const companyName = 'შპს აი-სი-ი'; // Default: ICE LLC
-
-      // Call API to generate template-based export
+      // Call API to generate template-based export (all data loaded from database)
       const response = await fetch('/api/export/handover-template', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          jobsData: jobsDataForTemplate,
-          certificateDate: certificateDate.toISOString(),
-          counteragentInfo,
-          companyName,
           fileName,
           projectUuid: selectedProjectUuid,
         }),
