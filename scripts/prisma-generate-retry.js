@@ -5,8 +5,8 @@
  */
 const { execSync } = require('child_process');
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 2000;
+const MAX_RETRIES = 5;
+const RETRY_DELAY_MS = 3000;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -15,7 +15,11 @@ function sleep(ms) {
 async function generatePrisma(attemptNumber = 1) {
   try {
     console.log(`[prisma-generate] Attempt ${attemptNumber}/${MAX_RETRIES}: Generating Prisma client...`);
-    execSync('pnpm exec prisma generate', { stdio: 'inherit' });
+    // Use prisma CLI directly instead of pnpm exec
+    execSync('prisma generate', { 
+      stdio: 'inherit',
+      timeout: 60000 // 60 second timeout
+    });
     console.log(`[prisma-generate] ✓ Successfully generated Prisma client`);
     return true;
   } catch (error) {
@@ -27,8 +31,8 @@ async function generatePrisma(attemptNumber = 1) {
     } else {
       console.warn(`[prisma-generate] ✗ All ${MAX_RETRIES} attempts failed`);
       console.warn(`[prisma-generate] Error: ${error.message}`);
-      console.warn(`[prisma-generate] ⓘ Continuing anyway - Prisma client may be from cache`);
-      // Exit 0 to not fail the install
+      // Don't fail postinstall - continue and let next build determine if Prisma is needed
+      console.warn(`[prisma-generate] Continuing despite failure...`);
       return false;
     }
   }
