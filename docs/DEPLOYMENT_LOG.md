@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-10 Deployment #339
+- Commit: 6caa4b7
+- Production: https://ice-imj6tzkey-iceerp.vercel.app
+- Summary: Fix XLSX export response handling and Georgian filename encoding.
+- Changes:
+  - app/api/export/handover-template/route.ts: Use standard Response API instead of NextResponse for binary buffer, implement RFC 5987 filename encoding for Georgian characters in Content-Disposition header, fixes 500 error on export.
+
 ## 2026-06-10 Deployment #338
 - Commit: 9049c61
 - Production: https://ice-reors6j5i-iceerp.vercel.app
