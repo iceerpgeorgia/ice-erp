@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import * as XLSX from 'xlsx';
+import JSZip from 'jszip';
 import { PrismaClient } from '@prisma/client';
 import { toGenitiveCase } from '@/lib/georgian-genitive';
 
@@ -7,7 +8,8 @@ const prisma = new PrismaClient();
 
 /**
  * POST /api/export/handover-template
- * Loads exact template from public folder and fills ALL 19 Placeholders from database
+ * Uses JSZip to preserve Handover sheet formulas exactly as-is.
+ * Only updates Placeholders sheet values via XML manipulation.
  * 
  * Required body fields:
  * - fileName: output filename
@@ -25,7 +27,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('[Export Handover] Starting export for project:', projectUuid);
+    console.log('[Export Handover] Starting export with JSZip approach for project:', projectUuid);
 
     // Fetch template from public folder
     let templateBuffer: Buffer;
@@ -86,148 +88,104 @@ export async function POST(req: NextRequest) {
 
     console.log('[Export Handover] Data loaded - project:', project.project_name, 'counteragent:', counteragent?.name, 'insider:', insider?.name);
 
-    // Read workbook with minimal options - preserve all sheets exactly as they are
-    console.log('[Export Handover] Reading template with XLSX...');
-    const workbook = XLSX.read(templateBuffer);
-    
-    console.log('[Export Handover] Sheets in workbook:', Object.keys(workbook.Sheets));
-    
-    // Log sample formulas from Handover sheet BEFORE any modifications
-    const handoverSheetBefore = workbook.Sheets['Handover'];
-    if (handoverSheetBefore) {
-      console.log('[Export Handover] --- BEFORE PROCESSING - Handover sheet formulas:');
-      ['C4', 'C5', 'C6', 'V3', 'C7', 'C8'].forEach(cellRef => {
-        const cell = handoverSheetBefore[cellRef];
-        if (cell && cell.f) {
-          console.log(`[Export Handover]   ${cellRef}: formula="${cell.f}" value="${cell.v}"`);
-        }
-      });
-    }
+    // Convert date to Excel serial
+    const dateToExcelSerial = (date: Date | string | null): number => {
+      if (!date) return 0;
+      const d = typeof date === 'string' ? new Date(date) : date;
+      return Math.floor((d.getTime() - new Date(1900, 0, 1).getTime()) / (24 * 60 * 60 * 1000)) + 2;
+    };
 
-    // Fill Placeholders sheet with ALL 19 fields from database
-    if (workbook.Sheets['Placeholders']) {
-      const sheet = workbook.Sheets['Placeholders'];
+    const placeholderData = {
+      'B1': project.department || '', // Project_Department
+      'B2': dateToExcelSerial(project.date), // Handover_Date
+      'B3': counteragent?.entity_type || '', // Project_Counteragent_Entity_Type
+      'B4': counteragent?.name || '', // Project_Counteragent_Name
+      'B5': toGenitiveCase(counteragent?.director), // Project_Counteragent_Director_Genitive
+      'B6': counteragent?.director || '', // Project_Counteragent_Director
+      'B7': counteragent?.address_line_1 || '', // Project_Counteragent_Address_Line_1
+      'B8': counteragent?.address_line_2 || '', // Project_Counteragent_Address_Line_2
+      'B9': counteragent?.identification_number || '', // Project_Counteragent_ID
+      'B10': project.address || '', // Project_Address
+      'B11': insider?.entity_type || '', // Project_Insider_Entity_Type
+      'B12': insider?.name || '', // Project_Insider_Name
+      'B13': insider?.identification_number || '', // Project_Insider_ID
+      'B14': insider?.address_line_1 || '', // Project_Insider_Address_Line1
+      'B15': insider?.address_line_2 || '', // Project_Insider_Address_Line2
+      'B16': toGenitiveCase(insider?.director), // Project_Insider_Director_Genitive
+      'B17': insider?.director || '', // Project_Insider_Director_Normative
+      'B18': dateToExcelSerial(project.date), // Contract_Date
+      'B19': currency?.code || '', // Project_Currency
+    };
 
-      // Preserve cell formatting while updating values
-      const setCell = (cellRef: string, value: any, type: string) => {
-        const existingCell = sheet[cellRef] || {};
-        // Keep all existing cell properties (formatting, borders, colors, etc.)
-        sheet[cellRef] = {
-          ...existingCell,
-          v: value,
-          t: type,
-        };
-      };
+    console.log('[Export Handover] Placeholder data prepared, updating via JSZip...');
 
-      // Convert date to Excel serial
-      const dateToExcelSerial = (date: Date | string | null): number => {
-        if (!date) return 0;
-        const d = typeof date === 'string' ? new Date(date) : date;
-        return Math.floor((d.getTime() - new Date(1900, 0, 1).getTime()) / (24 * 60 * 60 * 1000)) + 2;
-      };
+    // Use JSZip to work with the Excel file directly
+    const zip = new JSZip();
+    await zip.loadAsync(templateBuffer);
 
-      const placeholderData = {
-        'B1': project.department || '', // Project_Department (A1)
-        'B2': dateToExcelSerial(project.date), // Handover_Date - use certificate/contract date (A2)
-        'B3': counteragent?.entity_type || '', // Project_Counteragent_Entity_Type (A3)
-        'B4': counteragent?.name || '', // Project_Counteragent_Name (A4)
-        'B5': toGenitiveCase(counteragent?.director), // Project_Counteragent_Director_Genitive (A5)
-        'B6': counteragent?.director || '', // Project_Counteragent_Director (A6)
-        'B7': counteragent?.address_line_1 || '', // Project_Counteragent_Address_Line_1 (A7)
-        'B8': counteragent?.address_line_2 || '', // Project_Counteragent_Address_Line_2 (A8)
-        'B9': counteragent?.identification_number || '', // Project_Counteragent_ID (A9)
-        'B10': project.address || '', // Project_Address (A10)
-        'B11': insider?.entity_type || '', // Project_Insider_Entity_Type (A11)
-        'B12': insider?.name || '', // Project_Insider_Name (A12)
-        'B13': insider?.identification_number || '', // Project_Insider_ID (A13)
-        'B14': insider?.address_line_1 || '', // Project_Insider_Address_Line1 (A14)
-        'B15': insider?.address_line_2 || '', // Project_Insider_Address_Line2 (A15)
-        'B16': toGenitiveCase(insider?.director), // Project_Insider_Director_Genitive (A16)
-        'B17': insider?.director || '', // Project_Insider_Director_Normative (A17)
-        'B18': dateToExcelSerial(project.date), // Contract_Date - project's certificate date (A18)
-        'B19': currency?.code || '', // Project_Currency (A19)
-      };
-
-      console.log('[Export Handover] Filling all 19 placeholders:');
-      Object.entries(placeholderData).forEach(([cell, value]) => {
-        const isDateCell = cell === 'B2' || cell === 'B18';
-        const type = isDateCell ? 'n' : 's';
-        setCell(cell, value, type);
-        console.log(`[Export Handover] ${cell}: ${String(value).substring(0, 50)}`);
-      });
-    } else {
-      console.error('[Export Handover] ERROR: Placeholders sheet not found!');
+    // Extract and modify the Placeholders sheet XML
+    const placeholdersXml = await zip.file('xl/worksheets/sheet2.xml')?.async('string');
+    if (!placeholdersXml) {
+      console.error('[Export Handover] ERROR: Placeholders sheet (sheet2.xml) not found!');
       return Response.json(
         { error: 'Placeholders sheet not found in template' },
         { status: 500 }
       );
     }
 
-    // Clean up namespace prefixes from ALL formulas in ALL sheets
-    // XLSX adds _xlws. and _xlfn. prefixes to modern Excel functions
-    // These need to be stripped before writing to preserve original formulas
-    console.log('[Export Handover] --- Cleaning namespace prefixes from formulas:');
-    let formulasModified = 0;
-    let formulasWithIssues: { sheet: string; cell: string; before: string; after: string }[] = [];
-    
-    Object.keys(workbook.Sheets).forEach((sheetName) => {
-      const sheet = workbook.Sheets[sheetName];
-      Object.keys(sheet).forEach((cellRef) => {
-        if (cellRef.startsWith('!')) return;
-        const cell = sheet[cellRef];
-        if (cell && cell.f && typeof cell.f === 'string') {
-          const beforeFormula = cell.f;
-          
-          // Remove namespace prefixes: _xlws., _xlfn., etc.
-          cell.f = cell.f.replace(/^_xlws\./g, '');
-          cell.f = cell.f.replace(/_xlws\./g, '');
-          cell.f = cell.f.replace(/^_xlfn\./g, '');
-          cell.f = cell.f.replace(/_xlfn\./g, '');
-          
-          // Log if formula changed
-          if (beforeFormula !== cell.f) {
-            formulasModified++;
-            if (sheetName === 'Handover' || sheetName === 'Placeholders') {
-              formulasWithIssues.push({
-                sheet: sheetName,
-                cell: cellRef,
-                before: beforeFormula,
-                after: cell.f,
-              });
-            }
-          }
+    console.log('[Export Handover] Placeholders XML loaded, size:', placeholdersXml.length);
+
+    // Parse XML and update cell values
+    let modifiedXml = placeholdersXml;
+
+    Object.entries(placeholderData).forEach(([cellRef, value]) => {
+      console.log(`[Export Handover] Updating ${cellRef}: ${String(value).substring(0, 50)}`);
+      
+      // Create an escaped string value for the cell
+      const escapedValue = String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+
+      // For date cells (B2, B18), use numeric type 'n', otherwise string type 's'
+      const isDateCell = cellRef === 'B2' || cellRef === 'B18';
+      const cellType = isDateCell ? 'n' : 's';
+
+      // Replace the cell value in the XML
+      // Pattern: <c r="B1" t="s"><v>old_value</v></c>
+      // We look for the cell reference and update the value inside
+      const cellPattern = new RegExp(`(<c r="${cellRef}"[^>]*>)([^<]*<v>)[^<]*(</v>)`, 'g');
+      const replacement = `$1$2${escapedValue}$3`;
+      const beforeLen = modifiedXml.length;
+      modifiedXml = modifiedXml.replace(cellPattern, replacement);
+      
+      if (modifiedXml.length !== beforeLen) {
+        console.log(`[Export Handover]   ✓ Updated ${cellRef}`);
+      } else {
+        console.log(`[Export Handover]   ⚠ Pattern not found for ${cellRef}, trying alternative...`);
+        // Try alternative pattern in case structure is different
+        const altPattern = new RegExp(`<c r="${cellRef}"[^>]*t="${cellType}"[^>]*><v>[^<]*</v></c>`, 'g');
+        const altReplacement = `<c r="${cellRef}" t="${cellType}"><v>${escapedValue}</v></c>`;
+        const altBeforeLen = modifiedXml.length;
+        modifiedXml = modifiedXml.replace(altPattern, altReplacement);
+        if (modifiedXml.length !== altBeforeLen) {
+          console.log(`[Export Handover]   ✓ Updated ${cellRef} (alt pattern)`);
         }
-      });
-    });
-    
-    console.log(`[Export Handover] Modified ${formulasModified} formulas`);
-    formulasWithIssues.forEach(issue => {
-      console.log(`[Export Handover]   ${issue.sheet}!${issue.cell}:`);
-      console.log(`[Export Handover]     BEFORE: ${issue.before.substring(0, 100)}`);
-      console.log(`[Export Handover]     AFTER:  ${issue.after.substring(0, 100)}`);
+      }
     });
 
-    // Write workbook - formulas should now be clean
-    console.log('[Export Handover] Writing workbook to buffer...');
-    const outputBuffer = XLSX.write(workbook, {
-      type: 'buffer',
-      bookType: 'xlsx',
-    });
+    // Update the Placeholders sheet in the zip
+    zip.file('xl/worksheets/sheet2.xml', modifiedXml);
 
-    // Log sample formulas from output to verify
-    console.log('[Export Handover] --- AFTER WRITE - Re-reading output to verify:');
-    const verifyWorkbook = XLSX.read(outputBuffer);
-    const verifyHandover = verifyWorkbook.Sheets['Handover'];
-    if (verifyHandover) {
-      ['C4', 'C5', 'C6', 'V3', 'C7', 'C8'].forEach(cellRef => {
-        const cell = verifyHandover[cellRef];
-        if (cell && cell.f) {
-          console.log(`[Export Handover]   ${cellRef}: formula="${cell.f}" value="${cell.v}"`);
-        } else if (cell) {
-          console.log(`[Export Handover]   ${cellRef}: NO FORMULA, value="${cell.v}"`);
-        }
-      });
-    }
+    console.log('[Export Handover] JSZip modifications complete, generating output...');
+
+    // Generate the modified Excel file
+    const outputBuffer = await zip.generateAsync({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+    });
 
     console.log('[Export Handover] Export complete, file size:', outputBuffer.length);
 
