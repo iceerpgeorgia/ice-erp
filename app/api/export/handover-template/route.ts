@@ -98,10 +98,15 @@ export async function POST(req: NextRequest) {
     if (workbook.Sheets['Placeholders']) {
       const sheet = workbook.Sheets['Placeholders'];
 
+      // Preserve cell formatting while updating values
       const setCell = (cellRef: string, value: any, type: string) => {
-        if (!sheet[cellRef]) sheet[cellRef] = {};
-        sheet[cellRef].v = value;
-        sheet[cellRef].t = type;
+        const existingCell = sheet[cellRef] || {};
+        // Keep all existing cell properties (formatting, borders, colors, etc.)
+        sheet[cellRef] = {
+          ...existingCell,
+          v: value,
+          t: type,
+        };
       };
 
       // Convert date to Excel serial
@@ -148,11 +153,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Strip namespace prefixes from ALL formulas
-    Object.keys(workbook.Sheets).forEach((sheetName) => {
-      const sheet = workbook.Sheets[sheetName];
-      Object.keys(sheet).forEach((cellRef) => {
-        const cell = sheet[cellRef];
+    // Strip namespace prefixes ONLY from Placeholders sheet formulas
+    // Preserve Handover sheet formulas exactly as they are
+    const placeholdersSheet = workbook.Sheets['Placeholders'];
+    if (placeholdersSheet) {
+      Object.keys(placeholdersSheet).forEach((cellRef) => {
+        const cell = placeholdersSheet[cellRef];
         if (cellRef.startsWith('!')) return;
         if (cell && cell.f && typeof cell.f === 'string') {
           cell.f = cell.f.replace(/^_xlws\./, '');
@@ -161,9 +167,9 @@ export async function POST(req: NextRequest) {
           cell.f = cell.f.replace(/^_[a-z]+\./gi, '');
         }
       });
-    });
+    }
 
-    // Write to buffer
+    // Write to buffer with comprehensive formatting preservation
     const outputBuffer = XLSX.write(workbook, {
       type: 'buffer',
       bookType: 'xlsx',
