@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 
 /**
  * POST /api/export/handover-template
- * Exports handover template and fills placeholder cells with data
+ * Loads exact template from public folder and fills Placeholders sheet
  */
 export async function POST(req: NextRequest) {
   try {
@@ -24,14 +24,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Load template from root first, then public
-    let templatePath = path.join(process.cwd(), 'handover template.xlsx');
-    if (!fs.existsSync(templatePath)) {
-      templatePath = path.join(process.cwd(), 'public', 'handover template.xlsx');
-    }
+    // Load exact template from public folder
+    const templatePath = path.join(process.cwd(), 'public', 'handover template.xlsx');
+    
     if (!fs.existsSync(templatePath)) {
       return Response.json(
-        { error: `Handover template not found` },
+        { error: `Template not found at: ${templatePath}` },
         { status: 404 }
       );
     }
@@ -49,28 +47,31 @@ export async function POST(req: NextRequest) {
     console.log('[Export Handover] Template loaded from:', templatePath);
     console.log('[Export Handover] Sheets:', workbook.SheetNames);
 
-    // Fill placeholders in Handover sheet only
-    if (workbook.Sheets['Handover']) {
-      const sheet = workbook.Sheets['Handover'];
+    // Fill Placeholders sheet
+    if (workbook.Sheets['Placeholders']) {
+      const sheet = workbook.Sheets['Placeholders'];
 
-      // V3: Certificate date
-      if (certificateDate && sheet['V3']) {
+      // Helper to set cell value while preserving formatting
+      const setCell = (cellRef: string, value: any, type: string) => {
+        if (!sheet[cellRef]) sheet[cellRef] = {};
+        sheet[cellRef].v = value;
+        sheet[cellRef].t = type;
+      };
+
+      // Fill placeholder cells based on data provided
+      if (certificateDate) {
         const dateObj = new Date(certificateDate);
-        const dateStr = dateObj.toISOString().split('T')[0];
-        sheet['V3'].v = dateStr;
-        sheet['V3'].t = 's';
+        // Convert to Excel serial for proper date handling
+        const excelSerial = Math.floor((dateObj.getTime() - new Date(1900, 0, 1).getTime()) / (24 * 60 * 60 * 1000)) + 2;
+        setCell('B2', excelSerial, 'n'); // Handover_Date
       }
 
-      // C6: Counteragent info
-      if (counteragentInfo && sheet['C6']) {
-        sheet['C6'].v = counteragentInfo;
-        sheet['C6'].t = 's';
+      if (counteragentInfo) {
+        setCell('B4', counteragentInfo, 's'); // Project_Counteragent_Name
       }
 
-      // H69: Company name
-      if (companyName && sheet['H69']) {
-        sheet['H69'].v = companyName;
-        sheet['H69'].t = 's';
+      if (companyName) {
+        setCell('B12', companyName, 's'); // Project_Insider_Name
       }
     }
 
