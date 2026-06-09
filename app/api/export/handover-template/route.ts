@@ -24,27 +24,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Load template: try filesystem first (dev), fall back to HTTP fetch (Vercel production)
+    // Load template: fetch from static asset (works on dev and Vercel production)
     let templateBuffer: Buffer;
-    const templatePath = path.join(process.cwd(), 'public', 'handover template.xlsx');
-
-    if (fs.existsSync(templatePath)) {
-      templateBuffer = fs.readFileSync(templatePath);
-      console.log('[Export Handover] Loaded template from filesystem:', templatePath);
-    } else {
-      // On Vercel, public/ files are served as static assets — fetch via HTTP
-      const host = req.headers.get('host') || 'ice-erp.vercel.app';
-      const protocol = host.startsWith('localhost') ? 'http' : 'https';
-      const templateUrl = `${protocol}://${host}/handover%20template.xlsx`;
-      console.log('[Export Handover] Fetching template via HTTP:', templateUrl);
-      const fetchRes = await fetch(templateUrl);
+    
+    // Get the host from request headers
+    const host = req.headers.get('host') || 'localhost:3000';
+    const protocol = req.headers.get('x-forwarded-proto') || (host.startsWith('localhost') ? 'http' : 'https');
+    const templateUrl = `${protocol}://${host}/handover%20template.xlsx`;
+    
+    console.log('[Export Handover] Fetching template from:', templateUrl);
+    
+    try {
+      const fetchRes = await fetch(templateUrl, { cache: 'no-store' });
       if (!fetchRes.ok) {
+        console.error(`[Export Handover] Failed to fetch template: ${fetchRes.status} ${fetchRes.statusText}`);
         return Response.json(
-          { error: `Template not found via HTTP (${fetchRes.status}): ${templateUrl}` },
+          { error: `Template fetch failed (${fetchRes.status}): ${templateUrl}` },
           { status: 404 }
         );
       }
       templateBuffer = Buffer.from(await fetchRes.arrayBuffer());
+      console.log('[Export Handover] Template fetched successfully, size:', templateBuffer.length);
+    } catch (fetchErr) {
+      console.error('[Export Handover] Template fetch error:', fetchErr);
+      return Response.json(
+        { error: `Failed to fetch template: ${fetchErr instanceof Error ? fetchErr.message : 'Unknown error'}` },
+        { status: 500 }
+      );
     }
 
     // Read workbook preserving all formatting and formulas
