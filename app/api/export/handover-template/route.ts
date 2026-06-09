@@ -86,12 +86,10 @@ export async function POST(req: NextRequest) {
 
     console.log('[Export Handover] Data loaded - project:', project.project_name, 'counteragent:', counteragent?.name, 'insider:', insider?.name);
 
-    // Read workbook preserving all formatting and formulas
+    // Read workbook with minimal options to preserve Handover sheet integrity
+    // Using raw read without heavy formatting preservation that might corrupt sheets
     const workbook = XLSX.read(templateBuffer, {
-      cellFormula: true,
-      cellNF: true,
-      cellStyles: true,
-      sheetStubs: true,
+      defval: '',
     });
 
     // Fill Placeholders sheet with ALL 19 fields from database
@@ -118,7 +116,7 @@ export async function POST(req: NextRequest) {
 
       const placeholderData = {
         'B1': project.department || '', // Project_Department (A1)
-        'B2': dateToExcelSerial(project.date), // Handover_Date (A2)
+        'B2': dateToExcelSerial(new Date()), // Handover_Date - today's date when handover occurs (A2)
         'B3': counteragent?.entity_type || '', // Project_Counteragent_Entity_Type (A3)
         'B4': counteragent?.name || '', // Project_Counteragent_Name (A4)
         'B5': toGenitiveCase(counteragent?.director), // Project_Counteragent_Director_Genitive (A5)
@@ -134,7 +132,7 @@ export async function POST(req: NextRequest) {
         'B15': insider?.address_line_2 || '', // Project_Insider_Address_Line2 (A15)
         'B16': toGenitiveCase(insider?.director), // Project_Insider_Director_Genitive (A16)
         'B17': insider?.director || '', // Project_Insider_Director_Normative (A17)
-        'B18': dateToExcelSerial(project.date), // Contract_Date (A18)
+        'B18': dateToExcelSerial(project.date), // Contract_Date - project's contract/certificate date (A18)
         'B19': currency?.code || '', // Project_Currency (A19)
       };
 
