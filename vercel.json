@@ -11,10 +11,6 @@
     "PRISMA_SKIP_VALIDATION": "true",
     "SKIP_ENV_VALIDATION": "true"
   },
-  "buildEnv": {
-    "PRISMA_SKIP_VALIDATION": "true",
-    "SKIP_ENV_VALIDATION": "true"
-  },
   "crons": [
     {
       "path": "/api/cron/bog-import-last-3-days",
