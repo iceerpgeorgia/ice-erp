@@ -148,8 +148,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Write workbook without modifying formulas or formatting
-    // This preserves Handover sheet exactly as it is in the template
+    // Clean up namespace prefixes from ALL formulas in ALL sheets
+    // XLSX adds _xlws. and _xlfn. prefixes to modern Excel functions
+    // These need to be stripped before writing to preserve original formulas
+    Object.keys(workbook.Sheets).forEach((sheetName) => {
+      const sheet = workbook.Sheets[sheetName];
+      Object.keys(sheet).forEach((cellRef) => {
+        if (cellRef.startsWith('!')) return;
+        const cell = sheet[cellRef];
+        if (cell && cell.f && typeof cell.f === 'string') {
+          // Remove namespace prefixes: _xlws., _xlfn., etc.
+          cell.f = cell.f.replace(/^_xlws\./g, '');
+          cell.f = cell.f.replace(/_xlws\./g, '');
+          cell.f = cell.f.replace(/^_xlfn\./g, '');
+          cell.f = cell.f.replace(/_xlfn\./g, '');
+        }
+      });
+    });
+
+    // Write workbook - formulas should now be clean
     const outputBuffer = XLSX.write(workbook, {
       type: 'buffer',
       bookType: 'xlsx',
