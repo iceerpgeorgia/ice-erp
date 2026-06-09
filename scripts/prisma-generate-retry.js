@@ -19,8 +19,8 @@ function sleep(ms) {
 async function generatePrisma(attemptNumber = 1) {
   try {
     console.log(`[prisma-generate] Attempt ${attemptNumber}/${MAX_RETRIES}: Generating Prisma client...`);
-    // Use prisma CLI directly with explicit env vars
-    execSync('prisma generate', { 
+    // Use npx to ensure we run from node_modules
+    execSync('npx prisma generate', { 
       stdio: 'inherit',
       timeout: 60000, // 60 second timeout
       env: {
