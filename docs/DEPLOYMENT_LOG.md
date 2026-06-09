@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-06-10 Deployment #340
+- Commit: 48e5fd4
+- Production: https://ice-9htk7bj7g-iceerp.vercel.app
+- Summary: Implement database-driven handover template export with all 19 placeholders populated from actual project data.
+- Changes:
+  - app/api/export/handover-template/route.ts: Complete rewrite to query database (projects, counteragents, currencies) instead of using hardcoded values; maps all 19 placeholder cells (B1-B19) from database fields including project department, dates, counteragent/insider info, addresses, identification numbers, and currency code.
+  - components/figma/handovers-table.tsx: Simplified handleGlobalExport to pass only fileName and projectUuid to API; removed hardcoded parameters (certificateDate, counteragentInfo, companyName) that are now fetched from database server-side.
+  - Test scripts cleanup: Removed temporary test files (get-project-placeholders.ts, get-placeholders.js, read-placeholders.js, test_export_logic.js, test fixtures) that were causing build errors.
+
 ## 2026-06-10 Deployment #339
 - Commit: 6caa4b7
 - Production: https://ice-imj6tzkey-iceerp.vercel.app
