@@ -130,9 +130,6 @@ export async function POST(req: NextRequest) {
     const outputBuffer = XLSX.write(workbook, {
       type: 'buffer',
       bookType: 'xlsx',
-      cellFormula: true,
-      cellNF: true,
-      cellStyles: true,
     });
 
     console.log('[Export Handover] Template populated and written, size:', outputBuffer.length);
