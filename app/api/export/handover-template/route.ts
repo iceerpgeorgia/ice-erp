@@ -87,7 +87,22 @@ export async function POST(req: NextRequest) {
     console.log('[Export Handover] Data loaded - project:', project.project_name, 'counteragent:', counteragent?.name, 'insider:', insider?.name);
 
     // Read workbook with minimal options - preserve all sheets exactly as they are
+    console.log('[Export Handover] Reading template with XLSX...');
     const workbook = XLSX.read(templateBuffer);
+    
+    console.log('[Export Handover] Sheets in workbook:', Object.keys(workbook.Sheets));
+    
+    // Log sample formulas from Handover sheet BEFORE any modifications
+    const handoverSheetBefore = workbook.Sheets['Handover'];
+    if (handoverSheetBefore) {
+      console.log('[Export Handover] --- BEFORE PROCESSING - Handover sheet formulas:');
+      ['C4', 'C5', 'C6', 'V3', 'C7', 'C8'].forEach(cellRef => {
+        const cell = handoverSheetBefore[cellRef];
+        if (cell && cell.f) {
+          console.log(`[Export Handover]   ${cellRef}: formula="${cell.f}" value="${cell.v}"`);
+        }
+      });
+    }
 
     // Fill Placeholders sheet with ALL 19 fields from database
     if (workbook.Sheets['Placeholders']) {
@@ -151,26 +166,68 @@ export async function POST(req: NextRequest) {
     // Clean up namespace prefixes from ALL formulas in ALL sheets
     // XLSX adds _xlws. and _xlfn. prefixes to modern Excel functions
     // These need to be stripped before writing to preserve original formulas
+    console.log('[Export Handover] --- Cleaning namespace prefixes from formulas:');
+    let formulasModified = 0;
+    let formulasWithIssues: { sheet: string; cell: string; before: string; after: string }[] = [];
+    
     Object.keys(workbook.Sheets).forEach((sheetName) => {
       const sheet = workbook.Sheets[sheetName];
       Object.keys(sheet).forEach((cellRef) => {
         if (cellRef.startsWith('!')) return;
         const cell = sheet[cellRef];
         if (cell && cell.f && typeof cell.f === 'string') {
+          const beforeFormula = cell.f;
+          
           // Remove namespace prefixes: _xlws., _xlfn., etc.
           cell.f = cell.f.replace(/^_xlws\./g, '');
           cell.f = cell.f.replace(/_xlws\./g, '');
           cell.f = cell.f.replace(/^_xlfn\./g, '');
           cell.f = cell.f.replace(/_xlfn\./g, '');
+          
+          // Log if formula changed
+          if (beforeFormula !== cell.f) {
+            formulasModified++;
+            if (sheetName === 'Handover' || sheetName === 'Placeholders') {
+              formulasWithIssues.push({
+                sheet: sheetName,
+                cell: cellRef,
+                before: beforeFormula,
+                after: cell.f,
+              });
+            }
+          }
         }
       });
     });
+    
+    console.log(`[Export Handover] Modified ${formulasModified} formulas`);
+    formulasWithIssues.forEach(issue => {
+      console.log(`[Export Handover]   ${issue.sheet}!${issue.cell}:`);
+      console.log(`[Export Handover]     BEFORE: ${issue.before.substring(0, 100)}`);
+      console.log(`[Export Handover]     AFTER:  ${issue.after.substring(0, 100)}`);
+    });
 
     // Write workbook - formulas should now be clean
+    console.log('[Export Handover] Writing workbook to buffer...');
     const outputBuffer = XLSX.write(workbook, {
       type: 'buffer',
       bookType: 'xlsx',
     });
+
+    // Log sample formulas from output to verify
+    console.log('[Export Handover] --- AFTER WRITE - Re-reading output to verify:');
+    const verifyWorkbook = XLSX.read(outputBuffer);
+    const verifyHandover = verifyWorkbook.Sheets['Handover'];
+    if (verifyHandover) {
+      ['C4', 'C5', 'C6', 'V3', 'C7', 'C8'].forEach(cellRef => {
+        const cell = verifyHandover[cellRef];
+        if (cell && cell.f) {
+          console.log(`[Export Handover]   ${cellRef}: formula="${cell.f}" value="${cell.v}"`);
+        } else if (cell) {
+          console.log(`[Export Handover]   ${cellRef}: NO FORMULA, value="${cell.v}"`);
+        }
+      });
+    }
 
     console.log('[Export Handover] Export complete, file size:', outputBuffer.length);
 
