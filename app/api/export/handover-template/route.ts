@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
     handoverSheet['V3'].t = 'n';
 
     // ============================================
-    // 2. Replace placeholder text in Handover sheet
+    // 2. Replace placeholder text in Handover sheet (preserve formatting)
     // ============================================
     if (handoverSheet['C6']) {
       handoverSheet['C6'].v = counteragentInfo || 'შ.პ.ს აკმე ელვატორი';
@@ -119,26 +119,29 @@ export async function POST(req: NextRequest) {
     // ============================================
     let placeholdersSheet = workbook.Sheets['Placeholders'];
     if (placeholdersSheet) {
+      // Convert handover date to Excel serial
+      const handoverDateSerial = dateToExcelSerial(certDate);
+      
       const placeholders = [
-        { col: 'B', row: 1, key: 'Project_Department', value: projectData.department || '' },
-        { col: 'B', row: 2, key: 'Handover_Date', value: certificateDate },
-        { col: 'B', row: 3, key: 'Project_Counteragent_Entity_Type', value: counteragentData.entity_type || '' },
-        { col: 'B', row: 4, key: 'Project_Counteragent_Name', value: counteragentData.name || '' },
+        { col: 'B', row: 1, key: 'Project_Department', value: projectData.department || '', type: 's' },
+        { col: 'B', row: 2, key: 'Handover_Date', value: handoverDateSerial, type: 'n' }, // Excel serial date
+        { col: 'B', row: 3, key: 'Project_Counteragent_Entity_Type', value: counteragentData.entity_type || '', type: 's' },
+        { col: 'B', row: 4, key: 'Project_Counteragent_Name', value: counteragentData.name || '', type: 's' },
         // Row 5: Project_Counteragent_Director_Genitive - SKIP (has formula)
-        { col: 'B', row: 6, key: 'Project_Counteragent_Director', value: counteragentData.director || '' },
-        { col: 'B', row: 7, key: 'Project_Counteragent_Address_Line_1', value: counteragentData.address_line_1 || '' },
-        { col: 'B', row: 8, key: 'Project_Counteragent_Address_Line_2', value: counteragentData.address_line_2 || '' },
-        { col: 'B', row: 9, key: 'Project_Counteragent_ID', value: counteragentData.identification_number || '' },
-        { col: 'B', row: 10, key: 'Project_Address', value: projectData.address || '' },
-        { col: 'B', row: 11, key: 'Project_Insider_Entity_Type', value: insiderData.entity_type || '' },
-        { col: 'B', row: 12, key: 'Project_Insider_Name', value: insiderData.name || insiderData.insider_name || '' },
-        { col: 'B', row: 13, key: 'Project_Insider_ID', value: insiderData.identification_number || '' },
-        { col: 'B', row: 14, key: 'Project_Insider_Address_Line1', value: insiderData.address_line_1 || '' },
-        { col: 'B', row: 15, key: 'Project_Insider_Address_Line2', value: insiderData.address_line_2 || '' },
+        { col: 'B', row: 6, key: 'Project_Counteragent_Director', value: counteragentData.director || '', type: 's' },
+        { col: 'B', row: 7, key: 'Project_Counteragent_Address_Line_1', value: counteragentData.address_line_1 || '', type: 's' },
+        { col: 'B', row: 8, key: 'Project_Counteragent_Address_Line_2', value: counteragentData.address_line_2 || '', type: 's' },
+        { col: 'B', row: 9, key: 'Project_Counteragent_ID', value: counteragentData.identification_number || '', type: 's' },
+        { col: 'B', row: 10, key: 'Project_Address', value: projectData.address || '', type: 's' },
+        { col: 'B', row: 11, key: 'Project_Insider_Entity_Type', value: insiderData.entity_type || '', type: 's' },
+        { col: 'B', row: 12, key: 'Project_Insider_Name', value: insiderData.name || insiderData.insider_name || '', type: 's' },
+        { col: 'B', row: 13, key: 'Project_Insider_ID', value: insiderData.identification_number || '', type: 's' },
+        { col: 'B', row: 14, key: 'Project_Insider_Address_Line1', value: insiderData.address_line_1 || '', type: 's' },
+        { col: 'B', row: 15, key: 'Project_Insider_Address_Line2', value: insiderData.address_line_2 || '', type: 's' },
         // Row 16: Project_Insider_Director_Genitive - SKIP (has formula)
-        { col: 'B', row: 17, key: 'Project_Insider_Director_Normative', value: insiderData.director || '' },
+        { col: 'B', row: 17, key: 'Project_Insider_Director_Normative', value: insiderData.director || '', type: 's' },
         // Row 18: Contract_Date - SKIP (leave blank)
-        { col: 'B', row: 19, key: 'Project_Currency', value: projectData.currency || '' },
+        { col: 'B', row: 19, key: 'Project_Currency', value: projectData.currency || '', type: 's' },
       ];
 
       placeholders.forEach(ph => {
@@ -146,8 +149,9 @@ export async function POST(req: NextRequest) {
         if (!placeholdersSheet[cellRef]) {
           placeholdersSheet[cellRef] = {};
         }
+        // Preserve existing formatting, only update value and type
         placeholdersSheet[cellRef].v = ph.value;
-        placeholdersSheet[cellRef].t = 's';
+        placeholdersSheet[cellRef].t = ph.type;
       });
     }
 
