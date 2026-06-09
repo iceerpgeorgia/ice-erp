@@ -72,7 +72,14 @@ export async function POST(req: NextRequest) {
     }
 
     const templateBuffer = fs.readFileSync(templatePath);
-    const workbook = XLSX.read(templateBuffer, { cellFormula: false, cellNF: false, cellStyles: true });
+    const workbook = XLSX.read(templateBuffer, { 
+      cellFormula: true,
+      cellNF: true,
+      cellStyles: true,
+      sheetStubs: true,
+    });
+
+    console.log('[Export Handover] Template sheets:', workbook.SheetNames);
 
     // Get the Handover sheet
     const handoverSheet = workbook.Sheets['Handover'];
@@ -224,8 +231,10 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================
-    // 5. Export to buffer
+    // 5. Export to buffer - preserve all sheets
     // ============================================
+    console.log('[Export Handover] Exporting sheets:', workbook.SheetNames);
+    
     const outputBuffer = XLSX.write(workbook, {
       bookType: 'xlsx',
       type: 'buffer',
