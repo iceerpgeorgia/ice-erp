@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-10 Deployment #341
+- Commit: b7b67ac
+- Production: https://ice-18g7ti88y-iceerp.vercel.app
+- Summary: Auto-convert Georgian director names to genitive case in handover template export.
+- Changes:
+  - lib/georgian-genitive.ts: New utility function that converts Georgian names from nominative to genitive case by splitting first/last names and applying grammar rules (ე→ის, ა→ას, ი→ის, ო→ოს), used for proper genitive inflection in legal documents.
+  - app/api/export/handover-template/route.ts: Import toGenitiveCase and apply to B5 (Counteragent_Director_Genitive) and B16 (Insider_Director_Genitive) cells, while B6 and B17 remain in nominative case.
+
 ## 2026-06-10 Deployment #340
 - Commit: 48e5fd4
 - Production: https://ice-9htk7bj7g-iceerp.vercel.app
