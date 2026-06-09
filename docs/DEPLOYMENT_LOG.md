@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-10 Deployment #344
+- Commit: 0c3b522
+- Production: https://ice-gfdm72lmc-iceerp.vercel.app
+- Summary: Strip namespace prefixes from all sheet formulas in exported handover template.
+- Changes:
+  - app/api/export/handover-template/route.ts: Added comprehensive formula cleanup that strips _xlws. and _xlfn. namespace prefixes from ALL sheets before writing XLSX. This fixes the issue where formulas like `=_xlws.FILTER(...)` were being exported instead of `=FILTER(...)`, ensuring the Handover sheet exports with clean, original formulas.
+
 ## 2026-06-10 Deployment #343
 - Commit: 2230dc4
 - Production: https://ice-db728v8yd-iceerp.vercel.app
