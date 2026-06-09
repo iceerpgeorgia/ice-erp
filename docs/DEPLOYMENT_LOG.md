@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-10 Deployment #345
+- Commit: 1e35360
+- Production: https://ice-lyqvuksdo-iceerp.vercel.app
+- Summary: Add comprehensive logging to debug formula handling in handover template export.
+- Changes:
+  - app/api/export/handover-template/route.ts: Added extensive logging to capture formula states before reading, before processing, during namespace prefix stripping, and after writing. Logs sheet names, sample formulas from Handover sheet (C4, C5, C6, V3, C7, C8), formula modifications with before/after comparisons, and re-reads output buffer to verify formulas are preserved. This will help identify if XLSX library is properly preserving formulas or if there's a deeper issue with the read/write cycle.
+
 ## 2026-06-10 Deployment #344
 - Commit: 0c3b522
 - Production: https://ice-gfdm72lmc-iceerp.vercel.app
