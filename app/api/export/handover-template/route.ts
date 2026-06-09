@@ -135,13 +135,12 @@ export async function POST(req: NextRequest) {
 
     console.log('[Export Handover] Placeholders XML loaded, size:', placeholdersXml.length);
 
-    // Process each placeholder cell - skip B5 and B16 (they have formulas)
-    const SKIP_CELLS = ['B5', 'B16']; // These cells have genitive conversion formulas
+    // B5 and B16 have genitive formulas - skip them (let them compute from B6 and B17)
+    const SKIP_CELLS = ['B5', 'B16'];
     
     Object.entries(placeholderData).forEach(([cellRef, value]) => {
-      // Skip cells that have formulas
       if (SKIP_CELLS.includes(cellRef)) {
-        console.log(`[Export Handover]   Skipping ${cellRef} (has formula)`);
+        console.log(`[Export Handover]   Skipping ${cellRef} (has genitive formula)`);
         return;
       }
 
@@ -155,67 +154,59 @@ export async function POST(req: NextRequest) {
       const isDateCell = cellRef === 'B2' || cellRef === 'B18';
       const cellType = isDateCell ? 'n' : 's';
 
-      console.log(`[Export Handover]   Processing ${cellRef}`);
+      console.log(`[Export Handover]   Processing ${cellRef} = ${escapedValue}`);
 
-      // Extract row number from cell ref (e.g., "B2" -> 2)
-      const rowNum = parseInt(cellRef.match(/\d+/)?.[0] || '0');
-      if (rowNum === 0) {
-        console.error(`[Export Handover]     ✗ Invalid cell reference: ${cellRef}`);
-        return;
-      }
+      // Try to update or create the cell in the XML
+      let updated = false;
 
-      let replaced = false;
-      
-      // Strategy 1: Try to replace existing <v> content in cell
-      const pattern1 = new RegExp(`(<c r="${cellRef}"[^>]*>.*?)<v>[^<]*</v>(.*?</c>)`, 's');
+      // Pattern 1: Cell has existing value <c r="B1" ...><v>old</v></c>
+      const pattern1 = new RegExp(`(<c r="${cellRef}"[^>]*>.*?)<v>[^<]*</v>`, 's');
       if (pattern1.test(placeholdersXml)) {
-        placeholdersXml = placeholdersXml.replace(pattern1, `$1<v>${escapedValue}</v>$2`);
-        console.log(`[Export Handover]     ✓ Updated ${cellRef} (existing value)`);
-        replaced = true;
+        placeholdersXml = placeholdersXml.replace(pattern1, `$1<v>${escapedValue}</v>`);
+        console.log(`[Export Handover]     ✓ Updated existing value in ${cellRef}`);
+        updated = true;
       }
 
-      // Strategy 2: Convert empty self-closing cells to cells with values
-      if (!replaced) {
-        const pattern2 = new RegExp(`<c r="${cellRef}"([^>]*)/>`, 's');
+      // Pattern 2: Empty cell <c r="B2" s="13"/>
+      if (!updated) {
+        const pattern2 = new RegExp(`<c r="${cellRef}"([^>]*?)\\s*/>`, 's');
         if (pattern2.test(placeholdersXml)) {
-          placeholdersXml = placeholdersXml.replace(pattern2, `<c r="${cellRef}"$1><v>${escapedValue}</v></c>`);
-          console.log(`[Export Handover]     ✓ Updated ${cellRef} (converted from empty)`);
-          replaced = true;
+          placeholdersXml = placeholdersXml.replace(
+            pattern2,
+            `<c r="${cellRef}"$1><v>${escapedValue}</v></c>`
+          );
+          console.log(`[Export Handover]     ✓ Converted empty cell ${cellRef}`);
+          updated = true;
         }
       }
 
-      // Strategy 3: Create cell if it doesn't exist
-      if (!replaced) {
-        const cellExists = new RegExp(`<c r="${cellRef}"`, 's').test(placeholdersXml);
-        if (!cellExists) {
-          // Find the row for this cell, or create it
-          const rowPattern = new RegExp(`<row r="${rowNum}"([^>]*)>`, 's');
-          const rowMatch = placeholdersXml.match(rowPattern);
-          
-          if (rowMatch) {
-            // Row exists, insert cell into it
-            const newCell = `<c r="${cellRef}" t="${cellType}"><v>${escapedValue}</v></c>`;
-            placeholdersXml = placeholdersXml.replace(
-              rowPattern,
-              `<row r="${rowNum}"$1>${newCell}`
-            );
-            console.log(`[Export Handover]     ✓ Created ${cellRef} in existing row`);
-            replaced = true;
-          } else {
-            // Row doesn't exist, create it with the cell
-            const newRow = `<row r="${rowNum}" spans="1:5"><c r="${cellRef}" t="${cellType}"><v>${escapedValue}</v></c></row>`;
-            const sheetDataClose = '</sheetData>';
-            if (placeholdersXml.includes(sheetDataClose)) {
-              placeholdersXml = placeholdersXml.replace(sheetDataClose, newRow + sheetDataClose);
-              console.log(`[Export Handover]     ✓ Created row ${rowNum} with ${cellRef}`);
-              replaced = true;
-            }
+      // Pattern 3: Cell doesn't exist - create it in the appropriate row
+      if (!updated && !placeholdersXml.includes(`<c r="${cellRef}"`)) {
+        const rowNum = parseInt(cellRef.match(/\d+/)?.[0] || '0');
+        const rowOpenTag = new RegExp(`<row r="${rowNum}"([^>]*)>`, 's');
+        
+        if (rowOpenTag.test(placeholdersXml)) {
+          // Row exists, insert cell after row opening tag
+          const newCell = `<c r="${cellRef}" t="${cellType}"><v>${escapedValue}</v></c>`;
+          placeholdersXml = placeholdersXml.replace(
+            rowOpenTag,
+            `<row r="${rowNum}"$1>${newCell}`
+          );
+          console.log(`[Export Handover]     ✓ Created ${cellRef} in existing row`);
+          updated = true;
+        } else {
+          // Row doesn't exist - create it
+          const newRowCell = `<row r="${rowNum}" spans="1:5"><c r="${cellRef}" t="${cellType}"><v>${escapedValue}</v></c></row>`;
+          if (placeholdersXml.includes('</sheetData>')) {
+            placeholdersXml = placeholdersXml.replace('</sheetData>', newRowCell + '</sheetData>');
+            console.log(`[Export Handover]     ✓ Created row ${rowNum} with ${cellRef}`);
+            updated = true;
           }
         }
       }
 
-      if (!replaced) {
-        console.log(`[Export Handover]     ⓘ Cell ${cellRef} could not be updated`);
+      if (!updated) {
+        console.log(`[Export Handover]     ⚠ Could not update ${cellRef}`);
       }
     });
 
