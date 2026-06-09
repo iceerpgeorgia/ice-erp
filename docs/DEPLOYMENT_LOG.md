@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-10 Deployment #343
+- Commit: 2230dc4
+- Production: https://ice-db728v8yd-iceerp.vercel.app
+- Summary: Fix handover sheet preservation and use certificate date for handover date.
+- Changes:
+  - app/api/export/handover-template/route.ts: Simplified XLSX read to use no special options (removed cellFormula, cellNF, cellStyles, sheetStubs) which were causing Handover sheet corruption; removed formula namespace stripping that was also corrupting the sheet; now uses minimal read/write cycle to preserve Handover sheet exactly as in template; changed B2 (Handover_Date) to use project.date (certificate/contract date) instead of today's date per user requirement.
+
 ## 2026-06-10 Deployment #342
 - Commit: fa475a1
 - Production: https://ice-lj925flpo-iceerp.vercel.app
