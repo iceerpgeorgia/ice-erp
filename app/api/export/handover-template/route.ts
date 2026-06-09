@@ -86,11 +86,8 @@ export async function POST(req: NextRequest) {
 
     console.log('[Export Handover] Data loaded - project:', project.project_name, 'counteragent:', counteragent?.name, 'insider:', insider?.name);
 
-    // Read workbook with minimal options to preserve Handover sheet integrity
-    // Using raw read without heavy formatting preservation that might corrupt sheets
-    const workbook = XLSX.read(templateBuffer, {
-      defval: '',
-    });
+    // Read workbook with minimal options - preserve all sheets exactly as they are
+    const workbook = XLSX.read(templateBuffer);
 
     // Fill Placeholders sheet with ALL 19 fields from database
     if (workbook.Sheets['Placeholders']) {
@@ -116,7 +113,7 @@ export async function POST(req: NextRequest) {
 
       const placeholderData = {
         'B1': project.department || '', // Project_Department (A1)
-        'B2': dateToExcelSerial(new Date()), // Handover_Date - today's date when handover occurs (A2)
+        'B2': dateToExcelSerial(project.date), // Handover_Date - use certificate/contract date (A2)
         'B3': counteragent?.entity_type || '', // Project_Counteragent_Entity_Type (A3)
         'B4': counteragent?.name || '', // Project_Counteragent_Name (A4)
         'B5': toGenitiveCase(counteragent?.director), // Project_Counteragent_Director_Genitive (A5)
@@ -132,7 +129,7 @@ export async function POST(req: NextRequest) {
         'B15': insider?.address_line_2 || '', // Project_Insider_Address_Line2 (A15)
         'B16': toGenitiveCase(insider?.director), // Project_Insider_Director_Genitive (A16)
         'B17': insider?.director || '', // Project_Insider_Director_Normative (A17)
-        'B18': dateToExcelSerial(project.date), // Contract_Date - project's contract/certificate date (A18)
+        'B18': dateToExcelSerial(project.date), // Contract_Date - project's certificate date (A18)
         'B19': currency?.code || '', // Project_Currency (A19)
       };
 
@@ -151,23 +148,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Strip namespace prefixes ONLY from Placeholders sheet formulas
-    // Preserve Handover sheet formulas exactly as they are
-    const placeholdersSheet = workbook.Sheets['Placeholders'];
-    if (placeholdersSheet) {
-      Object.keys(placeholdersSheet).forEach((cellRef) => {
-        const cell = placeholdersSheet[cellRef];
-        if (cellRef.startsWith('!')) return;
-        if (cell && cell.f && typeof cell.f === 'string') {
-          cell.f = cell.f.replace(/^_xlws\./, '');
-          cell.f = cell.f.replace(/_xlws\./g, '');
-          cell.f = cell.f.replace(/_xlfn\./g, '');
-          cell.f = cell.f.replace(/^_[a-z]+\./gi, '');
-        }
-      });
-    }
-
-    // Write to buffer with comprehensive formatting preservation
+    // Write workbook without modifying formulas or formatting
+    // This preserves Handover sheet exactly as it is in the template
     const outputBuffer = XLSX.write(workbook, {
       type: 'buffer',
       bookType: 'xlsx',
