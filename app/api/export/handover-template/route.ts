@@ -24,17 +24,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Load exact template from public folder
+    // Load template: try filesystem first (dev), fall back to HTTP fetch (Vercel production)
+    let templateBuffer: Buffer;
     const templatePath = path.join(process.cwd(), 'public', 'handover template.xlsx');
-    
-    if (!fs.existsSync(templatePath)) {
-      return Response.json(
-        { error: `Template not found at: ${templatePath}` },
-        { status: 404 }
-      );
-    }
 
-    const templateBuffer = fs.readFileSync(templatePath);
+    if (fs.existsSync(templatePath)) {
+      templateBuffer = fs.readFileSync(templatePath);
+      console.log('[Export Handover] Loaded template from filesystem:', templatePath);
+    } else {
+      // On Vercel, public/ files are served as static assets — fetch via HTTP
+      const host = req.headers.get('host') || 'ice-erp.vercel.app';
+      const protocol = host.startsWith('localhost') ? 'http' : 'https';
+      const templateUrl = `${protocol}://${host}/handover%20template.xlsx`;
+      console.log('[Export Handover] Fetching template via HTTP:', templateUrl);
+      const fetchRes = await fetch(templateUrl);
+      if (!fetchRes.ok) {
+        return Response.json(
+          { error: `Template not found via HTTP (${fetchRes.status}): ${templateUrl}` },
+          { status: 404 }
+        );
+      }
+      templateBuffer = Buffer.from(await fetchRes.arrayBuffer());
+    }
 
     // Read workbook preserving all formatting and formulas
     const workbook = XLSX.read(templateBuffer, {
@@ -44,7 +55,6 @@ export async function POST(req: NextRequest) {
       sheetStubs: true,
     });
 
-    console.log('[Export Handover] Template loaded from:', templatePath);
     console.log('[Export Handover] Sheets:', workbook.SheetNames);
 
     // Fill Placeholders sheet
