@@ -120,11 +120,11 @@ export async function POST(req: NextRequest) {
     console.log('[Export Handover] Placeholder data prepared, updating via JSZip...');
 
     // Use JSZip to work with the Excel file directly
-    const zip = new JSZip();
-    await zip.loadAsync(templateBuffer);
+    const originalZip = new JSZip();
+    await originalZip.loadAsync(templateBuffer);
 
     // Extract and modify the Placeholders sheet XML
-    const placeholdersXml = await zip.file('xl/worksheets/sheet2.xml')?.async('string');
+    const placeholdersXml = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
     if (!placeholdersXml) {
       console.error('[Export Handover] ERROR: Placeholders sheet (sheet2.xml) not found!');
       return Response.json(
@@ -176,13 +176,15 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // Update the Placeholders sheet in the zip
-    zip.file('xl/worksheets/sheet2.xml', modifiedXml);
+    console.log('[Export Handover] Replacing sheet2.xml in original ZIP...');
+
+    // Simply update sheet2.xml in the original ZIP (don't recreate)
+    originalZip.file('xl/worksheets/sheet2.xml', modifiedXml);
 
     console.log('[Export Handover] JSZip modifications complete, generating output...');
 
-    // Generate the modified Excel file
-    const outputBuffer = await zip.generateAsync({
+    // Generate the modified Excel file, preserving original structure and compression
+    const outputBuffer = await originalZip.generateAsync({
       type: 'nodebuffer',
       compression: 'DEFLATE',
     });
