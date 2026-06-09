@@ -243,16 +243,15 @@ export async function POST(req: NextRequest) {
     // ============================================
     // 6. Return file
     // ============================================
-    const uint8Array = new Uint8Array(outputBuffer);
-    const response = new NextResponse(uint8Array, {
+    console.log('[Export Handover] Returning buffer, size:', outputBuffer.length);
+
+    return new Response(new Uint8Array(outputBuffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}; filename="${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}"`,
         'Content-Length': outputBuffer.length.toString(),
       },
     });
-
-    return response;
   } catch (error) {
     console.error('[Export Handover] Error:', error);
     return NextResponse.json(
