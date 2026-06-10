@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
     await originalZip.loadAsync(templateBuffer);
 
     // Extract and modify the Placeholders sheet XML
-    const placeholdersXml = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
+    let placeholdersXml = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
     if (!placeholdersXml) {
       console.error('[Export Handover] ERROR: Placeholders sheet (sheet2.xml) not found!');
       return Response.json(
