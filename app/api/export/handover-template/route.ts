@@ -3,6 +3,8 @@ import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 import { PrismaClient } from '@prisma/client';
 import { toGenitiveCase } from '@/lib/georgian-genitive';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 const prisma = new PrismaClient();
 
@@ -29,29 +31,19 @@ export async function POST(req: NextRequest) {
 
     console.log('[Export Handover] Starting export with JSZip approach for project:', projectUuid);
 
-    // Fetch template from public folder
+    // Read template from public folder using filesystem
     let templateBuffer: Buffer;
-    const host = req.headers.get('host') || 'localhost:3000';
-    const protocol = req.headers.get('x-forwarded-proto') || (host.startsWith('localhost') ? 'http' : 'https');
-    const templateUrl = `${protocol}://${host}/handover%20template.xlsx`;
-
-    console.log('[Export Handover] Fetching template from:', templateUrl);
-
+    
     try {
-      const fetchRes = await fetch(templateUrl, { cache: 'no-store' });
-      if (!fetchRes.ok) {
-        console.error(`[Export Handover] Failed to fetch template: ${fetchRes.status} ${fetchRes.statusText}`);
-        return Response.json(
-          { error: `Template fetch failed (${fetchRes.status})` },
-          { status: 404 }
-        );
-      }
-      templateBuffer = Buffer.from(await fetchRes.arrayBuffer());
-      console.log('[Export Handover] Template fetched, size:', templateBuffer.length);
-    } catch (fetchErr) {
-      console.error('[Export Handover] Template fetch error:', fetchErr);
+      const templatePath = join(process.cwd(), 'public', 'handover template.xlsx');
+      console.log('[Export Handover] Reading template from:', templatePath);
+      
+      templateBuffer = readFileSync(templatePath);
+      console.log('[Export Handover] Template loaded, size:', templateBuffer.length);
+    } catch (fileErr) {
+      console.error('[Export Handover] Failed to load template file:', fileErr);
       return Response.json(
-        { error: `Failed to fetch template: ${fetchErr instanceof Error ? fetchErr.message : 'Unknown error'}` },
+        { error: `Failed to load template: ${fileErr instanceof Error ? fileErr.message : 'Unknown error'}` },
         { status: 500 }
       );
     }
