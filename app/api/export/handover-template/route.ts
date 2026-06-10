@@ -86,19 +86,7 @@ export async function POST(req: NextRequest) {
       where: { uuid: project.currency_uuid },
     });
 
-    // Query jobs for the project with brands
-    const jobs = await prisma.jobs.findMany({
-      where: { 
-        project_uuid: projectUuid,
-        is_active: true
-      },
-      include: {
-        brands: true,
-      },
-      orderBy: { created_at: 'asc' }
-    });
-
-    console.log('[Export Handover] Data loaded - project:', project.project_name, 'counteragent:', counteragent?.name, 'insider:', insider?.name, 'jobs:', jobs.length);
+    console.log('[Export Handover] Data loaded - project:', project.project_name, 'counteragent:', counteragent?.name, 'insider:', insider?.name);
 
     // Convert date to Excel serial
     const dateToExcelSerial = (date: Date | string | null): number => {
@@ -228,93 +216,6 @@ export async function POST(req: NextRequest) {
 
     // Update sheet2.xml in the original ZIP
     originalZip.file('xl/worksheets/sheet2.xml', placeholdersXml);
-
-    // Populate Jobs sheet (sheet1.xml) if jobs exist
-    if (jobs.length > 0) {
-      console.log('[Export Handover] Populating Jobs sheet with', jobs.length, 'job(s)...');
-      
-      // Try to get sheet1.xml - this is typically the first data sheet (could be Jobs, Handover, or main sheet)
-      const jobsSheetFile = originalZip.file('xl/worksheets/sheet1.xml');
-      if (jobsSheetFile) {
-        let jobsXml = await jobsSheetFile.async('string');
-        console.log('[Export Handover]   Jobs sheet XML loaded, size:', jobsXml.length);
-
-        // Process each job and add/update rows starting from row 2
-        jobs.forEach((job, idx) => {
-          const rowNum = idx + 2;
-          const jobName = job.job_name || '';
-          const factoryNo = job.factory_no || '';
-          const brandName = job.brands?.name || '';
-          const floors = job.floors || '';
-
-          console.log(`[Export Handover]   Adding job row ${rowNum}: ${jobName} | ${brandName}`);
-
-          // Create cells for the row: A=jobName, B=factoryNo, C=brandName, D=floors
-          const cells = [
-            { col: 'A', val: jobName, type: 's' },
-            { col: 'B', val: factoryNo, type: 's' },
-            { col: 'C', val: brandName, type: 's' },
-            { col: 'D', val: floors ? String(floors) : '', type: floors ? 'n' : 's' },
-          ];
-
-          // Try to update or create cells in the row
-          let rowExists = jobsXml.includes(`<row r="${rowNum}"`);
-
-          if (rowExists) {
-            // Row exists, update cells
-            cells.forEach(({ col, val, type }) => {
-              const cellRef = `${col}${rowNum}`;
-              const escapedVal = String(val)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&apos;');
-
-              const cellPattern = new RegExp(`(<c r="${cellRef}"[^>]*>.*?)<v>[^<]*</v>`, 's');
-              if (cellPattern.test(jobsXml)) {
-                jobsXml = jobsXml.replace(cellPattern, `$1<v>${escapedVal}</v>`);
-              } else {
-                // Cell doesn't exist in the row, try creating it
-                const emptyPattern = new RegExp(`(<c r="${cellRef}"[^>]*?)\\s*/>`, 's');
-                if (emptyPattern.test(jobsXml)) {
-                  jobsXml = jobsXml.replace(emptyPattern, `$1><v>${escapedVal}</v></c>`);
-                }
-              }
-            });
-          } else {
-            // Row doesn't exist, create new row with cells
-            const cellsXml = cells.map(({ col, val, type }) => {
-              const cellRef = `${col}${rowNum}`;
-              const escapedVal = String(val)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&apos;');
-              return `<c r="${cellRef}" t="${type}"><v>${escapedVal}</v></c>`;
-            }).join('');
-
-            const newRow = `<row r="${rowNum}" spans="1:4">${cellsXml}</row>`;
-            if (jobsXml.includes('</sheetData>')) {
-              jobsXml = jobsXml.replace('</sheetData>', newRow + '</sheetData>');
-            }
-          }
-        });
-
-        // Update the sheet dimensions
-        const lastRow = jobs.length + 1;
-        const dimensionPattern = /<dimension ref="([^"]+)"/;
-        if (dimensionPattern.test(jobsXml)) {
-          jobsXml = jobsXml.replace(dimensionPattern, `<dimension ref="A1:D${lastRow}"`);
-        }
-
-        originalZip.file('xl/worksheets/sheet1.xml', jobsXml);
-        console.log('[Export Handover] Jobs sheet updated');
-      } else {
-        console.log('[Export Handover] ⚠ Jobs sheet (sheet1.xml) not found in template');
-      }
-    }
 
     console.log('[Export Handover] JSZip modifications complete, generating output...');
 
