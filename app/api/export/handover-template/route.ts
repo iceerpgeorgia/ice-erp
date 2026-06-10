@@ -39,25 +39,62 @@ export async function POST(req: NextRequest) {
 
     console.log('[Export Handover] Starting export with JSZip approach for project:', projectUuid);
 
-    // Fetch template from public folder
+    // Fetch template from database attachment
     let templateBuffer: Buffer;
-    const host = req.headers.get('host') || 'localhost:3000';
-    const protocol = req.headers.get('x-forwarded-proto') || (host.startsWith('localhost') ? 'http' : 'https');
-    const templateUrl = `${protocol}://${host}/handover%20template.xlsx`;
 
-    console.log('[Export Handover] Fetching template from:', templateUrl);
+    // Query for the handover template attachment (must have file_name containing 'handover' and 'template')
+    const templateAttachment = await prisma.attachments.findFirst({
+      where: {
+        file_name: {
+          contains: 'handover',
+        },
+        is_active: true,
+        storage_provider: 'supabase',
+      },
+      orderBy: { created_at: 'desc' },
+    });
 
+    if (!templateAttachment) {
+      console.error('[Export Handover] Template attachment not found in database');
+      return Response.json(
+        { error: 'Handover template not found in database. Please upload the template file.' },
+        { status: 404 }
+      );
+    }
+
+    console.log('[Export Handover] Template found:', templateAttachment.file_name, 'path:', templateAttachment.storage_path);
+
+    // Fetch from Supabase storage
     try {
-      const fetchRes = await fetch(templateUrl, { cache: 'no-store' });
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error('Missing Supabase configuration');
+      }
+
+      const bucket = templateAttachment.storage_bucket || 'attachments';
+      const fileUrl = `${supabaseUrl}/storage/v1/object/authenticated/${bucket}/${templateAttachment.storage_path}`;
+
+      console.log('[Export Handover] Fetching template from Supabase:', fileUrl.replace(/Bearer.*/, 'Bearer [hidden]'));
+
+      const fetchRes = await fetch(fileUrl, {
+        headers: {
+          Authorization: `Bearer ${supabaseKey}`,
+        },
+        cache: 'no-store',
+      });
+
       if (!fetchRes.ok) {
-        console.error(`[Export Handover] Failed to fetch template: ${fetchRes.status} ${fetchRes.statusText}`);
+        console.error(`[Export Handover] Failed to fetch from Supabase: ${fetchRes.status} ${fetchRes.statusText}`);
         return Response.json(
           { error: `Template fetch failed (${fetchRes.status})` },
           { status: 404 }
         );
       }
+
       templateBuffer = Buffer.from(await fetchRes.arrayBuffer());
-      console.log('[Export Handover] Template fetched, size:', templateBuffer.length);
+      console.log('[Export Handover] Template fetched from Supabase, size:', templateBuffer.length);
     } catch (fetchErr) {
       console.error('[Export Handover] Template fetch error:', fetchErr);
       return Response.json(
