@@ -43,6 +43,6 @@ export const config = {
     "/payment-statement/:path*",
     "/salary-report/:path*",
     "/admin/:path*",
-    "/api/((?!auth|cron|test-env|waybills/sync|waybills/backfill-items|waybills/debug-units|waybills/backfill-items|projects-v2|brands|insider-selection|jobs|payments-report|payments-jobs|bank-transactions|exchange-rates).*)",
+    "/api/((?!auth|cron|test-env|waybills/sync|waybills/backfill-items|waybills/debug-units|projects-v2|brands|insider-selection|jobs|payments-report|payments-jobs|bank-transactions|exchange-rates|export/handover-template).*)",
   ],
 };
