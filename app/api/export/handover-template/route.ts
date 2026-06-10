@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 import { PrismaClient } from '@prisma/client';
 import { toGenitiveCase } from '@/lib/georgian-genitive';
@@ -10,6 +9,7 @@ const prisma = new PrismaClient();
  * POST /api/export/handover-template
  * Uses JSZip to preserve Handover sheet formulas exactly as-is.
  * Only updates Placeholders sheet values via XML manipulation.
+ * Template is fetched from the database (templates table) instead of filesystem.
  * 
  * Required body fields:
  * - fileName: output filename
@@ -29,25 +29,40 @@ export async function POST(req: NextRequest) {
 
     console.log('[Export Handover] Starting export with JSZip approach for project:', projectUuid);
 
-    // Fetch template from public folder
+    // Fetch template from database
     let templateBuffer: Buffer;
-    const host = req.headers.get('host') || 'localhost:3000';
-    const protocol = req.headers.get('x-forwarded-proto') || (host.startsWith('localhost') ? 'http' : 'https');
-    const templateUrl = `${protocol}://${host}/handover%20template.xlsx`;
-
-    console.log('[Export Handover] Fetching template from:', templateUrl);
+    
+    console.log('[Export Handover] Fetching template from database...');
 
     try {
-      const fetchRes = await fetch(templateUrl, { cache: 'no-store' });
-      if (!fetchRes.ok) {
-        console.error(`[Export Handover] Failed to fetch template: ${fetchRes.status} ${fetchRes.statusText}`);
+      const template = await prisma.templates.findFirst({
+        where: {
+          type: 'handover',
+          is_active: true,
+        },
+        select: {
+          file_data: true,
+          uuid: true,
+          name: true,
+          version: true,
+        },
+      });
+
+      if (!template) {
+        console.error('[Export Handover] No active handover template found in database');
         return Response.json(
-          { error: `Template fetch failed (${fetchRes.status})` },
+          { error: 'No active handover template found. Please import a template first.' },
           { status: 404 }
         );
       }
-      templateBuffer = Buffer.from(await fetchRes.arrayBuffer());
-      console.log('[Export Handover] Template fetched, size:', templateBuffer.length);
+
+      templateBuffer = Buffer.from(template.file_data);
+      console.log('[Export Handover] Template loaded from database:', {
+        uuid: template.uuid,
+        name: template.name,
+        version: template.version,
+        size: templateBuffer.length,
+      });
     } catch (fetchErr) {
       console.error('[Export Handover] Template fetch error:', fetchErr);
       return Response.json(
@@ -124,8 +139,8 @@ export async function POST(req: NextRequest) {
     await originalZip.loadAsync(templateBuffer);
 
     // Extract and modify the Placeholders sheet XML
-    let placeholdersXml = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
-    if (!placeholdersXml) {
+    const placeholdersXmlMaybe = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
+    if (!placeholdersXmlMaybe) {
       console.error('[Export Handover] ERROR: Placeholders sheet (sheet2.xml) not found!');
       return Response.json(
         { error: 'Placeholders sheet not found in template' },
@@ -133,6 +148,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // TypeScript type assertion: we've confirmed it's not undefined
+    let placeholdersXml: string = placeholdersXmlMaybe;
     console.log('[Export Handover] Placeholders XML loaded, size:', placeholdersXml.length);
 
     // B5 and B16 have genitive formulas - skip them (let them compute from B6 and B17)
