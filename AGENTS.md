@@ -184,6 +184,20 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - Check `app/api/bank-transactions/route.ts` for the list of active source tables
 - Each bank account has its own table with naming pattern: `{IBAN}_{BANK}_{CURRENCY}`
 
+### Transaction-Payment Sync (PATCH and Bulk-Bind)
+When a payment is assigned to a bank transaction via `PATCH /api/bank-transactions/[id]` or `PATCH /api/bank-transactions/bulk-bind`:
+- **Automatic sync from payment:**
+  - `nominal_currency_uuid` is set to the payment's `currency_uuid`
+  - `exchange_rate` and `nominal_amount` are recalculated based on the new currency
+  - **NEW (2026-06-10)**: `project_uuid` is synced from the payment's `project_uuid` (unless explicitly overridden in request)
+  - **NEW (2026-06-10)**: `financial_code_uuid` is synced from the payment's `financial_code_uuid` (unless explicitly overridden in request)
+  - `counteragent_uuid` is auto-assigned from payment if transaction has no counteragent yet
+  - `parsing_lock` is set to `true` to prevent re-processing
+- **When payment is cleared:**
+  - All above fields are reset: `project_uuid`, `financial_code_uuid`, `nominal_currency_uuid` revert to defaults
+  - `parsing_lock` is set to `false`
+- **Rationale**: Handovers job distribution grid filters by `project_uuid` and income `financial_code_uuid`. Without this sync, manually editing a transaction with an existing payment would orphan it from the handovers view.
+
 ## Project Value Scaling
 - When a project's `value` changes via the Projects API update routes, the system proportionally scales the related **auto-managed** `payments_ledger` rows (accrual + order) by `scaleFactor = newValue / oldValue`.
 - Selection rules for payments to scale:

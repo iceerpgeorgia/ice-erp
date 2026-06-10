@@ -34,11 +34,13 @@ export async function GET(req: NextRequest) {
     
     // Convert BigInt to number for JSON serialization
     const serialized = logs.map(log => ({
-      ...log,
       id: Number(log.id),
+      table: log.table,
       recordId: log.record_id,
-      userId: log.user_id,
+      action: log.action,
+      userId: log.user_id ? Number(log.user_id) : null,
       userEmail: log.user_email,
+      changes: log.changes ? JSON.parse(JSON.stringify(log.changes, (_, v) => typeof v === 'bigint' ? Number(v) : v)) : null,
       createdAt: log.created_at.toISOString(),
     }));
     

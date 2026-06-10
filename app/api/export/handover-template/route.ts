@@ -283,30 +283,60 @@ export async function POST(req: NextRequest) {
     // Now populate the Jobs sheet (sheet1.xml) with job data
     console.log('[Export Handover] Populating Jobs sheet with', jobs.length, 'jobs...');
     let jobsXml = await originalZip.file('xl/worksheets/sheet1.xml')?.async('string');
+    
+    if (!jobsXml) {
+      console.error('[Export Handover] ERROR: Jobs sheet (sheet1.xml) not found in template!');
+      console.log('[Export Handover] Available files in template:');
+      originalZip.forEach((path) => {
+        if (path.includes('sheet')) {
+          console.log('[Export Handover]  -', path);
+        }
+      });
+    }
+    
     if (jobsXml && jobs.length > 0) {
+      console.log('[Export Handover] Processing', jobs.length, 'jobs for sheet1.xml');
+      
       // Build job rows as XML
       let jobRowsXml = '';
       let jobRowNum = 2; // Start from row 2 (row 1 is header)
       
       for (const job of jobs) {
         // Create cells for each job: A=jobName, B=factoryNo, C=floors, D=weight, E=sellingPrice
-        const cellsXml = [
-          `<c r="A${jobRowNum}" t="inlineStr"><is><t>${escapeXml(String(job.job_name || ''))}</t></is></c>`,
-          job.factory_no ? `<c r="B${jobRowNum}" t="inlineStr"><is><t>${escapeXml(String(job.factory_no))}</t></is></c>` : `<c r="B${jobRowNum}"/>`,
-          job.floors ? `<c r="C${jobRowNum}" t="n"><v>${job.floors}</v></c>` : `<c r="C${jobRowNum}"/>`,
-          job.weight ? `<c r="D${jobRowNum}" t="n"><v>${job.weight}</v></c>` : `<c r="D${jobRowNum}"/>`,
-          job.selling_price ? `<c r="E${jobRowNum}" t="n"><v>${String(job.selling_price)}</v></c>` : `<c r="E${jobRowNum}"/>`,
-        ].join('');
+        const jobNameCell = `<c r="A${jobRowNum}" t="inlineStr"><is><t>${escapeXml(String(job.job_name || ''))}</t></is></c>`;
+        const factoryNoCell = job.factory_no 
+          ? `<c r="B${jobRowNum}" t="inlineStr"><is><t>${escapeXml(String(job.factory_no))}</t></is></c>` 
+          : '';
+        const floorsCell = job.floors 
+          ? `<c r="C${jobRowNum}" t="n"><v>${job.floors}</v></c>` 
+          : '';
+        const weightCell = job.weight 
+          ? `<c r="D${jobRowNum}" t="n"><v>${job.weight}</v></c>` 
+          : '';
+        const sellingPriceCell = job.selling_price 
+          ? `<c r="E${jobRowNum}" t="n"><v>${String(job.selling_price)}</v></c>` 
+          : '';
         
-        jobRowsXml += `<row r="${jobRowNum}" spans="1:5" x14ac:dyDescent="0.25">${cellsXml}</row>`;
+        const cellsXml = [jobNameCell, factoryNoCell, floorsCell, weightCell, sellingPriceCell]
+          .filter(Boolean)
+          .join('');
+        
+        jobRowsXml += `<row r="${jobRowNum}" spans="1:5" x14ac:dyDescent="0.25">${cellsXml}</row>\n`;
         jobRowNum++;
       }
       
-      // Insert job rows before </sheetData>
-      jobsXml = jobsXml.replace('</sheetData>', jobRowsXml + '\n</sheetData>');
-      
-      originalZip.file('xl/worksheets/sheet1.xml', jobsXml);
-      console.log('[Export Handover] Jobs sheet populated with', jobs.length, 'rows');
+      // Insert job rows before </sheetData>, with better regex handling
+      const sheetDataEndRegex = /<\/sheetData>/;
+      if (sheetDataEndRegex.test(jobsXml)) {
+        jobsXml = jobsXml.replace(sheetDataEndRegex, jobRowsXml + '</sheetData>');
+        originalZip.file('xl/worksheets/sheet1.xml', jobsXml);
+        console.log('[Export Handover] ✓ Jobs sheet successfully populated with', jobs.length, 'rows');
+      } else {
+        console.error('[Export Handover] ERROR: Could not find </sheetData> closing tag in sheet1.xml');
+        console.log('[Export Handover] Sheet1.xml content (first 500 chars):', jobsXml.substring(0, 500));
+      }
+    } else if (jobsXml && jobs.length === 0) {
+      console.log('[Export Handover] No jobs to populate - sheet1.xml will remain unchanged');
     }
 
     console.log('[Export Handover] JSZip modifications complete, generating output...');

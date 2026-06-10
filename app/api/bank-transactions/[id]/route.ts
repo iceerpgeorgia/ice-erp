@@ -461,10 +461,15 @@ export async function PATCH(
       // When payment changes, update nominal currency and recalculate amount
       if (normalizedPaymentId) {
         try {
-          // Get payment's currency
+          // Get payment's currency, project, and financial code
           const payment = await prisma.payments.findUnique({
             where: { payment_id: normalizedPaymentId },
-            select: { currency_uuid: true, counteragent_uuid: true }
+            select: { 
+              currency_uuid: true, 
+              counteragent_uuid: true,
+              project_uuid: true,
+              financial_code_uuid: true
+            }
           });
           
           if (payment && payment.currency_uuid) {
@@ -487,6 +492,17 @@ export async function PATCH(
               changes.push(`exchange_rate: ${current.exchange_rate?.toString()} → ${result.exchangeRate.toString()}`);
               changes.push(`nominal_amount: ${current.nominal_amount?.toString()} → ${result.nominalAmount.toString()} (recalculated)`);
             }
+          }
+
+          // Sync project and financial code from payment (unless already explicitly set in request)
+          if (payment?.project_uuid && project_uuid === undefined) {
+            updateData.projectUuid = payment.project_uuid;
+            changes.push(`project_uuid: ${current.project_uuid ?? 'null'} → ${payment.project_uuid} (from payment)`);
+          }
+
+          if (payment?.financial_code_uuid && financial_code_uuid === undefined) {
+            updateData.financialCodeUuid = payment.financial_code_uuid;
+            changes.push(`financial_code_uuid: ${current.financial_code_uuid ?? 'null'} → ${payment.financial_code_uuid} (from payment)`);
           }
 
           const shouldAutoAssignCounteragent =
