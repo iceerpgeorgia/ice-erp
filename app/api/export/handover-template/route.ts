@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
     await originalZip.loadAsync(templateBuffer);
 
     // Extract and modify the Placeholders sheet XML
-    let placeholdersXml = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
+    let placeholdersXml: string | undefined = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
     if (!placeholdersXml) {
       console.error('[Export Handover] ERROR: Placeholders sheet (sheet2.xml) not found!');
       return Response.json(
@@ -132,6 +132,9 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Ensure TypeScript knows placeholdersXml is now a string from this point on
+    placeholdersXml = placeholdersXml as string;
 
     console.log('[Export Handover] Placeholders XML loaded, size:', placeholdersXml.length);
 
