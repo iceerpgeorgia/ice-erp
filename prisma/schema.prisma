@@ -224,26 +224,6 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-model templates {
-  id          BigInt   @id @default(autoincrement())
-  uuid        String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String   @db.VarChar(255)
-  description String?  @db.Text
-  type        String   @db.VarChar(100) // e.g., 'handover', 'invoice', 'report'
-  file_data   Bytes    // Binary Excel file data
-  file_name   String   @db.VarChar(255)
-  mime_type   String   @default("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") @db.VarChar(255)
-  version     Int      @default(1)
-  is_active   Boolean  @default(true)
-  created_at  DateTime @default(now())
-  updated_at  DateTime @default(now()) @updatedAt
-  created_by  String?  @db.VarChar(255)
-
-  @@index([type])
-  @@index([is_active])
-  @@index([created_at])
-}
-
 model BankAccount {
   id                        BigInt                      @id @default(autoincrement())
   uuid                      String                      @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
