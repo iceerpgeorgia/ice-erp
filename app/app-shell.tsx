@@ -14,6 +14,8 @@ import {
 import { LogOut, User } from 'lucide-react';
 import PageTitle from './page-title';
 import { NavIconTitleSync } from '@/components/nav-icon-title-sync';
+import { FloatingAIButton } from '@/components/troubleshooting/floating-ai-button';
+import { usePathname } from 'next/navigation';
 
 function Topbar() {
   const { data: session } = useSession();
@@ -57,6 +59,17 @@ function Topbar() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  
+  // Extract page context from pathname
+  const getPageContext = () => {
+    const parts = pathname.split('/').filter(Boolean);
+    if (parts.length === 0) return 'Dashboard';
+    return parts
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' / ');
+  };
+
   return (
     <NavConfigProvider>
       <NavIconTitleSync />
@@ -67,6 +80,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <main className="flex-1 min-h-0">
             {children}
           </main>
+          {/* Floating AI Button */}
+          <FloatingAIButton pageContext={getPageContext()} />
         </div>
       </SidebarProvider>
     </NavConfigProvider>

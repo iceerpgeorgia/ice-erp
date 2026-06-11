@@ -885,6 +885,27 @@ model handover_emissions {
   @@map("handover_emissions")
 }
 
+model troubleshooting_prompts {
+  uuid                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_email            String
+  created_at            DateTime @default(now())
+  page_context          String? // URL, page name, or other page info
+  original_description  String // What user initially described
+  generated_prompt      String // AI-generated prompt
+  edited_prompt         String? // User's edited version (if different)
+  confirmed_at          DateTime?
+  confirmed_by_user     Boolean  @default(false)
+  is_followed_up        Boolean  @default(false) // Has support team actioned this?
+  follow_up_notes       String?
+  model_used            String   @default("mistral-7b") // Track which LLM version was used
+
+  @@index([user_email])
+  @@index([created_at(sort: Desc)])
+  @@index([is_followed_up])
+  @@index([confirmed_by_user])
+  @@map("troubleshooting_prompts")
+}
+
 model rs_waybills_in {
   id                            BigInt    @id @default(autoincrement())
   waybill_no                    String?
