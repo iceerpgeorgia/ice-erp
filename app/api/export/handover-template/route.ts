@@ -78,7 +78,33 @@ export async function POST(req: NextRequest) {
       where: { uuid: project.currency_uuid },
     });
 
-    console.log('[Export Handover] Data loaded - project:', project.project_name, 'counteragent:', counteragent?.name, 'insider:', insider?.name);
+    // Query jobs for this project via job_projects junction table
+    const jobProjectLinks = await prisma.job_projects.findMany({
+      where: { project_uuid: projectUuid },
+      select: { job_uuid: true },
+    });
+
+    const jobUuids = jobProjectLinks.map((jp) => jp.job_uuid);
+
+    const jobs = await prisma.jobs.findMany({
+      where: { job_uuid: { in: jobUuids } },
+      select: {
+        job_uuid: true,
+        job_name: true,
+        factory_no: true,
+        floors: true,
+        weight: true,
+        selling_price: true,
+        is_ff: true,
+        brands: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    console.log('[Export Handover] Data loaded - project:', project.project_name, 'counteragent:', counteragent?.name, 'insider:', insider?.name, 'jobs:', jobs.length);
 
     // Convert date to Excel serial
     const dateToExcelSerial = (date: Date | string | null): number => {
@@ -211,6 +237,85 @@ export async function POST(req: NextRequest) {
 
     // Update sheet2.xml in the original ZIP
     originalZip.file('xl/worksheets/sheet2.xml', modifiedXml);
+
+    // ── Create jobs sheet if jobs exist ───────────────────────────────────────
+    if (jobs.length > 0) {
+      console.log('[Export Handover] Creating jobs sheet with', jobs.length, 'jobs...');
+      
+      // Create workbook to generate the jobs sheet
+      const jobsWorkbook = XLSX.utils.book_new();
+      
+      // Transform jobs to sheet format
+      const jobsData = jobs.map(job => ({
+        'Job Name': job.job_name || '',
+        'Factory No': job.factory_no || '',
+        'Brand Name': job.brands?.name || '',
+        'Floors': job.floors ?? '',
+        'Weight (kg)': job.weight ?? '',
+        'Selling Price': job.selling_price ?? 0,
+        'Type': job.is_ff ? 'FF' : 'NOT FF',
+      }));
+      
+      const jobsSheet = XLSX.utils.json_to_sheet(jobsData);
+      XLSX.utils.book_append_sheet(jobsWorkbook, jobsSheet, 'Jobs');
+      
+      // Generate jobs workbook as buffer
+      const jobsBuffer = XLSX.write(jobsWorkbook, { type: 'buffer', bookType: 'xlsx' });
+      
+      // Load jobs workbook to extract sheet
+      const jobsZip = new JSZip();
+      await jobsZip.loadAsync(jobsBuffer);
+      
+      // Get the jobs sheet XML (sheet1.xml from the newly generated workbook)
+      const jobsSheetXml = await jobsZip.file('xl/worksheets/sheet1.xml')?.async('string');
+      const jobsSheetRels = await jobsZip.file('xl/worksheets/_rels/sheet1.xml.rels')?.async('string');
+      const jobsStyles = await jobsZip.file('xl/styles.xml')?.async('string');
+      const jobsSharedStrings = await jobsZip.file('xl/sharedStrings.xml')?.async('string');
+      
+      if (jobsSheetXml) {
+        // Find the highest sheet number in the template
+        let maxSheetNum = 2;
+        const sheetFiles = originalZip.folder('xl/worksheets')?.file(/.+\.xml$/);
+        if (sheetFiles && sheetFiles.length > 0) {
+          sheetFiles.forEach(file => {
+            const match = file.name.match(/sheet(\d+)\.xml$/);
+            if (match) {
+              const num = parseInt(match[1]);
+              if (num > maxSheetNum) maxSheetNum = num;
+            }
+          });
+        }
+        
+        const newSheetNum = maxSheetNum + 1;
+        
+        // Add jobs sheet to ZIP
+        originalZip.file(`xl/worksheets/sheet${newSheetNum}.xml`, jobsSheetXml);
+        if (jobsSheetRels) {
+          originalZip.file(`xl/worksheets/_rels/sheet${newSheetNum}.xml.rels`, jobsSheetRels);
+        }
+        
+        // Update workbook.xml.rels to reference the new sheet
+        let workbookRels = await originalZip.file('xl/_rels/workbook.xml.rels')?.async('string');
+        if (workbookRels) {
+          const newRelId = `rId${maxSheetNum + 2}`;
+          const newRel = `<Relationship Id="${newRelId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${newSheetNum}.xml"/>`;
+          
+          // Insert before closing tag
+          workbookRels = workbookRels.replace('</Relationships>', newRel + '</Relationships>');
+          originalZip.file('xl/_rels/workbook.xml.rels', workbookRels);
+        }
+        
+        // Update workbook.xml to add the sheet
+        let workbookXml = await originalZip.file('xl/workbook.xml')?.async('string');
+        if (workbookXml) {
+          const newSheet = `<sheet name="Jobs" sheetId="${newSheetNum}" r:id="${newRelId}"/>`;
+          workbookXml = workbookXml.replace('</sheets>', newSheet + '</sheets>');
+          originalZip.file('xl/workbook.xml', workbookXml);
+        }
+        
+        console.log('[Export Handover] Jobs sheet added as sheet', newSheetNum);
+      }
+    }
 
     console.log('[Export Handover] JSZip modifications complete, generating output...');
 
