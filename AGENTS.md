@@ -3,6 +3,35 @@
 ## Documentation Policy
 **Always update `AGENTS.md` when logic changes.** Any time domain logic, integration rules, architectural decisions, or key constraints are added or modified, the relevant section in this file must be updated in the same session. This file is the single source of truth for how the system works. New sections should follow the style of existing ones.
 
+## AppShell Global Component Safety Rules
+**CRITICAL**: AppShell (`app/app-shell.tsx`) is the parent wrapper for ALL pages. Any error in a component rendered here breaks the entire application silently on all pages.
+
+### Prevention Rules
+- **NEVER** add untested components directly to AppShell without local verification with `pnpm dev`
+- **ALWAYS** test new AppShell changes locally on multiple routes before deploying
+- **ALWAYS** wrap AppShell additions in error boundaries: `<ErrorBoundary fallback={null}><Component /></ErrorBoundary>`
+- **ALWAYS** use lazy loading for optional features: `const Component = dynamic(() => import(...), {ssr: false})`
+- **NEVER** render components using authentication hooks (useSession, useRouter) directly in AppShell without handling hydration timing
+- **ALWAYS** verify no console hydration errors: `Warning: useLayoutEffect does nothing on the server`
+- **ALWAYS** test session loading with NextAuth (session may be undefined during initial load)
+
+### Historical Issues (Pattern)
+- Deployment #347: Feature added to AppShell broke all pages
+- Deployment #351: FloatingAIButton (with useSession hook) added to AppShell broke all pages
+- Root cause both times: Component errors in AppShell propagate globally, breaking entire app
+
+### Solution
+If a component needs to appear on all pages:
+1. Create as client-only: `'use client'` directive
+2. Wrap in error boundary in AppShell
+3. Use dynamic import with {ssr: false}
+4. Test locally on ≥3 different routes
+5. Verify in browser console for hydration warnings
+6. Only then add to AppShell
+
+### Reference
+See `/memories/repo/ui-breaking-pattern.md` for detailed debugging process.
+
 ## Project Structure & Module Organization
 The workspace is a single Next.js 14 application (App Router) with co-located API routes. Pages and components live in `app/` with co-located hooks and styles. API routes are in `app/api/` (50+ route files). Shared Prisma schema and migrations sit in `prisma/`, reusable types in `types/`, shared utilities in `lib/` (auth, Prisma client, audit logging, Zod schemas). Python scripts for bank XML processing live at the project root. Vercel cron jobs handle scheduled tasks (BOG import, NBG rates, cash accruals) via `vercel.json`.
 
