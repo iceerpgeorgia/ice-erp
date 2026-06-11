@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-06-11 Deployment #346 (Rollback)
+- Commit: 9b4869b
+- Production: https://ice-j1gzouegs-iceerp.vercel.app
+- Summary: Rollback to stable deployment due to UI breakage in recent feature deployments.
+- Changes:
+  - Reverted commits 4fcdd21, cd2710e, fe7ebef, a1838fc, 07f663c, 3172d21
+  - Stable commit 9b4869b (fix: add fallback to public folder template when database attachment not found) deployed to production
+  - All deployments after 9b4869b were breaking UI and have been rolled back
+
 ## 2026-06-10 Deployment #345
 - Commit: 1e35360
 - Production: https://ice-lyqvuksdo-iceerp.vercel.app
