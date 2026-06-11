@@ -1,10 +1,8 @@
 import { NextRequest } from 'next/server';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
-import { PrismaClient } from '@prisma/client';
+import { prisma, withRetry } from '@/lib/prisma';
 import { toGenitiveCase } from '@/lib/georgian-genitive';
-
-const prisma = new PrismaClient();
 
 // Utility to escape XML special characters
 function escapeXml(str: string): string {
@@ -42,17 +40,19 @@ export async function POST(req: NextRequest) {
     // Fetch template from database attachment, with fallback to public folder
     let templateBuffer: Buffer | null = null;
 
-    // Try to fetch from database first
-    const templateAttachment = await prisma.attachments.findFirst({
-      where: {
-        file_name: {
-          contains: 'handover',
+    // Try to fetch from database first (with retry for pool exhaustion)
+    const templateAttachment = await withRetry(() =>
+      prisma.attachments.findFirst({
+        where: {
+          file_name: {
+            contains: 'handover',
+          },
+          is_active: true,
+          storage_provider: 'supabase',
         },
-        is_active: true,
-        storage_provider: 'supabase',
-      },
-      orderBy: { created_at: 'desc' },
-    });
+        orderBy: { created_at: 'desc' },
+      })
+    );
 
     console.log('[Export Handover] Template attachment lookup:', templateAttachment ? 'found' : 'not found');
 
@@ -126,12 +126,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Query project and all related data
+    // Query project and all related data with retry for pool exhaustion
     console.log('[Export Handover] Querying database for project:', projectUuid);
 
-    const project = await prisma.projects.findUnique({
-      where: { project_uuid: projectUuid },
-    });
+    const project = await withRetry(() =>
+      prisma.projects.findUnique({
+        where: { project_uuid: projectUuid },
+      })
+    );
 
     if (!project) {
       console.error('[Export Handover] Project not found:', projectUuid);
@@ -141,34 +143,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Query counteragent (supplier/contractor)
-    const counteragent = await prisma.counteragents.findUnique({
-      where: { counteragent_uuid: project.counteragent_uuid },
-    });
-
-    // Query insider (our company)
-    const insider = await prisma.counteragents.findUnique({
-      where: { counteragent_uuid: project.insider_uuid },
-    });
-
-    // Query currency
-    const currency = await prisma.currencies.findUnique({
-      where: { uuid: project.currency_uuid },
-    });
-
-    // Query jobs for the project
-    const jobs = await prisma.jobs.findMany({
-      where: { project_uuid: projectUuid, is_active: true },
-      select: {
-        job_uuid: true,
-        job_name: true,
-        factory_no: true,
-        floors: true,
-        weight: true,
-        selling_price: true,
-      },
-      orderBy: { job_name: 'asc' },
-    });
+    // Query counteragent, insider, and currency in parallel with retries
+    const [counteragent, insider, currency, jobs] = await Promise.all([
+      withRetry(() =>
+        prisma.counteragents.findUnique({
+          where: { counteragent_uuid: project.counteragent_uuid },
+        })
+      ),
+      withRetry(() =>
+        prisma.counteragents.findUnique({
+          where: { counteragent_uuid: project.insider_uuid },
+        })
+      ),
+      withRetry(() =>
+        prisma.currencies.findUnique({
+          where: { uuid: project.currency_uuid },
+        })
+      ),
+      withRetry(() =>
+        prisma.jobs.findMany({
+          where: { project_uuid: projectUuid, is_active: true },
+          select: {
+            job_uuid: true,
+            job_name: true,
+            factory_no: true,
+            floors: true,
+            weight: true,
+            selling_price: true,
+          },
+          orderBy: { job_name: 'asc' },
+        })
+      ),
+    ]);
 
     console.log('[Export Handover] Data loaded - project:', project.project_name, 'counteragent:', counteragent?.name, 'insider:', insider?.name, 'jobs:', jobs.length);
 
@@ -341,7 +347,5 @@ export async function POST(req: NextRequest) {
       { error: error instanceof Error ? error.message : 'Export failed' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
