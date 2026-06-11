@@ -1,5 +1,22 @@
 # Deployment Log
 
+## 2026-06-12 Deployment #351 (Feature: Intelligent Troubleshooting System)
+- Commit: 886ed2e
+- Production: https://ice-830twg3j7-iceerp.vercel.app
+- Summary: Add AI-powered user issue troubleshooting system with intelligent prompt structuring and admin analytics dashboard.
+- Features:
+  - Floating AI button on every page to capture user issues with page context
+  - 4-step modal workflow: describe issue → auto-generate structured prompt → edit → confirm
+  - Intelligent issue analysis: Auto-detect issue type (Error, Performance, Bug, Feature, Data) and severity
+  - Smart data extraction: Parse error codes, URLs, entities, keywords from plain text descriptions
+  - Tailored investigation checklists: Generate context-specific troubleshooting steps based on issue classification
+  - Admin dashboard at /admin/troubleshooting: Filter prompts by status, expand details, mark as followed-up
+  - Database table troubleshooting_prompts with audit trail: user email, timestamp, original description, AI prompt, user edits, follow-up status
+  - Pure TypeScript structuring (no external LLM/API needed): Instant processing, zero latency, deployment-ready
+  - Local storage of analysis metadata for better filtering and analytics
+- Architecture: Users generate structured prompts on Vercel → stored in DB → admins pull later for deeper analysis
+- Tech: Next.js 14 API routes, Prisma ORM, PostgreSQL, NextAuth for admin access, React components with Lucide icons
+
 ## 2026-06-11 Deployment #350 (Diagnostic: Jobs Export Logging)
 - Commit: 0e2ff64
 - Production: https://ice-4qspf5eec-iceerp.vercel.app
