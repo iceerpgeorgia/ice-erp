@@ -124,6 +124,7 @@ export function HandoversTable() {
   const [selectedInsiderUuids, setSelectedInsiderUuids] = useState<string[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(false);
+  const [ratesLoading, setRatesLoading] = useState(false);
 
   // ── Attachment state ──────────────────────────────────────────────────────
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
@@ -260,6 +261,11 @@ export function HandoversTable() {
     defaultSortDirection: 'asc',
     filtersStorageKey: 'handovers-table:filters',
   });
+
+  // ── Computed: Is all data fully loaded? ────────────────────────────────
+  const isTableFullyLoaded = useMemo(() => {
+    return !loadingProjects && !loadingJobs && !ratesLoading && selectedProjectUuid !== '';
+  }, [loadingProjects, loadingJobs, ratesLoading, selectedProjectUuid]);
 
   // ── Persist column config ─────────────────────────────────────────────────
   useEffect(() => {
@@ -506,12 +512,14 @@ export function HandoversTable() {
 
         const rateByDate = new Map<string, number | null>();
         if (uniqueCertDates.length > 0) {
+          setRatesLoading(true);
           console.log(`[Handovers] Looking up rates for ${uniqueCertDates.length} unique cert dates, currency: ${projectCurrencyCode}`);
           await Promise.all(uniqueCertDates.map(async (date) => {
             const rate = await lookupNbgRate(date, projectCurrencyCode);
             rateByDate.set(date, rate);
             console.log(`[Handovers] Rate for ${date} (${projectCurrencyCode}): ${rate}`);
           }));
+          setRatesLoading(false);
         }
 
         setAttachmentCounts(countsMap);
@@ -950,8 +958,8 @@ export function HandoversTable() {
               variant="outline"
               size="sm"
               onClick={handleGlobalExport}
-              title="Export all grids to XLSX"
-              disabled={!selectedProjectUuid || sortedJobs.length === 0}
+              title={!isTableFullyLoaded || sortedJobs.length === 0 ? "Loading all tables including rates..." : "Export all grids to XLSX"}
+              disabled={!isTableFullyLoaded || sortedJobs.length === 0}
             >
               <Download className="h-4 w-4 mr-2" />
               Export
