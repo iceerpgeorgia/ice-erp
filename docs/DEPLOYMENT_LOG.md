@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-11 Deployment #348 (Critical: Fix Missing Sheets)
+- Commit: 668439d
+- Production: https://ice-b1z4rs8zw-iceerp.vercel.app
+- Summary: Fix missing Handover and Placeholders sheets in export by correcting XML file mappings.
+- Root Cause: Template has sheet1.xml=Handover, sheet2.xml=Placeholders, sheet3.xml=Jobs, but API was incorrectly modifying sheet1.xml assuming it was Jobs, which corrupted the Handover sheet.
+- Changes:
+  - app/api/export/handover-template/route.ts: Changed Jobs sheet population from sheet1.xml to sheet3.xml; added logging to verify all worksheet files are present in output ZIP; Handover sheet (sheet1.xml) is now preserved exactly as-is from template without modification; Placeholders sheet (sheet2.xml) continues to receive project data updates. This restores both Handover and Placeholders sheets in the exported file.
+
 ## 2026-06-11 Deployment #347 (Export Button Optimization)
 - Commit: b13df34
 - Production: https://ice-a1o90pjy7-iceerp.vercel.app
