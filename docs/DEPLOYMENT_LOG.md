@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-06-11 Deployment #350 (Diagnostic: Jobs Export Logging)
+- Commit: 0e2ff64
+- Production: https://ice-4qspf5eec-iceerp.vercel.app
+- Summary: Add detailed diagnostic logging to identify why jobs are not being exported.
+- Changes:
+  - app/api/export/handover-template/route.ts: Enhanced error detection and logging for jobs sheet population:
+    - Check if sheet3.xml exists and log error with available sheet list if missing
+    - Distinguish between missing sheet vs no jobs scenarios
+    - Verify </sheetData> tag exists before XML replacement, log XML snippet if not found
+    - This will provide clear error messages in Vercel logs to diagnose the jobs export issue
+
 ## 2026-06-11 Deployment #349 (Critical: Fix Connection Pool Exhaustion)
 - Commit: 248c806
 - Production: https://ice-l4vni40n9-iceerp.vercel.app
