@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-06-12 Deployment #353 (Fix: Mobile Layout Hydration Mismatch)
+- Commit: 7028002
+- Production: https://ice-jrfyxpouw-iceerp.vercel.app
+- Summary: **FIX** - Prevent hydration mismatch in useIsMobile hook
+- Root Cause: Mobile layout broken because server renders desktop, client detects mobile, causing hydration mismatch
+- Fix Applied: useIsMobile now returns `false` initially (prevents mismatch), then updates after mount
+- Result: Sidebar renders correctly on mobile without layout crush
+- Status: ✅ Deployed and building successfully
+
 ## 2026-06-12 Deployment #352 (Hotfix: UI Broken - FloatingAIButton)
 - Commit: 272efef
 - Production: https://ice-9fq7fuvl9-iceerp.vercel.app
