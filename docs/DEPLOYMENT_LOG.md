@@ -1,5 +1,12 @@
 # Deployment Log
 
+## 2026-06-11 Deployment #347 (Export Button Optimization)
+- Commit: b13df34
+- Production: https://ice-a1o90pjy7-iceerp.vercel.app
+- Summary: Gate export button on complete table load including NBG rates.
+- Changes:
+  - components/figma/handovers-table.tsx: Added ratesLoading state to track NBG rate batch fetch completion; added isTableFullyLoaded computed flag (true when projects, jobs, and rates all loaded); wrapped Promise.all rate fetch with setRatesLoading(true/false); updated export button disabled condition to use isTableFullyLoaded; updated button title to show "Loading all tables including rates..." when disabled to provide visual feedback; ensures export button stays disabled until Debit GEL and Total GEL columns have actual values (not null), preventing premature exports during rate calculation phase.
+
 ## 2026-06-11 Deployment #346 (Rollback)
 - Commit: 9b4869b
 - Production: https://ice-j1gzouegs-iceerp.vercel.app
