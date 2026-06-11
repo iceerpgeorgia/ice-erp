@@ -289,7 +289,20 @@ export async function POST(req: NextRequest) {
     // Now populate the Jobs sheet (sheet3.xml in the template, NOT sheet1!) with job data
     console.log('[Export Handover] Populating Jobs sheet with', jobs.length, 'jobs...');
     let jobsXml = await originalZip.file('xl/worksheets/sheet3.xml')?.async('string');
-    if (jobsXml && jobs.length > 0) {
+    
+    if (!jobsXml) {
+      console.error('[Export Handover] ERROR: sheet3.xml not found in template ZIP!');
+      // List available worksheet files for debugging
+      const worksheetFiles: string[] = [];
+      originalZip.forEach((relativePath) => {
+        if (relativePath.includes('worksheets/sheet')) {
+          worksheetFiles.push(relativePath);
+        }
+      });
+      console.error('[Export Handover] Available sheets:', worksheetFiles.join(', '));
+    } else if (jobs.length === 0) {
+      console.warn('[Export Handover] No jobs found for project - Jobs sheet will be empty');
+    } else {
       // Build job rows as XML
       let jobRowsXml = '';
       let jobRowNum = 2; // Start from row 2 (row 1 is header)
@@ -309,12 +322,14 @@ export async function POST(req: NextRequest) {
       }
       
       // Insert job rows before </sheetData>
-      jobsXml = jobsXml.replace('</sheetData>', jobRowsXml + '\n</sheetData>');
-      
-      originalZip.file('xl/worksheets/sheet3.xml', jobsXml);
-      console.log('[Export Handover] Jobs sheet (sheet3.xml) populated with', jobs.length, 'rows');
-    } else {
-      console.log('[Export Handover] Jobs sheet not found or no jobs to populate');
+      if (jobsXml.includes('</sheetData>')) {
+        jobsXml = jobsXml.replace('</sheetData>', jobRowsXml + '\n</sheetData>');
+        originalZip.file('xl/worksheets/sheet3.xml', jobsXml);
+        console.log('[Export Handover] Jobs sheet (sheet3.xml) populated with', jobs.length, 'rows');
+      } else {
+        console.error('[Export Handover] ERROR: Could not find </sheetData> tag in sheet3.xml - XML structure unexpected');
+        console.log('[Export Handover] sheet3.xml first 500 chars:', jobsXml.substring(0, 500));
+      }
     }
 
     console.log('[Export Handover] JSZip modifications complete, verifying sheets...');
