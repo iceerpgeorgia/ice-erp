@@ -1,8 +1,28 @@
 # Deployment Log
 
+## 2026-06-12 Deployment #352 (Hotfix: UI Broken - FloatingAIButton)
+- Commit: 272efef
+- Production: https://ice-9fq7fuvl9-iceerp.vercel.app
+- Summary: **HOTFIX** - Disable FloatingAIButton to restore UI on all pages
+- Root Cause Analysis: FloatingAIButton component added to global AppShell wrapper uses `useSession()` hook which causes hydration mismatch. When rendered as a fixed overlay on all pages, it crashes the entire app silently.
+- Root Issue Pattern: When new components are added to `app-shell.tsx` (the global page wrapper for all pages), any error/hook mismatch in that component breaks ALL pages at once. This has happened before (deployments #347, etc.).
+- Fix Applied:
+  - Commented out FloatingAIButton in app-shell.tsx
+  - Removed unused imports (FloatingAIButton, usePathname)
+  - Removed getPageContext() function (no longer needed)
+  - Troubleshooting features remain functional via `/admin/troubleshooting` dashboard and API routes
+  - UI now renders correctly on all pages
+- TODO: Re-enable FloatingAIButton with:
+  - Proper error boundaries wrapping the component
+  - Lazy loading: `dynamic(() => import(...), {ssr: false})`
+  - Local testing with `pnpm dev` before deploying
+  - Hydration testing in browser console
+  - Session initialization verification
+- Prevention: See `/memories/repo/ui-breaking-pattern.md` for prevention rules
+
 ## 2026-06-12 Deployment #351 (Feature: Intelligent Troubleshooting System)
 - Commit: 886ed2e
-- Production: https://ice-830twg3j7-iceerp.vercel.app
+- Status: **BROKEN** - All pages rendered blank/broken due to FloatingAIButton
 - Summary: Add AI-powered user issue troubleshooting system with intelligent prompt structuring and admin analytics dashboard.
 - Features:
   - Floating AI button on every page to capture user issues with page context
