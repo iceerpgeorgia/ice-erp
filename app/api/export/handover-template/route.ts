@@ -280,9 +280,9 @@ export async function POST(req: NextRequest) {
     // Simply update sheet2.xml in the original ZIP (don't recreate)
     originalZip.file('xl/worksheets/sheet2.xml', modifiedXml);
 
-    // Now populate the Jobs sheet (sheet1.xml) with job data
+    // Now populate the Jobs sheet (sheet3.xml in the template, NOT sheet1!) with job data
     console.log('[Export Handover] Populating Jobs sheet with', jobs.length, 'jobs...');
-    let jobsXml = await originalZip.file('xl/worksheets/sheet1.xml')?.async('string');
+    let jobsXml = await originalZip.file('xl/worksheets/sheet3.xml')?.async('string');
     if (jobsXml && jobs.length > 0) {
       // Build job rows as XML
       let jobRowsXml = '';
@@ -305,11 +305,20 @@ export async function POST(req: NextRequest) {
       // Insert job rows before </sheetData>
       jobsXml = jobsXml.replace('</sheetData>', jobRowsXml + '\n</sheetData>');
       
-      originalZip.file('xl/worksheets/sheet1.xml', jobsXml);
-      console.log('[Export Handover] Jobs sheet populated with', jobs.length, 'rows');
+      originalZip.file('xl/worksheets/sheet3.xml', jobsXml);
+      console.log('[Export Handover] Jobs sheet (sheet3.xml) populated with', jobs.length, 'rows');
+    } else {
+      console.log('[Export Handover] Jobs sheet not found or no jobs to populate');
     }
 
-    console.log('[Export Handover] JSZip modifications complete, generating output...');
+    console.log('[Export Handover] JSZip modifications complete, verifying sheets...');
+
+    // Debug: List all files in the ZIP to verify sheets are present
+    const fileList: string[] = [];
+    originalZip.forEach(((relativePath, file) => {
+      fileList.push(relativePath);
+    }));
+    console.log('[Export Handover] Files in ZIP:', fileList.filter(f => f.includes('worksheet')).join(', '));
 
     // Generate the modified Excel file, preserving original structure and compression
     const outputBuffer = await originalZip.generateAsync({
