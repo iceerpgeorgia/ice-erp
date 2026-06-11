@@ -271,6 +271,20 @@ export async function POST(request: NextRequest) {
       id: Number((payment as any).id),
     };
 
+    // Auto-bind job_projects if both job_uuid and project_uuid provided
+    if (jobUuid && projectUuid) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO job_projects (job_uuid, project_uuid) VALUES ($1::uuid, $2::uuid) ON CONFLICT (job_uuid, project_uuid) DO NOTHING`,
+          jobUuid,
+          projectUuid
+        );
+      } catch (bindError: any) {
+        // Log but don't fail - binding is secondary to payment creation
+        console.warn('[Payments] Failed to create job_projects binding:', bindError?.message);
+      }
+    }
+
     // Send payment notifications asynchronously (don't await to not block response)
     const paymentIdForNotification = (payment as any).payment_id;
     if (paymentIdForNotification) {
@@ -560,6 +574,20 @@ export async function PATCH(request: NextRequest) {
         );
       } else {
         throw error;
+      }
+    }
+
+    // Auto-bind job_projects if both job_uuid and project_uuid are set
+    if (nextJobUuid && nextProjectUuid) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO job_projects (job_uuid, project_uuid) VALUES ($1::uuid, $2::uuid) ON CONFLICT (job_uuid, project_uuid) DO NOTHING`,
+          nextJobUuid,
+          nextProjectUuid
+        );
+      } catch (bindError: any) {
+        // Log but don't fail - binding is secondary to payment update
+        console.warn('[Payments] Failed to create job_projects binding:', bindError?.message);
       }
     }
 

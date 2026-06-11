@@ -311,6 +311,19 @@ When a user emits a handover, all current (non-emitted) job distributions are lo
 - **Audit Trail**: `emission_uuid` groups all records in a single emission; `created_by` records user email; `handover_emissions.created_at` records timestamp.
 - **Future**: Emission history view, reversal capability (superuser only), bulk emission, notifications.
 
+## Payments API - job_projects Auto-Binding
+
+When a payment is created or updated with both `jobUuid` and `projectUuid`, the system automatically creates the corresponding `job_projects` binding if it doesn't already exist. This ensures jobs are properly associated with projects in the Handovers table without requiring separate API calls.
+
+### Implementation
+- **POST `/api/payments`**: After payment insertion, if both `jobUuid` and `projectUuid` are provided, automatically inserts `job_projects` binding with `ON CONFLICT DO NOTHING` (idempotent).
+- **PATCH `/api/payments`**: After payment update, if both `nextJobUuid` and `nextProjectUuid` are set, automatically inserts `job_projects` binding with `ON CONFLICT DO NOTHING` (idempotent).
+- **Failure Handling**: Binding errors are logged as warnings but do not block payment creation/update (binding is secondary to payment operation).
+- **Side Effect**: Once created, jobs immediately appear in Handovers jobs table for that project (via `GET /api/jobs?projectUuid=X` which uses `INNER JOIN job_projects`).
+
+### Rationale
+Previously, payments could reference a `jobUuid` and `projectUuid` combination without the job being bound to that project in `job_projects`. This caused jobs to not render in Handovers even though they were allocated there. Now, the binding is automatically maintained whenever a payment references both.
+
 ## Build, Test, and Development Commands
 Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, API, and workers concurrently while developing. Whenever `prisma/schema.prisma` changes, run `pnpm prisma migrate dev --name <feature>` followed by `pnpm prisma generate` to refresh the client. After adding new models to the schema, run `python scripts/auto-generate-templates.py` to automatically create Excel import templates in the `templates/` folder. Execute `pnpm test` for Jest coverage and `pnpm test:e2e` when end-to-end verification is required; append `--watch` for quick feedback loops.
 
