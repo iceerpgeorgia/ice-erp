@@ -184,6 +184,20 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - Check `app/api/bank-transactions/route.ts` for the list of active source tables
 - Each bank account has its own table with naming pattern: `{IBAN}_{BANK}_{CURRENCY}`
 
+### Transaction-Payment Sync (PATCH and Bulk-Bind)
+When a payment is assigned to a bank transaction via `PATCH /api/bank-transactions/[id]` or `PATCH /api/bank-transactions/bulk-bind`:
+- **Automatic sync from payment:**
+  - `nominal_currency_uuid` is set to the payment's `currency_uuid`
+  - `exchange_rate` and `nominal_amount` are recalculated based on the new currency
+  - **NEW (2026-06-10)**: `project_uuid` is synced from the payment's `project_uuid` (unless explicitly overridden in request)
+  - **NEW (2026-06-10)**: `financial_code_uuid` is synced from the payment's `financial_code_uuid` (unless explicitly overridden in request)
+  - `counteragent_uuid` is auto-assigned from payment if transaction has no counteragent yet
+  - `parsing_lock` is set to `true` to prevent re-processing
+- **When payment is cleared:**
+  - All above fields are reset: `project_uuid`, `financial_code_uuid`, `nominal_currency_uuid` revert to defaults
+  - `parsing_lock` is set to `false`
+- **Rationale**: Handovers job distribution grid filters by `project_uuid` and income `financial_code_uuid`. Without this sync, manually editing a transaction with an existing payment would orphan it from the handovers view.
+
 ## Project Value Scaling
 - When a project's `value` changes via the Projects API update routes, the system proportionally scales the related **auto-managed** `payments_ledger` rows (accrual + order) by `scaleFactor = newValue / oldValue`.
 - Selection rules for payments to scale:
@@ -329,6 +343,68 @@ Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, AP
 
 ## Coding Style & Naming Conventions
 All code is TypeScript and must satisfy the shared ESLint + Prettier rules via `pnpm lint` or `pnpm lint --fix`. Name files in kebab-case (`user-profile.ts`), React components in PascalCase (`UserProfile.tsx`), and variables or functions in camelCase. Keep comments purposeful: explain non-obvious invariants, integration quirks, or domain rules.
+
+## Handovers Export & Loading Optimization (2026-06-11)
+The Handovers page implements a multi-stage loading pipeline with export caching to optimize performance and prevent premature export attempts.
+
+### Loading States & Coordination
+Three independent loading flags coordinate when export is ready:
+- **`loadingProjects`**: Initial fetch of projects, brands, insiders (runs once on mount)
+- **`loadingJobs`**: Per-project fetch of jobs, lift cert dates, bank transactions, income payments, distributions
+- **`ratesLoading`**: NBG rate lookups for each unique lift cert date (runs after jobs load)
+
+**Computed Flag**: `isTableFullyLoaded = !loadingProjects && !loadingJobs && !ratesLoading && selectedProjectUuid !== ''`
+
+**Export Button Disabled When**: `!isTableFullyLoaded || sortedJobs.length === 0`
+- Prevents export before Debit GEL and Total GEL columns are populated (which require NBG rates)
+- Dynamic tooltip shows "Loading all tables including rates..." when disabled
+- Button enables only after all async operations complete
+
+### Export Data Cache Structure
+When jobs fully load and rates are fetched, `exportCache` state is populated:
+```typescript
+{
+  projectUuid: string | null,           // Selected project UUID
+  projectData: {                         // Project metadata
+    projectName: string,
+    currencyCode: string,
+    liftCertMap: Record<string, { date, docNo }>
+  },
+  jobsData: any[],                      // Raw job records from /api/jobs
+  paymentsData: any[],                  // Income payments from /api/payments-report
+  distributionsData: any[],             // Job distributions from /api/payments-jobs
+  rateCache: Map<string, number | null>, // NBG rates keyed by date|currency
+  timestamp: number                      // Cache creation timestamp
+}
+```
+
+**Cache Population**: Occurs in `fetchJobs` after:
+1. Lift cert info fetched and mapped
+2. Payments and distributions processed
+3. NBG rates batch-fetched and stored in `rateByDate`
+4. Before `setJobs()` updates jobs state with calculated Debit GEL/Total GEL
+
+**Cache Usage**: Prepared for export API to use cached data instead of re-querying database when `useCache=true` flag passed (future optimization).
+
+### Rate Fetching Sequence
+1. Extract unique cert dates from jobs: `Set<string>`
+2. Call `Promise.all()` on `uniqueCertDates.map(date => lookupNbgRate(date, projectCurrencyCode))`
+3. `lookupNbgRate` caches per `date|currency` key in `rateCacheRef`
+4. Return rates in `rateByDate` Map
+5. Used in job rendering: `debitGel = (sellingPrice - paidNominal) * rate`, `totalGel = paidGel + debitGel`
+
+**Caching Strategy**:
+- `rateCacheRef` persists across renders (useRef)
+- Failed rate lookups cached as `null` to prevent retries
+- GEL→GEL conversions return `1` immediately
+- Deduplicates identical date+currency requests within same fetch cycle
+
+### Debit GEL and Total GEL Column Dependency
+These computed columns **depend on NBG rates** and return `null` until rates are available:
+- **Debit GEL**: `(sellingPrice - paidNominal) * rate`
+- **Total GEL**: `paidGel + debitGel`
+
+If `rate` is `undefined` (still loading) or `null` (fetch failed), columns show `—` placeholder. Export button stays disabled until all rows have valid calculations.
 
 ## Testing Guidelines
 Favor tests on public contracts: API handlers, Prisma services, and UI state reducers. Co-locate Jest specs as `*.test.ts(x)` near their source or under `tests/`, and refresh fixtures in `tests/fixtures/` when behavior shifts. Capture cross-surface flows, including auth, with Playwright specs; start `pnpm dev` before launching them to ensure all services are available.

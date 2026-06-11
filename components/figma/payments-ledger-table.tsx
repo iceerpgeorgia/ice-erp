@@ -346,6 +346,8 @@ export function PaymentsLedgerTable() {
     
     if (key === 'effectiveDate' || key === 'createdAt' || key === 'updatedAt') {
       const date = new Date(value);
+      // Check if date is valid before accessing date methods
+      if (isNaN(date.getTime())) return String(value);
       const day = String(date.getDate()).padStart(2, '0');
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const year = date.getFullYear();

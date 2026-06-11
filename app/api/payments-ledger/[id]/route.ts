@@ -198,6 +198,15 @@ export async function PATCH(
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error updating ledger entry:', error);
+    
+    // Handle confirmed record constraint violation
+    if (error?.meta?.code === '23514' && error?.message?.includes('Confirmed')) {
+      return NextResponse.json(
+        { error: 'Confirmed entries cannot be changed' },
+        { status: 409 }
+      );
+    }
+    
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
@@ -243,6 +252,15 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error deleting ledger entry:', error);
+    
+    // Handle confirmed record constraint violation
+    if (error?.meta?.code === '23514' && error?.message?.includes('Confirmed')) {
+      return NextResponse.json(
+        { error: 'Confirmed entries cannot be deleted' },
+        { status: 409 }
+      );
+    }
+    
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }

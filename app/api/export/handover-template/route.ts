@@ -1,18 +1,12 @@
 import { NextRequest } from 'next/server';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
-import { prisma, withRetry } from '@/lib/prisma';
+import { PrismaClient } from '@prisma/client';
 import { toGenitiveCase } from '@/lib/georgian-genitive';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
-// Utility to escape XML special characters
-function escapeXml(str: string): string {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
+const prisma = new PrismaClient();
 
 /**
  * POST /api/export/handover-template
@@ -37,103 +31,29 @@ export async function POST(req: NextRequest) {
 
     console.log('[Export Handover] Starting export with JSZip approach for project:', projectUuid);
 
-    // Fetch template from database attachment, with fallback to public folder
-    let templateBuffer: Buffer | null = null;
-
-    // Try to fetch from database first (with retry for pool exhaustion)
-    const templateAttachment = await withRetry(() =>
-      prisma.attachments.findFirst({
-        where: {
-          file_name: {
-            contains: 'handover',
-          },
-          is_active: true,
-          storage_provider: 'supabase',
-        },
-        orderBy: { created_at: 'desc' },
-      })
-    );
-
-    console.log('[Export Handover] Template attachment lookup:', templateAttachment ? 'found' : 'not found');
-
-    if (templateAttachment) {
-      // Fetch from Supabase storage
-      try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-        if (!supabaseUrl || !supabaseKey) {
-          throw new Error('Missing Supabase configuration');
-        }
-
-        const bucket = templateAttachment.storage_bucket || 'attachments';
-        const fileUrl = `${supabaseUrl}/storage/v1/object/authenticated/${bucket}/${templateAttachment.storage_path}`;
-
-        console.log('[Export Handover] Fetching template from Supabase:', fileUrl.replace(/Bearer.*/, 'Bearer [hidden]'));
-
-        const fetchRes = await fetch(fileUrl, {
-          headers: {
-            Authorization: `Bearer ${supabaseKey}`,
-          },
-          cache: 'no-store',
-        });
-
-        if (fetchRes.ok) {
-          templateBuffer = Buffer.from(await fetchRes.arrayBuffer());
-          console.log('[Export Handover] Template fetched from Supabase, size:', templateBuffer.length);
-        } else {
-          console.warn(`[Export Handover] Supabase fetch failed (${fetchRes.status}), falling back to public folder`);
-        }
-      } catch (err) {
-        console.warn('[Export Handover] Supabase fetch error, falling back to public folder:', err);
-      }
-    }
-
-    // Fallback: fetch from public folder if not found in database or Supabase failed
-    if (!templateBuffer) {
-      console.log('[Export Handover] Falling back to template from public folder');
-      const host = req.headers.get('host') || 'localhost:3000';
-      const protocol = req.headers.get('x-forwarded-proto') || (host.startsWith('localhost') ? 'http' : 'https');
-      const templateUrl = `${protocol}://${host}/handover%20template.xlsx`;
-
-      console.log('[Export Handover] Fetching from:', templateUrl);
-
-      try {
-        const fetchRes = await fetch(templateUrl, { cache: 'no-store' });
-        if (!fetchRes.ok) {
-          console.error(`[Export Handover] Failed to fetch template: ${fetchRes.status} ${fetchRes.statusText}`);
-          return Response.json(
-            { error: `Template fetch failed (${fetchRes.status})` },
-            { status: 404 }
-          );
-        }
-        templateBuffer = Buffer.from(await fetchRes.arrayBuffer());
-        console.log('[Export Handover] Template fetched from public folder, size:', templateBuffer.length);
-      } catch (fetchErr) {
-        console.error('[Export Handover] Template fetch error:', fetchErr);
-        return Response.json(
-          { error: `Failed to fetch template: ${fetchErr instanceof Error ? fetchErr.message : 'Unknown error'}` },
-          { status: 500 }
-        );
-      }
-    }
-
-    if (!templateBuffer) {
-      console.error('[Export Handover] No template could be fetched from any source');
+    // Read template from public folder using filesystem
+    let templateBuffer: Buffer;
+    
+    try {
+      const templatePath = join(process.cwd(), 'public', 'handover template.xlsx');
+      console.log('[Export Handover] Reading template from:', templatePath);
+      
+      templateBuffer = readFileSync(templatePath);
+      console.log('[Export Handover] Template loaded, size:', templateBuffer.length);
+    } catch (fileErr) {
+      console.error('[Export Handover] Failed to load template file:', fileErr);
       return Response.json(
-        { error: 'Failed to load template from any source' },
+        { error: `Failed to load template: ${fileErr instanceof Error ? fileErr.message : 'Unknown error'}` },
         { status: 500 }
       );
     }
 
-    // Query project and all related data with retry for pool exhaustion
+    // Query project and all related data
     console.log('[Export Handover] Querying database for project:', projectUuid);
 
-    const project = await withRetry(() =>
-      prisma.projects.findUnique({
-        where: { project_uuid: projectUuid },
-      })
-    );
+    const project = await prisma.projects.findUnique({
+      where: { project_uuid: projectUuid },
+    });
 
     if (!project) {
       console.error('[Export Handover] Project not found:', projectUuid);
@@ -143,40 +63,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Query counteragent, insider, and currency in parallel with retries
-    const [counteragent, insider, currency, jobs] = await Promise.all([
-      withRetry(() =>
-        prisma.counteragents.findUnique({
-          where: { counteragent_uuid: project.counteragent_uuid },
-        })
-      ),
-      withRetry(() =>
-        prisma.counteragents.findUnique({
-          where: { counteragent_uuid: project.insider_uuid },
-        })
-      ),
-      withRetry(() =>
-        prisma.currencies.findUnique({
-          where: { uuid: project.currency_uuid },
-        })
-      ),
-      withRetry(() =>
-        prisma.jobs.findMany({
-          where: { project_uuid: projectUuid, is_active: true },
-          select: {
-            job_uuid: true,
-            job_name: true,
-            factory_no: true,
-            floors: true,
-            weight: true,
-            selling_price: true,
-          },
-          orderBy: { job_name: 'asc' },
-        })
-      ),
-    ]);
+    // Query counteragent (supplier/contractor)
+    const counteragent = await prisma.counteragents.findUnique({
+      where: { counteragent_uuid: project.counteragent_uuid },
+    });
 
-    console.log('[Export Handover] Data loaded - project:', project.project_name, 'counteragent:', counteragent?.name, 'insider:', insider?.name, 'jobs:', jobs.length);
+    // Query insider (our company)
+    const insider = await prisma.counteragents.findUnique({
+      where: { counteragent_uuid: project.insider_uuid },
+    });
+
+    // Query currency
+    const currency = await prisma.currencies.findUnique({
+      where: { uuid: project.currency_uuid },
+    });
+
+    console.log('[Export Handover] Data loaded - project:', project.project_name, 'counteragent:', counteragent?.name, 'insider:', insider?.name);
 
     // Convert date to Excel serial
     const dateToExcelSerial = (date: Date | string | null): number => {
@@ -214,7 +116,7 @@ export async function POST(req: NextRequest) {
     await originalZip.loadAsync(templateBuffer);
 
     // Extract and modify the Placeholders sheet XML
-    const placeholdersXml = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
+    let placeholdersXml = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
     if (!placeholdersXml) {
       console.error('[Export Handover] ERROR: Placeholders sheet (sheet2.xml) not found!');
       return Response.json(
@@ -223,24 +125,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('[Export Handover] Placeholders XML loaded, size:', placeholdersXml.length);
+    // At this point, TypeScript knows placeholdersXml is a string (after null check)
+    // Redefine as const string to enforce type safety in the loop
+    const initialXml: string = placeholdersXml;
+    let modifiedXml: string = initialXml;
 
-    // Parse XML and update cell values
-    let modifiedXml = placeholdersXml;
+    console.log('[Export Handover] Placeholders XML loaded, size:', modifiedXml.length);
 
-    // Process each placeholder
+    // B5 and B16 have genitive formulas - skip them (let them compute from B6 and B17)
+    const SKIP_CELLS = ['B5', 'B16'];
+    
     Object.entries(placeholderData).forEach(([cellRef, value]) => {
-      // Skip formula cells - they compute their own values from other cells
-      const formulaCells = ['B5', 'B16'];
-      if (formulaCells.includes(cellRef)) {
-        console.log(`[Export Handover] Skipping ${cellRef} (has formula)`);
+      if (SKIP_CELLS.includes(cellRef)) {
+        console.log(`[Export Handover]   Skipping ${cellRef} (has genitive formula)`);
         return;
       }
 
-      const valueStr = String(value).substring(0, 50);
-      console.log(`[Export Handover] Processing ${cellRef}: ${valueStr}`);
-      
-      // Create an escaped string value
       const escapedValue = String(value)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -250,96 +150,69 @@ export async function POST(req: NextRequest) {
 
       const isDateCell = cellRef === 'B2' || cellRef === 'B18';
       const cellType = isDateCell ? 'n' : 's';
-      const newCellTag = `<c r="${cellRef}" t="${cellType}"><v>${escapedValue}</v></c>`;
 
-      // Check if cell already exists in any form
-      const existsPattern = new RegExp(`<c r="${cellRef}"[^>]*>.*?</c>|<c r="${cellRef}"[^>]*/>`);
-      
-      if (existsPattern.test(modifiedXml)) {
-        // Replace existing cell
-        modifiedXml = modifiedXml.replace(existsPattern, newCellTag);
-        console.log(`[Export Handover]   ✓ Replaced existing ${cellRef}`);
-      } else {
-        // Cell doesn't exist - insert it in the appropriate row
-        const rowNum = parseInt(cellRef.substring(1), 10);
-        const rowStartPattern = new RegExp(`(<row r="${rowNum}"[^>]*>)`);
-        
-        if (rowStartPattern.test(modifiedXml)) {
-          // Find this specific row's closing tag
-          const rowStart = modifiedXml.search(rowStartPattern);
-          const rowSection = modifiedXml.substring(rowStart);
-          const rowEnd = rowSection.search(/<\/row>/);
-          
-          if (rowEnd !== -1) {
-            const insertPos = rowStart + rowEnd;
-            modifiedXml = modifiedXml.substring(0, insertPos) + newCellTag + modifiedXml.substring(insertPos);
-            console.log(`[Export Handover]   ✓ Inserted ${cellRef} in row ${rowNum}`);
-          }
-        } else {
-          console.log(`[Export Handover]   ⚠ Row ${rowNum} not found for ${cellRef}`);
+      console.log(`[Export Handover]   Processing ${cellRef} = ${escapedValue}`);
+
+      // Try to update or create the cell in the XML
+      let updated = false;
+
+      // Pattern 1: Cell has existing value <c r="B1" ...><v>old</v></c>
+      const pattern1 = new RegExp(`(<c r="${cellRef}"[^>]*>.*?)<v>[^<]*</v>`, 's');
+      if (pattern1.test(modifiedXml)) {
+        modifiedXml = modifiedXml.replace(pattern1, `$1<v>${escapedValue}</v>`);
+        console.log(`[Export Handover]     ✓ Updated existing value in ${cellRef}`);
+        updated = true;
+      }
+
+      // Pattern 2: Empty cell <c r="B2" s="13"/>
+      if (!updated) {
+        const pattern2 = new RegExp(`<c r="${cellRef}"([^>]*?)\\s*/>`, 's');
+        if (pattern2.test(modifiedXml)) {
+          modifiedXml = modifiedXml.replace(
+            pattern2,
+            `<c r="${cellRef}"$1><v>${escapedValue}</v></c>`
+          );
+          console.log(`[Export Handover]     ✓ Converted empty cell ${cellRef}`);
+          updated = true;
         }
+      }
+
+      // Pattern 3: Cell doesn't exist - create it in the appropriate row
+      if (!updated && !modifiedXml.includes(`<c r="${cellRef}"`)) {
+        const rowNum = parseInt(cellRef.match(/\d+/)?.[0] || '0');
+        const rowOpenTag = new RegExp(`<row r="${rowNum}"([^>]*)>`, 's');
+        
+        if (rowOpenTag.test(modifiedXml)) {
+          // Row exists, insert cell after row opening tag
+          const newCell = `<c r="${cellRef}" t="${cellType}"><v>${escapedValue}</v></c>`;
+          modifiedXml = modifiedXml.replace(
+            rowOpenTag,
+            `<row r="${rowNum}"$1>${newCell}`
+          );
+          console.log(`[Export Handover]     ✓ Created ${cellRef} in existing row`);
+          updated = true;
+        } else {
+          // Row doesn't exist - create it
+          const newRowCell = `<row r="${rowNum}" spans="1:5"><c r="${cellRef}" t="${cellType}"><v>${escapedValue}</v></c></row>`;
+          if (modifiedXml.includes('</sheetData>')) {
+            modifiedXml = modifiedXml.replace('</sheetData>', newRowCell + '</sheetData>');
+            console.log(`[Export Handover]     ✓ Created row ${rowNum} with ${cellRef}`);
+            updated = true;
+          }
+        }
+      }
+
+      if (!updated) {
+        console.log(`[Export Handover]     ⚠ Could not update ${cellRef}`);
       }
     });
 
-    console.log('[Export Handover] Replacing sheet2.xml in original ZIP...');
+    console.log('[Export Handover] Updating sheet2.xml in ZIP...');
 
-    // Simply update sheet2.xml in the original ZIP (don't recreate)
+    // Update sheet2.xml in the original ZIP
     originalZip.file('xl/worksheets/sheet2.xml', modifiedXml);
 
-    // Now populate the Jobs sheet (sheet3.xml in the template, NOT sheet1!) with job data
-    console.log('[Export Handover] Populating Jobs sheet with', jobs.length, 'jobs...');
-    let jobsXml = await originalZip.file('xl/worksheets/sheet3.xml')?.async('string');
-    
-    if (!jobsXml) {
-      console.error('[Export Handover] ERROR: sheet3.xml not found in template ZIP!');
-      // List available worksheet files for debugging
-      const worksheetFiles: string[] = [];
-      originalZip.forEach((relativePath) => {
-        if (relativePath.includes('worksheets/sheet')) {
-          worksheetFiles.push(relativePath);
-        }
-      });
-      console.error('[Export Handover] Available sheets:', worksheetFiles.join(', '));
-    } else if (jobs.length === 0) {
-      console.warn('[Export Handover] No jobs found for project - Jobs sheet will be empty');
-    } else {
-      // Build job rows as XML
-      let jobRowsXml = '';
-      let jobRowNum = 2; // Start from row 2 (row 1 is header)
-      
-      for (const job of jobs) {
-        // Create cells for each job: A=jobName, B=factoryNo, C=floors, D=weight, E=sellingPrice
-        const cellsXml = [
-          `<c r="A${jobRowNum}" t="inlineStr"><is><t>${escapeXml(String(job.job_name || ''))}</t></is></c>`,
-          job.factory_no ? `<c r="B${jobRowNum}" t="inlineStr"><is><t>${escapeXml(String(job.factory_no))}</t></is></c>` : `<c r="B${jobRowNum}"/>`,
-          job.floors ? `<c r="C${jobRowNum}" t="n"><v>${job.floors}</v></c>` : `<c r="C${jobRowNum}"/>`,
-          job.weight ? `<c r="D${jobRowNum}" t="n"><v>${job.weight}</v></c>` : `<c r="D${jobRowNum}"/>`,
-          job.selling_price ? `<c r="E${jobRowNum}" t="n"><v>${String(job.selling_price)}</v></c>` : `<c r="E${jobRowNum}"/>`,
-        ].join('');
-        
-        jobRowsXml += `<row r="${jobRowNum}" spans="1:5" x14ac:dyDescent="0.25">${cellsXml}</row>`;
-        jobRowNum++;
-      }
-      
-      // Insert job rows before </sheetData>
-      if (jobsXml.includes('</sheetData>')) {
-        jobsXml = jobsXml.replace('</sheetData>', jobRowsXml + '\n</sheetData>');
-        originalZip.file('xl/worksheets/sheet3.xml', jobsXml);
-        console.log('[Export Handover] Jobs sheet (sheet3.xml) populated with', jobs.length, 'rows');
-      } else {
-        console.error('[Export Handover] ERROR: Could not find </sheetData> tag in sheet3.xml - XML structure unexpected');
-        console.log('[Export Handover] sheet3.xml first 500 chars:', jobsXml.substring(0, 500));
-      }
-    }
-
-    console.log('[Export Handover] JSZip modifications complete, verifying sheets...');
-
-    // Debug: List all files in the ZIP to verify sheets are present
-    const fileList: string[] = [];
-    originalZip.forEach(((relativePath, file) => {
-      fileList.push(relativePath);
-    }));
-    console.log('[Export Handover] Files in ZIP:', fileList.filter(f => f.includes('worksheet')).join(', '));
+    console.log('[Export Handover] JSZip modifications complete, generating output...');
 
     // Generate the modified Excel file, preserving original structure and compression
     const outputBuffer = await originalZip.generateAsync({
@@ -362,5 +235,7 @@ export async function POST(req: NextRequest) {
       { error: error instanceof Error ? error.message : 'Export failed' },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

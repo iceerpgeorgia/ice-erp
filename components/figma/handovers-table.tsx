@@ -125,6 +125,25 @@ export function HandoversTable() {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [ratesLoading, setRatesLoading] = useState(false);
+  
+  // ── Export data cache ────────────────────────────────────────────────────
+  const [exportCache, setExportCache] = useState<{
+    projectUuid: string | null;
+    projectData: any | null;
+    jobsData: any[] | null;
+    paymentsData: any[] | null;
+    distributionsData: any[] | null;
+    rateCache: Map<string, number | null>;
+    timestamp: number;
+  }>({
+    projectUuid: null,
+    projectData: null,
+    jobsData: null,
+    paymentsData: null,
+    distributionsData: null,
+    rateCache: new Map(),
+    timestamp: 0,
+  });
 
   // ── Attachment state ──────────────────────────────────────────────────────
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
@@ -186,6 +205,13 @@ export function HandoversTable() {
     () => projects.find(p => p.projectUuid === selectedProjectUuid) ?? null,
     [projects, selectedProjectUuid],
   );
+
+  // ── Computed: Is all data fully loaded? ──────────────────────────────────
+  const isTableFullyLoaded = useMemo(() => {
+    // Must have: projects loaded, project selected, jobs loaded, rates loaded
+    // Note: sortedJobs not available here yet, so checked separately in button disabled state
+    return !loadingProjects && !loadingJobs && !ratesLoading && selectedProjectUuid !== '';
+  }, [loadingProjects, loadingJobs, ratesLoading, selectedProjectUuid]);
 
   const formatMoney = (value: number) => Math.abs(value).toLocaleString('en-US', {
     minimumFractionDigits: 2,
@@ -261,11 +287,6 @@ export function HandoversTable() {
     defaultSortDirection: 'asc',
     filtersStorageKey: 'handovers-table:filters',
   });
-
-  // ── Computed: Is all data fully loaded? ────────────────────────────────
-  const isTableFullyLoaded = useMemo(() => {
-    return !loadingProjects && !loadingJobs && !ratesLoading && selectedProjectUuid !== '';
-  }, [loadingProjects, loadingJobs, ratesLoading, selectedProjectUuid]);
 
   // ── Persist column config ─────────────────────────────────────────────────
   useEffect(() => {
@@ -399,9 +420,10 @@ export function HandoversTable() {
         const liftCertMap: Record<string, { date: string | null; docNo: string | null }> = liftRes?.ok ? (await liftRes.json()).info ?? {} : {};
         console.log(`[Handovers] Lift cert info fetched:`, { liftCertOk: liftRes?.ok, mapSize: Object.keys(liftCertMap).length });
 
+        let paymentsData: any[] = [];
         const incomePaymentIds = new Set<string>();
         if (paymentsRes.ok) {
-          const paymentsData = await paymentsRes.json();
+          paymentsData = await paymentsRes.json();
           (Array.isArray(paymentsData) ? paymentsData : []).forEach((payment: any) => {
             if (payment?.financialCodeIsIncome && payment?.paymentId) {
               incomePaymentIds.add(String(payment.paymentId));
@@ -414,11 +436,13 @@ export function HandoversTable() {
         const paidGelByJob = new Map<string, number>();
 
         // Build distribution map for matching bank transactions to jobs
+        let distributionsData: any[] = [];
         const distributionsByBankTx = new Map<string, Array<{ jobUuid: string; amountAccount: number; amount: number }>>();
         const unmappedDistributions: Array<{ jobUuid: string; amountAccount: number; amount: number }> = [];
         
         if (distRes.ok) {
           const distData = await distRes.json();
+          distributionsData = Array.isArray(distData) ? distData : [];
           if (Array.isArray(distData)) {
             distData.forEach((dist: any) => {
               // Only include distributions for income payments
@@ -523,6 +547,22 @@ export function HandoversTable() {
         }
 
         setAttachmentCounts(countsMap);
+        
+        // ── Cache export data when jobs loaded ──────────────────────────────
+        setExportCache({
+          projectUuid,
+          projectData: {
+            projectName: projects.find(p => p.projectUuid === projectUuid)?.projectName ?? null,
+            currencyCode: projectCurrencyCode,
+            liftCertMap,
+          },
+          jobsData: data,
+          paymentsData,
+          distributionsData,
+          rateCache: new Map(rateCacheRef.current),
+          timestamp: Date.now(),
+        });
+        
         setJobs(
           data.map((job, idx) => ({
             id: Number(job.id ?? 0),

@@ -78,6 +78,7 @@ export function JobDistributionGrid({
   const [loading, setLoading] = useState(false);
   const [fillDataLoading, setFillDataLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [localValue, setLocalValue] = useState<JobDistributionRow[]>([]);
   const [distributionMode, setDistributionMode] = useState<'all' | 'manual'>('all');
   const [bundlePercent, setBundlePercent] = useState<number | null>(null);
@@ -355,6 +356,8 @@ export function JobDistributionGrid({
   // Save distributions
   const handleSave = async (dataToSave = localValue) => {
     setSaving(true);
+    setSaveError(null);
+
     try {
       // Filter out rows with no amount
       const distributions = dataToSave
@@ -392,16 +395,28 @@ export function JobDistributionGrid({
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to save');
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save');
+      }
 
       console.log('[Job Dist Save] Save successful');
+      
+      // Update parent state before closing dialog
       onChange(dataToSave);
-      setSaving(false);
+      
+      // Close dialog and cleanup
       setIsOpen(false);
-      if (onSave) onSave();
+      setSaving(false);
+      setSaveError(null);
+      
+      // Call onSave callback after state updates
+      if (onSave) {
+        onSave();
+      }
     } catch (error: any) {
-      console.error('Save error:', error);
-      alert(error.message || 'Failed to save job distribution');
+      console.error('[Job Dist Save] Error:', error);
+      const errorMsg = error.message || 'Failed to save job distribution';
+      setSaveError(errorMsg);
       setSaving(false);
     }
   };
@@ -464,7 +479,10 @@ export function JobDistributionGrid({
         )}
       </Button>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={(open) => {
+        setIsOpen(open);
+        if (!open) setSaveError(null);  // Clear error when dialog closes
+      }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Distribute Payment to Jobs</DialogTitle>
@@ -479,6 +497,17 @@ export function JobDistributionGrid({
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Error Alert */}
+              {saveError && (
+                <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3">
+                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-900">Error</p>
+                    <p className="text-sm text-red-800">{saveError}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Distribution Mode Selector */}
               <div className="flex items-center gap-4">
                 <Label>Distribution Mode:</Label>

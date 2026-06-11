@@ -1,0 +1,17 @@
+# pnpm configuration for improved compatibility with build environments
+# Helps avoid file locking issues during module installation
+
+# Use hardlinks where possible for better performance
+link-workspace-packages = true
+
+# Set store to avoid file lock issues
+store-dir = ~/.pnpm-store
+
+# Force use of node-modules layout to simplify resolution
+node-modules-dir = true
+
+# Reduce timeout for operations
+fetch-timeout = 120000
+
+# Disable usage of postinstall scripts on CI/Vercel environments
+# (handled by explicit postinstall in package.json with error handling)
