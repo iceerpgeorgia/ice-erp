@@ -287,6 +287,7 @@ export async function POST(req: NextRequest) {
         }
         
         const newSheetNum = maxSheetNum + 1;
+        const newRelId = `rId${maxSheetNum + 2}`;
         
         // Add jobs sheet to ZIP
         originalZip.file(`xl/worksheets/sheet${newSheetNum}.xml`, jobsSheetXml);
@@ -297,7 +298,6 @@ export async function POST(req: NextRequest) {
         // Update workbook.xml.rels to reference the new sheet
         let workbookRels = await originalZip.file('xl/_rels/workbook.xml.rels')?.async('string');
         if (workbookRels) {
-          const newRelId = `rId${maxSheetNum + 2}`;
           const newRel = `<Relationship Id="${newRelId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${newSheetNum}.xml"/>`;
           
           // Insert before closing tag
