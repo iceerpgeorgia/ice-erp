@@ -1,5 +1,14 @@
 # Deployment Log
 
+## 2026-06-11 Deployment #349 (Critical: Fix Connection Pool Exhaustion)
+- Commit: 248c806
+- Production: https://ice-l4vni40n9-iceerp.vercel.app
+- Summary: Fix "max clients reached" database connection pool exhaustion error that prevented exports.
+- Root Cause: Export route was creating a new PrismaClient() instance per request instead of using the Prisma singleton, exhausting the 15-connection pool limit in Vercel serverless.
+- Changes:
+  - app/api/export/handover-template/route.ts: Replace `new PrismaClient()` with imported singleton from lib/prisma; wrap all database queries with `withRetry()` helper for graceful pool exhaustion handling; batch related queries with `Promise.all()` for parallel execution; remove `finally { prisma.$disconnect() }` (not needed with singleton pattern).
+  - Result: Export requests now reuse persistent connections instead of creating new ones, preventing pool exhaustion.
+
 ## 2026-06-11 Deployment #348 (Critical: Fix Missing Sheets)
 - Commit: 668439d
 - Production: https://ice-b1z4rs8zw-iceerp.vercel.app
