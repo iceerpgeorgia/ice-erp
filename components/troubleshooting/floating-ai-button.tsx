@@ -40,5 +40,3 @@ export function FloatingAIButton({ pageContext }: FloatingAIButtonProps) {
     </>
   );
 }
-
-export default FloatingAIButton;
