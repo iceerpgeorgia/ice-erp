@@ -13,15 +13,11 @@ export function useIsMobile() {
       setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
     };
     mql.addEventListener("change", onChange);
-    
-    // Initialize on first mount to prevent hydration mismatch
-    const initialValue = window.innerWidth < MOBILE_BREAKPOINT;
-    setIsMobile(initialValue);
-    
+    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
     return () => mql.removeEventListener("change", onChange);
   }, []);
 
-  // Prevent rendering mismatch during hydration by returning false initially
-  // The useEffect will update it to the correct value after mount
-  return isMobile === undefined ? false : isMobile;
+  // Return the current value or false if undefined (during initial hydration)
+  // The useEffect will immediately set the correct value after mount
+  return isMobile ?? false;
 }
