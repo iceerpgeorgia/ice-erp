@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = (await req.json()) as ChatRequest;
-    const { messages, model = 'mixtral-8x7b-32768' } = body;
+    const { messages, model = 'llama-3.1-8b-instant' } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
