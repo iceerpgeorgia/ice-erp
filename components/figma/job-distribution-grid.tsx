@@ -234,12 +234,13 @@ export function JobDistributionGrid({
             .slice(0, i)
             .reduce((sum, row) => sum + (toNumber(row.percentage) || 0), 0);
           const adjustedPercent = 100 - otherPercent;
+          const adjustedAmount = (paymentAmount * adjustedPercent) / 100;
 
           adjusted[i] = {
             ...adjusted[i],
             percentage: adjustedPercent.toFixed(6),
-            amount: (paymentAmount * adjustedPercent) / 100,
-            amountAccountCurr: ((paymentAmount * adjustedPercent) / 100) * accountCurrencyRate,
+            amount: adjustedAmount.toFixed(2),
+            amountAccountCurr: (adjustedAmount * accountCurrencyRate).toFixed(2),
           };
           return adjusted;
         }
