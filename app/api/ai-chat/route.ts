@@ -55,7 +55,13 @@ export async function POST(req: NextRequest) {
 - Answering questions about waybills and inventory
 - Providing business insights and recommendations
 
-Be concise, professional, and helpful. Use the user's language (often Georgian or English).`,
+IMPORTANT: Always respond in the same language the user uses:
+- If the user writes in English, respond ONLY in English
+- If the user writes in Georgian, respond ONLY in Georgian
+- Do NOT mix languages in a single response
+- Match the user's language exactly
+
+Be concise, professional, and helpful.`,
     };
 
     // Prepare messages with system context
