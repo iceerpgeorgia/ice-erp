@@ -21,6 +21,16 @@ interface ChatRequest {
   model?: string;
 }
 
+function detectLanguage(text: string): 'georgian' | 'english' {
+  // Georgian Unicode range: U+10A0–U+10FF
+  const georgianRegex = /[\u10A0-\u10FF]/g;
+  const georgianChars = (text.match(georgianRegex) || []).length;
+  const totalChars = text.length;
+  
+  // If more than 20% of characters are Georgian, treat as Georgian
+  return georgianChars / totalChars > 0.2 ? 'georgian' : 'english';
+}
+
 export async function POST(req: NextRequest) {
   // Require authentication
   const auth = await requireAuth();
@@ -36,6 +46,13 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Detect language from the last user message
+    const lastUserMessage = messages.filter(m => m.role === 'user').pop();
+    const detectedLanguage = lastUserMessage ? detectLanguage(lastUserMessage.content) : 'english';
+    const languageInstruction = detectedLanguage === 'georgian'
+      ? 'Respond ONLY in Georgian. გამოიყენე ქართული ენა.'
+      : 'Respond ONLY in English. Use English language.';
 
     const groq = getGroqClient();
     if (!groq) {
@@ -55,13 +72,12 @@ export async function POST(req: NextRequest) {
 - Answering questions about waybills and inventory
 - Providing business insights and recommendations
 
-IMPORTANT: Always respond in the same language the user uses:
-- If the user writes in English, respond ONLY in English
-- If the user writes in Georgian, respond ONLY in Georgian
-- Do NOT mix languages in a single response
-- Match the user's language exactly
+LANGUAGE REQUIREMENT: ${languageInstruction}
+- NEVER mix languages
+- NEVER respond in a different language than the user
+- Keep responses concise and professional
 
-Be concise, professional, and helpful.`,
+Be helpful and accurate.`,
     };
 
     // Prepare messages with system context
@@ -70,6 +86,7 @@ Be concise, professional, and helpful.`,
     console.log('[AI-CHAT] Calling Groq API with', {
       messageCount: allMessages.length,
       model,
+      detectedLanguage,
       hasApiKey: !!process.env.GROQ_API_KEY,
     });
 
@@ -84,12 +101,24 @@ Be concise, professional, and helpful.`,
       presence_penalty: 0,
     });
 
+    const assistantMessage = completion.choices[0]?.message?.content || '';
+
     console.log('[AI-CHAT] Groq response received:', {
-      hasContent: !!completion.choices[0]?.message?.content,
+      hasContent: !!assistantMessage,
+      contentLength: assistantMessage.length,
       tokens: completion.usage?.total_tokens,
+      choicesCount: completion.choices?.length,
+      finishReason: completion.choices[0]?.finish_reason,
+      fullContent: assistantMessage.substring(0, 100), // Log first 100 chars
     });
 
-    const assistantMessage = completion.choices[0]?.message?.content || '';
+    if (!assistantMessage || assistantMessage.trim() === '') {
+      console.error('[AI-CHAT] Empty content from Groq, full response:', JSON.stringify(completion, null, 2));
+      return NextResponse.json(
+        { error: 'AI responded with empty content' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       role: 'assistant',
