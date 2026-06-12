@@ -255,7 +255,7 @@ export function JobDistributionGrid({
     }
 
     setLocalValue(updated);
-  };
+  }
 
   // Handle amount change
   const handleAmountChange = (index: number, value: string) => {
@@ -266,7 +266,7 @@ export function JobDistributionGrid({
     const amount = toNumber(value) || 0;
     if (amount > 0 && paymentAmount > 0) {
       const percent = (amount / paymentAmount) * 100;
-      updated[index].percentage = percent.toFixed(2);
+      updated[index].percentage = percent.toFixed(6);
       updated[index].amountAccountCurr = (amount * accountCurrencyRate).toFixed(2);
     }
 
@@ -299,7 +299,7 @@ export function JobDistributionGrid({
       amount: fillAmount > 0 ? fillAmount.toFixed(2) : '',
       percentage:
         fillAmount > 0 && paymentAmount > 0
-          ? ((fillAmount / paymentAmount) * 100).toFixed(2)
+          ? ((fillAmount / paymentAmount) * 100).toFixed(6)
           : '',
       amountAccountCurr:
         fillAmount > 0 ? (fillAmount * accountCurrencyRate).toFixed(2) : '',
@@ -335,7 +335,7 @@ export function JobDistributionGrid({
         if (dist) {
           return {
             ...row,
-            percentage: dist.percent.toFixed(2),
+            percentage: dist.percent.toFixed(6),
             amount: dist.amount.toFixed(2),
             amountAccountCurr: dist.amount_account_curr.toFixed(2),
             weight: dist.weight,
@@ -517,6 +517,15 @@ export function JobDistributionGrid({
                     setDistributionMode(val);
                     if (val === 'all') {
                       handleAutoDistribute();
+                    } else if (val === 'manual') {
+                      // Clear all values when switching to manual
+                      const cleared = localValue.map(row => ({
+                        ...row,
+                        percentage: '',
+                        amount: '',
+                        amountAccountCurr: '',
+                      }));
+                      setLocalValue(cleared);
                     }
                   }}
                 >
@@ -619,7 +628,7 @@ export function JobDistributionGrid({
                       </td>
                       <td className="p-2 text-right">
                         <span className={totals.percentValid ? 'text-green-600' : 'text-red-600'}>
-                          {totals.percent.toFixed(2)}%
+                          {totals.percent.toFixed(6)}%
                         </span>
                       </td>
                       <td className="p-2 text-right">
