@@ -396,15 +396,26 @@ export const HandoverJobDistributionsGrid = forwardRef<HandoverJobDistributionsG
       console.log('[Job Dist] Sample tx rows:', txRows.slice(0, 3).map((r: any) => ({
         id: r.synthetic_id,
         project_uuid: r.project_uuid,
+        batch_project_uuid: r.batch_project_uuid,
         payment_id: r.payment_id,
         is_balance_record: r.is_balance_record,
       })));
 
       const filteredRows = txRows.filter((row: any) => {
-        const projMatch = row.project_uuid === projectUuid;
+        // Use COALESCE like the API does: batch_project_uuid takes precedence over project_uuid
+        const effectiveProjectUuid = row.batch_project_uuid || row.project_uuid;
+        const projMatch = effectiveProjectUuid === projectUuid;
         const notBalance = !row.is_balance_record;
         const hasPaymentId = !!row.payment_id;
         const inIncomeSet = incomePaymentIds.has(row.payment_id);
+        if (!projMatch) {
+          console.log('[Job Dist] Filtered OUT - project mismatch:', { 
+            projectUuid, 
+            effectiveProjectUuid, 
+            batch_project_uuid: row.batch_project_uuid,
+            project_uuid: row.project_uuid 
+          });
+        }
         if (!inIncomeSet && row.payment_id) {
           console.log('[Job Dist] Filtered OUT - payment_id not in income set:', row.payment_id);
         }
