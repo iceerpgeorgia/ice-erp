@@ -57,24 +57,55 @@ export function FloatingAIButton() {
     log.info('Message Sent', { content: inputValue });
 
     try {
-      // TODO: Call actual AI endpoint here
-      // For now, show a placeholder response
-      setTimeout(() => {
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: 'I received your message: "' + userMessage.content + '". Full AI integration coming soon!',
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-        setIsLoading(false);
-        log.info('Response Received', { messageId: assistantMessage.id });
-      }, 500);
+      // Call AI chat API
+      const response = await fetch('/api/ai-chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to get response');
+      }
+
+      const data = await response.json();
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.content,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+      log.info('Response Received', { 
+        messageId: assistantMessage.id,
+        tokens: data.usage?.total_tokens,
+      });
     } catch (error) {
-      log.error('Message Send Failed', { error: String(error) });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      log.error('Message Send Failed', { error: errorMessage });
+
+      // Show error message to user
+      const errorResponseMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        role: 'assistant',
+        content: `Sorry, I encountered an error: ${errorMessage}. Please try again.`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorResponseMessage]);
+    } finally {
       setIsLoading(false);
     }
-  }, [inputValue, log]);
+  }, [inputValue, messages, log]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
