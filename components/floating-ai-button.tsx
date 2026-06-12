@@ -20,7 +20,7 @@ export function FloatingAIButton() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [dialogSize, setDialogSize] = useState({ width: 320, height: 400 });
-  const [dialogPos, setDialogPos] = useState({ x: 0, y: -420 });
+  const [dialogPos, setDialogPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -202,34 +202,29 @@ export function FloatingAIButton() {
   return (
     <div
       data-component="floating-ai-button"
-      className="fixed z-40"
+      className="fixed top-3 right-16 z-40"
       suppressHydrationWarning
-      style={{
-        bottom: 'auto',
-        right: 'auto',
-        top: `calc(${dialogPos.y}px)`,
-        left: `calc(${dialogPos.x}px)`,
-      }}
     >
-      {/* Floating Button */}
+      {/* Floating Button - Always Visible */}
       <button
         onClick={handleClick}
         title="Ask AI Assistant"
-        className="rounded-full bg-gradient-to-r from-blue-500 to-purple-600 p-4 text-white shadow-lg hover:shadow-xl transition-shadow"
+        className="rounded-full bg-gradient-to-r from-blue-500 to-purple-600 p-3 text-white shadow-lg hover:shadow-xl transition-shadow hover:scale-110"
         aria-label="AI Assistant"
       >
-        <MessageCircle size={24} />
+        <MessageCircle size={20} />
       </button>
 
-      {/* Dialog */}
+      {/* Dialog - Positioned relative to button */}
       {isOpen && (
         <div
           ref={dialogRef}
-          className="absolute bottom-auto right-0 top-16 w-80 bg-white rounded-lg shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
+          className="absolute top-14 -right-16 bg-white rounded-lg shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
           suppressHydrationWarning
           style={{
             width: `${dialogSize.width}px`,
             height: `${dialogSize.height}px`,
+            transform: `translate(${dialogPos.x}px, ${dialogPos.y}px)`,
           }}
         >
           {/* Title Bar - Draggable */}
@@ -239,7 +234,7 @@ export function FloatingAIButton() {
           >
             <div className="flex items-center gap-2 flex-1">
               <GripHorizontal size={16} className="text-gray-400" />
-              <h3 className="font-semibold text-gray-900">AI Assistant</h3>
+              <h3 className="font-semibold text-gray-900 text-sm">AI Assistant</h3>
             </div>
             <button
               onClick={() => handleOpenChange(false)}
