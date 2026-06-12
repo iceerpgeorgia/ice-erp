@@ -377,6 +377,7 @@ export const HandoverJobDistributionsGrid = forwardRef<HandoverJobDistributionsG
         const paymentsData = await paymentsRes.json();
         const incomePayments = paymentsData.filter((payment: any) => payment.financialCodeIsIncome);
         console.log('[Job Dist] Income payments count:', incomePayments.length);
+        console.log('[Job Dist] Income payment IDs:', incomePayments.map((p: any) => p.paymentId));
 
         const lookupData = buildPaymentLookupMaps(incomePayments);
         nextPaymentMap = lookupData.paymentMap;
@@ -391,12 +392,25 @@ export const HandoverJobDistributionsGrid = forwardRef<HandoverJobDistributionsG
       setPaymentMap(nextPaymentMap);
       setPaymentIdMap(nextPaymentIdMap);
 
-      const filteredRows = txRows.filter((row: any) =>
-        row.project_uuid === projectUuid &&
-        !row.is_balance_record &&
-        row.payment_id &&
-        incomePaymentIds.has(row.payment_id)
-      );
+      console.log('[Job Dist] Fetched transactions:', txRows.length, 'for project:', projectUuid);
+      console.log('[Job Dist] Sample tx rows:', txRows.slice(0, 3).map((r: any) => ({
+        id: r.synthetic_id,
+        project_uuid: r.project_uuid,
+        payment_id: r.payment_id,
+        is_balance_record: r.is_balance_record,
+      })));
+
+      const filteredRows = txRows.filter((row: any) => {
+        const projMatch = row.project_uuid === projectUuid;
+        const notBalance = !row.is_balance_record;
+        const hasPaymentId = !!row.payment_id;
+        const inIncomeSet = incomePaymentIds.has(row.payment_id);
+        if (!inIncomeSet && row.payment_id) {
+          console.log('[Job Dist] Filtered OUT - payment_id not in income set:', row.payment_id);
+        }
+        return projMatch && notBalance && hasPaymentId && inIncomeSet;
+      });
+      console.log('[Job Dist] After filtering:', filteredRows.length, 'transactions');
       setTransactions(filteredRows);
 
       const nextDistributionMap = new Map<string, JobDistributionRow[]>();
