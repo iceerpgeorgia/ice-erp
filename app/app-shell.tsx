@@ -14,7 +14,10 @@ import {
 import { LogOut, User } from 'lucide-react';
 import PageTitle from './page-title';
 import { NavIconTitleSync } from '@/components/nav-icon-title-sync';
-import { usePathname } from 'next/navigation';
+import { FloatingAIButton } from '@/components/floating-ai-button';
+import { WithErrorBoundary } from '@/components/error-boundary';
+import { useComponentLogger } from '@/lib/logging/component-logger';
+import { useEffect } from 'react';
 
 function Topbar() {
   const { data: session } = useSession();
@@ -58,6 +61,27 @@ function Topbar() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const log = useComponentLogger('AppShell');
+
+  useEffect(() => {
+    log.trackMount();
+    log.info('AppShell Initializing', {
+      childrenType: typeof children,
+    });
+
+    return () => {
+      log.trackUnmount();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    log.trackRender({
+      timestamp: new Date().toISOString(),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+
   return (
     <NavConfigProvider>
       <NavIconTitleSync />
@@ -71,6 +95,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* Floating AI Button - DISABLED TEMPORARILY FOR DEBUG */}
           {/* <FloatingAIButton pageContext={getPageContext()} /> */}
         </div>
+        {/* FloatingAIButton wrapped in error boundary */}
+        <WithErrorBoundary
+          componentName="FloatingAIButton"
+          fallback={
+            <div className="fixed bottom-6 right-6 p-2 text-xs text-red-600 bg-red-50 rounded border border-red-200">
+              AI Button Error
+            </div>
+          }
+        >
+          <FloatingAIButton />
+        </WithErrorBoundary>
       </SidebarProvider>
     </NavConfigProvider>
   );
