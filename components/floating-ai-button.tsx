@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { MessageCircle, Send, GripHorizontal } from 'lucide-react';
+import { MessageCircle, Send, GripHorizontal, Download } from 'lucide-react';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useComponentLogger } from '@/lib/logging/component-logger';
 
@@ -111,6 +111,42 @@ export function FloatingAIButton() {
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
+
+  const handleExportChat = useCallback(() => {
+    if (messages.length === 0) {
+      alert('No messages to export');
+      return;
+    }
+
+    // Format messages for export
+    const exportContent = messages
+      .map((msg) => {
+        const timestamp = msg.timestamp.toLocaleString();
+        const role = msg.role === 'user' ? 'You' : 'AI Assistant';
+        return `[${timestamp}] ${role}:\n${msg.content}\n`;
+      })
+      .join('\n---\n\n');
+
+    // Add header
+    const fullContent = `ice-erp AI Assistant Chat Export
+Generated: ${new Date().toLocaleString()}
+Messages: ${messages.length}
+
+${'---\n\n'}${exportContent}`;
+
+    // Create blob and download
+    const blob = new Blob([fullContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ai-chat-${Date.now()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    log.info('Chat Exported', { messageCount: messages.length });
+  }, [messages, log]);
 
   useEffect(() => {
     scrollToBottom();
@@ -370,8 +406,17 @@ export function FloatingAIButton() {
               >
                 <Send size={18} />
               </button>
+              <button
+                onClick={handleExportChat}
+                disabled={messages.length === 0}
+                className="p-2 bg-gray-500 text-white rounded hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                aria-label="Export chat to text file"
+                title="Export chat to text file"
+              >
+                <Download size={18} />
+              </button>
             </div>
-            <div className="text-xs text-gray-400 text-right">Drag header • Resize corners/edges</div>
+            <div className="text-xs text-gray-400 text-right">Drag header • Resize corners/edges • Export chat</div>
           </div>
 
           {/* Resize Handles */}
