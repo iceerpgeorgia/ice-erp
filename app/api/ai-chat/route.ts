@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
 
-function getGroqClient(): OpenAI | null {
-  const key = process.env.GROQ_API_KEY;
+function getAnthropicClient(): Anthropic | null {
+  const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return null;
-  return new OpenAI({
+  return new Anthropic({
     apiKey: key,
-    baseURL: 'https://api.groq.com/openai/v1',
   });
 }
 
@@ -54,10 +53,10 @@ export async function POST(req: NextRequest) {
       ? 'Respond ONLY in Georgian. გამოიყენე ქართული ენა.'
       : 'Respond ONLY in English. Use English language.';
 
-    const groq = getGroqClient();
-    if (!groq) {
+    const anthropic = getAnthropicClient();
+    if (!anthropic) {
       return NextResponse.json(
-        { error: 'Groq API key not configured' },
+        { error: 'Anthropic API key not configured' },
         { status: 500 }
       );
     }
@@ -143,37 +142,36 @@ LANGUAGE: Respond ONLY in ${detectedLanguage === 'georgian' ? 'Georgian' : 'Engl
     // Prepare messages with system context
     const allMessages = [systemMessage, ...messages];
 
-    console.log('[AI-CHAT] Calling Groq API with', {
+    console.log('[AI-CHAT] Calling Anthropic API with', {
       messageCount: allMessages.length,
-      model,
+      model: 'claude-3-5-haiku-20241022',
       detectedLanguage,
-      hasApiKey: !!process.env.GROQ_API_KEY,
+      hasApiKey: !!process.env.ANTHROPIC_API_KEY,
     });
 
-    // Call Groq API
-    const completion = await groq.chat.completions.create({
-      model,
-      messages: allMessages,
-      temperature: 0.7,
+    // Call Anthropic API
+    const completion = await anthropic.messages.create({
+      model: 'claude-3-5-haiku-20241022',
       max_tokens: 1024,
-      top_p: 1,
-      frequency_penalty: 0,
-      presence_penalty: 0,
+      system: systemMessage.content,
+      messages: messages.map(m => ({
+        role: m.role === 'system' ? 'user' : m.role,
+        content: m.content,
+      })),
     });
 
-    const assistantMessage = completion.choices[0]?.message?.content || '';
+    const assistantMessage = completion.content[0]?.type === 'text' ? completion.content[0].text : '';
 
-    console.log('[AI-CHAT] Groq response received:', {
+    console.log('[AI-CHAT] Anthropic response received:', {
       hasContent: !!assistantMessage,
       contentLength: assistantMessage.length,
-      tokens: completion.usage?.total_tokens,
-      choicesCount: completion.choices?.length,
-      finishReason: completion.choices[0]?.finish_reason,
-      fullContent: assistantMessage.substring(0, 100), // Log first 100 chars
+      tokens: completion.usage?.output_tokens,
+      stopReason: completion.stop_reason,
+      fullContent: assistantMessage.substring(0, 100),
     });
 
     if (!assistantMessage || assistantMessage.trim() === '') {
-      console.error('[AI-CHAT] Empty content from Groq, full response:', JSON.stringify(completion, null, 2));
+      console.error('[AI-CHAT] Empty content from Anthropic, full response:', JSON.stringify(completion, null, 2));
       return NextResponse.json(
         { error: 'AI responded with empty content' },
         { status: 500 }
@@ -183,11 +181,10 @@ LANGUAGE: Respond ONLY in ${detectedLanguage === 'georgian' ? 'Georgian' : 'Engl
     return NextResponse.json({
       role: 'assistant',
       content: assistantMessage,
-      model,
+      model: 'claude-3-5-haiku-20241022',
       usage: {
-        prompt_tokens: completion.usage?.prompt_tokens,
-        completion_tokens: completion.usage?.completion_tokens,
-        total_tokens: completion.usage?.total_tokens,
+        input_tokens: completion.usage?.input_tokens,
+        output_tokens: completion.usage?.output_tokens,
       },
     });
   } catch (error) {
