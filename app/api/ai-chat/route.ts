@@ -39,6 +39,14 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as ChatRequest;
     const { messages, model = 'llama-3.1-8b-instant' } = body;
 
+    console.log('[AI-CHAT] Request received:', {
+      bodyKeys: Object.keys(body),
+      hasMessages: !!messages,
+      messagesIsArray: Array.isArray(messages),
+      messagesLength: Array.isArray(messages) ? messages.length : 'N/A',
+      rawBody: JSON.stringify(body).substring(0, 500),
+    });
+
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
         { error: 'Messages array is required' },

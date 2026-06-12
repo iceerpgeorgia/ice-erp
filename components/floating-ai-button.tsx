@@ -64,7 +64,22 @@ export function FloatingAIButton() {
         content: m.content,
       }));
 
-      log.info('Sending Messages', { count: messagesToSend.length });
+      log.info('Sending Messages', { 
+        count: messagesToSend.length,
+        messagesCount: messages.length,
+        hasUserMessage: !!userMessage,
+        firstMessageRole: messagesToSend[0]?.role,
+        lastMessageRole: messagesToSend[messagesToSend.length - 1]?.role,
+      });
+
+      // Log the actual payload being sent
+      const payload = {
+        messages: messagesToSend,
+      };
+      console.log('[FloatingAI] Sending payload:', {
+        messagesCount: payload.messages.length,
+        messages: payload.messages.map(m => ({ role: m.role, contentLength: m.content.length })),
+      });
 
       // Call AI chat API
       const response = await fetch('/api/ai-chat', {
@@ -72,9 +87,7 @@ export function FloatingAIButton() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          messages: messagesToSend,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
