@@ -101,17 +101,19 @@ export function JobDistributionGrid({
           }));
           setJobs(jobsList);
 
-          const nextValue = value.length === 0
-            ? jobsList.map(job => ({
-                jobUuid: job.uuid,
-                jobName: job.name,
-                factoryNo: job.factory_no,
-                sellingPrice: job.selling_price,
-                percentage: '',
-                amount: '',
-                amountAccountCurr: '',
-              }))
-            : value;
+          // Always include all jobs, merging with existing distributions
+          const existingByUuid = new Map(value.map(v => [v.jobUuid, v]));
+          const nextValue = jobsList.map(job => 
+            existingByUuid.get(job.uuid) || {
+              jobUuid: job.uuid,
+              jobName: job.name,
+              factoryNo: job.factory_no,
+              sellingPrice: job.selling_price,
+              percentage: '',
+              amount: '',
+              amountAccountCurr: '',
+            }
+          );
 
           setLocalValue(nextValue);
 
@@ -552,7 +554,7 @@ export function JobDistributionGrid({
                     if (val === 'all') {
                       handleAutoDistribute();
                     } else if (val === 'manual') {
-                      // Clear all values when switching to manual
+                      // Clear only amounts when switching to manual, keep all jobs visible
                       const cleared = localValue.map(row => ({
                         ...row,
                         percentage: '',
@@ -571,6 +573,11 @@ export function JobDistributionGrid({
                     <SelectItem value="manual">Manual</SelectItem>
                   </SelectContent>
                 </Select>
+
+                {/* Distribution Type Badge */}
+                <Badge variant={distributionMode === 'all' ? 'default' : 'secondary'}>
+                  {distributionMode === 'all' ? 'Weighted Distribution' : 'Manual Distribution'}
+                </Badge>
 
                 {distributionMode === 'all' && (
                   <Button
