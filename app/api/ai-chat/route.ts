@@ -61,6 +61,12 @@ Be concise, professional, and helpful. Use the user's language (often Georgian o
     // Prepare messages with system context
     const allMessages = [systemMessage, ...messages];
 
+    console.log('[AI-CHAT] Calling Groq API with', {
+      messageCount: allMessages.length,
+      model,
+      hasApiKey: !!process.env.GROQ_API_KEY,
+    });
+
     // Call Groq API
     const completion = await groq.chat.completions.create({
       model,
@@ -70,6 +76,11 @@ Be concise, professional, and helpful. Use the user's language (often Georgian o
       top_p: 1,
       frequency_penalty: 0,
       presence_penalty: 0,
+    });
+
+    console.log('[AI-CHAT] Groq response received:', {
+      hasContent: !!completion.choices[0]?.message?.content,
+      tokens: completion.usage?.total_tokens,
     });
 
     const assistantMessage = completion.choices[0]?.message?.content || '';
@@ -85,7 +96,12 @@ Be concise, professional, and helpful. Use the user's language (often Georgian o
       },
     });
   } catch (error) {
-    console.error('[AI-CHAT] Error:', error);
+    const errorDetails = error instanceof Error ? error.message : String(error);
+    console.error('[AI-CHAT] Error Details:', {
+      message: errorDetails,
+      stack: error instanceof Error ? error.stack : undefined,
+      type: error instanceof Error ? error.constructor.name : typeof error,
+    });
 
     if (error instanceof SyntaxError) {
       return NextResponse.json(
@@ -106,6 +122,14 @@ Be concise, professional, and helpful. Use the user's language (often Georgian o
         return NextResponse.json(
           { error: 'Rate limited. Please try again later.' },
           { status: 429 }
+        );
+      }
+
+      // Return more details in dev/debug mode
+      if (process.env.NODE_ENV !== 'production') {
+        return NextResponse.json(
+          { error: `Failed to process chat message: ${errorDetails}` },
+          { status: 500 }
         );
       }
     }
