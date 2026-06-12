@@ -23,6 +23,7 @@ export function FloatingAIButton() {
   const [dialogPos, setDialogPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [resizeDirection, setResizeDirection] = useState<'se' | 'sw' | 'w'>('se');
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -116,7 +117,7 @@ export function FloatingAIButton() {
   }, [messages, scrollToBottom]);
 
   const handleMouseDownDrag = useCallback((e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('[data-resize-handle]')) return;
+    if ((e.target as HTMLElement).closest('[data-direction]')) return;
     setIsDragging(true);
     setDragStart({ x: e.clientX - dialogPos.x, y: e.clientY - dialogPos.y });
     log.debug('Drag Started');
@@ -136,22 +137,42 @@ export function FloatingAIButton() {
   }, [log]);
 
   const handleMouseDownResize = useCallback((e: React.MouseEvent) => {
+    const direction = (e.currentTarget as HTMLElement).dataset.direction as 'se' | 'sw' | 'w' || 'se';
     setIsResizing(true);
+    setResizeDirection(direction);
     setDragStart({ x: e.clientX, y: e.clientY });
-    log.debug('Resize Started');
+    log.debug('Resize Started', { direction });
   }, [log]);
 
   const handleMouseMoveResize = useCallback((e: MouseEvent) => {
-    if (!isResizing) return;
+    if (!isResizing || !dialogRef.current) return;
+    
     const deltaX = e.clientX - dragStart.x;
     const deltaY = e.clientY - dragStart.y;
     
-    setDialogSize((prev) => ({
-      width: Math.max(280, prev.width + deltaX),
-      height: Math.max(300, prev.height + deltaY),
-    }));
+    setDialogSize((prev) => {
+      let newWidth = prev.width;
+      let newHeight = prev.height;
+
+      // Handle different resize directions
+      if (resizeDirection === 'se') {
+        // Bottom-right: standard resize
+        newWidth = Math.max(280, prev.width + deltaX);
+        newHeight = Math.max(300, prev.height + deltaY);
+      } else if (resizeDirection === 'sw') {
+        // Bottom-left: resize from left and bottom
+        newWidth = Math.max(280, prev.width - deltaX);
+        newHeight = Math.max(300, prev.height + deltaY);
+      } else if (resizeDirection === 'w') {
+        // Left only: resize width from left
+        newWidth = Math.max(280, prev.width - deltaX);
+      }
+
+      return { width: newWidth, height: newHeight };
+    });
+
     setDragStart({ x: e.clientX, y: e.clientY });
-  }, [isResizing, dragStart]);
+  }, [isResizing, dragStart, resizeDirection]);
 
   const handleMouseUpResize = useCallback(() => {
     setIsResizing(false);
@@ -350,14 +371,31 @@ export function FloatingAIButton() {
                 <Send size={18} />
               </button>
             </div>
-            <div className="text-xs text-gray-400 text-right">Drag header • Resize corner</div>
+            <div className="text-xs text-gray-400 text-right">Drag header • Resize corners/edges</div>
           </div>
 
-          {/* Resize Handle */}
+          {/* Resize Handles */}
+          {/* Bottom-right handle */}
           <div
-            data-resize-handle
+            data-direction="se"
             onMouseDown={handleMouseDownResize}
             className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-gradient-to-tl from-blue-500 to-transparent opacity-50 hover:opacity-100 transition-opacity rounded-tl"
+            title="Drag to resize"
+          />
+          
+          {/* Left handle */}
+          <div
+            data-direction="w"
+            onMouseDown={handleMouseDownResize}
+            className="absolute top-0 left-0 w-1 h-full cursor-ew-resize bg-blue-400 opacity-0 hover:opacity-30 transition-opacity"
+            title="Drag left to resize"
+          />
+          
+          {/* Bottom-left handle */}
+          <div
+            data-direction="sw"
+            onMouseDown={handleMouseDownResize}
+            className="absolute bottom-0 left-0 w-4 h-4 cursor-nesw-resize bg-gradient-to-tr from-blue-500 to-transparent opacity-50 hover:opacity-100 transition-opacity rounded-tr"
             title="Drag to resize"
           />
         </div>
