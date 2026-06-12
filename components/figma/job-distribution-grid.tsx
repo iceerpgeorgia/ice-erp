@@ -217,17 +217,49 @@ export function JobDistributionGrid({
     rawRecordUuid,
   ]);
 
-  // Calculate totals
-  const totals = useMemo(() => {
+  // Adjust last row's percentage to hit exactly 100% if aggregate is >99.99%
+  const adjustedLocalValue = useMemo(() => {
     const totalPercent = localValue.reduce(
       (sum, row) => sum + (toNumber(row.percentage) || 0),
       0
     );
-    const totalAmount = localValue.reduce(
+
+    // If total is >99.99% but not exactly 100%, round the last row to hit exactly 100%
+    if (totalPercent > 99.99 && totalPercent < 100 && distributionMode === 'manual') {
+      const adjusted = [...localValue];
+      // Find last row with a non-empty percentage
+      for (let i = adjusted.length - 1; i >= 0; i--) {
+        if (toNumber(adjusted[i].percentage) > 0) {
+          const otherPercent = localValue
+            .slice(0, i)
+            .reduce((sum, row) => sum + (toNumber(row.percentage) || 0), 0);
+          const adjustedPercent = 100 - otherPercent;
+
+          adjusted[i] = {
+            ...adjusted[i],
+            percentage: adjustedPercent.toFixed(6),
+            amount: (paymentAmount * adjustedPercent) / 100,
+            amountAccountCurr: ((paymentAmount * adjustedPercent) / 100) * accountCurrencyRate,
+          };
+          return adjusted;
+        }
+      }
+    }
+
+    return localValue;
+  }, [localValue, paymentAmount, accountCurrencyRate, distributionMode]);
+
+  // Calculate totals
+  const totals = useMemo(() => {
+    const totalPercent = adjustedLocalValue.reduce(
+      (sum, row) => sum + (toNumber(row.percentage) || 0),
+      0
+    );
+    const totalAmount = adjustedLocalValue.reduce(
       (sum, row) => sum + (toNumber(row.amount) || 0),
       0
     );
-    const totalAmountAcct = localValue.reduce(
+    const totalAmountAcct = adjustedLocalValue.reduce(
       (sum, row) => sum + (toNumber(row.amountAccountCurr) || 0),
       0
     );
@@ -239,7 +271,7 @@ export function JobDistributionGrid({
       percentValid: Math.abs(totalPercent - 100) < 0.01,
       amountValid: Math.abs(totalAmount - paymentAmount) < 0.01,
     };
-  }, [localValue, paymentAmount]);
+  }, [adjustedLocalValue, paymentAmount]);
 
   // Handle percentage change
   const handlePercentageChange = (index: number, value: string) => {
@@ -354,7 +386,7 @@ export function JobDistributionGrid({
   };
 
   // Save distributions
-  const handleSave = async (dataToSave = localValue) => {
+  const handleSave = async (dataToSave = adjustedLocalValue) => {
     setSaving(true);
     setSaveError(null);
 
@@ -440,7 +472,7 @@ export function JobDistributionGrid({
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to clear');
 
-      const cleared = localValue.map(row => ({
+      const cleared = adjustedLocalValue.map(row => ({
         ...row,
         percentage: '',
         amount: '',
@@ -451,6 +483,7 @@ export function JobDistributionGrid({
       onChange(cleared);
       setSaving(false);
       setIsOpen(false);
+      if (onSave) onSave();
       if (onSave) onSave();
     } catch (error: any) {
       console.error('Clear error:', error);
@@ -568,7 +601,7 @@ export function JobDistributionGrid({
                     </tr>
                   </thead>
                   <tbody>
-                    {localValue.map((row, index) => (
+                    {adjustedLocalValue.map((row, index) => (
                       <tr key={row.jobUuid} className="border-t">
                         <td className="p-2">
                           <div className="font-medium">{row.jobName}</div>
