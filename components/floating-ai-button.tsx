@@ -58,6 +58,14 @@ export function FloatingAIButton() {
     log.info('Message Sent', { content: inputValue });
 
     try {
+      // Construct messages array including the new user message (avoid state closure issue)
+      const messagesToSend = [...messages, userMessage].map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      log.info('Sending Messages', { count: messagesToSend.length });
+
       // Call AI chat API
       const response = await fetch('/api/ai-chat', {
         method: 'POST',
@@ -65,10 +73,7 @@ export function FloatingAIButton() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: messages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
+          messages: messagesToSend,
         }),
       });
 
