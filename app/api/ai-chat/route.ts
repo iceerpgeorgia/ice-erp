@@ -139,23 +139,35 @@ WHEN USER DESCRIBES A PROBLEM:
 LANGUAGE: Respond ONLY in ${detectedLanguage === 'georgian' ? 'Georgian' : 'English'}. NO MIXING.`,
     };
 
-    // Prepare messages with system context
-    const allMessages = [systemMessage, ...messages];
+    // Filter out system messages from the incoming array (system is passed separately to Anthropic)
+    const userMessages = messages.filter(m => m.role !== 'system');
 
     console.log('[AI-CHAT] Calling Anthropic API with', {
-      messageCount: allMessages.length,
+      messageCount: userMessages.length,
       model: 'claude-3-5-haiku-20241022',
       detectedLanguage,
       hasApiKey: !!process.env.ANTHROPIC_API_KEY,
+      incomingMessageCount: messages.length,
     });
+
+    // Validate that we have at least one user/assistant message
+    if (userMessages.length === 0) {
+      console.error('[AI-CHAT] No user messages found after filtering', {
+        incomingMessages: messages.map(m => ({ role: m.role, contentLength: m.content.length })),
+      });
+      return NextResponse.json(
+        { error: 'No user messages provided' },
+        { status: 400 }
+      );
+    }
 
     // Call Anthropic API
     const completion = await anthropic.messages.create({
       model: 'claude-3-5-haiku-20241022',
       max_tokens: 1024,
       system: systemMessage.content,
-      messages: messages.map(m => ({
-        role: m.role === 'system' ? 'user' : m.role,
+      messages: userMessages.map(m => ({
+        role: m.role as 'user' | 'assistant',
         content: m.content,
       })),
     });
@@ -205,7 +217,7 @@ LANGUAGE: Respond ONLY in ${detectedLanguage === 'georgian' ? 'Georgian' : 'Engl
     if (error instanceof Error) {
       if (error.message.includes('401') || error.message.includes('Unauthorized')) {
         return NextResponse.json(
-          { error: 'Groq API authentication failed' },
+          { error: 'Anthropic API authentication failed' },
           { status: 401 }
         );
       }
