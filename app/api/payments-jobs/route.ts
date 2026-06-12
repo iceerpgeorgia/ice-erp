@@ -223,7 +223,8 @@ export async function POST(req: NextRequest) {
           { status: 404 }
         );
       }
-      expectedNominal = Number(batchPartition.partition_amount || 0);
+      // Use nominal_amount if available, otherwise fall back to partition_amount
+      expectedNominal = Number(batchPartition.nominal_amount || batchPartition.partition_amount || 0);
       expectedAccountCurr = Number(batchPartition.partition_amount || 0);
     } else if (raw_record_uuid) {
       // Get from raw bank transaction tables
