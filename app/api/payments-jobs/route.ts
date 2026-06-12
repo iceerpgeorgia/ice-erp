@@ -243,11 +243,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Allow tolerance for rounding (scales with number of distributions to account for floating-point precision)
-    // Base tolerance 0.02 + 0.01 per additional row for floating-point accumulation
-    const baseTolerance = 0.02;
-    const rowTolerance = Math.max(0, (distributions.length - 1) * 0.01);
-    const TOLERANCE = baseTolerance + rowTolerance;
+    // Allow tolerance for rounding (higher tolerance for multi-job distributions)
+    // Max 0.15 GEL to account for floating-point precision across many rows
+    const TOLERANCE = 0.15;
     
     if (Math.abs(totalDistributedNominal - expectedNominal) > TOLERANCE) {
       return NextResponse.json(
@@ -257,7 +255,6 @@ export async function POST(req: NextRequest) {
             transaction_nominal: expectedNominal,
             distributed_nominal: totalDistributedNominal,
             gap: expectedNominal - totalDistributedNominal,
-            tolerance: TOLERANCE,
           },
         },
         { status: 400 }
@@ -272,7 +269,6 @@ export async function POST(req: NextRequest) {
             transaction_account_curr: expectedAccountCurr,
             distributed_account_curr: totalDistributedAccountCurr,
             gap: expectedAccountCurr - totalDistributedAccountCurr,
-            tolerance: TOLERANCE,
           },
         },
         { status: 400 }
