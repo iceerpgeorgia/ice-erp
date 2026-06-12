@@ -358,7 +358,7 @@ export const HandoverJobDistributionsGrid = forwardRef<HandoverJobDistributionsG
     setLoading(true);
     try {
       const [txRes, paymentsRes, distRes] = await Promise.all([
-        fetch(`/api/bank-transactions?project_uuid=${encodeURIComponent(projectUuid)}&limit=0`),
+        fetch(`/api/bank-transactions?project_uuid=${encodeURIComponent(projectUuid)}&limit=5000`),
         fetch(`/api/payments-report?projectUuid=${encodeURIComponent(projectUuid)}`),
         fetch(`/api/payments-jobs?project_uuid=${encodeURIComponent(projectUuid)}`),
       ]);
