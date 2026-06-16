@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
     const autoDistributions = await prisma.payments_jobs.findMany({
       where: {
         is_auto_distributed: true,
+        emission_uuid: null,
         ...(payment_uuid ? { payment_uuid } : { project_uuid }),
       },
       include: {
@@ -146,7 +147,10 @@ export async function POST(req: NextRequest) {
       // Update distributions
       await prisma.$transaction(async (tx) => {
         await tx.payments_jobs.deleteMany({
-          where: { payment_uuid },
+          where: {
+            payment_uuid,
+            emission_uuid: null,
+          },
         });
 
         await tx.payments_jobs.createMany({

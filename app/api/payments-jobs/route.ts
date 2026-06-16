@@ -4,6 +4,10 @@ import { requireAuth, isAuthError } from '@/lib/auth-guard';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { applyAccountCurrencyRate, resolveAccountCurrencyRate } from '@/lib/payments-jobs-rate';
+import {
+  buildLivePaymentsJobsScopeWhere,
+  findPaymentsJobEmissionState,
+} from '@/lib/payments-jobs-emission-guard';
 
 export const dynamic = 'force-dynamic';
 
@@ -127,6 +131,8 @@ export async function GET(req: NextRequest) {
       weight_snapshot: d.weight_snapshot ? Number(d.weight_snapshot) : null,
       raw_record_uuid: d.raw_record_uuid,
       batch_partition_uuid: d.batch_partition_uuid,
+      emission_uuid: d.emission_uuid,
+      emission_date: d.emission_date ? d.emission_date.toISOString() : null,
       created_at: d.created_at.toISOString(),
       updated_at: d.updated_at.toISOString(),
       created_by: d.created_by,
@@ -300,35 +306,39 @@ export async function POST(req: NextRequest) {
 
     if (replace_all) {
       // Delete existing distributions (filtered by batch_partition_uuid or raw_record_uuid if provided) and insert new ones
+      // Build delete WHERE clause to handle old NULL records
+      let deleteWhere: any;
+
+      if (batch_partition_uuid) {
+        // Distributing a batched transaction: delete this batch partition + old NULL records
+        deleteWhere = {
+          payment_uuid,
+          OR: [
+            { batch_partition_uuid },
+            { batch_partition_uuid: null, raw_record_uuid: null },
+          ],
+        };
+      } else if (raw_record_uuid) {
+        // Distributing a raw transaction: delete this raw record + old NULL records
+        deleteWhere = {
+          payment_uuid,
+          OR: [
+            { raw_record_uuid },
+            { batch_partition_uuid: null, raw_record_uuid: null },
+          ],
+        };
+      } else {
+        // Distributing a regular payment: delete all distributions for this payment
+        deleteWhere = { payment_uuid };
+      }
+
       result = await prisma.$transaction(async (tx) => {
-        // Build delete WHERE clause to handle old NULL records
-        let deleteWhere: any;
-        
-        if (batch_partition_uuid) {
-          // Distributing a batched transaction: delete this batch partition + old NULL records
-          deleteWhere = {
-            payment_uuid,
-            OR: [
-              { batch_partition_uuid },
-              { batch_partition_uuid: null, raw_record_uuid: null }, // Clean up old legacy data
-            ],
-          };
-        } else if (raw_record_uuid) {
-          // Distributing a raw transaction: delete this raw record + old NULL records
-          deleteWhere = {
-            payment_uuid,
-            OR: [
-              { raw_record_uuid },
-              { batch_partition_uuid: null, raw_record_uuid: null }, // Clean up old legacy data
-            ],
-          };
-        } else {
-          // Distributing a regular payment: delete all distributions for this payment
-          deleteWhere = { payment_uuid };
-        }
 
         await tx.payments_jobs.deleteMany({
-          where: deleteWhere,
+          where: {
+            ...deleteWhere,
+            emission_uuid: null,
+          },
         });
 
         const created = await tx.payments_jobs.createMany({
@@ -366,6 +376,7 @@ export async function POST(req: NextRequest) {
         } else if (raw_record_uuid) {
           findWhere.raw_record_uuid = raw_record_uuid;
         }
+        findWhere.emission_uuid = null;
 
         const existing = await prisma.payments_jobs.findFirst({
           where: findWhere,
@@ -432,9 +443,19 @@ export async function DELETE(req: NextRequest) {
   const uuid = searchParams.get('uuid');
   const paymentUuid = searchParams.get('payment_uuid');
   const batchPartitionUuid = searchParams.get('batch_partition_uuid');
+  const rawRecordUuid = searchParams.get('raw_record_uuid');
 
   try {
     if (uuid) {
+      const existing = await findPaymentsJobEmissionState(uuid);
+
+      if (existing?.emission_uuid) {
+        return NextResponse.json(
+          { error: 'Emitted job distributions are locked and cannot be changed or deleted' },
+          { status: 403 }
+        );
+      }
+
       // Delete single distribution by uuid
       await prisma.payments_jobs.delete({
         where: { uuid },
@@ -442,10 +463,11 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: true, deleted: 1 });
     } else if (paymentUuid) {
       // Delete distributions for a payment (optionally filtered by batch_partition_uuid)
-      const deleteWhere: any = { payment_uuid: paymentUuid };
-      if (batchPartitionUuid) {
-        deleteWhere.batch_partition_uuid = batchPartitionUuid;
-      }
+      const deleteWhere: any = buildLivePaymentsJobsScopeWhere(
+        paymentUuid,
+        batchPartitionUuid,
+        rawRecordUuid,
+      );
 
       const result = await prisma.payments_jobs.deleteMany({
         where: deleteWhere,

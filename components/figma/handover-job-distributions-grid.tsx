@@ -446,6 +446,8 @@ export const HandoverJobDistributionsGrid = forwardRef<HandoverJobDistributionsG
             percentage: dist.allocation_percent != null ? Number(dist.allocation_percent) : '',
             amount: dist.amount != null ? Number(dist.amount) : '',
             amountAccountCurr: dist.amount_account_curr != null ? Number(dist.amount_account_curr) : '',
+            emissionUuid: dist.emission_uuid ?? null,
+            emissionDate: dist.emission_date ?? null,
           };
           const current = nextDistributionMap.get(key) || [];
           current.push(row);
@@ -861,6 +863,10 @@ export const HandoverJobDistributionsGrid = forwardRef<HandoverJobDistributionsG
                   : null;
                 
                 const distributionValue = distributionKey ? (distributionMap.get(distributionKey) ?? []) : [];
+                const liveDistributionValue = distributionValue.filter((d) => !d.emissionUuid);
+                const hasEmittedSnapshots = distributionValue.some((d) => !!d.emissionUuid);
+                const isReadOnlySnapshot = hasEmittedSnapshots && liveDistributionValue.length === 0;
+                const dialogValue = liveDistributionValue.length > 0 ? liveDistributionValue : distributionValue;
 
                 if (idx < 5) { // Only log first 5 rows to avoid spam
                   console.log('[Job Dist] Row payment lookup:', {
@@ -909,8 +915,9 @@ export const HandoverJobDistributionsGrid = forwardRef<HandoverJobDistributionsG
                                 accountCurrencyRate={accountCurrencyRate}
                                 projectUuid={projectUuid}
                                 financialCodeUuid={paymentFinancialCodeUuid}
-                                value={distributionValue}
+                                value={dialogValue}
                                 onChange={() => {}}
+                                readOnly={isReadOnlySnapshot}
                                 onSave={fetchData}
                               />
                             ) : null}

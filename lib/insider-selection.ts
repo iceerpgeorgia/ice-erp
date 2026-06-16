@@ -1,5 +1,8 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { Prisma } from '@prisma/client';
 
 export const INSIDER_SELECTION_COOKIE = 'insider-view-selection';
 
@@ -31,6 +34,12 @@ function sanitizeUuidList(values: string[]): string[] {
   return clean;
 }
 
+function toUuidArraySql(selectedUuids: string[]): string {
+  const clean = sanitizeUuidList(selectedUuids);
+  if (clean.length === 0) return 'ARRAY[]::uuid[]';
+  return `ARRAY[${clean.map((uuid) => `'${uuid}'::uuid`).join(', ')}]::uuid[]`;
+}
+
 export function parseInsiderSelectionCookie(rawValue: string | undefined): string[] {
   if (!rawValue) return [];
 
@@ -45,6 +54,32 @@ export function parseInsiderSelectionCookie(rawValue: string | undefined): strin
 
 export function serializeInsiderSelectionCookie(selectedUuids: string[]): string {
   return JSON.stringify(sanitizeUuidList(selectedUuids));
+}
+
+export async function loadPersistedInsiderSelection(userId: string): Promise<string[]> {
+  if (!userId) return [];
+
+  const rows = await prisma.$queryRaw<Array<{ selected_insider_uuids: string[] | null }>>`
+    SELECT selected_insider_uuids
+    FROM "User"
+    WHERE id = ${userId}
+    LIMIT 1
+  `;
+
+  const selected = rows[0]?.selected_insider_uuids;
+  if (!Array.isArray(selected)) return [];
+  return sanitizeUuidList(selected.map((value) => String(value)));
+}
+
+export async function savePersistedInsiderSelection(userId: string, selectedUuids: string[]): Promise<void> {
+  if (!userId) return;
+
+  const arraySql = toUuidArraySql(selectedUuids);
+  await prisma.$executeRaw`
+    UPDATE "User"
+    SET selected_insider_uuids = ${Prisma.raw(arraySql)}
+    WHERE id = ${userId}
+  `;
 }
 
 export async function getInsiderOptions(): Promise<InsiderOption[]> {
@@ -69,11 +104,18 @@ export async function resolveInsiderSelection(request?: NextRequest): Promise<In
   const options = await getInsiderOptions();
   const optionSet = new Set(options.map((option) => option.insiderUuid.toLowerCase()));
 
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id ? String(session.user.id) : '';
+  const persistedSelection = userId ? await loadPersistedInsiderSelection(userId) : [];
+  const validPersistedSelection = persistedSelection.filter((uuid) => optionSet.has(uuid.toLowerCase()));
+
   const cookieRaw = request?.cookies.get(INSIDER_SELECTION_COOKIE)?.value;
   const cookieSelection = parseInsiderSelectionCookie(cookieRaw);
   const validCookieSelection = cookieSelection.filter((uuid) => optionSet.has(uuid.toLowerCase()));
 
-  const selectedUuids = validCookieSelection.length > 0
+  const selectedUuids = validPersistedSelection.length > 0
+    ? validPersistedSelection
+    : validCookieSelection.length > 0
     ? validCookieSelection
     : options.map((option) => option.insiderUuid);
 

@@ -64,6 +64,7 @@ model User {
   authorizedBy             String?
   paymentNotifications     Boolean                    @default(false) @map("payment_notifications")
   counteragentUuid         String?                    @map("counteragent_uuid") @db.Uuid
+  selectedInsiderUuids     String[]                   @default([]) @map("selected_insider_uuids") @db.Uuid
   Account                  Account[]
   PaymentNotificationToken PaymentNotificationToken[]
   Session                  Session[]

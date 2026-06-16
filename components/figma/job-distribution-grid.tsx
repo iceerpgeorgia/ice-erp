@@ -29,6 +29,8 @@ export type JobDistributionRow = {
   percentage: number | string;
   amount: number | string;
   amountAccountCurr: number | string;
+  emissionUuid?: string | null;
+  emissionDate?: string | null;
   weight?: number;
 };
 
@@ -50,6 +52,7 @@ type JobDistributionGridProps = {
   value: JobDistributionRow[];
   onChange: (distribution: JobDistributionRow[]) => void;
   disabled?: boolean;
+  readOnly?: boolean;
   onSave?: () => void;
 };
 
@@ -66,6 +69,7 @@ export function JobDistributionGrid({
   value,
   onChange,
   disabled = false,
+  readOnly = false,
   onSave,
 }: JobDistributionGridProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -482,6 +486,7 @@ export function JobDistributionGrid({
   };
 
   const distributionCount = value.filter(v => toNumber(v.amount) > 0).length;
+  const isReadOnly = readOnly;
 
   return (
     <>
@@ -523,6 +528,7 @@ export function JobDistributionGrid({
                   value={distributionMode}
                   onValueChange={(val: 'all' | 'manual') => {
                     setDistributionMode(val);
+                    if (isReadOnly) return;
                     if (val === 'all') {
                       handleAutoDistribute();
                     } else if (val === 'manual') {
@@ -555,12 +561,16 @@ export function JobDistributionGrid({
                   <Button
                     type="button"
                     onClick={() => handleAutoDistribute()}
-                    disabled={loading || !projectUuid}
+                    disabled={isReadOnly || loading || !projectUuid}
                     className="gap-2"
                   >
                     <TrendingUp className="h-4 w-4" />
                     Recalculate
                   </Button>
+                )}
+
+                {isReadOnly && (
+                  <Badge variant="secondary">Emitted (Read-Only)</Badge>
                 )}
               </div>
 
@@ -597,7 +607,7 @@ export function JobDistributionGrid({
                             value={row.percentage}
                             onChange={(e) => handlePercentageChange(index, e.target.value)}
                             className="text-right"
-                            disabled={distributionMode === 'all'}
+                            disabled={isReadOnly || distributionMode === 'all'}
                           />
                         </td>
                         <td className="p-2">
@@ -607,7 +617,7 @@ export function JobDistributionGrid({
                             value={row.amount}
                             onChange={(e) => handleAmountChange(index, e.target.value)}
                             className="text-right"
-                            disabled={distributionMode === 'all'}
+                            disabled={isReadOnly || distributionMode === 'all'}
                           />
                         </td>
                         <td className="p-2 text-center">
@@ -617,6 +627,7 @@ export function JobDistributionGrid({
                             size="sm"
                             onClick={() => handleFillRow(index)}
                             disabled={
+                              isReadOnly ||
                               distributionMode !== 'manual' ||
                               fillDataLoading ||
                               !bundlePercent ||
@@ -678,7 +689,7 @@ export function JobDistributionGrid({
                   type="button"
                   variant="destructive"
                   onClick={handleClear}
-                  disabled={saving || distributionCount === 0}
+                  disabled={isReadOnly || saving || distributionCount === 0}
                 >
                   Clear All
                 </Button>
@@ -694,7 +705,7 @@ export function JobDistributionGrid({
                   <Button
                     type="button"
                     onClick={() => handleSave()}
-                    disabled={saving || (distributionMode === 'manual' && !totals.amountValid)}
+                    disabled={isReadOnly || saving || (distributionMode === 'manual' && !totals.amountValid)}
                   >
                     {saving ? (
                       <>

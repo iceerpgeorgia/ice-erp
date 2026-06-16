@@ -3,6 +3,7 @@ import {
   INSIDER_SELECTION_COOKIE,
   getInsiderOptions,
   resolveInsiderSelection,
+  savePersistedInsiderSelection,
   serializeInsiderSelectionCookie,
 } from '@/lib/insider-selection';
 import { requireAuth, isAuthError } from '@/lib/auth-guard';
@@ -43,6 +44,10 @@ export async function POST(request: NextRequest) {
     const effectiveSelection = validSelected.length > 0
       ? validSelected
       : options.map((option) => option.insiderUuid);
+
+    if (auth.user?.id) {
+      await savePersistedInsiderSelection(auth.user.id, effectiveSelection);
+    }
 
     const response = NextResponse.json({
       success: true,

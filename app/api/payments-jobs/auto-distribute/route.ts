@@ -112,35 +112,34 @@ export async function POST(req: NextRequest) {
     }
 
     // Replace all existing distributions with new auto-weighted ones
-    await prisma.$transaction(async (tx) => {
-      // Build delete WHERE clause to handle old NULL records
-      let deleteWhere: any;
-      
-      if (batch_partition_uuid) {
-        // Distributing a batched transaction: delete this batch partition + old NULL records
-        deleteWhere = {
-          payment_uuid,
-          OR: [
-            { batch_partition_uuid },
-            { batch_partition_uuid: null, raw_record_uuid: null }, // Clean up old legacy data
-          ],
-        };
-      } else if (raw_record_uuid) {
-        // Distributing a raw transaction: delete this raw record + old NULL records
-        deleteWhere = {
-          payment_uuid,
-          OR: [
-            { raw_record_uuid },
-            { batch_partition_uuid: null, raw_record_uuid: null }, // Clean up old legacy data
-          ],
-        };
-      } else {
-        // Distributing a regular payment: delete all distributions for this payment
-        deleteWhere = { payment_uuid };
-      }
+    let deleteWhere: any;
 
+    if (batch_partition_uuid) {
+      deleteWhere = {
+        payment_uuid,
+        OR: [
+          { batch_partition_uuid },
+          { batch_partition_uuid: null, raw_record_uuid: null },
+        ],
+      };
+    } else if (raw_record_uuid) {
+      deleteWhere = {
+        payment_uuid,
+        OR: [
+          { raw_record_uuid },
+          { batch_partition_uuid: null, raw_record_uuid: null },
+        ],
+      };
+    } else {
+      deleteWhere = { payment_uuid };
+    }
+
+    await prisma.$transaction(async (tx) => {
       await tx.payments_jobs.deleteMany({
-        where: deleteWhere,
+        where: {
+          ...deleteWhere,
+          emission_uuid: null,
+        },
       });
 
       await tx.payments_jobs.createMany({

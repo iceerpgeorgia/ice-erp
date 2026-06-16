@@ -206,6 +206,12 @@ All RS.ge credentials are stored in `RS_CREDENTIALS_MAP` (JSON array in `.env.lo
 ```
 Add one object per insider/company. Parsed by `getRsCredentialsMap()` in `lib/integrations/rsge/client.ts`. Both cron routes and the manual sync endpoint read exclusively from this map — there are no separate `RS_API_SU`/`RS_API_SP` fallback vars.
 
+### Insider Selection Persistence
+- Selected insiders are persisted per user in `User.selected_insider_uuids` (`uuid[]`) and mirrored to the `insider-view-selection` cookie.
+- Resolution precedence in `resolveInsiderSelection`: DB-persisted selection first, then cookie selection, then all available insiders as fallback.
+- `POST /api/insider-selection` validates UUIDs against current insider options, stores the effective list in DB (when authenticated), and refreshes the cookie.
+- This keeps insider-driven views (including Conversions and other insider-filtered APIs) stable across deployments even if browser cookie/domain context changes.
+
 ### VAT Lock Rule
 `vat` (counteragent VAT payer status) is a **point-in-time snapshot** captured at first import via `is_vat_payer_tin` SOAP call:
 - **CREATE**: `vat` is stored from the live API response.
@@ -306,6 +312,9 @@ When a user emits a handover, all current (non-emitted) job distributions are lo
 - **Multiple Emissions**: Same project can emit multiple times; each emission gets a unique UUID. After an emission, new distributions can be added and emitted again. All emissions are permanently recorded.
 - **Display Priority**: UI shows emission status based on the most recent `emission_date` for the project. Historical emissions remain in the audit trail for reference.
 - **Immutability**: Database triggers prevent UPDATE and DELETE on records with `emission_uuid IS NOT NULL`. Projects and jobs with emitted distributions cannot be deleted.
+- **Live vs emitted rows**: emitted `payments_jobs` rows are immutable historical snapshots. Later distribution changes must operate only on live rows where `emission_uuid IS NULL`, allowing new non-emitted distributions to coexist with emitted snapshots for the same payment/job/scope.
+- **API guard**: single-row delete/update attempts against an emitted distribution must fail, while replace/delete/auto-distribute/recalculate flows must only touch non-emitted rows (`emission_uuid IS NULL`) and leave emitted snapshots intact.
+- **UI lock state**: the Job Distribution dialog opens in read-only mode (no save/clear/edit/fill/recalculate actions) when a transaction scope has only emitted snapshot rows and no live rows.
 - **Schema**: New table `handover_emissions` (uuid, created_at, created_by, description). New columns on `payments_jobs`: `emission_uuid` (FK), `emission_date`.
 - **API**: `POST /api/handovers/emit` accepts `{ projectUuid }`, returns emission UUID, timestamp, count, and list of emitted records. Only targets non-emitted distributions.
 - **Audit Trail**: `emission_uuid` groups all records in a single emission; `created_by` records user email; `handover_emissions.created_at` records timestamp.
