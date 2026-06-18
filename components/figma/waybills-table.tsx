@@ -951,8 +951,8 @@ export function WaybillsTable() {
 
   const projectOptions = useMemo(() => projects.map((p: any) => ({
     value: p.project_uuid,
-    label: p.project_index || p.projectIndex || p.project_uuid,
-    keywords: `${p.project_index || p.projectIndex || ''}`.trim()
+    label: p.project_name || p.project_index || p.projectIndex || p.project_uuid,
+    keywords: `${p.project_name || p.project_index || p.projectIndex || ''}`.trim()
   })), [projects]);
 
   const projectOptionsWithNone = useMemo(() => ([
@@ -975,7 +975,7 @@ export function WaybillsTable() {
     const map = new Map<string, string>();
     projects.forEach((project: any) => {
       if (!project?.project_uuid) return;
-      const label = project.project_index || project.projectIndex || project.project_uuid;
+      const label = project.project_name || project.project_index || project.projectIndex || project.project_uuid;
       map.set(project.project_uuid, label);
     });
     return map;
