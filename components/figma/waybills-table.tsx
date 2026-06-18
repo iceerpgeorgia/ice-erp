@@ -477,6 +477,35 @@ export function WaybillsTable() {
   }, []);
 
   useEffect(() => {
+    // First, try to read from URL parameters (for direct filter links)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlAdvancedFilters = params.get('advancedFilters');
+      
+      if (urlAdvancedFilters) {
+        try {
+          const parsed = JSON.parse(urlAdvancedFilters);
+          const restoredAdvanced = new Map<ColumnKey, ColumnFilter>();
+          if (Array.isArray(parsed)) {
+            // Format: [["column_key", { mode, operator, value }], ...]
+            for (const [key, raw] of parsed as Array<[string, any]>) {
+              if (raw?.mode === 'text' && raw.operator) {
+                restoredAdvanced.set(key as ColumnKey, { mode: 'text', operator: raw.operator, value: raw.value });
+              }
+            }
+          }
+          if (restoredAdvanced.size > 0) {
+            setAdvancedFilters(restoredAdvanced);
+            setFiltersInitialized(true);
+            return; // Use URL filters, skip localStorage
+          }
+        } catch (error) {
+          console.error('Failed to parse URL advanced filters:', error);
+        }
+      }
+    }
+    
+    // Fall back to localStorage if no URL filters
     const savedFilters = localStorage.getItem(filtersStorageKey);
     if (savedFilters) {
       try {
