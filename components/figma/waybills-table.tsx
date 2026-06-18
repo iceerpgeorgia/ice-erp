@@ -209,6 +209,13 @@ export function WaybillsTable() {
   const [dialogPos, setDialogPos] = useState({ x: 0, y: 0 });
   const dialogDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
 
+  // Logging utility for filter events
+  const logFilter = useCallback((action: string, data?: any) => {
+    const timestamp = new Date().toISOString();
+    const logEntry = { timestamp, action, data, component: 'WaybillsTable' };
+    console.log(`[WAYBILLS_FILTER] ${action}:`, logEntry);
+  }, []);
+
   const handleDialogDragStart = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     // Don't start drag on buttons/inputs inside the header
     if ((e.target as HTMLElement).closest('button,input,select,a')) return;
@@ -674,6 +681,16 @@ export function WaybillsTable() {
   useEffect(() => {
     const fetchAllWaybills = async () => {
       setLoading(true);
+      logFilter('FETCH_ALL_WAYBILLS_START', {
+        appliedSearch,
+        periodFrom,
+        periodTo,
+        showMissingCounteragents,
+        sortColumn,
+        sortDirection,
+        columnFiltersCount: columnFilters.length,
+        advancedFiltersCount: advancedFilters.size
+      });
       try {
         // Build request parameters
         const requestParams = {
@@ -737,9 +754,21 @@ export function WaybillsTable() {
         setData(body.data || []);
         setTotal(body.total || 0);
         setMissingCounteragentCount(Number(body.missingCounteragentCount || 0));
+        logFilter('FETCH_ALL_WAYBILLS_SUCCESS', { 
+          dataCount: (body.data || []).length,
+          total: body.total || 0,
+          usePost,
+          urlLength,
+          missingCounteragentCount: body.missingCounteragentCount || 0,
+          appliedFiltersCount: columnFilters.length + advancedFilters.size,
+          hasSearch: !!appliedSearch,
+          hasPeriodFrom: !!periodFrom,
+          hasPeriodTo: !!periodTo
+        });
         // Reset to page 1 when data changes
         setCurrentPage(1);
       } catch (err) {
+        logFilter('FETCH_ALL_WAYBILLS_ERROR', { error: err instanceof Error ? err.message : String(err) });
         console.error('Failed to load waybills', err);
         alert('Failed to load waybills');
       } finally {
@@ -1038,6 +1067,7 @@ export function WaybillsTable() {
 
   const runSearch = () => {
     const nextSearch = search.trim();
+    logFilter('SEARCH_SUBMITTED', { searchTerm: nextSearch, previousPage: currentPage });
     setAppliedSearch(nextSearch);
     if (currentPage !== 1) {
       setCurrentPage(1);
@@ -1283,6 +1313,14 @@ export function WaybillsTable() {
   };
 
   const handleClearFilters = () => {
+    logFilter('CLEAR_FILTERS_START', { 
+      columnFiltersCount: columnFilters.length,
+      advancedFiltersCount: advancedFilters.size,
+      hasSearch: !!appliedSearch,
+      periodFrom,
+      periodTo,
+      showMissingCounteragents
+    });
     setColumnFilters([]);
     setAdvancedFilters(new Map());
     setSearch('');
@@ -1291,6 +1329,7 @@ export function WaybillsTable() {
     setPeriodTo('');
     setCurrentPage(1);
     setShowMissingCounteragents(false);
+    logFilter('CLEAR_FILTERS_COMPLETE', { timestamp: new Date().toISOString() });
   };
 
   const handleExportXlsx = async () => {
@@ -1401,7 +1440,10 @@ export function WaybillsTable() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                logFilter('SEARCH_INPUT_CHANGED', { searchTerm: e.target.value, length: e.target.value.length });
+                setSearch(e.target.value);
+              }}
               placeholder="Search waybills..."
               className="pl-9"
               onKeyDown={(e) => {
@@ -1417,6 +1459,7 @@ export function WaybillsTable() {
                 type="month"
                 value={periodFrom}
                 onChange={(e) => {
+                  logFilter('PERIOD_FROM_CHANGED', { newValue: e.target.value, oldValue: periodFrom });
                   setPeriodFrom(e.target.value);
                   setCurrentPage(1);
                 }}
@@ -1430,6 +1473,7 @@ export function WaybillsTable() {
                 type="month"
                 value={periodTo}
                 onChange={(e) => {
+                  logFilter('PERIOD_TO_CHANGED', { newValue: e.target.value, oldValue: periodTo });
                   setPeriodTo(e.target.value);
                   setCurrentPage(1);
                 }}
@@ -1692,6 +1736,7 @@ export function WaybillsTable() {
                         activeFilters={filtersMap.get(col.key) || new Set()}
                         activeFilter={advancedFilters.get(col.key)}
                         onFilterChange={(values) => {
+                          logFilter('COLUMN_FILTER_CHANGED', { columnKey: col.key, columnLabel: col.label, filterCount: values.size, filterValues: Array.from(values) });
                           setColumnFilters((prev: { id: string; value: any[] }[]) => {
                             const existing = prev.find(f => f.id === col.key);
                             if (values.size === 0) {
@@ -1707,6 +1752,7 @@ export function WaybillsTable() {
                         }}
                         {...(!col.format || col.format === 'text' ? {
                           onAdvancedFilterChange: (filter: ColumnFilter | null) => {
+                            logFilter('ADVANCED_FILTER_CHANGED', { columnKey: col.key, columnLabel: col.label, filter });
                             setAdvancedFilters((prev: Map<ColumnKey, ColumnFilter>) => {
                               const next = new Map(prev);
                               if (filter) next.set(col.key, filter);
@@ -1717,6 +1763,7 @@ export function WaybillsTable() {
                           },
                         } : {})}
                         onSort={(direction) => {
+                          logFilter('SORT_CHANGED', { columnKey: col.key, columnLabel: col.label, direction });
                           setSorting({ id: col.key, desc: direction === 'desc' });
                           setCurrentPage(1);
                         }}
