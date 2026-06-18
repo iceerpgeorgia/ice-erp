@@ -708,6 +708,8 @@ export function WaybillsTable() {
 
   // OPTIMIZATION: Fetch ALL waybills once on mount, then do client-side filtering/sorting/pagination
   useEffect(() => {
+    if (!filtersInitialized) return; // Wait for filters to be initialized from URL/localStorage
+    
     const fetchAllWaybills = async () => {
       setLoading(true);
       logFilter('FETCH_ALL_WAYBILLS_START', {
@@ -806,7 +808,7 @@ export function WaybillsTable() {
     };
 
     fetchAllWaybills();
-  }, [appliedSearch, periodFrom, periodTo, showMissingCounteragents, sortColumn, sortDirection, columnFilters, advancedFilters]);
+  }, [filtersInitialized, appliedSearch, periodFrom, periodTo, showMissingCounteragents, sortColumn, sortDirection, columnFilters, advancedFilters]);
 
   useEffect(() => {
     const applyPendingResize = () => {
