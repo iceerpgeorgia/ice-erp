@@ -189,8 +189,10 @@ export async function GET(req: NextRequest) {
       try {
         const parsed = JSON.parse(advancedFiltersParam);
         parsedAdvancedFilters = (Array.isArray(parsed) ? parsed : []) as Array<[string, ParsedAdvancedFilter]>;
+        console.error(`[WAYBILLS_API] Parsed advanced filters:`, JSON.stringify(parsedAdvancedFilters, null, 2));
       } catch {
         parsedAdvancedFilters = [];
+        console.error(`[WAYBILLS_API] Failed to parse advanced filters param:`, advancedFiltersParam);
       }
     }
 
@@ -383,11 +385,16 @@ export async function GET(req: NextRequest) {
         const op = filter.operator;
         const val = filter.value ?? '';
 
+        // DEBUG: Log each advanced filter being processed
+        console.error(`[WAYBILLS_API] Advanced filter: key=${key}, op=${op}, val=${val}, isUUID=${UUID_FILTER_FIELDS.has(key)}`);
+
         if (op === 'blank') {
           // For UUID fields, only check for NULL (not empty string)
           if (UUID_FILTER_FIELDS.has(key)) {
+            console.error(`[WAYBILLS_API] Blank filter (UUID): pushing { ${key}: null }`);
             clauses.push({ [key]: null } as Prisma.rs_waybills_in_apiWhereInput);
           } else {
+            console.error(`[WAYBILLS_API] Blank filter (string): pushing OR with null and empty string`);
             clauses.push({ OR: [{ [key]: null } as Prisma.rs_waybills_in_apiWhereInput, { [key]: '' } as Prisma.rs_waybills_in_apiWhereInput] });
           }
           continue;
@@ -395,8 +402,10 @@ export async function GET(req: NextRequest) {
         if (op === 'notBlank') {
           // For UUID fields, only check for NOT NULL (not empty string)
           if (UUID_FILTER_FIELDS.has(key)) {
+            console.error(`[WAYBILLS_API] NotBlank filter (UUID): pushing { ${key}: { not: null } }`);
             clauses.push({ [key]: { not: null } } as Prisma.rs_waybills_in_apiWhereInput);
           } else {
+            console.error(`[WAYBILLS_API] NotBlank filter (string): pushing AND with not null and not empty`);
             clauses.push({ AND: [{ [key]: { not: null } } as Prisma.rs_waybills_in_apiWhereInput, { [key]: { not: '' } } as Prisma.rs_waybills_in_apiWhereInput] });
           }
           continue;
@@ -452,6 +461,7 @@ export async function GET(req: NextRequest) {
 
     const buildWhere = async (excludeColumnKey?: string): Promise<Prisma.rs_waybills_in_apiWhereInput> => {
       const filterClauses = await buildFilterClauses(excludeColumnKey);
+      console.error(`[WAYBILLS_API] Filter clauses (${filterClauses.length}):`, JSON.stringify(filterClauses, null, 2));
       return {
         AND: [
           baseSearch,
