@@ -224,41 +224,96 @@ export function HandoversTable() {
   const paymentsGridRef = useRef<any>(null);
   const distributionsGridRef = useRef<any>(null);
 
-  const lookupNbgRate = useCallback(async (date: string | null, currencyCode: string | null) => {
-    const normalizedCurrency = currencyCode ? currencyCode.toUpperCase() : null;
-    if (!date || !normalizedCurrency) return null;
-    if (normalizedCurrency === 'GEL') return 1;
+  // ── Retry logic for exchange rate fetches ──────────────────────────────────
+  const fetchWithRetry = useCallback(
+    async (url: string, maxRetries = 3): Promise<Response | null> => {
+      let lastError: Error | null = null;
 
-    // Extract just the date part (YYYY-MM-DD) from ISO date strings like "2026-05-27T00:00:00.000Z"
-    const dateOnly = date.split('T')[0];
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          const res = await fetch(url, { credentials: 'include' });
 
-    const cacheKey = `${dateOnly}|${normalizedCurrency}`;
-    if (rateCacheRef.current.has(cacheKey)) {
-      return rateCacheRef.current.get(cacheKey) ?? null;
-    }
+          // Retry on 5xx errors; success on 2xx/3xx
+          if (res.ok || (res.status >= 400 && res.status < 500)) {
+            return res;
+          }
 
-    try {
-      const res = await fetch(
-        `/api/exchange-rates?date=${encodeURIComponent(dateOnly)}&currency=${encodeURIComponent(normalizedCurrency)}`,
-        { credentials: 'include' }
-      );
+          // 5xx error - log and retry
+          if (res.status >= 500) {
+            console.warn(
+              `[Handovers Rate] Attempt ${attempt + 1}/${maxRetries} failed with ${res.status}, retrying...`
+            );
+            // Exponential backoff: 200ms, 500ms, 1000ms
+            await new Promise((resolve) => setTimeout(resolve, 200 * Math.pow(1.5, attempt)));
+            continue;
+          }
 
-      if (!res.ok) {
+          return res;
+        } catch (error) {
+          lastError = error as Error;
+          console.warn(
+            `[Handovers Rate] Attempt ${attempt + 1}/${maxRetries} network error, retrying...`,
+            lastError.message
+          );
+          // Exponential backoff on network errors too
+          await new Promise((resolve) => setTimeout(resolve, 200 * Math.pow(1.5, attempt)));
+        }
+      }
+
+      // All retries exhausted
+      if (lastError) {
+        console.error(`[Handovers Rate] All ${maxRetries} retries failed:`, lastError);
+      }
+      return null;
+    },
+    []
+  );
+
+  const lookupNbgRate = useCallback(
+    async (date: string | null, currencyCode: string | null) => {
+      const normalizedCurrency = currencyCode ? currencyCode.toUpperCase() : null;
+      if (!date || !normalizedCurrency) return null;
+      if (normalizedCurrency === 'GEL') return 1;
+
+      // Extract just the date part (YYYY-MM-DD) from ISO date strings like "2026-05-27T00:00:00.000Z"
+      const dateOnly = date.split('T')[0];
+
+      const cacheKey = `${dateOnly}|${normalizedCurrency}`;
+      if (rateCacheRef.current.has(cacheKey)) {
+        return rateCacheRef.current.get(cacheKey) ?? null;
+      }
+
+      try {
+        const res = await fetchWithRetry(
+          `/api/exchange-rates?date=${encodeURIComponent(dateOnly)}&currency=${encodeURIComponent(normalizedCurrency)}`
+        );
+
+        if (!res) {
+          console.error(`[Handovers] Exchange rate fetch failed after retries: ${dateOnly} ${normalizedCurrency}`);
+          rateCacheRef.current.set(cacheKey, null);
+          return null;
+        }
+
+        if (!res.ok) {
+          console.error(`[Handovers] Exchange rate response not ok: ${res.status} ${res.statusText}`);
+          rateCacheRef.current.set(cacheKey, null);
+          return null;
+        }
+
+        const data = await res.json().catch(() => null);
+        const rate = Number(data?.rate);
+        const normalizedRate = Number.isFinite(rate) && rate > 0 ? rate : null;
+        rateCacheRef.current.set(cacheKey, normalizedRate);
+        console.log(`[Handovers] Rate ${dateOnly} ${normalizedCurrency}: ${normalizedRate}`);
+        return normalizedRate;
+      } catch (e) {
+        console.error(`[Handovers] Failed to fetch rate for ${dateOnly} ${normalizedCurrency}:`, e);
         rateCacheRef.current.set(cacheKey, null);
         return null;
       }
-
-      const data = await res.json().catch(() => null);
-      const rate = Number(data?.rate);
-      const normalizedRate = Number.isFinite(rate) && rate > 0 ? rate : null;
-      rateCacheRef.current.set(cacheKey, normalizedRate);
-      return normalizedRate;
-    } catch (e) {
-      console.error(`[Handovers] Failed to fetch rate for ${dateOnly} ${normalizedCurrency}:`, e);
-      rateCacheRef.current.set(cacheKey, null);
-      return null;
-    }
-  }, []);
+    },
+    [fetchWithRetry]
+  );
 
   // ── useTableFilters ───────────────────────────────────────────────────────
   const {
