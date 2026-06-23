@@ -37,6 +37,19 @@ export async function GET(req: NextRequest) {
       const project = await withRetry(() => prisma.$queryRawUnsafe(
         `SELECT 
           p.*,
+          ca.name,
+          ca.entity_type,
+          ca.director,
+          ca.address_line_1,
+          ca.address_line_2,
+          ca.identification_number,
+          insider_ca.name as insider_name_field,
+          insider_ca.entity_type as insider_entity_type,
+          insider_ca.director as insider_director,
+          insider_ca.address_line_1 as insider_address_line_1,
+          insider_ca.address_line_2 as insider_address_line_2,
+          insider_ca.identification_number as insider_identification_number,
+          cur.code as currency,
           COALESCE(insider_ca.insider, false) as is_insider,
           COALESCE(insider_ca.insider_name, insider_ca.counteragent, insider_ca.name, p.insider_uuid::text) as insider_name,
           p.insider_uuid as effective_insider_uuid,
@@ -45,6 +58,7 @@ export async function GET(req: NextRequest) {
         FROM projects p
         LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
         LEFT JOIN counteragents insider_ca ON p.insider_uuid = insider_ca.counteragent_uuid
+        LEFT JOIN currencies cur ON p.currency_uuid = cur.currency_uuid
         LEFT JOIN (
           SELECT
             p.project_uuid,
@@ -113,6 +127,19 @@ export async function GET(req: NextRequest) {
     const projects = await withRetry(() => prisma.$queryRawUnsafe(`
       SELECT 
         p.*,
+        ca.name,
+        ca.entity_type,
+        ca.director,
+        ca.address_line_1,
+        ca.address_line_2,
+        ca.identification_number,
+        insider_ca.name as insider_name_field,
+        insider_ca.entity_type as insider_entity_type,
+        insider_ca.director as insider_director,
+        insider_ca.address_line_1 as insider_address_line_1,
+        insider_ca.address_line_2 as insider_address_line_2,
+        insider_ca.identification_number as insider_identification_number,
+        cur.code as currency,
         MAX(COALESCE(insider_ca.insider, false)::int)::boolean as is_insider,
         MAX(COALESCE(insider_ca.insider_name, insider_ca.counteragent, insider_ca.name, p.insider_uuid::text)) as insider_name,
         MAX(p.insider_uuid::text) as effective_insider_uuid,
@@ -127,6 +154,7 @@ export async function GET(req: NextRequest) {
       FROM projects p
       LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
       LEFT JOIN counteragents insider_ca ON p.insider_uuid = insider_ca.counteragent_uuid
+      LEFT JOIN currencies cur ON p.currency_uuid = cur.currency_uuid
       LEFT JOIN project_employees pe ON p.project_uuid = pe.project_uuid
       LEFT JOIN counteragents c ON pe.employee_uuid = c.counteragent_uuid
       LEFT JOIN (

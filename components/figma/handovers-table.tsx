@@ -943,7 +943,7 @@ export function HandoversTable() {
     // Fetch placeholder values from database if project is selected
     if (selectedProjectUuid) {
       try {
-        // Fetch project data (includes counteragent data from LEFT JOIN in /api/projects query)
+        // Fetch project data (now includes counteragent and insider fields from API JOIN)
         const projectRes = await fetch(`/api/projects?uuid=${encodeURIComponent(selectedProjectUuid)}`, {
           credentials: 'include',
         });
@@ -959,49 +959,33 @@ export function HandoversTable() {
             department: project?.department,
             address: project?.address,
             date: project?.date,
+            counteragent_name: project?.name,
+            insider_name: project?.insider_name_field,
           });
 
           if (project) {
-            // Try to get currency name - fetch all currencies and find match
-            let currencyCode = '';
-            if (project.currency) {
-              currencyCode = project.currency;
-            } else if (project.currency_uuid) {
-              try {
-                const currRes = await fetch(`/api/currencies`, { credentials: 'include' });
-                if (currRes.ok) {
-                  const currencies = await currRes.json();
-                  const curr = Array.isArray(currencies) ? currencies.find((c: any) => c.uuid === project.currency_uuid) : null;
-                  currencyCode = curr?.code || '';
-                }
-              } catch (e) {
-                console.warn('[Placeholders] Currency fetch error:', e);
-              }
-            }
-
             // Map values from project response
-            // NOTE: The /api/projects endpoint returns counteragent data via LEFT JOIN,
-            // so fields like entity_type, address_line_1, identification_number come from that JOIN
+            // API now returns counteragent and insider fields from LEFT JOINs
             placeholderValues = [
               project.department || '',
               project.date ? new Date(project.date).toISOString().split('T')[0] : '',
-              project.entity_type || '', // From counteragent JOIN
-              project.name || '', // From counteragent JOIN
-              project.director || '', // From counteragent JOIN (genitive form)
-              project.director || '', // From counteragent JOIN
-              project.address_line_1 || '', // From counteragent JOIN
-              project.address_line_2 || '', // From counteragent JOIN
-              project.identification_number || '', // From counteragent JOIN
+              project.entity_type || '', // Counteragent entity_type from JOIN
+              project.name || '', // Counteragent name from JOIN
+              project.director || '', // Counteragent director from JOIN (genitive form)
+              project.director || '', // Counteragent director from JOIN
+              project.address_line_1 || '', // Counteragent address from JOIN
+              project.address_line_2 || '', // Counteragent address from JOIN
+              project.identification_number || '', // Counteragent ID from JOIN
               project.address || '', // Direct project field
-              project.insider_entity_type || '', // Would need separate insider query
-              project.insider_name || '', // May come from project JOIN
-              project.insider_identification_number || '', // Would need separate insider query
-              project.insider_address_line_1 || '', // Would need separate insider query
-              project.insider_address_line_2 || '', // Would need separate insider query
-              project.insider_director || '', // Would need separate insider query
-              project.insider_director || '',
-              project.date ? new Date(project.date).toISOString().split('T')[0] : '',
-              currencyCode,
+              project.insider_entity_type || '', // Insider entity_type from JOIN
+              project.insider_name_field || '', // Insider name from JOIN
+              project.insider_identification_number || '', // Insider ID from JOIN
+              project.insider_address_line_1 || '', // Insider address from JOIN
+              project.insider_address_line_2 || '', // Insider address from JOIN
+              project.insider_director || '', // Insider director from JOIN (genitive)
+              project.insider_director || '', // Insider director from JOIN (normative)
+              project.date ? new Date(project.date).toISOString().split('T')[0] : '', // Contract date
+              project.currency || '', // Currency code from JOIN
             ];
 
             console.log('[Placeholders] Values mapped:', placeholderValues.slice(0, 5));
