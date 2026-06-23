@@ -1,5 +1,77 @@
 # Deployment Log
 
+## 2026-06-23 Deployment #355 (Feature: Separate Handovers Table Exports)
+- Commit: 6f1e7c9
+- Production: https://ice-36bnfvjvi-iceerp.vercel.app
+- Summary: Add separate XLSX export actions for each Handovers table while preserving existing full template export flow.
+- Changes:
+  - components/figma/handovers-table.tsx: Added dedicated toolbar export buttons for `Jobs`, `Income Payments`, and `Job Distributions` tables using existing per-grid export payloads.
+  - components/figma/handovers-table.tsx: Kept existing `Export` button behavior unchanged (template-based full workbook with placeholders and fallback path).
+  - components/figma/shared/column-filter-popover.tsx: Included local column filter popover updates from current working tree in this deployment.
+  - components/figma/waybills-table.tsx: Included local waybills table updates from current working tree in this deployment.
+- Status: ✅ Deployed and building successfully
+
+## 2026-06-16 Deployment #354 (Feature: Emission Snapshot Safety + Insider Selection Persistence)
+- Commit: 8d8c854
+- Production: https://ice-fwcmrhgvn-iceerp.vercel.app
+- Summary: Preserve emitted handover distribution snapshots while allowing new live distributions, and persist insider selection in DB so selected pairs survive deployments.
+- Changes:
+  - app/api/payments-jobs/route.ts: Restrict replace/update/delete bulk flows to live rows (`emission_uuid IS NULL`) and block single-row delete/update for emitted snapshots.
+  - app/api/payments-jobs/auto-distribute/route.ts: Delete/rebuild only live rows.
+  - app/api/payments-jobs/recalculate/route.ts: Recalculate only live rows.
+  - lib/payments-jobs-emission-guard.ts: Shared emitted/live scope helpers.
+  - components/figma/job-distribution-grid.tsx + components/figma/handover-job-distributions-grid.tsx: Read-only dialog mode when scope has only emitted snapshots.
+  - prisma/migrations/20260616000000_allow_live_payments_jobs_with_emitted_snapshots/migration.sql: Partial unique indexes for live rows only.
+  - lib/insider-selection.ts + app/api/insider-selection/route.ts + prisma/migrations/20260617000000_persist_insider_selection/migration.sql: Persist `selected_insider_uuids` on `User`; resolve precedence DB -> cookie -> all insiders fallback.
+  - AGENTS.md: Documented live-vs-emitted behavior and insider selection persistence.
+- Status: ✅ Deployed and building successfully
+
+## 2026-06-12 Deployment #353 (Fix: Mobile Layout Hydration Mismatch)
+- Commit: 7028002
+- Production: https://ice-jrfyxpouw-iceerp.vercel.app
+- Summary: **FIX** - Prevent hydration mismatch in useIsMobile hook
+- Root Cause: Mobile layout broken because server renders desktop, client detects mobile, causing hydration mismatch
+- Fix Applied: useIsMobile now returns `false` initially (prevents mismatch), then updates after mount
+- Result: Sidebar renders correctly on mobile without layout crush
+- Status: ✅ Deployed and building successfully
+
+## 2026-06-12 Deployment #352 (Hotfix: UI Broken - FloatingAIButton)
+- Commit: 272efef
+- Production: https://ice-9fq7fuvl9-iceerp.vercel.app
+- Summary: **HOTFIX** - Disable FloatingAIButton to restore UI on all pages
+- Root Cause Analysis: FloatingAIButton component added to global AppShell wrapper uses `useSession()` hook which causes hydration mismatch. When rendered as a fixed overlay on all pages, it crashes the entire app silently.
+- Root Issue Pattern: When new components are added to `app-shell.tsx` (the global page wrapper for all pages), any error/hook mismatch in that component breaks ALL pages at once. This has happened before (deployments #347, etc.).
+- Fix Applied:
+  - Commented out FloatingAIButton in app-shell.tsx
+  - Removed unused imports (FloatingAIButton, usePathname)
+  - Removed getPageContext() function (no longer needed)
+  - Troubleshooting features remain functional via `/admin/troubleshooting` dashboard and API routes
+  - UI now renders correctly on all pages
+- TODO: Re-enable FloatingAIButton with:
+  - Proper error boundaries wrapping the component
+  - Lazy loading: `dynamic(() => import(...), {ssr: false})`
+  - Local testing with `pnpm dev` before deploying
+  - Hydration testing in browser console
+  - Session initialization verification
+- Prevention: See `/memories/repo/ui-breaking-pattern.md` for prevention rules
+
+## 2026-06-12 Deployment #351 (Feature: Intelligent Troubleshooting System)
+- Commit: 886ed2e
+- Status: **BROKEN** - All pages rendered blank/broken due to FloatingAIButton
+- Summary: Add AI-powered user issue troubleshooting system with intelligent prompt structuring and admin analytics dashboard.
+- Features:
+  - Floating AI button on every page to capture user issues with page context
+  - 4-step modal workflow: describe issue → auto-generate structured prompt → edit → confirm
+  - Intelligent issue analysis: Auto-detect issue type (Error, Performance, Bug, Feature, Data) and severity
+  - Smart data extraction: Parse error codes, URLs, entities, keywords from plain text descriptions
+  - Tailored investigation checklists: Generate context-specific troubleshooting steps based on issue classification
+  - Admin dashboard at /admin/troubleshooting: Filter prompts by status, expand details, mark as followed-up
+  - Database table troubleshooting_prompts with audit trail: user email, timestamp, original description, AI prompt, user edits, follow-up status
+  - Pure TypeScript structuring (no external LLM/API needed): Instant processing, zero latency, deployment-ready
+  - Local storage of analysis metadata for better filtering and analytics
+- Architecture: Users generate structured prompts on Vercel → stored in DB → admins pull later for deeper analysis
+- Tech: Next.js 14 API routes, Prisma ORM, PostgreSQL, NextAuth for admin access, React components with Lucide icons
+
 ## 2026-06-11 Deployment #350 (Diagnostic: Jobs Export Logging)
 - Commit: 0e2ff64
 - Production: https://ice-4qspf5eec-iceerp.vercel.app
