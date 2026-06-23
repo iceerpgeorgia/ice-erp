@@ -59,8 +59,8 @@ export async function GET(req: NextRequest) {
         brandUuid: job.brand_uuid,
         brandName: job.brand_name,
         jobDisplay: job.job_display,
-        insiderUuid: job.insider_uuid || insider?.insiderUuid || null,
-        insiderName: insider?.insiderName || null,
+        insiderUuid: job.insider_uuid || null,
+        insiderName: null,
       }));
 
       return NextResponse.json(serialized);

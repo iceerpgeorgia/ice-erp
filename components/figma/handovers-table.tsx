@@ -606,6 +606,9 @@ export function HandoversTable() {
             _rowKey: String(job.jobUuid ?? idx),
           })),
         );
+      } else {
+        setJobs([]);
+        setAttachmentCounts({});
       }
     } catch (e) {
       console.error('Failed to fetch jobs:', e);
