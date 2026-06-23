@@ -915,7 +915,19 @@ export function HandoversTable() {
       console.warn('[Export] distributionsData missing, empty, or invalid');
     }
 
-    // Export to XLSX (3 sheets: Jobs, Income Payments, Job Distributions only)
+    // Add blank sheets: Placeholders and Handover (no data)
+    sheets.push({
+      name: 'Placeholders',
+      rows: [],
+      columns: [],
+    });
+    sheets.push({
+      name: 'Handover',
+      rows: [],
+      columns: [],
+    });
+
+    // Export to XLSX (5 sheets: Jobs, Income Payments, Job Distributions, Placeholders, Handover)
     console.log('[Export] Final sheet count:', sheets.length);
     console.log('[Export] Sheet names:', sheets.map(s => s.name));
     
