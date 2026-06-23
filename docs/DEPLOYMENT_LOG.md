@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-23 Deployment #358 (Feature: Add Blank Placeholders and Handover Sheets)
+- Commit: e2f9193
+- Production: https://ice-nsuatbsc7-iceerp.vercel.app
+- Summary: Include 2 blank sheets (Placeholders, Handover) in multi-sheet export for manual template population.
+- Changes:
+  - components/figma/handovers-table.tsx: Added empty Placeholders and Handover sheets to the export array before XLSX generation. Export now generates 5 sheets total (Jobs, Income Payments, Job Distributions, Placeholders, Handover) with only the first 3 containing data.
+- Status: ✅ Deployed and building successfully
+
 ## 2026-06-23 Deployment #357 (Fix: Remove Placeholders Sheet from Handovers Export)
 - Commit: 704addd
 - Production: https://ice-r7xs3laob-iceerp.vercel.app
