@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-23 Deployment #360 (Feature: Add Sample Placeholder Values to Placeholders Sheet)
+- Commit: 84316e2
+- Production: https://ice-awux5w6it-iceerp.vercel.app
+- Summary: Add sample/example values in column B of Placeholders sheet as reference for users completing the template.
+- Changes:
+  - components/figma/handovers-table.tsx: Populate Placeholders sheet column B with sample values matching each placeholder name (e.g., "Department Name", today's date, "Limited Liability Company", "Company Name", address examples, "GEL" currency, etc.). Values serve as format guides for template completion.
+- Status: ✅ Deployed and building successfully
+
 ## 2026-06-23 Deployment #359 (Feature: Populate Placeholders Sheet with Placeholder Names)
 - Commit: feac143
 - Production: https://ice-fwtwqa61h-iceerp.vercel.app
