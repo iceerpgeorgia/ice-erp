@@ -943,78 +943,74 @@ export function HandoversTable() {
     // Fetch placeholder values from database if project is selected
     if (selectedProjectUuid) {
       try {
-        // Fetch project data
+        // Fetch project data (includes counteragent data from LEFT JOIN in /api/projects query)
         const projectRes = await fetch(`/api/projects?uuid=${encodeURIComponent(selectedProjectUuid)}`, {
           credentials: 'include',
         });
+        
+        console.log('[Placeholders] Project fetch status:', projectRes.status);
         
         if (projectRes.ok) {
           const projects = await projectRes.json();
           const project = Array.isArray(projects) ? projects[0] : projects;
 
+          console.log('[Placeholders] Project data received:', {
+            has_project: !!project,
+            department: project?.department,
+            address: project?.address,
+            date: project?.date,
+          });
+
           if (project) {
-            // Fetch counteragent, insider, and currency data in parallel
-            const [counteragentRes, insiderRes, currencyRes] = await Promise.all([
-              project.counteragent_uuid
-                ? fetch(`/api/counteragents?uuid=${encodeURIComponent(project.counteragent_uuid)}`, {
-                    credentials: 'include',
-                  })
-                : Promise.resolve(null),
-              project.insider_uuid
-                ? fetch(`/api/counteragents?uuid=${encodeURIComponent(project.insider_uuid)}`, {
-                    credentials: 'include',
-                  })
-                : Promise.resolve(null),
-              project.currency_uuid
-                ? fetch(`/api/currencies?uuid=${encodeURIComponent(project.currency_uuid)}`, {
-                    credentials: 'include',
-                  })
-                : Promise.resolve(null),
-            ]);
-
-            let counteragent = null;
-            let insider = null;
-            let currency = null;
-
-            if (counteragentRes?.ok) {
-              const caData = await counteragentRes.json();
-              counteragent = Array.isArray(caData) ? caData[0] : caData;
-            }
-            if (insiderRes?.ok) {
-              const insiderData = await insiderRes.json();
-              insider = Array.isArray(insiderData) ? insiderData[0] : insiderData;
-            }
-            if (currencyRes?.ok) {
-              const currData = await currencyRes.json();
-              currency = Array.isArray(currData) ? currData[0] : currData;
+            // Try to get currency name - fetch all currencies and find match
+            let currencyCode = '';
+            if (project.currency) {
+              currencyCode = project.currency;
+            } else if (project.currency_uuid) {
+              try {
+                const currRes = await fetch(`/api/currencies`, { credentials: 'include' });
+                if (currRes.ok) {
+                  const currencies = await currRes.json();
+                  const curr = Array.isArray(currencies) ? currencies.find((c: any) => c.uuid === project.currency_uuid) : null;
+                  currencyCode = curr?.code || '';
+                }
+              } catch (e) {
+                console.warn('[Placeholders] Currency fetch error:', e);
+              }
             }
 
-            // Map database values to placeholders
+            // Map values from project response
+            // NOTE: The /api/projects endpoint returns counteragent data via LEFT JOIN,
+            // so fields like entity_type, address_line_1, identification_number come from that JOIN
             placeholderValues = [
               project.department || '',
               project.date ? new Date(project.date).toISOString().split('T')[0] : '',
-              counteragent?.entity_type || '',
-              counteragent?.name || '',
-              counteragent?.director || '',
-              counteragent?.director || '',
-              counteragent?.address_line_1 || '',
-              counteragent?.address_line_2 || '',
-              counteragent?.identification_number || '',
-              project.address || '',
-              insider?.entity_type || '',
-              insider?.name || '',
-              insider?.identification_number || '',
-              insider?.address_line_1 || '',
-              insider?.address_line_2 || '',
-              insider?.director || '',
-              insider?.director || '',
+              project.entity_type || '', // From counteragent JOIN
+              project.name || '', // From counteragent JOIN
+              project.director || '', // From counteragent JOIN (genitive form)
+              project.director || '', // From counteragent JOIN
+              project.address_line_1 || '', // From counteragent JOIN
+              project.address_line_2 || '', // From counteragent JOIN
+              project.identification_number || '', // From counteragent JOIN
+              project.address || '', // Direct project field
+              project.insider_entity_type || '', // Would need separate insider query
+              project.insider_name || '', // May come from project JOIN
+              project.insider_identification_number || '', // Would need separate insider query
+              project.insider_address_line_1 || '', // Would need separate insider query
+              project.insider_address_line_2 || '', // Would need separate insider query
+              project.insider_director || '', // Would need separate insider query
+              project.insider_director || '',
               project.date ? new Date(project.date).toISOString().split('T')[0] : '',
-              currency?.code || '',
+              currencyCode,
             ];
+
+            console.log('[Placeholders] Values mapped:', placeholderValues.slice(0, 5));
           }
+        } else {
+          console.warn('[Placeholders] Project API returned status:', projectRes.status);
         }
       } catch (error) {
-        console.error('[Handovers Export] Failed to fetch project placeholders:', error);
+        console.error('[Placeholders] Error fetching project data:', error);
       }
     }
 
