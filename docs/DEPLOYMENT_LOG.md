@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-23 Deployment #359 (Feature: Populate Placeholders Sheet with Placeholder Names)
+- Commit: feac143
+- Production: https://ice-fwtwqa61h-iceerp.vercel.app
+- Summary: Add 19 placeholder names to column A of Placeholders sheet as reference labels for manual value entry.
+- Changes:
+  - components/figma/handovers-table.tsx: Populate Placeholders sheet with array of placeholder names (Project_Department through Project_Currency), one per row in column A. Sheet now serves as a template reference for available placeholder slots.
+- Status: ✅ Deployed and building successfully
+
 ## 2026-06-23 Deployment #358 (Feature: Add Blank Placeholders and Handover Sheets)
 - Commit: e2f9193
 - Production: https://ice-nsuatbsc7-iceerp.vercel.app
