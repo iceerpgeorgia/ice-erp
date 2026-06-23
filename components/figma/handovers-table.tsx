@@ -769,53 +769,8 @@ export function HandoversTable() {
   };
 
   // ── Global XLSX Export ─────────────────────────────────────────────────────
-  const handleGlobalExport = useCallback(async () => {
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const projectName = selectedProject?.projectIndex || 'Handovers';
-      const fileName = `handovers-${projectName}-${today}.xlsx`;
-
-      // Call API to generate template-based export (all data loaded from database)
-      const response = await fetch('/api/export/handover-template', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          fileName,
-          projectUuid: selectedProjectUuid,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('[Handovers Export] API error - Status:', response.status, 'Error:', errorData);
-        throw new Error(errorData.error || `Export failed with status ${response.status}`);
-      }
-
-      // Get the file from response
-      const blob = await response.blob();
-      console.log('[Handovers Export] Received blob, size:', blob.size, 'type:', blob.type);
-      
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      console.log(`[Handovers Export] Template export successful: ${fileName}`);
-    } catch (error) {
-      console.error('[Handovers Export] Template export failed:', error);
-      // Fallback to old export method if template fails
-      console.log('[Handovers Export] Falling back to programmatic export');
-      handleGlobalExportLegacy();
-    }
-  }, [sortedJobs, selectedProject, selectedProjectUuid]);
-
-  // ── Legacy Export (Fallback) ───────────────────────────────────────────────
-  const handleGlobalExportLegacy = useCallback(() => {
+  const handleGlobalExport = useCallback(() => {
+    // Export only the 3 grids: Jobs, Income Payments, Job Distributions
     const sheets: any[] = [];
 
     // Sheet 1: Jobs Table
@@ -877,7 +832,7 @@ export function HandoversTable() {
       });
     }
 
-    // Export to XLSX
+    // Export to XLSX (only 3 sheets, no extras)
     if (sheets.length > 0) {
       const today = new Date().toISOString().split('T')[0];
       const projectName = selectedProject?.projectIndex || 'Handovers';
