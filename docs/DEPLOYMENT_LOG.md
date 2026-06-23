@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-23 Deployment #357 (Fix: Remove Placeholders Sheet from Handovers Export)
+- Commit: 704addd
+- Production: https://ice-r7xs3laob-iceerp.vercel.app
+- Summary: Simplify Handovers export to 3 sheets only (Jobs, Income Payments, Job Distributions) by removing Placeholders sheet logic that was blocking export functionality.
+- Changes:
+  - components/figma/handovers-table.tsx: Removed Placeholders sheet generation code including project data fetching, counteragent/insider/currency relationship queries, and placeholder mapping logic. Export now generates exactly 3 sheets with comprehensive `[Export]` debug logging for troubleshooting data flow through component refs.
+- Status: ✅ Deployed and building successfully
+
 ## 2026-06-23 Deployment #356 (Hotfix: Handovers Runtime API Resilience)
 - Commit: fe2ccd2
 - Production: https://ice-n1cozqh3x-iceerp.vercel.app
