@@ -835,42 +835,72 @@ export function HandoversTable() {
     // Sheet 4: Placeholders (fetch project data with relationships)
     if (selectedProjectUuid) {
       try {
-        const projectRes = await fetch(`/api/projects/${selectedProjectUuid}`);
+        // Fetch project with relationships using query parameter
+        const projectRes = await fetch(`/api/projects?uuid=${selectedProjectUuid}`, {
+          credentials: 'include',
+        });
         if (projectRes.ok) {
-          const project = await projectRes.json();
+          const projects = await projectRes.json();
+          const project = Array.isArray(projects) ? projects[0] : projects;
           
-          // Map placeholder data similar to template export
-          const placeholderRows = [
-            { placeholder_name: 'Project_Department', cell: 'B1', value: project.department || '' },
-            { placeholder_name: 'Handover_Date', cell: 'B2', value: project.date ? new Date(project.date).toISOString().split('T')[0] : '' },
-            { placeholder_name: 'Project_Counteragent_Entity_Type', cell: 'B3', value: project.counteragent?.entity_type || '' },
-            { placeholder_name: 'Project_Counteragent_Name', cell: 'B4', value: project.counteragent?.name || '' },
-            { placeholder_name: 'Project_Counteragent_Director_Genitive', cell: 'B5', value: project.counteragent?.director || '' },
-            { placeholder_name: 'Project_Counteragent_Director', cell: 'B6', value: project.counteragent?.director || '' },
-            { placeholder_name: 'Project_Counteragent_Address_Line_1', cell: 'B7', value: project.counteragent?.address_line_1 || '' },
-            { placeholder_name: 'Project_Counteragent_Address_Line_2', cell: 'B8', value: project.counteragent?.address_line_2 || '' },
-            { placeholder_name: 'Project_Counteragent_ID', cell: 'B9', value: project.counteragent?.identification_number || '' },
-            { placeholder_name: 'Project_Address', cell: 'B10', value: project.address || '' },
-            { placeholder_name: 'Project_Insider_Entity_Type', cell: 'B11', value: project.insider?.entity_type || '' },
-            { placeholder_name: 'Project_Insider_Name', cell: 'B12', value: project.insider?.name || '' },
-            { placeholder_name: 'Project_Insider_ID', cell: 'B13', value: project.insider?.identification_number || '' },
-            { placeholder_name: 'Project_Insider_Address_Line1', cell: 'B14', value: project.insider?.address_line_1 || '' },
-            { placeholder_name: 'Project_Insider_Address_Line2', cell: 'B15', value: project.insider?.address_line_2 || '' },
-            { placeholder_name: 'Project_Insider_Director_Genitive', cell: 'B16', value: project.insider?.director || '' },
-            { placeholder_name: 'Project_Insider_Director_Normative', cell: 'B17', value: project.insider?.director || '' },
-            { placeholder_name: 'Contract_Date', cell: 'B18', value: project.date ? new Date(project.date).toISOString().split('T')[0] : '' },
-            { placeholder_name: 'Project_Currency', cell: 'B19', value: project.currency?.code || '' },
-          ];
+          if (project) {
+            // Fetch counteragent, insider, and currency for complete placeholder data
+            const [counteragentRes, insiderRes, currencyRes] = await Promise.all([
+              project.counteragent_uuid ? fetch(`/api/counteragents?uuid=${project.counteragent_uuid}`, { credentials: 'include' }) : Promise.resolve(null),
+              project.insider_uuid ? fetch(`/api/counteragents?uuid=${project.insider_uuid}`, { credentials: 'include' }) : Promise.resolve(null),
+              project.currency_uuid ? fetch(`/api/currencies?uuid=${project.currency_uuid}`, { credentials: 'include' }) : Promise.resolve(null),
+            ]);
 
-          sheets.push({
-            name: 'Placeholders',
-            rows: placeholderRows,
-            columns: [
-              { key: 'placeholder_name', label: 'Placeholder Name', visible: true },
-              { key: 'cell', label: 'Cell', visible: true },
-              { key: 'value', label: 'Value', visible: true },
-            ],
-          });
+            let counteragent = null;
+            let insider = null;
+            let currency = null;
+
+            if (counteragentRes?.ok) {
+              const caData = await counteragentRes.json();
+              counteragent = Array.isArray(caData) ? caData[0] : caData;
+            }
+            if (insiderRes?.ok) {
+              const insiderData = await insiderRes.json();
+              insider = Array.isArray(insiderData) ? insiderData[0] : insiderData;
+            }
+            if (currencyRes?.ok) {
+              const currData = await currencyRes.json();
+              currency = Array.isArray(currData) ? currData[0] : currData;
+            }
+
+            // Map placeholder data
+            const placeholderRows = [
+              { placeholder_name: 'Project_Department', cell: 'B1', value: project.department || '' },
+              { placeholder_name: 'Handover_Date', cell: 'B2', value: project.date ? new Date(project.date).toISOString().split('T')[0] : '' },
+              { placeholder_name: 'Project_Counteragent_Entity_Type', cell: 'B3', value: counteragent?.entity_type || '' },
+              { placeholder_name: 'Project_Counteragent_Name', cell: 'B4', value: counteragent?.name || '' },
+              { placeholder_name: 'Project_Counteragent_Director_Genitive', cell: 'B5', value: counteragent?.director || '' },
+              { placeholder_name: 'Project_Counteragent_Director', cell: 'B6', value: counteragent?.director || '' },
+              { placeholder_name: 'Project_Counteragent_Address_Line_1', cell: 'B7', value: counteragent?.address_line_1 || '' },
+              { placeholder_name: 'Project_Counteragent_Address_Line_2', cell: 'B8', value: counteragent?.address_line_2 || '' },
+              { placeholder_name: 'Project_Counteragent_ID', cell: 'B9', value: counteragent?.identification_number || '' },
+              { placeholder_name: 'Project_Address', cell: 'B10', value: project.address || '' },
+              { placeholder_name: 'Project_Insider_Entity_Type', cell: 'B11', value: insider?.entity_type || '' },
+              { placeholder_name: 'Project_Insider_Name', cell: 'B12', value: insider?.name || '' },
+              { placeholder_name: 'Project_Insider_ID', cell: 'B13', value: insider?.identification_number || '' },
+              { placeholder_name: 'Project_Insider_Address_Line1', cell: 'B14', value: insider?.address_line_1 || '' },
+              { placeholder_name: 'Project_Insider_Address_Line2', cell: 'B15', value: insider?.address_line_2 || '' },
+              { placeholder_name: 'Project_Insider_Director_Genitive', cell: 'B16', value: insider?.director || '' },
+              { placeholder_name: 'Project_Insider_Director_Normative', cell: 'B17', value: insider?.director || '' },
+              { placeholder_name: 'Contract_Date', cell: 'B18', value: project.date ? new Date(project.date).toISOString().split('T')[0] : '' },
+              { placeholder_name: 'Project_Currency', cell: 'B19', value: currency?.code || '' },
+            ];
+
+            sheets.push({
+              name: 'Placeholders',
+              rows: placeholderRows,
+              columns: [
+                { key: 'placeholder_name', label: 'Placeholder Name', visible: true },
+                { key: 'cell', label: 'Cell', visible: true },
+                { key: 'value', label: 'Value', visible: true },
+              ],
+            });
+          }
         }
       } catch (error) {
         console.error('[Handovers Export] Failed to fetch project placeholders:', error);
