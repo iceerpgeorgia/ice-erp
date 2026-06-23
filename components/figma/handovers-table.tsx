@@ -769,8 +769,8 @@ export function HandoversTable() {
   };
 
   // ── Global XLSX Export ─────────────────────────────────────────────────────
-  const handleGlobalExport = useCallback(() => {
-    // Export only the 3 grids: Jobs, Income Payments, Job Distributions
+  const handleGlobalExport = useCallback(async () => {
+    // Export 4 sheets: Jobs, Income Payments, Job Distributions, Placeholders
     const sheets: any[] = [];
 
     // Sheet 1: Jobs Table
@@ -832,14 +832,59 @@ export function HandoversTable() {
       });
     }
 
-    // Export to XLSX (only 3 sheets, no extras)
+    // Sheet 4: Placeholders (fetch project data with relationships)
+    if (selectedProjectUuid) {
+      try {
+        const projectRes = await fetch(`/api/projects/${selectedProjectUuid}`);
+        if (projectRes.ok) {
+          const project = await projectRes.json();
+          
+          // Map placeholder data similar to template export
+          const placeholderRows = [
+            { placeholder_name: 'Project_Department', cell: 'B1', value: project.department || '' },
+            { placeholder_name: 'Handover_Date', cell: 'B2', value: project.date ? new Date(project.date).toISOString().split('T')[0] : '' },
+            { placeholder_name: 'Project_Counteragent_Entity_Type', cell: 'B3', value: project.counteragent?.entity_type || '' },
+            { placeholder_name: 'Project_Counteragent_Name', cell: 'B4', value: project.counteragent?.name || '' },
+            { placeholder_name: 'Project_Counteragent_Director_Genitive', cell: 'B5', value: project.counteragent?.director || '' },
+            { placeholder_name: 'Project_Counteragent_Director', cell: 'B6', value: project.counteragent?.director || '' },
+            { placeholder_name: 'Project_Counteragent_Address_Line_1', cell: 'B7', value: project.counteragent?.address_line_1 || '' },
+            { placeholder_name: 'Project_Counteragent_Address_Line_2', cell: 'B8', value: project.counteragent?.address_line_2 || '' },
+            { placeholder_name: 'Project_Counteragent_ID', cell: 'B9', value: project.counteragent?.identification_number || '' },
+            { placeholder_name: 'Project_Address', cell: 'B10', value: project.address || '' },
+            { placeholder_name: 'Project_Insider_Entity_Type', cell: 'B11', value: project.insider?.entity_type || '' },
+            { placeholder_name: 'Project_Insider_Name', cell: 'B12', value: project.insider?.name || '' },
+            { placeholder_name: 'Project_Insider_ID', cell: 'B13', value: project.insider?.identification_number || '' },
+            { placeholder_name: 'Project_Insider_Address_Line1', cell: 'B14', value: project.insider?.address_line_1 || '' },
+            { placeholder_name: 'Project_Insider_Address_Line2', cell: 'B15', value: project.insider?.address_line_2 || '' },
+            { placeholder_name: 'Project_Insider_Director_Genitive', cell: 'B16', value: project.insider?.director || '' },
+            { placeholder_name: 'Project_Insider_Director_Normative', cell: 'B17', value: project.insider?.director || '' },
+            { placeholder_name: 'Contract_Date', cell: 'B18', value: project.date ? new Date(project.date).toISOString().split('T')[0] : '' },
+            { placeholder_name: 'Project_Currency', cell: 'B19', value: project.currency?.code || '' },
+          ];
+
+          sheets.push({
+            name: 'Placeholders',
+            rows: placeholderRows,
+            columns: [
+              { key: 'placeholder_name', label: 'Placeholder Name', visible: true },
+              { key: 'cell', label: 'Cell', visible: true },
+              { key: 'value', label: 'Value', visible: true },
+            ],
+          });
+        }
+      } catch (error) {
+        console.error('[Handovers Export] Failed to fetch project placeholders:', error);
+      }
+    }
+
+    // Export to XLSX (4 sheets)
     if (sheets.length > 0) {
       const today = new Date().toISOString().split('T')[0];
       const projectName = selectedProject?.projectIndex || 'Handovers';
       const fileName = `handovers-${projectName}-${today}.xlsx`;
       exportMultiSheetsToXlsx({ sheets, fileName });
     }
-  }, [sortedJobs, selectedProject]);
+  }, [sortedJobs, selectedProject, selectedProjectUuid]);
 
   // ── Single-table exports ───────────────────────────────────────────────────
   const handleExportJobsTable = useCallback(() => {
