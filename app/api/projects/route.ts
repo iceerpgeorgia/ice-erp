@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
         FROM projects p
         LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
         LEFT JOIN counteragents insider_ca ON p.insider_uuid = insider_ca.counteragent_uuid
-        LEFT JOIN currencies cur ON p.currency_uuid = cur.currency_uuid
+        LEFT JOIN currencies cur ON p.currency_uuid = cur.uuid
         LEFT JOIN (
           SELECT
             p.project_uuid,
@@ -154,7 +154,7 @@ export async function GET(req: NextRequest) {
       FROM projects p
       LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
       LEFT JOIN counteragents insider_ca ON p.insider_uuid = insider_ca.counteragent_uuid
-      LEFT JOIN currencies cur ON p.currency_uuid = cur.currency_uuid
+      LEFT JOIN currencies cur ON p.currency_uuid = cur.uuid
       LEFT JOIN project_employees pe ON p.project_uuid = pe.project_uuid
       LEFT JOIN counteragents c ON pe.employee_uuid = c.counteragent_uuid
       LEFT JOIN (
