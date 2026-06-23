@@ -1,5 +1,13 @@
 # Deployment Log
 
+## 2026-06-23 Deployment #361 (Feature: Populate Placeholders Sheet with Database Values)
+- Commit: 635e9d5
+- Production: https://ice-8w9f9scdr-iceerp.vercel.app
+- Summary: Replace hardcoded sample values in Placeholders sheet with live data queries from database.
+- Changes:
+  - components/figma/handovers-table.tsx: Populate Placeholders sheet column B with actual values from project, counteragent, insider, and currency database queries. Fetches department, address, entity types, names, IDs, and currency code from related records. Falls back to empty strings if project not selected or queries fail.
+- Status: ✅ Deployed and building successfully
+
 ## 2026-06-23 Deployment #360 (Feature: Add Sample Placeholder Values to Placeholders Sheet)
 - Commit: 84316e2
 - Production: https://ice-awux5w6it-iceerp.vercel.app
