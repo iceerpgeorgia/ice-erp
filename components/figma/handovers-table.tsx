@@ -915,11 +915,33 @@ export function HandoversTable() {
       console.warn('[Export] distributionsData missing, empty, or invalid');
     }
 
-    // Add blank sheets: Placeholders and Handover (no data)
+    // Add Placeholders sheet with placeholder names in column A
+    const placeholderNames = [
+      'Project_Department',
+      'Handover_Date',
+      'Project_Counteragent_Entity_Type',
+      'Project_Counteragent_Name',
+      'Project_Counteragent_Director_Genitive',
+      'Project_Counteragent_Director',
+      'Project_Counteragent_Address_Line_1',
+      'Project_Counteragent_Address_Line_2',
+      'Project_Counteragent_ID',
+      'Project_Address',
+      'Project_Insider_Entity_Type',
+      'Project_Insider_Name',
+      'Project_Insider_ID',
+      'Project_Insider_Address_Line1',
+      'Project_Insider_Address_Line2',
+      'Project_Insider_Director_Genitive',
+      'Project_Insider_Director_Normative',
+      'Contract_Date',
+      'Project_Currency',
+    ];
+
     sheets.push({
       name: 'Placeholders',
-      rows: [],
-      columns: [],
+      rows: placeholderNames.map(name => ({ placeholder_name: name })),
+      columns: [{ key: 'placeholder_name', label: 'Placeholder Name', visible: true }],
     });
     sheets.push({
       name: 'Handover',
