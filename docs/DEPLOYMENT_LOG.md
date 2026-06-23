@@ -1,5 +1,24 @@
 # Deployment Log
 
+## 2026-06-23 Deployment #364 (Fix: Complete GROUP BY Clause to Resolve 500 Errors)
+- Commit: 65295c4
+- Production: https://ice-mtg7ui85y-iceerp.vercel.app
+- Summary: Fixed PostgreSQL query error in /api/projects endpoint. When using LEFT JOINs with GROUP BY aggregation, all non-aggregated columns from joined tables must be explicitly included in the GROUP BY clause. The list query was missing all counteragent, insider, and currency columns from GROUP BY, causing "column must appear in GROUP BY clause" errors.
+- Root Cause: Database error on queries like /api/nav/config, /api/brands, /api/insider-selection, /api/jobs, /api/payments-report when they depend on /api/projects data
+- Solution: Extended GROUP BY clause in projects list query to include all 25 non-aggregated columns:
+  - All project table columns (p.id, p.project_uuid, p.project_name, p.date, p.value, p.oris1630, p.address, p.department, p.service_state, p.counteragent_uuid, p.financial_code_uuid, p.currency_uuid, p.insider_uuid, p.state_uuid, p.created_at, p.updated_at, p.is_active)
+  - Counteragent fields (ca.name, ca.entity_type, ca.director, ca.address_line_1, ca.address_line_2, ca.identification_number)
+  - Insider fields (insider_ca.name, insider_ca.entity_type, insider_ca.director, insider_ca.address_line_1, insider_ca.address_line_2, insider_ca.identification_number, insider_ca.insider, insider_ca.insider_name, insider_ca.counteragent)
+  - Currency field (cur.code)
+  - Payment aggregate (pp.total_payment)
+- Error Resolution:
+  - api/nav/config → 500 → Should resolve
+  - api/brands → 500 → Should resolve
+  - api/insider-selection → 500 → Should resolve
+  - api/jobs → 500 → Should resolve
+  - api/payments-report → 500 → Should resolve
+- Status: ✅ Deployed
+
 ## 2026-06-23 Deployment #363 (Fix: Populate All Placeholder Values from API Response)
 - Commit: d98b142
 - Production: https://ice-2h3i6i0r0-iceerp.vercel.app
