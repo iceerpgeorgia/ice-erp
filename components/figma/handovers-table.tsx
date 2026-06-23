@@ -1066,49 +1066,71 @@ export function HandoversTable() {
               <RefreshCw className={`h-4 w-4 ${loadingJobs ? 'animate-spin' : ''}`} />
             </Button>
 
+            {/* Export All - Multi-sheet XLSX */}
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
               onClick={handleGlobalExport}
-              title={!isTableFullyLoaded || sortedJobs.length === 0 ? "Loading all tables including rates..." : "Export all grids to XLSX"}
+              title={!isTableFullyLoaded || sortedJobs.length === 0 ? "Loading all tables including rates..." : "Export all 3 grids (Jobs, Income Payments, Distributions) to separate sheets in one XLSX file"}
               disabled={!isTableFullyLoaded || sortedJobs.length === 0}
+              className="font-semibold"
             >
               <Download className="h-4 w-4 mr-2" />
-              Export
+              Export All
             </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportJobsTable}
-              title="Export Jobs table to XLSX"
-              disabled={sortedJobs.length === 0}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export Jobs
-            </Button>
+            {/* Individual exports */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title="Export individual grids"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  More Exports
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-3">
+                <div className="space-y-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleExportJobsTable}
+                    title="Export Jobs table to XLSX"
+                    disabled={sortedJobs.length === 0}
+                    className="w-full justify-start"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Jobs Table
+                  </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportIncomePaymentsTable}
-              title="Export Income Payments table to XLSX"
-              disabled={!selectedProjectUuid}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export Income
-            </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleExportIncomePaymentsTable}
+                    title="Export Income Payments table to XLSX"
+                    disabled={!selectedProjectUuid}
+                    className="w-full justify-start"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Income Payments
+                  </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportJobDistributionsTable}
-              title="Export Job Distributions table to XLSX"
-              disabled={!selectedProjectUuid}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export Distributions
-            </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleExportJobDistributionsTable}
+                    title="Export Job Distributions table to XLSX"
+                    disabled={!selectedProjectUuid}
+                    className="w-full justify-start"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Job Distributions
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             <span className="text-sm text-muted-foreground ml-auto">
               {loadingJobs
