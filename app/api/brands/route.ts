@@ -12,7 +12,6 @@ export async function GET(req: NextRequest) {
         id,
         uuid,
         name,
-        counteragent_uuids,
         is_active,
         created_at,
         updated_at

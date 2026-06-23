@@ -6,9 +6,6 @@ import { requireAuth, isAuthError } from '@/lib/auth-guard';
 // GET all jobs with project info from job_projects junction table
 export async function GET(req: NextRequest) {
   try {
-    const selection = await resolveInsiderSelection(req);
-    const insider = selection.primaryInsider;
-    const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
     const { searchParams } = new URL(req.url);
     const projectUuid = searchParams.get('projectUuid') || searchParams.get('project_uuid');
 
@@ -68,6 +65,10 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.json(serialized);
     }
+
+    const selection = await resolveInsiderSelection(req);
+    const insider = selection.primaryInsider;
+    const insiderUuidListSql = sqlUuidInList(selection.selectedUuids);
 
     // Full listing: one row per job-project binding
     const jobs = await withRetry(() => prisma.$queryRawUnsafe(`

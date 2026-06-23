@@ -323,30 +323,20 @@ export function HandoversTable() {
   useEffect(() => {
     (async () => {
       try {
-        console.log('[Handovers] Starting initial data fetch...');
         const [projRes, brandRes, insiderRes] = await Promise.all([
           fetch('/api/projects-v2', { credentials: 'include' }),
           fetch('/api/brands', { credentials: 'include' }),
           fetch('/api/insider-selection', { cache: 'no-store', credentials: 'include' }),
         ]);
         
-        console.log('[Handovers] API responses:', { 
-          projRes: { ok: projRes.ok, status: projRes.status },
-          brandRes: { ok: brandRes.ok, status: brandRes.status },
-          insiderRes: { ok: insiderRes.ok, status: insiderRes.status }
-        });
-        
         if (projRes.ok) {
           const data = await projRes.json();
-          console.log('[Handovers] Projects fetched:', { count: data?.length, firstProject: data?.[0] });
-          
+
           // Safely extract projects, with fallback if not an array
           const projectsArray = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
-          console.log('[Handovers] Projects array after fallback:', { count: projectsArray.length });
-          
+
           setProjects(
             projectsArray.map((p: any) => {
-              console.log('[Handovers] Mapping project:', { uuid: p.project_uuid, name: p.project_name });
               return {
                 projectUuid: p.project_uuid,
                 projectIndex: p.project_index,
@@ -367,7 +357,6 @@ export function HandoversTable() {
         
         if (insiderRes.ok) {
           const data = await insiderRes.json();
-          console.log('[Handovers] Insider data fetched:', data);
           const selectedUuids: string[] = Array.isArray(data?.selectedUuids) ? data.selectedUuids : [];
           const options: any[] = Array.isArray(data?.options) ? data.options : [];
           const selectedInsiders: any[] = Array.isArray(data?.selectedInsiders) ? data.selectedInsiders : [];

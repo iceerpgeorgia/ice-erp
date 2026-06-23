@@ -33,7 +33,12 @@ export async function GET(request: NextRequest) {
     // Load ALL source tables regardless of insider selection — the payments report is a
     // global cross-entity report. Filtering by the user's current insider cookie caused
     // colleagues with a narrowed insider selection to see incomplete sums.
-    const sourceTables = await getSourceTables();
+    let sourceTables: string[] = [];
+    try {
+      sourceTables = await getSourceTables();
+    } catch (sourceTableError) {
+      console.error('[payments-report] Failed to load source tables, falling back to ledger-only mode:', sourceTableError);
+    }
 
     // No insider-based WHERE filter on payment rows — every active user should see all payments.
     const insiderWhereClause = '';
@@ -216,7 +221,96 @@ export async function GET(request: NextRequest) {
       ORDER BY p.payment_id DESC
     `;
 
-    const reportData = await withRetry(() => prisma.$queryRawUnsafe(query));
+    let reportData: any[] = [];
+    try {
+      reportData = await withRetry(() => prisma.$queryRawUnsafe(query)) as any[];
+    } catch (primaryQueryError) {
+      console.error('[payments-report] Primary report query failed, using ledger-only fallback:', primaryQueryError);
+
+      const fallbackQuery = `
+        SELECT
+          p.id as payment_row_id,
+          p.payment_id,
+          p.record_uuid as payment_uuid,
+          to_jsonb(p)->>'label' as label,
+          p.project_uuid,
+          p.counteragent_uuid,
+          ca.id as counteragent_row_id,
+          p.financial_code_uuid,
+          p.job_uuid,
+          p.income_tax,
+          p.currency_uuid,
+          p.is_active,
+          to_jsonb(p)->>'is_recurring' as is_recurring,
+          p.is_project_derived,
+          p.is_bundle_payment,
+          p.payment_bundle_uuid,
+          proj.project_index,
+          proj.project_name,
+          proj.address as project_address,
+          proj.insider_uuid::text as insider_uuid,
+          ins.name as insider_name,
+          ca.counteragent as counteragent_formatted,
+          ca.name as counteragent_name,
+          ca.identification_number as counteragent_id,
+          ca.iban as counteragent_iban,
+          et.name_ka as counteragent_entity_name,
+          et.is_natural_person as counteragent_is_natural_person,
+          fc.validation as financial_code_validation,
+          fc.code as financial_code,
+          fc.description as financial_code_description,
+          fc.is_income as financial_code_is_income,
+          fc.parent_uuid as financial_code_parent_uuid,
+          pfc.validation as parent_financial_code_validation,
+          pfc.code as parent_financial_code,
+          j.job_name,
+          j.weight as job_weight,
+          j.floors,
+          curr.code as currency_code,
+          0::bigint as job_count,
+          0::bigint as unbound_count,
+          COALESCE(ledger_agg.total_accrual, 0) as total_accrual,
+          COALESCE(ledger_agg.total_order, 0) as total_order,
+          COALESCE(ledger_agg.ledger_users, '') as ledger_users,
+          COALESCE(ledger_agg.confirmed, false) as confirmed,
+          ledger_agg.latest_ledger_created_at,
+          0::numeric as total_payment,
+          0::numeric as total_adjustment,
+          ledger_agg.latest_ledger_date as latest_date
+        FROM payments p
+        LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
+        LEFT JOIN counteragents ins ON ins.counteragent_uuid = proj.insider_uuid
+        LEFT JOIN counteragents ca ON p.counteragent_uuid = ca.counteragent_uuid
+        LEFT JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
+        LEFT JOIN financial_codes pfc ON fc.parent_uuid = pfc.uuid
+        LEFT JOIN jobs j ON p.job_uuid = j.job_uuid
+        LEFT JOIN currencies curr ON p.currency_uuid = curr.uuid
+        LEFT JOIN entity_types et ON ca.entity_type_uuid = et.entity_type_uuid
+        LEFT JOIN (
+          SELECT
+            payment_id,
+            SUM(accrual) as total_accrual,
+            SUM("order") as total_order,
+            STRING_AGG(
+              DISTINCT COALESCE(NULLIF(u.email, ''), pl.user_email),
+              ', '
+              ORDER BY COALESCE(NULLIF(u.email, ''), pl.user_email)
+            ) as ledger_users,
+            BOOL_AND(COALESCE(confirmed, false)) as confirmed,
+            MAX(effective_date) as latest_ledger_date,
+            MAX(created_at) as latest_ledger_created_at
+          FROM payments_ledger pl
+          LEFT JOIN "User" u ON u.email = pl.user_email
+          ${ledgerDateFilter ? `${ledgerDateFilter} AND` : 'WHERE'} (pl.is_deleted = false OR pl.is_deleted IS NULL)
+          GROUP BY payment_id
+        ) ledger_agg ON p.payment_id = ledger_agg.payment_id
+        WHERE p.is_active = true
+        ${safeProjectUuid ? `AND p.project_uuid = '${safeProjectUuid}'::uuid` : ''}
+        ORDER BY p.payment_id DESC
+      `;
+
+      reportData = await withRetry(() => prisma.$queryRawUnsafe(fallbackQuery)) as any[];
+    }
 
     const formattedData = (reportData as any[]).map(row => ({
       paymentId: row.payment_id,
