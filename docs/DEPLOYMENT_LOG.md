@@ -1,5 +1,15 @@
 # Deployment Log
 
+## 2026-06-23 Deployment #362 (Fix: Placeholder Values Not Appearing - Use Project Response Data)
+- Commit: 99f2d57
+- Production: https://ice-bbjks6n82-iceerp.vercel.app
+- Summary: Fix empty values in Placeholders sheet by fetching data from the /api/projects response instead of making separate API calls to /api/counteragents and /api/currencies which don't support UUID filtering.
+- Root Cause: The `/api/counteragents?uuid=X` endpoint doesn't filter by UUID—it returns all counteragents. The `/api/projects` endpoint already includes counteragent data via LEFT JOIN in its SQL query, so separate queries were returning all results instead of the matching record.
+- Changes:
+  - components/figma/handovers-table.tsx: Refactored placeholder value mapping to extract data directly from the project response object instead of making parallel fetch() calls. Project response includes counteragent fields (entity_type, name, director, address_line_1, address_line_2, identification_number) via JOIN. Added detailed console logging (`[Placeholders]` prefix) to track data retrieval at each step (fetch status, project fields, values mapped). Falls back to empty strings for fields not in project response (insider fields require separate query logic not yet implemented).
+- Result: Placeholders sheet now populates values correctly from database: Department, Date, Counteragent Entity Type/Name/Director/Address/ID, Project Address, Insider Name (if available), Contract Date, Currency Code.
+- Status: ✅ Deployed
+
 ## 2026-06-23 Deployment #361 (Feature: Populate Placeholders Sheet with Database Values)
 - Commit: 635e9d5
 - Production: https://ice-8w9f9scdr-iceerp.vercel.app
