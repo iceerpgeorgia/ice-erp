@@ -825,8 +825,12 @@ export function HandoversTable() {
 
   // ── Global XLSX Export ─────────────────────────────────────────────────────
   const handleGlobalExport = useCallback(async () => {
-    // Export 4 sheets: Jobs, Income Payments, Job Distributions, Placeholders
+    // Export 3 sheets: Jobs, Income Payments, Job Distributions (NO Placeholders for now)
     const sheets: any[] = [];
+
+    console.log('[Export] === Starting Global Export ===');
+    console.log('[Export] paymentsGridRef.current:', !!paymentsGridRef.current);
+    console.log('[Export] distributionsGridRef.current:', !!distributionsGridRef.current);
 
     // Sheet 1: Jobs Table
     const jobsSheetRows = sortedJobs.map(job => ({
@@ -867,107 +871,62 @@ export function HandoversTable() {
       ],
     });
 
+    console.log('[Export] Sheet 0 (Jobs):', sheets[0].name, sheets[0].rows.length, 'rows');
+
     // Sheet 2: Income Payments
     const paymentsData = paymentsGridRef.current?.getExportData?.();
-    if (paymentsData) {
+    console.log('[Export] paymentsData from ref:', {
+      exists: !!paymentsData,
+      sheetName: paymentsData?.sheetName,
+      rowCount: paymentsData?.rows?.length,
+      colCount: paymentsData?.columns?.length,
+      firstColKeys: paymentsData?.columns?.slice(0, 3).map((c: any) => c.key),
+    });
+
+    if (paymentsData && Array.isArray(paymentsData.rows) && paymentsData.rows.length > 0) {
       sheets.push({
-        name: paymentsData.sheetName || 'Income Payments',
+        name: 'Income Payments',
         rows: paymentsData.rows,
         columns: paymentsData.columns,
       });
+      console.log('[Export] Sheet 1 (Income Payments) added:', sheets[1].name);
+    } else {
+      console.warn('[Export] paymentsData missing, empty, or invalid');
     }
 
     // Sheet 3: Job Distributions
     const distributionsData = distributionsGridRef.current?.getExportData?.();
-    if (distributionsData) {
+    console.log('[Export] distributionsData from ref:', {
+      exists: !!distributionsData,
+      sheetName: distributionsData?.sheetName,
+      rowCount: distributionsData?.rows?.length,
+      colCount: distributionsData?.columns?.length,
+      firstColKeys: distributionsData?.columns?.slice(0, 3).map((c: any) => c.key),
+    });
+
+    if (distributionsData && Array.isArray(distributionsData.rows) && distributionsData.rows.length > 0) {
       sheets.push({
-        name: distributionsData.sheetName || 'Job Distributions',
+        name: 'Job Distributions',
         rows: distributionsData.rows,
         columns: distributionsData.columns,
       });
+      console.log('[Export] Sheet 2 (Job Distributions) added:', sheets[2].name);
+    } else {
+      console.warn('[Export] distributionsData missing, empty, or invalid');
     }
 
-    // Sheet 4: Placeholders (fetch project data with relationships)
-    if (selectedProjectUuid) {
-      try {
-        // Fetch project with relationships using query parameter
-        const projectRes = await fetch(`/api/projects?uuid=${selectedProjectUuid}`, {
-          credentials: 'include',
-        });
-        if (projectRes.ok) {
-          const projects = await projectRes.json();
-          const project = Array.isArray(projects) ? projects[0] : projects;
-          
-          if (project) {
-            // Fetch counteragent, insider, and currency for complete placeholder data
-            const [counteragentRes, insiderRes, currencyRes] = await Promise.all([
-              project.counteragent_uuid ? fetch(`/api/counteragents?uuid=${project.counteragent_uuid}`, { credentials: 'include' }) : Promise.resolve(null),
-              project.insider_uuid ? fetch(`/api/counteragents?uuid=${project.insider_uuid}`, { credentials: 'include' }) : Promise.resolve(null),
-              project.currency_uuid ? fetch(`/api/currencies?uuid=${project.currency_uuid}`, { credentials: 'include' }) : Promise.resolve(null),
-            ]);
-
-            let counteragent = null;
-            let insider = null;
-            let currency = null;
-
-            if (counteragentRes?.ok) {
-              const caData = await counteragentRes.json();
-              counteragent = Array.isArray(caData) ? caData[0] : caData;
-            }
-            if (insiderRes?.ok) {
-              const insiderData = await insiderRes.json();
-              insider = Array.isArray(insiderData) ? insiderData[0] : insiderData;
-            }
-            if (currencyRes?.ok) {
-              const currData = await currencyRes.json();
-              currency = Array.isArray(currData) ? currData[0] : currData;
-            }
-
-            // Map placeholder data
-            const placeholderRows = [
-              { placeholder_name: 'Project_Department', cell: 'B1', value: project.department || '' },
-              { placeholder_name: 'Handover_Date', cell: 'B2', value: project.date ? new Date(project.date).toISOString().split('T')[0] : '' },
-              { placeholder_name: 'Project_Counteragent_Entity_Type', cell: 'B3', value: counteragent?.entity_type || '' },
-              { placeholder_name: 'Project_Counteragent_Name', cell: 'B4', value: counteragent?.name || '' },
-              { placeholder_name: 'Project_Counteragent_Director_Genitive', cell: 'B5', value: counteragent?.director || '' },
-              { placeholder_name: 'Project_Counteragent_Director', cell: 'B6', value: counteragent?.director || '' },
-              { placeholder_name: 'Project_Counteragent_Address_Line_1', cell: 'B7', value: counteragent?.address_line_1 || '' },
-              { placeholder_name: 'Project_Counteragent_Address_Line_2', cell: 'B8', value: counteragent?.address_line_2 || '' },
-              { placeholder_name: 'Project_Counteragent_ID', cell: 'B9', value: counteragent?.identification_number || '' },
-              { placeholder_name: 'Project_Address', cell: 'B10', value: project.address || '' },
-              { placeholder_name: 'Project_Insider_Entity_Type', cell: 'B11', value: insider?.entity_type || '' },
-              { placeholder_name: 'Project_Insider_Name', cell: 'B12', value: insider?.name || '' },
-              { placeholder_name: 'Project_Insider_ID', cell: 'B13', value: insider?.identification_number || '' },
-              { placeholder_name: 'Project_Insider_Address_Line1', cell: 'B14', value: insider?.address_line_1 || '' },
-              { placeholder_name: 'Project_Insider_Address_Line2', cell: 'B15', value: insider?.address_line_2 || '' },
-              { placeholder_name: 'Project_Insider_Director_Genitive', cell: 'B16', value: insider?.director || '' },
-              { placeholder_name: 'Project_Insider_Director_Normative', cell: 'B17', value: insider?.director || '' },
-              { placeholder_name: 'Contract_Date', cell: 'B18', value: project.date ? new Date(project.date).toISOString().split('T')[0] : '' },
-              { placeholder_name: 'Project_Currency', cell: 'B19', value: currency?.code || '' },
-            ];
-
-            sheets.push({
-              name: 'Placeholders',
-              rows: placeholderRows,
-              columns: [
-                { key: 'placeholder_name', label: 'Placeholder Name', visible: true },
-                { key: 'cell', label: 'Cell', visible: true },
-                { key: 'value', label: 'Value', visible: true },
-              ],
-            });
-          }
-        }
-      } catch (error) {
-        console.error('[Handovers Export] Failed to fetch project placeholders:', error);
-      }
-    }
-
-    // Export to XLSX (4 sheets)
+    // Export to XLSX (3 sheets: Jobs, Income Payments, Job Distributions only)
+    console.log('[Export] Final sheet count:', sheets.length);
+    console.log('[Export] Sheet names:', sheets.map(s => s.name));
+    
     if (sheets.length > 0) {
       const today = new Date().toISOString().split('T')[0];
       const projectName = selectedProject?.projectIndex || 'Handovers';
       const fileName = `handovers-${projectName}-${today}.xlsx`;
+      console.log('[Export] Exporting XLSX with fileName:', fileName);
       exportMultiSheetsToXlsx({ sheets, fileName });
+    } else {
+      console.error('[Export] No sheets available for export!');
     }
   }, [sortedJobs, selectedProject, selectedProjectUuid]);
 
