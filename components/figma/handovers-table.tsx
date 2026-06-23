@@ -915,7 +915,7 @@ export function HandoversTable() {
       console.warn('[Export] distributionsData missing, empty, or invalid');
     }
 
-    // Add Placeholders sheet with placeholder names in column A and sample values in column B
+    // Add Placeholders sheet with placeholder names in column A and values from database in column B
     const placeholderNames = [
       'Project_Department',
       'Handover_Date',
@@ -938,27 +938,85 @@ export function HandoversTable() {
       'Project_Currency',
     ];
 
-    const placeholderValues = [
-      'Department Name',
-      new Date().toISOString().split('T')[0],
-      'Limited Liability Company',
-      'Company Name',
-      'Director Name-is (genitive)',
-      'Director Name',
-      'Street Address, City',
-      'Additional Address Line',
-      '123456789',
-      'Project Location Address',
-      'Limited Liability Company',
-      'Insider Company Name',
-      '987654321',
-      'Insider Street Address',
-      'Insider Additional Address',
-      'Insider Director-is (genitive)',
-      'Insider Director Name',
-      new Date().toISOString().split('T')[0],
-      'GEL',
-    ];
+    let placeholderValues: (string | null | undefined)[] = placeholderNames.map(() => '');
+
+    // Fetch placeholder values from database if project is selected
+    if (selectedProjectUuid) {
+      try {
+        // Fetch project data
+        const projectRes = await fetch(`/api/projects?uuid=${encodeURIComponent(selectedProjectUuid)}`, {
+          credentials: 'include',
+        });
+        
+        if (projectRes.ok) {
+          const projects = await projectRes.json();
+          const project = Array.isArray(projects) ? projects[0] : projects;
+
+          if (project) {
+            // Fetch counteragent, insider, and currency data in parallel
+            const [counteragentRes, insiderRes, currencyRes] = await Promise.all([
+              project.counteragent_uuid
+                ? fetch(`/api/counteragents?uuid=${encodeURIComponent(project.counteragent_uuid)}`, {
+                    credentials: 'include',
+                  })
+                : Promise.resolve(null),
+              project.insider_uuid
+                ? fetch(`/api/counteragents?uuid=${encodeURIComponent(project.insider_uuid)}`, {
+                    credentials: 'include',
+                  })
+                : Promise.resolve(null),
+              project.currency_uuid
+                ? fetch(`/api/currencies?uuid=${encodeURIComponent(project.currency_uuid)}`, {
+                    credentials: 'include',
+                  })
+                : Promise.resolve(null),
+            ]);
+
+            let counteragent = null;
+            let insider = null;
+            let currency = null;
+
+            if (counteragentRes?.ok) {
+              const caData = await counteragentRes.json();
+              counteragent = Array.isArray(caData) ? caData[0] : caData;
+            }
+            if (insiderRes?.ok) {
+              const insiderData = await insiderRes.json();
+              insider = Array.isArray(insiderData) ? insiderData[0] : insiderData;
+            }
+            if (currencyRes?.ok) {
+              const currData = await currencyRes.json();
+              currency = Array.isArray(currData) ? currData[0] : currData;
+            }
+
+            // Map database values to placeholders
+            placeholderValues = [
+              project.department || '',
+              project.date ? new Date(project.date).toISOString().split('T')[0] : '',
+              counteragent?.entity_type || '',
+              counteragent?.name || '',
+              counteragent?.director || '',
+              counteragent?.director || '',
+              counteragent?.address_line_1 || '',
+              counteragent?.address_line_2 || '',
+              counteragent?.identification_number || '',
+              project.address || '',
+              insider?.entity_type || '',
+              insider?.name || '',
+              insider?.identification_number || '',
+              insider?.address_line_1 || '',
+              insider?.address_line_2 || '',
+              insider?.director || '',
+              insider?.director || '',
+              project.date ? new Date(project.date).toISOString().split('T')[0] : '',
+              currency?.code || '',
+            ];
+          }
+        }
+      } catch (error) {
+        console.error('[Handovers Export] Failed to fetch project placeholders:', error);
+      }
+    }
 
     sheets.push({
       name: 'Placeholders',
@@ -968,7 +1026,7 @@ export function HandoversTable() {
       })),
       columns: [
         { key: 'placeholder_name', label: 'Placeholder Name', visible: true },
-        { key: 'placeholder_value', label: 'Sample Value', visible: true },
+        { key: 'placeholder_value', label: 'Value', visible: true },
       ],
     });
     sheets.push({
