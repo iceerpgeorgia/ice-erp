@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-06-23 Deployment #356 (Hotfix: Handovers Runtime API Resilience)
+- Commit: fe2ccd2
+- Production: https://ice-n1cozqh3x-iceerp.vercel.app
+- Summary: Prevent Handovers from failing hard when one backend dependency path errors; restore graceful loading for jobs/income tables.
+- Changes:
+  - app/api/jobs/route.ts: For project-scoped requests (`projectUuid`/`project_uuid`), fetch project-bound jobs directly before insider-selection resolution so this path is not blocked by insider-selection failures.
+  - app/api/brands/route.ts: Removed non-essential `counteragent_uuids` from the GET list query to reduce schema-drift-induced 500s during Handovers bootstrap.
+  - app/api/payments-report/route.ts: Added guarded source-table loading and a ledger-only fallback query when the primary bank-union report query fails, returning report rows instead of HTTP 500.
+  - components/figma/handovers-table.tsx: Removed noisy initial-load debug spam (`[Handovers] Mapping project`) while preserving actionable error logging.
+- Status: ✅ Deployed and building successfully
+
 ## 2026-06-23 Deployment #355 (Feature: Separate Handovers Table Exports)
 - Commit: 6f1e7c9
 - Production: https://ice-36bnfvjvi-iceerp.vercel.app
