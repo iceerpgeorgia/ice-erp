@@ -1,5 +1,37 @@
 # Deployment Log
 
+## 2026-06-23 Deployment #363 (Fix: Populate All Placeholder Values from API Response)
+- Commit: d98b142
+- Production: https://ice-2h3i6i0r0-iceerp.vercel.app
+- Summary: Extended /api/projects endpoint to include all counteragent and insider fields in API response via SQL LEFT JOINs, eliminating need for separate API queries. All 19 placeholder values now properly populated from single project API call.
+- Root Cause Analysis: Database actually contained all needed data (counteragent name, entity_type, director, address, insider data, currency code) but /api/projects endpoint was only returning `SELECT p.*` without the joined counteragent/insider/currency fields.
+- Solution:
+  - Modified `/api/projects` GET endpoint SQL queries (both single project and list queries) to SELECT counteragent fields: `name`, `entity_type`, `director`, `address_line_1`, `address_line_2`, `identification_number`
+  - Added insider field selection: `insider_name_field`, `insider_entity_type`, `insider_director`, `insider_address_line_1`, `insider_address_line_2`, `insider_identification_number`
+  - Added currency field selection: `currency` (the code value)
+  - Updated handovers-table.tsx to map these new response fields to placeholder values
+- Values Now Populated:
+  - Project_Department (from project.department)
+  - Handover_Date (from project.date)
+  - Project_Counteragent_Entity_Type (from ca.entity_type)
+  - Project_Counteragent_Name (from ca.name)
+  - Project_Counteragent_Director (from ca.director - both genitive and normative use same)
+  - Project_Counteragent_Address_Line_1, _2 (from ca.address_line_1, address_line_2)
+  - Project_Counteragent_ID (from ca.identification_number)
+  - Project_Address (from project.address)
+  - Project_Insider_Entity_Type (from insider_ca.entity_type)
+  - Project_Insider_Name (from insider_ca.name)
+  - Project_Insider_ID (from insider_ca.identification_number)
+  - Project_Insider_Address_Line1, _Line2 (from insider_ca.address_line_1, address_line_2)
+  - Project_Insider_Director (from insider_ca.director)
+  - Contract_Date (from project.date)
+  - Project_Currency (from currencies.code)
+- Test Data (UUID 808bf640-8295-46a9-a083-c43472345717):
+  - Counteragent: ოპტიმა (შპს) - 405160819
+  - Insider: აი-სი-ი (შპს) - 400017245
+  - Currency: USD
+- Status: ✅ Deployed
+
 ## 2026-06-23 Deployment #362 (Fix: Placeholder Values Not Appearing - Use Project Response Data)
 - Commit: 99f2d57
 - Production: https://ice-bbjks6n82-iceerp.vercel.app
