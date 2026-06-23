@@ -915,7 +915,7 @@ export function HandoversTable() {
       console.warn('[Export] distributionsData missing, empty, or invalid');
     }
 
-    // Add Placeholders sheet with placeholder names in column A
+    // Add Placeholders sheet with placeholder names in column A and sample values in column B
     const placeholderNames = [
       'Project_Department',
       'Handover_Date',
@@ -938,10 +938,38 @@ export function HandoversTable() {
       'Project_Currency',
     ];
 
+    const placeholderValues = [
+      'Department Name',
+      new Date().toISOString().split('T')[0],
+      'Limited Liability Company',
+      'Company Name',
+      'Director Name-is (genitive)',
+      'Director Name',
+      'Street Address, City',
+      'Additional Address Line',
+      '123456789',
+      'Project Location Address',
+      'Limited Liability Company',
+      'Insider Company Name',
+      '987654321',
+      'Insider Street Address',
+      'Insider Additional Address',
+      'Insider Director-is (genitive)',
+      'Insider Director Name',
+      new Date().toISOString().split('T')[0],
+      'GEL',
+    ];
+
     sheets.push({
       name: 'Placeholders',
-      rows: placeholderNames.map(name => ({ placeholder_name: name })),
-      columns: [{ key: 'placeholder_name', label: 'Placeholder Name', visible: true }],
+      rows: placeholderNames.map((name, idx) => ({
+        placeholder_name: name,
+        placeholder_value: placeholderValues[idx] || '',
+      })),
+      columns: [
+        { key: 'placeholder_name', label: 'Placeholder Name', visible: true },
+        { key: 'placeholder_value', label: 'Sample Value', visible: true },
+      ],
     });
     sheets.push({
       name: 'Handover',
