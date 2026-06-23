@@ -284,14 +284,15 @@ export function ColumnFilterPopover({
   // ── Apply ─────────────────────────────────────────────────────────────────
   const handleApply = () => {
     if (tab === 'facet') {
-      if (onAdvancedFilterChange) {
+      // Facet mode should always use onFilterChange to work with columnFilters
+      if (onFilterChange) {
+        onFilterChange(tempSelected);
+      } else if (onAdvancedFilterChange) {
         if (tempSelected.size === 0) {
           onAdvancedFilterChange(null);
         } else {
           onAdvancedFilterChange({ mode: 'facet', values: tempSelected });
         }
-      } else if (onFilterChange) {
-        onFilterChange(tempSelected);
       }
     } else if (tab === 'condition' && onAdvancedFilterChange) {
       if (inferredMode === 'numeric') {

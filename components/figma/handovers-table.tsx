@@ -44,7 +44,7 @@ import {
 import { HandoverPaymentsGrid } from './handover-payments-grid';
 import { HandoverJobDistributionsGrid } from './handover-job-distributions-grid';
 import { ErrorBoundary } from './error-boundary';
-import { exportMultiSheetsToXlsx } from '@/lib/export-xlsx';
+import { exportMultiSheetsToXlsx, exportRowsToXlsx } from '@/lib/export-xlsx';
 
 type ColumnKey = keyof HandoverJob;
 
@@ -125,6 +125,25 @@ export function HandoversTable() {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [ratesLoading, setRatesLoading] = useState(false);
+  
+  // ── Export data cache ────────────────────────────────────────────────────
+  const [exportCache, setExportCache] = useState<{
+    projectUuid: string | null;
+    projectData: any | null;
+    jobsData: any[] | null;
+    paymentsData: any[] | null;
+    distributionsData: any[] | null;
+    rateCache: Map<string, number | null>;
+    timestamp: number;
+  }>({
+    projectUuid: null,
+    projectData: null,
+    jobsData: null,
+    paymentsData: null,
+    distributionsData: null,
+    rateCache: new Map(),
+    timestamp: 0,
+  });
 
   // ── Attachment state ──────────────────────────────────────────────────────
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
@@ -186,6 +205,13 @@ export function HandoversTable() {
     () => projects.find(p => p.projectUuid === selectedProjectUuid) ?? null,
     [projects, selectedProjectUuid],
   );
+
+  // ── Computed: Is all data fully loaded? ──────────────────────────────────
+  const isTableFullyLoaded = useMemo(() => {
+    // Must have: projects loaded, project selected, jobs loaded, rates loaded
+    // Note: sortedJobs not available here yet, so checked separately in button disabled state
+    return !loadingProjects && !loadingJobs && !ratesLoading && selectedProjectUuid !== '';
+  }, [loadingProjects, loadingJobs, ratesLoading, selectedProjectUuid]);
 
   const formatMoney = (value: number) => Math.abs(value).toLocaleString('en-US', {
     minimumFractionDigits: 2,
@@ -261,11 +287,6 @@ export function HandoversTable() {
     defaultSortDirection: 'asc',
     filtersStorageKey: 'handovers-table:filters',
   });
-
-  // ── Computed: Is all data fully loaded? ────────────────────────────────
-  const isTableFullyLoaded = useMemo(() => {
-    return !loadingProjects && !loadingJobs && !ratesLoading && selectedProjectUuid !== '';
-  }, [loadingProjects, loadingJobs, ratesLoading, selectedProjectUuid]);
 
   // ── Persist column config ─────────────────────────────────────────────────
   useEffect(() => {
@@ -399,9 +420,10 @@ export function HandoversTable() {
         const liftCertMap: Record<string, { date: string | null; docNo: string | null }> = liftRes?.ok ? (await liftRes.json()).info ?? {} : {};
         console.log(`[Handovers] Lift cert info fetched:`, { liftCertOk: liftRes?.ok, mapSize: Object.keys(liftCertMap).length });
 
+        let paymentsData: any[] = [];
         const incomePaymentIds = new Set<string>();
         if (paymentsRes.ok) {
-          const paymentsData = await paymentsRes.json();
+          paymentsData = await paymentsRes.json();
           (Array.isArray(paymentsData) ? paymentsData : []).forEach((payment: any) => {
             if (payment?.financialCodeIsIncome && payment?.paymentId) {
               incomePaymentIds.add(String(payment.paymentId));
@@ -414,11 +436,13 @@ export function HandoversTable() {
         const paidGelByJob = new Map<string, number>();
 
         // Build distribution map for matching bank transactions to jobs
+        let distributionsData: any[] = [];
         const distributionsByBankTx = new Map<string, Array<{ jobUuid: string; amountAccount: number; amount: number }>>();
         const unmappedDistributions: Array<{ jobUuid: string; amountAccount: number; amount: number }> = [];
         
         if (distRes.ok) {
           const distData = await distRes.json();
+          distributionsData = Array.isArray(distData) ? distData : [];
           if (Array.isArray(distData)) {
             distData.forEach((dist: any) => {
               // Only include distributions for income payments
@@ -523,6 +547,22 @@ export function HandoversTable() {
         }
 
         setAttachmentCounts(countsMap);
+        
+        // ── Cache export data when jobs loaded ──────────────────────────────
+        setExportCache({
+          projectUuid,
+          projectData: {
+            projectName: projects.find(p => p.projectUuid === projectUuid)?.projectName ?? null,
+            currencyCode: projectCurrencyCode,
+            liftCertMap,
+          },
+          jobsData: data,
+          paymentsData,
+          distributionsData,
+          rateCache: new Map(rateCacheRef.current),
+          timestamp: Date.now(),
+        });
+        
         setJobs(
           data.map((job, idx) => ({
             id: Number(job.id ?? 0),
@@ -854,6 +894,86 @@ export function HandoversTable() {
     }
   }, [sortedJobs, selectedProject]);
 
+  // ── Single-table exports ───────────────────────────────────────────────────
+  const handleExportJobsTable = useCallback(() => {
+    if (sortedJobs.length === 0) return;
+
+    const rows = sortedJobs.map(job => ({
+      jobName: job.jobName || '',
+      factoryNo: job.factoryNo || '',
+      brandName: job.brandName || '',
+      floors: job.floors ?? '',
+      weight: job.weight ?? '',
+      sellingPrice: job.sellingPrice ?? 0,
+      paidNominal: job.paidNominal ?? 0,
+      paidGel: job.paidGel ?? 0,
+      debitNominal: job.debitNominal ?? 0,
+      debitGel: job.debitGel ?? 0,
+      totalGel: job.totalGel ?? 0,
+      isFf: job.isFf ? 'FF' : 'NOT FF',
+      liftCertDate: job.liftCertDate ? job.liftCertDate.split('T')[0] : '',
+      liftCertDocNo: job.liftCertDocNo || '',
+    }));
+
+    const today = new Date().toISOString().split('T')[0];
+    const projectName = selectedProject?.projectIndex || 'Handovers';
+    const fileName = `handovers-${projectName}-jobs-${today}.xlsx`;
+
+    exportRowsToXlsx({
+      rows,
+      fileName,
+      sheetName: 'Jobs',
+      columns: [
+        { key: 'jobName', label: 'Job Name', visible: true },
+        { key: 'factoryNo', label: 'Factory No', visible: true },
+        { key: 'brandName', label: 'Brand Name', visible: true },
+        { key: 'floors', label: 'Floors', visible: true, format: 'number' },
+        { key: 'weight', label: 'Weight (kg)', visible: true, format: 'number' },
+        { key: 'sellingPrice', label: 'Selling Price', visible: true, format: 'currency' },
+        { key: 'paidNominal', label: 'Paid Nominal', visible: true, format: 'currency' },
+        { key: 'paidGel', label: 'Paid GEL', visible: true, format: 'currency' },
+        { key: 'debitNominal', label: 'Debit Nominal', visible: true, format: 'currency' },
+        { key: 'debitGel', label: 'Debit GEL', visible: true, format: 'currency' },
+        { key: 'totalGel', label: 'Total GEL', visible: true, format: 'currency' },
+        { key: 'isFf', label: 'Type', visible: true },
+        { key: 'liftCertDate', label: 'Lift Cert Date', visible: true, format: 'date' },
+        { key: 'liftCertDocNo', label: 'Lift Cert Doc No', visible: true },
+      ],
+    });
+  }, [selectedProject, sortedJobs]);
+
+  const handleExportIncomePaymentsTable = useCallback(() => {
+    const payload = paymentsGridRef.current?.getExportData?.();
+    if (!payload || !Array.isArray(payload.rows) || payload.rows.length === 0) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const projectName = selectedProject?.projectIndex || 'Handovers';
+    const fileName = `handovers-${projectName}-income-payments-${today}.xlsx`;
+
+    exportRowsToXlsx({
+      rows: payload.rows,
+      columns: payload.columns,
+      fileName,
+      sheetName: payload.sheetName || 'Income Payments',
+    });
+  }, [selectedProject]);
+
+  const handleExportJobDistributionsTable = useCallback(() => {
+    const payload = distributionsGridRef.current?.getExportData?.();
+    if (!payload || !Array.isArray(payload.rows) || payload.rows.length === 0) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const projectName = selectedProject?.projectIndex || 'Handovers';
+    const fileName = `handovers-${projectName}-job-distributions-${today}.xlsx`;
+
+    exportRowsToXlsx({
+      rows: payload.rows,
+      columns: payload.columns,
+      fileName,
+      sheetName: payload.sheetName || 'Job Distributions',
+    });
+  }, [selectedProject]);
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="w-full p-6 space-y-6">
@@ -963,6 +1083,39 @@ export function HandoversTable() {
             >
               <Download className="h-4 w-4 mr-2" />
               Export
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportJobsTable}
+              title="Export Jobs table to XLSX"
+              disabled={sortedJobs.length === 0}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export Jobs
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportIncomePaymentsTable}
+              title="Export Income Payments table to XLSX"
+              disabled={!selectedProjectUuid}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export Income
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportJobDistributionsTable}
+              title="Export Job Distributions table to XLSX"
+              disabled={!selectedProjectUuid}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export Distributions
             </Button>
 
             <span className="text-sm text-muted-foreground ml-auto">

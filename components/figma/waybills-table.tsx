@@ -996,13 +996,53 @@ export function WaybillsTable() {
       return requiredInsiderName;
     }
     if (columnKey === 'project_uuid') {
-      return projectLabelMap.get(row.project_uuid || '') || row.project_uuid || '';
+      if (!row.project_uuid) return '';
+      
+      // Find the project object
+      const project = projects.find(p => p.project_uuid === row.project_uuid);
+      if (!project) return projectLabelMap.get(row.project_uuid) || row.project_uuid || '';
+      
+      // Build rich format: {project_name} | {project_index} | {counteragent_name} | {sum} | {currency} | {date}
+      const projectName = project.project_name || '';
+      const projectIndex = project.project_index || '';
+      const counteragentName = row.counteragent_name || '';
+      
+      // Format sum with thousands separator
+      let sum = '';
+      if (row.sum) {
+        const sumNum = parseFloat(String(row.sum));
+        if (!Number.isNaN(sumNum)) {
+          sum = sumNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+      }
+      
+      const currency = project.currency || '';
+      
+      // Format date (DD.MM.YYYY)
+      let dateStr = '';
+      if (row.date) {
+        try {
+          const dateObj = new Date(row.date);
+          if (!Number.isNaN(dateObj.getTime())) {
+            const day = String(dateObj.getUTCDate()).padStart(2, '0');
+            const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+            const year = dateObj.getUTCFullYear();
+            dateStr = `${day}.${month}.${year}`;
+          }
+        } catch (e) {
+          // If date parsing fails, use the raw value
+        }
+      }
+      
+      // Build the full label
+      const parts = [projectName, projectIndex, counteragentName, sum, currency, dateStr].filter(p => p);
+      return parts.join(' | ');
     }
     if (columnKey === 'financial_code_uuid') {
       return financialCodeLabelMap.get(row.financial_code_uuid || '') || row.financial_code_uuid || '';
     }
     return (row as any)[columnKey];
-  }, [financialCodeLabelMap, projectLabelMap, requiredInsiderName]);
+  }, [financialCodeLabelMap, projectLabelMap, requiredInsiderName, projects]);
 
   const visibleColumns = useMemo(() => columns.filter((col) => col.visible), [columns]);
 
@@ -1053,6 +1093,11 @@ export function WaybillsTable() {
   const renderFilterValue = useCallback((columnKey: ColumnKey, value: any) => {
     if (value === null || value === undefined || value === '') return '(Blank)';
     if (columnKey === 'project_uuid') {
+      const project = projects.find(p => p.project_uuid === String(value));
+      if (project) {
+        const parts = [project.project_name, project.project_index].filter(p => p);
+        return parts.join(' | ');
+      }
       return projectLabelMap.get(String(value)) || String(value);
     }
     if (columnKey === 'financial_code_uuid') {
@@ -1065,7 +1110,7 @@ export function WaybillsTable() {
       return String(value);
     }
     return String(value);
-  }, [financialCodeLabelMap, projectLabelMap]);
+  }, [financialCodeLabelMap, projectLabelMap, projects]);
 
   const sortPeriodValues = useCallback((values: any[]) => {
     const parsePeriod = (value: any) => {
