@@ -267,46 +267,12 @@ export async function POST(req: NextRequest) {
     console.log('[Export Handover] Template sheets found:', sheetFilesList);
     console.log('[Export Handover] Number of sheets:', sheetFilesList.length);
 
-    // Extract and verify Handover sheet (sheet1.xml) FIRST - this is the critical sheet
-    const handoverXml = await originalZip.file('xl/worksheets/sheet1.xml')?.async('string');
-    if (!handoverXml) {
-      console.error('[Export Handover] ✗ CRITICAL ERROR: Handover sheet (sheet1.xml) NOT FOUND in template!');
-      console.error('[Export Handover] Template source was:', templateSource);
-      console.error('[Export Handover] Available sheets:', sheetFilesList);
-      return Response.json(
-        { error: `ERROR: Handover sheet not found in template (source: ${templateSource}). Please re-upload the template via Admin > Templates.` },
-        { status: 500 }
-      );
-    } else {
-      const handoverSize = handoverXml.length;
-      const hasFormulas = handoverXml.includes('<f>');
-      const hasFormatting = handoverXml.includes('<xf') || handoverXml.includes('cellXfs');
-      console.log('[Export Handover] ✓ Handover sheet (sheet1.xml) verified');
-      console.log('[Export Handover]   Size:', handoverSize, 'bytes');
-      console.log('[Export Handover]   Contains formulas:', hasFormulas);
-      console.log('[Export Handover]   Contains formatting:', hasFormatting);
-    }
+    // NOTE: We do NOT manipulate sheet1.xml (Handover sheet) at all.
+    // The formulas in it will recalculate automatically when Excel opens the file
+    // because we're changing the Placeholders sheet data it references.
+    // No cached value clearing is needed - Excel handles this automatically.
 
-    // ── Clear cached values from formula cells in Handover sheet ──────────────
-    // CRITICAL FIX: Formula cells have cached <v> values from template creation.
-    // When Excel opens the file, it displays the cached value instead of recalculating.
-    // We must remove <v> elements so Excel recalculates formulas with new Placeholders data.
-    console.log('[Export Handover] Clearing cached formula values from sheet1.xml...');
-    
-    let handoverWithoutCache = handoverXml;
-    
-    // Pattern: Remove <v>...</v> (cached values) that appear after <f>...</f> in formula cells
-    // Keep the <f> element but remove the cached <v> element so Excel recalculates
-    const clearCachePattern = /(<c[^>]*>.*?<f>.*?<\/f>)(\s*<v>.*?<\/v>)/gs;
-    const beforeCount = (handoverWithoutCache.match(/<v>/g) || []).length;
-    handoverWithoutCache = handoverWithoutCache.replace(clearCachePattern, '$1');
-    const afterCount = (handoverWithoutCache.match(/<v>/g) || []).length;
-    
-    console.log(`[Export Handover] Cached values cleared: removed ${beforeCount - afterCount} <v> elements`);
-    
-    // Update sheet1.xml in the ZIP with cache-cleared version
-    originalZip.file('xl/worksheets/sheet1.xml', handoverWithoutCache);
-    console.log('[Export Handover] Updated sheet1.xml in ZIP with cleared cache');
+    console.log('[Export Handover] Skipping sheet1.xml manipulation (formulas will auto-recalculate)');
 
     // Extract and modify the Placeholders sheet XML (sheet2.xml in new template)
     let placeholdersXml = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
@@ -363,14 +329,20 @@ export async function POST(req: NextRequest) {
         updated = true;
       }
 
-      // Pattern 1: Replace existing non-empty cell (with opening and closing tags)
-      // Use [^<]*</c> to match only content within the cell, not across row boundaries
+      // Pattern 1: Replace existing cell with any content (including nested <v>, <is>, etc.)
+      // Match from <c r="X"> to first </c>, handling any child elements
+      // Use [\s\S]*? to match any character including newlines, minimal
+      // But add a check to not cross row boundaries
       if (!updated) {
-        const cellPattern = new RegExp(`<c r="${cellRef}"[^>]*>[^<]*</c>`, 's');
-        if (cellPattern.test(modifiedXml)) {
-          modifiedXml = modifiedXml.replace(cellPattern, cellContent);
-          console.log(`[Export Handover]     ✓ Replaced existing non-empty cell ${cellRef}`);
-          updated = true;
+        const cellPattern = new RegExp(`<c r="${cellRef}"[^>]*>[\\s\\S]*?</c>`);
+        const match = cellPattern.exec(modifiedXml);
+        if (match) {
+          // Check if match contains </row> (crossing boundary)
+          if (!match[0].includes('</row>')) {
+            modifiedXml = modifiedXml.replace(cellPattern, cellContent);
+            console.log(`[Export Handover]     ✓ Replaced existing cell ${cellRef}`);
+            updated = true;
+          }
         }
       }
 
