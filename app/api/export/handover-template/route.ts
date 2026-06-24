@@ -31,21 +31,89 @@ export async function POST(req: NextRequest) {
 
     console.log('[Export Handover] Starting export with JSZip approach for project:', projectUuid);
 
-    // Read template from project root (Handover Tamplate New.xlsx with configured sheets)
+    // Try to fetch template from database attachments first (preferred), then fall back to file system
     let templateBuffer: Buffer;
+    let templateSource = 'none';
     
+    // Step 1: Try to fetch from database attachments
     try {
-      const templatePath = join(process.cwd(), 'Handover Tamplate New.xlsx');
-      console.log('[Export Handover] Reading template from:', templatePath);
+      console.log('[Export Handover] Attempting to load template from database...');
       
-      templateBuffer = readFileSync(templatePath);
-      console.log('[Export Handover] Template loaded, size:', templateBuffer.length);
-    } catch (fileErr) {
-      console.error('[Export Handover] Failed to load template file:', fileErr);
-      return Response.json(
-        { error: `Failed to load template: ${fileErr instanceof Error ? fileErr.message : 'Unknown error'}` },
-        { status: 500 }
-      );
+      // First, find the "Handover Template" document type
+      const docType = await prisma.document_types.findUnique({
+        where: { name: 'Handover Template' },
+      });
+
+      if (docType) {
+        console.log('[Export Handover] Found document type:', docType.name, '(UUID:', docType.uuid + ')');
+        
+        // Query for the attachment with this document type
+        const templateAttachment = await prisma.attachments.findFirst({
+          where: {
+            document_type_uuid: docType.uuid,
+            is_active: true,
+            storage_provider: 'supabase',
+          },
+          orderBy: { created_at: 'desc' },
+        });
+
+        if (templateAttachment) {
+          console.log('[Export Handover] Template found in database:', templateAttachment.file_name);
+          
+          try {
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+            if (supabaseUrl && supabaseKey) {
+              const bucket = templateAttachment.storage_bucket || 'attachments';
+              const fileUrl = `${supabaseUrl}/storage/v1/object/authenticated/${bucket}/${templateAttachment.storage_path}`;
+
+              console.log('[Export Handover] Fetching template from Supabase storage...');
+
+              const fetchRes = await fetch(fileUrl, {
+                headers: {
+                  Authorization: `Bearer ${supabaseKey}`,
+                },
+                cache: 'no-store',
+              });
+
+              if (fetchRes.ok) {
+                templateBuffer = Buffer.from(await fetchRes.arrayBuffer());
+                templateSource = 'database';
+                console.log('[Export Handover] ✓ Template loaded from database, size:', templateBuffer.length);
+              } else {
+                console.warn('[Export Handover] Supabase fetch failed:', fetchRes.status, fetchRes.statusText, '- will try file system fallback');
+              }
+            }
+          } catch (dbErr) {
+            console.warn('[Export Handover] Database fetch failed:', dbErr, '- will try file system fallback');
+          }
+        } else {
+          console.log('[Export Handover] No attachment found for "Handover Template" document type, will use file system fallback');
+        }
+      } else {
+        console.log('[Export Handover] Document type "Handover Template" not found, will use file system fallback');
+      }
+    } catch (dbErr) {
+      console.warn('[Export Handover] Database query failed:', dbErr, '- will use file system fallback');
+    }
+
+    // Step 2: Fallback to file system if database retrieval failed
+    if (templateSource === 'none') {
+      try {
+        const templatePath = join(process.cwd(), 'Handover Tamplate New.xlsx');
+        console.log('[Export Handover] Reading template from file system:', templatePath);
+        
+        templateBuffer = readFileSync(templatePath);
+        templateSource = 'filesystem';
+        console.log('[Export Handover] ✓ Template loaded from file system, size:', templateBuffer.length);
+      } catch (fileErr) {
+        console.error('[Export Handover] Failed to load template from both database and file system:', fileErr);
+        return Response.json(
+          { error: `Handover template not found. Please upload template to database (admin/attachments) with document type "Handover Template" or ensure Handover Tamplate New.xlsx exists in project root.` },
+          { status: 500 }
+        );
+      }
     }
 
     // Query project and all related data
