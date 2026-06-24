@@ -127,6 +127,8 @@ export async function GET(req: NextRequest) {
       weight_snapshot: d.weight_snapshot ? Number(d.weight_snapshot) : null,
       raw_record_uuid: d.raw_record_uuid,
       batch_partition_uuid: d.batch_partition_uuid,
+      emission_uuid: d.emission_uuid,
+      emission_date: d.emission_date ? d.emission_date.toISOString() : null,
       created_at: d.created_at.toISOString(),
       updated_at: d.updated_at.toISOString(),
       created_by: d.created_by,
@@ -327,6 +329,22 @@ export async function POST(req: NextRequest) {
           deleteWhere = { payment_uuid };
         }
 
+        // Check for emitted records that cannot be deleted
+        const emittedRecords = await tx.payments_jobs.findMany({
+          where: {
+            ...deleteWhere,
+            emission_uuid: { not: null },
+          },
+          select: { uuid: true, emission_uuid: true },
+        });
+
+        if (emittedRecords.length > 0) {
+          throw new Error(
+            `Cannot replace distributions: ${emittedRecords.length} record(s) have been emitted (emission_uuid set). ` +
+            `Emitted records cannot be modified. Contact an administrator.`
+          );
+        }
+
         await tx.payments_jobs.deleteMany({
           where: deleteWhere,
         });
@@ -372,6 +390,14 @@ export async function POST(req: NextRequest) {
         });
 
         if (existing) {
+          // Check if this record has been emitted
+          if (existing.emission_uuid) {
+            throw new Error(
+              `Cannot update distribution: this record has been emitted (emission_uuid: ${existing.emission_uuid}). ` +
+              `Emitted records cannot be modified. Contact an administrator.`
+            );
+          }
+
           const updated = await prisma.payments_jobs.update({
             where: { uuid: existing.uuid },
             data: {
