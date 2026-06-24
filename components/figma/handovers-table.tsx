@@ -1032,6 +1032,53 @@ export function HandoversTable() {
     }
   }, [sortedJobs, selectedProject, selectedProjectUuid]);
 
+  // ── Full Template Export ───────────────────────────────────────────────────
+  const handleTemplateExport = useCallback(async () => {
+    if (!selectedProjectUuid || !selectedProject) {
+      console.error('[Template Export] No project selected');
+      return;
+    }
+
+    try {
+      console.log('[Template Export] Starting template export for project:', selectedProjectUuid);
+      
+      const today = new Date().toISOString().split('T')[0];
+      const projectName = selectedProject?.projectIndex || 'Handovers';
+      const fileName = `handover-template-${projectName}-${today}.xlsx`;
+      
+      // Call the template export API
+      const response = await fetch('/api/export/handover-template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ projectUuid: selectedProjectUuid, fileName }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[Template Export] API error:', errorData);
+        alert(`Export failed: ${errorData.error || 'Unknown error'}`);
+        return;
+      }
+
+      // Download the file
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      console.log('[Template Export] Downloaded:', fileName);
+    } catch (error) {
+      console.error('[Template Export] Error:', error);
+      alert('Export failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
+  }, [selectedProjectUuid, selectedProject]);
+
   // ── Single-table exports ───────────────────────────────────────────────────
   const handleExportJobsTable = useCallback(() => {
     if (sortedJobs.length === 0) return;
@@ -1239,6 +1286,20 @@ export function HandoversTable() {
               </PopoverTrigger>
               <PopoverContent className="w-56 p-3">
                 <div className="space-y-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleTemplateExport}
+                    title="Export using Handover template with formulas and formatting (Handover sheet + Placeholders + Jobs + Income Payments + Job Distributions)"
+                    disabled={!selectedProjectUuid || sortedJobs.length === 0}
+                    className="w-full justify-start"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Full Template Export
+                  </Button>
+
+                  <div className="h-px bg-gray-200" />
+
                   <Button
                     variant="ghost"
                     size="sm"
