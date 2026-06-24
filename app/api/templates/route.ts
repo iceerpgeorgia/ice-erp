@@ -35,7 +35,13 @@ export async function GET(req: NextRequest) {
       orderBy: [{ operation_type: 'asc' }, { created_at: 'desc' }],
     });
 
-    return NextResponse.json(templates);
+    // Convert BigInt to Number for JSON serialization
+    const serialized = templates.map(t => ({
+      ...t,
+      file_size_bytes: Number(t.file_size_bytes),
+    }));
+
+    return NextResponse.json(serialized);
   } catch (error) {
     console.error('[GET /api/templates] Error:', error);
     return NextResponse.json(
@@ -120,7 +126,11 @@ export async function POST(req: NextRequest) {
 
     console.log('[POST /api/templates] Created template:', template.uuid, 'for operation:', operationType);
 
-    return NextResponse.json(template, { status: 201 });
+    // Convert BigInt to Number for JSON serialization
+    return NextResponse.json({
+      ...template,
+      file_size_bytes: Number(template.file_size_bytes),
+    }, { status: 201 });
   } catch (error) {
     console.error('[POST /api/templates] Error:', error);
     return NextResponse.json(

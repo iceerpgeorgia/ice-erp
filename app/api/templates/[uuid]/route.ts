@@ -77,7 +77,11 @@ export async function PATCH(
 
     console.log('[PATCH /api/templates/:uuid] Updated template:', uuid, 'is_active:', is_active);
 
-    return NextResponse.json(updated);
+    // Convert BigInt to Number for JSON serialization
+    return NextResponse.json({
+      ...updated,
+      file_size_bytes: Number(updated.file_size_bytes),
+    });
   } catch (error) {
     console.error('[PATCH /api/templates/:uuid] Error:', error);
     return NextResponse.json(
