@@ -1,5 +1,58 @@
 # Deployment Log
 
+## 2026-06-24 Deployment #372 (Feat: Dedicated Templates Management System)
+- Commit: 430b9726b4cecf842b5c008a289db88f89e61523
+- Production: https://ice-2u9sc5oqa-iceerp.vercel.app
+- Summary: Implemented comprehensive Templates management system replacing generic Attachments approach. New dedicated admin interface at `/admin/templates` provides clean CRUD operations for XLSX templates organized by operation type (handover, invoice, certificate, etc.).
+- Architecture:
+  1. **Database Schema (`templates` table)**:
+     - `operation_type`: Categorization for template usage (handover, invoice, certificate)
+     - `is_active`: Boolean flag with database trigger enforcing exactly one active per operation_type
+     - `storage_provider`, `storage_path`: Supabase file location metadata
+     - `file_name`, `file_size_bytes`: Template metadata for UI display
+     - `archived_at`: Soft delete timestamp for audit trail
+     - `created_by_user_id`: User email for creation audit
+  2. **Database Trigger**: `enforce_one_active_template_per_operation()`
+     - Ensures only one active template per operation_type at database level
+     - Automatically archives old template when new one is activated
+     - Prevents export failures due to missing active template
+  3. **API Endpoints** (`/api/templates`):
+     - `GET`: List templates, optionally filtered by operationType
+     - `POST`: Upload new template with optional activation (auto-archives old)
+     - `PATCH /api/templates/[uuid]`: Activate/deactivate individual template
+     - `DELETE /api/templates/[uuid]`: Archive template (soft delete)
+  4. **Admin UI** (`/app/admin/templates/page.tsx`):
+     - Upload form with operation type selector and file input
+     - Checkbox "Set as active" (default true) for immediate activation
+     - Templates list grouped by operation type
+     - Status badges: Active (green), Inactive (blue), Archived (gray)
+     - Warning banner when operation has no active template (red)
+     - Activate/Archive action buttons
+- Export Route Integration (`/app/api/export/handover-template`):
+  1. Query `templates` table for `operation_type='handover', is_active=true`
+  2. Fetch from Supabase storage using `storage_path`
+  3. Fallback to file system (`Handover Tamplate New.xlsx`) if DB unavailable
+  4. Enhanced logging: `[Export Handover] ✓ Template loaded from templates table (Supabase)`
+- Key Features:
+  - **One active per operation enforced**: Database trigger prevents conflicts
+  - **Auto-archive**: Old template automatically archived when new template activated
+  - **Soft deletes**: Archive instead of hard delete for compliance and recovery
+  - **Graceful fallback**: Export never fails completely even if DB unreachable
+  - **Audit trail**: created_by_user_id and archived_at track all changes
+  - **Scalable**: Infrastructure ready for additional operations (invoice, certificate, etc.)
+- Breaking Changes: None - old file-based template still supported as fallback
+- Testing:
+  - ✓ TypeScript compilation: 0 errors
+  - ✓ Linting: All checks pass (warnings only)
+  - ✓ Production build: Successfully completed
+  - ✓ Migration applied: 20260624000000_add_templates_table
+- Documentation:
+  - `/app/admin/templates/page.tsx`: Full React component (215 lines)
+  - `/app/api/templates/route.ts`: CRUD API handlers (200+ lines)
+  - `/app/api/templates/[uuid]/route.ts`: Item-level operations (100+ lines)
+  - `AGENTS.md`: Comprehensive system documentation (lines 349-475)
+- Status: ✅ Deployed
+
 ## 2026-06-24 Deployment #371 (Fix: Empty Handover Sheet - Populate VLOOKUP Lookup Table)
 - Commit: 775488d
 - Production: https://ice-jrk025wta-iceerp.vercel.app
