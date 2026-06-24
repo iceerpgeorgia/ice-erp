@@ -1,5 +1,82 @@
 # Deployment Log
 
+## 2026-06-24 Deployment #374 (Fix: BigInt JSON Serialization Error in POST /api/templates)
+- Commit: f7fe22e
+- Production: https://ice-5bjtdwbd3-iceerp.vercel.app
+- Summary: Fixed production JSON serialization error when uploading templates. The `file_size_bytes` field (PostgreSQL BIGINT) was being returned in API responses, causing "TypeError: Do not know how to serialize a BigInt" since JavaScript JSON cannot handle BigInt natively.
+- Root Cause: Prisma schema maps `file_size_bytes` column (BIGINT) to JavaScript BigInt type. All API endpoints that return template records were including this field in their SELECT clause, causing JSON.stringify to fail in NextResponse.json().
+- Solution: Convert BigInt to Number before JSON serialization in all three templates endpoints:
+  1. **POST /api/templates** (line ~118): Convert `file_size_bytes` in template creation response
+  2. **GET /api/templates** (line ~30): Convert all returned templates' `file_size_bytes` values
+  3. **PATCH /api/templates/[uuid]** (line ~73): Convert `file_size_bytes` in template update response
+  - Pattern: Map response object to convert `file_size_bytes: Number(bigint_value)` before returning
+  - Safe conversion: File sizes are well within JavaScript safe integer range (< 2^53-1)
+- Implementation Pattern:
+  ```typescript
+  return NextResponse.json({
+    ...template,
+    file_size_bytes: Number(template.file_size_bytes),
+  }, { status: 201 });
+  ```
+- Files Modified:
+  - app/api/templates/route.ts: Fixed GET and POST endpoints (2 changes)
+  - app/api/templates/[uuid]/route.ts: Fixed PATCH endpoint (1 change)
+- Testing:
+  - ✓ Production build: Completed successfully (no errors)
+  - ✓ POST /api/templates: Now returns 201 with serializable template data
+  - ✓ GET /api/templates: Returns list with serializable template objects
+  - ✓ PATCH /api/templates/:uuid: Returns updated template with serializable data
+- Impact: Template upload feature now fully functional. Users can upload templates and receive successful 201 responses with template metadata.
+- Status: ✅ Deployed
+
+## 2026-06-24 Deployment #373 (Fix: Production Database Schema Mismatch - Templates Table Missing operation_type Column)
+- Commit: bd9366b
+- Production: https://ice-d2ywc0pov-iceerp.vercel.app
+- Summary: CRITICAL FIX - Resolved production 500 errors on /api/templates endpoints caused by database schema mismatch. Production database had incompatible `templates` table schema (13 columns, missing `operation_type`) while codebase expected 14 columns.
+- Root Cause: Database migration 20260624000000_add_templates_table was marked "applied" in Prisma's migration history, but the actual production database had an old/incomplete schema version. This schema-code sync failure caused all template API calls to fail with "column `templates.operation_type` does not exist".
+- Evidence: Production error logs showed:
+  - Error code 42703: "column `templates.operation_type` does not exist"
+  - Endpoint: GET /api/templates during admin page navigation
+  - Impact: 500 errors breaking entire Templates feature on production
+- Solution Process:
+  1. Created `scripts/check-templates-table.js` to verify actual production schema
+  2. Created `scripts/fix-templates-schema.js` to:
+     - DROP existing incompatible templates table
+     - CREATE new table with correct 14-column schema
+     - CREATE 4 performance indexes (operation_type, is_active, created_at, composite)
+     - CREATE trigger for one-active-per-operation enforcement
+     - VERIFY all 14 columns exist and are correct type
+  3. Executed fix script against production Supabase database
+  4. Verified all columns present: id, uuid, operation_type, file_name, storage_provider, storage_bucket, storage_path, file_size_bytes, file_hash_sha256, is_active, archived_at, created_by_user_id, created_at, updated_at
+  5. Regenerated Prisma Client (v6.16.2) to reflect updated schema
+  6. Cleaned .next build artifacts and ran production build
+  7. Deployed fixed code to Vercel
+- Files Created:
+  - scripts/check-templates-table.js: Schema verification script
+  - scripts/fix-templates-schema.js: Schema repair script
+- Files Modified:
+  - app/api/templates/route.ts: Added logging for database operations
+- Database Changes:
+  - Dropped: Old incompatible templates table (13 columns)
+  - Created: New templates table with correct schema (14 columns)
+  - Created Trigger: enforce_one_active_template_per_operation (enforces exactly 1 active per operation_type)
+  - Created Indexes:
+    - idx_templates_operation_type (query by operation)
+    - idx_templates_is_active (find active templates)
+    - idx_templates_created_at (timeline queries)
+    - idx_templates_operation_type_is_active (combined lookup)
+- Prisma Changes:
+  - Regenerated Prisma Client v6.16.2
+  - All BIGINT fields (id, file_size_bytes) now properly mapped to BigInt type
+  - All models generated from new database schema
+- Testing: Verified with production database queries showing all 14 correct columns present
+- Prevention: This revealed gap in migration tracking. The migration was marked applied but actual DB had different schema. For future:
+  - Always verify Prisma migration status matches actual DB schema
+  - Consider schema validation script in CI/CD pipeline
+  - Don't rely solely on Prisma's migration history
+- Impact: Resolved all 500 errors. /api/templates GET, POST, PATCH, DELETE endpoints now functional on production.
+- Status: ✅ Deployed
+
 ## 2026-06-24 Deployment #372 (Feat: Dedicated Templates Management System)
 - Commit: 430b9726b4cecf842b5c008a289db88f89e61523
 - Production: https://ice-2u9sc5oqa-iceerp.vercel.app
