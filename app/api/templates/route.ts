@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
         archived_at: true,
         created_at: true,
         created_by_user_id: true,
+        storage_path: true,
       },
       orderBy: [{ operation_type: 'asc' }, { created_at: 'desc' }],
     });

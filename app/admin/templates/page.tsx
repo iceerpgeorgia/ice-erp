@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -30,6 +31,7 @@ interface Template {
   archived_at: string | null;
   created_at: string;
   created_by_user_id: string | null;
+  storage_path: string;
 }
 
 const OPERATIONS = ['handover', 'invoice', 'certificate'];
@@ -126,6 +128,30 @@ export default function TemplatesPage() {
       setTimeout(() => setSuccess(null), 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
+    }
+  };
+
+  const handleDownload = async (template: Template) => {
+    try {
+      setError(null);
+      
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const url = `${supabaseUrl}/storage/v1/object/public/${template.storage_path || ''}`;
+      
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to download template');
+      
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = template.file_name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Download failed');
     }
   };
 
@@ -308,6 +334,14 @@ export default function TemplatesPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDownload(template)}
+                                title="Download this template"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
                               {!template.is_active && (
                                 <Button
                                   size="sm"
