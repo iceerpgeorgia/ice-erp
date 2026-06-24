@@ -201,7 +201,7 @@ export async function GET(req: NextRequest) {
         GROUP BY p.project_uuid, p.counteragent_uuid
       ) pp ON p.project_uuid = pp.project_uuid AND p.counteragent_uuid = pp.counteragent_uuid
       WHERE p.insider_uuid IN (${insiderUuidListSql})
-      GROUP BY p.id, p.project_uuid, p.project_name, p.date, p.value, p.oris_1630, p.address, p.department, p.service_state, p.counteragent_uuid, p.financial_code_uuid, p.currency_uuid, p.insider_uuid, p.state_uuid, p.created_at, p.updated_at, p.is_active, ca.name, ca.entity_type, ca.director, ca.address_line_1, ca.address_line_2, ca.identification_number, insider_ca.name, insider_ca.entity_type, insider_ca.director, insider_ca.address_line_1, insider_ca.address_line_2, insider_ca.identification_number, insider_ca.insider, insider_ca.insider_name, insider_ca.counteragent, cur.code, pp.total_payment
+      GROUP BY p.id, p.project_uuid, p.project_name, p.date, p.value, p.oris_1630, p.address, p.department, p.service_state, p.counteragent_uuid, p.financial_code_uuid, p.currency_uuid, p.insider_uuid, p.state_uuid, p.created_at, p.updated_at, ca.name, ca.entity_type, ca.director, ca.address_line_1, ca.address_line_2, ca.identification_number, insider_ca.name, insider_ca.entity_type, insider_ca.director, insider_ca.address_line_1, insider_ca.address_line_2, insider_ca.identification_number, insider_ca.insider, insider_ca.insider_name, insider_ca.counteragent, cur.code, pp.total_payment
       ORDER BY p.created_at DESC
     `));
 
