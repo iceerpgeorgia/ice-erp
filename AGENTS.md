@@ -346,44 +346,134 @@ When waybill items are bound to different projects, item-level binding should ta
 - Backfill script `scripts/backfill-payments-jobs-account-curr.js` recalculates historical `payments_jobs.amount_account_curr` using consolidated/raw bank amounts (prefers consolidated when present).
 - The grid now provides an XLSX export action that flattens each payment into one row per job allocation so the exported amount and nominal amount reflect the distribution split.
 - Export rows resolve distributions using the same composite key logic as the grid (batch partition or raw record UUID) so per-transaction allocations populate in Excel.
-## Handover Sheet Export with Stored Templates
+## Templates Management System
 
-### Template Storage Architecture
-The handover XLSX template should be stored in the `attachments` table in Supabase, with the following characteristics:
-- **File name** must contain "handover" (case-insensitive)
-- **Storage provider**: "supabase"
-- **is_active**: true
-- **Bucket**: "attachments" (default)
+### Architecture Overview
+The system now uses a dedicated `templates` table for managing XLSX templates for different operations (handover, invoice, certificate, etc.). Each operation must have exactly one active template.
 
-The export endpoint retrieves the template using this priority:
-1. **Primary**: Query `attachments` table for active file with "handover" in name, fetch from Supabase storage
-2. **Fallback**: Load from file system (`Handover Tamplate New.xlsx` in project root)
+**Key Features:**
+- **Operation-based organization**: Templates are categorized by operation_type (handover, invoice, etc.)
+- **One active per operation**: Database trigger enforces only one active template per operation_type
+- **Archive on update**: When a new template is uploaded and activated, the old one is automatically archived
+- **Supabase storage**: All templates stored in Supabase bucket `templates/`
+- **Graceful fallback**: If database template unavailable, falls back to file system
 
-### Template Upload Instructions
-To upload the handover template to the database:
-1. In `/admin/attachments` page, upload `Handover Tamplate New.xlsx` file
-2. Ensure file name contains "handover" 
-3. Verify `is_active = true` and storage provider is "supabase"
-4. The export API will automatically detect and use this template
+### Database Schema
+**Table: `templates`**
+- `uuid`: Unique identifier for template
+- `operation_type`: "handover", "invoice", "certificate", etc.
+- `file_name`: Original filename (e.g., "Handover Tamplate New.xlsx")
+- `storage_provider`: Always "supabase"
+- `storage_bucket`: Defaults to "templates"
+- `storage_path`: Path in Supabase bucket (e.g., `templates/handover/1719235200000-Handover.xlsx`)
+- `file_size_bytes`: File size for UI display
+- `file_hash_sha256`: Optional hash for integrity checking
+- `is_active`: Boolean flag - only one TRUE per operation_type (enforced by DB trigger)
+- `archived_at`: Timestamp when archived/deactivated
+- `created_by_user_id`: User email who uploaded
+- `created_at / updated_at`: Audit timestamps
 
-### Template Sheet Structure
-The template must contain exactly these sheets in this order:
+**Indexes:**
+- `(operation_type)` - List templates by operation
+- `(is_active)` - Find active templates
+- `(operation_type, is_active)` - Combined lookup for export routes
+- `(created_at DESC)` - Timeline queries
+
+**Database Trigger:**
+```plpgsql
+enforce_one_active_template_per_operation()
+```
+When `is_active = true` is set on any template, automatically deactivates all other templates for the same operation_type.
+
+### Admin Interface
+**Location:** `/admin/templates`
+
+**Features:**
+1. **Upload Form**
+   - Select operation type (dropdown: handover, invoice, certificate)
+   - Upload XLSX file
+   - Checkbox: "Set as active" (optional - defaults to true)
+   - Submit triggers immediate upload and activation if checked
+
+2. **Templates List (grouped by operation)**
+   - Shows all templates per operation
+   - Indicates which is currently active (green badge)
+   - Shows inactive (blue) and archived (gray) states
+   - File size and upload timestamp
+   - Action buttons: Activate (if inactive), Archive (if not archived)
+
+3. **Status Indicators**
+   - ✓ Active: Used by export routes
+   - ⚠ No active: Cannot export (red warning)
+   - Archived: Not used, kept for audit trail
+
+### API Endpoints
+
+**GET /api/templates?operationType=handover**
+- List all templates, optionally filtered by operation_type
+- Returns: `[{ uuid, operation_type, file_name, file_size_bytes, is_active, archived_at, created_at, created_by_user_id }]`
+
+**POST /api/templates**
+- Upload new template
+- Body (multipart/form-data):
+  - `operationType`: string (required)
+  - `file`: File object (required)
+  - `activate`: "true"|"false" (optional, defaults to true)
+- Side effect: If `activate=true`, automatically archives existing active template for that operation
+- Returns: `{ uuid, operation_type, file_name, file_size_bytes, is_active, created_at }`
+
+**PATCH /api/templates/:uuid**
+- Activate or deactivate template
+- Body: `{ is_active: boolean }`
+- If activating: Archives all other active templates for the same operation_type
+- Returns: Updated template object
+
+**DELETE /api/templates/:uuid**
+- Archive a template (soft delete)
+- Returns 400 if trying to delete the only active template for an operation
+- Sets `is_active=false` and `archived_at=NOW()`
+- Returns: `{ message, template: { uuid, operation_type } }`
+
+### Export Route Integration
+
+**File:** `app/api/export/handover-template/route.ts`
+
+**Template Loading Priority:**
+1. Query `templates` table for `operation_type = 'handover'` AND `is_active = true`
+2. Fetch from Supabase storage using `storage_path`
+3. If failed, fallback to file system `Handover Tamplate New.xlsx` from project root
+
+**Logging:**
+```
+✓ Template loaded from templates table (Supabase), size: XXXXX
+✓ Template loaded from file system, size: XXXXX
+```
+
+**Error Handling:**
+- If no active template and file system fallback unavailable → HTTP 500
+- Error message directs user: "Please upload a template via Admin > Templates..."
+
+### Handover Template Sheet Structure
+The handover template must contain these sheets:
 1. **sheet1.xml (Handover sheet)** - Main document with Georgian form, 63 VLOOKUP formulas, 10 merged ranges, borders
-2. **sheet2.xml (Placeholders sheet)** - Lookup table with:
-   - Column A: Label keys (A1-A19): "Project_Department", "Handover_Date", "Project_Counteragent_Entity_Type", etc.
-   - Column B: Values (B1-B19): populated from database during export
-3. **sheet3.xml (Jobs sheet)** - Populated with job data during export
+2. **sheet2.xml (Placeholders sheet)** - Lookup table:
+   - Column A (A1-A19): Label keys: "Project_Department", "Handover_Date", etc.
+   - Column B (B1-B19): Values populated from database during export
+3. **sheet3.xml (Jobs sheet)** - Template for job data table (populated during export)
 4. Optional: Income Payments, Job Distributions sheets
 
 ### Placeholder Mapping (A1:B19)
-The export populates B1-B19 with project data, paired with A1-A19 lookup labels:
+Export populates B1-B19 with project data:
 - A1: "Project_Department" → B1: project.department
 - A2: "Handover_Date" → B2: project.date (Excel serial)
-- A3-A19: Other counteragent, insider, and project fields
+- A3-A19: Counteragent, insider, and project fields
 
 ### VLOOKUP Formula Pattern
-Handover sheet formulas reference: `=VLOOKUP("Project_Department",Placeholders!A:B,2,FALSE)`
-This requires both columns A (labels) and B (values) to be populated for formulas to resolve.
+Handover sheet formulas reference:
+```excel
+=VLOOKUP("Project_Department",Placeholders!A:B,2,FALSE)
+```
+Both columns A (labels) and B (values) must be populated for formulas to resolve.
 
 ### Handovers toolbar now supports both export modes: full template export (placeholders + all grids) and separate XLSX exports per table (Jobs, Income Payments, Job Distributions).
 - The dialog resolves `payment_uuid` via `/api/payments-report` and preloads existing allocations from `/api/payments-jobs`.
