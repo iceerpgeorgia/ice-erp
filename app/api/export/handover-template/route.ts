@@ -354,20 +354,22 @@ export async function POST(req: NextRequest) {
 
       let updated = false;
 
-      // Pattern 1: Replace existing cell completely (any format)
-      const cellPattern = new RegExp(`<c r="${cellRef}"[^>]*>.*?</c>`, 's');
-      if (cellPattern.test(modifiedXml)) {
-        modifiedXml = modifiedXml.replace(cellPattern, cellContent);
-        console.log(`[Export Handover]     ✓ Replaced existing cell ${cellRef}`);
+      // Pattern 2a: Replace self-closing empty cell FIRST - e.g., <c r="B1"/>
+      // (Must check this before Pattern 1 to avoid cross-row matching with .*?</c>)
+      const emptyPattern = new RegExp(`<c r="${cellRef}"[^>]*/>`);
+      if (emptyPattern.test(modifiedXml)) {
+        modifiedXml = modifiedXml.replace(emptyPattern, cellContent);
+        console.log(`[Export Handover]     ✓ Replaced empty self-closing cell ${cellRef}`);
         updated = true;
       }
 
-      // Pattern 2: Replace self-closing empty cell <c r="B1"/>
+      // Pattern 1: Replace existing non-empty cell (with opening and closing tags)
+      // Use [^<]*</c> to match only content within the cell, not across row boundaries
       if (!updated) {
-        const emptyPattern = new RegExp(`<c r="${cellRef}"[^>]*/>`);
-        if (emptyPattern.test(modifiedXml)) {
-          modifiedXml = modifiedXml.replace(emptyPattern, cellContent);
-          console.log(`[Export Handover]     ✓ Replaced empty cell ${cellRef}`);
+        const cellPattern = new RegExp(`<c r="${cellRef}"[^>]*>[^<]*</c>`, 's');
+        if (cellPattern.test(modifiedXml)) {
+          modifiedXml = modifiedXml.replace(cellPattern, cellContent);
+          console.log(`[Export Handover]     ✓ Replaced existing non-empty cell ${cellRef}`);
           updated = true;
         }
       }
