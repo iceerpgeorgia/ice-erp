@@ -51,7 +51,8 @@ export const DEFAULT_ITEMS: DefaultItem[] = [
   { routeKey: '/admin/document-types',       folderIndex: 1, sortOrder: 6, icon: null },
   { routeKey: '/dictionaries/inventories',   folderIndex: 1, sortOrder: 7, icon: null },
   { routeKey: '/dictionaries/dimensions',    folderIndex: 1, sortOrder: 8, icon: null },
-  { routeKey: '/admin/attachments',          folderIndex: 1, sortOrder: 9, icon: null },
+  { routeKey: '/admin/templates',            folderIndex: 1, sortOrder: 9, icon: null },
+  { routeKey: '/admin/attachments',          folderIndex: 1, sortOrder: 10, icon: null },
 
   // Financial Dictionaries (2)
   { routeKey: '/admin/financial-codes',        folderIndex: 2, sortOrder: 0, icon: null },

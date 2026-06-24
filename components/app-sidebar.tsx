@@ -44,6 +44,7 @@ import {
   Settings,
   PanelLeftClose,
   LucideIcon,
+  Layout,
 } from 'lucide-react';
 import { cn } from '@/components/ui/utils';
 import { useNavConfig } from '@/components/nav-config-context';
@@ -113,6 +114,7 @@ const NAV: NavGroup[] = [
     items: [
       { label: 'Users', href: '/admin/users', icon: Users },
       { label: 'Financial Codes', href: '/admin/financial-codes', icon: BookOpen },
+      { label: 'Templates', href: '/admin/templates', icon: Layout },
       { label: 'Attachments', href: '/admin/attachments', icon: FileSpreadsheet },
       { label: 'Document Types', href: '/admin/document-types', icon: ClipboardList },
       { label: 'Permissions', href: '/admin/permissions', icon: ShieldCheck },
