@@ -210,6 +210,21 @@ export function exportMultiSheetsToXlsx<T extends Record<string, any>>({
     const dateColumnIndexes = visibleColumns
       .map((col, index) => (col.format === 'date' ? index : -1))
       .filter((index) => index >= 0);
+    
+    // Track per-row date formats for later application
+    const rowDateFormats = new Map<string, Set<number>>();
+    rows.forEach((row, rowIdx) => {
+      visibleColumns.forEach((col, colIdx) => {
+        const rowFormat = row[`_format_${col.key}`];
+        if (rowFormat === 'date') {
+          const key = `${rowIdx}_${colIdx}`;
+          if (!rowDateFormats.has(key)) {
+            rowDateFormats.set(key, new Set());
+          }
+          rowDateFormats.get(key)!.add(colIdx);
+        }
+      });
+    });
     const currencyColumnIndexes = visibleColumns
       .map((col, index) => (col.format === 'currency' || col.format === 'number' ? index : -1))
       .filter((index) => index >= 0);
@@ -225,10 +240,14 @@ export function exportMultiSheetsToXlsx<T extends Record<string, any>>({
       visibleColumns.map((col) => {
         let value = row[col.key];
         
+        // Check for per-row format metadata (e.g., _format_{key})
+        const rowFormat = row[`_format_${col.key}`];
+        const effectiveFormat = rowFormat || col.format;
+        
         // Handle missing or null/undefined values
         if (value === undefined) {
           // If key doesn't exist on row, try to return 0 for numeric columns, else empty string
-          if (col.format === 'currency' || col.format === 'number' || col.format === 'percent') {
+          if (effectiveFormat === 'currency' || effectiveFormat === 'number' || effectiveFormat === 'percent') {
             value = 0;
           } else {
             return '';
@@ -236,7 +255,7 @@ export function exportMultiSheetsToXlsx<T extends Record<string, any>>({
         }
         
         if (value === null) {
-          if (col.format === 'currency' || col.format === 'number' || col.format === 'percent') {
+          if (effectiveFormat === 'currency' || effectiveFormat === 'number' || effectiveFormat === 'percent') {
             value = 0;
           } else {
             return '';
@@ -245,17 +264,17 @@ export function exportMultiSheetsToXlsx<T extends Record<string, any>>({
         
         if (typeof value === 'boolean') return value ? 'Yes' : 'No';
 
-        if (col.format === 'date') {
+        if (effectiveFormat === 'date') {
           const serial = toExcelDateSerial(value);
           return serial ?? value;
         }
 
-        if (col.format === 'currency' || col.format === 'number') {
+        if (effectiveFormat === 'currency' || effectiveFormat === 'number') {
           const numericValue = toNumericValue(value);
           return numericValue ?? value;
         }
 
-        if (col.format === 'percent') {
+        if (effectiveFormat === 'percent') {
           const numericValue = toNumericValue(value);
           if (numericValue === null) return value;
           return Math.abs(numericValue) > 1 ? numericValue / 100 : numericValue;
@@ -315,6 +334,18 @@ export function exportMultiSheetsToXlsx<T extends Record<string, any>>({
         if (cell) {
           cell.z = 'dd.mm.yyyy';
         }
+      }
+    });
+
+    // Apply per-row date formats
+    rowDateFormats.forEach((colIndexes: Set<number>, key: string) => {
+      const [rowIdxStr, colIdxStr] = key.split('_');
+      const rowIdx = parseInt(rowIdxStr, 10);
+      const colIdx = parseInt(colIdxStr, 10);
+      const cellRef = XLSX.utils.encode_cell({ r: rowIdx + 1, c: colIdx });
+      const cell = worksheet[cellRef];
+      if (cell) {
+        cell.z = 'dd.mm.yyyy';
       }
     });
 

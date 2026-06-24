@@ -1004,6 +1004,7 @@ export function HandoversTable() {
       rows: placeholderNames.map((name, idx) => ({
         placeholder_name: name,
         placeholder_value: placeholderValues[idx] || '',
+        _format_placeholder_value: (idx === 1 || idx === 17) ? 'date' : undefined, // Handover_Date (idx 1) and Contract_Date (idx 17)
       })),
       columns: [
         { key: 'placeholder_name', label: 'Placeholder Name', visible: true },
