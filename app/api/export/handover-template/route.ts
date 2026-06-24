@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     // Step 2: Fallback to file system if database retrieval failed
     if (templateSource === 'none') {
       try {
-        const templatePath = join(process.cwd(), 'public', 'handover template.xlsx');
+        const templatePath = join(process.cwd(), 'public', 'Handover Tamplate New.xlsx');
         console.log('[Export Handover] Reading template from file system:', templatePath);
         
         templateBuffer = readFileSync(templatePath);
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       } catch (fileErr) {
         console.error('[Export Handover] Failed to load template from both database and file system:', fileErr);
         return Response.json(
-          { error: `Handover template not found. Please upload a template via Admin > Templates or ensure handover template exists in public folder.` },
+          { error: `Handover template not found. Please upload a template via Admin > Templates or ensure Handover Tamplate New.xlsx exists in public folder.` },
           { status: 500 }
         );
       }
