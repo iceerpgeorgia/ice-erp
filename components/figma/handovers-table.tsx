@@ -45,6 +45,7 @@ import { HandoverPaymentsGrid } from './handover-payments-grid';
 import { HandoverJobDistributionsGrid } from './handover-job-distributions-grid';
 import { ErrorBoundary } from './error-boundary';
 import { exportMultiSheetsToXlsx, exportRowsToXlsx } from '@/lib/export-xlsx';
+import { toGenitiveCase } from '@/lib/georgian-genitive';
 
 type ColumnKey = keyof HandoverJob;
 
@@ -971,8 +972,8 @@ export function HandoversTable() {
               project.date ? new Date(project.date).toISOString().split('T')[0] : '',
               project.entity_type || '', // Counteragent entity_type from JOIN
               project.name || '', // Counteragent name from JOIN
-              project.director || '', // Counteragent director from JOIN (genitive form)
-              project.director || '', // Counteragent director from JOIN
+              toGenitiveCase(project.director) || '', // Counteragent director from JOIN (genitive form)
+              project.director || '', // Counteragent director from JOIN (normative)
               project.address_line_1 || '', // Counteragent address from JOIN
               project.address_line_2 || '', // Counteragent address from JOIN
               project.identification_number || '', // Counteragent ID from JOIN
@@ -982,7 +983,7 @@ export function HandoversTable() {
               project.insider_identification_number || '', // Insider ID from JOIN
               project.insider_address_line_1 || '', // Insider address from JOIN
               project.insider_address_line_2 || '', // Insider address from JOIN
-              project.insider_director || '', // Insider director from JOIN (genitive)
+              toGenitiveCase(project.insider_director) || '', // Insider director from JOIN (genitive)
               project.insider_director || '', // Insider director from JOIN (normative)
               project.date ? new Date(project.date).toISOString().split('T')[0] : '', // Contract date
               project.currency || '', // Currency code from JOIN
