@@ -1,5 +1,32 @@
 # Deployment Log
 
+## 2026-06-24 Deployment #370 (Feat: Handover Template Export with Preserved Formatting and Formulas)
+- Commit: cb59564
+- Production: https://ice-e1lpu8rpk-iceerp.vercel.app
+- Summary: Updated handover XLSX export to use configured template with all sheets preserved. The export now uses Handover Tamplate New.xlsx from project root which contains a pre-formatted Handover sheet with all Georgian-language content, formulas, and merged cells intact.
+- Key Changes:
+  1. **Template path updated**: Changed from `public/handover template.xlsx` to `Handover Tamplate New.xlsx` (project root)
+  2. **Handover sheet preserved**: Sheet1 exported with all original properties:
+     - 10 merged cell ranges for section headers and titles
+     - 63 VLOOKUP formulas that reference placeholder data
+     - Bold/filled/bordered cells for structured grid layout
+     - Complete Georgian-language form content
+  3. **Enhanced sheet verification**: Added explicit logging to verify Handover sheet exists and all formulas are preserved before export
+  4. **Jobs sheet handling**: Detects existing Jobs sheet in template and updates it, or creates new sheet if missing
+  5. **Placeholders sheet**: Dynamically filled with project data (counteragent, insider, dates, currency info)
+- Export Output Format:
+  - **Sheet1 (Handover)**: Formatted receipt/handover form with all VLOOKUP formulas pulling from Placeholders
+  - **Sheet2 (Placeholders)**: Data lookup table with 21 fields for project details
+  - **Sheet3 (Jobs)**: Project jobs list with name, factory number, brand, floors, weight, selling price
+- Verification Results:
+  - ✓ Handover sheet: 85 rows, 63 formulas preserved
+  - ✓ Merged cells: 10 ranges intact
+  - ✓ Formatting: Bold, fills, borders all preserved
+  - ✓ Placeholders: 21 data fields ready for population
+  - ✓ Build: Production build successful (✓ Compiled successfully)
+- Impact: Users exporting handovers now get fully formatted documents with formulas intact and all three sheets (Handover, Placeholders, Jobs)
+- Status: ✅ Deployed
+
 ## 2026-06-24 Deployment #369 (Fix: Comprehensive GROUP BY Clause Audit - All Missing Project Columns)
 - Commit: 017ab01
 - Production: https://ice-a3h0eazew-iceerp.vercel.app
