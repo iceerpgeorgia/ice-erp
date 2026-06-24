@@ -136,12 +136,13 @@ export default function TemplatesPage() {
       setError(null);
       
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const bucket = 'templates';
       // URL encode the path to handle spaces and special characters
       const encodedPath = (template.storage_path || '')
         .split('/')
         .map(part => encodeURIComponent(part))
         .join('/');
-      const url = `${supabaseUrl}/storage/v1/object/public/${encodedPath}`;
+      const url = `${supabaseUrl}/storage/v1/object/public/${bucket}/${encodedPath}`;
       
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to download template');
