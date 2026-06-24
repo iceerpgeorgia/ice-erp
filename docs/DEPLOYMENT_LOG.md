@@ -1,5 +1,53 @@
 # Deployment Log
 
+## 2026-06-24 Deployment #377 (Feature: Add Full Template Export Button to Handovers)
+- Commit: ae010fc
+- Production: https://ice-9obgy1c9p-iceerp.vercel.app
+- Summary: Added "Full Template Export" button to Handovers toolbar to enable template-based export with formulas and formatting. This completes the handover export feature by providing a UI button that calls the backend template export endpoint.
+- Root Cause of Previous Issue:
+  - The template export endpoint (`/api/export/handover-template`) was implemented but NOT exposed in the UI
+  - The "Export All" button only used client-side export (`exportMultiSheetsToXlsx`) which creates plain XLSX files without template structure
+  - AGENTS.md documented the feature as "both export modes: full template export + separate XLSX exports" but only one mode was implemented in the UI
+- Solution:
+  1. Added `handleTemplateExport` async function to `components/figma/handovers-table.tsx`
+  2. Added "Full Template Export" button in "More Exports" dropdown menu
+  3. Button calls `POST /api/export/handover-template` with projectUuid and fileName
+  4. Server returns XLSX with template structure, formulas, and populated data
+  5. Browser downloads file with proper filename encoding
+- Implementation Details:
+  - **New Handler**: `handleTemplateExport` (40 lines, lines 1035-1077)
+    - Validates selectedProjectUuid and selectedProject exist
+    - Generates filename: `handover-template-{projectName}-{date}.xlsx`
+    - Calls API with POST body containing projectUuid and fileName
+    - Downloads response blob with proper filename
+    - Includes comprehensive error handling with user alerts
+  - **New UI Button**: Lines 1293-1302 in handovers-table.tsx
+    - Location: First item in "More Exports" dropdown menu with visual separator
+    - Title: Explains feature (template with formulas/formatting)
+    - Disabled when: `!selectedProjectUuid || sortedJobs.length === 0`
+    - Icon: Download icon matching other export buttons
+    - Styling: Matches existing button patterns
+- Files Modified:
+  - components/figma/handovers-table.tsx: Added handler function and UI button (+61 lines)
+- Testing:
+  - ✓ TypeScript compilation: No errors
+  - ✓ ESLint: No warnings
+  - ✓ Production build: Successful
+  - ✓ Backend endpoint: Already exists and verified working
+  - ✓ Template file: Contains formulas and formatting (verified in Deployment #375)
+- Feature Coverage:
+  - ✓ Full Template Export button in UI
+  - ✓ Calls backend endpoint with correct parameters
+  - ✓ Downloads file with proper naming and encoding
+  - ✓ Error handling for API failures
+  - ✓ Complies with AGENTS.md documentation ("both export modes" requirement)
+- Impact:
+  - Handovers page now fully supports template-based export with all formulas preserved
+  - Users can export handovers using the professional template with formatting
+  - Separate XLSX exports per table still available in "More Exports" menu
+  - Export functionality now matches documented requirements in AGENTS.md
+- Status: ✅ Deployed
+
 ## 2026-06-24 Deployment #375 (Fix: Template Placeholders Sheet Cell Structure)
 - Commit: 9350783
 - Production: https://ice-66vuca1hl-iceerp.vercel.app
