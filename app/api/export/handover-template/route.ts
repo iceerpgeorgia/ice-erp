@@ -48,6 +48,8 @@ export async function POST(req: NextRequest) {
 
       if (activeTemplate) {
         console.log('[Export Handover] Found active template:', activeTemplate.file_name);
+        console.log('[Export Handover] Template storage_path:', activeTemplate.storage_path);
+        console.log('[Export Handover] Template UUID:', activeTemplate.uuid);
         
         try {
           const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -63,22 +65,30 @@ export async function POST(req: NextRequest) {
               .join('/');
             const fileUrl = `${supabaseUrl}/storage/v1/object/public/${encodedPath}`;
 
-            console.log('[Export Handover] Fetching template from Supabase storage (public):', fileUrl);
+            console.log('[Export Handover] Fetching template from Supabase storage (public)...');
+            console.log('[Export Handover] Encoded URL:', fileUrl);
 
             const fetchRes = await fetch(fileUrl, {
               cache: 'no-store',
             });
 
+            console.log('[Export Handover] Supabase fetch response status:', fetchRes.status, fetchRes.statusText);
+
             if (fetchRes.ok) {
               templateBuffer = Buffer.from(await fetchRes.arrayBuffer());
               templateSource = 'templates-table';
-              console.log('[Export Handover] ✓ Template loaded from templates table (Supabase), size:', templateBuffer.length);
+              console.log('[Export Handover] ✓ SUCCESS: Template loaded from Supabase, file size:', templateBuffer.length, 'bytes');
             } else {
-              console.warn('[Export Handover] Supabase fetch failed:', fetchRes.status, fetchRes.statusText, '- will try file system fallback');
+              const errorText = await fetchRes.text();
+              console.warn('[Export Handover] ✗ FAILED: Supabase fetch returned', fetchRes.status, '-', errorText.substring(0, 200));
+              console.warn('[Export Handover] Will fall back to file system template');
             }
+          } else {
+            console.warn('[Export Handover] Supabase credentials not configured - will use file system fallback');
           }
         } catch (dbErr) {
-          console.warn('[Export Handover] Supabase fetch failed:', dbErr, '- will try file system fallback');
+          console.error('[Export Handover] ✗ FAILED: Supabase fetch error:', dbErr);
+          console.warn('[Export Handover] Will fall back to file system template');
         }
       } else {
         console.log('[Export Handover] No active template found in templates table, will use file system fallback');
@@ -91,13 +101,14 @@ export async function POST(req: NextRequest) {
     if (templateSource === 'none') {
       try {
         const templatePath = join(process.cwd(), 'public', 'Handover Tamplate New.xlsx');
-        console.log('[Export Handover] Reading template from file system:', templatePath);
+        console.log('[Export Handover] ⚠ FALLBACK: Reading template from file system:', templatePath);
         
         templateBuffer = readFileSync(templatePath);
         templateSource = 'filesystem';
-        console.log('[Export Handover] ✓ Template loaded from file system, size:', templateBuffer.length);
+        console.log('[Export Handover] ✓ Template loaded from FILE SYSTEM, file size:', templateBuffer.length, 'bytes');
+        console.log('[Export Handover] ⚠ NOTE: File system template may not have latest formulas - consider uploading to Supabase via Admin > Templates');
       } catch (fileErr) {
-        console.error('[Export Handover] Failed to load template from both database and file system:', fileErr);
+        console.error('[Export Handover] Failed to load template from both Supabase and file system:', fileErr);
         return Response.json(
           { error: `Handover template not found. Please upload a template via Admin > Templates or ensure Handover Tamplate New.xlsx exists in public folder.` },
           { status: 500 }
@@ -247,9 +258,34 @@ export async function POST(req: NextRequest) {
     const originalZip = new JSZip();
     await originalZip.loadAsync(templateBuffer);
 
+    console.log('[Export Handover] Template loaded into JSZip, analyzing structure...');
+    console.log('[Export Handover] Template source:', templateSource);
+
     // Verify template sheet structure
     const sheetFiles = originalZip.folder('xl/worksheets')?.file(/.+\.xml$/);
-    console.log('[Export Handover] Template sheets found:', sheetFiles?.map(f => f.name) || []);
+    const sheetFilesList = (sheetFiles || []).map(f => f.name);
+    console.log('[Export Handover] Template sheets found:', sheetFilesList);
+    console.log('[Export Handover] Number of sheets:', sheetFilesList.length);
+
+    // Extract and verify Handover sheet (sheet1.xml) FIRST - this is the critical sheet
+    const handoverXml = await originalZip.file('xl/worksheets/sheet1.xml')?.async('string');
+    if (!handoverXml) {
+      console.error('[Export Handover] ✗ CRITICAL ERROR: Handover sheet (sheet1.xml) NOT FOUND in template!');
+      console.error('[Export Handover] Template source was:', templateSource);
+      console.error('[Export Handover] Available sheets:', sheetFilesList);
+      return Response.json(
+        { error: `ERROR: Handover sheet not found in template (source: ${templateSource}). Please re-upload the template via Admin > Templates.` },
+        { status: 500 }
+      );
+    } else {
+      const handoverSize = handoverXml.length;
+      const hasFormulas = handoverXml.includes('<f>');
+      const hasFormatting = handoverXml.includes('<xf') || handoverXml.includes('cellXfs');
+      console.log('[Export Handover] ✓ Handover sheet (sheet1.xml) verified');
+      console.log('[Export Handover]   Size:', handoverSize, 'bytes');
+      console.log('[Export Handover]   Contains formulas:', hasFormulas);
+      console.log('[Export Handover]   Contains formatting:', hasFormatting);
+    }
 
     // Extract and modify the Placeholders sheet XML (sheet2.xml in new template)
     let placeholdersXml = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
@@ -259,14 +295,6 @@ export async function POST(req: NextRequest) {
         { error: 'Placeholders sheet not found in template' },
         { status: 500 }
       );
-    }
-
-    // Verify Handover sheet exists (sheet1.xml)
-    const handoverXml = await originalZip.file('xl/worksheets/sheet1.xml')?.async('string');
-    if (!handoverXml) {
-      console.warn('[Export Handover] WARNING: Handover sheet (sheet1.xml) not found - will be missing from export');
-    } else {
-      console.log('[Export Handover] Handover sheet verified - formulas and formatting will be preserved');
     }
 
     // At this point, TypeScript knows placeholdersXml is a string (after null check)
@@ -451,12 +479,21 @@ export async function POST(req: NextRequest) {
 
     console.log('[Export Handover] All modifications complete, verifying final structure...');
 
-    // Verify final sheet structure
+    // Verify final sheet structure - CRITICAL: sheet1.xml must still be there
     const finalSheetFiles = originalZip.folder('xl/worksheets')?.file(/.+\.xml$/);
-    console.log('[Export Handover] Final sheets in export:', finalSheetFiles?.map(f => {
-      const match = f.name.match(/sheet(\d+)\.xml$/);
-      return match ? `sheet${match[1]}` : f.name;
-    }) || []);
+    const finalSheetsList = (finalSheetFiles || []).map(f => f.name);
+    console.log('[Export Handover] Final sheets in export:', finalSheetsList);
+    
+    // Verify sheet1.xml is still present
+    const finalHandoverXml = await originalZip.file('xl/worksheets/sheet1.xml')?.async('string');
+    if (!finalHandoverXml) {
+      console.error('[Export Handover] ✗ CRITICAL ERROR: Handover sheet disappeared during processing!');
+      return Response.json(
+        { error: 'ERROR: Handover sheet was lost during export processing' },
+        { status: 500 }
+      );
+    }
+    console.log('[Export Handover] ✓ Handover sheet confirmed present in final output, size:', finalHandoverXml.length, 'bytes');
 
     // Generate the modified Excel file, preserving original structure and compression
     const outputBuffer = await originalZip.generateAsync({
@@ -464,7 +501,8 @@ export async function POST(req: NextRequest) {
       compression: 'DEFLATE',
     });
 
-    console.log('[Export Handover] Export complete, file size:', outputBuffer.length);
+    console.log('[Export Handover] ✓ Export complete, final file size:', outputBuffer.length, 'bytes');
+    console.log('[Export Handover] SUMMARY: Template source =', templateSource, '| Final sheets =', finalSheetsList.length);
 
     return new Response(new Uint8Array(outputBuffer), {
       headers: {
