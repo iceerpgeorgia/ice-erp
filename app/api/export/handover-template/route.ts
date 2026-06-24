@@ -56,7 +56,12 @@ export async function POST(req: NextRequest) {
           if (supabaseUrl && supabaseKey) {
             // storage_path already includes bucket name (e.g., "templates/handover/...")
             // Use public endpoint for fetching (no auth needed for public buckets)
-            const fileUrl = `${supabaseUrl}/storage/v1/object/public/${activeTemplate.storage_path}`;
+            // URL encode the path to handle spaces and special characters
+            const encodedPath = activeTemplate.storage_path
+              .split('/')
+              .map(part => encodeURIComponent(part))
+              .join('/');
+            const fileUrl = `${supabaseUrl}/storage/v1/object/public/${encodedPath}`;
 
             console.log('[Export Handover] Fetching template from Supabase storage (public):', fileUrl);
 
