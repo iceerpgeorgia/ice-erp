@@ -3003,6 +3003,28 @@ model incident_backup_synthetic_bog_gel_20260311201530 {
   @@ignore
 }
 
+model templates {
+  id                  BigInt    @id @default(autoincrement())
+  uuid                String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  operation_type      String    // "handover", "invoice", "certificate", etc.
+  file_name           String
+  storage_provider    String    @default("supabase")
+  storage_bucket      String?
+  storage_path        String
+  file_size_bytes     BigInt?
+  file_hash_sha256    String?
+  is_active           Boolean   @default(false)
+  archived_at         DateTime?
+  created_by_user_id  String?
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @default(now()) @updatedAt
+
+  @@index([operation_type], map: "idx_templates_operation_type")
+  @@index([is_active], map: "idx_templates_is_active")
+  @@index([created_at], map: "idx_templates_created_at")
+  @@index([operation_type, is_active], map: "idx_templates_operation_active")
+}
+
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model payment_id_duplicates {
   id                   Int       @id @default(autoincrement())

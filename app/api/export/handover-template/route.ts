@@ -32,70 +32,56 @@ export async function POST(req: NextRequest) {
     console.log('[Export Handover] Starting export with JSZip approach for project:', projectUuid);
 
     // Try to fetch template from database attachments first (preferred), then fall back to file system
-    let templateBuffer: Buffer;
+    let templateBuffer: Buffer | null = null;
     let templateSource = 'none';
     
-    // Step 1: Try to fetch from database attachments
+    // Step 1: Try to fetch active handover template from templates table
     try {
-      console.log('[Export Handover] Attempting to load template from database...');
+      console.log('[Export Handover] Attempting to load template from templates table...');
       
-      // First, find the "Handover Template" document type
-      const docType = await prisma.document_types.findUnique({
-        where: { name: 'Handover Template' },
+      const activeTemplate = await prisma.templates.findFirst({
+        where: {
+          operation_type: 'handover',
+          is_active: true,
+        },
       });
 
-      if (docType) {
-        console.log('[Export Handover] Found document type:', docType.name, '(UUID:', docType.uuid + ')');
+      if (activeTemplate) {
+        console.log('[Export Handover] Found active template:', activeTemplate.file_name);
         
-        // Query for the attachment with this document type
-        const templateAttachment = await prisma.attachments.findFirst({
-          where: {
-            document_type_uuid: docType.uuid,
-            is_active: true,
-            storage_provider: 'supabase',
-          },
-          orderBy: { created_at: 'desc' },
-        });
+        try {
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+          const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-        if (templateAttachment) {
-          console.log('[Export Handover] Template found in database:', templateAttachment.file_name);
-          
-          try {
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-            const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+          if (supabaseUrl && supabaseKey) {
+            const bucket = activeTemplate.storage_bucket || 'templates';
+            const fileUrl = `${supabaseUrl}/storage/v1/object/authenticated/${bucket}/${activeTemplate.storage_path}`;
 
-            if (supabaseUrl && supabaseKey) {
-              const bucket = templateAttachment.storage_bucket || 'attachments';
-              const fileUrl = `${supabaseUrl}/storage/v1/object/authenticated/${bucket}/${templateAttachment.storage_path}`;
+            console.log('[Export Handover] Fetching template from Supabase storage...');
 
-              console.log('[Export Handover] Fetching template from Supabase storage...');
+            const fetchRes = await fetch(fileUrl, {
+              headers: {
+                Authorization: `Bearer ${supabaseKey}`,
+              },
+              cache: 'no-store',
+            });
 
-              const fetchRes = await fetch(fileUrl, {
-                headers: {
-                  Authorization: `Bearer ${supabaseKey}`,
-                },
-                cache: 'no-store',
-              });
-
-              if (fetchRes.ok) {
-                templateBuffer = Buffer.from(await fetchRes.arrayBuffer());
-                templateSource = 'database';
-                console.log('[Export Handover] ✓ Template loaded from database, size:', templateBuffer.length);
-              } else {
-                console.warn('[Export Handover] Supabase fetch failed:', fetchRes.status, fetchRes.statusText, '- will try file system fallback');
-              }
+            if (fetchRes.ok) {
+              templateBuffer = Buffer.from(await fetchRes.arrayBuffer());
+              templateSource = 'templates-table';
+              console.log('[Export Handover] ✓ Template loaded from templates table (Supabase), size:', templateBuffer.length);
+            } else {
+              console.warn('[Export Handover] Supabase fetch failed:', fetchRes.status, fetchRes.statusText, '- will try file system fallback');
             }
-          } catch (dbErr) {
-            console.warn('[Export Handover] Database fetch failed:', dbErr, '- will try file system fallback');
           }
-        } else {
-          console.log('[Export Handover] No attachment found for "Handover Template" document type, will use file system fallback');
+        } catch (dbErr) {
+          console.warn('[Export Handover] Supabase fetch failed:', dbErr, '- will try file system fallback');
         }
       } else {
-        console.log('[Export Handover] Document type "Handover Template" not found, will use file system fallback');
+        console.log('[Export Handover] No active template found in templates table, will use file system fallback');
       }
     } catch (dbErr) {
-      console.warn('[Export Handover] Database query failed:', dbErr, '- will use file system fallback');
+      console.warn('[Export Handover] Templates query failed:', dbErr, '- will use file system fallback');
     }
 
     // Step 2: Fallback to file system if database retrieval failed
@@ -110,7 +96,7 @@ export async function POST(req: NextRequest) {
       } catch (fileErr) {
         console.error('[Export Handover] Failed to load template from both database and file system:', fileErr);
         return Response.json(
-          { error: `Handover template not found. Please upload template to database (admin/attachments) with document type "Handover Template" or ensure Handover Tamplate New.xlsx exists in project root.` },
+          { error: `Handover template not found. Please upload a template via Admin > Templates or ensure Handover Tamplate New.xlsx exists in project root.` },
           { status: 500 }
         );
       }
@@ -244,6 +230,15 @@ export async function POST(req: NextRequest) {
     };
 
     console.log('[Export Handover] Placeholder data prepared (with VLOOKUP labels in A, values in B), updating via JSZip...');
+
+    // Verify template was loaded
+    if (!templateBuffer || templateBuffer.length === 0) {
+      console.error('[Export Handover] ERROR: Template buffer is empty or undefined');
+      return Response.json(
+        { error: 'Failed to load template - buffer is empty' },
+        { status: 500 }
+      );
+    }
 
     // Use JSZip to work with the Excel file directly
     const originalZip = new JSZip();

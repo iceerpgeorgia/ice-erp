@@ -3,6 +3,35 @@
 ## Documentation Policy
 **Always update `AGENTS.md` when logic changes.** Any time domain logic, integration rules, architectural decisions, or key constraints are added or modified, the relevant section in this file must be updated in the same session. This file is the single source of truth for how the system works. New sections should follow the style of existing ones.
 
+## AppShell Global Component Safety Rules
+**CRITICAL**: AppShell (`app/app-shell.tsx`) is the parent wrapper for ALL pages. Any error in a component rendered here breaks the entire application silently on all pages.
+
+### Prevention Rules
+- **NEVER** add untested components directly to AppShell without local verification with `pnpm dev`
+- **ALWAYS** test new AppShell changes locally on multiple routes before deploying
+- **ALWAYS** wrap AppShell additions in error boundaries: `<ErrorBoundary fallback={null}><Component /></ErrorBoundary>`
+- **ALWAYS** use lazy loading for optional features: `const Component = dynamic(() => import(...), {ssr: false})`
+- **NEVER** render components using authentication hooks (useSession, useRouter) directly in AppShell without handling hydration timing
+- **ALWAYS** verify no console hydration errors: `Warning: useLayoutEffect does nothing on the server`
+- **ALWAYS** test session loading with NextAuth (session may be undefined during initial load)
+
+### Historical Issues (Pattern)
+- Deployment #347: Feature added to AppShell broke all pages
+- Deployment #351: FloatingAIButton (with useSession hook) added to AppShell broke all pages
+- Root cause both times: Component errors in AppShell propagate globally, breaking entire app
+
+### Solution
+If a component needs to appear on all pages:
+1. Create as client-only: `'use client'` directive
+2. Wrap in error boundary in AppShell
+3. Use dynamic import with {ssr: false}
+4. Test locally on ≥3 different routes
+5. Verify in browser console for hydration warnings
+6. Only then add to AppShell
+
+### Reference
+See `/memories/repo/ui-breaking-pattern.md` for detailed debugging process.
+
 ## Project Structure & Module Organization
 The workspace is a single Next.js 14 application (App Router) with co-located API routes. Pages and components live in `app/` with co-located hooks and styles. API routes are in `app/api/` (50+ route files). Shared Prisma schema and migrations sit in `prisma/`, reusable types in `types/`, shared utilities in `lib/` (auth, Prisma client, audit logging, Zod schemas). Python scripts for bank XML processing live at the project root. Vercel cron jobs handle scheduled tasks (BOG import, NBG rates, cash accruals) via `vercel.json`.
 
@@ -184,6 +213,20 @@ Or equivalently: `is_processed=TRUE` (derived from all three flags)
 - Check `app/api/bank-transactions/route.ts` for the list of active source tables
 - Each bank account has its own table with naming pattern: `{IBAN}_{BANK}_{CURRENCY}`
 
+### Transaction-Payment Sync (PATCH and Bulk-Bind)
+When a payment is assigned to a bank transaction via `PATCH /api/bank-transactions/[id]` or `PATCH /api/bank-transactions/bulk-bind`:
+- **Automatic sync from payment:**
+  - `nominal_currency_uuid` is set to the payment's `currency_uuid`
+  - `exchange_rate` and `nominal_amount` are recalculated based on the new currency
+  - **NEW (2026-06-10)**: `project_uuid` is synced from the payment's `project_uuid` (unless explicitly overridden in request)
+  - **NEW (2026-06-10)**: `financial_code_uuid` is synced from the payment's `financial_code_uuid` (unless explicitly overridden in request)
+  - `counteragent_uuid` is auto-assigned from payment if transaction has no counteragent yet
+  - `parsing_lock` is set to `true` to prevent re-processing
+- **When payment is cleared:**
+  - All above fields are reset: `project_uuid`, `financial_code_uuid`, `nominal_currency_uuid` revert to defaults
+  - `parsing_lock` is set to `false`
+- **Rationale**: Handovers job distribution grid filters by `project_uuid` and income `financial_code_uuid`. Without this sync, manually editing a transaction with an existing payment would orphan it from the handovers view.
+
 ## Project Value Scaling
 - When a project's `value` changes via the Projects API update routes, the system proportionally scales the related **auto-managed** `payments_ledger` rows (accrual + order) by `scaleFactor = newValue / oldValue`.
 - Selection rules for payments to scale:
@@ -205,6 +248,12 @@ All RS.ge credentials are stored in `RS_CREDENTIALS_MAP` (JSON array in `.env.lo
 [{"INSIDER_UUID":"...","RS_API_SU":"iceapi:XXXXXXXXX","RS_API_SP":"..."}]
 ```
 Add one object per insider/company. Parsed by `getRsCredentialsMap()` in `lib/integrations/rsge/client.ts`. Both cron routes and the manual sync endpoint read exclusively from this map — there are no separate `RS_API_SU`/`RS_API_SP` fallback vars.
+
+### Insider Selection Persistence
+- Selected insiders are persisted per user in `User.selected_insider_uuids` (`uuid[]`) and mirrored to the `insider-view-selection` cookie.
+- Resolution precedence in `resolveInsiderSelection`: DB-persisted selection first, then cookie selection, then all available insiders as fallback.
+- `POST /api/insider-selection` validates UUIDs against current insider options, stores the effective list in DB (when authenticated), and refreshes the cookie.
+- This keeps insider-driven views (including Conversions and other insider-filtered APIs) stable across deployments even if browser cookie/domain context changes.
 
 ### VAT Lock Rule
 `vat` (counteragent VAT payer status) is a **point-in-time snapshot** captured at first import via `is_vat_payer_tin` SOAP call:
@@ -297,8 +346,54 @@ When waybill items are bound to different projects, item-level binding should ta
 - Backfill script `scripts/backfill-payments-jobs-account-curr.js` recalculates historical `payments_jobs.amount_account_curr` using consolidated/raw bank amounts (prefers consolidated when present).
 - The grid now provides an XLSX export action that flattens each payment into one row per job allocation so the exported amount and nominal amount reflect the distribution split.
 - Export rows resolve distributions using the same composite key logic as the grid (batch partition or raw record UUID) so per-transaction allocations populate in Excel.
+## Handover Sheet Export with Stored Templates
+
+### Template Storage Architecture
+The handover XLSX template should be stored in the `attachments` table in Supabase, with the following characteristics:
+- **File name** must contain "handover" (case-insensitive)
+- **Storage provider**: "supabase"
+- **is_active**: true
+- **Bucket**: "attachments" (default)
+
+The export endpoint retrieves the template using this priority:
+1. **Primary**: Query `attachments` table for active file with "handover" in name, fetch from Supabase storage
+2. **Fallback**: Load from file system (`Handover Tamplate New.xlsx` in project root)
+
+### Template Upload Instructions
+To upload the handover template to the database:
+1. In `/admin/attachments` page, upload `Handover Tamplate New.xlsx` file
+2. Ensure file name contains "handover" 
+3. Verify `is_active = true` and storage provider is "supabase"
+4. The export API will automatically detect and use this template
+
+### Template Sheet Structure
+The template must contain exactly these sheets in this order:
+1. **sheet1.xml (Handover sheet)** - Main document with Georgian form, 63 VLOOKUP formulas, 10 merged ranges, borders
+2. **sheet2.xml (Placeholders sheet)** - Lookup table with:
+   - Column A: Label keys (A1-A19): "Project_Department", "Handover_Date", "Project_Counteragent_Entity_Type", etc.
+   - Column B: Values (B1-B19): populated from database during export
+3. **sheet3.xml (Jobs sheet)** - Populated with job data during export
+4. Optional: Income Payments, Job Distributions sheets
+
+### Placeholder Mapping (A1:B19)
+The export populates B1-B19 with project data, paired with A1-A19 lookup labels:
+- A1: "Project_Department" → B1: project.department
+- A2: "Handover_Date" → B2: project.date (Excel serial)
+- A3-A19: Other counteragent, insider, and project fields
+
+### VLOOKUP Formula Pattern
+Handover sheet formulas reference: `=VLOOKUP("Project_Department",Placeholders!A:B,2,FALSE)`
+This requires both columns A (labels) and B (values) to be populated for formulas to resolve.
+
+### Handovers toolbar now supports both export modes: full template export (placeholders + all grids) and separate XLSX exports per table (Jobs, Income Payments, Job Distributions).
 - The dialog resolves `payment_uuid` via `/api/payments-report` and preloads existing allocations from `/api/payments-jobs`.
 - **Debugging**: Console logs track payment_uuid resolution (`[Job Dist]` prefix) including payment mapping, distribution loading, row payment lookup, and save operations. This helps diagnose cases where distributions might incorrectly appear across multiple payments.
+- Runtime resilience guards for Handovers dependencies:
+  - `GET /api/jobs?projectUuid=...` bypasses insider-selection resolution and returns project-bound jobs directly, so Handovers job loading is not blocked by insider-selection state.
+  - In that project-scoped `/api/jobs` path, response mapping must not reference insider selection variables; use row fields directly (`insider_uuid`) to avoid runtime 500s from pre-declaration access.
+  - `GET /api/brands` no longer selects optional/non-critical columns for Handovers bootstrap; this reduces schema-drift 500s on environments with lagging migrations.
+  - `GET /api/payments-report` now falls back to a ledger-only query if the primary cross-table bank-union query fails, returning income rows instead of HTTP 500.
+  - Handovers initial-load project mapping debug spam (`[Handovers] Mapping project`) was removed from the client component to keep production console noise low.
 
 ### Handover Emission Feature
 When a user emits a handover, all current (non-emitted) job distributions are locked and marked with an `emission_uuid`, creating an immutable audit trail. Multiple emissions are supported, with the latest emission taking priority for display:
@@ -306,6 +401,9 @@ When a user emits a handover, all current (non-emitted) job distributions are lo
 - **Multiple Emissions**: Same project can emit multiple times; each emission gets a unique UUID. After an emission, new distributions can be added and emitted again. All emissions are permanently recorded.
 - **Display Priority**: UI shows emission status based on the most recent `emission_date` for the project. Historical emissions remain in the audit trail for reference.
 - **Immutability**: Database triggers prevent UPDATE and DELETE on records with `emission_uuid IS NOT NULL`. Projects and jobs with emitted distributions cannot be deleted.
+- **Live vs emitted rows**: emitted `payments_jobs` rows are immutable historical snapshots. Later distribution changes must operate only on live rows where `emission_uuid IS NULL`, allowing new non-emitted distributions to coexist with emitted snapshots for the same payment/job/scope.
+- **API guard**: single-row delete/update attempts against an emitted distribution must fail, while replace/delete/auto-distribute/recalculate flows must only touch non-emitted rows (`emission_uuid IS NULL`) and leave emitted snapshots intact.
+- **UI lock state**: the Job Distribution dialog opens in read-only mode (no save/clear/edit/fill/recalculate actions) when a transaction scope has only emitted snapshot rows and no live rows.
 - **Schema**: New table `handover_emissions` (uuid, created_at, created_by, description). New columns on `payments_jobs`: `emission_uuid` (FK), `emission_date`.
 - **API**: `POST /api/handovers/emit` accepts `{ projectUuid }`, returns emission UUID, timestamp, count, and list of emitted records. Only targets non-emitted distributions.
 - **Audit Trail**: `emission_uuid` groups all records in a single emission; `created_by` records user email; `handover_emissions.created_at` records timestamp.
@@ -329,6 +427,68 @@ Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, AP
 
 ## Coding Style & Naming Conventions
 All code is TypeScript and must satisfy the shared ESLint + Prettier rules via `pnpm lint` or `pnpm lint --fix`. Name files in kebab-case (`user-profile.ts`), React components in PascalCase (`UserProfile.tsx`), and variables or functions in camelCase. Keep comments purposeful: explain non-obvious invariants, integration quirks, or domain rules.
+
+## Handovers Export & Loading Optimization (2026-06-11)
+The Handovers page implements a multi-stage loading pipeline with export caching to optimize performance and prevent premature export attempts.
+
+### Loading States & Coordination
+Three independent loading flags coordinate when export is ready:
+- **`loadingProjects`**: Initial fetch of projects, brands, insiders (runs once on mount)
+- **`loadingJobs`**: Per-project fetch of jobs, lift cert dates, bank transactions, income payments, distributions
+- **`ratesLoading`**: NBG rate lookups for each unique lift cert date (runs after jobs load)
+
+**Computed Flag**: `isTableFullyLoaded = !loadingProjects && !loadingJobs && !ratesLoading && selectedProjectUuid !== ''`
+
+**Export Button Disabled When**: `!isTableFullyLoaded || sortedJobs.length === 0`
+- Prevents export before Debit GEL and Total GEL columns are populated (which require NBG rates)
+- Dynamic tooltip shows "Loading all tables including rates..." when disabled
+- Button enables only after all async operations complete
+
+### Export Data Cache Structure
+When jobs fully load and rates are fetched, `exportCache` state is populated:
+```typescript
+{
+  projectUuid: string | null,           // Selected project UUID
+  projectData: {                         // Project metadata
+    projectName: string,
+    currencyCode: string,
+    liftCertMap: Record<string, { date, docNo }>
+  },
+  jobsData: any[],                      // Raw job records from /api/jobs
+  paymentsData: any[],                  // Income payments from /api/payments-report
+  distributionsData: any[],             // Job distributions from /api/payments-jobs
+  rateCache: Map<string, number | null>, // NBG rates keyed by date|currency
+  timestamp: number                      // Cache creation timestamp
+}
+```
+
+**Cache Population**: Occurs in `fetchJobs` after:
+1. Lift cert info fetched and mapped
+2. Payments and distributions processed
+3. NBG rates batch-fetched and stored in `rateByDate`
+4. Before `setJobs()` updates jobs state with calculated Debit GEL/Total GEL
+
+**Cache Usage**: Prepared for export API to use cached data instead of re-querying database when `useCache=true` flag passed (future optimization).
+
+### Rate Fetching Sequence
+1. Extract unique cert dates from jobs: `Set<string>`
+2. Call `Promise.all()` on `uniqueCertDates.map(date => lookupNbgRate(date, projectCurrencyCode))`
+3. `lookupNbgRate` caches per `date|currency` key in `rateCacheRef`
+4. Return rates in `rateByDate` Map
+5. Used in job rendering: `debitGel = (sellingPrice - paidNominal) * rate`, `totalGel = paidGel + debitGel`
+
+**Caching Strategy**:
+- `rateCacheRef` persists across renders (useRef)
+- Failed rate lookups cached as `null` to prevent retries
+- GEL→GEL conversions return `1` immediately
+- Deduplicates identical date+currency requests within same fetch cycle
+
+### Debit GEL and Total GEL Column Dependency
+These computed columns **depend on NBG rates** and return `null` until rates are available:
+- **Debit GEL**: `(sellingPrice - paidNominal) * rate`
+- **Total GEL**: `paidGel + debitGel`
+
+If `rate` is `undefined` (still loading) or `null` (fetch failed), columns show `—` placeholder. Export button stays disabled until all rows have valid calculations.
 
 ## Testing Guidelines
 Favor tests on public contracts: API handlers, Prisma services, and UI state reducers. Co-locate Jest specs as `*.test.ts(x)` near their source or under `tests/`, and refresh fixtures in `tests/fixtures/` when behavior shifts. Capture cross-surface flows, including auth, with Playwright specs; start `pnpm dev` before launching them to ensure all services are available.
