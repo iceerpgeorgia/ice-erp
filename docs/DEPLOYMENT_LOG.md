@@ -1,5 +1,19 @@
 # Deployment Log
 
+## 2026-06-24 Deployment #371 (Fix: Empty Handover Sheet - Populate VLOOKUP Lookup Table)
+- Commit: 775488d
+- Production: https://ice-jrk025wta-iceerp.vercel.app
+- Summary: Fixed empty Handover sheet in exported XLSX by populating the Placeholders sheet with proper VLOOKUP lookup table structure.
+- Root Cause: VLOOKUP formulas in Handover sheet (e.g., `=VLOOKUP("Project_Department",Placeholders!A:B,2,FALSE)`) require lookup keys in column A of Placeholders sheet, but only column B values were being populated, causing formula failures.
+- Solution:
+  1. **Restructured placeholderData object** to include both lookup labels (column A) and values (column B)
+  2. **Added 19 label entries** in column A (A1-A19): Project_Department, Handover_Date, Project_Counteragent_Entity_Type, etc.
+  3. **Mapped each to corresponding B column** with project/counteragent/insider/currency data
+  4. **Removed SKIP_CELLS logic** that was preventing B5, B16 from being written (now we provide genitive values via `toGenitiveCase()`)
+  5. **Date cells (B2, B18)** correctly marked as numeric type for Excel serial number calculations
+- Result: VLOOKUP formulas now resolve successfully, Handover sheet populates with correct data from database
+- Testing: Manual export of project with full counteragent/insider data should now display all fields in Handover sheet
+
 ## 2026-06-24 Deployment #370 (Feat: Handover Template Export with Preserved Formatting and Formulas)
 - Commit: cb59564
 - Production: https://ice-e1lpu8rpk-iceerp.vercel.app
