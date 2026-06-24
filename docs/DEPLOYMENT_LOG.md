@@ -1,5 +1,23 @@
 # Deployment Log
 
+## 2026-06-24 Deployment #369 (Fix: Comprehensive GROUP BY Clause Audit - All Missing Project Columns)
+- Commit: 017ab01
+- Production: https://ice-a3h0eazew-iceerp.vercel.app
+- Summary: Fixed complete GROUP BY clause in /api/projects endpoint by adding all 23 project table columns. Comprehensive audit identified and fixed multiple column name inconsistencies and missing columns that would cause PostgreSQL "column does not exist" errors.
+- Fixes Applied:
+  1. **oris_1630 typo (oris1630)**: Fixed missing underscore
+  2. **is_active removal**: Removed reference to non-existent column in projects table
+  3. **Missing columns added**: ts, contract_no, project_index, financial_code, currency, state, counteragent
+- Root Cause Analysis: The SELECT clause uses `p.*` (all 23 columns), but GROUP BY was incomplete:
+  - Missing: 7 columns from projects table (ts, contract_no, project_index, financial_code, currency, state, counteragent)
+  - Incorrect: 2 columns (oris1630 typo, is_active non-existent)
+- Solution: Updated GROUP BY on line 204 of app/api/projects/route.ts to include all 23 project columns in correct order:
+  - All project table columns: id, created_at, updated_at, ts, project_uuid, counteragent_uuid, project_name, financial_code_uuid, date, value, currency_uuid, state_uuid, oris_1630, contract_no, project_index, financial_code, currency, state, counteragent, department, service_state, insider_uuid, address
+  - Plus joined table columns: ca.*, insider_ca.*, cur.code, pp.total_payment
+- Verification: All 23 columns from Prisma schema model projects included
+- Impact: Resolves all GROUP BY related 500 errors on /api/projects list endpoint
+- Status: ✅ Deployed
+
 ## 2026-06-24 Deployment #368 (Fix: Correct oris_1630 Column Name in GROUP BY Clause)
 - Commit: 90a3f02
 - Production: https://ice-cev3rbwl9-iceerp.vercel.app
