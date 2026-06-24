@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
+import { createClient } from '@supabase/supabase-js';
 
 const prisma = new PrismaClient();
 
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/templates
- * Upload a new template file
+ * Upload a new template file to Supabase storage
  * 
  * Body:
  * - operationType: "handover", "invoice", etc.
@@ -83,16 +84,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // For now, we'll assume the file is handled via a separate file upload service
-    // In production, you'd integrate with Supabase storage or similar
-    // For this implementation, we'll return placeholder data that the admin page will complete
+    // Initialize Supabase client
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing Supabase configuration');
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Convert File to Buffer
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+
+    // Generate storage path (do NOT include "templates/" prefix - that's the bucket name)
+    const storagePath = `${operationType}/${Date.now()}-${file.name}`;
+
+    // Upload file to Supabase storage (templates bucket)
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('templates')
+      .upload(storagePath, fileBuffer, {
+        contentType: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error('[POST /api/templates] Supabase upload error:', uploadError);
+      throw new Error(`Failed to upload file to storage: ${uploadError.message}`);
+    }
+
+    console.log('[POST /api/templates] File uploaded to:', storagePath);
 
     const templateData = {
       operation_type: operationType,
       file_name: file.name,
       storage_provider: 'supabase',
       storage_bucket: 'templates',
-      storage_path: `templates/${operationType}/${Date.now()}-${file.name}`,
+      storage_path: storagePath,
       file_size_bytes: file.size,
       is_active: shouldActivate,
       created_by_user_id: session.user.email,
@@ -135,7 +163,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('[POST /api/templates] Error:', error);
     return NextResponse.json(
-      { error: 'Failed to create template' },
+      { error: error instanceof Error ? error.message : 'Failed to create template' },
       { status: 500 }
     );
   }

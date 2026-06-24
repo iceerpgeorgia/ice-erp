@@ -1,5 +1,31 @@
 # Deployment Log
 
+## 2026-06-24 Deployment #385 (Fix: XML Corruption in Handover Export Placeholder Cells)
+- Commit: 23d5f21
+- Production: https://ice-roge3tb4l-iceerp.vercel.app
+- Summary: Fixed critical XML corruption bug preventing placeholder cells from updating in handover template exports.
+- Root Cause:
+  - Regex pattern for replacing placeholder cells was matching across XML row boundaries
+  - Self-closing tag `<c r="B2" s="13"/>` followed by `</row>` was matching to next row's `</c>`
+  - Pattern: `<c r="B2"[^>]*>.*?</c>` consumed from opening tag through end of different row
+  - Result: Deleted closing `</row>` and opening `<row>` tags, corrupting rows 3, 6, 10, 17, 19
+  - Only 14 of 19 B-column cells updated instead of all 19
+  - VLOOKUP formulas returned blank because lookup table was incomplete
+- Solution:
+  1. Check self-closing tags FIRST (Pattern 2a: `<c r="X"/>`) before full cell tags
+  2. Changed Pattern 1 from `.*?</c>` to `[^<]*</c>` (matches non-`<` chars, stops at next XML tag)
+  3. Prevents regex from matching across row boundaries
+- Implementation:
+  - File: `/app/api/export/handover-template/route.ts` lines 355-368
+  - Pattern ordering: self-closing check → constrained regex → row insert
+  - All patterns tested with Python simulation scripts confirming 19/19 cells now populate
+- Impact:
+  - ✅ All 19 placeholder cells now update correctly
+  - ✅ No XML structure corruption
+  - ✅ VLOOKUP formulas resolve with complete lookup table
+  - ✅ Exported handovers show all data without blanks
+- Status: ✅ Deployed
+
 ## 2026-06-24 Deployment #379 (Critical Fix: Replace Corrupted Template + Upload to Supabase)
 - Commit: 8449d95
 - Production: https://ice-80cncvjf0-iceerp.vercel.app
