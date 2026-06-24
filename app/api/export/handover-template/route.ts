@@ -113,29 +113,69 @@ export async function POST(req: NextRequest) {
       return Math.floor((d.getTime() - new Date(1900, 0, 1).getTime()) / (24 * 60 * 60 * 1000)) + 2;
     };
 
+    // Build VLOOKUP lookup table: Column A = labels, Column B = values
+    // VLOOKUP formulas in Handover sheet reference: VLOOKUP("Label_Name", Placeholders!A:B, 2, FALSE)
     const placeholderData = {
-      'B1': project.department || '', // Project_Department
-      'B2': dateToExcelSerial(project.date), // Handover_Date
-      'B3': counteragent?.entity_type || '', // Project_Counteragent_Entity_Type
-      'B4': counteragent?.name || '', // Project_Counteragent_Name
-      'B5': toGenitiveCase(counteragent?.director), // Project_Counteragent_Director_Genitive
-      'B6': counteragent?.director || '', // Project_Counteragent_Director
-      'B7': counteragent?.address_line_1 || '', // Project_Counteragent_Address_Line_1
-      'B8': counteragent?.address_line_2 || '', // Project_Counteragent_Address_Line_2
-      'B9': counteragent?.identification_number || '', // Project_Counteragent_ID
-      'B10': project.address || '', // Project_Address
-      'B11': insider?.entity_type || '', // Project_Insider_Entity_Type
-      'B12': insider?.name || '', // Project_Insider_Name
-      'B13': insider?.identification_number || '', // Project_Insider_ID
-      'B14': insider?.address_line_1 || '', // Project_Insider_Address_Line1
-      'B15': insider?.address_line_2 || '', // Project_Insider_Address_Line2
-      'B16': toGenitiveCase(insider?.director), // Project_Insider_Director_Genitive
-      'B17': insider?.director || '', // Project_Insider_Director_Normative
-      'B18': dateToExcelSerial(project.date), // Contract_Date
-      'B19': currency?.code || '', // Project_Currency
+      // Row 1: Project_Department
+      'A1': 'Project_Department',
+      'B1': project.department || '',
+      // Row 2: Handover_Date
+      'A2': 'Handover_Date',
+      'B2': dateToExcelSerial(project.date),
+      // Row 3: Project_Counteragent_Entity_Type
+      'A3': 'Project_Counteragent_Entity_Type',
+      'B3': counteragent?.entity_type || '',
+      // Row 4: Project_Counteragent_Name
+      'A4': 'Project_Counteragent_Name',
+      'B4': counteragent?.name || '',
+      // Row 5: Project_Counteragent_Director_Genitive
+      'A5': 'Project_Counteragent_Director_Genitive',
+      'B5': toGenitiveCase(counteragent?.director),
+      // Row 6: Project_Counteragent_Director
+      'A6': 'Project_Counteragent_Director',
+      'B6': counteragent?.director || '',
+      // Row 7: Project_Counteragent_Address_Line_1
+      'A7': 'Project_Counteragent_Address_Line_1',
+      'B7': counteragent?.address_line_1 || '',
+      // Row 8: Project_Counteragent_Address_Line_2
+      'A8': 'Project_Counteragent_Address_Line_2',
+      'B8': counteragent?.address_line_2 || '',
+      // Row 9: Project_Counteragent_ID
+      'A9': 'Project_Counteragent_ID',
+      'B9': counteragent?.identification_number || '',
+      // Row 10: Project_Address
+      'A10': 'Project_Address',
+      'B10': project.address || '',
+      // Row 11: Project_Insider_Entity_Type
+      'A11': 'Project_Insider_Entity_Type',
+      'B11': insider?.entity_type || '',
+      // Row 12: Project_Insider_Name
+      'A12': 'Project_Insider_Name',
+      'B12': insider?.name || '',
+      // Row 13: Project_Insider_ID
+      'A13': 'Project_Insider_ID',
+      'B13': insider?.identification_number || '',
+      // Row 14: Project_Insider_Address_Line1
+      'A14': 'Project_Insider_Address_Line1',
+      'B14': insider?.address_line_1 || '',
+      // Row 15: Project_Insider_Address_Line2
+      'A15': 'Project_Insider_Address_Line2',
+      'B15': insider?.address_line_2 || '',
+      // Row 16: Project_Insider_Director_Genitive
+      'A16': 'Project_Insider_Director_Genitive',
+      'B16': toGenitiveCase(insider?.director),
+      // Row 17: Project_Insider_Director
+      'A17': 'Project_Insider_Director',
+      'B17': insider?.director || '',
+      // Row 18: Contract_Date
+      'A18': 'Contract_Date',
+      'B18': dateToExcelSerial(project.date),
+      // Row 19: Project_Currency
+      'A19': 'Project_Currency',
+      'B19': currency?.code || '',
     };
 
-    console.log('[Export Handover] Placeholder data prepared, updating via JSZip...');
+    console.log('[Export Handover] Placeholder data prepared (with VLOOKUP labels in A, values in B), updating via JSZip...');
 
     // Use JSZip to work with the Excel file directly
     const originalZip = new JSZip();
@@ -170,15 +210,8 @@ export async function POST(req: NextRequest) {
 
     console.log('[Export Handover] Placeholders XML loaded, size:', modifiedXml.length);
 
-    // B5 and B16 have genitive formulas - skip them (let them compute from B6 and B17)
-    const SKIP_CELLS = ['B5', 'B16'];
-    
+    // No cells to skip - all placeholder data should be written
     Object.entries(placeholderData).forEach(([cellRef, value]) => {
-      if (SKIP_CELLS.includes(cellRef)) {
-        console.log(`[Export Handover]   Skipping ${cellRef} (has genitive formula)`);
-        return;
-      }
-
       const escapedValue = String(value)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -186,6 +219,7 @@ export async function POST(req: NextRequest) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&apos;');
 
+      // Date cells (B2, B18) use number type
       const isDateCell = cellRef === 'B2' || cellRef === 'B18';
       const cellType = isDateCell ? 'n' : 's';
 
