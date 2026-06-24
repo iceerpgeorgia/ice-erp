@@ -1,5 +1,58 @@
 # Deployment Log
 
+## 2026-06-24 Deployment #368 (Fix: Correct oris_1630 Column Name in GROUP BY Clause)
+- Commit: 90a3f02
+- Production: https://ice-cev3rbwl9-iceerp.vercel.app
+- Summary: Fixed production 500 error in /api/projects endpoint. GROUP BY clause was referencing `p.oris1630` (missing underscore) instead of the correct column name `p.oris_1630`, causing PostgreSQL error "column p.oris1630 does not exist".
+- Root Cause: Typo in GROUP BY clause - missing underscore in column name. The column exists in the schema as `oris_1630` but was being referenced as `oris1630`.
+- Error Log Source: Chrome Logs export from 2026-06-24T08:42:27Z showed repeated 500 errors on GET /api/projects with error code 42703 "column p.oris1630 does not exist"
+- Solution: Updated line 205 in app/api/projects/route.ts GROUP BY clause:
+  - Changed: `p.oris1630` (incorrect)
+  - To: `p.oris_1630` (correct)
+- Impact: Resolves all 500 errors on /api/projects and dependent endpoints
+- Status: ✅ Deployed
+
+## 2026-06-24 Deployment #367 (Feat: Export Dates as Excel Serial Numbers with dd.mm.yyyy Formatting)
+- Commit: 186ca1f
+- Production: https://ice-krwa00le5-iceerp.vercel.app
+- Summary: Enhanced Handovers placeholder export to display Handover_Date and Contract_Date as Excel serial numbers formatted as dd.mm.yyyy
+- Changes:
+  - components/figma/handovers-table.tsx: Added per-row format metadata for date fields
+    - Index 1 (Handover_Date): `_format_placeholder_value: 'date'`
+    - Index 17 (Contract_Date): `_format_placeholder_value: 'date'`
+  - lib/export-xlsx.ts: Enhanced exportMultiSheetsToXlsx to support per-row formatting
+    - Added rowDateFormats tracking for cells with per-row format metadata
+    - Applied 'dd.mm.yyyy' cell formatting to per-row date cells
+- Implementation:
+  - toExcelDateSerial() function converts date strings (YYYY-MM-DD or DD.MM.YYYY) to Excel serial numbers
+  - Per-row format metadata (_format_{key}) overrides column-level formatting
+  - Cell format string 'dd.mm.yyyy' ensures proper date display in Excel
+- Testing: Verified with project dates converting to proper Excel serial numbers and formatting
+- Status: ✅ Deployed
+
+## 2026-06-24 Deployment #366 (Fix: Apply Genitive Case Conversion to Director Names)
+- Commit: ce76797
+- Production: https://ice-qud81b140-iceerp.vercel.app
+- Summary: Implemented genitive case conversion for Georgian director names in Handovers export. Director names in the Placeholders sheet now display in proper Georgian grammatical form (genitive case).
+- Changes: Updated components/figma/handovers-table.tsx to apply toGenitiveCase() function to:
+  - Project_Counteragent_Director_Genitive (placeholder index 4)
+  - Project_Insider_Director_Genitive (placeholder index 15)
+- Implementation: Added import of toGenitiveCase from lib/georgian-genitive and applied to placeholder mapping for both director genitive fields
+- Grammatical Correctness: Ensures director names appear in proper Georgian nominative and genitive forms per linguistic requirements
+- Test Data: Verified with project UUID 808bf640-8295-46a9-a083-c43472345717
+- Status: ✅ Deployed
+
+## 2026-06-23 Deployment #365 (Fix: Correct SQL JOIN Conditions for Currencies Table)
+- Commit: 27fd7fd
+- Production: https://ice-p8p2lshv6-iceerp.vercel.app
+- Summary: Fixed silent JOIN failure in /api/projects endpoint caused by incorrect column reference in currencies table JOIN condition. Changed from `cur.currency_uuid` (non-existent column) to `cur.uuid` (correct column).
+- Root Cause: When fetching project data with currency information, the LEFT JOIN on currencies table used incorrect column name `currency_uuid` instead of `uuid`, causing silent failures where NULL was returned for all currency-related fields
+- Solution: Updated 2 instances in app/api/projects/route.ts:
+  - Line 61: Changed `LEFT JOIN currencies cur ON p.currency_uuid = cur.currency_uuid` to `LEFT JOIN currencies cur ON p.currency_uuid = cur.uuid`
+  - Line 157: Applied same correction for the list projects query
+- Result: Currency fields now correctly populated in all placeholder exports and related operations
+- Status: ✅ Deployed
+
 ## 2026-06-23 Deployment #364 (Fix: Complete GROUP BY Clause to Resolve 500 Errors)
 - Commit: 65295c4
 - Production: https://ice-mtg7ui85y-iceerp.vercel.app
