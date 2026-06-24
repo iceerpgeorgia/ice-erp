@@ -271,72 +271,70 @@ export async function POST(req: NextRequest) {
 
     console.log('[Export Handover] Placeholders XML loaded, size:', modifiedXml.length);
 
-    // No cells to skip - all placeholder data should be written
+    // Update placeholder cells with proper Excel formatting
     Object.entries(placeholderData).forEach(([cellRef, value]) => {
-      const escapedValue = String(value)
+      const stringValue = String(value);
+      
+      // Date cells (B2, B18) use number type, others use inlineStr
+      const isDateCell = cellRef === 'B2' || cellRef === 'B18';
+      
+      // Escape XML for text content
+      const escapedValue = stringValue
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&apos;');
 
-      // Date cells (B2, B18) use number type
-      const isDateCell = cellRef === 'B2' || cellRef === 'B18';
-      const cellType = isDateCell ? 'n' : 's';
+      console.log(`[Export Handover]   Processing ${cellRef} = ${escapedValue.substring(0, 50)}`);
 
-      console.log(`[Export Handover]   Processing ${cellRef} = ${escapedValue}`);
+      let cellContent: string;
+      if (isDateCell) {
+        // Number cell: <c r="B2" t="n"><v>44719</v></c>
+        cellContent = `<c r="${cellRef}" t="n"><v>${escapedValue}</v></c>`;
+      } else {
+        // Inline string cell: <c r="B1"><is><t>value</t></is></c>
+        // Note: removed t="s" and use inlineStr format instead
+        cellContent = `<c r="${cellRef}"><is><t>${escapedValue}</t></is></c>`;
+      }
 
-      // Try to update or create the cell in the XML
       let updated = false;
 
-      // Pattern 1: Cell has existing value <c r="B1" ...><v>old</v></c>
-      const pattern1 = new RegExp(`(<c r="${cellRef}"[^>]*>.*?)<v>[^<]*</v>`, 's');
-      if (pattern1.test(modifiedXml)) {
-        modifiedXml = modifiedXml.replace(pattern1, `$1<v>${escapedValue}</v>`);
-        console.log(`[Export Handover]     ✓ Updated existing value in ${cellRef}`);
+      // Pattern 1: Replace existing cell completely (any format)
+      const cellPattern = new RegExp(`<c r="${cellRef}"[^>]*>.*?</c>`, 's');
+      if (cellPattern.test(modifiedXml)) {
+        modifiedXml = modifiedXml.replace(cellPattern, cellContent);
+        console.log(`[Export Handover]     ✓ Replaced existing cell ${cellRef}`);
         updated = true;
       }
 
-      // Pattern 2: Empty cell <c r="B2" s="13"/>
+      // Pattern 2: Replace self-closing empty cell <c r="B1"/>
       if (!updated) {
-        const pattern2 = new RegExp(`<c r="${cellRef}"([^>]*?)\\s*/>`, 's');
-        if (pattern2.test(modifiedXml)) {
-          modifiedXml = modifiedXml.replace(
-            pattern2,
-            `<c r="${cellRef}"$1><v>${escapedValue}</v></c>`
-          );
-          console.log(`[Export Handover]     ✓ Converted empty cell ${cellRef}`);
+        const emptyPattern = new RegExp(`<c r="${cellRef}"[^>]*/>`);
+        if (emptyPattern.test(modifiedXml)) {
+          modifiedXml = modifiedXml.replace(emptyPattern, cellContent);
+          console.log(`[Export Handover]     ✓ Replaced empty cell ${cellRef}`);
           updated = true;
         }
       }
 
-      // Pattern 3: Cell doesn't exist - create it in the appropriate row
+      // Pattern 3: Insert in existing row if cell doesn't exist
       if (!updated && !modifiedXml.includes(`<c r="${cellRef}"`)) {
         const rowNum = parseInt(cellRef.match(/\d+/)?.[0] || '0');
-        const rowOpenTag = new RegExp(`<row r="${rowNum}"([^>]*)>`, 's');
+        const rowPattern = new RegExp(`(<row r="${rowNum}"[^>]*>)`);
         
-        if (rowOpenTag.test(modifiedXml)) {
-          // Row exists, insert cell after row opening tag
-          const newCell = `<c r="${cellRef}" t="${cellType}"><v>${escapedValue}</v></c>`;
+        if (rowPattern.test(modifiedXml)) {
           modifiedXml = modifiedXml.replace(
-            rowOpenTag,
-            `<row r="${rowNum}"$1>${newCell}`
+            rowPattern,
+            `$1${cellContent}`
           );
-          console.log(`[Export Handover]     ✓ Created ${cellRef} in existing row`);
+          console.log(`[Export Handover]     ✓ Inserted ${cellRef} into existing row ${rowNum}`);
           updated = true;
-        } else {
-          // Row doesn't exist - create it
-          const newRowCell = `<row r="${rowNum}" spans="1:5"><c r="${cellRef}" t="${cellType}"><v>${escapedValue}</v></c></row>`;
-          if (modifiedXml.includes('</sheetData>')) {
-            modifiedXml = modifiedXml.replace('</sheetData>', newRowCell + '</sheetData>');
-            console.log(`[Export Handover]     ✓ Created row ${rowNum} with ${cellRef}`);
-            updated = true;
-          }
         }
       }
 
       if (!updated) {
-        console.log(`[Export Handover]     ⚠ Could not update ${cellRef}`);
+        console.log(`[Export Handover]     ⚠ WARNING: Could not update ${cellRef}`);
       }
     });
 
