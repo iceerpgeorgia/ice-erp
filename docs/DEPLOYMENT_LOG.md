@@ -1,5 +1,56 @@
 # Deployment Log
 
+## 2026-06-24 Deployment #378 (Fix: Template Export Now Fetches from Supabase + Template Download)
+- Commit: 4b7e4cd
+- Production: https://ice-9zkfivtb8-iceerp.vercel.app
+- Summary: Fixed template export to correctly fetch from Supabase storage and added download button to templates admin page.
+- Root Cause of Export Issue:
+  - Export endpoint was trying to fetch from Supabase using `authenticated` endpoint, but templates bucket doesn't exist/is public
+  - Database storage_path stored as `templates/handover/...` but file was actually at `templates/templates/handover/...` due to upload path structure
+  - Export fell back to file system template instead of using Supabase-uploaded version
+- Solution:
+  1. Created `templates` bucket in Supabase storage and uploaded template file
+  2. Updated database storage_path to match actual location: `templates/templates/handover/...`
+  3. Changed export endpoint from `authenticated` to `public` fetch endpoint (no auth header needed)
+  4. Added `storage_path` field to templates API response (GET endpoint)
+  5. Added download button to templates admin page with icon and functionality
+- Implementation Details:
+  - **Export endpoint** (`app/api/export/handover-template/route.ts`):
+    - Changed fetch URL from: `${supabaseUrl}/storage/v1/object/authenticated/${activeTemplate.storage_path}`
+    - To: `${supabaseUrl}/storage/v1/object/public/${activeTemplate.storage_path}`
+    - Removed Authorization header (not needed for public bucket)
+    - Logs show successful fetch from Supabase now
+  - **Templates API** (`app/api/templates/route.ts`):
+    - Added `storage_path` to SELECT clause in GET endpoint
+    - POST endpoint already includes storage_path in response
+  - **Templates page** (`app/admin/templates/page.tsx`):
+    - Added `storage_path` to Template interface
+    - Added Download icon import from lucide-react
+    - Added `handleDownload` function that fetches from Supabase public URL
+    - Added Download button with icon in Actions column
+    - Button downloads template file with correct filename
+- Files Modified:
+  - app/api/export/handover-template/route.ts: Fixed Supabase fetch endpoint (+3 lines)
+  - app/api/templates/route.ts: Added storage_path to response (+1 line in SELECT)
+  - app/admin/templates/page.tsx: Added download functionality (+25 lines)
+- Testing:
+  - ✓ Created templates bucket in Supabase
+  - ✓ Uploaded template file to Supabase
+  - ✓ Fixed database storage_path to match actual location
+  - ✓ Verified Supabase fetch works with public endpoint
+  - ✓ TypeScript compilation: No errors
+  - ✓ Production build: Successful
+- Feature Status:
+  - ✓ Export endpoint now fetches template from Supabase instead of file system
+  - ✓ Templates admin page has download button
+  - ✓ User can download any template file from templates page
+  - ✓ Handover export uses template with formulas and formatting
+- Impact:
+  - Handover exports now correctly use templates from Supabase storage
+  - User can backup/download any template from admin panel
+  - Template management is now fully functional end-to-end
+- Status: ✅ Deployed
+
 ## 2026-06-24 Deployment #377 (Feature: Add Full Template Export Button to Handovers)
 - Commit: ae010fc
 - Production: https://ice-9obgy1c9p-iceerp.vercel.app
