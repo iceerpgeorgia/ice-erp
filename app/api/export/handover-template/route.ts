@@ -287,6 +287,27 @@ export async function POST(req: NextRequest) {
       console.log('[Export Handover]   Contains formatting:', hasFormatting);
     }
 
+    // ── Clear cached values from formula cells in Handover sheet ──────────────
+    // CRITICAL FIX: Formula cells have cached <v> values from template creation.
+    // When Excel opens the file, it displays the cached value instead of recalculating.
+    // We must remove <v> elements so Excel recalculates formulas with new Placeholders data.
+    console.log('[Export Handover] Clearing cached formula values from sheet1.xml...');
+    
+    let handoverWithoutCache = handoverXml;
+    
+    // Pattern: Remove <v>...</v> (cached values) that appear after <f>...</f> in formula cells
+    // Keep the <f> element but remove the cached <v> element so Excel recalculates
+    const clearCachePattern = /(<c[^>]*>.*?<f>.*?<\/f>)(\s*<v>.*?<\/v>)/gs;
+    const beforeCount = (handoverWithoutCache.match(/<v>/g) || []).length;
+    handoverWithoutCache = handoverWithoutCache.replace(clearCachePattern, '$1');
+    const afterCount = (handoverWithoutCache.match(/<v>/g) || []).length;
+    
+    console.log(`[Export Handover] Cached values cleared: removed ${beforeCount - afterCount} <v> elements`);
+    
+    // Update sheet1.xml in the ZIP with cache-cleared version
+    originalZip.file('xl/worksheets/sheet1.xml', handoverWithoutCache);
+    console.log('[Export Handover] Updated sheet1.xml in ZIP with cleared cache');
+
     // Extract and modify the Placeholders sheet XML (sheet2.xml in new template)
     let placeholdersXml = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
     if (!placeholdersXml) {
