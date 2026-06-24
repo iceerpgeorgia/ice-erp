@@ -367,9 +367,28 @@ export async function POST(req: NextRequest) {
     });
 
     console.log('[Export Handover] Updating sheet2.xml in ZIP...');
-
+    console.log('[Export Handover] Modified XML size:', modifiedXml.length, 'bytes');
+    
     // Update sheet2.xml in the original ZIP
     originalZip.file('xl/worksheets/sheet2.xml', modifiedXml);
+    
+    // VERIFY the update was saved to ZIP
+    const verifySheet2After = await originalZip.file('xl/worksheets/sheet2.xml')?.async('string');
+    if (!verifySheet2After) {
+      console.error('[Export Handover] ✗ ERROR: sheet2.xml disappeared after update!');
+      return Response.json({ error: 'sheet2.xml lost during update' }, { status: 500 });
+    }
+    console.log('[Export Handover] ✓ Verified sheet2.xml in ZIP after update, size:', verifySheet2After.length, 'bytes');
+    
+    // Check if modifications are present in ZIP
+    const aclContainsProjectDept = verifySheet2After.includes('Project_Department');
+    console.log('[Export Handover] Sheet2 contains "Project_Department":', aclContainsProjectDept);
+    
+    if (!aclContainsProjectDept) {
+      // Log first 1000 chars of sheet2 to see what's actually there
+      console.log('[Export Handover] ⚠ WARNING: Placeholder text not found. First 1000 chars of sheet2.xml:');
+      console.log(verifySheet2After.substring(0, 1000));
+    }
 
     // ── Create/Update jobs sheet ───────────────────────────────────────────
     if (jobs.length > 0) {
