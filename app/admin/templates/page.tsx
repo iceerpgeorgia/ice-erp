@@ -144,18 +144,14 @@ export default function TemplatesPage() {
         .join('/');
       const url = `${supabaseUrl}/storage/v1/object/public/${bucket}/${encodedPath}`;
       
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to download template');
-      
-      const blob = await response.blob();
-      const downloadUrl = URL.createObjectURL(blob);
+      // Direct download via window.open (no CORS issues)
       const link = document.createElement('a');
-      link.href = downloadUrl;
+      link.href = url;
       link.download = template.file_name;
+      link.target = '_blank';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(downloadUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Download failed');
     }
