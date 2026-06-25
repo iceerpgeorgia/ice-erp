@@ -144,11 +144,10 @@ export default function TemplatesPage() {
         .join('/');
       const url = `${supabaseUrl}/storage/v1/object/public/${bucket}/${encodedPath}`;
       
-      // Direct download via window.open (no CORS issues)
+      // Direct download via Supabase public URL
       const link = document.createElement('a');
       link.href = url;
       link.download = template.file_name;
-      link.target = '_blank';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
