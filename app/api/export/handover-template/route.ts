@@ -391,32 +391,6 @@ export async function POST(req: NextRequest) {
       console.log(verifySheet2After.substring(0, 1000));
     }
 
-    // ── CRITICAL FIX: Clear cached values from Handover sheet ──────────────
-    // The Handover sheet (sheet1.xml) has formulas that reference Placeholders.
-    // These formulas have cached <v> (value) tags that may contain old #N/A errors.
-    // When we update the Placeholders sheet, Excel won't recalculate unless we
-    // remove the cached values. This forces Excel to recalculate on file open.
-    console.log('[Export Handover] Clearing cached formula values from Handover sheet...');
-    
-    let sheet1Xml = await originalZip.file('xl/worksheets/sheet1.xml')?.async('string');
-    if (sheet1Xml) {
-      // Count <v> tags before
-      const vTagsBefore = (sheet1Xml.match(/<v>/g) || []).length;
-      console.log('[Export Handover] Found ' + vTagsBefore + ' <v> tags in sheet1.xml');
-      
-      // Remove ALL <v>...</v> tags from the entire sheet
-      const updatedSheet1 = sheet1Xml.replace(/<v>[\s\S]*?<\/v>/g, '');
-      
-      const vTagsAfter = (updatedSheet1.match(/<v>/g) || []).length;
-      const cleared = vTagsBefore - vTagsAfter;
-      console.log('[Export Handover] After removal: ' + vTagsAfter + ' tags remain (' + cleared + ' cleared)');
-      
-      // Update the file with overwrite=true to ensure proper replacement
-      const updatedZip = originalZip.file('xl/worksheets/sheet1.xml', updatedSheet1, { overwrite: true });
-      console.log('[Export Handover] ✓ File replacement queued (overwrite=true)');
-    } else {
-      console.warn('[Export Handover] ⚠ Could not find sheet1.xml to clear cached values');
-    }
 
     // ── Create/Update jobs sheet ───────────────────────────────────────────
     if (jobs.length > 0) {
@@ -538,10 +512,37 @@ export async function POST(req: NextRequest) {
     console.log('[Export Handover] ✓ Handover sheet confirmed present in final output, size:', finalHandoverXml.length, 'bytes');
 
     // Generate the modified Excel file, preserving original structure and compression
-    const outputBuffer = await originalZip.generateAsync({
+    let outputBuffer = await originalZip.generateAsync({
       type: 'nodebuffer',
       compression: 'DEFLATE',
     });
+
+    console.log('[Export Handover] Generated initial buffer, size:', outputBuffer.length, 'bytes');
+    console.log('[Export Handover] ✓ Post-processing to clear remaining cached values...');
+    
+    // Post-process: reload the buffer and strip <v> tags from sheet1.xml
+    const postProcessZip = new JSZip();
+    await postProcessZip.loadAsync(outputBuffer);
+    
+    let postSheet1 = await postProcessZip.file('xl/worksheets/sheet1.xml')?.async('string');
+    if (postSheet1) {
+      const preBefore = (postSheet1.match(/<v>/g) || []).length;
+      console.log('[Export Handover] Post-process: Found ' + preBefore + ' <v> tags in sheet1.xml');
+      
+      const cleanedSheet1 = postSheet1.replace(/<v>[\s\S]*?<\/v>/g, '');
+      const preAfter = (cleanedSheet1.match(/<v>/g) || []).length;
+      
+      console.log('[Export Handover] Post-process: After cleanup: ' + preAfter + ' tags remain (removed ' + (preBefore - preAfter) + ')');
+      postProcessZip.remove('xl/worksheets/sheet1.xml');
+      postProcessZip.file('xl/worksheets/sheet1.xml', cleanedSheet1);
+      
+      // Regenerate the buffer with cleaned values
+      outputBuffer = await postProcessZip.generateAsync({
+        type: 'nodebuffer',
+        compression: 'DEFLATE',
+      });
+      console.log('[Export Handover] ✓ Regenerated buffer after cleanup, final size:', outputBuffer.length, 'bytes');
+    }
 
     console.log('[Export Handover] ✓ Export complete, final file size:', outputBuffer.length, 'bytes');
     console.log('[Export Handover] SUMMARY: Template source =', templateSource, '| Final sheets =', finalSheetsList.length);
