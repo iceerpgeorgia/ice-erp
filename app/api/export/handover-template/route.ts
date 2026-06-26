@@ -400,24 +400,15 @@ export async function POST(req: NextRequest) {
     
     let sheet1Xml = await originalZip.file('xl/worksheets/sheet1.xml')?.async('string');
     if (sheet1Xml) {
-      // Strategy: Remove all <v> tags from ALL formula cells (t="e")
-      // This is simpler and more reliable than trying to match entire cells
-      const valueCellsBefore = (sheet1Xml.match(/<v>[\s\S]*?<\/v>/g) || []).length;
+      // Count <v> tags before
+      const vTagsBefore = (sheet1Xml.match(/<v>/g) || []).length;
       
-      // Remove <v> tags only from formula cells
-      // Pattern: Find cells with t="e" and remove <v>...</v> within them
-      let updatedSheet1 = sheet1Xml.replace(
-        /<c[^>]*t="e"[^>]*>[\s\S]*?<\/c>/g,
-        (cellMatch) => {
-          // Remove all <v>...</v> tags from this cell
-          return cellMatch.replace(/<v>[\s\S]*?<\/v>/g, '');
-        }
-      );
+      // Simple approach: remove ALL <v>...</v> tags from the entire sheet
+      // This clears cached values from formula cells, forcing Excel to recalculate
+      const updatedSheet1 = sheet1Xml.replace(/<v>[\s\S]*?<\/v>/g, '');
       
-      const valueCellsAfter = (updatedSheet1.match(/<v>[\s\S]*?<\/v>/g) || []).length;
-      const valueCellsCleared = valueCellsBefore - valueCellsAfter;
-      
-      console.log('[Export Handover] ✓ Cleared ' + valueCellsCleared + ' cached <v> tags from formula cells');
+      const vTagsAfter = (updatedSheet1.match(/<v>/g) || []).length;
+      console.log('[Export Handover] ✓ Cleared ' + (vTagsBefore - vTagsAfter) + ' cached <v> tags');
       
       // Update sheet1.xml in ZIP
       originalZip.file('xl/worksheets/sheet1.xml', updatedSheet1);
