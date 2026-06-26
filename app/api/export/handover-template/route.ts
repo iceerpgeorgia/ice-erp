@@ -401,10 +401,11 @@ export async function POST(req: NextRequest) {
     let sheet1Xml = await originalZip.file('xl/worksheets/sheet1.xml')?.async('string');
     if (sheet1Xml) {
       // Find all cells with formulas and remove their cached <v> values
-      // Pattern: <c r="..." t="e"><f>formula</f><v>cachedValue</v></c>
-      // Replace with: <c r="..." t="e"><f>formula</f></c>
+      // Handles both regular formulas <f> and array formulas <f t="array" ...>
+      // Pattern: <c r="..." t="e"><f...>formula</f><v>cachedValue</v></c>
+      // Replace with: <c r="..." t="e"><f...>formula</f></c>
       const updatedSheet1 = sheet1Xml.replace(
-        /<c r="[^"]*" [^>]*t="e"[^>]*><f>[\s\S]*?<\/f><v>[\s\S]*?<\/v><\/c>/g,
+        /<c r="[^"]*" [^>]*t="e"[^>]*><f[^>]*>[\s\S]*?<\/f><v>[\s\S]*?<\/v><\/c>/g,
         (match) => {
           // Keep everything except the <v> tags
           return match.replace(/<v>[\s\S]*?<\/v>/g, '');
