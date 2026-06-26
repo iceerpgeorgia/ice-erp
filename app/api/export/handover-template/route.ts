@@ -520,28 +520,54 @@ export async function POST(req: NextRequest) {
     console.log('[Export Handover] Generated initial buffer, size:', outputBuffer.length, 'bytes');
     console.log('[Export Handover] ✓ Post-processing to clear remaining cached values...');
     
-    // Post-process: reload the buffer and strip <v> tags from sheet1.xml
+    // Post-process: reload buffer, extract sheet1.xml, strip <v> tags, rebuild ZIP
     const postProcessZip = new JSZip();
     await postProcessZip.loadAsync(outputBuffer);
     
+    // Extract sheet1.xml
     let postSheet1 = await postProcessZip.file('xl/worksheets/sheet1.xml')?.async('string');
     if (postSheet1) {
-      const preBefore = (postSheet1.match(/<v>/g) || []).length;
-      console.log('[Export Handover] Post-process: Found ' + preBefore + ' <v> tags in sheet1.xml');
+      const vCountBefore = (postSheet1.match(/<v>/g) || []).length;
+      console.log('[Export Handover] Post-process: Found ' + vCountBefore + ' <v> tags in sheet1.xml');
       
+      // Strip all <v>...</v> tags
       const cleanedSheet1 = postSheet1.replace(/<v>[\s\S]*?<\/v>/g, '');
-      const preAfter = (cleanedSheet1.match(/<v>/g) || []).length;
+      const vCountAfter = (cleanedSheet1.match(/<v>/g) || []).length;
       
-      console.log('[Export Handover] Post-process: After cleanup: ' + preAfter + ' tags remain (removed ' + (preBefore - preAfter) + ')');
-      postProcessZip.remove('xl/worksheets/sheet1.xml');
-      postProcessZip.file('xl/worksheets/sheet1.xml', cleanedSheet1);
+      console.log('[Export Handover] Post-process: After cleanup: ' + vCountAfter + ' tags remain (removed ' + (vCountBefore - vCountAfter) + ')');
       
-      // Regenerate the buffer with cleaned values
-      outputBuffer = await postProcessZip.generateAsync({
+      // Create new ZIP and copy all files except sheet1.xml
+      const rebuildZip = new JSZip();
+      const filePromises: Promise<void>[] = [];
+      
+      // Copy all files from postProcessZip
+      postProcessZip.forEach((relativePath, file) => {
+        if (relativePath !== 'xl/worksheets/sheet1.xml' && !file.dir) {
+          const promise = file.async('uint8array').then(data => {
+            rebuildZip.file(relativePath, data);
+          });
+          filePromises.push(promise);
+        }
+      });
+      
+      await Promise.all(filePromises);
+      
+      // Add cleaned sheet1.xml
+      rebuildZip.file('xl/worksheets/sheet1.xml', cleanedSheet1);
+      
+      // Generate the rebuilt buffer
+      outputBuffer = await rebuildZip.generateAsync({
         type: 'nodebuffer',
         compression: 'DEFLATE',
       });
-      console.log('[Export Handover] ✓ Regenerated buffer after cleanup, final size:', outputBuffer.length, 'bytes');
+      console.log('[Export Handover] ✓ Rebuilt ZIP buffer, final size:', outputBuffer.length, 'bytes');
+      
+      // Verify the rebuilt buffer
+      const verifyZip = new JSZip();
+      await verifyZip.loadAsync(outputBuffer);
+      const verifySheet1 = await verifyZip.file('xl/worksheets/sheet1.xml')?.async('string');
+      const verifyCount = (verifySheet1?.match(/<v>/g) || []).length;
+      console.log('[Export Handover] ✓ Verification: Final buffer has ' + verifyCount + ' <v> tags');
     }
 
     console.log('[Export Handover] ✓ Export complete, final file size:', outputBuffer.length, 'bytes');
