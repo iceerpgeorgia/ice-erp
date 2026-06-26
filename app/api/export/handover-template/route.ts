@@ -503,6 +503,28 @@ export async function POST(req: NextRequest) {
 
     console.log('[Export Handover] All modifications complete, verifying final structure...');
 
+    // CRITICAL: Force Excel to recalculate formulas on open
+    // by setting workbook calculation mode to "auto" (not "manual")
+    let finalWorkbookXml = await originalZip.file('xl/workbook.xml')?.async('string');
+    if (finalWorkbookXml) {
+      // Check if calcPr element exists and update it
+      if (finalWorkbookXml.includes('<calcPr')) {
+        // Replace existing calcPr to ensure auto calculation
+        finalWorkbookXml = finalWorkbookXml.replace(
+          /<calcPr[^>]*>/,
+          '<calcPr calcMode="auto" calcOnSave="1" concurrentCalc="1" fullCalcOnLoad="1"/>'
+        );
+      } else {
+        // Add calcPr element if it doesn't exist
+        finalWorkbookXml = finalWorkbookXml.replace(
+          '</workbook>',
+          '<calcPr calcMode="auto" calcOnSave="1" concurrentCalc="1" fullCalcOnLoad="1"/></workbook>'
+        );
+      }
+      originalZip.file('xl/workbook.xml', finalWorkbookXml);
+      console.log('[Export Handover] ✓ Set workbook calculation mode to AUTO - formulas will recalculate on open');
+    }
+
     // Verify final sheet structure - CRITICAL: sheet1.xml must still be there
     const finalSheetFiles = originalZip.folder('xl/worksheets')?.file(/.+\.xml$/);
     const finalSheetsList = (finalSheetFiles || []).map(f => f.name);
