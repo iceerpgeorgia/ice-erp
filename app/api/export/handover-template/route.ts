@@ -400,23 +400,24 @@ export async function POST(req: NextRequest) {
     
     let sheet1Xml = await originalZip.file('xl/worksheets/sheet1.xml')?.async('string');
     if (sheet1Xml) {
-      // Find all cells with formulas and remove their cached <v> values
-      // Handles both regular formulas <f> and array formulas <f t="array" ...>
-      // Pattern: <c r="..." t="e"><f...>formula</f><v>cachedValue</v></c>
-      // Replace with: <c r="..." t="e"><f...>formula</f></c>
-      const updatedSheet1 = sheet1Xml.replace(
-        /<c r="[^"]*" [^>]*t="e"[^>]*><f[^>]*>[\s\S]*?<\/f><v>[\s\S]*?<\/v><\/c>/g,
-        (match) => {
-          // Keep everything except the <v> tags
-          return match.replace(/<v>[\s\S]*?<\/v>/g, '');
+      // Strategy: Remove all <v> tags from ALL formula cells (t="e")
+      // This is simpler and more reliable than trying to match entire cells
+      const valueCellsBefore = (sheet1Xml.match(/<v>[\s\S]*?<\/v>/g) || []).length;
+      
+      // Remove <v> tags only from formula cells
+      // Pattern: Find cells with t="e" and remove <v>...</v> within them
+      let updatedSheet1 = sheet1Xml.replace(
+        /<c[^>]*t="e"[^>]*>[\s\S]*?<\/c>/g,
+        (cellMatch) => {
+          // Remove all <v>...</v> tags from this cell
+          return cellMatch.replace(/<v>[\s\S]*?<\/v>/g, '');
         }
       );
       
-      // Count how many were changed
-      const valueCellsCleared = (sheet1Xml.match(/<v>[\s\S]*?<\/v>/g) || []).length - 
-                                 (updatedSheet1.match(/<v>[\s\S]*?<\/v>/g) || []).length;
+      const valueCellsAfter = (updatedSheet1.match(/<v>[\s\S]*?<\/v>/g) || []).length;
+      const valueCellsCleared = valueCellsBefore - valueCellsAfter;
       
-      console.log('[Export Handover] ✓ Cleared ' + valueCellsCleared + ' cached values from formula cells in Handover sheet');
+      console.log('[Export Handover] ✓ Cleared ' + valueCellsCleared + ' cached <v> tags from formula cells');
       
       // Update sheet1.xml in ZIP
       originalZip.file('xl/worksheets/sheet1.xml', updatedSheet1);
