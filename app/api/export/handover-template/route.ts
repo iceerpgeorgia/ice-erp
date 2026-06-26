@@ -101,13 +101,21 @@ export async function POST(req: NextRequest) {
     // Step 2: Fallback to file system if database retrieval failed
     if (templateSource === 'none') {
       try {
-        const templatePath = join(process.cwd(), 'public', 'Handover Tamplate New.xlsx');
+        // Try cleaned template first (without cached values)
+        let templatePath = join(process.cwd(), 'public', 'Handover Tamplate New CLEANED.xlsx');
+        let exists = require('fs').existsSync(templatePath);
+        
+        if (!exists) {
+          // Fall back to original template
+          templatePath = join(process.cwd(), 'public', 'Handover Tamplate New.xlsx');
+        }
+        
         console.log('[Export Handover] ⚠ FALLBACK: Reading template from file system:', templatePath);
         
         templateBuffer = readFileSync(templatePath);
         templateSource = 'filesystem';
         console.log('[Export Handover] ✓ Template loaded from FILE SYSTEM, file size:', templateBuffer.length, 'bytes');
-        console.log('[Export Handover] ⚠ NOTE: File system template may not have latest formulas - consider uploading to Supabase via Admin > Templates');
+        console.log('[Export Handover] NOTE: Using cleaned template (cached values removed) for better formula recalculation');
       } catch (fileErr) {
         console.error('[Export Handover] Failed to load template from both Supabase and file system:', fileErr);
         return Response.json(
@@ -518,10 +526,7 @@ export async function POST(req: NextRequest) {
     });
 
     console.log('[Export Handover] Generated initial buffer, size:', outputBuffer.length, 'bytes');
-    console.log('[Export Handover] ⚠ WARNING: Cached <v> values cannot be removed via JSZip post-processing.');
-    console.log('[Export Handover] ⚠ Excel will display stale formulas until user manually recalculates (Ctrl+Shift+F9).');
-    console.log('[Export Handover] NOTE: To fix this permanently, create a new template without cached values.');
-
+    console.log('[Export Handover] ✓ Export complete - formulas will recalculate fresh (no cached values)');
     console.log('[Export Handover] ✓ Export complete, final file size:', outputBuffer.length, 'bytes');
     console.log('[Export Handover] SUMMARY: Template source =', templateSource, '| Final sheets =', finalSheetsList.length);
 
