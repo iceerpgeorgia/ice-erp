@@ -402,16 +402,23 @@ export async function POST(req: NextRequest) {
     if (sheet1Xml) {
       // Count <v> tags before
       const vTagsBefore = (sheet1Xml.match(/<v>/g) || []).length;
+      console.log('[Export Handover] Found ' + vTagsBefore + ' <v> tags in sheet1.xml');
       
-      // Simple approach: remove ALL <v>...</v> tags from the entire sheet
-      // This clears cached values from formula cells, forcing Excel to recalculate
+      // Remove ALL <v>...</v> tags from the entire sheet
       const updatedSheet1 = sheet1Xml.replace(/<v>[\s\S]*?<\/v>/g, '');
       
       const vTagsAfter = (updatedSheet1.match(/<v>/g) || []).length;
-      console.log('[Export Handover] ✓ Cleared ' + (vTagsBefore - vTagsAfter) + ' cached <v> tags');
+      const cleared = vTagsBefore - vTagsAfter;
+      console.log('[Export Handover] After removal: ' + vTagsAfter + ' tags remain (' + cleared + ' cleared)');
       
-      // Update sheet1.xml in ZIP
+      // Remove old file and add new one with updated content
+      originalZip.remove('xl/worksheets/sheet1.xml');
       originalZip.file('xl/worksheets/sheet1.xml', updatedSheet1);
+      
+      // Verify it was written
+      const verify = await originalZip.file('xl/worksheets/sheet1.xml')?.async('string');
+      const verifyCount = (verify?.match(/<v>/g) || []).length;
+      console.log('[Export Handover] ✓ Verified write: ' + verifyCount + ' tags in updated file');
     } else {
       console.warn('[Export Handover] ⚠ Could not find sheet1.xml to clear cached values');
     }
