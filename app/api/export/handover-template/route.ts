@@ -391,6 +391,38 @@ export async function POST(req: NextRequest) {
       console.log(verifySheet2After.substring(0, 1000));
     }
 
+    // ── CRITICAL FIX: Clear cached values from Handover sheet ──────────────
+    // The Handover sheet (sheet1.xml) has formulas that reference Placeholders.
+    // These formulas have cached <v> (value) tags that may contain old #N/A errors.
+    // When we update the Placeholders sheet, Excel won't recalculate unless we
+    // remove the cached values. This forces Excel to recalculate on file open.
+    console.log('[Export Handover] Clearing cached formula values from Handover sheet...');
+    
+    let sheet1Xml = await originalZip.file('xl/worksheets/sheet1.xml')?.async('string');
+    if (sheet1Xml) {
+      // Find all cells with formulas and remove their cached <v> values
+      // Pattern: <c r="..." t="e"><f>formula</f><v>cachedValue</v></c>
+      // Replace with: <c r="..." t="e"><f>formula</f></c>
+      const updatedSheet1 = sheet1Xml.replace(
+        /<c r="[^"]*" [^>]*t="e"[^>]*><f>[\s\S]*?<\/f><v>[\s\S]*?<\/v><\/c>/g,
+        (match) => {
+          // Keep everything except the <v> tags
+          return match.replace(/<v>[\s\S]*?<\/v>/g, '');
+        }
+      );
+      
+      // Count how many were changed
+      const valueCellsCleared = (sheet1Xml.match(/<v>[\s\S]*?<\/v>/g) || []).length - 
+                                 (updatedSheet1.match(/<v>[\s\S]*?<\/v>/g) || []).length;
+      
+      console.log('[Export Handover] ✓ Cleared ' + valueCellsCleared + ' cached values from formula cells in Handover sheet');
+      
+      // Update sheet1.xml in ZIP
+      originalZip.file('xl/worksheets/sheet1.xml', updatedSheet1);
+    } else {
+      console.warn('[Export Handover] ⚠ Could not find sheet1.xml to clear cached values');
+    }
+
     // ── Create/Update jobs sheet ───────────────────────────────────────────
     if (jobs.length > 0) {
       console.log('[Export Handover] Processing jobs sheet with', jobs.length, 'jobs...');
