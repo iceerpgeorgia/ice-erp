@@ -411,14 +411,9 @@ export async function POST(req: NextRequest) {
       const cleared = vTagsBefore - vTagsAfter;
       console.log('[Export Handover] After removal: ' + vTagsAfter + ' tags remain (' + cleared + ' cleared)');
       
-      // Remove old file and add new one with updated content
-      originalZip.remove('xl/worksheets/sheet1.xml');
-      originalZip.file('xl/worksheets/sheet1.xml', updatedSheet1);
-      
-      // Verify it was written
-      const verify = await originalZip.file('xl/worksheets/sheet1.xml')?.async('string');
-      const verifyCount = (verify?.match(/<v>/g) || []).length;
-      console.log('[Export Handover] ✓ Verified write: ' + verifyCount + ' tags in updated file');
+      // Update the file with overwrite=true to ensure proper replacement
+      const updatedZip = originalZip.file('xl/worksheets/sheet1.xml', updatedSheet1, { overwrite: true });
+      console.log('[Export Handover] ✓ File replacement queued (overwrite=true)');
     } else {
       console.warn('[Export Handover] ⚠ Could not find sheet1.xml to clear cached values');
     }
