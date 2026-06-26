@@ -518,28 +518,9 @@ export async function POST(req: NextRequest) {
     });
 
     console.log('[Export Handover] Generated initial buffer, size:', outputBuffer.length, 'bytes');
-    console.log('[Export Handover] ✓ Post-processing to clear remaining cached values...');
-    
-    // Direct binary manipulation: convert buffer to string, strip <v> tags, convert back
-    try {
-      let bufferAsString = outputBuffer.toString('utf8');
-      const vCountBefore = (bufferAsString.match(/<v>/g) || []).length;
-      console.log('[Export Handover] Binary buffer contains ' + vCountBefore + ' <v> tags');
-      
-      if (vCountBefore > 0) {
-        // Strip all <v>...</v> tags from the entire buffer
-        bufferAsString = bufferAsString.replace(/<v>[\s\S]*?<\/v>/g, '');
-        const vCountAfter = (bufferAsString.match(/<v>/g) || []).length;
-        console.log('[Export Handover] After binary replacement: ' + vCountAfter + ' tags remain (removed ' + (vCountBefore - vCountAfter) + ')');
-        
-        // Convert back to buffer
-        outputBuffer = Buffer.from(bufferAsString, 'utf8');
-        console.log('[Export Handover] ✓ Binary manipulation complete, final size:', outputBuffer.length, 'bytes');
-      }
-    } catch (err) {
-      console.error('[Export Handover] Error during binary manipulation:', err);
-      // Continue anyway - the buffer should still be usable
-    }
+    console.log('[Export Handover] ⚠ WARNING: Cached <v> values cannot be removed via JSZip post-processing.');
+    console.log('[Export Handover] ⚠ Excel will display stale formulas until user manually recalculates (Ctrl+Shift+F9).');
+    console.log('[Export Handover] NOTE: To fix this permanently, create a new template without cached values.');
 
     console.log('[Export Handover] ✓ Export complete, final file size:', outputBuffer.length, 'bytes');
     console.log('[Export Handover] SUMMARY: Template source =', templateSource, '| Final sheets =', finalSheetsList.length);
