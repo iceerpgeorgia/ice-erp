@@ -543,7 +543,7 @@ export function BankTransactionsTable({
     if (typeof window !== 'undefined') {
       const savedColumns = localStorage.getItem('bank-transactions-table-columns');
       const savedVersion = localStorage.getItem('bank-transactions-table-version');
-      const currentVersion = '11'; // Increment this when defaultColumns structure changes
+      const currentVersion = '12'; // Increment this when defaultColumns structure changes
       
       if (savedColumns && savedVersion === currentVersion) {
         try {
