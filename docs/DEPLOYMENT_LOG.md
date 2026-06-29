@@ -1,5 +1,23 @@
 # Deployment Log
 
+## 2026-06-29 Deployment #386 (Fix: Projects Report Not Updating After Adding Payments/Ledger)
+- Commit: 2949e26
+- Production: https://ice-7dzmnxjc1-iceerp.vercel.app
+- Summary: Fixed issue where newly created payments or ledger entries did not appear in projects report UI.
+- Root Cause:
+  - `handleAddLedgerEntry` called `fetchReport({ silent: true })` without `await`, causing dialog to close before refetch completed
+  - `handleCreatePayment` never called `fetchReport` to refresh main report after payment creation
+  - Records were saved to database (visible in payments report) but not reflected in projects report
+- Solution:
+  1. Added `await` to `fetchReport({ silent: true })` in `handleAddLedgerEntry`
+  2. Added `await fetchReport({ silent: true })` after payment creation in `handleCreatePayment`
+  - File: `components/figma/projects-report-table.tsx` lines 1176, 1225
+- Impact:
+  - ✅ Projects report now updates immediately after adding payments
+  - ✅ Projects report now updates immediately after adding ledger entries
+  - ✅ No stale data displayed after dialog closes
+- Status: ✅ Deployed
+
 ## 2026-06-24 Deployment #385 (Fix: XML Corruption in Handover Export Placeholder Cells)
 - Commit: 23d5f21
 - Production: https://ice-roge3tb4l-iceerp.vercel.app
