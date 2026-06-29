@@ -1173,6 +1173,7 @@ export function ProjectsReportTable() {
         currency: curr?.code || 'N/A',
       });
       await fetchDlgPayments();
+      await fetchReport({ silent: true });
       setAddLedgerStep('ledger');
     } catch (err: any) {
       alert(err.message || 'Failed to create payment');
@@ -1216,7 +1217,7 @@ export function ProjectsReportTable() {
       if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Failed to create ledger entry'); }
       setIsDialogOpen(false);
       resetLedgerForm();
-      fetchReport({ silent: true });
+      await fetchReport({ silent: true });
     } catch (err: any) {
       alert(err.message || 'Failed to add ledger entry');
     } finally {
