@@ -21,14 +21,14 @@ export type DefaultItem = {
 };
 
 export const DEFAULT_FOLDERS: DefaultFolder[] = [
-  { name: 'Payments',               sortOrder: 0 },
-  { name: 'Dictionaries',           sortOrder: 1 },
-  { name: 'Financial Dictionaries', sortOrder: 2 },
-  { name: 'RS.GE',                  sortOrder: 3 },
-  { name: 'Salaries',               sortOrder: 4 },
-  { name: 'Projects and Services',  sortOrder: 5 },
-  { name: 'Calculations',           sortOrder: 6 },
-  { name: 'Admin',                  sortOrder: 7 },
+  { name: 'Payments',                sortOrder: 0 },
+  { name: 'Dictionaries',            sortOrder: 1 },
+  { name: 'Financial Dictionaries',  sortOrder: 2 },
+  { name: 'RS.GE',                   sortOrder: 3 },
+  { name: 'Salaries',                sortOrder: 4 },
+  { name: 'Projects and Services',   sortOrder: 5 },
+  { name: 'Calculation Templates',   sortOrder: 6 },
+  { name: 'Admin',                   sortOrder: 7 },
 ];
 
 export const DEFAULT_ITEMS: DefaultItem[] = [
