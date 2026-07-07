@@ -39,6 +39,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ projects: [] });
     }
 
+    console.log('[ProjectsReport API] GET called', {
+      projects: projectUuids.length,
+      insiders: insiderUuids.length,
+      maxDate,
+      targetCurrency,
+      sourceTables: sourceTables.length,
+    });
+
     const ledgerDateFilter = maxDate ? `AND pl.effective_date::date <= '${maxDate}'::date` : '';
     const bankDateFilter = maxDate ? `AND combined.transaction_date::date <= '${maxDate}'::date` : '';
 
@@ -47,6 +55,21 @@ export async function GET(request: NextRequest) {
     const monthStartDate = new Date(Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth(), 1));
     const monthStart = monthStartDate.toISOString().slice(0, 10);
     const lastMonthStart = lastMonthStartDate.toISOString().slice(0, 10);
+
+    // Debug: Count total ledger entries for these projects
+    const ledgerCountRows = await prisma.$queryRawUnsafe<Array<{ payment_id: string; count: any }>>(
+      `SELECT pl.payment_id, COUNT(*) as count 
+       FROM payments_ledger pl
+       JOIN payments p ON pl.payment_id = p.payment_id
+       WHERE p.project_uuid = ANY($1::uuid[])
+         AND (pl.is_deleted = false OR pl.is_deleted IS NULL)
+       GROUP BY pl.payment_id
+       ORDER BY count DESC
+       LIMIT 10`,
+      projectUuids
+    );
+    console.log('[ProjectsReport API] Top 10 ledger entry counts:', ledgerCountRows.map((r: any) => ({ payment_id: r.payment_id, count: Number(r.count) })));
+
 
     const rawUnionBankQuery = sourceTables.length
       ? sourceTables.map((table) => (
@@ -482,7 +505,19 @@ export async function GET(request: NextRequest) {
     // Preserve the order of selected projects
     const projects = projectUuids
       .map((uuid) => projectMap.get(uuid))
-      .filter(Boolean);
+      .filter((p): p is NonNullable<typeof p> => p !== undefined);
+
+    // Log summary for debugging
+    const cellsWithAccrual = projects.reduce((sum, proj) => sum + proj.cells.filter(c => c.accrual !== 0).length, 0);
+    const totalAccrual = projects.reduce((sum, proj) => sum + proj.cells.reduce((s, c) => s + c.accrual, 0), 0);
+    console.log('[ProjectsReport API] Response summary', {
+      projectsCount: projects.length,
+      totalCells: projects.reduce((sum, proj) => sum + proj.cells.length, 0),
+      cellsWithAccrual,
+      totalAccrual: Math.round(totalAccrual * 100) / 100,
+      maxDate,
+      ledgerDateFilter: ledgerDateFilter ? 'ACTIVE' : 'NONE',
+    });
 
     return NextResponse.json({ projects });
   } catch (error: any) {
