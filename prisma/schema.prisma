@@ -570,6 +570,7 @@ model financial_codes {
   bank_transaction_batches bank_transaction_batches[]
   financial_codes          financial_codes?           @relation("financial_codesTofinancial_codes", fields: [parent_uuid], references: [uuid], onDelete: NoAction, onUpdate: NoAction)
   other_financial_codes    financial_codes[]          @relation("financial_codesTofinancial_codes")
+  calculations             calculations_financial_codes[]
 
   @@index([code], map: "idx_financial_codes_code")
   @@index([parent_uuid], map: "idx_financial_codes_parent")
@@ -3018,6 +3019,7 @@ model templates {
   created_by_user_id  String?
   created_at          DateTime  @default(now())
   updated_at          DateTime  @default(now()) @updatedAt
+  calculations        calculations_financial_codes[]
 
   @@index([operation_type], map: "idx_templates_operation_type")
   @@index([is_active], map: "idx_templates_is_active")
@@ -3168,4 +3170,23 @@ model tbc_gel_raw_6050100002 {
   is_processed           Boolean  @default(false)
   created_at             DateTime @default(now()) @db.Timestamp(6)
   updated_at             DateTime @default(now()) @db.Timestamp(6)
+}
+
+model calculations_financial_codes {
+  id                   BigInt            @id @default(autoincrement())
+  uuid                 String            @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  financial_code_uuid  String            @db.Uuid
+  template_uuid        String            @db.Uuid
+  template_name        String            @db.VarChar(255)
+  is_active            Boolean           @default(true)
+  created_at           DateTime          @default(now())
+  updated_at           DateTime          @default(now()) @updatedAt
+  financial_code       financial_codes?  @relation(fields: [financial_code_uuid], references: [uuid], onDelete: Cascade, onUpdate: NoAction)
+  template             templates?        @relation(fields: [template_uuid], references: [uuid], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([financial_code_uuid, template_uuid], map: "uq_calc_fc_template")
+  @@index([financial_code_uuid], map: "idx_calculations_fc_uuid")
+  @@index([template_uuid], map: "idx_calculations_template_uuid")
+  @@index([is_active], map: "idx_calculations_is_active")
+  @@map("calculations_financial_codes")
 }
