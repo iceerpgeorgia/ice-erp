@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-07-07 Deployment #389 (Fix: Rename Calculation Templates Menu Item)
+- Commit: 0fb4f84
+- Production: https://ice-qox968rq4-iceerp.vercel.app
+- Summary: Fixed navigation menu to show "Calculation Templates" instead of "Calculations" folder.
+- Changes:
+  - Renamed folder from "Calculations" to "Calculation Templates" in `lib/nav/default-config.ts`
+- Impact:
+  - ✅ Menu now shows correct label "Calculation Templates"
+  - ✅ Easier for users to understand what the section contains
+- Status: ✅ Deployed
+
 ## 2026-07-07 Deployment #388 (Fix: Add Calculations Page to Navigation Menu)
 - Commit: 2defef7
 - Production: https://ice-dzgr70020-iceerp.vercel.app
