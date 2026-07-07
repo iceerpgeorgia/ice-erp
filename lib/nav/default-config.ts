@@ -27,7 +27,8 @@ export const DEFAULT_FOLDERS: DefaultFolder[] = [
   { name: 'RS.GE',                  sortOrder: 3 },
   { name: 'Salaries',               sortOrder: 4 },
   { name: 'Projects and Services',  sortOrder: 5 },
-  { name: 'Admin',                  sortOrder: 6 },
+  { name: 'Calculations',           sortOrder: 6 },
+  { name: 'Admin',                  sortOrder: 7 },
 ];
 
 export const DEFAULT_ITEMS: DefaultItem[] = [
@@ -71,7 +72,10 @@ export const DEFAULT_ITEMS: DefaultItem[] = [
   { routeKey: '/dictionaries/projects-report', folderIndex: 5, sortOrder: 0, icon: null },
   { routeKey: '/dictionaries/services-report', folderIndex: 5, sortOrder: 1, icon: null },
 
-  // Admin (6)
-  { routeKey: '/admin/users',       folderIndex: 6, sortOrder: 0, icon: null },
-  { routeKey: '/admin/permissions', folderIndex: 6, sortOrder: 1, icon: null },
+  // Calculations (6)
+  { routeKey: '/calculations', folderIndex: 6, sortOrder: 0, icon: null },
+
+  // Admin (7)
+  { routeKey: '/admin/users',       folderIndex: 7, sortOrder: 0, icon: null },
+  { routeKey: '/admin/permissions', folderIndex: 7, sortOrder: 1, icon: null },
 ];
