@@ -744,7 +744,7 @@ export function ProjectsReportTable() {
           else if (maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate)) gParams.set('maxDate', maxDate);
           if (selectedInsiderUuids.length > 0) gParams.set('insiderUuids', selectedInsiderUuids.join(','));
           gParams.set('targetCurrency', curr);
-          const res = await fetch(`/api/projects-report?${gParams}`);
+          const res = await fetch(`/api/projects-report?${gParams}`, { cache: 'no-store' });
           if (!res.ok) throw new Error('Failed to load projects report');
           const data = await res.json() as ProjectsReportResponse;
           return data.projects;
@@ -1209,17 +1209,21 @@ export function ProjectsReportTable() {
     }
     setIsSubmitting(true);
     try {
+      console.log('[ProjectsReport] Creating ledger entry:', { paymentId: selectedPaymentId, accrual: accrualValue, order: orderValue });
       const res = await fetch('/api/payments-ledger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paymentId: selectedPaymentId, effectiveDate: isoDate, accrual: accrualValue, order: orderValue, comment: ledgerComment || undefined }),
       });
       if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Failed to create ledger entry'); }
+      console.log('[ProjectsReport] Ledger entry created, fetching updated report. Selected projects:', Array.from(selectedProjectUuids));
       // Fetch updated data BEFORE closing dialog so grids are refreshed
       await fetchReport({ silent: true });
+      console.log('[ProjectsReport] Report refresh completed, closing dialog');
       setIsDialogOpen(false);
       resetLedgerForm();
     } catch (err: any) {
+      console.error('[ProjectsReport] Error adding ledger entry:', err);
       alert(err.message || 'Failed to add ledger entry');
     } finally {
       setIsSubmitting(false);
