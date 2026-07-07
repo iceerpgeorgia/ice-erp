@@ -1,5 +1,22 @@
 # Deployment Log
 
+## 2026-07-07 Deployment #388 (Fix: Add Calculations Page to Navigation Menu)
+- Commit: 2defef7
+- Production: https://ice-dzgr70020-iceerp.vercel.app
+- Summary: Added Calculations module page to the side navigation menu for user access.
+- Changes:
+  - Added new "Calculations" folder to DEFAULT_FOLDERS in `lib/nav/default-config.ts`
+  - Added Calculations item route to DEFAULT_ITEMS in `lib/nav/default-config.ts`
+  - Calculations page now visible in side menu under "Calculations" folder
+  - Reordered Admin folder sortOrder from 6 to 7
+- Files Modified:
+  - `lib/nav/default-config.ts` - Updated navigation configuration
+- Impact:
+  - ✅ Calculations page now accessible from side menu
+  - ✅ New users will see Calculations in their navigation on first login
+  - ✅ Existing users can enable/add it via nav customization
+- Status: ✅ Deployed
+
 ## 2026-07-07 Deployment #387 (New: Calculations Module with Financial Codes Mapping)
 - Commit: 109c1c7
 - Production: https://ice-4yx9klhq5-iceerp.vercel.app
