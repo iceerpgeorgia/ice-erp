@@ -1,5 +1,52 @@
 # Deployment Log
 
+## 2026-07-07 Deployment #387 (New: Calculations Module with Financial Codes Mapping)
+- Commit: 109c1c7
+- Production: https://ice-4yx9klhq5-iceerp.vercel.app
+- Summary: Added complete Calculations Module for managing template associations with financial codes.
+- Features Implemented:
+  1. Database Schema:
+     - Created `calculations_financial_codes` table with UUID primary key
+     - Composite unique constraint on (financial_code_uuid, template_uuid)
+     - Cascade delete relationships to financial_codes and templates
+     - Optimized indexes for query performance
+  2. Database Migration:
+     - Migration file: `20260707170830_add_calculations_financial_codes_table`
+     - Successfully applied to production database
+     - All constraints and indexes created
+  3. API Endpoints (Full CRUD):
+     - GET `/api/calculations-financial-codes` - List with filtering & pagination
+     - POST `/api/calculations-financial-codes` - Create new template
+     - GET `/api/calculations-financial-codes/[uuid]` - Get specific template
+     - PUT `/api/calculations-financial-codes/[uuid]` - Update template
+     - DELETE `/api/calculations-financial-codes/[uuid]` - Delete template
+  4. User Interface:
+     - New page at `/calculations` with dashboard
+     - Responsive table view with all calculations
+     - Add/Edit/Delete functionality with forms
+     - Financial Code and Template dropdowns
+     - Active/Inactive status toggle
+     - Creation date tracking
+  5. Documentation:
+     - Complete technical documentation (CALCULATIONS_MODULE.md)
+     - Quick start guide (CALCULATIONS_MODULE_QUICKSTART.md)
+     - Implementation summary (CALCULATIONS_MODULE_IMPLEMENTATION_SUMMARY.md)
+- Files Added:
+  - `app/api/calculations-financial-codes/route.ts` - Main API handlers
+  - `app/api/calculations-financial-codes/[uuid]/route.ts` - Detail handlers
+  - `app/calculations/page.tsx` - Dashboard UI
+  - `prisma/migrations/20260707170830_.../migration.sql` - Database migration
+  - `prisma/schema.prisma` - Updated with new model
+  - 3 Documentation files
+- Bug Fix:
+  - Fixed TypeScript error in route.ts: Changed composite unique constraint access from `uq_calc_fc_template` to `financial_code_uuid_template_uuid` format for Prisma compatibility
+- Verification:
+  - ✅ TypeScript compilation: No errors
+  - ✅ ESLint: No new warnings
+  - ✅ Production build: Successful
+  - ✅ Deployment: Successful
+- Status: ✅ Deployed
+
 ## 2026-06-29 Deployment #386 (Fix: Projects Report Not Updating After Adding Payments/Ledger)
 - Commit: 2949e26
 - Production: https://ice-7dzmnxjc1-iceerp.vercel.app
