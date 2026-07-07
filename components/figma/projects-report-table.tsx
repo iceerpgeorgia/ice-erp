@@ -644,6 +644,8 @@ export function ProjectsReportTable() {
   }
 
   // Apply defaultCurrency to newly-added projects (those without an explicit currency set)
+  // IMPORTANT: This effect must run BEFORE fetchReport to avoid race conditions
+  // We use a separate effect with higher priority (runs first due to declaration order)
   useEffect(() => {
     setProjectCurrencies((prev) => {
       const next = { ...prev };
@@ -656,7 +658,6 @@ export function ProjectsReportTable() {
       });
       return changed ? next : prev;
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProjectUuids, defaultCurrency]);
 
   // ── Column resize ──
@@ -723,19 +724,22 @@ export function ProjectsReportTable() {
   // ── Fetch report ──
 
   const fetchReport = useCallback(async (options?: { silent?: boolean }) => {
+    console.log('[ProjectsReport] fetchReport called. Selected projects:', Array.from(selectedProjectUuids), 'Project currencies:', projectCurrencies);
     if (selectedProjectUuids.size === 0) { setReport({ projects: [] }); return; }
     if (!options?.silent) setLoading(true);
     else setRefreshing(true);
     setError(null);
     try {
-      const currencies = projectCurrenciesRef.current;
+      // Use the latest projectCurrencies state instead of stale ref to avoid race conditions
+      const currencies = projectCurrencies;
       // Group projects by their chosen currency and fetch each group
       const currencyGroups = new Map<string, string[]>();
       for (const uuid of selectedProjectUuids) {
-        const curr = currencies[uuid] ?? 'GEL';
+        const curr = currencies[uuid] ?? defaultCurrency ?? 'GEL';
         if (!currencyGroups.has(curr)) currencyGroups.set(curr, []);
         currencyGroups.get(curr)!.push(uuid);
       }
+      console.log('[ProjectsReport] Currency groups:', Object.fromEntries(currencyGroups));
       const groupResults = await Promise.all(
         Array.from(currencyGroups.entries()).map(async ([curr, uuids]) => {
           const gParams = new URLSearchParams();
@@ -744,25 +748,30 @@ export function ProjectsReportTable() {
           else if (maxDate && /^\d{4}-\d{2}-\d{2}$/.test(maxDate)) gParams.set('maxDate', maxDate);
           if (selectedInsiderUuids.length > 0) gParams.set('insiderUuids', selectedInsiderUuids.join(','));
           gParams.set('targetCurrency', curr);
+          console.log(`[ProjectsReport] Fetching ${uuids.length} projects in ${curr}: ${uuids.join(',')}`);
           const res = await fetch(`/api/projects-report?${gParams}`, { cache: 'no-store' });
           if (!res.ok) throw new Error('Failed to load projects report');
           const data = await res.json() as ProjectsReportResponse;
+          console.log(`[ProjectsReport] Received ${data.projects.length} projects for ${curr}`);
           return data.projects;
         })
       );
       const allProjectData = groupResults.flat();
+      console.log('[ProjectsReport] Total projects received:', allProjectData.length);
       // Preserve selected order
       const ordered = Array.from(selectedProjectUuids)
         .map((uuid) => allProjectData.find((p) => p.projectUuid === uuid))
         .filter(Boolean) as ProjectsReportResponse['projects'];
+      console.log('[ProjectsReport] Ordered projects:', ordered.length);
       setReport({ projects: ordered });
     } catch (err: any) {
+      console.error('[ProjectsReport] fetchReport error:', err);
       setError(err?.message || 'Failed to load projects report');
     } finally {
       if (!options?.silent) setLoading(false);
       else setRefreshing(false);
     }
-  }, [selectedProjectUuids, maxDate, selectedInsiderUuids]);
+  }, [selectedProjectUuids, maxDate, selectedInsiderUuids, projectCurrencies, defaultCurrency]);
 
   // ── Fetch a single project’s data silently (used when currency changes) ──
   const fetchOneProject = useCallback(async (uuid: string, currency: 'USD' | 'GEL' | 'EUR') => {
