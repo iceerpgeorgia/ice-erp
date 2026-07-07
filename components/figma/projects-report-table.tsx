@@ -1215,9 +1215,10 @@ export function ProjectsReportTable() {
         body: JSON.stringify({ paymentId: selectedPaymentId, effectiveDate: isoDate, accrual: accrualValue, order: orderValue, comment: ledgerComment || undefined }),
       });
       if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Failed to create ledger entry'); }
+      // Fetch updated data BEFORE closing dialog so grids are refreshed
+      await fetchReport({ silent: true });
       setIsDialogOpen(false);
       resetLedgerForm();
-      await fetchReport({ silent: true });
     } catch (err: any) {
       alert(err.message || 'Failed to add ledger entry');
     } finally {
