@@ -1020,16 +1020,28 @@ export default function PaymentStatementPage() {
   const handleSaveEdit = async () => {
     if (!editingEntry || !newPaymentId) return;
 
+    // Validate date format before saving
+    if (!newDate) {
+      alert('Effective Date is required');
+      return;
+    }
+    const dateMatch = newDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+    if (!dateMatch) {
+      alert('Effective Date must be in dd.mm.yyyy format');
+      return;
+    }
+
     // Close confirmation and start saving
     setShowConfirmation(false);
     setIsSaving(true);
     try {
+      const isoDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
       const response = await fetch(`/api/payments-ledger/${editingEntry.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentId: newPaymentId,
-          effectiveDate: (() => { const m = newDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : (newDate || undefined); })(),
+          effectiveDate: isoDate,
           accrual: parseFloat(newAccrual) || 0,
           order: parseFloat(newOrder) || 0,
           comment: newComment || null
@@ -1920,6 +1932,11 @@ export default function PaymentStatementPage() {
                   />
                   <input
                     type="date"
+                    value={(() => {
+                      if (!addEffectiveDate) return '';
+                      const match = addEffectiveDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+                      return match ? `${match[3]}-${match[2]}-${match[1]}` : '';
+                    })()}
                     onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setAddEffectiveDate(`${d}.${m}.${y}`); } }}
                     className="border border-gray-300 rounded-md px-3 cursor-pointer w-12 flex-shrink-0"
                     title="Pick date from calendar"
@@ -2305,6 +2322,11 @@ export default function PaymentStatementPage() {
                   />
                   <input
                     type="date"
+                    value={(() => {
+                      if (!newDate) return '';
+                      const match = newDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+                      return match ? `${match[3]}-${match[2]}-${match[1]}` : '';
+                    })()}
                     onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setNewDate(`${d}.${m}.${y}`); } }}
                     className="border border-gray-300 rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
                     title="Pick date from calendar"
