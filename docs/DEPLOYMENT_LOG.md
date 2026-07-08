@@ -1,5 +1,33 @@
 # Deployment Log
 
+## 2026-07-08 Deployment #390 (Modernize: Waybill Items Table UI)
+- Commit: 4da4e36
+- Production: https://ice-62dy4mrki-iceerp.vercel.app
+- Summary: Modernized waybill-items page UI with advanced table features matching WaybillsTable design pattern.
+- Features Implemented:
+  1. Enhanced API: `/api/waybill-items` now returns 15 additional waybill header columns via JOIN
+  2. WaybillItemsTable Component: 655-line React component with:
+     - Virtual scrolling for efficient rendering
+     - Column visibility toggle and drag-to-reorder
+     - Column width resizing
+     - Advanced filtering per column
+     - Sorting support (state, direction)
+     - Bulk edit dialog (project, financial code, corresponding account)
+     - XLSX export with formatted data
+     - localStorage persistence for column configuration
+  3. 24 Total Columns: 12 item-specific + 12 appendable waybill header columns
+  4. Page Wrapper: Simplified to 13-line server component
+- Files Modified:
+  - `app/api/waybill-items/route.ts` - Added waybill JOIN on GET/POST/PATCH
+  - `components/figma/waybill-items-table.tsx` - New advanced table component (655 lines)
+  - `app/dictionaries/waybill-items/page.tsx` - Simplified page wrapper
+- Impact:
+  - ✅ Waybill-items page now matches WaybillsTable design/capabilities
+  - ✅ Users can append waybill columns to existing item columns
+  - ✅ Virtual scrolling handles large datasets efficiently
+  - ✅ Full-featured filtering, sorting, bulk operations
+- Status: ✅ Deployed
+
 ## 2026-07-07 Deployment #389 (Fix: Rename Calculation Templates Menu Item)
 - Commit: 0fb4f84
 - Production: https://ice-qox968rq4-iceerp.vercel.app
