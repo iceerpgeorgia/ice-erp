@@ -2,7 +2,6 @@
 
 import { WaybillItemsTable } from '@/components/figma/waybill-items-table';
 
-
 export default function WaybillItemsPage() {
   return (
     <div className="p-6">

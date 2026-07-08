@@ -70,12 +70,38 @@ export async function GET(req: NextRequest) {
         orderBy: [{ waybill_no: "desc" }, { id: "asc" }],
         take: limit,
         skip,
-        include: { inventory: { select: { name: true } }, dimension: { select: { dimension: true } } },
+        include: { 
+          inventory: { select: { name: true } }, 
+          dimension: { select: { dimension: true } },
+          waybill: {
+            select: {
+              rs_id: true,
+              waybill_no: true,
+              state: true,
+              condition: true,
+              category: true,
+              type: true,
+              counteragent_uuid: true,
+              counteragent_name: true,
+              counteragent_inn: true,
+              vat: true,
+              sum: true,
+              driver: true,
+              vehicle: true,
+              activation_time: true,
+              transportation_sum: true,
+              transportation_cost: true,
+              shipping_address: true,
+              departure_address: true,
+            }
+          }
+        },
       }),
       prisma.rs_waybills_in_items.count({ where }),
     ]);
 
     const data = rows.map((row) => ({
+      // Item fields
       id: Number(row.id),
       uuid: row.uuid,
       rs_id: row.rs_id,
@@ -99,6 +125,23 @@ export async function GET(req: NextRequest) {
       updatedAt: formatDate(row.updated_at),
       insider_uuid: (row as any).insider_uuid ?? insider.insiderUuid,
       insider_name: insider.insiderName,
+      // Waybill header fields (appendable)
+      waybill_state: row.waybill?.state ?? null,
+      waybill_condition: row.waybill?.condition ?? null,
+      waybill_category: row.waybill?.category ?? null,
+      waybill_type: row.waybill?.type ?? null,
+      waybill_counteragent_uuid: row.waybill?.counteragent_uuid ?? null,
+      waybill_counteragent_name: row.waybill?.counteragent_name ?? null,
+      waybill_counteragent_inn: row.waybill?.counteragent_inn ?? null,
+      waybill_vat: row.waybill?.vat ?? null,
+      waybill_sum: row.waybill?.sum ? row.waybill.sum.toString() : null,
+      waybill_driver: row.waybill?.driver ?? null,
+      waybill_vehicle: row.waybill?.vehicle ?? null,
+      waybill_activation_time: row.waybill?.activation_time ? new Date(row.waybill.activation_time).toISOString() : null,
+      waybill_transportation_sum: row.waybill?.transportation_sum ? row.waybill.transportation_sum.toString() : null,
+      waybill_transportation_cost: row.waybill?.transportation_cost ? row.waybill.transportation_cost.toString() : null,
+      waybill_shipping_address: row.waybill?.shipping_address ?? null,
+      waybill_departure_address: row.waybill?.departure_address ?? null,
     }));
 
     return NextResponse.json({ data, total, page, limit, pages: Math.ceil(total / limit) });
@@ -140,7 +183,31 @@ export async function POST(req: NextRequest) {
         import_batch_id: payload.import_batch_id,
         updated_at: new Date(),
       },
-      include: { inventory: { select: { name: true } } },
+      include: { 
+        inventory: { select: { name: true } },
+        waybill: {
+          select: {
+            rs_id: true,
+            waybill_no: true,
+            state: true,
+            condition: true,
+            category: true,
+            type: true,
+            counteragent_uuid: true,
+            counteragent_name: true,
+            counteragent_inn: true,
+            vat: true,
+            sum: true,
+            driver: true,
+            vehicle: true,
+            activation_time: true,
+            transportation_sum: true,
+            transportation_cost: true,
+            shipping_address: true,
+            departure_address: true,
+          }
+        }
+      },
     });
 
     await logAudit({ table: "rs_waybills_in_items", recordId: created.id, action: "create" });
@@ -168,6 +235,23 @@ export async function POST(req: NextRequest) {
         updatedAt: formatDate(created.updated_at),
         insider_uuid: (created as any).insider_uuid ?? insider.insiderUuid,
         insider_name: insider.insiderName,
+        // Waybill header fields
+        waybill_state: created.waybill?.state ?? null,
+        waybill_condition: created.waybill?.condition ?? null,
+        waybill_category: created.waybill?.category ?? null,
+        waybill_type: created.waybill?.type ?? null,
+        waybill_counteragent_uuid: created.waybill?.counteragent_uuid ?? null,
+        waybill_counteragent_name: created.waybill?.counteragent_name ?? null,
+        waybill_counteragent_inn: created.waybill?.counteragent_inn ?? null,
+        waybill_vat: created.waybill?.vat ?? null,
+        waybill_sum: created.waybill?.sum ? created.waybill.sum.toString() : null,
+        waybill_driver: created.waybill?.driver ?? null,
+        waybill_vehicle: created.waybill?.vehicle ?? null,
+        waybill_activation_time: created.waybill?.activation_time ? new Date(created.waybill.activation_time).toISOString() : null,
+        waybill_transportation_sum: created.waybill?.transportation_sum ? created.waybill.transportation_sum.toString() : null,
+        waybill_transportation_cost: created.waybill?.transportation_cost ? created.waybill.transportation_cost.toString() : null,
+        waybill_shipping_address: created.waybill?.shipping_address ?? null,
+        waybill_departure_address: created.waybill?.departure_address ?? null,
       },
       { status: 201 }
     );
@@ -214,7 +298,31 @@ export async function PATCH(req: NextRequest) {
         import_batch_id: payload.import_batch_id,
         updated_at: new Date(),
       },
-      include: { inventory: { select: { name: true } } },
+      include: { 
+        inventory: { select: { name: true } },
+        waybill: {
+          select: {
+            rs_id: true,
+            waybill_no: true,
+            state: true,
+            condition: true,
+            category: true,
+            type: true,
+            counteragent_uuid: true,
+            counteragent_name: true,
+            counteragent_inn: true,
+            vat: true,
+            sum: true,
+            driver: true,
+            vehicle: true,
+            activation_time: true,
+            transportation_sum: true,
+            transportation_cost: true,
+            shipping_address: true,
+            departure_address: true,
+          }
+        }
+      },
     });
 
     await logAudit({ table: "rs_waybills_in_items", recordId: pk, action: "update" });
@@ -241,6 +349,23 @@ export async function PATCH(req: NextRequest) {
       updatedAt: formatDate(updated.updated_at),
       insider_uuid: (updated as any).insider_uuid ?? insider.insiderUuid,
       insider_name: insider.insiderName,
+      // Waybill header fields
+      waybill_state: updated.waybill?.state ?? null,
+      waybill_condition: updated.waybill?.condition ?? null,
+      waybill_category: updated.waybill?.category ?? null,
+      waybill_type: updated.waybill?.type ?? null,
+      waybill_counteragent_uuid: updated.waybill?.counteragent_uuid ?? null,
+      waybill_counteragent_name: updated.waybill?.counteragent_name ?? null,
+      waybill_counteragent_inn: updated.waybill?.counteragent_inn ?? null,
+      waybill_vat: updated.waybill?.vat ?? null,
+      waybill_sum: updated.waybill?.sum ? updated.waybill.sum.toString() : null,
+      waybill_driver: updated.waybill?.driver ?? null,
+      waybill_vehicle: updated.waybill?.vehicle ?? null,
+      waybill_activation_time: updated.waybill?.activation_time ? new Date(updated.waybill.activation_time).toISOString() : null,
+      waybill_transportation_sum: updated.waybill?.transportation_sum ? updated.waybill.transportation_sum.toString() : null,
+      waybill_transportation_cost: updated.waybill?.transportation_cost ? updated.waybill.transportation_cost.toString() : null,
+      waybill_shipping_address: updated.waybill?.shipping_address ?? null,
+      waybill_departure_address: updated.waybill?.departure_address ?? null,
     });
   } catch (e: any) {
     console.error("[waybill-items] PATCH error", e);

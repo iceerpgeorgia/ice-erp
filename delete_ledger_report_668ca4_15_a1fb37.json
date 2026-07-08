@@ -1,0 +1,155 @@
+{
+  "timestamp": "2026-07-08T12:39:37.357Z",
+  "paymentId": "668ca4_15_a1fb37",
+  "action": "DELETE",
+  "deleted_count": 21,
+  "deleted_records": [
+    {
+      "id": 33266,
+      "effective_date": "2026-06-30T00:00:00.000Z",
+      "accrual": 160182.84,
+      "order": 160182.84,
+      "comment": "06_2026"
+    },
+    {
+      "id": 33265,
+      "effective_date": "2026-05-31T00:00:00.000Z",
+      "accrual": 76672.04,
+      "order": 76672.04,
+      "comment": "05_2026"
+    },
+    {
+      "id": 33264,
+      "effective_date": "2026-04-30T00:00:00.000Z",
+      "accrual": 115205.75,
+      "order": 115205.75,
+      "comment": "04_2026"
+    },
+    {
+      "id": 33263,
+      "effective_date": "2026-03-31T00:00:00.000Z",
+      "accrual": 57173.67,
+      "order": 57173.67,
+      "comment": "03_2026"
+    },
+    {
+      "id": 33262,
+      "effective_date": "2026-02-28T00:00:00.000Z",
+      "accrual": 80569.87,
+      "order": 80569.87,
+      "comment": "02_2026"
+    },
+    {
+      "id": 33261,
+      "effective_date": "2026-01-31T00:00:00.000Z",
+      "accrual": 90880.78,
+      "order": 90880.78,
+      "comment": "01_2026"
+    },
+    {
+      "id": 33260,
+      "effective_date": "2025-12-31T00:00:00.000Z",
+      "accrual": 77222.53,
+      "order": 77222.53,
+      "comment": "12_2025"
+    },
+    {
+      "id": 33259,
+      "effective_date": "2025-11-30T00:00:00.000Z",
+      "accrual": 97602.76,
+      "order": 97602.76,
+      "comment": "11_2025"
+    },
+    {
+      "id": 33258,
+      "effective_date": "2025-10-31T00:00:00.000Z",
+      "accrual": 310823.05,
+      "order": 310823.05,
+      "comment": "10_2025"
+    },
+    {
+      "id": 33257,
+      "effective_date": "2025-09-30T00:00:00.000Z",
+      "accrual": 402879.7,
+      "order": 402879.7,
+      "comment": "09_2025"
+    },
+    {
+      "id": 33256,
+      "effective_date": "2025-08-31T00:00:00.000Z",
+      "accrual": 371947.16,
+      "order": 371947.16,
+      "comment": "08_2025"
+    },
+    {
+      "id": 33255,
+      "effective_date": "2025-07-31T00:00:00.000Z",
+      "accrual": 532901.96,
+      "order": 532901.96,
+      "comment": "07_2025"
+    },
+    {
+      "id": 33254,
+      "effective_date": "2025-06-30T00:00:00.000Z",
+      "accrual": 338258.98,
+      "order": 338258.98,
+      "comment": "06_2025"
+    },
+    {
+      "id": 33253,
+      "effective_date": "2025-05-31T00:00:00.000Z",
+      "accrual": 571156.56,
+      "order": 571156.56,
+      "comment": "05_2025"
+    },
+    {
+      "id": 33252,
+      "effective_date": "2025-04-30T00:00:00.000Z",
+      "accrual": 407707.15,
+      "order": 407707.15,
+      "comment": "04_2025"
+    },
+    {
+      "id": 33251,
+      "effective_date": "2025-03-31T00:00:00.000Z",
+      "accrual": 303922.77,
+      "order": 303922.77,
+      "comment": "03_2025"
+    },
+    {
+      "id": 33250,
+      "effective_date": "2025-02-28T00:00:00.000Z",
+      "accrual": 167143.74,
+      "order": 167143.74,
+      "comment": "02_2025"
+    },
+    {
+      "id": 33249,
+      "effective_date": "2025-01-31T00:00:00.000Z",
+      "accrual": 219644.42,
+      "order": 219644.42,
+      "comment": "01_2025"
+    },
+    {
+      "id": 33248,
+      "effective_date": "2024-12-31T00:00:00.000Z",
+      "accrual": 199600.75,
+      "order": 199600.75,
+      "comment": "12_2024"
+    },
+    {
+      "id": 33247,
+      "effective_date": "2024-11-30T00:00:00.000Z",
+      "accrual": 208659.56,
+      "order": 208659.56,
+      "comment": "11_2024"
+    },
+    {
+      "id": 33246,
+      "effective_date": "2024-10-31T00:00:00.000Z",
+      "accrual": 261547.91,
+      "order": 261547.91,
+      "comment": "10_2024"
+    }
+  ]
+}
