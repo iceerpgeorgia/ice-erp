@@ -1,5 +1,25 @@
 # Deployment Log
 
+## 2026-07-09 Deployment #392 (Fix: Stable Keys in Services Report Job Filter)
+- Commit: 84af8bb
+- Production: https://ice-7rukef7g2-iceerp.vercel.app
+- Summary: Fixed React key stability in job filter dialog for Services Report.
+- Issue:
+  - Previous fix used array index in keys, which changed when filter updated
+  - When searching by project name (e.g., "Alliance Highline"), filter would not show all matching results
+  - Root cause: Unstable keys (`${jobUuid}_${projectName}_${idx}`) broke React reconciliation on filter changes
+- Solution:
+  - Changed to data-only stable keys: `${jobUuid}_${projectName}_${brandName}`
+  - Index no longer included, ensuring key stability across filter updates
+  - React now properly tracks all rows regardless of filter state
+- Files Modified:
+  - `components/figma/services-report-table.tsx` (line 1830-1837) - Updated table row key logic
+- Impact:
+  - ✅ Filter now correctly displays all matching jobs
+  - ✅ Filtering by project name works across entire dataset
+  - ✅ No jobs incorrectly filtered out
+- Status: ✅ Deployed
+
 ## 2026-07-09 Deployment #391 (Fix: Job Filter in Services Report Binding Dialog)
 - Commit: be8fdac
 - Production: https://ice-1o2gjmno5-iceerp.vercel.app
