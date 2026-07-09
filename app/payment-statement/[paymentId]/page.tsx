@@ -2055,6 +2055,11 @@ export default function PaymentStatementPage() {
                   />
                   <input
                     type="date"
+                    value={(() => {
+                      if (!adjEffectiveDate) return '';
+                      const match = adjEffectiveDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+                      return match ? `${match[3]}-${match[2]}-${match[1]}` : '';
+                    })()}
                     onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setAdjEffectiveDate(`${d}.${m}.${y}`); } }}
                     className="border border-gray-300 rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
                     title="Pick date from calendar"

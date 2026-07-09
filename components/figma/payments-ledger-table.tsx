@@ -468,6 +468,11 @@ export function PaymentsLedgerTable() {
                   />
                   <input
                     type="date"
+                    value={(() => {
+                      if (!effectiveDate) return '';
+                      const match = effectiveDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+                      return match ? `${match[3]}-${match[2]}-${match[1]}` : '';
+                    })()}
                     onChange={(e) => { if (e.target.value) { const [y, m, d] = e.target.value.split('-'); setEffectiveDate(`${d}.${m}.${y}`); } }}
                     className="border border-input rounded-md px-2 cursor-pointer w-12 flex-shrink-0"
                     title="Pick date from calendar"
