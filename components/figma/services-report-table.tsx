@@ -1827,11 +1827,12 @@ export function ServicesReportTable() {
                     {filteredDialogJobs.length === 0 ? (
                       <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No jobs match your search.</td></tr>
                     ) : (
-                      filteredDialogJobs.map((job) => {
+                      filteredDialogJobs.map((job, idx) => {
                         const checked = jobLinkDialog.linkedJobUuids.has(job.jobUuid);
+                        const uniqueRowKey = `${job.jobUuid}_${job.projectName}_${idx}`;
                         return (
                           <tr
-                            key={job.jobUuid}
+                            key={uniqueRowKey}
                             className={`border-b hover:bg-gray-50 cursor-pointer ${checked ? 'bg-blue-50' : ''}`}
                             onClick={() => toggleJobLink(job.jobUuid)}
                           >
