@@ -1,5 +1,22 @@
 # Deployment Log
 
+## 2026-07-09 Deployment #391 (Fix: Job Filter in Services Report Binding Dialog)
+- Commit: be8fdac
+- Production: https://ice-1o2gjmno5-iceerp.vercel.app
+- Summary: Fixed job filtering issue in the Services Report binding jobs dialog.
+- Issue:
+  - When searching/filtering jobs by project name in the binding dialog, the filter only appeared to work on visible rows, not the entire dataset.
+  - Root cause: React table rows used non-unique keys (`job.jobUuid` only). Since jobs can be bound to multiple projects, the same jobUuid appeared multiple times with different projectNames, creating duplicate React keys and breaking reconciliation.
+- Solution:
+  - Changed table row key from `jobUuid` to unique composite key: `${jobUuid}_${projectName}_${index}`
+  - Ensures React properly tracks and re-renders all rows when filter search string changes.
+- Files Modified:
+  - `components/figma/services-report-table.tsx` (line 1830-1837) - Fixed table row key generation
+- Impact:
+  - ✅ Filter now correctly searches entire job dataset, not just visible rows
+  - ✅ Jobs matching search criteria are properly displayed regardless of scroll position
+- Status: ✅ Deployed
+
 ## 2026-07-08 Deployment #390 (Modernize: Waybill Items Table UI)
 - Commit: 4da4e36
 - Production: https://ice-62dy4mrki-iceerp.vercel.app
