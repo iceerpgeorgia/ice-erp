@@ -48,6 +48,8 @@ type ServicesRow = {
   lastMonthAccrual: number;
   lastMonthOrder: number;
   payment: number;
+  costAccrual: number;
+  costOrder: number;
   due: number;
   balance: number;
   confirmed: boolean;
@@ -176,6 +178,8 @@ type SectionColumnKey =
   | 'payment'
   | 'due'
   | 'balance'
+  | 'costAccrual'
+  | 'costOrder'
   | 'confirmed'
   | 'latestDate'
   | 'actions';
@@ -224,6 +228,8 @@ const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'accrual', label: 'Accrual', visible: true, width: 130, align: 'right' },
   { key: 'order', label: 'Order', visible: true, width: 130, align: 'right' },
   { key: 'payment', label: 'Payment', visible: true, width: 130, align: 'right' },
+  { key: 'costAccrual', label: 'Cost Accrual', visible: false, width: 130, align: 'right' },
+  { key: 'costOrder', label: 'Cost Order', visible: false, width: 130, align: 'right' },
   { key: 'due', label: 'Due', visible: true, width: 130, align: 'right' },
   { key: 'balance', label: 'Balance', visible: true, width: 130, align: 'right' },
   { key: 'confirmed', label: 'Confirmed', visible: true, width: 110, align: 'left' },
@@ -251,6 +257,8 @@ const COLUMN_BG: Partial<Record<SectionColumnKey, string>> = {
   accrual: '#ffebee',
   order: '#fff9e6',
   payment: '#e8f5e9',
+  costAccrual: '#ffe0b2',
+  costOrder: '#fdd835',
 };
 
 const COLUMN_FORMAT_MAP: Partial<Record<SectionColumnKey, ColumnFormat>> = {
@@ -264,6 +272,8 @@ const COLUMN_FORMAT_MAP: Partial<Record<SectionColumnKey, ColumnFormat>> = {
   accrual: 'currency',
   order: 'currency',
   payment: 'currency',
+  costAccrual: 'currency',
+  costOrder: 'currency',
   due: 'currency',
   balance: 'currency',
   confirmed: 'boolean',
@@ -280,6 +290,10 @@ const getColumnValue = (row: ServicesRow, key: SectionColumnKey) => {
       return row.latestDate;
     case 'accrual':
       return row.accrual;
+    case 'costAccrual':
+      return row.costAccrual;
+    case 'costOrder':
+      return row.costOrder;
     case 'confirmed':
       return row.confirmed;
     case 'projectAddress':
@@ -357,6 +371,14 @@ export function ServicesReportTable() {
     startWidth: number;
   } | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  // Add Ledger for Costs dialog state
+  const [addLedgerCostsDialogOpen, setAddLedgerCostsDialogOpen] = useState(false);
+  const [addLedgerCostsProjectUuid, setAddLedgerCostsProjectUuid] = useState('');
+  const [addLedgerCostsProjectName, setAddLedgerCostsProjectName] = useState('');
+  const [costFinancialCodes, setCostFinancialCodes] = useState<FinancialCodeOption[]>([]);
+  const [costCounterAgents, setCostCounterAgents] = useState<Array<{ uuid: string; name: string }>>([]);
+  const [costCurrencies, setCostCurrencies] = useState<Array<{ uuid: string; code: string }>>([]);
 
   const [jobLinkDialog, setJobLinkDialog] = useState<JobLinkDialogState>({
     open: false,
@@ -957,6 +979,131 @@ export function ServicesReportTable() {
     }
   };
 
+  const openAddLedgerCostsDialog = async (projectUuid: string, projectName: string) => {
+    setAddLedgerCostsProjectUuid(projectUuid);
+    setAddLedgerCostsProjectName(projectName);
+    setAddLedgerCostsDialogOpen(true);
+
+    try {
+      // Load financial codes
+      const fcResponse = await fetch('/api/financial-codes?leafOnly=true');
+      if (fcResponse.ok) {
+        const fcData = await fcResponse.json();
+        const costFcs = (Array.isArray(fcData) ? fcData : []).filter(
+          (fc: any) => fc.is_income === false && fc.applies_to_pl === true
+        );
+        setCostFinancialCodes(costFcs.map((fc: any) => ({ uuid: fc.uuid, validation: fc.validation, code: fc.code })));
+      }
+
+      // Load counteragents
+      const caResponse = await fetch('/api/counteragents');
+      if (caResponse.ok) {
+        const caData = await caResponse.json();
+        const cas = (Array.isArray(caData) ? caData : []).map((ca: any) => ({
+          uuid: ca.counteragent_uuid || ca.uuid,
+          name: ca.counteragent || ca.name,
+        }));
+        setCostCounterAgents(cas);
+      }
+
+      // Load currencies
+      const currResponse = await fetch('/api/currencies');
+      if (currResponse.ok) {
+        const currData = await currResponse.json();
+        const currs = (Array.isArray(currData) ? currData : []).map((curr: any) => ({
+          uuid: curr.uuid,
+          code: curr.code,
+        }));
+        setCostCurrencies(currs);
+      }
+    } catch (err: any) {
+      console.error('Failed to load dialog data:', err);
+      setCostFinancialCodes([]);
+      setCostCounterAgents([]);
+      setCostCurrencies([]);
+    }
+  };
+
+  const handleSaveAddLedgerCosts = async () => {
+    const counteragentUuidEl = document.getElementById('add-ledger-costs-counteragent') as HTMLSelectElement;
+    const currencyUuidEl = document.getElementById('add-ledger-costs-currency') as HTMLSelectElement;
+    const fcEl = document.getElementById('add-ledger-costs-fc') as HTMLSelectElement;
+    const dateEl = document.getElementById('add-ledger-costs-date') as HTMLInputElement;
+    const accrualEl = document.getElementById('add-ledger-costs-accrual') as HTMLInputElement;
+    const orderEl = document.getElementById('add-ledger-costs-order') as HTMLInputElement;
+    const commentEl = document.getElementById('add-ledger-costs-comment') as HTMLInputElement;
+
+    const counteragentUuid = counteragentUuidEl?.value;
+    const currencyUuid = currencyUuidEl?.value;
+    const fc = fcEl?.value;
+    const date = dateEl?.value;
+    const accrual = accrualEl?.value;
+    const order = orderEl?.value;
+    const comment = commentEl?.value;
+
+    if (!counteragentUuid || !currencyUuid || !fc || !date) {
+      alert('Counteragent, currency, financial code, and effective date are required');
+      return;
+    }
+
+    if (!accrual && !order) {
+      alert('At least one of Accrual or Order must be provided');
+      return;
+    }
+
+    try {
+      // First, create or fetch the payment
+      const paymentRes = await fetch('/api/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          counteragentUuid,
+          projectUuid: addLedgerCostsProjectUuid,
+          financialCodeUuid: fc,
+          incomeTax: false,
+          currencyUuid,
+        }),
+      });
+
+      let paymentId: string;
+      if (paymentRes.status === 409) {
+        // Payment already exists
+        const data = await paymentRes.json();
+        paymentId = data.paymentId;
+      } else if (paymentRes.ok) {
+        const paymentData = await paymentRes.json();
+        paymentId = paymentData?.data?.payment_id || paymentData?.data?.paymentId;
+        if (!paymentId) throw new Error('Payment ID not returned from server');
+      } else {
+        const errorData = await paymentRes.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to create payment');
+      }
+
+      // Then add the ledger entry
+      const ledgerRes = await fetch('/api/payments-ledger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentId,
+          effectiveDate: date,
+          accrual: accrual ? Number(accrual) : 0,
+          order: order ? Number(order) : 0,
+          comment: comment || null,
+        }),
+      });
+
+      if (!ledgerRes.ok) {
+        const errorData = await ledgerRes.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to add ledger entry');
+      }
+
+      setAddLedgerCostsDialogOpen(false);
+      await fetchReport();
+    } catch (err: any) {
+      alert(err.message || 'Failed to add ledger entry');
+    }
+  };
+
   const handleExportXlsx = useCallback(() => {
     if (sections.length === 0) return;
 
@@ -1435,6 +1582,18 @@ export function ServicesReportTable() {
                   </button>
                   <div className="text-sm font-medium">{section.financialCodeValidation} ({section.rows.length})</div>
                 </div>
+                {/* Add Ledger for Costs button - show on first project row of each section */}
+                {section.rows.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openAddLedgerCostsDialog(section.rows[0].projectUuid, section.rows[0].projectName)}
+                    className="text-xs h-7"
+                    title="Add cost ledger entries for this project"
+                  >
+                    + Cost
+                  </Button>
+                )}
               </div>
               {/* Section totals boxes (active service_state projects only) */}
               {(() => {
@@ -2045,6 +2204,122 @@ export function ServicesReportTable() {
           </div>
         </div>
       )}
+
+      {/* Add Ledger for Costs Dialog */}
+      <Dialog open={addLedgerCostsDialogOpen} onOpenChange={setAddLedgerCostsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add Cost Ledger Entry</DialogTitle>
+            <DialogDescription>
+              Add accrual or order entries for {addLedgerCostsProjectName} from cost financial codes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Project</label>
+                <input
+                  type="text"
+                  value={addLedgerCostsProjectName}
+                  disabled
+                  className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Counteragent *</label>
+                <select
+                  id="add-ledger-costs-counteragent"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                >
+                  <option value="">Select counteragent</option>
+                  {costCounterAgents.map((ca) => (
+                    <option key={ca.uuid} value={ca.uuid}>
+                      {ca.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Currency *</label>
+                <select
+                  id="add-ledger-costs-currency"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  defaultValue={costCurrencies.find(c => c.code === 'GEL')?.uuid}
+                >
+                  <option value="">Select currency</option>
+                  {costCurrencies.map((curr) => (
+                    <option key={curr.uuid} value={curr.uuid}>
+                      {curr.code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Cost Financial Code *</label>
+                <select
+                  id="add-ledger-costs-fc"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                >
+                  <option value="">Select financial code</option>
+                  {costFinancialCodes.map((fc) => (
+                    <option key={fc.uuid} value={fc.uuid}>
+                      {fc.validation || fc.code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Effective Date *</label>
+                <input
+                  type="date"
+                  id="add-ledger-costs-date"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Accrual</label>
+                <input
+                  type="number"
+                  id="add-ledger-costs-accrual"
+                  placeholder="0.00"
+                  step="0.01"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Order</label>
+                <input
+                  type="number"
+                  id="add-ledger-costs-order"
+                  placeholder="0.00"
+                  step="0.01"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-sm font-medium">Comment</label>
+                <input
+                  type="text"
+                  id="add-ledger-costs-comment"
+                  placeholder="Optional"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+            <div className="text-xs text-gray-500">
+              At least one of Accrual or Order must be provided.
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-2 border-t pt-4">
+            <Button variant="outline" onClick={() => setAddLedgerCostsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveAddLedgerCosts}>
+              Add Entry
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
      </div>
    );
  }

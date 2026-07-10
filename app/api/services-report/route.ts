@@ -223,6 +223,20 @@ export async function GET(request: NextRequest) {
         FROM payment_adjustments
         WHERE (is_deleted = false OR is_deleted IS NULL)
         GROUP BY payment_id
+      ),
+      cost_ledger_agg AS (
+        SELECT
+          p.project_uuid,
+          SUM(COALESCE(pl.accrual, 0)) as total_cost_accrual,
+          SUM(COALESCE(pl."order", 0)) as total_cost_order
+        FROM payments_ledger pl
+        JOIN payments p ON p.payment_id = pl.payment_id
+        JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
+        WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
+          AND fc.is_income = false
+          AND fc.applies_to_pl = true
+          ${ledgerDateFilter}
+        GROUP BY p.project_uuid
       )
       SELECT
         sp.financial_code_uuid,
@@ -255,6 +269,8 @@ export async function GET(request: NextRequest) {
         SUM(COALESCE(llm.total_accrual, 0)) as last_month_accrual,
         SUM(COALESCE(llm.total_order, 0)) as last_month_order,
         SUM(COALESCE(ba.total_payment, 0) + COALESCE(adj.total_adjustment, 0)) as payment,
+        COALESCE(MAX(cla.total_cost_accrual), 0) as cost_accrual,
+        COALESCE(MAX(cla.total_cost_order), 0) as cost_order,
         BOOL_AND(
           CASE
             WHEN COALESCE(la.entries_count, 0) > 0 THEN COALESCE(la.all_confirmed, false)
@@ -269,6 +285,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN bank_agg ba ON sp.payment_id = ba.payment_id
       LEFT JOIN adj_agg adj ON sp.payment_id = adj.payment_id
       LEFT JOIN unbound_counteragent uc ON sp.counteragent_uuid = uc.counteragent_uuid
+      LEFT JOIN cost_ledger_agg cla ON sp.project_uuid = cla.project_uuid
       GROUP BY sp.financial_code_uuid, sp.project_uuid
       ORDER BY financial_code_validation ASC, status_name ASC, project_index ASC
     `;
@@ -282,6 +299,8 @@ export async function GET(request: NextRequest) {
       const payment = Number(row.payment || 0);
       const lastMonthAccrual = Number(row.last_month_accrual || 0);
       const lastMonthOrder = Number(row.last_month_order || 0);
+      const costAccrual = Number(row.cost_accrual || 0);
+      const costOrder = Number(row.cost_order || 0);
       const due = Number((order - Math.abs(payment)).toFixed(2));
       const balance = Number((accrual - Math.abs(payment)).toFixed(2));
       return {
@@ -314,6 +333,8 @@ export async function GET(request: NextRequest) {
         lastMonthAccrual,
         lastMonthOrder,
         payment,
+        costAccrual,
+        costOrder,
         due,
         balance,
         confirmed: Boolean(row.confirmed),
