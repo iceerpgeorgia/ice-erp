@@ -228,7 +228,8 @@ export async function GET(request: NextRequest) {
         SELECT
           p.project_uuid,
           SUM(COALESCE(pl.accrual, 0)) as total_cost_accrual,
-          SUM(COALESCE(pl."order", 0)) as total_cost_order
+          SUM(COALESCE(pl."order", 0)) as total_cost_order,
+          SUM(COALESCE(pl.accrual, 0)) + SUM(COALESCE(pl."order", 0)) as total_cost_payment
         FROM payments_ledger pl
         JOIN payments p ON p.payment_id = pl.payment_id
         JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
@@ -271,6 +272,7 @@ export async function GET(request: NextRequest) {
         SUM(COALESCE(ba.total_payment, 0) + COALESCE(adj.total_adjustment, 0)) as payment,
         COALESCE(MAX(cla.total_cost_accrual), 0) as cost_accrual,
         COALESCE(MAX(cla.total_cost_order), 0) as cost_order,
+        COALESCE(MAX(cla.total_cost_payment), 0) as cost_payment,
         BOOL_AND(
           CASE
             WHEN COALESCE(la.entries_count, 0) > 0 THEN COALESCE(la.all_confirmed, false)
@@ -301,6 +303,7 @@ export async function GET(request: NextRequest) {
       const lastMonthOrder = Number(row.last_month_order || 0);
       const costAccrual = Number(row.cost_accrual || 0);
       const costOrder = Number(row.cost_order || 0);
+      const costPayment = Number(row.cost_payment || 0);
       const due = Number((order - Math.abs(payment)).toFixed(2));
       const balance = Number((accrual - Math.abs(payment)).toFixed(2));
       return {
@@ -335,6 +338,7 @@ export async function GET(request: NextRequest) {
         payment,
         costAccrual,
         costOrder,
+        costPayment,
         due,
         balance,
         confirmed: Boolean(row.confirmed),

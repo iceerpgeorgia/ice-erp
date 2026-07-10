@@ -50,6 +50,7 @@ type ServicesRow = {
   payment: number;
   costAccrual: number;
   costOrder: number;
+  costPayment: number;
   due: number;
   balance: number;
   confirmed: boolean;
@@ -180,6 +181,7 @@ type SectionColumnKey =
   | 'balance'
   | 'costAccrual'
   | 'costOrder'
+  | 'costPayment'
   | 'confirmed'
   | 'latestDate'
   | 'actions';
@@ -228,8 +230,9 @@ const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'accrual', label: 'Accrual', visible: true, width: 130, align: 'right' },
   { key: 'order', label: 'Order', visible: true, width: 130, align: 'right' },
   { key: 'payment', label: 'Payment', visible: true, width: 130, align: 'right' },
-  { key: 'costAccrual', label: 'Cost Accrual', visible: false, width: 130, align: 'right' },
-  { key: 'costOrder', label: 'Cost Order', visible: false, width: 130, align: 'right' },
+  { key: 'costAccrual', label: 'Accrual (C)', visible: true, width: 130, align: 'right' },
+  { key: 'costOrder', label: 'Order (C)', visible: true, width: 130, align: 'right' },
+  { key: 'costPayment', label: 'Payment (C)', visible: true, width: 130, align: 'right' },
   { key: 'due', label: 'Due', visible: true, width: 130, align: 'right' },
   { key: 'balance', label: 'Balance', visible: true, width: 130, align: 'right' },
   { key: 'confirmed', label: 'Confirmed', visible: true, width: 110, align: 'left' },
@@ -259,6 +262,7 @@ const COLUMN_BG: Partial<Record<SectionColumnKey, string>> = {
   payment: '#e8f5e9',
   costAccrual: '#ffe0b2',
   costOrder: '#fdd835',
+  costPayment: '#c8e6c9',
 };
 
 const COLUMN_FORMAT_MAP: Partial<Record<SectionColumnKey, ColumnFormat>> = {
@@ -274,6 +278,7 @@ const COLUMN_FORMAT_MAP: Partial<Record<SectionColumnKey, ColumnFormat>> = {
   payment: 'currency',
   costAccrual: 'currency',
   costOrder: 'currency',
+  costPayment: 'currency',
   due: 'currency',
   balance: 'currency',
   confirmed: 'boolean',
@@ -294,6 +299,8 @@ const getColumnValue = (row: ServicesRow, key: SectionColumnKey) => {
       return row.costAccrual;
     case 'costOrder':
       return row.costOrder;
+    case 'costPayment':
+      return row.costPayment;
     case 'confirmed':
       return row.confirmed;
     case 'projectAddress':
@@ -1582,18 +1589,6 @@ export function ServicesReportTable() {
                   </button>
                   <div className="text-sm font-medium">{section.financialCodeValidation} ({section.rows.length})</div>
                 </div>
-                {/* Add Ledger for Costs button - show on first project row of each section */}
-                {section.rows.length > 0 && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => openAddLedgerCostsDialog(section.rows[0].projectUuid, section.rows[0].projectName)}
-                    className="text-xs h-7"
-                    title="Add cost ledger entries for this project"
-                  >
-                    + Cost
-                  </Button>
-                )}
               </div>
               {/* Section totals boxes (active service_state projects only) */}
               {(() => {
@@ -1912,6 +1907,15 @@ export function ServicesReportTable() {
                                 >
                                   <User className="w-4 h-4" />
                                 </a>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openAddLedgerCostsDialog(row.projectUuid, row.projectName)}
+                                  className="text-xs h-7"
+                                  title="Add cost ledger entries for this project"
+                                >
+                                  + Cost
+                                </Button>
                               </div>
                             ) : (
                               value
