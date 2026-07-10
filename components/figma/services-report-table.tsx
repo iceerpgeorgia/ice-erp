@@ -449,7 +449,13 @@ export function ServicesReportTable() {
       try {
         const parsed = JSON.parse(savedColumns) as SectionColumn[];
         if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.key) {
-          setColumns(parsed);
+          // Merge saved columns with defaults to include any new columns added since last save
+          const savedMap = new Map(parsed.map((col) => [col.key, col]));
+          const merged = DEFAULT_SECTION_COLUMNS.map((defaultCol) => {
+            const saved = savedMap.get(defaultCol.key);
+            return saved ? { ...defaultCol, visible: saved.visible } : defaultCol;
+          });
+          setColumns(merged);
         }
       } catch {
         // ignore
