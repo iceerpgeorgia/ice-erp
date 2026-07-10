@@ -1,5 +1,39 @@
 # Deployment Log
 
+## 2026-07-10 Deployment #393 (Feature: Add Cost Ledger Dialog for Services Report)
+- Commit: 1b94a0e
+- Production: https://ice-ns7znbtnr-iceerp.vercel.app
+- Summary: Implemented cost ledger entry feature enabling users to add accrual and order entries from cost financial codes in Services Report.
+- Features Implemented:
+  1. **Cost Aggregation API**: Added `cost_ledger_agg` CTE to services-report endpoint aggregating cost accrual and order from payments_ledger where `is_income = false AND applies_to_pl = true`
+  2. **Cost Columns**: Added Cost Accrual (orange #ffe0b2) and Cost Order (yellow #fdd835) columns to services report grid with currency formatting
+  3. **Add Cost Button**: Added "+ Cost" button in section headers opening ledger entry dialog with project prefilled
+  4. **Add Ledger Dialog**:
+     - Counteragent selection (required, dropdown)
+     - Currency selection (required, defaults to GEL)
+     - Cost financial code selection (required, filtered to cost FCs only)
+     - Effective date (required, date picker)
+     - Accrual amount (optional, number input)
+     - Order amount (optional, number input)
+     - Comment (optional, text input)
+  5. **Automatic Payment Creation**: Creates payment automatically if counteragent/FC/currency/project combination doesn't exist, with 409 deduplication handling
+  6. **Form Validation**: Enforces counteragent, currency, FC, and date as required; at least one of accrual or order must be provided
+- Files Modified:
+  - `app/api/services-report/route.ts` - Added cost_ledger_agg CTE and cost aggregation fields
+  - `components/figma/services-report-table.tsx` - Added cost columns, dialog state, handlers, and UI components
+- API Endpoints Used:
+  - `GET /api/financial-codes?leafOnly=true` - Load cost FCs filtered to is_income=false && applies_to_pl=true
+  - `GET /api/counteragents` - Load counteragent list
+  - `GET /api/currencies` - Load currency options
+  - `POST /api/payments` - Create payment (with 409 deduplication)
+  - `POST /api/payments-ledger` - Create ledger entry
+- Impact:
+  - ✅ Users can now add cost accrual and order entries directly from Services Report
+  - ✅ Cost columns display aggregated totals by financial code
+  - ✅ Automatic payment creation ensures ledger entries are properly associated
+  - ✅ All validation and error handling implemented
+- Status: ✅ Deployed
+
 ## 2026-07-09 Deployment #392 (Fix: Stable Keys in Services Report Job Filter)
 - Commit: 84af8bb
 - Production: https://ice-7rukef7g2-iceerp.vercel.app
