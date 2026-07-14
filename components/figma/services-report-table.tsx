@@ -50,9 +50,13 @@ type ServicesRow = {
   lastMonthAccrual: number;
   lastMonthOrder: number;
   payment: number;
-  costAccrual: number;
-  costOrder: number;
-  costPayment: number;
+  waybillCostAccrual: number;
+  nonWaybillCostAccrual: number;
+  waybillCostOrder: number;
+  nonWaybillCostOrder: number;
+  waybillCostPayment: number;
+  nonWaybillCostPayment: number;
+  profit: number;
   projectCurrencyUuid: string | null;
   projectCurrencyCode: string;
   costPaymentIds: string[];
@@ -70,6 +74,9 @@ type ServicesSummaryRow = {
   accrual: number;
   order: number;
   payment: number;
+  waybillCostAccrual: number;
+  nonWaybillCostAccrual: number;
+  profit: number;
   due: number;
   balance: number;
 };
@@ -182,11 +189,15 @@ type SectionColumnKey =
   | 'accrual'
   | 'order'
   | 'payment'
+  | 'waybillCostAccrual'
+  | 'nonWaybillCostAccrual'
+  | 'waybillCostOrder'
+  | 'nonWaybillCostOrder'
+  | 'waybillCostPayment'
+  | 'nonWaybillCostPayment'
+  | 'profit'
   | 'due'
   | 'balance'
-  | 'costAccrual'
-  | 'costOrder'
-  | 'costPayment'
   | 'confirmed'
   | 'latestDate'
   | 'actions';
@@ -212,6 +223,9 @@ const DEFAULT_TOTALS = {
   accrual: 0,
   order: 0,
   payment: 0,
+  waybillCostAccrual: 0,
+  nonWaybillCostAccrual: 0,
+  profit: 0,
   due: 0,
   balance: 0,
 };
@@ -235,9 +249,13 @@ const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'accrual', label: 'Accrual', visible: true, width: 130, align: 'right' },
   { key: 'order', label: 'Order', visible: true, width: 130, align: 'right' },
   { key: 'payment', label: 'Payment', visible: true, width: 130, align: 'right' },
-  { key: 'costAccrual', label: 'Accrual (C)', visible: true, width: 130, align: 'right' },
-  { key: 'costOrder', label: 'Order (C)', visible: true, width: 130, align: 'right' },
-  { key: 'costPayment', label: 'Payment (C)', visible: true, width: 130, align: 'right' },
+  { key: 'waybillCostAccrual', label: 'Waybill Cost Accrual', visible: true, width: 160, align: 'right' },
+  { key: 'nonWaybillCostAccrual', label: 'Cost Accrual', visible: true, width: 130, align: 'right' },
+  { key: 'waybillCostOrder', label: 'Waybill Cost Order', visible: false, width: 150, align: 'right' },
+  { key: 'nonWaybillCostOrder', label: 'Cost Order', visible: false, width: 130, align: 'right' },
+  { key: 'waybillCostPayment', label: 'Waybill Cost Payment', visible: false, width: 160, align: 'right' },
+  { key: 'nonWaybillCostPayment', label: 'Cost Payment', visible: false, width: 130, align: 'right' },
+  { key: 'profit', label: 'Profit (VAT Adj.)', visible: true, width: 150, align: 'right' },
   { key: 'due', label: 'Due', visible: true, width: 130, align: 'right' },
   { key: 'balance', label: 'Balance', visible: true, width: 130, align: 'right' },
   { key: 'confirmed', label: 'Confirmed', visible: true, width: 110, align: 'left' },
@@ -265,9 +283,13 @@ const COLUMN_BG: Partial<Record<SectionColumnKey, string>> = {
   accrual: '#ffebee',
   order: '#fff9e6',
   payment: '#e8f5e9',
-  costAccrual: '#ffe0b2',
-  costOrder: '#fdd835',
-  costPayment: '#c8e6c9',
+  waybillCostAccrual: '#ffe0b2',
+  nonWaybillCostAccrual: '#ffcdd2',
+  waybillCostOrder: '#fdd835',
+  nonWaybillCostOrder: '#ffb74d',
+  waybillCostPayment: '#c8e6c9',
+  nonWaybillCostPayment: '#a5d6a7',
+  profit: '#e1bee7',
 };
 
 const COLUMN_FORMAT_MAP: Partial<Record<SectionColumnKey, ColumnFormat>> = {
@@ -281,9 +303,13 @@ const COLUMN_FORMAT_MAP: Partial<Record<SectionColumnKey, ColumnFormat>> = {
   accrual: 'currency',
   order: 'currency',
   payment: 'currency',
-  costAccrual: 'currency',
-  costOrder: 'currency',
-  costPayment: 'currency',
+  waybillCostAccrual: 'currency',
+  nonWaybillCostAccrual: 'currency',
+  waybillCostOrder: 'currency',
+  nonWaybillCostOrder: 'currency',
+  waybillCostPayment: 'currency',
+  nonWaybillCostPayment: 'currency',
+  profit: 'currency',
   due: 'currency',
   balance: 'currency',
   confirmed: 'boolean',
@@ -300,12 +326,20 @@ const getColumnValue = (row: ServicesRow, key: SectionColumnKey) => {
       return row.latestDate;
     case 'accrual':
       return row.accrual;
-    case 'costAccrual':
-      return row.costAccrual;
-    case 'costOrder':
-      return row.costOrder;
-    case 'costPayment':
-      return row.costPayment;
+    case 'waybillCostAccrual':
+      return row.waybillCostAccrual;
+    case 'nonWaybillCostAccrual':
+      return row.nonWaybillCostAccrual;
+    case 'waybillCostOrder':
+      return row.waybillCostOrder;
+    case 'nonWaybillCostOrder':
+      return row.nonWaybillCostOrder;
+    case 'waybillCostPayment':
+      return row.waybillCostPayment;
+    case 'nonWaybillCostPayment':
+      return row.nonWaybillCostPayment;
+    case 'profit':
+      return row.profit;
     case 'confirmed':
       return row.confirmed;
     case 'projectAddress':

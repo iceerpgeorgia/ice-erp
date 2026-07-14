@@ -224,11 +224,22 @@ export async function GET(request: NextRequest) {
         WHERE (is_deleted = false OR is_deleted IS NULL)
         GROUP BY payment_id
       ),
+      project_currency_info AS (
+        SELECT
+          proj.project_uuid,
+          proj.currency_uuid,
+          c.code as project_currency_code
+        FROM projects proj
+        LEFT JOIN currencies c ON proj.currency_uuid = c.uuid
+      ),
       cost_ledger_agg AS (
         SELECT
           p.project_uuid,
-          SUM(COALESCE(pl.accrual, 0)) as total_accrual,
-          SUM(COALESCE(pl."order", 0)) as total_order
+          SUM(COALESCE(pl.accrual, 0)) FILTER (WHERE p.waybill_derived = true) as waybill_cost_accrual,
+          SUM(COALESCE(pl.accrual, 0)) FILTER (WHERE p.waybill_derived = false OR p.waybill_derived IS NULL) as non_waybill_cost_accrual,
+          SUM(COALESCE(pl."order", 0)) FILTER (WHERE p.waybill_derived = true) as waybill_cost_order,
+          SUM(COALESCE(pl."order", 0)) FILTER (WHERE p.waybill_derived = false OR p.waybill_derived IS NULL) as non_waybill_cost_order,
+          STRING_AGG(DISTINCT p.currency_uuid::text, ',') FILTER (WHERE p.currency_uuid IS NOT NULL) as cost_currency_uuids
         FROM payments p
         JOIN payments_ledger pl ON pl.payment_id = p.payment_id
         JOIN financial_codes fc ON fc.uuid = p.financial_code_uuid
@@ -242,7 +253,8 @@ export async function GET(request: NextRequest) {
       cost_bank_agg AS (
         SELECT
           p.project_uuid,
-          SUM(COALESCE(ba.total_payment, 0)) as total_payment
+          SUM(COALESCE(ba.total_payment, 0)) FILTER (WHERE p.waybill_derived = true) as waybill_cost_payment,
+          SUM(COALESCE(ba.total_payment, 0)) FILTER (WHERE p.waybill_derived = false OR p.waybill_derived IS NULL) as non_waybill_cost_payment
         FROM payments p
         JOIN bank_agg ba ON p.payment_id = ba.payment_id
         JOIN financial_codes fc ON fc.uuid = p.financial_code_uuid
@@ -255,19 +267,19 @@ export async function GET(request: NextRequest) {
         SELECT
           p.project_uuid,
           STRING_AGG(DISTINCT p.payment_id, ',') FILTER (WHERE p.payment_id IS NOT NULL) as cost_payment_ids_str,
-          MIN(c.uuid::text) as project_currency_uuid,
-          COALESCE(MAX(c.code), 'GEL') as project_currency_code
+          pci.currency_uuid as project_currency_uuid,
+          COALESCE(pci.project_currency_code, 'GEL') as project_currency_code
         FROM payments p
         JOIN payments_ledger pl ON pl.payment_id = p.payment_id
         JOIN financial_codes fc ON fc.uuid = p.financial_code_uuid
-        LEFT JOIN currencies c ON c.uuid = p.currency_uuid
+        LEFT JOIN project_currency_info pci ON p.project_uuid = pci.project_uuid
         WHERE p.is_active = true
           AND fc.is_income = false
           AND fc.applies_to_pl = true
           AND (pl.is_deleted = false OR pl.is_deleted IS NULL)
           AND p.project_uuid IN (SELECT DISTINCT project_uuid FROM selected_payments)
           ${ledgerDateFilter}
-        GROUP BY p.project_uuid
+        GROUP BY p.project_uuid, pci.currency_uuid, pci.project_currency_code
       )
       SELECT
         sp.financial_code_uuid,
@@ -300,9 +312,12 @@ export async function GET(request: NextRequest) {
         SUM(COALESCE(llm.total_accrual, 0)) as last_month_accrual,
         SUM(COALESCE(llm.total_order, 0)) as last_month_order,
         SUM(COALESCE(ba.total_payment, 0) + COALESCE(adj.total_adjustment, 0)) as payment,
-        COALESCE(SUM(cla.total_accrual), 0) as cost_accrual,
-        COALESCE(SUM(cla.total_order), 0) as cost_order,
-        COALESCE(SUM(cba.total_payment), 0) as cost_payment,
+        COALESCE(SUM(cla.waybill_cost_accrual), 0) as waybill_cost_accrual,
+        COALESCE(SUM(cla.non_waybill_cost_accrual), 0) as non_waybill_cost_accrual,
+        COALESCE(SUM(cla.waybill_cost_order), 0) as waybill_cost_order,
+        COALESCE(SUM(cla.non_waybill_cost_order), 0) as non_waybill_cost_order,
+        COALESCE(SUM(cba.waybill_cost_payment), 0) as waybill_cost_payment,
+        COALESCE(SUM(cba.non_waybill_cost_payment), 0) as non_waybill_cost_payment,
         COALESCE(MAX(cd.project_currency_uuid::text), NULL) as project_currency_uuid,
         COALESCE(MAX(cd.project_currency_code), 'GEL') as project_currency_code,
         ARRAY_REMOVE(STRING_TO_ARRAY(MAX(cd.cost_payment_ids_str), ','), '')::text[] as cost_payment_ids,
@@ -336,9 +351,21 @@ export async function GET(request: NextRequest) {
       const payment = Number(row.payment || 0);
       const lastMonthAccrual = Number(row.last_month_accrual || 0);
       const lastMonthOrder = Number(row.last_month_order || 0);
-      const costAccrual = Number(row.cost_accrual || 0);
-      const costOrder = Number(row.cost_order || 0);
-      const costPayment = Number(row.cost_payment || 0);
+      const waybillCostAccrual = Number(row.waybill_cost_accrual || 0);
+      const nonWaybillCostAccrual = Number(row.non_waybill_cost_accrual || 0);
+      const waybillCostOrder = Number(row.waybill_cost_order || 0);
+      const nonWaybillCostOrder = Number(row.non_waybill_cost_order || 0);
+      const waybillCostPayment = Number(row.waybill_cost_payment || 0);
+      const nonWaybillCostPayment = Number(row.non_waybill_cost_payment || 0);
+      
+      // Calculate profit: (income accrual / 1.18) - (waybill cost / 1.18) - non_waybill_cost
+      // VAT correction (divide by 1.18) only applies to income and waybill-derived costs
+      const incomeVatCorrected = accrual / 1.18;
+      const waybillCostVatCorrected = waybillCostAccrual / 1.18;
+      const profit = Number(
+        (incomeVatCorrected - waybillCostVatCorrected - nonWaybillCostAccrual).toFixed(2)
+      );
+      
       const due = Number((order - Math.abs(payment)).toFixed(2));
       const balance = Number((accrual - Math.abs(payment)).toFixed(2));
       return {
@@ -376,9 +403,13 @@ export async function GET(request: NextRequest) {
         lastMonthAccrual,
         lastMonthOrder,
         payment,
-        costAccrual,
-        costOrder,
-        costPayment,
+        waybillCostAccrual,
+        nonWaybillCostAccrual,
+        waybillCostOrder,
+        nonWaybillCostOrder,
+        waybillCostPayment,
+        nonWaybillCostPayment,
+        profit,
         due,
         balance,
         confirmed: Boolean(row.confirmed),
@@ -394,6 +425,9 @@ export async function GET(request: NextRequest) {
       accrual: number;
       order: number;
       payment: number;
+      waybillCostAccrual: number;
+      nonWaybillCostAccrual: number;
+      profit: number;
       due: number;
       balance: number;
     }>();
@@ -408,6 +442,9 @@ export async function GET(request: NextRequest) {
         accrual: 0,
         order: 0,
         payment: 0,
+        waybillCostAccrual: 0,
+        nonWaybillCostAccrual: 0,
+        profit: 0,
         due: 0,
         balance: 0,
       };
@@ -419,6 +456,9 @@ export async function GET(request: NextRequest) {
         accrual: prev.accrual + row.accrual,
         order: prev.order + row.order,
         payment: prev.payment + row.payment,
+        waybillCostAccrual: Number((prev.waybillCostAccrual + row.waybillCostAccrual).toFixed(2)),
+        nonWaybillCostAccrual: Number((prev.nonWaybillCostAccrual + row.nonWaybillCostAccrual).toFixed(2)),
+        profit: Number((prev.profit + row.profit).toFixed(2)),
         due: Number((prev.due + row.due).toFixed(2)),
         balance: Number((prev.balance + row.balance).toFixed(2)),
       });
@@ -434,6 +474,9 @@ export async function GET(request: NextRequest) {
         accrual: acc.accrual + row.accrual,
         order: acc.order + row.order,
         payment: acc.payment + row.payment,
+        waybillCostAccrual: Number((acc.waybillCostAccrual + row.waybillCostAccrual).toFixed(2)),
+        nonWaybillCostAccrual: Number((acc.nonWaybillCostAccrual + row.nonWaybillCostAccrual).toFixed(2)),
+        profit: Number((acc.profit + row.profit).toFixed(2)),
         due: Number((acc.due + row.due).toFixed(2)),
         balance: Number((acc.balance + row.balance).toFixed(2)),
       }),
@@ -444,6 +487,9 @@ export async function GET(request: NextRequest) {
         accrual: 0,
         order: 0,
         payment: 0,
+        waybillCostAccrual: 0,
+        nonWaybillCostAccrual: 0,
+        profit: 0,
         due: 0,
         balance: 0,
       }
