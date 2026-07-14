@@ -228,7 +228,7 @@ export async function GET(request: NextRequest) {
         SELECT
           p.project_uuid,
           STRING_AGG(DISTINCT p.payment_id, ',') FILTER (WHERE p.payment_id IS NOT NULL) as cost_payment_ids_str,
-          MAX(c.uuid) as project_currency_uuid,
+          MIN(c.uuid::text) as project_currency_uuid,
           COALESCE(MAX(c.code), 'GEL') as project_currency_code
         FROM payments p
         JOIN payments_ledger pl ON pl.payment_id = p.payment_id
@@ -276,7 +276,7 @@ export async function GET(request: NextRequest) {
         0 as cost_accrual,
         0 as cost_order,
         0 as cost_payment,
-        COALESCE(MAX(cd.project_currency_uuid), NULL) as project_currency_uuid,
+        COALESCE(MAX(cd.project_currency_uuid::text), NULL) as project_currency_uuid,
         COALESCE(MAX(cd.project_currency_code), 'GEL') as project_currency_code,
         ARRAY_REMOVE(STRING_TO_ARRAY(MAX(cd.cost_payment_ids_str), ','), '')::text[] as cost_payment_ids,
         BOOL_AND(
