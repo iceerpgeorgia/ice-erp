@@ -224,12 +224,10 @@ export async function GET(request: NextRequest) {
         WHERE (is_deleted = false OR is_deleted IS NULL)
         GROUP BY payment_id
       ),
-      cost_ledger_agg AS (
+      cost_payment_ids_agg AS (
         SELECT
           p.project_uuid,
-          SUM(COALESCE(pl.accrual, 0)) as total_cost_accrual,
-          SUM(COALESCE(pl."order", 0)) as total_cost_order,
-          SUM(COALESCE(pl.accrual, 0)) + SUM(COALESCE(pl."order", 0)) as total_cost_payment
+          ARRAY_REMOVE(ARRAY_AGG(DISTINCT p.payment_id ORDER BY p.payment_id), NULL) as cost_payment_ids
         FROM payments_ledger pl
         JOIN payments p ON p.payment_id = pl.payment_id
         JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
@@ -238,6 +236,24 @@ export async function GET(request: NextRequest) {
           AND fc.applies_to_pl = true
           ${ledgerDateFilter}
         GROUP BY p.project_uuid
+      ),
+      cost_ledger_agg AS (
+        SELECT
+          p.project_uuid,
+          SUM(COALESCE(pl.accrual, 0)) as total_cost_accrual,
+          SUM(COALESCE(pl."order", 0)) as total_cost_order,
+          SUM(COALESCE(pl.accrual, 0)) + SUM(COALESCE(pl."order", 0)) as total_cost_payment,
+          p.currency_uuid as project_currency_uuid,
+          COALESCE(c.code, 'GEL') as project_currency_code
+        FROM payments_ledger pl
+        JOIN payments p ON p.payment_id = pl.payment_id
+        JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
+        LEFT JOIN currencies c ON p.currency_uuid = c.uuid
+        WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
+          AND fc.is_income = false
+          AND fc.applies_to_pl = true
+          ${ledgerDateFilter}
+        GROUP BY p.project_uuid, p.currency_uuid, c.code
       )
       SELECT
         sp.financial_code_uuid,
@@ -273,6 +289,9 @@ export async function GET(request: NextRequest) {
         COALESCE(MAX(cla.total_cost_accrual), 0) as cost_accrual,
         COALESCE(MAX(cla.total_cost_order), 0) as cost_order,
         COALESCE(MAX(cla.total_cost_payment), 0) as cost_payment,
+        COALESCE(MAX(cla.project_currency_uuid), NULL) as project_currency_uuid,
+        COALESCE(MAX(cla.project_currency_code), 'GEL') as project_currency_code,
+        COALESCE(ARRAY_AGG(DISTINCT cpay.cost_payment_ids), ARRAY[]::text[]) as cost_payment_ids,
         BOOL_AND(
           CASE
             WHEN COALESCE(la.entries_count, 0) > 0 THEN COALESCE(la.all_confirmed, false)
@@ -288,6 +307,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN adj_agg adj ON sp.payment_id = adj.payment_id
       LEFT JOIN unbound_counteragent uc ON sp.counteragent_uuid = uc.counteragent_uuid
       LEFT JOIN cost_ledger_agg cla ON sp.project_uuid = cla.project_uuid
+      LEFT JOIN cost_payment_ids_agg cpay ON sp.project_uuid = cpay.project_uuid
       GROUP BY sp.financial_code_uuid, sp.project_uuid
       ORDER BY financial_code_validation ASC, status_name ASC, project_index ASC
     `;
@@ -326,6 +346,11 @@ export async function GET(request: NextRequest) {
         currency: row.currency_code,
         paymentCount: Number(row.payment_count || 0),
         jobsCount: Number(row.jobs_count || 0),
+        projectCurrencyUuid: row.project_currency_uuid || null,
+        projectCurrencyCode: row.project_currency_code || 'GEL',
+        costPaymentIds: Array.isArray(row.cost_payment_ids)
+          ? row.cost_payment_ids.flat().filter((v: unknown) => typeof v === 'string' && v.trim() !== '')
+          : [],
         jobNames: Array.isArray(row.job_names)
           ? row.job_names.filter((v: unknown) => typeof v === 'string' && v.trim() !== '')
           : [],

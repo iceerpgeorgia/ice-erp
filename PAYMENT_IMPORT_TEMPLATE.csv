@@ -1,0 +1,2 @@
+account_uuid,counteragent_uuid,project_uuid,financial_code_uuid,currency_code,amount,transaction_date,correction_date,income_tax,comment,purpose,operation_id_1,operation_id_2,order_id,record_id,usd_gel_rate,eur_gel_rate
+GE65TB7856036050100002,B4968862-3843-414D-9E73-1A7611618B41,CFFC1C06-B78B-45A0-8A02-37A23706EAFC,B59170EC-16CC-499A-9FF7-0428DCB8F727,USD,33918.59,05.11.2019,,false,ავანსი ლიფტების შესასყიდად,Payment for lift procurement,2594,698fe5_ac_8a076d,,fa7ff134-f253-4538-9f84-7a6586b9b975,2.9582,3.3093

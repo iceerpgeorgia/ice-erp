@@ -154,7 +154,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'latestDate', label: 'Latest Date', visible: true, sortable: true, filterable: true, format: 'date', width: 120 },
 ];
 
-export function PaymentsReportTable() {
+export function PaymentsReportTable({ preFilterPaymentIds, preFilterIsIncome }: { preFilterPaymentIds?: string | null; preFilterIsIncome?: boolean }) {
   const filtersStorageKey = 'paymentsReportFiltersV2';
   const [data, setData] = useState<PaymentReport[]>([]);
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
@@ -1373,9 +1373,13 @@ export function PaymentsReportTable() {
     const financialCodeUuidParam = urlParams.get('financialCodeUuid');
     const hasUrlQuickFilter = Boolean(counteragentUuidParam || projectUuidParam || jobUuidParam || financialCodeUuidParam);
 
-    if (hasUrlQuickFilter) {
+    // Handle pre-filter props from Services Report cost filter
+    const hasPropFilter = Boolean(preFilterPaymentIds || preFilterIsIncome !== undefined);
+
+    if (hasUrlQuickFilter || hasPropFilter) {
       clearFilters();
       setSearchTerm('');
+      
       if (counteragentUuidParam) {
         handleFilterChange('counteragentUuid' as ColumnKey, { mode: 'facet', values: new Set([counteragentUuidParam]) });
       }
@@ -1388,11 +1392,25 @@ export function PaymentsReportTable() {
       if (financialCodeUuidParam) {
         handleFilterChange('financialCodeUuid' as ColumnKey, { mode: 'facet', values: new Set([financialCodeUuidParam]) });
       }
+      
+      // Apply pre-filters from props (cost payment ID filtering)
+      if (preFilterPaymentIds) {
+        const paymentIds = preFilterPaymentIds.split(',').map(id => id.trim()).filter(id => id.length > 0);
+        if (paymentIds.length > 0) {
+          handleFilterChange('paymentId' as ColumnKey, { mode: 'facet', values: new Set(paymentIds) });
+        }
+      }
+      if (preFilterIsIncome !== undefined) {
+        handleFilterChange('financialCodeIsIncome' as ColumnKey, { mode: 'facet', values: new Set([preFilterIsIncome.toString()]) });
+      }
+      
       // Remove query params from URL so they don't re-apply on next mount
-      window.history.replaceState({}, '', window.location.pathname);
+      if (hasUrlQuickFilter) {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [preFilterPaymentIds, preFilterIsIncome]);
 
   // Wrap getColumnValues to split user emails for the 'users' facet
   const getUniqueValues = useCallback((columnKey: ColumnKey): any[] => {

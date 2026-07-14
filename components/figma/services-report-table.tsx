@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Columns3, Download, Edit2, FileText, Link2, Settings, User, X, Plus } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Columns3, Download, Edit2, FileText, Link2, Settings, User, X, Plus, Filter } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Checkbox } from './ui/checkbox';
@@ -53,6 +53,9 @@ type ServicesRow = {
   costAccrual: number;
   costOrder: number;
   costPayment: number;
+  projectCurrencyUuid: string | null;
+  projectCurrencyCode: string;
+  costPaymentIds: string[];
   due: number;
   balance: number;
   confirmed: boolean;
@@ -1516,6 +1519,20 @@ export function ServicesReportTable() {
     }
   }, [sections]);
 
+  const handleOpenCostPaymentFilter = useCallback((row: ServicesRow) => {
+    if (!row.costPaymentIds || row.costPaymentIds.length === 0) {
+      alert('No cost payments found for this project');
+      return;
+    }
+
+    // Build query parameters for Payments Report
+    const costPaymentIdsParam = row.costPaymentIds.join(',');
+    const url = `/payments-report?paymentIds=${encodeURIComponent(costPaymentIdsParam)}&isIncome=false`;
+    
+    // Open in new tab
+    window.open(url, '_blank');
+  }, []);
+
   const getSortIcon = (field: SectionColumnKey) => {
     if (sortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-50" />;
     return sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
@@ -2068,6 +2085,19 @@ export function ServicesReportTable() {
                                 >
                                   + Cost
                                 </Button>
+                              </div>
+                            ) : column.key === 'costAccrual' ? (
+                              <div className="flex items-center justify-end gap-1.5">
+                                <span>{value}</span>
+                                {row.costPaymentIds && row.costPaymentIds.length > 0 && (
+                                  <button
+                                    onClick={() => handleOpenCostPaymentFilter(row)}
+                                    className="inline-flex items-center justify-center rounded p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                    title={`Filter cost payments (${row.costPaymentIds.length}): ${row.costPaymentIds.slice(0, 3).join(', ')}${row.costPaymentIds.length > 3 ? '...' : ''}`}
+                                  >
+                                    <Filter className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
                               </div>
                             ) : (
                               value
