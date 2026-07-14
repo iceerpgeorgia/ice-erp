@@ -224,6 +224,33 @@ export async function GET(request: NextRequest) {
         WHERE (is_deleted = false OR is_deleted IS NULL)
         GROUP BY payment_id
       ),
+      cost_ledger_agg AS (
+        SELECT
+          p.project_uuid,
+          SUM(COALESCE(pl.accrual, 0)) as total_accrual,
+          SUM(COALESCE(pl."order", 0)) as total_order
+        FROM payments p
+        JOIN payments_ledger pl ON pl.payment_id = p.payment_id
+        JOIN financial_codes fc ON fc.uuid = p.financial_code_uuid
+        WHERE p.is_active = true
+          AND fc.is_income = false
+          AND fc.applies_to_pl = true
+          AND (pl.is_deleted = false OR pl.is_deleted IS NULL)
+          ${ledgerDateFilter}
+        GROUP BY p.project_uuid
+      ),
+      cost_bank_agg AS (
+        SELECT
+          p.project_uuid,
+          SUM(COALESCE(ba.total_payment, 0)) as total_payment
+        FROM payments p
+        JOIN bank_agg ba ON p.payment_id = ba.payment_id
+        JOIN financial_codes fc ON fc.uuid = p.financial_code_uuid
+        WHERE p.is_active = true
+          AND fc.is_income = false
+          AND fc.applies_to_pl = true
+        GROUP BY p.project_uuid
+      ),
       cost_data AS (
         SELECT
           p.project_uuid,
@@ -273,9 +300,9 @@ export async function GET(request: NextRequest) {
         SUM(COALESCE(llm.total_accrual, 0)) as last_month_accrual,
         SUM(COALESCE(llm.total_order, 0)) as last_month_order,
         SUM(COALESCE(ba.total_payment, 0) + COALESCE(adj.total_adjustment, 0)) as payment,
-        0 as cost_accrual,
-        0 as cost_order,
-        0 as cost_payment,
+        COALESCE(SUM(cla.total_accrual), 0) as cost_accrual,
+        COALESCE(SUM(cla.total_order), 0) as cost_order,
+        COALESCE(SUM(cba.total_payment), 0) as cost_payment,
         COALESCE(MAX(cd.project_currency_uuid::text), NULL) as project_currency_uuid,
         COALESCE(MAX(cd.project_currency_code), 'GEL') as project_currency_code,
         ARRAY_REMOVE(STRING_TO_ARRAY(MAX(cd.cost_payment_ids_str), ','), '')::text[] as cost_payment_ids,
@@ -293,6 +320,8 @@ export async function GET(request: NextRequest) {
       LEFT JOIN bank_agg ba ON sp.payment_id = ba.payment_id
       LEFT JOIN adj_agg adj ON sp.payment_id = adj.payment_id
       LEFT JOIN unbound_counteragent uc ON sp.counteragent_uuid = uc.counteragent_uuid
+      LEFT JOIN cost_ledger_agg cla ON sp.project_uuid = cla.project_uuid
+      LEFT JOIN cost_bank_agg cba ON sp.project_uuid = cba.project_uuid
       LEFT JOIN cost_data cd ON sp.project_uuid = cd.project_uuid
       GROUP BY sp.financial_code_uuid, sp.project_uuid
       ORDER BY financial_code_validation ASC, status_name ASC, project_index ASC

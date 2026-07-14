@@ -1527,7 +1527,7 @@ export function ServicesReportTable() {
 
     // Build query parameters for Payments Report
     const costPaymentIdsParam = row.costPaymentIds.join(',');
-    const url = `/payments-report?paymentIds=${encodeURIComponent(costPaymentIdsParam)}&isIncome=false`;
+    const url = `/dictionaries/payments-report?paymentIds=${encodeURIComponent(costPaymentIdsParam)}&isIncome=false`;
     
     // Open in new tab
     window.open(url, '_blank');
