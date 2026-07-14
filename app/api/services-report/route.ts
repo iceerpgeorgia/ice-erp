@@ -134,15 +134,25 @@ export async function GET(request: NextRequest) {
       ledger_agg AS (
         SELECT
           pl.payment_id,
+          p.project_uuid,
+          p.currency_uuid,
+          c.code as payment_currency_code,
+          pci.project_currency_code,
+          pl.effective_date::date as ledger_date,
           SUM(COALESCE(pl.accrual, 0)) as total_accrual,
           SUM(COALESCE(pl."order", 0)) as total_order,
           BOOL_AND(COALESCE(pl.confirmed, false)) as all_confirmed,
           COUNT(*) as entries_count,
           MAX(pl.effective_date) as latest_ledger_date
         FROM payments_ledger pl
+        JOIN payments p ON pl.payment_id = p.payment_id
+        LEFT JOIN currencies c ON p.currency_uuid = c.uuid
+        LEFT JOIN project_currency_info pci ON p.project_uuid = pci.project_uuid
         WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
+          AND p.financial_code_uuid IN (${financialCodePlaceholders})
+          ${insiderFilter}
           ${ledgerDateFilter}
-        GROUP BY pl.payment_id
+        GROUP BY pl.payment_id, p.project_uuid, p.currency_uuid, c.code, pci.project_currency_code, pl.effective_date::date
       ),
       latest_ledger_date_per_payment AS (
         SELECT
@@ -175,6 +185,37 @@ export async function GET(request: NextRequest) {
           AND pl.effective_date::date >= '${lastMonthStart}'::date
           AND pl.effective_date::date < '${monthStart}'::date
         GROUP BY pl.payment_id
+      ),
+      ledger_converted AS (
+        SELECT
+          payment_id,
+          project_uuid,
+          SUM(CASE 
+            WHEN payment_currency_code = project_currency_code OR payment_currency_code IS NULL THEN total_accrual
+            WHEN project_currency_code = 'GEL' THEN 
+              CASE 
+                WHEN payment_currency_code = 'USD' THEN total_accrual * (SELECT usd_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
+                WHEN payment_currency_code = 'EUR' THEN total_accrual * (SELECT eur_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
+                WHEN payment_currency_code = 'CNY' THEN total_accrual * (SELECT cny_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
+                WHEN payment_currency_code = 'GBP' THEN total_accrual * (SELECT gbp_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
+                ELSE total_accrual
+              END
+            ELSE total_accrual
+          END) as total_accrual_converted,
+          SUM(CASE 
+            WHEN payment_currency_code = project_currency_code OR payment_currency_code IS NULL THEN total_order
+            WHEN project_currency_code = 'GEL' THEN 
+              CASE 
+                WHEN payment_currency_code = 'USD' THEN total_order * (SELECT usd_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
+                WHEN payment_currency_code = 'EUR' THEN total_order * (SELECT eur_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
+                WHEN payment_currency_code = 'CNY' THEN total_order * (SELECT cny_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
+                WHEN payment_currency_code = 'GBP' THEN total_order * (SELECT gbp_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
+                ELSE total_order
+              END
+            ELSE total_order
+          END) as total_order_converted
+        FROM ledger_agg
+        GROUP BY payment_id, project_uuid
       ),
       bank_agg AS (
         SELECT
@@ -347,9 +388,9 @@ export async function GET(request: NextRequest) {
          FROM job_projects jp3 JOIN jobs jn ON jp3.job_uuid = jn.job_uuid
          WHERE jp3.project_uuid = sp.project_uuid AND jn.is_active = true) as job_names,
         BOOL_OR(COALESCE(uc.unbound_count, 0) > 0) as has_unbound_counteragent_transactions,
-        SUM(COALESCE(la.total_accrual, 0)) as accrual,
+        SUM(COALESCE(lc.total_accrual_converted, 0)) as accrual,
         SUM(COALESCE(ll.latest_accrual, 0)) as latest_accrual,
-        SUM(COALESCE(la.total_order, 0)) as "order",
+        SUM(COALESCE(lc.total_order_converted, 0)) as "order",
         SUM(COALESCE(llm.total_accrual, 0)) as last_month_accrual,
         SUM(COALESCE(llm.total_order, 0)) as last_month_order,
         SUM(COALESCE(ba.total_payment, 0) + COALESCE(adj.total_adjustment, 0)) as payment,
@@ -368,6 +409,7 @@ export async function GET(request: NextRequest) {
         MAX(la.latest_ledger_date) as latest_date
       FROM selected_payments sp
       LEFT JOIN ledger_agg la ON sp.payment_id = la.payment_id
+      LEFT JOIN ledger_converted lc ON sp.payment_id = lc.payment_id
       LEFT JOIN ledger_latest ll ON sp.payment_id = ll.payment_id
       LEFT JOIN ledger_last_month llm ON sp.payment_id = llm.payment_id
       LEFT JOIN bank_agg ba ON sp.payment_id = ba.payment_id
