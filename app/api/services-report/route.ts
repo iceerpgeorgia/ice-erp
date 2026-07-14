@@ -224,36 +224,22 @@ export async function GET(request: NextRequest) {
         WHERE (is_deleted = false OR is_deleted IS NULL)
         GROUP BY payment_id
       ),
-      cost_payment_ids_agg AS (
+      cost_data AS (
         SELECT
-          p.project_uuid,
-          ARRAY_REMOVE(ARRAY_AGG(DISTINCT p.payment_id ORDER BY p.payment_id), NULL) as cost_payment_ids
-        FROM payments_ledger pl
-        JOIN payments p ON p.payment_id = pl.payment_id
-        JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
-        WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
-          AND fc.is_income = false
-          AND fc.applies_to_pl = true
-          ${ledgerDateFilter}
-        GROUP BY p.project_uuid
-      ),
-      cost_ledger_agg AS (
-        SELECT
-          p.project_uuid,
-          SUM(COALESCE(pl.accrual, 0)) as total_cost_accrual,
-          SUM(COALESCE(pl."order", 0)) as total_cost_order,
-          SUM(COALESCE(pl.accrual, 0)) + SUM(COALESCE(pl."order", 0)) as total_cost_payment,
-          MAX(p.currency_uuid) as project_currency_uuid,
+          sp.project_uuid,
+          STRING_AGG(DISTINCT p.payment_id, ',') FILTER (WHERE p.payment_id IS NOT NULL) as cost_payment_ids_str,
+          MAX(c.uuid) as project_currency_uuid,
           COALESCE(MAX(c.code), 'GEL') as project_currency_code
-        FROM payments_ledger pl
-        JOIN payments p ON p.payment_id = pl.payment_id
-        JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
-        LEFT JOIN currencies c ON p.currency_uuid = c.uuid
-        WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
-          AND fc.is_income = false
+        FROM selected_payments sp
+        JOIN payments p ON p.project_uuid = sp.project_uuid
+        JOIN payments_ledger pl ON pl.payment_id = p.payment_id
+        JOIN financial_codes fc ON fc.uuid = p.financial_code_uuid
+        LEFT JOIN currencies c ON c.uuid = p.currency_uuid
+        WHERE fc.is_income = false
           AND fc.applies_to_pl = true
+          AND (pl.is_deleted = false OR pl.is_deleted IS NULL)
           ${ledgerDateFilter}
-        GROUP BY p.project_uuid
+        GROUP BY sp.project_uuid
       )
       SELECT
         sp.financial_code_uuid,
@@ -286,12 +272,12 @@ export async function GET(request: NextRequest) {
         SUM(COALESCE(llm.total_accrual, 0)) as last_month_accrual,
         SUM(COALESCE(llm.total_order, 0)) as last_month_order,
         SUM(COALESCE(ba.total_payment, 0) + COALESCE(adj.total_adjustment, 0)) as payment,
-        COALESCE(MAX(cla.total_cost_accrual), 0) as cost_accrual,
-        COALESCE(MAX(cla.total_cost_order), 0) as cost_order,
-        COALESCE(MAX(cla.total_cost_payment), 0) as cost_payment,
-        COALESCE(MAX(cla.project_currency_uuid), NULL) as project_currency_uuid,
-        COALESCE(MAX(cla.project_currency_code), 'GEL') as project_currency_code,
-        COALESCE(MAX(cpay.cost_payment_ids), ARRAY[]::text[]) as cost_payment_ids,
+        0 as cost_accrual,
+        0 as cost_order,
+        0 as cost_payment,
+        COALESCE(MAX(cd.project_currency_uuid), NULL) as project_currency_uuid,
+        COALESCE(MAX(cd.project_currency_code), 'GEL') as project_currency_code,
+        ARRAY_REMOVE(STRING_TO_ARRAY(MAX(cd.cost_payment_ids_str), ','), '')::text[] as cost_payment_ids,
         BOOL_AND(
           CASE
             WHEN COALESCE(la.entries_count, 0) > 0 THEN COALESCE(la.all_confirmed, false)
@@ -306,8 +292,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN bank_agg ba ON sp.payment_id = ba.payment_id
       LEFT JOIN adj_agg adj ON sp.payment_id = adj.payment_id
       LEFT JOIN unbound_counteragent uc ON sp.counteragent_uuid = uc.counteragent_uuid
-      LEFT JOIN cost_ledger_agg cla ON sp.project_uuid = cla.project_uuid
-      LEFT JOIN cost_payment_ids_agg cpay ON sp.project_uuid = cpay.project_uuid
+      LEFT JOIN cost_data cd ON sp.project_uuid = cd.project_uuid
       GROUP BY sp.financial_code_uuid, sp.project_uuid
       ORDER BY financial_code_validation ASC, status_name ASC, project_index ASC
     `;
