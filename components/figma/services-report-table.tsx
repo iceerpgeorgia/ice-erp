@@ -2101,7 +2101,7 @@ export function ServicesReportTable() {
                                   + Cost
                                 </Button>
                               </div>
-                            ) : column.key === 'waybillCostAccrual' ? (
+                            ) : column.key === 'costAccrual' ? (
                               <div className="flex items-center justify-end gap-1.5">
                                 <span>{value}</span>
                                 {row.costPaymentIds && row.costPaymentIds.length > 0 && (
