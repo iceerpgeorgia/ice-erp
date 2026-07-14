@@ -243,8 +243,8 @@ export async function GET(request: NextRequest) {
           SUM(COALESCE(pl.accrual, 0)) as total_cost_accrual,
           SUM(COALESCE(pl."order", 0)) as total_cost_order,
           SUM(COALESCE(pl.accrual, 0)) + SUM(COALESCE(pl."order", 0)) as total_cost_payment,
-          p.currency_uuid as project_currency_uuid,
-          COALESCE(c.code, 'GEL') as project_currency_code
+          (ARRAY_AGG(DISTINCT p.currency_uuid ORDER BY p.currency_uuid))[1] as project_currency_uuid,
+          (ARRAY_AGG(DISTINCT c.code ORDER BY c.code))[1] as project_currency_code
         FROM payments_ledger pl
         JOIN payments p ON p.payment_id = pl.payment_id
         JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
@@ -253,7 +253,7 @@ export async function GET(request: NextRequest) {
           AND fc.is_income = false
           AND fc.applies_to_pl = true
           ${ledgerDateFilter}
-        GROUP BY p.project_uuid, p.currency_uuid, c.code
+        GROUP BY p.project_uuid
       )
       SELECT
         sp.financial_code_uuid,
@@ -291,7 +291,7 @@ export async function GET(request: NextRequest) {
         COALESCE(MAX(cla.total_cost_payment), 0) as cost_payment,
         COALESCE(MAX(cla.project_currency_uuid), NULL) as project_currency_uuid,
         COALESCE(MAX(cla.project_currency_code), 'GEL') as project_currency_code,
-        COALESCE(ARRAY_AGG(DISTINCT cpay.cost_payment_ids), ARRAY[]::text[]) as cost_payment_ids,
+        COALESCE(MAX(cpay.cost_payment_ids), ARRAY[]::text[]) as cost_payment_ids,
         BOOL_AND(
           CASE
             WHEN COALESCE(la.entries_count, 0) > 0 THEN COALESCE(la.all_confirmed, false)
