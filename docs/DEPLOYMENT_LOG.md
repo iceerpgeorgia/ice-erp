@@ -1,5 +1,29 @@
 # Deployment Log
 
+## 2026-07-14 Deployment #394 (Feature: Consolidate Services Report Costs with Multi-Currency Conversion)
+- Commit: c121550
+- Production: https://ice-erp.vercel.app
+- Summary: Consolidated waybill and non-waybill cost columns into single aggregated column with NBG exchange rate conversion.
+- Features Implemented:
+  1. **Cost Aggregation CTEs**: Replaced separate waybill/non-waybill cost columns with unified cost tracking
+     - `cost_items` CTE: Extract individual cost items with payment IDs, waybill_derived flags, and ledger dates
+     - `cost_agg` CTE: Aggregate with NBG rate lookups for multi-currency conversion (USD, EUR, CNY, GBP → GEL)
+     - `cost_bank_agg` CTE: Apply same currency conversion and VAT logic to bank payments
+  2. **Conditional VAT Adjustment**: Waybill-derived costs divided by 1.18, non-waybill costs unchanged (1.0)
+  3. **Multi-Currency Conversion**: NBG exchange rates looked up by transaction date with support for USD, EUR, CNY, GBP
+  4. **Consolidated Response**: Single columns for cost_accrual, cost_order, cost_payment (removed 6 split columns)
+  5. **UI Column Consolidation**: Updated TypeScript types, DEFAULT_SECTION_COLUMNS, and column configuration
+  6. **Simplified Profit Formula**: (accrual/1.18) - cost_accrual (VAT already applied in SQL aggregation)
+- Files Modified:
+  - `app/api/services-report/route.ts` - Added cost CTEs, currency conversion logic, consolidated response
+  - `components/figma/services-report-table.tsx` - Updated types, column definitions, and UI mappings
+- Impact:
+  - ✅ Cost tracking now handles multi-currency transactions correctly
+  - ✅ Waybill and non-waybill costs properly consolidated with correct VAT treatment
+  - ✅ Simplified UI with single aggregated cost columns vs. split columns
+  - ✅ Profit calculations now reflect accurate cost basis
+- Status: ✅ Deployed
+
 ## 2026-07-10 Deployment #393 (Feature: Add Cost Ledger Dialog for Services Report)
 - Commit: 1b94a0e
 - Production: https://ice-ns7znbtnr-iceerp.vercel.app
