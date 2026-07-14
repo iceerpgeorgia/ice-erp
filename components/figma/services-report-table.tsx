@@ -1060,7 +1060,12 @@ export function ServicesReportTable() {
       const currResponse = await fetch('/api/currencies');
       if (currResponse.ok) {
         const currData = await currResponse.json();
-        const currs = (Array.isArray(currData) ? currData : []).map((curr: any) => ({
+        const currsList = Array.isArray(currData)
+          ? currData
+          : Array.isArray(currData?.data)
+            ? currData.data
+            : [];
+        const currs = currsList.map((curr: any) => ({
           uuid: curr.uuid,
           code: curr.code,
         }));
