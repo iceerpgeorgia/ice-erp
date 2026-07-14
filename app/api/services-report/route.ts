@@ -232,32 +232,81 @@ export async function GET(request: NextRequest) {
         FROM projects proj
         LEFT JOIN currencies c ON proj.currency_uuid = c.uuid
       ),
-      cost_ledger_agg AS (
+      cost_items AS (
         SELECT
           p.project_uuid,
-          SUM(COALESCE(pl.accrual, 0)) FILTER (WHERE p.waybill_derived = true) as waybill_cost_accrual,
-          SUM(COALESCE(pl.accrual, 0)) FILTER (WHERE p.waybill_derived = false OR p.waybill_derived IS NULL) as non_waybill_cost_accrual,
-          SUM(COALESCE(pl."order", 0)) FILTER (WHERE p.waybill_derived = true) as waybill_cost_order,
-          SUM(COALESCE(pl."order", 0)) FILTER (WHERE p.waybill_derived = false OR p.waybill_derived IS NULL) as non_waybill_cost_order,
-          STRING_AGG(DISTINCT p.currency_uuid::text, ',') FILTER (WHERE p.currency_uuid IS NOT NULL) as cost_currency_uuids
+          p.payment_id,
+          p.waybill_derived,
+          p.currency_uuid,
+          c.code as cost_currency_code,
+          pci.project_currency_code,
+          pl.effective_date::date as ledger_date,
+          SUM(COALESCE(pl.accrual, 0)) as total_accrual,
+          SUM(COALESCE(pl."order", 0)) as total_order
         FROM payments p
         JOIN payments_ledger pl ON pl.payment_id = p.payment_id
         JOIN financial_codes fc ON fc.uuid = p.financial_code_uuid
+        LEFT JOIN currencies c ON p.currency_uuid = c.uuid
+        LEFT JOIN project_currency_info pci ON p.project_uuid = pci.project_uuid
         WHERE p.is_active = true
           AND fc.is_income = false
           AND fc.applies_to_pl = true
           AND (pl.is_deleted = false OR pl.is_deleted IS NULL)
           ${ledgerDateFilter}
-        GROUP BY p.project_uuid
+        GROUP BY p.project_uuid, p.payment_id, p.waybill_derived, p.currency_uuid, c.code, pci.project_currency_code, pl.effective_date::date
+      ),
+      cost_agg AS (
+        SELECT
+          project_uuid,
+          STRING_AGG(DISTINCT payment_id, ',') FILTER (WHERE payment_id IS NOT NULL) as cost_payment_ids_str,
+          MAX(project_currency_code) as project_currency_code,
+          SUM(CASE 
+            WHEN cost_currency_code = project_currency_code OR cost_currency_code IS NULL THEN total_accrual
+            WHEN project_currency_code = 'GEL' THEN 
+              CASE 
+                WHEN cost_currency_code = 'USD' THEN total_accrual * (SELECT usd_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
+                WHEN cost_currency_code = 'EUR' THEN total_accrual * (SELECT eur_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
+                WHEN cost_currency_code = 'CNY' THEN total_accrual * (SELECT cny_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
+                WHEN cost_currency_code = 'GBP' THEN total_accrual * (SELECT gbp_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
+                ELSE total_accrual
+              END
+            ELSE total_accrual
+          END * CASE WHEN waybill_derived = true THEN 1.0/1.18 ELSE 1.0 END) as total_cost_accrual,
+          SUM(CASE 
+            WHEN cost_currency_code = project_currency_code OR cost_currency_code IS NULL THEN total_order
+            WHEN project_currency_code = 'GEL' THEN 
+              CASE 
+                WHEN cost_currency_code = 'USD' THEN total_order * (SELECT usd_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
+                WHEN cost_currency_code = 'EUR' THEN total_order * (SELECT eur_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
+                WHEN cost_currency_code = 'CNY' THEN total_order * (SELECT cny_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
+                WHEN cost_currency_code = 'GBP' THEN total_order * (SELECT gbp_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
+                ELSE total_order
+              END
+            ELSE total_order
+          END * CASE WHEN waybill_derived = true THEN 1.0/1.18 ELSE 1.0 END) as total_cost_order
+        FROM cost_items
+        GROUP BY project_uuid
       ),
       cost_bank_agg AS (
         SELECT
           p.project_uuid,
-          SUM(COALESCE(ba.total_payment, 0)) FILTER (WHERE p.waybill_derived = true) as waybill_cost_payment,
-          SUM(COALESCE(ba.total_payment, 0)) FILTER (WHERE p.waybill_derived = false OR p.waybill_derived IS NULL) as non_waybill_cost_payment
+          SUM(CASE 
+            WHEN c.code = pci.project_currency_code OR c.code IS NULL THEN COALESCE(ba.total_payment, 0)
+            WHEN pci.project_currency_code = 'GEL' THEN 
+              CASE 
+                WHEN c.code = 'USD' THEN COALESCE(ba.total_payment, 0) * (SELECT usd_rate FROM nbg_exchange_rates WHERE date <= ba.latest_bank_date ORDER BY date DESC LIMIT 1)
+                WHEN c.code = 'EUR' THEN COALESCE(ba.total_payment, 0) * (SELECT eur_rate FROM nbg_exchange_rates WHERE date <= ba.latest_bank_date ORDER BY date DESC LIMIT 1)
+                WHEN c.code = 'CNY' THEN COALESCE(ba.total_payment, 0) * (SELECT cny_rate FROM nbg_exchange_rates WHERE date <= ba.latest_bank_date ORDER BY date DESC LIMIT 1)
+                WHEN c.code = 'GBP' THEN COALESCE(ba.total_payment, 0) * (SELECT gbp_rate FROM nbg_exchange_rates WHERE date <= ba.latest_bank_date ORDER BY date DESC LIMIT 1)
+                ELSE COALESCE(ba.total_payment, 0)
+              END
+            ELSE COALESCE(ba.total_payment, 0)
+          END * CASE WHEN p.waybill_derived = true THEN 1.0/1.18 ELSE 1.0 END) as total_cost_payment
         FROM payments p
         JOIN bank_agg ba ON p.payment_id = ba.payment_id
         JOIN financial_codes fc ON fc.uuid = p.financial_code_uuid
+        LEFT JOIN currencies c ON p.currency_uuid = c.uuid
+        LEFT JOIN project_currency_info pci ON p.project_uuid = pci.project_uuid
         WHERE p.is_active = true
           AND fc.is_income = false
           AND fc.applies_to_pl = true
@@ -265,21 +314,13 @@ export async function GET(request: NextRequest) {
       ),
       cost_data AS (
         SELECT
-          p.project_uuid,
-          STRING_AGG(DISTINCT p.payment_id, ',') FILTER (WHERE p.payment_id IS NOT NULL) as cost_payment_ids_str,
+          ca.project_uuid,
+          ca.cost_payment_ids_str,
           pci.currency_uuid as project_currency_uuid,
-          COALESCE(pci.project_currency_code, 'GEL') as project_currency_code
-        FROM payments p
-        JOIN payments_ledger pl ON pl.payment_id = p.payment_id
-        JOIN financial_codes fc ON fc.uuid = p.financial_code_uuid
-        LEFT JOIN project_currency_info pci ON p.project_uuid = pci.project_uuid
-        WHERE p.is_active = true
-          AND fc.is_income = false
-          AND fc.applies_to_pl = true
-          AND (pl.is_deleted = false OR pl.is_deleted IS NULL)
-          AND p.project_uuid IN (SELECT DISTINCT project_uuid FROM selected_payments)
-          ${ledgerDateFilter}
-        GROUP BY p.project_uuid, pci.currency_uuid, pci.project_currency_code
+          ca.project_currency_code
+        FROM cost_agg ca
+        LEFT JOIN project_currency_info pci ON ca.project_uuid = pci.project_uuid
+        WHERE ca.project_uuid IN (SELECT DISTINCT project_uuid FROM selected_payments)
       )
       SELECT
         sp.financial_code_uuid,
@@ -312,12 +353,9 @@ export async function GET(request: NextRequest) {
         SUM(COALESCE(llm.total_accrual, 0)) as last_month_accrual,
         SUM(COALESCE(llm.total_order, 0)) as last_month_order,
         SUM(COALESCE(ba.total_payment, 0) + COALESCE(adj.total_adjustment, 0)) as payment,
-        COALESCE(SUM(cla.waybill_cost_accrual), 0) as waybill_cost_accrual,
-        COALESCE(SUM(cla.non_waybill_cost_accrual), 0) as non_waybill_cost_accrual,
-        COALESCE(SUM(cla.waybill_cost_order), 0) as waybill_cost_order,
-        COALESCE(SUM(cla.non_waybill_cost_order), 0) as non_waybill_cost_order,
-        COALESCE(SUM(cba.waybill_cost_payment), 0) as waybill_cost_payment,
-        COALESCE(SUM(cba.non_waybill_cost_payment), 0) as non_waybill_cost_payment,
+        COALESCE(SUM(ca.total_cost_accrual), 0) as cost_accrual,
+        COALESCE(SUM(ca.total_cost_order), 0) as cost_order,
+        COALESCE(SUM(cba.total_cost_payment), 0) as cost_payment,
         COALESCE(MAX(cd.project_currency_uuid::text), NULL) as project_currency_uuid,
         COALESCE(MAX(cd.project_currency_code), 'GEL') as project_currency_code,
         ARRAY_REMOVE(STRING_TO_ARRAY(MAX(cd.cost_payment_ids_str), ','), '')::text[] as cost_payment_ids,
@@ -335,7 +373,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN bank_agg ba ON sp.payment_id = ba.payment_id
       LEFT JOIN adj_agg adj ON sp.payment_id = adj.payment_id
       LEFT JOIN unbound_counteragent uc ON sp.counteragent_uuid = uc.counteragent_uuid
-      LEFT JOIN cost_ledger_agg cla ON sp.project_uuid = cla.project_uuid
+      LEFT JOIN cost_agg ca ON sp.project_uuid = ca.project_uuid
       LEFT JOIN cost_bank_agg cba ON sp.project_uuid = cba.project_uuid
       LEFT JOIN cost_data cd ON sp.project_uuid = cd.project_uuid
       GROUP BY sp.financial_code_uuid, sp.project_uuid
@@ -351,20 +389,14 @@ export async function GET(request: NextRequest) {
       const payment = Number(row.payment || 0);
       const lastMonthAccrual = Number(row.last_month_accrual || 0);
       const lastMonthOrder = Number(row.last_month_order || 0);
-      const waybillCostAccrual = Number(row.waybill_cost_accrual || 0);
-      const nonWaybillCostAccrual = Number(row.non_waybill_cost_accrual || 0);
-      const waybillCostOrder = Number(row.waybill_cost_order || 0);
-      const nonWaybillCostOrder = Number(row.non_waybill_cost_order || 0);
-      const waybillCostPayment = Number(row.waybill_cost_payment || 0);
-      const nonWaybillCostPayment = Number(row.non_waybill_cost_payment || 0);
+      const costAccrual = Number(row.cost_accrual || 0);
+      const costOrder = Number(row.cost_order || 0);
+      const costPayment = Number(row.cost_payment || 0);
       
-      // Calculate profit: (income accrual / 1.18) - (waybill cost / 1.18) - non_waybill_cost
-      // VAT correction (divide by 1.18) only applies to income and waybill-derived costs
+      // Calculate profit: (income accrual / 1.18) - cost_accrual
+      // Note: cost_accrual already includes VAT adjustment during calculation (waybill costs are divided by 1.18)
       const incomeVatCorrected = accrual / 1.18;
-      const waybillCostVatCorrected = waybillCostAccrual / 1.18;
-      const profit = Number(
-        (incomeVatCorrected - waybillCostVatCorrected - nonWaybillCostAccrual).toFixed(2)
-      );
+      const profit = Number((incomeVatCorrected - costAccrual).toFixed(2));
       
       const due = Number((order - Math.abs(payment)).toFixed(2));
       const balance = Number((accrual - Math.abs(payment)).toFixed(2));
@@ -403,12 +435,9 @@ export async function GET(request: NextRequest) {
         lastMonthAccrual,
         lastMonthOrder,
         payment,
-        waybillCostAccrual,
-        nonWaybillCostAccrual,
-        waybillCostOrder,
-        nonWaybillCostOrder,
-        waybillCostPayment,
-        nonWaybillCostPayment,
+        costAccrual,
+        costOrder,
+        costPayment,
         profit,
         due,
         balance,
@@ -425,8 +454,9 @@ export async function GET(request: NextRequest) {
       accrual: number;
       order: number;
       payment: number;
-      waybillCostAccrual: number;
-      nonWaybillCostAccrual: number;
+      costAccrual: number;
+      costOrder: number;
+      costPayment: number;
       profit: number;
       due: number;
       balance: number;
@@ -442,8 +472,9 @@ export async function GET(request: NextRequest) {
         accrual: 0,
         order: 0,
         payment: 0,
-        waybillCostAccrual: 0,
-        nonWaybillCostAccrual: 0,
+        costAccrual: 0,
+        costOrder: 0,
+        costPayment: 0,
         profit: 0,
         due: 0,
         balance: 0,
@@ -456,8 +487,9 @@ export async function GET(request: NextRequest) {
         accrual: prev.accrual + row.accrual,
         order: prev.order + row.order,
         payment: prev.payment + row.payment,
-        waybillCostAccrual: Number((prev.waybillCostAccrual + row.waybillCostAccrual).toFixed(2)),
-        nonWaybillCostAccrual: Number((prev.nonWaybillCostAccrual + row.nonWaybillCostAccrual).toFixed(2)),
+        costAccrual: Number((prev.costAccrual + row.costAccrual).toFixed(2)),
+        costOrder: Number((prev.costOrder + row.costOrder).toFixed(2)),
+        costPayment: Number((prev.costPayment + row.costPayment).toFixed(2)),
         profit: Number((prev.profit + row.profit).toFixed(2)),
         due: Number((prev.due + row.due).toFixed(2)),
         balance: Number((prev.balance + row.balance).toFixed(2)),
@@ -474,8 +506,9 @@ export async function GET(request: NextRequest) {
         accrual: acc.accrual + row.accrual,
         order: acc.order + row.order,
         payment: acc.payment + row.payment,
-        waybillCostAccrual: Number((acc.waybillCostAccrual + row.waybillCostAccrual).toFixed(2)),
-        nonWaybillCostAccrual: Number((acc.nonWaybillCostAccrual + row.nonWaybillCostAccrual).toFixed(2)),
+        costAccrual: Number((acc.costAccrual + row.costAccrual).toFixed(2)),
+        costOrder: Number((acc.costOrder + row.costOrder).toFixed(2)),
+        costPayment: Number((acc.costPayment + row.costPayment).toFixed(2)),
         profit: Number((acc.profit + row.profit).toFixed(2)),
         due: Number((acc.due + row.due).toFixed(2)),
         balance: Number((acc.balance + row.balance).toFixed(2)),
