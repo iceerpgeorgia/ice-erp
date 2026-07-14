@@ -243,8 +243,8 @@ export async function GET(request: NextRequest) {
           SUM(COALESCE(pl.accrual, 0)) as total_cost_accrual,
           SUM(COALESCE(pl."order", 0)) as total_cost_order,
           SUM(COALESCE(pl.accrual, 0)) + SUM(COALESCE(pl."order", 0)) as total_cost_payment,
-          (ARRAY_AGG(DISTINCT p.currency_uuid ORDER BY p.currency_uuid))[1] as project_currency_uuid,
-          (ARRAY_AGG(DISTINCT c.code ORDER BY c.code))[1] as project_currency_code
+          MAX(p.currency_uuid) as project_currency_uuid,
+          COALESCE(MAX(c.code), 'GEL') as project_currency_code
         FROM payments_ledger pl
         JOIN payments p ON p.payment_id = pl.payment_id
         JOIN financial_codes fc ON p.financial_code_uuid = fc.uuid
