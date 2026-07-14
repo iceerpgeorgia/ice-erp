@@ -1,5 +1,30 @@
 # Deployment Log
 
+## 2026-07-14 Deployment #395 (Fix: Multi-Currency Conversion for Services Report Income & Costs)
+- Commit: 0745e3d
+- Production: https://ice-erp.vercel.app
+- Summary: Fixed currency conversion for income accrual to ensure profit calculations use both income and costs in the same project currency.
+- Issues Fixed:
+  1. **Income Accrual Currency Conversion**: Income accrual amounts were not being converted from payment currency to project currency, causing incorrect profit calculations when mixing currencies
+  2. **Profit Calculation Accuracy**: Profit formula was mixing unconverted accrual with converted costs, leading to inaccurate profit values
+- Features Implemented:
+  1. **Enhanced ledger_agg CTE**: Now tracks payment currency, project currency, and ledger dates for each accrual entry
+  2. **New ledger_converted CTE**: Applies NBG exchange rate conversion to accrual and order amounts (USD, EUR, CNY, GBP → GEL) matching cost aggregation pattern
+  3. **Unified Currency Handling**: All income and cost amounts now converted to project currency before aggregation
+  4. **Multi-Currency Date Precision**: Uses ledger effective date for NBG rate lookup (same as cost accrual), ensuring consistent rate application
+- Files Modified:
+  - `app/api/services-report/route.ts` - Enhanced ledger_agg, added ledger_converted CTE, updated main SELECT
+- Impact:
+  - ✅ Profit calculations now accurate for multi-currency projects
+  - ✅ Income amounts properly converted from payment currency to project currency
+  - ✅ Both accrual and costs use consistent currency basis (project currency)
+  - ✅ VAT adjustments applied consistently across all financial metrics
+- Technical Details:
+  - ledger_agg now includes: `payment_id, project_uuid, currency_uuid, payment_currency_code, project_currency_code, ledger_date, total_accrual, total_order`
+  - ledger_converted uses same NBG lookup pattern as cost_agg: `(SELECT rate FROM nbg_exchange_rates WHERE date <= ledger_date ORDER BY date DESC LIMIT 1)`
+  - Profit formula verified: `(accrual/1.18) - costAccrual` where both are in project currency with VAT adjustments already applied
+- Status: ✅ Deployed
+
 ## 2026-07-14 Deployment #394 (Feature: Consolidate Services Report Costs with Multi-Currency Conversion)
 - Commit: c121550
 - Production: https://ice-erp.vercel.app
