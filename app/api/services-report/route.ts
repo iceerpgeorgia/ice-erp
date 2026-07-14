@@ -226,20 +226,21 @@ export async function GET(request: NextRequest) {
       ),
       cost_data AS (
         SELECT
-          sp.project_uuid,
+          p.project_uuid,
           STRING_AGG(DISTINCT p.payment_id, ',') FILTER (WHERE p.payment_id IS NOT NULL) as cost_payment_ids_str,
           MAX(c.uuid) as project_currency_uuid,
           COALESCE(MAX(c.code), 'GEL') as project_currency_code
-        FROM selected_payments sp
-        JOIN payments p ON p.project_uuid = sp.project_uuid
+        FROM payments p
         JOIN payments_ledger pl ON pl.payment_id = p.payment_id
         JOIN financial_codes fc ON fc.uuid = p.financial_code_uuid
         LEFT JOIN currencies c ON c.uuid = p.currency_uuid
-        WHERE fc.is_income = false
+        WHERE p.is_active = true
+          AND fc.is_income = false
           AND fc.applies_to_pl = true
           AND (pl.is_deleted = false OR pl.is_deleted IS NULL)
+          AND p.project_uuid IN (SELECT DISTINCT project_uuid FROM selected_payments)
           ${ledgerDateFilter}
-        GROUP BY sp.project_uuid
+        GROUP BY p.project_uuid
       )
       SELECT
         sp.financial_code_uuid,
