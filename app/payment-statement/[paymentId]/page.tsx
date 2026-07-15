@@ -1359,12 +1359,31 @@ export default function PaymentStatementPage() {
 
   const handleExportXlsx = () => {
     const fmtNum = (v: number | null | undefined) => (v == null ? '' : Number(Number(v).toFixed(2)));
-    const fmtDate = (v: string | Date | null | undefined) => {
-      if (!v) return '';
-      return toDisplayDate(v);
+    const toExcelDateSerial = (value: unknown): number | string => {
+      if (!value) return '';
+      const { normalizeToIsoDate } = require('@/lib/date-normalization');
+      const dateValue = typeof value === 'string' ? value.trim() : value;
+      
+      if (typeof dateValue === 'string') {
+        const isoDate = normalizeToIsoDate(dateValue);
+        if (!isoDate) return dateValue;
+        const utcMillis = Date.parse(`${isoDate}T00:00:00Z`);
+        if (Number.isNaN(utcMillis)) return dateValue;
+        return (utcMillis - Date.UTC(1899, 11, 30)) / 86400000;
+      }
+      
+      if (dateValue instanceof Date) {
+        if (Number.isNaN(dateValue.getTime())) return '';
+        const isoStr = dateValue.toISOString().split('T')[0];
+        const utcMillis = Date.parse(`${isoStr}T00:00:00Z`);
+        if (Number.isNaN(utcMillis)) return '';
+        return (utcMillis - Date.UTC(1899, 11, 30)) / 86400000;
+      }
+      
+      return String(dateValue);
     };
-    const rows = filteredTransactions.map(row => ({
-      'Date': fmtDate(row.date),
+    const rows: any[] = filteredTransactions.map(row => ({
+      'Date': toExcelDateSerial(row.date),
       'Type': row.type,
       'Accrual': fmtNum(row.accrual),
       'Payment': fmtNum(row.payment),
@@ -1381,9 +1400,24 @@ export default function PaymentStatementPage() {
       'Batch ID': row.batchId ?? '',
       'ID1': row.id1 ?? '',
       'ID2': row.id2 ?? '',
-      'Created At': fmtDate(row.createdAt),
-    }));
+      'Created At': toExcelDateSerial(row.createdAt),
+    } as any));
     const ws = XLSX.utils.json_to_sheet(rows);
+    
+    // Apply date formatting to Date and Created At columns
+    const dateColumns = [0, 17]; // Column A (Date) and Column R (Created At)
+    Object.keys(ws).forEach(key => {
+      if (key.startsWith('!')) return; // Skip meta keys
+      const cell = ws[key];
+      if (!cell) return;
+      
+      const col = XLSX.utils.decode_col(key.match(/[A-Z]+/)?.[0] || 'A');
+      if (dateColumns.includes(col) && typeof cell.v === 'number') {
+        cell.t = 'n'; // Ensure numeric type
+        cell.z = 'dd.mm.yyyy'; // Apply date format
+      }
+    });
+    
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Statement');
     const payId = statementData.payment.paymentId ?? 'export';

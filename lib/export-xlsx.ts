@@ -168,6 +168,10 @@ export function exportRowsToXlsx<T extends Record<string, any>>({
       const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex });
       const cell = worksheet[cellRef];
       if (cell) {
+        // Ensure numeric type for date cells
+        if (typeof cell.v === 'number') {
+          cell.t = 'n';
+        }
         cell.z = 'dd.mm.yyyy';
       }
     }
@@ -335,6 +339,10 @@ export function exportMultiSheetsToXlsx<T extends Record<string, any>>({
         const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex });
         const cell = worksheet[cellRef];
         if (cell) {
+          // Ensure numeric type for date cells
+          if (typeof cell.v === 'number') {
+            cell.t = 'n';
+          }
           cell.z = 'dd.mm.yyyy';
         }
       }
@@ -348,6 +356,10 @@ export function exportMultiSheetsToXlsx<T extends Record<string, any>>({
       const cellRef = XLSX.utils.encode_cell({ r: rowIdx + 1, c: colIdx });
       const cell = worksheet[cellRef];
       if (cell) {
+        // Ensure numeric type for date cells
+        if (typeof cell.v === 'number') {
+          cell.t = 'n';
+        }
         cell.z = 'dd.mm.yyyy';
       }
     });

@@ -774,8 +774,33 @@ export default function CounteragentStatementPage() {
 
   const handleExportXlsx = () => {
     if (!filteredRows.length) return;
+    
+    const { normalizeToIsoDate } = require('@/lib/date-normalization');
+    const toExcelDateSerial = (value: unknown): number | string => {
+      if (!value) return '';
+      const dateValue = typeof value === 'string' ? value.trim() : value;
+      
+      if (typeof dateValue === 'string') {
+        const isoDate = normalizeToIsoDate(dateValue);
+        if (!isoDate) return dateValue;
+        const utcMillis = Date.parse(`${isoDate}T00:00:00Z`);
+        if (Number.isNaN(utcMillis)) return dateValue;
+        return (utcMillis - Date.UTC(1899, 11, 30)) / 86400000;
+      }
+      
+      if (dateValue instanceof Date) {
+        if (Number.isNaN(dateValue.getTime())) return '';
+        const isoStr = dateValue.toISOString().split('T')[0];
+        const utcMillis = Date.parse(`${isoStr}T00:00:00Z`);
+        if (Number.isNaN(utcMillis)) return '';
+        return (utcMillis - Date.UTC(1899, 11, 30)) / 86400000;
+      }
+      
+      return String(dateValue);
+    };
+    
     const visibleColumns = columns.filter((col) => col.visible);
-    const rows = filteredRows.map((row) => {
+    const rows: any[] = filteredRows.map((row) => {
       const record: Record<string, any> = {};
       visibleColumns.forEach((col) => {
         let value: any = row[col.key];
@@ -792,12 +817,33 @@ export default function CounteragentStatementPage() {
             value = Number(value).toFixed(2);
           }
         }
-        record[col.label] = value ?? '';
+        // Convert date fields to serial numbers instead of display strings
+        if (col.key === 'date') {
+          value = toExcelDateSerial(row.effectiveDateRaw || value);
+        }
+        (record as any)[col.label] = value ?? '';
       });
-      return record;
+      return record as any;
     });
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
+    
+    // Apply date formatting to date column (typically column A)
+    const dateColIndex = visibleColumns.findIndex(col => col.key === 'date');
+    if (dateColIndex >= 0) {
+      Object.keys(worksheet).forEach(key => {
+        if (key.startsWith('!')) return;
+        const cell = worksheet[key];
+        if (!cell) return;
+        
+        const col = XLSX.utils.decode_col(key.match(/[A-Z]+/)?.[0] || 'A');
+        if (col === dateColIndex && typeof cell.v === 'number') {
+          cell.t = 'n';
+          cell.z = 'dd.mm.yyyy';
+        }
+      });
+    }
+    
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Counteragent Statement');
     const fileName = `counteragent-statement-${counteragentUuid}-${new Date().toISOString().slice(0, 10)}.xlsx`;
