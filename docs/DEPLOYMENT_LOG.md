@@ -1,3 +1,23 @@
+## 2026-07-15 Deployment #397 (Fix: Services Report project_currency_info CTE Ordering)
+- Commit: aae1ee2
+- Production: https://ice-erp.vercel.app
+- Summary: Fixed PostgreSQL error where project_currency_info CTE was referenced before being defined in WITH clause.
+- Root Cause:
+  - CTE definition order issue: project_currency_info was defined late in the WITH clause (after adj_agg)
+  - cost_bank_agg CTE tried to JOIN to project_currency_info before it was defined in scope
+  - PostgreSQL error: "relation 'project_currency_info' does not exist" (error code 42P01)
+  - Production error: 2026-07-15 13:11:07.527
+- Solution:
+  1. Moved project_currency_info CTE definition to immediately after unbound_counteragent
+  2. This ensures it's available for all CTEs that depend on it (cost_items, cost_bank_agg, cost_data)
+  3. CTE ordering now: unbound_counteragent ? project_currency_info ? ledger_agg ? ... ? cost_items
+  - File: pp/api/services-report/route.ts lines 134-141
+- Impact:
+  - ? Services Report API no longer returns 'relation does not exist' errors
+  - ? CTE dependency chain properly ordered
+  - ? All cost aggregations properly accessible
+- Status: ? Deployed
+
 ## 2026-07-15 Deployment #396 (Fix: Services Report MAX(uuid) PostgreSQL Error)
 - Commit: a322640
 - Production: https://ice-erp.vercel.app
@@ -5365,5 +5385,6 @@
   - app/payment-statement/[paymentId]/page.tsx: Fixed confirmation dialog to compare normalized ISO dates, preventing false positives; updated custom export fmtDate() to use shared display formatter.
 - Commit: 5af2980
 - Production: https://ice-eoxf1frds-iceerp.vercel.app
+
 
 
