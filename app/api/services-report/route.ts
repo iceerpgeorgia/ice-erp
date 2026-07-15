@@ -131,6 +131,14 @@ export async function GET(request: NextRequest) {
           )
         GROUP BY rub.counteragent_uuid
       ),
+      project_currency_info AS (
+        SELECT
+          proj.project_uuid,
+          proj.currency_uuid,
+          c.code as project_currency_code
+        FROM projects proj
+        LEFT JOIN currencies c ON proj.currency_uuid = c.uuid
+      ),
       ledger_agg AS (
         SELECT
           pl.payment_id,
@@ -264,14 +272,6 @@ export async function GET(request: NextRequest) {
         FROM payment_adjustments
         WHERE (is_deleted = false OR is_deleted IS NULL)
         GROUP BY payment_id
-      ),
-      project_currency_info AS (
-        SELECT
-          proj.project_uuid,
-          proj.currency_uuid,
-          c.code as project_currency_code
-        FROM projects proj
-        LEFT JOIN currencies c ON proj.currency_uuid = c.uuid
       ),
       cost_items AS (
         SELECT
