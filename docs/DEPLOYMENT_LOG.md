@@ -5324,3 +5324,15 @@
   - components/financial-codes-table.tsx: added isBundle type, normalization, Bundle column header/cell, colSpan 11, form state, and Bundle checkbox in dialog.
 - Commit: 6f2529e
 - Production: https://ice-n0mycykqe-iceerp.vercel.app
+
+## 2026-07-15
+- Summary: Global date normalization fix for payments ledger and statements to eliminate intermittent NaN.NaN.NaN dates.
+- Changes:
+  - Added shared date utility: lib/date-normalization.ts (normalizeToIsoDate, toDisplayDate, toDateInputValue, toDateSortTimestamp).
+  - Updated payment statement and counteragent statement date render/sort/edit paths to use shared normalization and keep effectiveDate in ISO in local state updates.
+  - Updated payments-ledger table date rendering to use shared safe display conversion.
+  - Hardened APIs (/api/payments-ledger, /api/payments-ledger/[id], /api/adjustments) to normalize/validate inbound dates and reject invalid formats.
+  - Documented global date normalization rules in AGENTS.md.
+- Commit: f02fb63
+- Production: https://ice-pito4n6ny-iceerp.vercel.app
+
