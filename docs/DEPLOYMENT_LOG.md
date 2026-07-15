@@ -1,3 +1,24 @@
+## 2026-07-15 Deployment #396 (Fix: Services Report MAX(uuid) PostgreSQL Error)
+- Commit: a322640
+- Production: https://ice-erp.vercel.app
+- Summary: Fixed critical PostgreSQL error preventing Services Report API from returning 500 status.
+- Root Cause:
+  - cost_data CTE was selecting pci.currency_uuid (UUID type) without type casting
+  - Main SELECT was attempting MAX(cd.project_currency_uuid::text) on aggregated UUID column
+  - PostgreSQL error: "function max(uuid) does not exist" because UUID type has no MAX aggregation function
+  - Production error: 2026-07-14 11:41:54.547
+- Solution:
+  1. Modified cost_data CTE to cast UUID to text before aggregation: MIN(pci.currency_uuid::text)
+  2. Added GROUP BY clause to properly aggregate multiple rows per project
+  3. Added COALESCE to handle NULL currency_uuid cases
+  - File: pp/api/services-report/route.ts lines 356-366
+- Impact:
+  - ? Services Report API no longer returns 500 errors
+  - ? MAX(uuid) PostgreSQL error resolved
+  - ? All financial metrics (accrual, costs, profit) properly calculated
+  - ? Multi-currency support maintained (USD, EUR, CNY, GBP ? GEL conversion)
+- Status: ? Deployed
+
 # Deployment Log
 
 ## 2026-07-14 Deployment #395 (Fix: Multi-Currency Conversion for Services Report Income & Costs)
@@ -5344,4 +5365,5 @@
   - app/payment-statement/[paymentId]/page.tsx: Fixed confirmation dialog to compare normalized ISO dates, preventing false positives; updated custom export fmtDate() to use shared display formatter.
 - Commit: 5af2980
 - Production: https://ice-eoxf1frds-iceerp.vercel.app
+
 
