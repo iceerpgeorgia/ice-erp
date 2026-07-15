@@ -1361,10 +1361,7 @@ export default function PaymentStatementPage() {
     const fmtNum = (v: number | null | undefined) => (v == null ? '' : Number(Number(v).toFixed(2)));
     const fmtDate = (v: string | Date | null | undefined) => {
       if (!v) return '';
-      const d = new Date(v);
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      return `${day}.${month}.${d.getFullYear()}`;
+      return toDisplayDate(v);
     };
     const rows = filteredTransactions.map(row => ({
       'Date': fmtDate(row.date),
@@ -2432,12 +2429,12 @@ export default function PaymentStatementPage() {
                     <span className="text-green-600 font-bold">{newPaymentId}</span>
                   </div>
                 )}
-                {newDate !== editingEntry?.date.split('.').reverse().join('-') && (
+                {normalizeToIsoDate(newDate) !== normalizeToIsoDate(editingEntry?.date) && (
                   <div className="flex items-center gap-2 bg-white rounded p-3 border border-amber-200">
                     <span className="font-semibold text-gray-700 min-w-[120px]">Date:</span>
                     <span className="text-red-600 line-through">{editingEntry?.date}</span>
                     <span className="text-gray-400 text-xl">→</span>
-                    <span className="text-green-600 font-bold">{newDate.split('-').reverse().join('.')}</span>
+                    <span className="text-green-600 font-bold">{newDate}</span>
                   </div>
                 )}
                 {parseFloat(newAccrual) !== editingEntry?.accrual && (

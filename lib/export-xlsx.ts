@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { normalizeToIsoDate } from '@/lib/date-normalization';
 
 type ExportColumn = {
   key: string;
@@ -89,18 +90,20 @@ function toExcelDateSerial(value: unknown): number | null {
   }
 
   if (typeof dateValue === 'string') {
-    if (!/^\d{4}-\d{2}-\d{2}/.test(dateValue) && !/^\d{2}\.\d{2}\.\d{4}/.test(dateValue)) {
-      return null;
-    }
-
-    const parsed = new Date(dateValue);
-    if (Number.isNaN(parsed.getTime())) return null;
-
-    return (parsed.getTime() - Date.UTC(1899, 11, 30)) / 86400000;
+    const isoDate = normalizeToIsoDate(dateValue);
+    if (!isoDate) return null;
+    const utcMillis = Date.parse(`${isoDate}T00:00:00Z`);
+    if (Number.isNaN(utcMillis)) return null;
+    return (utcMillis - Date.UTC(1899, 11, 30)) / 86400000;
   }
 
   if (dateValue instanceof Date) {
-    return (dateValue.getTime() - Date.UTC(1899, 11, 30)) / 86400000;
+    if (Number.isNaN(dateValue.getTime())) return null;
+    const isoDate = normalizeToIsoDate(dateValue);
+    if (!isoDate) return null;
+    const utcMillis = Date.parse(`${isoDate}T00:00:00Z`);
+    if (Number.isNaN(utcMillis)) return null;
+    return (utcMillis - Date.UTC(1899, 11, 30)) / 86400000;
   }
 
   return null;
