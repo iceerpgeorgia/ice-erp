@@ -5336,3 +5336,12 @@
 - Commit: f02fb63
 - Production: https://ice-pito4n6ny-iceerp.vercel.app
 
+
+## 2026-07-15 (Release #2 - Fixes)
+- Summary: Fix XLSX export date serialization and false 'date changed' confirmation dialog prompt.
+- Changes:
+  - lib/export-xlsx.ts: Modified toExcelDateSerial() to normalize dates before parsing, preventing NaN exports.
+  - app/payment-statement/[paymentId]/page.tsx: Fixed confirmation dialog to compare normalized ISO dates, preventing false positives; updated custom export fmtDate() to use shared display formatter.
+- Commit: 5af2980
+- Production: https://ice-eoxf1frds-iceerp.vercel.app
+
