@@ -357,11 +357,12 @@ export async function GET(request: NextRequest) {
         SELECT
           ca.project_uuid,
           ca.cost_payment_ids_str,
-          pci.currency_uuid as project_currency_uuid,
+          COALESCE(MIN(pci.currency_uuid::text), NULL) as project_currency_uuid,
           ca.project_currency_code
         FROM cost_agg ca
         LEFT JOIN project_currency_info pci ON ca.project_uuid = pci.project_uuid
         WHERE ca.project_uuid IN (SELECT DISTINCT project_uuid FROM selected_payments)
+        GROUP BY ca.project_uuid, ca.cost_payment_ids_str, ca.project_currency_code
       )
       SELECT
         sp.financial_code_uuid,
