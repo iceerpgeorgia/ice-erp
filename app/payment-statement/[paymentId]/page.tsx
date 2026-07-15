@@ -14,6 +14,7 @@ import { Combobox } from '@/components/ui/combobox';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { normalizeToIsoDate, toDisplayDate, toDateSortTimestamp } from '@/lib/date-normalization';
 import * as XLSX from 'xlsx';
 
 // Lazy-load the heavy (~150 KB) bank transactions table; only fetched when this page mounts.
@@ -30,26 +31,11 @@ const BankTransactionsTable = dynamic(
 );
 
 const formatDate = (date: string | Date): string => {
-  const d = new Date(date);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}.${month}.${year}`;
+  return toDisplayDate(date);
 };
 
 const toIsoDateFromDisplay = (value: string): string => {
-  if (!value) return '';
-  if (value.includes('.')) {
-    const [day, month, year] = value.split('.');
-    if (year && month && day) {
-      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    }
-  }
-  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-    return value.slice(0, 10);
-  }
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().split('T')[0];
+  return normalizeToIsoDate(value) ?? '';
 };
 
 const toValidDate = (val: any): Date | null => {
@@ -447,7 +433,7 @@ export default function PaymentStatementPage() {
       ledgerId: entry.id, // Store ledger ID for editing
       type: 'ledger' as const,
       date: formatDate(entry.effectiveDate),
-      dateSort: new Date(entry.effectiveDate).getTime(),
+      dateSort: toDateSortTimestamp(entry.effectiveDate),
       accrual: entry.accrual,
       payment: 0,
       order: entry.order,
@@ -484,7 +470,7 @@ export default function PaymentStatementPage() {
       bankId: tx.id,
       type: 'bank' as const,
       date: formatDate(tx.date),
-      dateSort: new Date(tx.date).getTime(),
+      dateSort: toDateSortTimestamp(tx.date),
       accrual: 0,
       // Keep bank transaction sign in Payment column (outgoing: negative, incoming: positive).
       payment: signedPayment,
@@ -508,7 +494,7 @@ export default function PaymentStatementPage() {
       adjustmentId: adj.id,
       type: 'adjustment' as const,
       date: formatDate(adj.effectiveDate),
-      dateSort: new Date(adj.effectiveDate).getTime(),
+      dateSort: toDateSortTimestamp(adj.effectiveDate),
       accrual: 0,
       payment: adj.nominalAmount ?? adj.amount,
       order: 0,
@@ -1066,7 +1052,7 @@ export default function PaymentStatementPage() {
             // Update the changed entry
             return {
               ...entry,
-              effectiveDate: newDate,
+              effectiveDate: isoDate,
               accrual: parseFloat(newAccrual) || 0,
               order: parseFloat(newOrder) || 0,
               comment: newComment || null

@@ -512,6 +512,16 @@ When a payment is created or updated with both `jobUuid` and `projectUuid`, the 
 ### Rationale
 Previously, payments could reference a `jobUuid` and `projectUuid` combination without the job being bound to that project in `job_projects`. This caused jobs to not render in Handovers even though they were allocated there. Now, the binding is automatically maintained whenever a payment references both.
 
+## Global Date Normalization Rules (Ledger/Statement)
+
+To prevent `NaN.NaN.NaN` date regressions across statements and ledger editing flows:
+
+- **Canonical storage format**: `yyyy-mm-dd` (ISO date-only) for all `effective_date` payloads sent to API routes.
+- **Display format**: `dd.mm.yyyy` only in UI text fields and rendered table cells.
+- **Single normalization utility**: use `lib/date-normalization.ts` (`normalizeToIsoDate`, `toDisplayDate`, `toDateInputValue`, `toDateSortTimestamp`) instead of ad-hoc `new Date(...)` conversions.
+- **API boundary validation**: `/api/payments-ledger`, `/api/payments-ledger/[id]`, and `/api/adjustments` must normalize inbound dates and return HTTP 400 on invalid date strings.
+- **Local optimistic updates**: when updating in-memory ledger rows after edit, persist `effectiveDate` in ISO format (not `dd.mm.yyyy`) so downstream date formatters and sorters remain stable.
+
 ## Build, Test, and Development Commands
 Install depeferencendencies once with `pnpm i`. Use `pnpm dev` to launch web, API, and workers concurrently while developing. Whenever `prisma/schema.prisma` changes, run `pnpm prisma migrate dev --name <feature>` followed by `pnpm prisma generate` to refresh the client. After adding new models to the schema, run `python scripts/auto-generate-templates.py` to automatically create Excel import templates in the `templates/` folder. Execute `pnpm test` for Jest coverage and `pnpm test:e2e` when end-to-end verification is required; append `--watch` for quick feedback loops.
 

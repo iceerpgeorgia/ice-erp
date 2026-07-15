@@ -27,13 +27,10 @@ import { ColumnFilterPopover } from '../../../components/figma/shared/column-fil
 import { ClearFiltersButton } from '../../../components/figma/shared/clear-filters-button';
 import type { FilterState, ColumnFilter, ColumnFormat } from '../../../components/figma/shared/table-filters';
 import { matchesFilter, buildFacetBaseData, buildUniqueValuesCache } from '../../../components/figma/shared/table-filters';
+import { normalizeToIsoDate, toDateInputValue, toDateSortTimestamp, toDisplayDate } from '../../../lib/date-normalization';
 
 const formatDate = (date: string | Date): string => {
-  const d = new Date(date);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}.${month}.${year}`;
+  return toDisplayDate(date);
 };
 
 const toValidDate = (val: any): Date | null => {
@@ -46,8 +43,7 @@ const toValidDate = (val: any): Date | null => {
 const toISO = (d: Date | null): string => (d ? d.toISOString() : '');
 
 const toInputDate = (val: any): string => {
-  const date = toValidDate(val);
-  return date ? date.toISOString().split('T')[0] : '';
+  return toDateInputValue(val);
 };
 
 type StatementRow = {
@@ -585,7 +581,7 @@ export default function CounteragentStatementPage() {
           type: 'ledger' as const,
           paymentId: entry.paymentId,
           date: formatDate(entry.effectiveDate),
-          dateSort: new Date(entry.effectiveDate).getTime(),
+          dateSort: toDateSortTimestamp(entry.effectiveDate),
           ledgerId: entry.id,
           effectiveDateRaw: entry.effectiveDate,
           project: entry.project ?? info.project ?? null,
@@ -613,7 +609,7 @@ export default function CounteragentStatementPage() {
           type: 'bank' as const,
           paymentId: tx.paymentId || null,
           date: formatDate(tx.date),
-          dateSort: new Date(tx.date).getTime(),
+          dateSort: toDateSortTimestamp(tx.date),
           bankId: tx.id,
           bankSourceId: tx.sourceId ?? tx.id,
           bankUuid: tx.uuid,
@@ -642,7 +638,7 @@ export default function CounteragentStatementPage() {
           type: 'adjustment' as const,
           paymentId: adj.paymentId || null,
           date: formatDate(adj.effectiveDate),
-          dateSort: new Date(adj.effectiveDate).getTime(),
+          dateSort: toDateSortTimestamp(adj.effectiveDate),
           adjustmentId: adj.id,
           project: adj.project ?? info.project ?? null,
           financialCode: adj.financialCode ?? info.financialCode ?? null,
@@ -1254,7 +1250,11 @@ export default function CounteragentStatementPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentId: editPaymentId,
-          effectiveDate: (() => { if (!editEffectiveDate) return editEffectiveDate; const m = editEffectiveDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : editEffectiveDate; })(),
+          effectiveDate: (() => {
+            if (!editEffectiveDate) return editEffectiveDate;
+            const normalized = normalizeToIsoDate(editEffectiveDate);
+            return normalized ?? editEffectiveDate;
+          })(),
           accrual: editAccrual ? Number(editAccrual) : 0,
         }),
       });
@@ -1272,7 +1272,7 @@ export default function CounteragentStatementPage() {
           return {
             ...entry,
             paymentId: resolvedPaymentId,
-            effectiveDate: editEffectiveDate,
+            effectiveDate: normalizeToIsoDate(editEffectiveDate) ?? editEffectiveDate,
             accrual: editAccrual ? Number(editAccrual) : 0,
             order: editOrder ? Number(editOrder) : 0,
             comment: editComment || null,
