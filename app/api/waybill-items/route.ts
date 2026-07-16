@@ -257,12 +257,15 @@ export async function GET(req: NextRequest) {
 
     const filterClauses = await buildFilterClauses();
 
-    const where: Prisma.rs_waybills_in_itemsWhereInput = {
-      AND: [
-        baseSearch,
-        ...filterClauses,
-      ],
-    };
+    // Build WHERE clause - only use AND if there are actual conditions
+    const conditions: Prisma.rs_waybills_in_itemsWhereInput[] = [];
+    if (Object.keys(baseSearch).length > 0) conditions.push(baseSearch);
+    if (filterClauses.length > 0) conditions.push(...filterClauses);
+
+    const where: Prisma.rs_waybills_in_itemsWhereInput = 
+      conditions.length > 0 
+        ? { AND: conditions }
+        : {};
 
     // Build order by
     const orderBy: any = {};
