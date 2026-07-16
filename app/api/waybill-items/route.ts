@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { getRequiredInsider } from "@/lib/required-insider";
 import { requireAuth, isAuthError } from "@/lib/auth-guard";
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_FILTER_FIELDS = new Set(['project_uuid', 'financial_code_uuid', 'dimension_uuid', 'inventory_uuid']);
+const NON_BLANK_FILTER_TOKEN = '__NON_BLANK__';
+
+const isValidUuid = (value: string) => UUID_REGEX.test(value.trim());
 
 function formatDate(date: string | Date | undefined): string {
   if (!date) return "";
@@ -43,33 +50,244 @@ export async function GET(req: NextRequest) {
   try {
     const insider = await getRequiredInsider();
     const url = new URL(req.url);
-    const waybillNo = url.searchParams.get("waybill_no");
-    const rsIdParam = url.searchParams.get("rs_id");
-    const batchId = url.searchParams.get("import_batch_id");
-    const q = url.searchParams.get("q")?.trim() ?? "";
-    const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10));
-    const limit = Math.min(500, Math.max(1, parseInt(url.searchParams.get("limit") ?? "200", 10)));
-    const skip = (page - 1) * limit;
+    const { searchParams } = url;
 
-    const where: any = {};
-    if (waybillNo) where.waybill_no = waybillNo;
-    if (rsIdParam) where.rs_id = rsIdParam;
-    if (batchId) where.import_batch_id = batchId;
-    if (q) {
-      where.OR = [
-        { rs_id: { contains: q, mode: "insensitive" } },
-        { waybill_no: { contains: q, mode: "insensitive" } },
-        { goods_name: { contains: q, mode: "insensitive" } },
-        { goods_code: { contains: q, mode: "insensitive" } },
-      ];
+    // Parse core parameters
+    const limit = Math.min(Number(searchParams.get('limit') || 200), 2000);
+    const offset = Math.max(Number(searchParams.get('offset') || 0), 0);
+    const search = (searchParams.get('search') || '').trim();
+    const sortColumn = searchParams.get('sortColumn') || 'waybill_no';
+    const sortDirection = searchParams.get('sortDirection') === 'asc' ? 'asc' : 'desc';
+    const filtersParam = searchParams.get('filters');
+    const advancedFiltersParam = searchParams.get('advancedFilters');
+
+    const allowedFilterFields = new Set([
+      'waybill_no', 'goods_code', 'goods_name', 'unit', 'quantity', 'unit_price', 'total_price',
+      'taxation', 'inventory_uuid', 'inventory_name', 'project_uuid', 'financial_code_uuid',
+      'corresponding_account', 'import_batch_id', 'dimension_uuid', 'dimension_name', 
+      'waybill_state', 'waybill_condition', 'waybill_category', 'waybill_type',
+      'waybill_counteragent_name', 'waybill_counteragent_inn', 'waybill_vat', 'waybill_sum',
+      'waybill_driver', 'waybill_vehicle', 'waybill_activation_time'
+    ]);
+
+    const allowedSortColumns = new Set([
+      'waybill_no', 'goods_code', 'goods_name', 'unit', 'quantity', 'unit_price', 'total_price',
+      'taxation', 'inventory_name', 'project_uuid', 'financial_code_uuid', 'corresponding_account',
+      'dimension_name', 'waybill_activation_time', 'id', 'created_at'
+    ]);
+
+    // Build base search
+    const baseSearch: Prisma.rs_waybills_in_itemsWhereInput = search
+      ? {
+          OR: [
+            { rs_id: { contains: search, mode: Prisma.QueryMode.insensitive } },
+            { waybill_no: { contains: search, mode: Prisma.QueryMode.insensitive } },
+            { goods_name: { contains: search, mode: Prisma.QueryMode.insensitive } },
+            { goods_code: { contains: search, mode: Prisma.QueryMode.insensitive } },
+          ],
+        }
+      : {};
+
+    // Parse filter entries
+    let parsedFilterEntries: Array<[string, unknown]> = [];
+    if (filtersParam) {
+      try {
+        const parsed = JSON.parse(filtersParam);
+        parsedFilterEntries = (Array.isArray(parsed)
+          ? parsed
+          : Object.entries(parsed || {})) as Array<[string, unknown]>;
+      } catch {
+        parsedFilterEntries = [];
+      }
+    }
+
+    // Parse advanced filters
+    type ParsedAdvancedFilter = { mode: string; operator: string; value?: string };
+    let parsedAdvancedFilters: Array<[string, ParsedAdvancedFilter]> = [];
+    if (advancedFiltersParam) {
+      try {
+        const parsed = JSON.parse(advancedFiltersParam);
+        parsedAdvancedFilters = (Array.isArray(parsed) ? parsed : []) as Array<[string, ParsedAdvancedFilter]>;
+      } catch {
+        parsedAdvancedFilters = [];
+      }
+    }
+
+    // Build filter clauses
+    const buildFilterClauses = async (): Promise<Prisma.rs_waybills_in_itemsWhereInput[]> => {
+      const clauses: Prisma.rs_waybills_in_itemsWhereInput[] = [];
+
+      const entries = parsedFilterEntries
+        .filter(([key]) => allowedFilterFields.has(key))
+        .map(([key, values]) => {
+          const list = Array.isArray(values) ? values : [];
+          const normalized = list
+            .filter((value) => value !== null && value !== undefined)
+            .map((value) => String(value));
+          const requireNonBlank = normalized.some((value) => value === NON_BLANK_FILTER_TOKEN);
+          const includeBlank = normalized.some((value) => value === '');
+          const nonBlank = normalized.filter((value) => value !== '' && value !== NON_BLANK_FILTER_TOKEN);
+          return [key, { nonBlank, includeBlank, requireNonBlank }] as const;
+        })
+        .filter(
+          ([key, value]) => value.nonBlank.length > 0 || value.includeBlank || value.requireNonBlank
+        );
+
+      // Handle waybill state filters (these come from waybill table joins)
+      const waybillStateFilters = entries.filter(([key]) => key.startsWith('waybill_'));
+      const itemFilters = entries.filter(([key]) => !key.startsWith('waybill_'));
+
+      // Process waybill filters
+      waybillStateFilters.forEach(([key, value]) => {
+        const { nonBlank, includeBlank, requireNonBlank } = value;
+        const fieldName = key.replace('waybill_', '');
+
+        if (requireNonBlank && nonBlank.length === 0 && !includeBlank) {
+          if (fieldName === 'vat') return;
+          clauses.push({
+            AND: [
+              { waybill: { [fieldName]: { not: null } } } as Prisma.rs_waybills_in_itemsWhereInput,
+              { waybill: { [fieldName]: { not: '' } } } as Prisma.rs_waybills_in_itemsWhereInput,
+            ],
+          });
+          return;
+        }
+
+        if (fieldName === 'vat') {
+          const boolValues = nonBlank
+            .map((v) => v.toLowerCase())
+            .filter((v) => v === 'true' || v === 'false')
+            .map((v) => v === 'true');
+          if (boolValues.length === 1) {
+            clauses.push({ waybill: { vat: { equals: boolValues[0] } } } as Prisma.rs_waybills_in_itemsWhereInput);
+          }
+          return;
+        }
+
+        if (fieldName === 'counteragent_name' || fieldName === 'counteragent_inn') {
+          if (nonBlank.length > 0 && includeBlank) {
+            clauses.push({ OR: [{ waybill: { [fieldName]: { in: nonBlank } } }, { waybill: { [fieldName]: null } }] } as Prisma.rs_waybills_in_itemsWhereInput);
+          } else if (nonBlank.length > 0) {
+            clauses.push({ waybill: { [fieldName]: { in: nonBlank } } } as Prisma.rs_waybills_in_itemsWhereInput);
+          } else if (includeBlank) {
+            clauses.push({ waybill: { [fieldName]: null } } as Prisma.rs_waybills_in_itemsWhereInput);
+          }
+          return;
+        }
+
+        // Generic string field
+        if (nonBlank.length > 0 && includeBlank) {
+          clauses.push({ OR: [{ waybill: { [fieldName]: { in: nonBlank } } }, { waybill: { [fieldName]: null } }] } as Prisma.rs_waybills_in_itemsWhereInput);
+        } else if (nonBlank.length > 0) {
+          clauses.push({ waybill: { [fieldName]: { in: nonBlank } } } as Prisma.rs_waybills_in_itemsWhereInput);
+        } else if (includeBlank) {
+          clauses.push({ waybill: { [fieldName]: null } } as Prisma.rs_waybills_in_itemsWhereInput);
+        }
+      });
+
+      // Process item-level filters
+      itemFilters.forEach(([key, value]) => {
+        const { nonBlank, includeBlank, requireNonBlank } = value;
+
+        if (requireNonBlank && nonBlank.length === 0 && !includeBlank) {
+          if (UUID_FILTER_FIELDS.has(key)) {
+            clauses.push({ [key]: { not: null } } as Prisma.rs_waybills_in_itemsWhereInput);
+            return;
+          }
+          clauses.push({
+            AND: [
+              { [key]: { not: null } } as Prisma.rs_waybills_in_itemsWhereInput,
+              { [key]: { not: '' } } as Prisma.rs_waybills_in_itemsWhereInput,
+            ],
+          });
+          return;
+        }
+
+        if (UUID_FILTER_FIELDS.has(key)) {
+          const uuidValues = nonBlank.filter((item) => isValidUuid(item));
+          if (uuidValues.length > 0 && includeBlank) {
+            clauses.push({ OR: [{ [key]: { in: uuidValues } }, { [key]: null }] } as Prisma.rs_waybills_in_itemsWhereInput);
+          } else if (uuidValues.length > 0) {
+            clauses.push({ [key]: { in: uuidValues } } as Prisma.rs_waybills_in_itemsWhereInput);
+          } else if (includeBlank) {
+            clauses.push({ [key]: null } as Prisma.rs_waybills_in_itemsWhereInput);
+          }
+          return;
+        }
+
+        // Generic string field
+        if (nonBlank.length > 0 && includeBlank) {
+          clauses.push({ OR: [{ [key]: { in: nonBlank } }, { [key]: null }] } as Prisma.rs_waybills_in_itemsWhereInput);
+        } else if (nonBlank.length > 0) {
+          clauses.push({ [key]: { in: nonBlank } } as Prisma.rs_waybills_in_itemsWhereInput);
+        } else if (includeBlank) {
+          clauses.push({ [key]: null } as Prisma.rs_waybills_in_itemsWhereInput);
+        }
+      });
+
+      // Handle advanced text filters
+      parsedAdvancedFilters.forEach(([key, filter]) => {
+        if (!allowedFilterFields.has(key)) return;
+        const val = String(filter.value || '').trim();
+        if (!val) return;
+        const op = filter.operator || 'contains';
+
+        const prismaOp: Prisma.StringFilter = (() => {
+          switch (op) {
+            case 'contains':    return { contains: val, mode: Prisma.QueryMode.insensitive };
+            case 'notContains': return { not: { contains: val, mode: Prisma.QueryMode.insensitive } };
+            case 'equals':      return { equals: val, mode: Prisma.QueryMode.insensitive };
+            case 'notEquals':   return { not: { equals: val, mode: Prisma.QueryMode.insensitive } };
+            case 'startsWith':  return { startsWith: val, mode: Prisma.QueryMode.insensitive };
+            case 'endsWith':    return { endsWith: val, mode: Prisma.QueryMode.insensitive };
+            default:            return { contains: val, mode: Prisma.QueryMode.insensitive };
+          }
+        })();
+
+        if (key.startsWith('waybill_')) {
+          const fieldName = key.replace('waybill_', '');
+          clauses.push({ waybill: { [fieldName]: prismaOp } } as Prisma.rs_waybills_in_itemsWhereInput);
+        } else {
+          clauses.push({ [key]: prismaOp } as Prisma.rs_waybills_in_itemsWhereInput);
+        }
+      });
+
+      return clauses;
+    };
+
+    const filterClauses = await buildFilterClauses();
+
+    const where: Prisma.rs_waybills_in_itemsWhereInput = {
+      AND: [
+        baseSearch,
+        ...filterClauses,
+      ],
+    };
+
+    // Build order by
+    const orderBy: any = {};
+    if (allowedSortColumns.has(sortColumn)) {
+      if (sortColumn.startsWith('waybill_')) {
+        const fieldName = sortColumn.replace('waybill_', '');
+        orderBy['waybill'] = { [fieldName]: sortDirection };
+      } else if (sortColumn === 'inventory_name') {
+        orderBy['inventory'] = { name: sortDirection };
+      } else if (sortColumn === 'dimension_name') {
+        orderBy['dimension'] = { dimension: sortDirection };
+      } else {
+        orderBy[sortColumn] = sortDirection;
+      }
+    } else {
+      orderBy['waybill_no'] = 'asc';
+      orderBy['id'] = 'asc';
     }
 
     const [rows, total] = await Promise.all([
       prisma.rs_waybills_in_items.findMany({
         where,
-        orderBy: [{ waybill_no: "desc" }, { id: "asc" }],
+        orderBy,
         take: limit,
-        skip,
+        skip: offset,
         include: { 
           inventory: { select: { name: true } }, 
           dimension: { select: { dimension: true } },
@@ -144,7 +362,7 @@ export async function GET(req: NextRequest) {
       waybill_departure_address: row.waybill?.departure_address ?? null,
     }));
 
-    return NextResponse.json({ data, total, page, limit, pages: Math.ceil(total / limit) });
+    return NextResponse.json({ data, total });
   } catch (error: any) {
     console.error("[waybill-items] GET error", error);
     return NextResponse.json({ error: error?.message || "Server error" }, { status: 500 });
