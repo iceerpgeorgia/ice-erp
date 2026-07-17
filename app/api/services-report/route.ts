@@ -146,12 +146,11 @@ export async function GET(request: NextRequest) {
           p.currency_uuid,
           c.code as payment_currency_code,
           pci.project_currency_code,
-          pl.effective_date::date as ledger_date,
           SUM(COALESCE(pl.accrual, 0)) as total_accrual,
           SUM(COALESCE(pl."order", 0)) as total_order,
           BOOL_AND(COALESCE(pl.confirmed, false)) as all_confirmed,
           COUNT(*) as entries_count,
-          MAX(pl.effective_date) as latest_ledger_date
+          MAX(pl.effective_date::date) as latest_ledger_date
         FROM payments_ledger pl
         JOIN payments p ON pl.payment_id = p.payment_id
         LEFT JOIN currencies c ON p.currency_uuid = c.uuid
@@ -161,7 +160,24 @@ export async function GET(request: NextRequest) {
           AND p.financial_code_uuid IN (${financialCodePlaceholders})
           ${insiderFilter}
           ${ledgerDateFilter}
-        GROUP BY pl.payment_id, p.project_uuid, p.currency_uuid, c.code, pci.project_currency_code, pl.effective_date::date
+        GROUP BY pl.payment_id, p.project_uuid, p.currency_uuid, c.code, pci.project_currency_code
+      ),
+      nbg_rates_for_ledger AS (
+        SELECT DISTINCT
+          la.payment_id,
+          la.latest_ledger_date,
+          nbg.usd_rate,
+          nbg.eur_rate,
+          nbg.cny_rate,
+          nbg.gbp_rate
+        FROM ledger_agg la
+        LEFT JOIN LATERAL (
+          SELECT usd_rate, eur_rate, cny_rate, gbp_rate
+          FROM nbg_exchange_rates
+          WHERE date <= COALESCE(la.latest_ledger_date, CURRENT_DATE)
+          ORDER BY date DESC
+          LIMIT 1
+        ) nbg ON true
       ),
       latest_ledger_date_per_payment AS (
         SELECT
@@ -197,34 +213,36 @@ export async function GET(request: NextRequest) {
       ),
       ledger_converted AS (
         SELECT
-          payment_id,
-          project_uuid,
+          la.payment_id,
+          la.project_uuid,
           SUM(CASE 
-            WHEN payment_currency_code = project_currency_code OR payment_currency_code IS NULL THEN total_accrual
-            WHEN project_currency_code = 'GEL' THEN 
+            WHEN la.payment_currency_code = la.project_currency_code OR la.payment_currency_code IS NULL THEN la.total_accrual
+            WHEN la.project_currency_code = 'GEL' THEN 
               CASE 
-                WHEN payment_currency_code = 'USD' THEN total_accrual * (SELECT usd_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
-                WHEN payment_currency_code = 'EUR' THEN total_accrual * (SELECT eur_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
-                WHEN payment_currency_code = 'CNY' THEN total_accrual * (SELECT cny_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
-                WHEN payment_currency_code = 'GBP' THEN total_accrual * (SELECT gbp_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
-                ELSE total_accrual
+                WHEN la.payment_currency_code = 'USD' THEN la.total_accrual * COALESCE(nbg.usd_rate, 1)
+                WHEN la.payment_currency_code = 'EUR' THEN la.total_accrual * COALESCE(nbg.eur_rate, 1)
+                WHEN la.payment_currency_code = 'CNY' THEN la.total_accrual * COALESCE(nbg.cny_rate, 1)
+                WHEN la.payment_currency_code = 'GBP' THEN la.total_accrual * COALESCE(nbg.gbp_rate, 1)
+                ELSE la.total_accrual
               END
-            ELSE total_accrual
+            ELSE la.total_accrual
           END) as total_accrual_converted,
           SUM(CASE 
-            WHEN payment_currency_code = project_currency_code OR payment_currency_code IS NULL THEN total_order
-            WHEN project_currency_code = 'GEL' THEN 
+            WHEN la.payment_currency_code = la.project_currency_code OR la.payment_currency_code IS NULL THEN la.total_order
+            WHEN la.project_currency_code = 'GEL' THEN 
               CASE 
-                WHEN payment_currency_code = 'USD' THEN total_order * (SELECT usd_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
-                WHEN payment_currency_code = 'EUR' THEN total_order * (SELECT eur_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
-                WHEN payment_currency_code = 'CNY' THEN total_order * (SELECT cny_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
-                WHEN payment_currency_code = 'GBP' THEN total_order * (SELECT gbp_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
-                ELSE total_order
+                WHEN la.payment_currency_code = 'USD' THEN la.total_order * COALESCE(nbg.usd_rate, 1)
+                WHEN la.payment_currency_code = 'EUR' THEN la.total_order * COALESCE(nbg.eur_rate, 1)
+                WHEN la.payment_currency_code = 'CNY' THEN la.total_order * COALESCE(nbg.cny_rate, 1)
+                WHEN la.payment_currency_code = 'GBP' THEN la.total_order * COALESCE(nbg.gbp_rate, 1)
+                ELSE la.total_order
               END
-            ELSE total_order
+            ELSE la.total_order
           END) as total_order_converted
-        FROM ledger_agg
-        GROUP BY payment_id, project_uuid
+        FROM ledger_agg la
+        LEFT JOIN nbg_rates_for_ledger nrl ON la.payment_id = nrl.payment_id
+        LEFT JOIN nbg_exchange_rates nbg ON nbg.date = nrl.latest_ledger_date
+        GROUP BY la.payment_id, la.project_uuid
       ),
       bank_agg AS (
         SELECT
@@ -282,9 +300,9 @@ export async function GET(request: NextRequest) {
           p.currency_uuid,
           c.code as cost_currency_code,
           pci.project_currency_code,
-          pl.effective_date::date as ledger_date,
           SUM(COALESCE(pl.accrual, 0)) as total_accrual,
-          SUM(COALESCE(pl."order", 0)) as total_order
+          SUM(COALESCE(pl."order", 0)) as total_order,
+          MAX(pl.effective_date::date) as latest_ledger_date
         FROM payments p
         JOIN payments_ledger pl ON pl.payment_id = p.payment_id
         JOIN financial_codes fc ON fc.uuid = p.financial_code_uuid
@@ -295,39 +313,58 @@ export async function GET(request: NextRequest) {
           AND fc.applies_to_pl = true
           AND (pl.is_deleted = false OR pl.is_deleted IS NULL)
           ${ledgerDateFilter}
-        GROUP BY p.project_uuid, p.payment_id, p.waybill_derived, p.currency_uuid, c.code, pci.project_currency_code, pl.effective_date::date
+        GROUP BY p.project_uuid, p.payment_id, p.waybill_derived, p.currency_uuid, c.code, pci.project_currency_code
+      ),
+      nbg_rates_for_cost AS (
+        SELECT DISTINCT
+          ci.payment_id,
+          ci.latest_ledger_date,
+          nbg.usd_rate,
+          nbg.eur_rate,
+          nbg.cny_rate,
+          nbg.gbp_rate
+        FROM cost_items ci
+        LEFT JOIN LATERAL (
+          SELECT usd_rate, eur_rate, cny_rate, gbp_rate
+          FROM nbg_exchange_rates
+          WHERE date <= COALESCE(ci.latest_ledger_date, CURRENT_DATE)
+          ORDER BY date DESC
+          LIMIT 1
+        ) nbg ON true
       ),
       cost_agg AS (
         SELECT
-          project_uuid,
-          STRING_AGG(DISTINCT payment_id, ',') FILTER (WHERE payment_id IS NOT NULL) as cost_payment_ids_str,
-          MAX(project_currency_code) as project_currency_code,
+          ci.project_uuid,
+          STRING_AGG(DISTINCT ci.payment_id, ',') FILTER (WHERE ci.payment_id IS NOT NULL) as cost_payment_ids_str,
+          MAX(ci.project_currency_code) as project_currency_code,
           SUM(CASE 
-            WHEN cost_currency_code = project_currency_code OR cost_currency_code IS NULL THEN total_accrual
-            WHEN project_currency_code = 'GEL' THEN 
+            WHEN ci.cost_currency_code = ci.project_currency_code OR ci.cost_currency_code IS NULL THEN ci.total_accrual
+            WHEN ci.project_currency_code = 'GEL' THEN 
               CASE 
-                WHEN cost_currency_code = 'USD' THEN total_accrual * (SELECT usd_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
-                WHEN cost_currency_code = 'EUR' THEN total_accrual * (SELECT eur_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
-                WHEN cost_currency_code = 'CNY' THEN total_accrual * (SELECT cny_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
-                WHEN cost_currency_code = 'GBP' THEN total_accrual * (SELECT gbp_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
-                ELSE total_accrual
+                WHEN ci.cost_currency_code = 'USD' THEN ci.total_accrual * COALESCE(nbg.usd_rate, 1)
+                WHEN ci.cost_currency_code = 'EUR' THEN ci.total_accrual * COALESCE(nbg.eur_rate, 1)
+                WHEN ci.cost_currency_code = 'CNY' THEN ci.total_accrual * COALESCE(nbg.cny_rate, 1)
+                WHEN ci.cost_currency_code = 'GBP' THEN ci.total_accrual * COALESCE(nbg.gbp_rate, 1)
+                ELSE ci.total_accrual
               END
-            ELSE total_accrual
-          END * CASE WHEN waybill_derived = true THEN 1.0/1.18 ELSE 1.0 END) as total_cost_accrual,
+            ELSE ci.total_accrual
+          END * CASE WHEN ci.waybill_derived = true THEN 1.0/1.18 ELSE 1.0 END) as total_cost_accrual,
           SUM(CASE 
-            WHEN cost_currency_code = project_currency_code OR cost_currency_code IS NULL THEN total_order
-            WHEN project_currency_code = 'GEL' THEN 
+            WHEN ci.cost_currency_code = ci.project_currency_code OR ci.cost_currency_code IS NULL THEN ci.total_order
+            WHEN ci.project_currency_code = 'GEL' THEN 
               CASE 
-                WHEN cost_currency_code = 'USD' THEN total_order * (SELECT usd_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
-                WHEN cost_currency_code = 'EUR' THEN total_order * (SELECT eur_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
-                WHEN cost_currency_code = 'CNY' THEN total_order * (SELECT cny_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
-                WHEN cost_currency_code = 'GBP' THEN total_order * (SELECT gbp_rate FROM nbg_exchange_rates WHERE date <= COALESCE(ledger_date, CURRENT_DATE) ORDER BY date DESC LIMIT 1)
-                ELSE total_order
+                WHEN ci.cost_currency_code = 'USD' THEN ci.total_order * COALESCE(nbg.usd_rate, 1)
+                WHEN ci.cost_currency_code = 'EUR' THEN ci.total_order * COALESCE(nbg.eur_rate, 1)
+                WHEN ci.cost_currency_code = 'CNY' THEN ci.total_order * COALESCE(nbg.cny_rate, 1)
+                WHEN ci.cost_currency_code = 'GBP' THEN ci.total_order * COALESCE(nbg.gbp_rate, 1)
+                ELSE ci.total_order
               END
-            ELSE total_order
-          END * CASE WHEN waybill_derived = true THEN 1.0/1.18 ELSE 1.0 END) as total_cost_order
-        FROM cost_items
-        GROUP BY project_uuid
+            ELSE ci.total_order
+          END * CASE WHEN ci.waybill_derived = true THEN 1.0/1.18 ELSE 1.0 END) as total_cost_order
+        FROM cost_items ci
+        LEFT JOIN nbg_rates_for_cost nrc ON ci.payment_id = nrc.payment_id
+        LEFT JOIN nbg_exchange_rates nbg ON nbg.date = nrc.latest_ledger_date
+        GROUP BY ci.project_uuid
       ),
       cost_bank_agg AS (
         SELECT
@@ -336,10 +373,10 @@ export async function GET(request: NextRequest) {
             WHEN c.code = pci.project_currency_code OR c.code IS NULL THEN COALESCE(ba.total_payment, 0)
             WHEN pci.project_currency_code = 'GEL' THEN 
               CASE 
-                WHEN c.code = 'USD' THEN COALESCE(ba.total_payment, 0) * (SELECT usd_rate FROM nbg_exchange_rates WHERE date <= ba.latest_bank_date ORDER BY date DESC LIMIT 1)
-                WHEN c.code = 'EUR' THEN COALESCE(ba.total_payment, 0) * (SELECT eur_rate FROM nbg_exchange_rates WHERE date <= ba.latest_bank_date ORDER BY date DESC LIMIT 1)
-                WHEN c.code = 'CNY' THEN COALESCE(ba.total_payment, 0) * (SELECT cny_rate FROM nbg_exchange_rates WHERE date <= ba.latest_bank_date ORDER BY date DESC LIMIT 1)
-                WHEN c.code = 'GBP' THEN COALESCE(ba.total_payment, 0) * (SELECT gbp_rate FROM nbg_exchange_rates WHERE date <= ba.latest_bank_date ORDER BY date DESC LIMIT 1)
+                WHEN c.code = 'USD' THEN COALESCE(ba.total_payment, 0) * COALESCE(nbg.usd_rate, 1)
+                WHEN c.code = 'EUR' THEN COALESCE(ba.total_payment, 0) * COALESCE(nbg.eur_rate, 1)
+                WHEN c.code = 'CNY' THEN COALESCE(ba.total_payment, 0) * COALESCE(nbg.cny_rate, 1)
+                WHEN c.code = 'GBP' THEN COALESCE(ba.total_payment, 0) * COALESCE(nbg.gbp_rate, 1)
                 ELSE COALESCE(ba.total_payment, 0)
               END
             ELSE COALESCE(ba.total_payment, 0)
@@ -349,6 +386,13 @@ export async function GET(request: NextRequest) {
         JOIN financial_codes fc ON fc.uuid = p.financial_code_uuid
         LEFT JOIN currencies c ON p.currency_uuid = c.uuid
         LEFT JOIN project_currency_info pci ON p.project_uuid = pci.project_uuid
+        LEFT JOIN LATERAL (
+          SELECT usd_rate, eur_rate, cny_rate, gbp_rate
+          FROM nbg_exchange_rates
+          WHERE date <= ba.latest_bank_date
+          ORDER BY date DESC
+          LIMIT 1
+        ) nbg ON true
         WHERE p.is_active = true
           AND fc.is_income = false
           AND fc.applies_to_pl = true
