@@ -215,7 +215,7 @@ type SectionColumn = {
   label: string;
   visible: boolean;
   width: number;
-  align?: 'left' | 'right';
+  align?: 'left' | 'right' | 'center';
 };
 
 type SectionData = {
@@ -253,11 +253,11 @@ const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'counteragent', label: 'Counteragent', visible: true, width: 220, align: 'left' },
   { key: 'paymentIds', label: 'Payment IDs', visible: true, width: 260, align: 'left' },
   { key: 'paymentCount', label: 'Payments', visible: true, width: 100, align: 'right' },
-  { key: 'jobsActive', label: 'Jobs A', visible: true, width: 60, align: 'right' },
-  { key: 'jobsConversion', label: 'Jobs C', visible: true, width: 60, align: 'right' },
-  { key: 'jobsFree', label: 'Jobs F', visible: true, width: 60, align: 'right' },
-  { key: 'jobsOthers', label: 'Jobs O', visible: true, width: 60, align: 'right' },
-  { key: 'jobsRecovery', label: 'Jobs R', visible: true, width: 60, align: 'right' },
+  { key: 'jobsActive', label: 'A', visible: true, width: 60, align: 'center' },
+  { key: 'jobsConversion', label: 'C', visible: true, width: 60, align: 'center' },
+  { key: 'jobsFree', label: 'F', visible: true, width: 60, align: 'center' },
+  { key: 'jobsOthers', label: 'O', visible: true, width: 60, align: 'center' },
+  { key: 'jobsRecovery', label: 'R', visible: true, width: 60, align: 'center' },
   { key: 'accrual', label: 'Accrual', visible: true, width: 130, align: 'right' },
   { key: 'order', label: 'Order', visible: true, width: 130, align: 'right' },
   { key: 'payment', label: 'Payment', visible: true, width: 130, align: 'right' },
@@ -2210,6 +2210,17 @@ export function ServicesReportTable() {
                       const bg = COLUMN_BG[column.key];
                       const isSortable = column.key !== 'actions';
                       const isFilterable = column.key !== 'actions';
+                      
+                      // Apply job state colors to columns
+                      const jobStateColorMap: Record<string, string> = {
+                        jobsActive: '#D4EDDA',
+                        jobsConversion: '#FFE5CC',
+                        jobsFree: '#D1ECF1',
+                        jobsOthers: '#E8EAED',
+                        jobsRecovery: '#F8D7DA',
+                      };
+                      const headerBg = jobStateColorMap[column.key] || bg || '#f9fafb';
+                      
                       return (
                       <th
                         key={column.key}
@@ -2217,10 +2228,10 @@ export function ServicesReportTable() {
                         onDragStart={() => setDraggedColumn({ key: column.key })}
                         onDragOver={(event) => event.preventDefault()}
                         onDrop={() => handleColumnDrop(column.key)}
-                        className={`px-3 py-2 relative overflow-hidden ${column.align === 'right' ? 'text-right' : 'text-left'}`}
-                        style={{ width: `${column.width}px`, maxWidth: `${column.width}px`, backgroundColor: bg || '#f9fafb' }}
+                        className={`px-3 py-2 relative overflow-hidden font-semibold ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left'}`}
+                        style={{ width: `${column.width}px`, maxWidth: `${column.width}px`, backgroundColor: headerBg }}
                       >
-                        <div className={`flex items-center gap-2 min-w-0 ${column.align === 'right' ? 'justify-end pr-2' : ''}`}>
+                        <div className={`flex items-center gap-2 min-w-0 ${column.align === 'center' ? 'justify-center' : column.align === 'right' ? 'justify-end pr-2' : ''}`}>
                           {isSortable ? (
                             <button
                               onClick={() => handleSort(column.key)}
@@ -2313,7 +2324,7 @@ export function ServicesReportTable() {
                             </td>
                           );
                         }
-                        // Job state columns with colored badges
+                        // Job state columns with colored backgrounds
                         const jobStateMap: Record<string, keyof typeof JOB_STATE_COLORS> = {
                           jobsActive: 'active',
                           jobsConversion: 'conversion',
@@ -2328,20 +2339,11 @@ export function ServicesReportTable() {
                           return (
                             <td
                               key={column.key}
-                              className="px-2 py-2 text-center overflow-hidden"
-                              style={{ width: `${column.width}px`, maxWidth: `${column.width}px` }}
+                              className="px-2 py-2 text-center overflow-hidden font-semibold"
+                              style={{ width: `${column.width}px`, maxWidth: `${column.width}px`, backgroundColor: colors.bg, color: colors.text }}
+                              title={`${stateKey.charAt(0).toUpperCase() + stateKey.slice(1)}: ${count}`}
                             >
-                              {count > 0 ? (
-                                <span
-                                  className="inline-flex items-center justify-center min-w-[24px] h-[24px] rounded font-semibold text-xs"
-                                  style={{ backgroundColor: colors.bg, color: colors.text }}
-                                  title={`${stateKey.charAt(0).toUpperCase() + stateKey.slice(1)}: ${count}`}
-                                >
-                                  {colors.abbr}{count}
-                                </span>
-                              ) : (
-                                <span className="text-gray-300 text-xs">-</span>
-                              )}
+                              {count > 0 ? count : '-'}
                             </td>
                           );
                         }
@@ -2354,7 +2356,7 @@ export function ServicesReportTable() {
                         return (
                           <td
                             key={column.key}
-                            className={`px-3 py-2 overflow-hidden ${column.align === 'right' ? 'text-right' : 'text-left'} ${
+                            className={`px-3 py-2 overflow-hidden ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left'} ${
                               column.key === 'sum' && isSumMismatch ? 'font-bold text-red-600' : ''
                             }`}
                             style={{ width: `${column.width}px`, maxWidth: `${column.width}px`, ...(bg ? { backgroundColor: bg } : {}) }}
