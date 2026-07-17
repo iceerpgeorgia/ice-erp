@@ -2363,7 +2363,20 @@ export function ServicesReportTable() {
             <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
               <div className="flex items-center gap-3">
                 <h2 className="text-base font-semibold">Link Jobs to Project</h2>
-                <span className="text-sm text-gray-500 font-medium">{jobLinkDialog.projectName}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500 font-medium">{jobLinkDialog.projectName}</span>
+                  {jobLinkDialog.projectUuid && (
+                    <a
+                      href={`/admin/projects?projectUuid=${encodeURIComponent(jobLinkDialog.projectUuid)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center rounded p-1 transition-colors text-gray-400 hover:text-blue-600 hover:bg-blue-50 flex-shrink-0"
+                      title="Open project in admin panel"
+                    >
+                      <Link2 className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-gray-500">
