@@ -253,8 +253,21 @@ export async function PUT(req: NextRequest) {
   try {
     const selection = await resolveInsiderSelection(req);
     const body = await req.json();
-    const { id, projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid, factoryNo, factory_no, sellingPrice, serviceState, insider_uuid, insiderUuid } = body;
+    const { id, projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid, factoryNo, factory_no, sellingPrice, serviceState, insider_uuid, insiderUuid, jobUuids, bulkUpdate } = body;
 
+    // Handle bulk service state update
+    if (bulkUpdate && Array.isArray(jobUuids) && jobUuids.length > 0) {
+      await prisma.$executeRawUnsafe(`
+        UPDATE jobs
+        SET 
+          service_state = $1,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE job_uuid = ANY($2::uuid[])
+      `, serviceState || 'Active', jobUuids);
+      return NextResponse.json({ success: true });
+    }
+
+    // Handle single job update
     const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
     const normalizedFactoryNo = String(factoryNo ?? factory_no ?? '').trim() || null;
     const normalizedSellingPrice = sellingPrice !== undefined && sellingPrice !== null && sellingPrice !== '' ? Number(sellingPrice) : null;

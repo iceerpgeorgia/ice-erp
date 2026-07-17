@@ -37,6 +37,61 @@ The workspace is a single Next.js 14 application (App Router) with co-located AP
 
 - Jobs CRUD now includes `selling_price` support in the Prisma schema, API handlers, and the Jobs table/form UI.
 
+## Jobs Bulk Operations & Service State Management
+
+### Bulk Service State Editing
+- **Jobs Page**: Added bulk service state editing button when rows are selected
+  - UI: "Edit Service State (N)" button appears in toolbar when jobs selected
+  - Dialog: Select control to choose new state (Active, Conversion, Free, Others, Recovery)
+  - API: PUT `/api/jobs` with `bulkUpdate: true`, `jobUuids[]`, `serviceState` parameters
+  - All selected jobs' service state updated in single API call
+
+### Service Report Bind Jobs Dialog Enhancements
+- **Dialog**: Now includes bulk operations toolbar when jobs are selected
+  - Displays: "{N} job(s) selected" count
+  - Bulk Action: Select service state + "Update Service State" button
+  - Functionality: Same bulk update as jobs page, with live table refresh
+  - Search & Selection: Existing checkbox-based UI unchanged for job binding
+  - Original Flow: "Save" button binds selected jobs to the service project
+
+### API Implementation
+- **PUT `/api/jobs`**: Enhanced to handle bulk operations
+  - Check: If `bulkUpdate === true`, use `jobUuids[]` and `serviceState`
+  - Query: `UPDATE jobs SET service_state = $1 WHERE job_uuid = ANY($2::uuid[])`
+  - Single transaction for all jobs in list
+  - Return: `{ success: true }`
+  - Fallback: If bulkUpdate not set, use existing single-job update logic
+
+### UI Components Updated
+- **components/figma/jobs-table.tsx**:
+  - Added state: `isBulkServiceStateOpen`, `bulkServiceState`, `isBulkServiceStateUpdating`
+  - Added handler: `handleBulkServiceStateUpdate()`
+  - Added button: "Edit Service State (N)" (secondary variant, appears when jobs selected)
+  - Added dialog: Service state select + cancel/update buttons
+  - Dialog flow: Select state → Click "Update" → Refreshes jobs table
+
+- **components/figma/services-report-table.tsx**:
+  - Added state: `jobLinkBulkServiceState`, `jobLinkBulkUpdating`
+  - Added handler: `handleJobLinkBulkServiceStateUpdate()`
+  - Added toolbar: Appears above table when jobs selected in dialog
+  - Toolbar layout: Count + Select control + "Update Service State" button
+  - Workflow: Same as jobs page but refreshes job list in-dialog after update
+  - Import: Added `Select`, `SelectContent`, `SelectItem`, `SelectTrigger`, `SelectValue` from `./ui/select`
+
+### User Workflows
+1. **Jobs Page Bulk Service State**:
+   - Select one or more jobs (checkboxes in row headers)
+   - Click "Edit Service State (N)" button
+   - Choose new state from dropdown
+   - Click "Update Service State"
+   - Jobs refreshed with new state
+
+2. **Service Report Bind Jobs Dialog**:
+   - Select jobs to bind (existing checkboxes)
+   - Optional: While jobs selected, use toolbar to bulk edit service state
+   - Click "Save" to bind selected jobs to service project
+   - Dialog closes, report refreshed
+
 ## BOG GEL Bank Statement Processing - Three-Stage Approach
 
 ### Consolidated Processing Architecture

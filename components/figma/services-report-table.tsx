@@ -16,6 +16,7 @@ import { AddProjectDialog } from './add-project-dialog';
 import { RowAttachments } from './row-attachments';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Combobox } from '../ui/combobox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 type FinancialCode = {
   uuid: string;
@@ -451,6 +452,8 @@ export function ServicesReportTable() {
     loading: false,
     saving: false,
   });
+  const [jobLinkBulkServiceState, setJobLinkBulkServiceState] = useState<string>('Active');
+  const [jobLinkBulkUpdating, setJobLinkBulkUpdating] = useState(false);
   const [paymentProjects, setPaymentProjects] = useState<ProjectOption[]>([]);
   const [paymentCounteragents, setPaymentCounteragents] = useState<CounteragentOption[]>([]);
   const [paymentFinancialCodes, setPaymentFinancialCodes] = useState<FinancialCodeOption[]>([]);
@@ -1043,6 +1046,54 @@ export function ServicesReportTable() {
     } catch (err: any) {
       alert(err?.message || 'Failed to save job links');
       setJobLinkDialog((prev) => ({ ...prev, saving: false }));
+    }
+  };
+
+  const handleJobLinkBulkServiceStateUpdate = async () => {
+    if (jobLinkDialog.linkedJobUuids.size === 0 || !jobLinkBulkServiceState) return;
+    setJobLinkBulkUpdating(true);
+    try {
+      const jobUuids = Array.from(jobLinkDialog.linkedJobUuids).filter((value) => UUID_REGEX.test(value));
+      const res = await fetch('/api/jobs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobUuids,
+          serviceState: jobLinkBulkServiceState,
+          bulkUpdate: true,
+        }),
+      });
+      if (res.ok) {
+        // Refetch jobs for the dialog
+        setJobLinkBulkServiceState('Active');
+        setJobLinkDialog((prev) => ({ ...prev, linkedJobUuids: new Set(), loading: true }));
+        
+        // Reload jobs
+        try {
+          const jobsRes = await fetch('/api/jobs');
+          const jobsData = jobsRes.ok ? await jobsRes.json() : [];
+          const allJobs: JobRow[] = (Array.isArray(jobsData) ? jobsData : []).map((j: any) => ({
+            jobUuid: j.jobUuid,
+            jobName: j.jobName || j.job_name || '',
+            projectName: j.projectName || j.project_name || '',
+            brandName: j.brandName || j.brand_name || '',
+            floors: j.floors ?? null,
+            weight: j.weight ?? null,
+            isFf: Boolean(j.isFf || j.is_ff),
+            isActive: j.is_active !== false,
+          }));
+          setJobLinkDialog((prev) => ({ ...prev, allJobs, loading: false }));
+        } catch {
+          setJobLinkDialog((prev) => ({ ...prev, loading: false }));
+        }
+      } else {
+        throw new Error('Failed to update service state');
+      }
+    } catch (error) {
+      console.error('Failed to bulk update service state:', error);
+      alert('Failed to update service state for selected jobs');
+    } finally {
+      setJobLinkBulkUpdating(false);
     }
   };
 
@@ -2160,6 +2211,37 @@ export function ServicesReportTable() {
                 className="w-full max-w-md"
               />
             </div>
+            {/* Bulk operations toolbar */}
+            {jobLinkDialog.linkedJobUuids.size > 0 && (
+              <div className="px-5 py-3 border-b bg-blue-50 flex items-center gap-3 shrink-0">
+                <span className="text-sm font-medium text-gray-700">
+                  {jobLinkDialog.linkedJobUuids.size} job{jobLinkDialog.linkedJobUuids.size !== 1 ? 's' : ''} selected
+                </span>
+                <div className="flex items-center gap-2 flex-1 ml-4 max-w-sm">
+                  <Select value={jobLinkBulkServiceState} onValueChange={setJobLinkBulkServiceState}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Active">Active</SelectItem>
+                      <SelectItem value="Conversion">Conversion</SelectItem>
+                      <SelectItem value="Free">Free</SelectItem>
+                      <SelectItem value="Others">Others</SelectItem>
+                      <SelectItem value="Recovery">Recovery</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleJobLinkBulkServiceStateUpdate}
+                    disabled={jobLinkBulkUpdating || !jobLinkBulkServiceState}
+                    className="h-8 text-xs"
+                  >
+                    {jobLinkBulkUpdating ? 'Updating...' : 'Update Service State'}
+                  </Button>
+                </div>
+              </div>
+            )}
             <div className="flex-1 overflow-auto">
               {jobLinkDialog.loading ? (
                 <div className="text-sm text-gray-500 py-12 text-center">Loading jobs...</div>

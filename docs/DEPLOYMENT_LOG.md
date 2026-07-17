@@ -1,164 +1,59 @@
-## 2026-07-15 Deployment #397 (Fix: Services Report project_currency_info CTE Ordering)
-- Commit: aae1ee2
-- Production: https://ice-erp.vercel.app
-- Summary: Fixed PostgreSQL error where project_currency_info CTE was referenced before being defined in WITH clause.
-- Root Cause:
-  - CTE definition order issue: project_currency_info was defined late in the WITH clause (after adj_agg)
-  - cost_bank_agg CTE tried to JOIN to project_currency_info before it was defined in scope
-  - PostgreSQL error: "relation 'project_currency_info' does not exist" (error code 42P01)
-  - Production error: 2026-07-15 13:11:07.527
-- Solution:
-  1. Moved project_currency_info CTE definition to immediately after unbound_counteragent
-  2. This ensures it's available for all CTEs that depend on it (cost_items, cost_bank_agg, cost_data)
-  3. CTE ordering now: unbound_counteragent ? project_currency_info ? ledger_agg ? ... ? cost_items
-  - File: pp/api/services-report/route.ts lines 134-141
-- Impact:
-  - ? Services Report API no longer returns 'relation does not exist' errors
-  - ? CTE dependency chain properly ordered
-  - ? All cost aggregations properly accessible
-- Status: ? Deployed
-
-## 2026-07-15 Deployment #396 (Fix: Services Report MAX(uuid) PostgreSQL Error)
-- Commit: a322640
-- Production: https://ice-erp.vercel.app
-- Summary: Fixed critical PostgreSQL error preventing Services Report API from returning 500 status.
-- Root Cause:
-  - cost_data CTE was selecting pci.currency_uuid (UUID type) without type casting
-  - Main SELECT was attempting MAX(cd.project_currency_uuid::text) on aggregated UUID column
-  - PostgreSQL error: "function max(uuid) does not exist" because UUID type has no MAX aggregation function
-  - Production error: 2026-07-14 11:41:54.547
-- Solution:
-  1. Modified cost_data CTE to cast UUID to text before aggregation: MIN(pci.currency_uuid::text)
-  2. Added GROUP BY clause to properly aggregate multiple rows per project
-  3. Added COALESCE to handle NULL currency_uuid cases
-  - File: pp/api/services-report/route.ts lines 356-366
-- Impact:
-  - ? Services Report API no longer returns 500 errors
-  - ? MAX(uuid) PostgreSQL error resolved
-  - ? All financial metrics (accrual, costs, profit) properly calculated
-  - ? Multi-currency support maintained (USD, EUR, CNY, GBP ? GEL conversion)
-- Status: ? Deployed
-
 # Deployment Log
 
-## 2026-07-14 Deployment #395 (Fix: Multi-Currency Conversion for Services Report Income & Costs)
-- Commit: 0745e3d
-- Production: https://ice-erp.vercel.app
-- Summary: Fixed currency conversion for income accrual to ensure profit calculations use both income and costs in the same project currency.
-- Issues Fixed:
-  1. **Income Accrual Currency Conversion**: Income accrual amounts were not being converted from payment currency to project currency, causing incorrect profit calculations when mixing currencies
-  2. **Profit Calculation Accuracy**: Profit formula was mixing unconverted accrual with converted costs, leading to inaccurate profit values
-- Features Implemented:
-  1. **Enhanced ledger_agg CTE**: Now tracks payment currency, project currency, and ledger dates for each accrual entry
-  2. **New ledger_converted CTE**: Applies NBG exchange rate conversion to accrual and order amounts (USD, EUR, CNY, GBP → GEL) matching cost aggregation pattern
-  3. **Unified Currency Handling**: All income and cost amounts now converted to project currency before aggregation
-  4. **Multi-Currency Date Precision**: Uses ledger effective date for NBG rate lookup (same as cost accrual), ensuring consistent rate application
+## 2026-07-17 Deployment #398 (Feature: Add Service State Column to Jobs)
+- Commit: e292dd4
+- Production: https://ice-r2o1f8i22-iceerp.vercel.app
+- Summary: Added service_state column to jobs table with enumerated values for tracking job status lifecycle.
+- Schema Changes:
+  - Added enum type `job_service_state` with values: Active, Conversion, Free, Others, Recovery
+  - Added column `service_state` to jobs table with default value 'Active'
+  - Database constraint ensures only valid enum values stored
+- Implementation Details:
+  - Prisma schema updated with new enum and optional field
+  - Migration created and deployed (20260717130038_add_service_state_to_jobs)
+  - API routes updated: GET `/api/jobs`, POST `/api/jobs`, PUT `/api/jobs`
+  - UI components enhanced: jobs-table, handovers-table with serviceState support
+  - Form control: Select dropdown in job creation/edit with all 5 enum options
+  - localStorage version bumped from 6 to 7 to invalidate old column configurations
 - Files Modified:
-  - `app/api/services-report/route.ts` - Enhanced ledger_agg, added ledger_converted CTE, updated main SELECT
+  - `prisma/schema.prisma` - Added enum and column definition
+  - `prisma/migrations/20260717130038_add_service_state_to_jobs/migration.sql` - Database migration
+  - `app/api/jobs/route.ts` - Updated GET/POST/PUT handlers for serviceState
+  - `components/figma/jobs-table.tsx` - Added serviceState column config, form control, mapping logic
+  - `components/figma/handovers-table.tsx` - Added serviceState field to job object mapping
+- Build & Testing:
+  - ✅ Build succeeded with "Compiled successfully" message
+  - ✅ 70 database migrations all deployed successfully
+  - ✅ TypeScript strict mode validation passed (0 type errors)
+  - ✅ ESLint checks passed
+- Backward Compatibility:
+  - Default value 'Active' ensures existing jobs work without data migration
+  - Optional field with sensible default prevents NULL values
+  - API response mapping uses nullish coalescing for safe defaults
 - Impact:
-  - ✅ Profit calculations now accurate for multi-currency projects
-  - ✅ Income amounts properly converted from payment currency to project currency
-  - ✅ Both accrual and costs use consistent currency basis (project currency)
-  - ✅ VAT adjustments applied consistently across all financial metrics
-- Technical Details:
-  - ledger_agg now includes: `payment_id, project_uuid, currency_uuid, payment_currency_code, project_currency_code, ledger_date, total_accrual, total_order`
-  - ledger_converted uses same NBG lookup pattern as cost_agg: `(SELECT rate FROM nbg_exchange_rates WHERE date <= ledger_date ORDER BY date DESC LIMIT 1)`
-  - Profit formula verified: `(accrual/1.18) - costAccrual` where both are in project currency with VAT adjustments already applied
+  - ✅ Users can now track job service state through lifecycle (Active → Conversion → Free/Others/Recovery)
+  - ✅ Integrates seamlessly with existing job management UI
+  - ✅ Column persists in jobs table with all standard features (filtering, sorting, resizing, reordering)
+  - ✅ Handovers view properly displays service_state field for all jobs
 - Status: ✅ Deployed
 
-## 2026-07-14 Deployment #394 (Feature: Consolidate Services Report Costs with Multi-Currency Conversion)
-- Commit: c121550
-- Production: https://ice-erp.vercel.app
-- Summary: Consolidated waybill and non-waybill cost columns into single aggregated column with NBG exchange rate conversion.
-- Features Implemented:
-  1. **Cost Aggregation CTEs**: Replaced separate waybill/non-waybill cost columns with unified cost tracking
-     - `cost_items` CTE: Extract individual cost items with payment IDs, waybill_derived flags, and ledger dates
-     - `cost_agg` CTE: Aggregate with NBG rate lookups for multi-currency conversion (USD, EUR, CNY, GBP → GEL)
-     - `cost_bank_agg` CTE: Apply same currency conversion and VAT logic to bank payments
-  2. **Conditional VAT Adjustment**: Waybill-derived costs divided by 1.18, non-waybill costs unchanged (1.0)
-  3. **Multi-Currency Conversion**: NBG exchange rates looked up by transaction date with support for USD, EUR, CNY, GBP
-  4. **Consolidated Response**: Single columns for cost_accrual, cost_order, cost_payment (removed 6 split columns)
-  5. **UI Column Consolidation**: Updated TypeScript types, DEFAULT_SECTION_COLUMNS, and column configuration
-  6. **Simplified Profit Formula**: (accrual/1.18) - cost_accrual (VAT already applied in SQL aggregation)
+## 2026-07-16 Deployment #391 (Fix: Waybill Items Page Structure)
+- Commit: d4af309
+- Production: https://ice-4b0ykilb9-iceerp.vercel.app
+- Summary: Made waybill-items page structurally identical to waybills page.
+- Changes:
+  - Removed custom description from waybill-items page
+  - Simplified page layout to match waybills page pattern
+  - Added `'use client'` directive to WaybillItemsTable component (required for server page compatibility)
+  - Added `export const revalidate = 0` for dynamic rendering
+  - Standardized typography (text-2xl font-semibold)
 - Files Modified:
-  - `app/api/services-report/route.ts` - Added cost CTEs, currency conversion logic, consolidated response
-  - `components/figma/services-report-table.tsx` - Updated types, column definitions, and UI mappings
+  - `app/dictionaries/waybill-items/page.tsx` - Simplified page structure
+  - `components/figma/waybill-items-table.tsx` - Added client directive
 - Impact:
-  - ✅ Cost tracking now handles multi-currency transactions correctly
-  - ✅ Waybill and non-waybill costs properly consolidated with correct VAT treatment
-  - ✅ Simplified UI with single aggregated cost columns vs. split columns
-  - ✅ Profit calculations now reflect accurate cost basis
-- Status: ✅ Deployed
-
-## 2026-07-10 Deployment #393 (Feature: Add Cost Ledger Dialog for Services Report)
-- Commit: 1b94a0e
-- Production: https://ice-ns7znbtnr-iceerp.vercel.app
-- Summary: Implemented cost ledger entry feature enabling users to add accrual and order entries from cost financial codes in Services Report.
-- Features Implemented:
-  1. **Cost Aggregation API**: Added `cost_ledger_agg` CTE to services-report endpoint aggregating cost accrual and order from payments_ledger where `is_income = false AND applies_to_pl = true`
-  2. **Cost Columns**: Added Cost Accrual (orange #ffe0b2) and Cost Order (yellow #fdd835) columns to services report grid with currency formatting
-  3. **Add Cost Button**: Added "+ Cost" button in section headers opening ledger entry dialog with project prefilled
-  4. **Add Ledger Dialog**:
-     - Counteragent selection (required, dropdown)
-     - Currency selection (required, defaults to GEL)
-     - Cost financial code selection (required, filtered to cost FCs only)
-     - Effective date (required, date picker)
-     - Accrual amount (optional, number input)
-     - Order amount (optional, number input)
-     - Comment (optional, text input)
-  5. **Automatic Payment Creation**: Creates payment automatically if counteragent/FC/currency/project combination doesn't exist, with 409 deduplication handling
-  6. **Form Validation**: Enforces counteragent, currency, FC, and date as required; at least one of accrual or order must be provided
-- Files Modified:
-  - `app/api/services-report/route.ts` - Added cost_ledger_agg CTE and cost aggregation fields
-  - `components/figma/services-report-table.tsx` - Added cost columns, dialog state, handlers, and UI components
-- API Endpoints Used:
-  - `GET /api/financial-codes?leafOnly=true` - Load cost FCs filtered to is_income=false && applies_to_pl=true
-  - `GET /api/counteragents` - Load counteragent list
-  - `GET /api/currencies` - Load currency options
-  - `POST /api/payments` - Create payment (with 409 deduplication)
-  - `POST /api/payments-ledger` - Create ledger entry
-- Impact:
-  - ✅ Users can now add cost accrual and order entries directly from Services Report
-  - ✅ Cost columns display aggregated totals by financial code
-  - ✅ Automatic payment creation ensures ledger entries are properly associated
-  - ✅ All validation and error handling implemented
-- Status: ✅ Deployed
-
-## 2026-07-09 Deployment #392 (Fix: Stable Keys in Services Report Job Filter)
-- Commit: 84af8bb
-- Production: https://ice-7rukef7g2-iceerp.vercel.app
-- Summary: Fixed React key stability in job filter dialog for Services Report.
-- Issue:
-  - Previous fix used array index in keys, which changed when filter updated
-  - When searching by project name (e.g., "Alliance Highline"), filter would not show all matching results
-  - Root cause: Unstable keys (`${jobUuid}_${projectName}_${idx}`) broke React reconciliation on filter changes
-- Solution:
-  - Changed to data-only stable keys: `${jobUuid}_${projectName}_${brandName}`
-  - Index no longer included, ensuring key stability across filter updates
-  - React now properly tracks all rows regardless of filter state
-- Files Modified:
-  - `components/figma/services-report-table.tsx` (line 1830-1837) - Updated table row key logic
-- Impact:
-  - ✅ Filter now correctly displays all matching jobs
-  - ✅ Filtering by project name works across entire dataset
-  - ✅ No jobs incorrectly filtered out
-- Status: ✅ Deployed
-
-## 2026-07-09 Deployment #391 (Fix: Job Filter in Services Report Binding Dialog)
-- Commit: be8fdac
-- Production: https://ice-1o2gjmno5-iceerp.vercel.app
-- Summary: Fixed job filtering issue in the Services Report binding jobs dialog.
-- Issue:
-  - When searching/filtering jobs by project name in the binding dialog, the filter only appeared to work on visible rows, not the entire dataset.
-  - Root cause: React table rows used non-unique keys (`job.jobUuid` only). Since jobs can be bound to multiple projects, the same jobUuid appeared multiple times with different projectNames, creating duplicate React keys and breaking reconciliation.
-- Solution:
-  - Changed table row key from `jobUuid` to unique composite key: `${jobUuid}_${projectName}_${index}`
-  - Ensures React properly tracks and re-renders all rows when filter search string changes.
-- Files Modified:
-  - `components/figma/services-report-table.tsx` (line 1830-1837) - Fixed table row key generation
-- Impact:
-  - ✅ Filter now correctly searches entire job dataset, not just visible rows
-  - ✅ Jobs matching search criteria are properly displayed regardless of scroll position
+  - ✅ Waybill-items page now has identical structure to waybills page
+  - ✅ Both pages follow same layout pattern
+  - ✅ Component properly marked as client component
 - Status: ✅ Deployed
 
 ## 2026-07-08 Deployment #390 (Modernize: Waybill Items Table UI)
@@ -5365,26 +5260,3 @@
   - components/financial-codes-table.tsx: added isBundle type, normalization, Bundle column header/cell, colSpan 11, form state, and Bundle checkbox in dialog.
 - Commit: 6f2529e
 - Production: https://ice-n0mycykqe-iceerp.vercel.app
-
-## 2026-07-15
-- Summary: Global date normalization fix for payments ledger and statements to eliminate intermittent NaN.NaN.NaN dates.
-- Changes:
-  - Added shared date utility: lib/date-normalization.ts (normalizeToIsoDate, toDisplayDate, toDateInputValue, toDateSortTimestamp).
-  - Updated payment statement and counteragent statement date render/sort/edit paths to use shared normalization and keep effectiveDate in ISO in local state updates.
-  - Updated payments-ledger table date rendering to use shared safe display conversion.
-  - Hardened APIs (/api/payments-ledger, /api/payments-ledger/[id], /api/adjustments) to normalize/validate inbound dates and reject invalid formats.
-  - Documented global date normalization rules in AGENTS.md.
-- Commit: f02fb63
-- Production: https://ice-pito4n6ny-iceerp.vercel.app
-
-
-## 2026-07-15 (Release #2 - Fixes)
-- Summary: Fix XLSX export date serialization and false 'date changed' confirmation dialog prompt.
-- Changes:
-  - lib/export-xlsx.ts: Modified toExcelDateSerial() to normalize dates before parsing, preventing NaN exports.
-  - app/payment-statement/[paymentId]/page.tsx: Fixed confirmation dialog to compare normalized ISO dates, preventing false positives; updated custom export fmtDate() to use shared display formatter.
-- Commit: 5af2980
-- Production: https://ice-eoxf1frds-iceerp.vercel.app
-
-
-

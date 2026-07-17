@@ -128,6 +128,9 @@ export function JobsTable() {
   const [isBulkBindOpen, setIsBulkBindOpen] = useState(false);
   const [bulkProjectUuids, setBulkProjectUuids] = useState<string[]>([]);
   const [isBulkBinding, setIsBulkBinding] = useState(false);
+  const [isBulkServiceStateOpen, setIsBulkServiceStateOpen] = useState(false);
+  const [bulkServiceState, setBulkServiceState] = useState<string>('Active');
+  const [isBulkServiceStateUpdating, setIsBulkServiceStateUpdating] = useState(false);
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('jobs-table-columns');
@@ -499,6 +502,32 @@ export function JobsTable() {
     }
   };
 
+  const handleBulkServiceStateUpdate = async () => {
+    if (selectedJobUuids.size === 0 || !bulkServiceState) return;
+    setIsBulkServiceStateUpdating(true);
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobUuids: Array.from(selectedJobUuids),
+          serviceState: bulkServiceState,
+          bulkUpdate: true,
+        }),
+      });
+      if (res.ok) {
+        setSelectedJobUuids(new Set());
+        setBulkServiceState('Active');
+        setIsBulkServiceStateOpen(false);
+        await fetchJobs();
+      }
+    } catch (error) {
+      console.error('Failed to bulk update service state:', error);
+    } finally {
+      setIsBulkServiceStateUpdating(false);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       projectUuid: '',
@@ -601,14 +630,23 @@ export function JobsTable() {
         </div>
         <div className="flex items-center gap-2">
           {selectedJobUuids.size > 0 && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => { setBulkProjectUuids([]); setIsBulkBindOpen(true); }}
-            >
-              <Link className="h-4 w-4 mr-2" />
-              Bind {selectedJobUuids.size} to Projects
-            </Button>
+            <>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => { setBulkProjectUuids([]); setIsBulkBindOpen(true); }}
+              >
+                <Link className="h-4 w-4 mr-2" />
+                Bind {selectedJobUuids.size} to Projects
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => { setBulkServiceState('Active'); setIsBulkServiceStateOpen(true); }}
+              >
+                Edit Service State ({selectedJobUuids.size})
+              </Button>
+            </>
           )}
           <Button
             variant="outline"
@@ -954,6 +992,46 @@ export function JobsTable() {
                 disabled={isBulkBinding || bulkProjectUuids.length === 0}
               >
                 {isBulkBinding ? 'Binding...' : `Bind to ${bulkProjectUuids.length} Project${bulkProjectUuids.length !== 1 ? 's' : ''}`}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Service State Dialog */}
+      <Dialog open={isBulkServiceStateOpen} onOpenChange={setIsBulkServiceStateOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Service State</DialogTitle>
+            <DialogDescription>
+              Update service state for {selectedJobUuids.size} selected job{selectedJobUuids.size !== 1 ? 's' : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="service-state-select">New Service State</Label>
+              <Select value={bulkServiceState} onValueChange={setBulkServiceState}>
+                <SelectTrigger id="service-state-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Conversion">Conversion</SelectItem>
+                  <SelectItem value="Free">Free</SelectItem>
+                  <SelectItem value="Others">Others</SelectItem>
+                  <SelectItem value="Recovery">Recovery</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsBulkServiceStateOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleBulkServiceStateUpdate}
+                disabled={isBulkServiceStateUpdating || !bulkServiceState}
+              >
+                {isBulkServiceStateUpdating ? 'Updating...' : 'Update Service State'}
               </Button>
             </div>
           </div>
