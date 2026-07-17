@@ -1,5 +1,71 @@
 # Deployment Log
 
+## 2026-07-17 Deployment #403 (Enhancement: Bind Dialog Project Pre-Population & Service State Column)
+- Commit: 900a218
+- Production: https://ice-henawbqqn-iceerp.vercel.app
+- Summary: Enhanced bind jobs dialog with project pre-population, service state column display, and project index format matching.
+- Feature Enhancements:
+  1. **Project Pre-Population**:
+     - When clicking bind icon on a service report row, project is automatically pre-selected in bulk bind dialog
+     - Users no longer need to manually select project (predefined from row context)
+     - Bulk bind dialog displays target project clearly instead of asking for selection
+     - Simplified workflow: click bind → select jobs → bind (no project selection needed)
+  2. **Service State Column**:
+     - Added new "Service State" column to bind jobs dialog table
+     - Displays current service state for each job (Active, Conversion, Free, Others, Recovery, or blank)
+     - Full filtering support for service state values
+     - Service state now visible in job list for quick reference
+  3. **Original Project Display Format**:
+     - Changed from displaying full project name to project index format
+     - Format now matches payments report style (e.g., "1", "PROJ-001")
+     - Added `projectIndex` field to JobRow type
+     - Filter logic updated to support projectIndex filtering
+  4. **Type System Updates**:
+     - Extended JobRow type with `projectIndex` and `serviceState` fields
+     - Updated all JobRow mappings across the component (3 locations)
+     - All API responses properly extracted and included
+- Implementation Details:
+  - File: [components/figma/services-report-table.tsx](components/figma/services-report-table.tsx) - Main changes
+  - Modified functions:
+    - `openJobLinkBulkBindDialog()`: Now accepts optional `predefinedProjectUuid` parameter
+    - `filteredDialogJobs` useMemo: Added serviceState and projectIndex to filter logic
+  - New features:
+    - Pre-population logic: Checks if project is predefined, auto-selects if provided
+    - Project display: Shows target project in blue info box when pre-populated
+    - Service state column: Added to table header with filter support
+  - Type changes:
+    - JobRow: Added `projectIndex: string` and `serviceState: string | null`
+    - JobLinkDialogState: Unchanged (already had projectUuid and projectName)
+    - All API field mappings: Updated to extract projectIndex and serviceState
+- Build & Testing:
+  - ✅ TypeScript validation: `pnpm exec tsc --noEmit --pretty false` - No errors
+  - ✅ Linting: `pnpm lint` - Only pre-existing warnings (no new errors)
+  - ✅ Build: `pnpm build` - "Compiled successfully"
+  - ✅ Production deployment successful via `npx vercel --prod --yes`
+- User Workflows:
+  1. **Quick Project Binding**:
+     - User views service report row
+     - Clicks bind icon on any row
+     - Dialog opens with project pre-selected from that row
+     - User selects jobs to bind
+     - User clicks "Bind Jobs" button
+     - Jobs are now bound to the project without manual selection
+  2. **Service State Review**:
+     - User can see service state for each job in the dialog
+     - Can filter by service state to find specific job groups
+     - State is displayed alongside other job metadata
+  3. **Project Index Format**:
+     - Original Project column now shows project index (e.g., "1")
+     - Matches payments report display format for consistency
+     - Can filter by project index to find jobs from specific projects
+- Impact:
+  - ✅ Simplified project binding workflow (one less selection step)
+  - ✅ Better visibility of job service state in binding context
+  - ✅ Improved UX consistency with payments report patterns
+  - ✅ Reduced user effort for bulk operations
+  - ✅ Type safety enhanced with complete JobRow definition
+- Status: ✅ Deployed
+
 ## 2026-06-16 Deployment #402 (Enhancement: Bind Dialog Project Shortcut)
 - Commit: ecbeb34
 - Production: https://ice-pm7o6jlrh-iceerp.vercel.app
