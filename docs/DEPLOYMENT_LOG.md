@@ -1,5 +1,19 @@
 # Deployment Log
 
+## 2026-07-17 Deployment #408 (Feature: XML Upload Button in Payments Report)
+- Commit: 48a68d3fdd5aa41d8e623f7250af08b14090827f
+- Production: https://ice-k17pq0715-iceerp.vercel.app
+- Summary: Added XML upload functionality to Payments Report Table, matching Bank Transactions UI
+- Changes:
+  - Added "Upload XML" button to Payments Report toolbar
+  - Supports multi-file XML uploads with real-time progress logging
+  - Reuses existing bank transaction import API endpoint (`/api/bank-transactions/upload`)
+  - Shows processing logs in popup window or dialog fallback if popup blocked
+  - Auto-reloads page on successful import with detailed error reporting
+  - File size validation (max 4MB) with user-friendly error messages
+  - Button positioned before "Upload Ledger XLSX" in toolbar
+  - Helper functions: `MAX_DIRECT_UPLOAD_BYTES`, `formatBytes()`, `parseApiResponse()`
+
 ## 2026-07-17 Deployment #407 (Fix: Services Report Aggregation & Currency Conversion)
 - Commit: d976c35
 - Production: https://ice-n6px74jqd-iceerp.vercel.app
