@@ -1,5 +1,47 @@
 # Deployment Log
 
+## 2026-07-17 Deployment #405 (Refinement: Job State Columns Color-Coded Display)
+- Commit: c0223e8
+- Production: https://ice-g6v6hezki-iceerp.vercel.app
+- Summary: Refined job state columns to display only numbers with full-column colored backgrounds instead of badge styling. Column headers now show single letters (A, C, F, O, R) with matching state colors.
+- UI Refinements:
+  1. **Column Header Styling**:
+     - Changed headers from "Jobs A", "Jobs C", etc. to single letters: A, C, F, O, R
+     - Apply state colors directly to column headers for visual consistency
+     - Headers now match cell background colors
+  2. **Cell Display Update**:
+     - Removed badge styling and abbreviation display (e.g., "A5")
+     - Display only numbers centered in colored cells
+     - Show "-" when count is 0
+     - Full row background colored per state
+  3. **Color Scheme Applied**:
+     - Active (A): Green backgrounds (#D4EDDA)
+     - Conversion (C): Orange backgrounds (#FFE5CC)
+     - Free (F): Teal backgrounds (#D1ECF1)
+     - Others (O): Gray backgrounds (#E8EAED)
+     - Recovery (R): Red backgrounds (#F8D7DA)
+  4. **Layout & Alignment**:
+     - Columns centered instead of right-aligned
+     - Consistent 60px width per column
+     - Professional appearance with full-column color coding
+  5. **Type System**:
+     - Extended SectionColumn.align type to support 'center' in addition to 'left' and 'right'
+- Implementation Details:
+  - File: [components/figma/services-report-table.tsx](components/figma/services-report-table.tsx)
+  - Updated DEFAULT_SECTION_COLUMNS: Column labels and alignment
+  - Updated table header rendering: Added job state color mapping to headerBg
+  - Updated table cell rendering: Removed badge span, display only number with colored background
+  - Type changes: Extended SectionColumn.align with 'center' option
+- Build & Testing:
+  - ✅ TypeScript validation: All type errors resolved
+  - ✅ Build: `pnpm build` - "Compiled successfully"
+  - ✅ Production deployment successful via `npx vercel --prod --yes`
+- User Experience:
+  - Cleaner, more professional appearance
+  - Immediate visual recognition of service states via colors
+  - Reduced UI clutter compared to badge styling
+  - Better contrast and readability in the table
+
 ## 2026-07-17 Deployment #404 (Enhancement: Service Report Jobs Column Division by Service State)
 - Commit: 0c89f47
 - Production: https://ice-e2lu302fl-iceerp.vercel.app
