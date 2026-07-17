@@ -386,6 +386,11 @@ export async function GET(request: NextRequest) {
         ARRAY_REMOVE(ARRAY_AGG(DISTINCT sp.payment_id ORDER BY sp.payment_id), NULL) as payment_ids,
         COUNT(DISTINCT sp.payment_id) as payment_count,
         (SELECT COUNT(*) FROM job_projects jp2 WHERE jp2.project_uuid = sp.project_uuid)::int as jobs_count,
+        (SELECT COUNT(*) FROM job_projects jp2 JOIN jobs j2 ON jp2.job_uuid = j2.job_uuid WHERE jp2.project_uuid = sp.project_uuid AND j2.is_active = true AND COALESCE(j2.service_state, 'Active') = 'Active')::int as jobs_active,
+        (SELECT COUNT(*) FROM job_projects jp2 JOIN jobs j2 ON jp2.job_uuid = j2.job_uuid WHERE jp2.project_uuid = sp.project_uuid AND j2.is_active = true AND j2.service_state = 'Conversion')::int as jobs_conversion,
+        (SELECT COUNT(*) FROM job_projects jp2 JOIN jobs j2 ON jp2.job_uuid = j2.job_uuid WHERE jp2.project_uuid = sp.project_uuid AND j2.is_active = true AND j2.service_state = 'Free')::int as jobs_free,
+        (SELECT COUNT(*) FROM job_projects jp2 JOIN jobs j2 ON jp2.job_uuid = j2.job_uuid WHERE jp2.project_uuid = sp.project_uuid AND j2.is_active = true AND j2.service_state = 'Others')::int as jobs_others,
+        (SELECT COUNT(*) FROM job_projects jp2 JOIN jobs j2 ON jp2.job_uuid = j2.job_uuid WHERE jp2.project_uuid = sp.project_uuid AND j2.is_active = true AND j2.service_state = 'Recovery')::int as jobs_recovery,
         (SELECT ARRAY_REMOVE(ARRAY_AGG(jn.job_name ORDER BY jn.job_name), NULL)
          FROM job_projects jp3 JOIN jobs jn ON jp3.job_uuid = jn.job_uuid
          WHERE jp3.project_uuid = sp.project_uuid AND jn.is_active = true) as job_names,
@@ -464,6 +469,13 @@ export async function GET(request: NextRequest) {
         currency: row.currency_code,
         paymentCount: Number(row.payment_count || 0),
         jobsCount: Number(row.jobs_count || 0),
+        jobsByState: {
+          active: Number(row.jobs_active || 0),
+          conversion: Number(row.jobs_conversion || 0),
+          free: Number(row.jobs_free || 0),
+          others: Number(row.jobs_others || 0),
+          recovery: Number(row.jobs_recovery || 0),
+        },
         projectCurrencyUuid: row.project_currency_uuid || null,
         projectCurrencyCode: row.project_currency_code || 'GEL',
         costPaymentIds: Array.isArray(row.cost_payment_ids)

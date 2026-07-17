@@ -45,7 +45,13 @@ type ServicesRow = {
   hasUnboundCounteragentTransactions?: boolean;
   currency: string;
   paymentCount: number;
-  jobsCount: number;
+  jobsByState: {
+    active: number;
+    conversion: number;
+    free: number;
+    others: number;
+    recovery: number;
+  };
   jobNames: string[];
   accrual: number;
   latestAccrual: number;
@@ -69,7 +75,6 @@ type ServicesRow = {
 type ServicesSummaryRow = {
   status: string;
   projectsCount: number;
-  jobsCount: number;
   paymentCount: number;
   accrual: number;
   order: number;
@@ -87,7 +92,6 @@ type ServicesReportResponse = {
   summaryByStatus: ServicesSummaryRow[];
   totals: {
     projectsCount: number;
-    jobsCount: number;
     paymentCount: number;
     accrual: number;
     order: number;
@@ -188,7 +192,11 @@ type SectionColumnKey =
   | 'counteragent'
   | 'paymentIds'
   | 'paymentCount'
-  | 'jobsCount'
+  | 'jobsActive'
+  | 'jobsConversion'
+  | 'jobsFree'
+  | 'jobsOthers'
+  | 'jobsRecovery'
   | 'accrual'
   | 'order'
   | 'payment'
@@ -218,7 +226,6 @@ type SectionData = {
 
 const DEFAULT_TOTALS = {
   projectsCount: 0,
-  jobsCount: 0,
   paymentCount: 0,
   accrual: 0,
   order: 0,
@@ -246,7 +253,11 @@ const DEFAULT_SECTION_COLUMNS: SectionColumn[] = [
   { key: 'counteragent', label: 'Counteragent', visible: true, width: 220, align: 'left' },
   { key: 'paymentIds', label: 'Payment IDs', visible: true, width: 260, align: 'left' },
   { key: 'paymentCount', label: 'Payments', visible: true, width: 100, align: 'right' },
-  { key: 'jobsCount', label: 'Jobs', visible: true, width: 90, align: 'right' },
+  { key: 'jobsActive', label: 'Jobs A', visible: true, width: 60, align: 'right' },
+  { key: 'jobsConversion', label: 'Jobs C', visible: true, width: 60, align: 'right' },
+  { key: 'jobsFree', label: 'Jobs F', visible: true, width: 60, align: 'right' },
+  { key: 'jobsOthers', label: 'Jobs O', visible: true, width: 60, align: 'right' },
+  { key: 'jobsRecovery', label: 'Jobs R', visible: true, width: 60, align: 'right' },
   { key: 'accrual', label: 'Accrual', visible: true, width: 130, align: 'right' },
   { key: 'order', label: 'Order', visible: true, width: 130, align: 'right' },
   { key: 'payment', label: 'Payment', visible: true, width: 130, align: 'right' },
@@ -277,6 +288,15 @@ const formatDate = (value: string | null) => {
   return `${day}.${month}.${year}`;
 };
 
+// Job service state colors with abbreviations
+const JOB_STATE_COLORS: Record<string, { bg: string; text: string; abbr: string }> = {
+  active: { bg: '#D4EDDA', text: '#155724', abbr: 'A' }, // Green
+  conversion: { bg: '#FFE5CC', text: '#CC6600', abbr: 'C' }, // Orange
+  free: { bg: '#D1ECF1', text: '#0C5460', abbr: 'F' }, // Teal
+  others: { bg: '#E8EAED', text: '#5F6368', abbr: 'O' }, // Gray
+  recovery: { bg: '#F8D7DA', text: '#721C24', abbr: 'R' }, // Red
+};
+
 const COLUMN_BG: Partial<Record<SectionColumnKey, string>> = {
   accrual: '#ffebee',
   order: '#fff9e6',
@@ -294,7 +314,11 @@ const COLUMN_FORMAT_MAP: Partial<Record<SectionColumnKey, ColumnFormat>> = {
   projectAddress: 'text',
   sum: 'currency',
   paymentCount: 'number',
-  jobsCount: 'number',
+  jobsActive: 'number',
+  jobsConversion: 'number',
+  jobsFree: 'number',
+  jobsOthers: 'number',
+  jobsRecovery: 'number',
   accrual: 'currency',
   order: 'currency',
   payment: 'currency',
@@ -332,6 +356,16 @@ const getColumnValue = (row: ServicesRow, key: SectionColumnKey) => {
       return row.projectAddress || '';
     case 'paymentIds':
       return row.paymentIds.join(', ');
+    case 'jobsActive':
+      return row.jobsByState.active;
+    case 'jobsConversion':
+      return row.jobsByState.conversion;
+    case 'jobsFree':
+      return row.jobsByState.free;
+    case 'jobsOthers':
+      return row.jobsByState.others;
+    case 'jobsRecovery':
+      return row.jobsByState.recovery;
     case 'actions':
       return '';
     default:
@@ -1663,7 +1697,7 @@ export function ServicesReportTable() {
           (acc, row) => {
             acc.rows += 1;
             acc.payments += row.paymentCount;
-            acc.jobs += row.jobsCount;
+            acc.jobs += row.jobsByState.active + row.jobsByState.conversion + row.jobsByState.free + row.jobsByState.others + row.jobsByState.recovery;
             acc.sum += row.sum;
             acc.accrual += row.accrual;
             acc.order += row.order;
@@ -1782,7 +1816,7 @@ export function ServicesReportTable() {
           row.counteragentUuid ?? '',
           row.paymentIds.join(', '),
           row.paymentCount,
-          row.jobsCount,
+          row.jobsByState.active + row.jobsByState.conversion + row.jobsByState.free + row.jobsByState.others + row.jobsByState.recovery,
           row.jobNames.join(', '),
           row.currency,
           row.sum,
@@ -2279,6 +2313,38 @@ export function ServicesReportTable() {
                             </td>
                           );
                         }
+                        // Job state columns with colored badges
+                        const jobStateMap: Record<string, keyof typeof JOB_STATE_COLORS> = {
+                          jobsActive: 'active',
+                          jobsConversion: 'conversion',
+                          jobsFree: 'free',
+                          jobsOthers: 'others',
+                          jobsRecovery: 'recovery',
+                        };
+                        if (column.key in jobStateMap) {
+                          const stateKey = jobStateMap[column.key as keyof typeof jobStateMap];
+                          const colors = JOB_STATE_COLORS[stateKey];
+                          const count = typeof rawValue === 'number' ? rawValue : 0;
+                          return (
+                            <td
+                              key={column.key}
+                              className="px-2 py-2 text-center overflow-hidden"
+                              style={{ width: `${column.width}px`, maxWidth: `${column.width}px` }}
+                            >
+                              {count > 0 ? (
+                                <span
+                                  className="inline-flex items-center justify-center min-w-[24px] h-[24px] rounded font-semibold text-xs"
+                                  style={{ backgroundColor: colors.bg, color: colors.text }}
+                                  title={`${stateKey.charAt(0).toUpperCase() + stateKey.slice(1)}: ${count}`}
+                                >
+                                  {colors.abbr}{count}
+                                </span>
+                              ) : (
+                                <span className="text-gray-300 text-xs">-</span>
+                              )}
+                            </td>
+                          );
+                        }
                         const value =
                           column.align === 'right' && typeof rawValue === 'number'
                             ? formatMoney(rawValue)
@@ -2351,9 +2417,8 @@ export function ServicesReportTable() {
                                   </a>
                                 )}
                               </div>
-                            ) : column.key === 'jobsCount' ? (
-                              <div className="flex items-center justify-end gap-1">
-                                <span>{row.jobsCount}</span>
+                            ) : column.key === 'actions' ? (
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 <button
                                   onClick={() => openJobLinkDialog(row)}
                                   title={row.jobNames.length > 0 ? `Jobs: ${row.jobNames.join(', ')}` : 'Link jobs to payments'}
@@ -2361,9 +2426,6 @@ export function ServicesReportTable() {
                                 >
                                   <Link2 className="w-3.5 h-3.5" />
                                 </button>
-                              </div>
-                            ) : column.key === 'actions' ? (
-                              <div className="flex items-center gap-1.5 flex-wrap">
                                 {row.paymentIds.map((paymentId) => (
                                   <span key={`${row.projectUuid}-${paymentId}`} className="inline-flex items-center gap-0.5">
                                     <a
