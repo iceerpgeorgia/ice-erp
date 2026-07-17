@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
           j.is_ff,
           j.factory_no,
           j.selling_price,
+          j.service_state,
           j.brand_uuid,
           j.insider_uuid,
           b.name as brand_name,
@@ -56,6 +57,7 @@ export async function GET(req: NextRequest) {
         isFf: job.is_ff,
         factoryNo: job.factory_no,
         sellingPrice: job.selling_price !== null && job.selling_price !== undefined ? Number(job.selling_price) : null,
+        serviceState: job.service_state || 'Active',
         brandUuid: job.brand_uuid,
         brandName: job.brand_name,
         jobDisplay: job.job_display,
@@ -81,6 +83,7 @@ export async function GET(req: NextRequest) {
         j.is_ff,
         j.factory_no,
         j.selling_price,
+        j.service_state,
         j.brand_uuid,
         j.is_active,
         j.created_at,
@@ -125,6 +128,7 @@ export async function GET(req: NextRequest) {
       isFf: job.is_ff,
       factoryNo: job.factory_no,
       sellingPrice: job.selling_price !== null && job.selling_price !== undefined ? Number(job.selling_price) : null,
+      serviceState: job.service_state || 'Active',
       brandUuid: job.brand_uuid,
       brandName: job.brand_name,
       jobIndex: job.job_index,
@@ -157,7 +161,7 @@ export async function POST(req: NextRequest) {
   try {
     const selection = await resolveInsiderSelection(req);
     const body = await req.json();
-    const { projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid, factoryNo, factory_no, sellingPrice, insider_uuid, insiderUuid } = body;
+    const { projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid, factoryNo, factory_no, sellingPrice, serviceState, insider_uuid, insiderUuid } = body;
 
     const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
     const normalizedFactoryNo = String(factoryNo ?? factory_no ?? '').trim() || null;
@@ -208,8 +212,8 @@ export async function POST(req: NextRequest) {
     } else {
       // Create single job row (no project_uuid on jobs table)
       const result = await prisma.$queryRaw`
-        INSERT INTO jobs (job_name, floors, weight, is_ff, factory_no, selling_price, brand_uuid, insider_uuid)
-        VALUES (${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${normalizedFactoryNo}, ${normalizedSellingPrice}, ${brandUuid}::uuid, ${effectiveInsiderUuid}::uuid)
+        INSERT INTO jobs (job_name, floors, weight, is_ff, factory_no, selling_price, service_state, brand_uuid, insider_uuid)
+        VALUES (${jobName}, ${floors ?? null}, ${weight ?? null}, ${isFf}, ${normalizedFactoryNo}, ${normalizedSellingPrice}, ${serviceState || 'Active'}, ${brandUuid}::uuid, ${effectiveInsiderUuid}::uuid)
         RETURNING id, job_uuid
       ` as any[];
 
@@ -249,7 +253,7 @@ export async function PUT(req: NextRequest) {
   try {
     const selection = await resolveInsiderSelection(req);
     const body = await req.json();
-    const { id, projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid, factoryNo, factory_no, sellingPrice, insider_uuid, insiderUuid } = body;
+    const { id, projectUuid, projectUuids, jobName, floors, weight, isFf, brandUuid, factoryNo, factory_no, sellingPrice, serviceState, insider_uuid, insiderUuid } = body;
 
     const requestedInsiderUuid = String(insiderUuid ?? insider_uuid ?? '').trim() || null;
     const normalizedFactoryNo = String(factoryNo ?? factory_no ?? '').trim() || null;
@@ -301,6 +305,7 @@ export async function PUT(req: NextRequest) {
         is_ff = ${isFf},
         factory_no = ${normalizedFactoryNo},
         selling_price = ${normalizedSellingPrice},
+        service_state = ${serviceState || 'Active'},
         brand_uuid = ${brandUuid}::uuid,
         insider_uuid = ${effectiveInsiderUuid}::uuid,
         updated_at = CURRENT_TIMESTAMP

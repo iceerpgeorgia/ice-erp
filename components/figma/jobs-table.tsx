@@ -63,6 +63,7 @@ export type Job = {
   weight: number | null;
   isFf: boolean;
   sellingPrice: number | null;
+  serviceState: string;
   brandUuid: string | null;
   brandName: string;
   jobIndex: string;
@@ -106,6 +107,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: 'floors', label: 'Floors', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'weight', label: 'Weight (kg)', width: 120, visible: true, sortable: true, filterable: true },
   { key: 'sellingPrice', label: 'Selling Price', width: 140, visible: true, sortable: true, filterable: true, format: 'number' },
+  { key: 'serviceState', label: 'Service State', width: 140, visible: true, sortable: true, filterable: true },
   { key: 'isFf', label: 'FF', width: 80, visible: true, sortable: true, filterable: true },
   { key: 'isActive', label: 'Status', width: 100, visible: true, sortable: true, filterable: true },
   { key: 'createdAt', label: 'Created', width: 140, visible: false, sortable: true, filterable: true, format: 'date' },
@@ -130,7 +132,7 @@ export function JobsTable() {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('jobs-table-columns');
       const version = localStorage.getItem('jobs-table-columns-version');
-      const currentVersion = '6'; // Increment this when changing default column visibility
+      const currentVersion = '7'; // Increment this when changing default column visibility
       
       if (saved && version === currentVersion) {
         try {
@@ -174,6 +176,7 @@ export function JobsTable() {
     floors: '' as string | number,
     weight: '' as string | number,
     sellingPrice: '' as string | number,
+    serviceState: 'Active',
     isFf: false,
     brandUuid: '',
     insiderUuid: '',
@@ -277,6 +280,7 @@ export function JobsTable() {
               floors: job.floors ?? null,
               weight: job.weight ?? null,
               sellingPrice: job.sellingPrice !== undefined && job.sellingPrice !== null ? Number(job.sellingPrice) : null,
+              serviceState: job.serviceState || 'Active',
               isFf: job.isFf ?? job.is_ff ?? false,
               brandUuid: job.brandUuid || job.brand_uuid || null,
               brandName: job.brandName || job.brand_name,
@@ -444,6 +448,7 @@ export function JobsTable() {
       floors: job.floors ?? '',
       weight: job.weight ?? '',
       sellingPrice: job.sellingPrice ?? '',
+      serviceState: job.serviceState || 'Active',
       isFf: job.isFf,
       brandUuid: job.brandUuid || '',
       insiderUuid: isInsiderFixed ? (fixedInsider?.insiderUuid || '') : '',
@@ -503,6 +508,7 @@ export function JobsTable() {
       floors: '',
       weight: '',
       sellingPrice: '',
+      serviceState: 'Active',
       isFf: false,
       brandUuid: '',
       insiderUuid: fixedInsider?.insiderUuid || insidersList[0]?.insiderUuid || '',
@@ -1114,6 +1120,26 @@ export function JobForm({
           }
           placeholder="Enter selling price"
         />
+      </div>
+
+      {/* Service State */}
+      <div>
+        <Label htmlFor="serviceState">Service State</Label>
+        <Select
+          value={formData.serviceState}
+          onValueChange={(value) => setFormData({ ...formData, serviceState: value })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select service state..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Active">Active</SelectItem>
+            <SelectItem value="Conversion">Conversion</SelectItem>
+            <SelectItem value="Free">Free</SelectItem>
+            <SelectItem value="Others">Others</SelectItem>
+            <SelectItem value="Recovery">Recovery</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Is FF Switch */}

@@ -617,6 +617,7 @@ export function HandoversTable() {
             floors: job.floors ?? null,
             weight: job.weight ?? null,
             sellingPrice: job.sellingPrice != null ? Number(job.sellingPrice) : null,
+            serviceState: job.serviceState ?? 'Active',
             isFf: Boolean(job.isFf),
             brandUuid: job.brandUuid ?? null,
             brandName: String(job.brandName ?? ''),
