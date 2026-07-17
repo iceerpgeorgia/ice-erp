@@ -16,7 +16,9 @@ import { AddProjectDialog } from './add-project-dialog';
 import { RowAttachments } from './row-attachments';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Combobox } from '../ui/combobox';
+import { MultiCombobox } from '../ui/multi-combobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Switch } from './ui/switch';
 
 type FinancialCode = {
   uuid: string;
@@ -99,11 +101,13 @@ type JobRow = {
   jobUuid: string;
   jobName: string;
   projectName: string;
+  projectIndex: string;
   brandName: string;
   floors: number | null;
   weight: number | null;
   isFf: boolean;
   isActive: boolean;
+  serviceState: string | null;
 };
 
 type JobLinkDialogState = {
@@ -469,27 +473,39 @@ export function ServicesReportTable() {
   const [jobLinkEditDialog, setJobLinkEditDialog] = useState<{
     open: boolean;
     jobUuid: string | null;
+    id: number | null;
     jobName: string;
+    factoryNo: string;
     floors: string;
     weight: string;
     sellingPrice: string;
     isFf: boolean;
-    isActive: boolean;
+    brandUuid: string;
+    serviceState: string;
+    projectUuids: string[];
+    insiderUuid: string;
     loading: boolean;
     saving: boolean;
   }>({
     open: false,
     jobUuid: null,
+    id: null,
     jobName: '',
+    factoryNo: '',
     floors: '',
     weight: '',
     sellingPrice: '',
     isFf: false,
-    isActive: true,
+    brandUuid: '',
+    serviceState: 'Active',
+    projectUuids: [],
+    insiderUuid: '',
     loading: false,
     saving: false,
   });
   const [paymentProjects, setPaymentProjects] = useState<ProjectOption[]>([]);
+  const [jobEditBrands, setJobEditBrands] = useState<any[]>([]);
+  const [jobEditInsiderOptions, setJobEditInsiderOptions] = useState<any[]>([]);
   const [paymentCounteragents, setPaymentCounteragents] = useState<CounteragentOption[]>([]);
   const [paymentFinancialCodes, setPaymentFinancialCodes] = useState<FinancialCodeOption[]>([]);
   const [paymentCurrencies, setPaymentCurrencies] = useState<CurrencyOption[]>([]);
@@ -813,11 +829,13 @@ export function ServicesReportTable() {
         jobUuid: j.jobUuid,
         jobName: j.jobName || j.job_name || '',
         projectName: j.projectName || j.project_name || '',
+        projectIndex: j.projectIndex || j.project_index || '-',
         brandName: j.brandName || j.brand_name || '',
         floors: j.floors ?? null,
         weight: j.weight ?? null,
         isFf: Boolean(j.isFf || j.is_ff),
         isActive: j.is_active !== false,
+        serviceState: j.serviceState || j.service_state || null,
       }));
       const linkedJobUuids = new Set<string>(Array.isArray(linksData) ? linksData : []);
       for (const payment of (Array.isArray(paymentsData) ? paymentsData : [])) {
@@ -840,33 +858,46 @@ export function ServicesReportTable() {
   };
 
   const filteredDialogJobs = useMemo(() => {
-    let jobs = jobLinkDialog.allJobs;
+    let jobs = [...jobLinkDialog.allJobs];
 
     // Apply search filter
-    const s = jobLinkDialog.search.toLowerCase();
+    const s = jobLinkDialog.search.trim().toLowerCase();
     if (s) {
       jobs = jobs.filter((j) =>
         j.jobName.toLowerCase().includes(s) ||
-        j.projectName.toLowerCase().includes(s) ||
-        j.brandName.toLowerCase().includes(s)
+        (j.projectName && j.projectName.toLowerCase().includes(s)) ||
+        (j.brandName && j.brandName.toLowerCase().includes(s))
       );
     }
 
     // Apply column filters
-    if (Object.keys(jobLinkColumnFilters).length > 0) {
+    const hasColumnFilters = Object.keys(jobLinkColumnFilters).some((col) => jobLinkColumnFilters[col].length > 0);
+    if (hasColumnFilters) {
       jobs = jobs.filter((job) => {
         for (const [column, values] of Object.entries(jobLinkColumnFilters)) {
-          if (values.length === 0) continue;
+          if (!values || values.length === 0) continue;
+          
           let fieldValue = '';
-          if (column === 'jobName') fieldValue = job.jobName;
-          else if (column === 'projectName') fieldValue = job.projectName;
-          else if (column === 'brandName') fieldValue = job.brandName;
-          else if (column === 'floors') fieldValue = job.floors?.toString() || '';
-          else if (column === 'weight') fieldValue = job.weight?.toString() || '';
+          if (column === 'jobName') fieldValue = job.jobName || '';
+          else if (column === 'projectIndex') fieldValue = job.projectIndex || '';
+          else if (column === 'projectName') fieldValue = job.projectName || '';
+          else if (column === 'brandName') fieldValue = job.brandName || '';
+          else if (column === 'floors') fieldValue = (job.floors !== null && job.floors !== undefined) ? String(job.floors) : '';
+          else if (column === 'weight') fieldValue = (job.weight !== null && job.weight !== undefined) ? String(job.weight) : '';
           else if (column === 'isFf') fieldValue = job.isFf ? 'FF' : 'No';
           else if (column === 'isActive') fieldValue = job.isActive ? 'Yes' : 'No';
+          else if (column === 'serviceState') fieldValue = job.serviceState ? String(job.serviceState) : '-';
           
-          if (!values.includes(fieldValue)) return false;
+          // Check if fieldValue is in the filter values (case-insensitive for text)
+          const valueStrings = values.map((v) => String(v || '').trim());
+          const matchesFilter = valueStrings.some((v) => {
+            if (column === 'jobName' || column === 'projectIndex' || column === 'projectName' || column === 'brandName') {
+              return fieldValue.toLowerCase() === v.toLowerCase();
+            }
+            return fieldValue === v;
+          });
+          
+          if (!matchesFilter) return false;
         }
         return true;
       });
@@ -874,6 +905,7 @@ export function ServicesReportTable() {
 
     return jobs;
   }, [jobLinkDialog.allJobs, jobLinkDialog.search, jobLinkColumnFilters]);
+
 
   const allFilteredChecked = filteredDialogJobs.length > 0 && filteredDialogJobs.every((j) => jobLinkDialog.linkedJobUuids.has(j.jobUuid));
 
@@ -1137,11 +1169,13 @@ export function ServicesReportTable() {
             jobUuid: j.jobUuid,
             jobName: j.jobName || j.job_name || '',
             projectName: j.projectName || j.project_name || '',
+            projectIndex: j.projectIndex || j.project_index || '-',
             brandName: j.brandName || j.brand_name || '',
             floors: j.floors ?? null,
             weight: j.weight ?? null,
             isFf: Boolean(j.isFf || j.is_ff),
             isActive: j.is_active !== false,
+            serviceState: j.serviceState || j.service_state || null,
           }));
           setJobLinkDialog((prev) => ({ ...prev, allJobs, loading: false }));
         } catch {
@@ -1161,19 +1195,49 @@ export function ServicesReportTable() {
   const openJobLinkEditDialog = async (jobUuid: string) => {
     setJobLinkEditDialog((prev) => ({ ...prev, open: true, jobUuid, loading: true }));
     try {
-      const response = await fetch(`/api/jobs?uuid=${jobUuid}`);
-      if (response.ok) {
-        const jobsData = await response.json();
-        const job = Array.isArray(jobsData) ? jobsData.find((j: any) => j.jobUuid === jobUuid || j.uuid === jobUuid) : null;
+      // Fetch full job details and dictionaries
+      const [jobsRes, projectsRes, brandsRes, insiderRes] = await Promise.all([
+        fetch(`/api/jobs`),
+        fetch('/api/projects-v2'),
+        fetch('/api/brands'),
+        fetch('/api/insider-selection'),
+      ]);
+
+      if (jobsRes.ok && projectsRes.ok && brandsRes.ok && insiderRes.ok) {
+        const jobsData = await jobsRes.json();
+        const projectsData = await projectsRes.json();
+        const brandsData = await brandsRes.json();
+        const insiderData = await insiderRes.json();
+        
+        const job = Array.isArray(jobsData) ? jobsData.find((j: any) => j.jobUuid === jobUuid) : null;
         if (job) {
+          // Gather all project bindings for this job
+          const allJobs = Array.isArray(jobsData) ? jobsData : [];
+          const allBindings = allJobs.filter((j: any) => j.jobUuid === jobUuid);
+          const allProjectUuids = [...new Set(allBindings.map((b: any) => b.projectUuid).filter(Boolean))];
+
+          // Store dictionaries for the form
+          const projectsList = Array.isArray(projectsData) ? projectsData : (Array.isArray(projectsData?.data) ? projectsData.data : []);
+          const brandsList = Array.isArray(brandsData) ? brandsData : (Array.isArray(brandsData?.data) ? brandsData.data : []);
+          const insiderOptions = insiderData?.options || [];
+          
+          setPaymentProjects(projectsList);
+          setJobEditBrands(brandsList);
+          setJobEditInsiderOptions(insiderOptions);
+
           setJobLinkEditDialog((prev) => ({
             ...prev,
+            id: job.id || null,
             jobName: job.jobName || job.job_name || '',
+            factoryNo: job.factoryNo || job.factory_no || '',
             floors: job.floors?.toString() || '',
             weight: job.weight?.toString() || '',
-            sellingPrice: job.sellingPrice?.toString() || job.selling_price?.toString() || '',
+            sellingPrice: (job.sellingPrice ?? job.selling_price)?.toString() || '',
             isFf: Boolean(job.isFf || job.is_ff),
-            isActive: job.is_active !== false,
+            brandUuid: job.brandUuid || job.brand_uuid || '',
+            serviceState: job.serviceState || job.service_state || 'Active',
+            projectUuids: allProjectUuids,
+            insiderUuid: job.insiderUuid || job.insider_uuid || '',
             loading: false,
           }));
         }
@@ -1185,20 +1249,23 @@ export function ServicesReportTable() {
   };
 
   const handleJobLinkEditSave = async () => {
-    if (!jobLinkEditDialog.jobUuid) return;
+    if (!jobLinkEditDialog.id) return;
     setJobLinkEditDialog((prev) => ({ ...prev, saving: true }));
     try {
       const response = await fetch('/api/jobs', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: jobLinkEditDialog.jobUuid,
+          id: jobLinkEditDialog.id,
           jobName: jobLinkEditDialog.jobName,
+          factoryNo: jobLinkEditDialog.factoryNo || null,
           floors: jobLinkEditDialog.floors ? parseInt(jobLinkEditDialog.floors) : null,
           weight: jobLinkEditDialog.weight ? parseFloat(jobLinkEditDialog.weight) : null,
           sellingPrice: jobLinkEditDialog.sellingPrice ? parseFloat(jobLinkEditDialog.sellingPrice) : null,
           isFf: jobLinkEditDialog.isFf,
-          isActive: jobLinkEditDialog.isActive,
+          brandUuid: jobLinkEditDialog.brandUuid || null,
+          serviceState: jobLinkEditDialog.serviceState || 'Active',
+          projectUuids: jobLinkEditDialog.projectUuids && jobLinkEditDialog.projectUuids.length > 0 ? jobLinkEditDialog.projectUuids : [],
         }),
       });
 
@@ -1214,11 +1281,13 @@ export function ServicesReportTable() {
               jobUuid: j.jobUuid,
               jobName: j.jobName || j.job_name || '',
               projectName: j.projectName || j.project_name || '',
+              projectIndex: j.projectIndex || j.project_index || '-',
               brandName: j.brandName || j.brand_name || '',
               floors: j.floors ?? null,
               weight: j.weight ?? null,
               isFf: Boolean(j.isFf || j.is_ff),
               isActive: j.is_active !== false,
+              serviceState: j.serviceState || j.service_state || null,
             }));
             setJobLinkDialog((prev) => ({ ...prev, allJobs, loading: false }));
           } catch {
@@ -1259,6 +1328,8 @@ export function ServicesReportTable() {
 
       await Promise.all(bindPromises);
 
+      console.log(`[Bind Dialog] Successfully bound ${jobUuids.length} job(s) to ${jobLinkBulkBindDialog.selectedProjectUuids.length} project(s)`);
+      
       setJobLinkBulkBindDialog((prev) => ({ ...prev, open: false, saving: false, selectedProjectUuids: [] }));
       setJobLinkDialog((prev) => ({ ...prev, linkedJobUuids: new Set() }));
       // Refresh report to show updated bindings
@@ -1266,10 +1337,51 @@ export function ServicesReportTable() {
       alert(`Successfully bound ${jobUuids.length} job(s) to ${jobLinkBulkBindDialog.selectedProjectUuids.length} project(s)`);
     } catch (error) {
       console.error('Failed to bulk bind jobs:', error);
-      alert('Failed to bind jobs to projects');
+      alert('Failed to bind jobs to projects: ' + (error instanceof Error ? error.message : String(error)));
       setJobLinkBulkBindDialog((prev) => ({ ...prev, saving: false }));
     }
   };
+
+  const openJobLinkBulkBindDialog = async (predefinedProjectUuid?: string) => {
+    // If project is predefined from the row, skip loading all projects
+    if (predefinedProjectUuid) {
+      // Pre-populate with the predefined project
+      setJobLinkBulkBindDialog((prev) => ({ 
+        ...prev, 
+        open: true, 
+        selectedProjectUuids: [predefinedProjectUuid],
+        loading: false 
+      }));
+      console.log(`[Bind Dialog] Pre-populated with project: ${predefinedProjectUuid}`);
+      return;
+    }
+    
+    // Load projects if not already loaded
+    if (paymentProjects.length === 0) {
+      setJobLinkBulkBindDialog((prev) => ({ ...prev, loading: true }));
+      try {
+        const projectsRes = await fetch('/api/projects-v2');
+        if (!projectsRes.ok) throw new Error('Failed to load projects');
+        const projectsData = await projectsRes.json();
+        const projectsList = Array.isArray(projectsData)
+          ? projectsData
+          : Array.isArray(projectsData?.data)
+            ? projectsData.data
+            : [];
+        setPaymentProjects(projectsList);
+        console.log(`[Bind Dialog] Loaded ${projectsList.length} projects`);
+      } catch (error) {
+        console.error('Failed to load projects:', error);
+        alert('Failed to load projects');
+        return;
+      } finally {
+        setJobLinkBulkBindDialog((prev) => ({ ...prev, loading: false }));
+      }
+    }
+    
+    setJobLinkBulkBindDialog((prev) => ({ ...prev, open: true }));
+  };
+
 
   const openAddLedgerCostsDialog = async (projectUuid: string, projectName: string) => {
     setAddLedgerCostsProjectUuid(projectUuid);
@@ -2449,10 +2561,11 @@ export function ServicesReportTable() {
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={() => setJobLinkBulkBindDialog((prev) => ({ ...prev, open: true }))}
+                  onClick={() => openJobLinkBulkBindDialog(jobLinkDialog.projectUuid)}
                   className="h-8 text-xs"
+                  disabled={jobLinkBulkBindDialog.loading}
                 >
-                  Bind to Projects
+                  {jobLinkBulkBindDialog.loading ? 'Loading...' : 'Bind to Projects'}
                 </Button>
               </div>
             )}
@@ -2493,15 +2606,15 @@ export function ServicesReportTable() {
                         <div className="flex items-center gap-2">
                           <span>Original Project</span>
                           <ColumnFilterPopover
-                            columnKey="projectName"
+                            columnKey="projectIndex"
                             columnLabel="Original Project"
-                            values={jobLinkDialog.allJobs.map((j) => j.projectName).filter(Boolean)}
-                            activeFilters={new Set(jobLinkColumnFilters.projectName || [])}
+                            values={jobLinkDialog.allJobs.map((j) => j.projectIndex).filter(Boolean)}
+                            activeFilters={new Set(jobLinkColumnFilters.projectIndex || [])}
                             columnFormat="text"
                             onFilterChange={(values) => {
                               setJobLinkColumnFilters((prev) => ({
                                 ...prev,
-                                projectName: values.size > 0 ? Array.from(values) : [],
+                                projectIndex: values.size > 0 ? Array.from(values) : [],
                               }));
                             }}
                             onSort={() => {}}
@@ -2603,6 +2716,25 @@ export function ServicesReportTable() {
                           />
                         </div>
                       </th>
+                      <th className="px-4 py-2 text-left">
+                        <div className="flex items-center gap-2">
+                          <span>Service State</span>
+                          <ColumnFilterPopover
+                            columnKey="serviceState"
+                            columnLabel="Service State"
+                            values={jobLinkDialog.allJobs.map((j) => j.serviceState || '-').filter(Boolean)}
+                            activeFilters={new Set(jobLinkColumnFilters.serviceState || [])}
+                            columnFormat="text"
+                            onFilterChange={(values) => {
+                              setJobLinkColumnFilters((prev) => ({
+                                ...prev,
+                                serviceState: values.size > 0 ? Array.from(values) : [],
+                              }));
+                            }}
+                            onSort={() => {}}
+                          />
+                        </div>
+                      </th>
                       <th className="px-4 py-2 text-center w-12">Edit</th>
                     </tr>
                   </thead>
@@ -2622,12 +2754,13 @@ export function ServicesReportTable() {
                               <Checkbox checked={checked} onCheckedChange={() => toggleJobLink(job.jobUuid)} />
                             </td>
                             <td className="px-4 py-2 font-medium cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.jobName}</td>
-                            <td className="px-4 py-2 text-gray-600 cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.projectName || '-'}</td>
+                            <td className="px-4 py-2 text-gray-600 cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.projectIndex || '-'}</td>
                             <td className="px-4 py-2 text-gray-600 cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.brandName || '-'}</td>
                             <td className="px-4 py-2 text-right cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.floors ?? '-'}</td>
                             <td className="px-4 py-2 text-right cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.weight ?? '-'}</td>
                             <td className="px-4 py-2 text-center cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.isFf ? 'FF' : ''}</td>
                             <td className="px-4 py-2 text-center cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.isActive ? 'Yes' : 'No'}</td>
+                            <td className="px-4 py-2 text-left cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.serviceState || '-'}</td>
                             <td className="px-4 py-2 text-center" onClick={(e) => e.stopPropagation()}>
                               <Button
                                 size="sm"
@@ -2676,7 +2809,7 @@ export function ServicesReportTable() {
               {jobLinkEditDialog.loading ? (
                 <div className="text-sm text-gray-500 text-center py-8">Loading job details...</div>
               ) : (
-                <>
+                <div className="space-y-4">
                   <div>
                     <Label htmlFor="job-name">Job Name *</Label>
                     <Input
@@ -2685,6 +2818,52 @@ export function ServicesReportTable() {
                       onChange={(e) => setJobLinkEditDialog((prev) => ({ ...prev, jobName: e.target.value }))}
                       placeholder="Enter job name"
                       disabled={jobLinkEditDialog.saving}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="job-factory-no">Factory No</Label>
+                    <Input
+                      id="job-factory-no"
+                      value={jobLinkEditDialog.factoryNo}
+                      onChange={(e) => setJobLinkEditDialog((prev) => ({ ...prev, factoryNo: e.target.value }))}
+                      placeholder="Enter factory number"
+                      disabled={jobLinkEditDialog.saving}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="job-brand">Brand *</Label>
+                    <Select
+                      value={jobLinkEditDialog.brandUuid}
+                      onValueChange={(value) => setJobLinkEditDialog((prev) => ({ ...prev, brandUuid: value }))}
+                      disabled={jobLinkEditDialog.saving}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select brand..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {jobEditBrands.map((brand: any) => (
+                          <SelectItem key={brand.uuid || brand.id} value={brand.uuid || brand.id}>
+                            {brand.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="job-projects">Projects *</Label>
+                    <MultiCombobox
+                      options={paymentProjects
+                        .filter(p => p.project_uuid || p.projectUuid)
+                        .map(p => ({
+                          value: (p.project_uuid || p.projectUuid) as string,
+                          label: `${p.project_index || p.projectIndex} - ${p.project_name || p.projectName}`,
+                          keywords: `${p.project_index || p.projectIndex} ${p.project_name || p.projectName}`
+                        }))}
+                      value={jobLinkEditDialog.projectUuids || []}
+                      onValueChange={(values: string[]) => setJobLinkEditDialog((prev) => ({ ...prev, projectUuids: values }))}
+                      placeholder="Select one or more projects..."
+                      searchPlaceholder="Search projects..."
+                      emptyText="No project found."
                     />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2725,32 +2904,36 @@ export function ServicesReportTable() {
                         disabled={jobLinkEditDialog.saving}
                       />
                     </div>
-                    <div className="flex items-end gap-4">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id="job-ff"
-                          checked={jobLinkEditDialog.isFf}
-                          onChange={(e) => setJobLinkEditDialog((prev) => ({ ...prev, isFf: e.target.checked }))}
-                          disabled={jobLinkEditDialog.saving}
-                          className="rounded"
-                        />
-                        <Label htmlFor="job-ff" className="text-sm font-medium cursor-pointer">FF</Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id="job-active"
-                          checked={jobLinkEditDialog.isActive}
-                          onChange={(e) => setJobLinkEditDialog((prev) => ({ ...prev, isActive: e.target.checked }))}
-                          disabled={jobLinkEditDialog.saving}
-                          className="rounded"
-                        />
-                        <Label htmlFor="job-active" className="text-sm font-medium cursor-pointer">Active</Label>
-                      </div>
+                    <div>
+                      <Label htmlFor="job-service-state">Service State</Label>
+                      <Select
+                        value={jobLinkEditDialog.serviceState}
+                        onValueChange={(value) => setJobLinkEditDialog((prev) => ({ ...prev, serviceState: value }))}
+                        disabled={jobLinkEditDialog.saving}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select service state..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Active">Active</SelectItem>
+                          <SelectItem value="Conversion">Conversion</SelectItem>
+                          <SelectItem value="Free">Free</SelectItem>
+                          <SelectItem value="Others">Others</SelectItem>
+                          <SelectItem value="Recovery">Recovery</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
-                </>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="job-ff"
+                      checked={jobLinkEditDialog.isFf}
+                      onCheckedChange={(checked) => setJobLinkEditDialog((prev) => ({ ...prev, isFf: checked }))}
+                      disabled={jobLinkEditDialog.saving}
+                    />
+                    <Label htmlFor="job-ff">FF (firefighter)</Label>
+                  </div>
+                </div>
               )}
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-3 border-t">
@@ -2787,44 +2970,23 @@ export function ServicesReportTable() {
             </div>
             <div className="px-5 py-4 space-y-4">
               <div className="text-sm text-gray-600">
-                {jobLinkDialog.linkedJobUuids.size} job{jobLinkDialog.linkedJobUuids.size !== 1 ? 's' : ''} will be bound to the selected projects.
+                {jobLinkDialog.linkedJobUuids.size} job{jobLinkDialog.linkedJobUuids.size !== 1 ? 's' : ''} will be bound to project.
               </div>
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Projects *</Label>
-                <div className="border rounded-lg p-3 max-h-64 overflow-y-auto space-y-2">
-                  {paymentProjects.length === 0 ? (
-                    <div className="text-xs text-gray-400">No projects available</div>
-                  ) : (
-                    paymentProjects.map((proj) => {
-                      const projUuid = proj.project_uuid || '';
-                      if (!projUuid) return null;
-                      return (
-                        <div key={projUuid} className="flex items-center gap-2">
-                          <Checkbox
-                            id={`project-${projUuid}`}
-                            checked={jobLinkBulkBindDialog.selectedProjectUuids.includes(projUuid)}
-                            onCheckedChange={(checked) => {
-                              setJobLinkBulkBindDialog((prev) => ({
-                                ...prev,
-                                selectedProjectUuids: checked
-                                  ? [...prev.selectedProjectUuids, projUuid]
-                                  : prev.selectedProjectUuids.filter((uuid) => uuid !== projUuid),
-                              }));
-                            }}
-                            disabled={jobLinkBulkBindDialog.saving}
-                          />
-                          <Label
-                            htmlFor={`project-${projUuid}`}
-                            className="text-sm cursor-pointer flex-1"
-                          >
-                            {proj.project_index} - {proj.project_name}
-                          </Label>
-                        </div>
+              {jobLinkBulkBindDialog.selectedProjectUuids.length > 0 && (
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <div className="text-sm font-medium text-gray-700">Target Project:</div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    {(() => {
+                      const targetProj = paymentProjects.find(
+                        (p) => (p.project_uuid || '') === jobLinkBulkBindDialog.selectedProjectUuids[0]
                       );
-                    })
-                  )}
+                      return targetProj
+                        ? `${targetProj.project_index} - ${targetProj.project_name}`
+                        : jobLinkBulkBindDialog.selectedProjectUuids[0];
+                    })()}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-3 border-t">
               <Button
