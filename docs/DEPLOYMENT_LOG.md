@@ -1,5 +1,56 @@
 # Deployment Log
 
+## 2026-07-17 Deployment #399 (Feature: Bulk Service State Editing & Enhanced Bind Dialog)
+- Commit: be96e97
+- Production: https://ice-fp5pi9kul-iceerp.vercel.app
+- Summary: Added bulk service state editing capabilities and enhanced bind jobs dialog with inline bulk operations in both Jobs page and Service Report.
+- Features Implemented:
+  1. **Jobs Page Bulk Operations**:
+     - New "Edit Service State (N)" button appears when jobs are selected
+     - Select dropdown to choose new state (Active, Conversion, Free, Others, Recovery)
+     - Single API call to update all selected jobs' service state
+     - Dialog with cancel and update buttons for confirmation
+  2. **Service Report Bind Jobs Dialog Enhancements**:
+     - Added bulk operations toolbar when jobs are selected in the dialog
+     - Inline Select control + "Update Service State" button
+     - Same functionality as jobs page, with dialog staying open
+     - Non-intrusive toolbar that doesn't interfere with binding workflow
+  3. **API Enhancement**:
+     - PUT `/api/jobs` now supports `bulkUpdate` flag
+     - When `bulkUpdate: true`, processes `jobUuids[]` array with single `serviceState` value
+     - Optimized single-query UPDATE statement for performance
+- Implementation Details:
+  - UI State Management:
+    - Jobs table: `isBulkServiceStateOpen`, `bulkServiceState`, `isBulkServiceStateUpdating`
+    - Services report: `jobLinkBulkServiceState`, `jobLinkBulkUpdating`
+  - Handlers:
+    - `handleBulkServiceStateUpdate()` in jobs-table.tsx
+    - `handleJobLinkBulkServiceStateUpdate()` in services-report-table.tsx
+  - UI Updates:
+    - Jobs toolbar: Two buttons when rows selected (Bind + Edit Service State)
+    - Service Report dialog: Conditional toolbar with bulk state selector and update button
+    - Both dialogs use Select component with all 5 enum options
+- Files Modified:
+  - `components/figma/jobs-table.tsx` - State, handlers, button, and dialog for bulk service state
+  - `components/figma/services-report-table.tsx` - Enhanced dialog with toolbar and bulk operations
+  - `app/api/jobs/route.ts` - Added bulk update logic to PUT handler
+  - `AGENTS.md` - Updated documentation with bulk operations workflow
+- Build & Testing:
+  - ✅ Build succeeded with "Compiled successfully" message
+  - ✅ All TypeScript validations passed
+  - ✅ ESLint warnings reviewed (pre-existing, unrelated to changes)
+  - ✅ Production deployment successful
+- User Workflows:
+  1. **Jobs Page**: Select jobs → Click "Edit Service State (N)" → Choose state → Update
+  2. **Service Report Dialog**: Select jobs → Use toolbar state selector → Update Service State (optional) → Click "Save" to bind
+- Impact:
+  - ✅ Users can now batch-edit service state for multiple jobs from single page
+  - ✅ Service report dialog provides dual-purpose workflow: bind + bulk edit state
+  - ✅ Maintains existing "Bind to Projects" functionality for jobs page
+  - ✅ Dialog enhancements are non-intrusive and optional
+  - ✅ Improved efficiency for managing job lifecycle states
+- Status: ✅ Deployed
+
 ## 2026-07-17 Deployment #398 (Feature: Add Service State Column to Jobs)
 - Commit: e292dd4
 - Production: https://ice-r2o1f8i22-iceerp.vercel.app
