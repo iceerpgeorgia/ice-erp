@@ -454,6 +454,18 @@ export function ServicesReportTable() {
   });
   const [jobLinkBulkServiceState, setJobLinkBulkServiceState] = useState<string>('Active');
   const [jobLinkBulkUpdating, setJobLinkBulkUpdating] = useState(false);
+  const [jobLinkBulkBindDialog, setJobLinkBulkBindDialog] = useState<{
+    open: boolean;
+    selectedProjectUuids: string[];
+    loading: boolean;
+    saving: boolean;
+  }>({
+    open: false,
+    selectedProjectUuids: [],
+    loading: false,
+    saving: false,
+  });
+  const [jobLinkColumnFilters, setJobLinkColumnFilters] = useState<Record<string, string[]>>({});
   const [jobLinkEditDialog, setJobLinkEditDialog] = useState<{
     open: boolean;
     jobUuid: string | null;
@@ -828,14 +840,40 @@ export function ServicesReportTable() {
   };
 
   const filteredDialogJobs = useMemo(() => {
+    let jobs = jobLinkDialog.allJobs;
+
+    // Apply search filter
     const s = jobLinkDialog.search.toLowerCase();
-    if (!s) return jobLinkDialog.allJobs;
-    return jobLinkDialog.allJobs.filter((j) =>
-      j.jobName.toLowerCase().includes(s) ||
-      j.projectName.toLowerCase().includes(s) ||
-      j.brandName.toLowerCase().includes(s)
-    );
-  }, [jobLinkDialog.allJobs, jobLinkDialog.search]);
+    if (s) {
+      jobs = jobs.filter((j) =>
+        j.jobName.toLowerCase().includes(s) ||
+        j.projectName.toLowerCase().includes(s) ||
+        j.brandName.toLowerCase().includes(s)
+      );
+    }
+
+    // Apply column filters
+    if (Object.keys(jobLinkColumnFilters).length > 0) {
+      jobs = jobs.filter((job) => {
+        for (const [column, values] of Object.entries(jobLinkColumnFilters)) {
+          if (values.length === 0) continue;
+          let fieldValue = '';
+          if (column === 'jobName') fieldValue = job.jobName;
+          else if (column === 'projectName') fieldValue = job.projectName;
+          else if (column === 'brandName') fieldValue = job.brandName;
+          else if (column === 'floors') fieldValue = job.floors?.toString() || '';
+          else if (column === 'weight') fieldValue = job.weight?.toString() || '';
+          else if (column === 'isFf') fieldValue = job.isFf ? 'FF' : 'No';
+          else if (column === 'isActive') fieldValue = job.isActive ? 'Yes' : 'No';
+          
+          if (!values.includes(fieldValue)) return false;
+        }
+        return true;
+      });
+    }
+
+    return jobs;
+  }, [jobLinkDialog.allJobs, jobLinkDialog.search, jobLinkColumnFilters]);
 
   const allFilteredChecked = filteredDialogJobs.length > 0 && filteredDialogJobs.every((j) => jobLinkDialog.linkedJobUuids.has(j.jobUuid));
 
@@ -1194,6 +1232,42 @@ export function ServicesReportTable() {
       console.error('Failed to save job:', error);
       alert('Failed to save job changes');
       setJobLinkEditDialog((prev) => ({ ...prev, saving: false }));
+    }
+  };
+
+  const handleJobLinkBulkBind = async () => {
+    if (jobLinkDialog.linkedJobUuids.size === 0 || jobLinkBulkBindDialog.selectedProjectUuids.length === 0) return;
+    
+    setJobLinkBulkBindDialog((prev) => ({ ...prev, saving: true }));
+    try {
+      const jobUuids = Array.from(jobLinkDialog.linkedJobUuids).filter((value) => UUID_REGEX.test(value));
+      
+      // Bind each selected job to each selected project
+      const bindPromises = jobLinkBulkBindDialog.selectedProjectUuids.map((projectUuid) =>
+        fetch('/api/job-projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectUuid,
+            jobUuids,
+          }),
+        }).then((res) => {
+          if (!res.ok) throw new Error(`Failed to bind jobs to project ${projectUuid}`);
+          return res.json();
+        })
+      );
+
+      await Promise.all(bindPromises);
+
+      setJobLinkBulkBindDialog((prev) => ({ ...prev, open: false, saving: false, selectedProjectUuids: [] }));
+      setJobLinkDialog((prev) => ({ ...prev, linkedJobUuids: new Set() }));
+      // Refresh report to show updated bindings
+      await fetchReport();
+      alert(`Successfully bound ${jobUuids.length} job(s) to ${jobLinkBulkBindDialog.selectedProjectUuids.length} project(s)`);
+    } catch (error) {
+      console.error('Failed to bulk bind jobs:', error);
+      alert('Failed to bind jobs to projects');
+      setJobLinkBulkBindDialog((prev) => ({ ...prev, saving: false }));
     }
   };
 
@@ -2313,11 +2387,11 @@ export function ServicesReportTable() {
             </div>
             {/* Bulk operations toolbar */}
             {jobLinkDialog.linkedJobUuids.size > 0 && (
-              <div className="px-5 py-3 border-b bg-blue-50 flex items-center gap-3 shrink-0">
+              <div className="px-5 py-3 border-b bg-blue-50 flex items-center gap-4 shrink-0">
                 <span className="text-sm font-medium text-gray-700">
                   {jobLinkDialog.linkedJobUuids.size} job{jobLinkDialog.linkedJobUuids.size !== 1 ? 's' : ''} selected
                 </span>
-                <div className="flex items-center gap-2 flex-1 ml-4 max-w-sm">
+                <div className="flex items-center gap-2">
                   <Select value={jobLinkBulkServiceState} onValueChange={setJobLinkBulkServiceState}>
                     <SelectTrigger className="h-8 text-sm">
                       <SelectValue />
@@ -2340,6 +2414,15 @@ export function ServicesReportTable() {
                     {jobLinkBulkUpdating ? 'Updating...' : 'Update Service State'}
                   </Button>
                 </div>
+                <div className="h-6 w-px bg-gray-300" />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setJobLinkBulkBindDialog((prev) => ({ ...prev, open: true }))}
+                  className="h-8 text-xs"
+                >
+                  Bind to Projects
+                </Button>
               </div>
             )}
             <div className="flex-1 overflow-auto">
@@ -2356,13 +2439,139 @@ export function ServicesReportTable() {
                           title="Select / deselect all filtered"
                         />
                       </th>
-                      <th className="px-4 py-2 text-left">Job Name</th>
-                      <th className="px-4 py-2 text-left">Original Project</th>
-                      <th className="px-4 py-2 text-left">Brand</th>
-                      <th className="px-4 py-2 text-right">Floors</th>
-                      <th className="px-4 py-2 text-right">Weight</th>
-                      <th className="px-4 py-2 text-center">FF</th>
-                      <th className="px-4 py-2 text-center">Active</th>
+                      <th className="px-4 py-2 text-left">
+                        <div className="flex items-center gap-2">
+                          <span>Job Name</span>
+                          <ColumnFilterPopover
+                            columnKey="jobName"
+                            columnLabel="Job Name"
+                            values={jobLinkDialog.allJobs.map((j) => j.jobName).filter(Boolean)}
+                            activeFilters={new Set(jobLinkColumnFilters.jobName || [])}
+                            columnFormat="text"
+                            onFilterChange={(values) => {
+                              setJobLinkColumnFilters((prev) => ({
+                                ...prev,
+                                jobName: values.size > 0 ? Array.from(values) : [],
+                              }));
+                            }}
+                            onSort={() => {}}
+                          />
+                        </div>
+                      </th>
+                      <th className="px-4 py-2 text-left">
+                        <div className="flex items-center gap-2">
+                          <span>Original Project</span>
+                          <ColumnFilterPopover
+                            columnKey="projectName"
+                            columnLabel="Original Project"
+                            values={jobLinkDialog.allJobs.map((j) => j.projectName).filter(Boolean)}
+                            activeFilters={new Set(jobLinkColumnFilters.projectName || [])}
+                            columnFormat="text"
+                            onFilterChange={(values) => {
+                              setJobLinkColumnFilters((prev) => ({
+                                ...prev,
+                                projectName: values.size > 0 ? Array.from(values) : [],
+                              }));
+                            }}
+                            onSort={() => {}}
+                          />
+                        </div>
+                      </th>
+                      <th className="px-4 py-2 text-left">
+                        <div className="flex items-center gap-2">
+                          <span>Brand</span>
+                          <ColumnFilterPopover
+                            columnKey="brandName"
+                            columnLabel="Brand"
+                            values={jobLinkDialog.allJobs.map((j) => j.brandName).filter(Boolean)}
+                            activeFilters={new Set(jobLinkColumnFilters.brandName || [])}
+                            columnFormat="text"
+                            onFilterChange={(values) => {
+                              setJobLinkColumnFilters((prev) => ({
+                                ...prev,
+                                brandName: values.size > 0 ? Array.from(values) : [],
+                              }));
+                            }}
+                            onSort={() => {}}
+                          />
+                        </div>
+                      </th>
+                      <th className="px-4 py-2 text-right">
+                        <div className="flex items-center gap-2 justify-end">
+                          <span>Floors</span>
+                          <ColumnFilterPopover
+                            columnKey="floors"
+                            columnLabel="Floors"
+                            values={jobLinkDialog.allJobs.map((j) => j.floors?.toString()).filter(Boolean) as any[]}
+                            activeFilters={new Set(jobLinkColumnFilters.floors || [])}
+                            columnFormat="number"
+                            onFilterChange={(values) => {
+                              setJobLinkColumnFilters((prev) => ({
+                                ...prev,
+                                floors: values.size > 0 ? Array.from(values) : [],
+                              }));
+                            }}
+                            onSort={() => {}}
+                          />
+                        </div>
+                      </th>
+                      <th className="px-4 py-2 text-right">
+                        <div className="flex items-center gap-2 justify-end">
+                          <span>Weight</span>
+                          <ColumnFilterPopover
+                            columnKey="weight"
+                            columnLabel="Weight"
+                            values={jobLinkDialog.allJobs.map((j) => j.weight?.toString()).filter(Boolean) as any[]}
+                            activeFilters={new Set(jobLinkColumnFilters.weight || [])}
+                            columnFormat="number"
+                            onFilterChange={(values) => {
+                              setJobLinkColumnFilters((prev) => ({
+                                ...prev,
+                                weight: values.size > 0 ? Array.from(values) : [],
+                              }));
+                            }}
+                            onSort={() => {}}
+                          />
+                        </div>
+                      </th>
+                      <th className="px-4 py-2 text-center">
+                        <div className="flex items-center gap-2 justify-center">
+                          <span>FF</span>
+                          <ColumnFilterPopover
+                            columnKey="isFf"
+                            columnLabel="FF"
+                            values={['FF', 'No']}
+                            activeFilters={new Set(jobLinkColumnFilters.isFf || [])}
+                            columnFormat="text"
+                            onFilterChange={(values) => {
+                              setJobLinkColumnFilters((prev) => ({
+                                ...prev,
+                                isFf: values.size > 0 ? Array.from(values) : [],
+                              }));
+                            }}
+                            onSort={() => {}}
+                          />
+                        </div>
+                      </th>
+                      <th className="px-4 py-2 text-center">
+                        <div className="flex items-center gap-2 justify-center">
+                          <span>Active</span>
+                          <ColumnFilterPopover
+                            columnKey="isActive"
+                            columnLabel="Active"
+                            values={['Yes', 'No']}
+                            activeFilters={new Set(jobLinkColumnFilters.isActive || [])}
+                            columnFormat="text"
+                            onFilterChange={(values) => {
+                              setJobLinkColumnFilters((prev) => ({
+                                ...prev,
+                                isActive: values.size > 0 ? Array.from(values) : [],
+                              }));
+                            }}
+                            onSort={() => {}}
+                          />
+                        </div>
+                      </th>
                       <th className="px-4 py-2 text-center w-12">Edit</th>
                     </tr>
                   </thead>
@@ -2526,6 +2735,79 @@ export function ServicesReportTable() {
                 disabled={jobLinkEditDialog.saving || jobLinkEditDialog.loading}
               >
                 {jobLinkEditDialog.saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {jobLinkBulkBindDialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b px-5 py-3">
+              <h2 className="text-base font-semibold">Bind Jobs to Projects</h2>
+              <button
+                onClick={() => setJobLinkBulkBindDialog((prev) => ({ ...prev, open: false, selectedProjectUuids: [] }))}
+                className="text-gray-400 hover:text-gray-600"
+                disabled={jobLinkBulkBindDialog.saving}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div className="text-sm text-gray-600">
+                {jobLinkDialog.linkedJobUuids.size} job{jobLinkDialog.linkedJobUuids.size !== 1 ? 's' : ''} will be bound to the selected projects.
+              </div>
+              <div>
+                <Label className="text-sm font-medium mb-2 block">Projects *</Label>
+                <div className="border rounded-lg p-3 max-h-64 overflow-y-auto space-y-2">
+                  {paymentProjects.length === 0 ? (
+                    <div className="text-xs text-gray-400">No projects available</div>
+                  ) : (
+                    paymentProjects.map((proj) => {
+                      const projUuid = proj.project_uuid || '';
+                      if (!projUuid) return null;
+                      return (
+                        <div key={projUuid} className="flex items-center gap-2">
+                          <Checkbox
+                            id={`project-${projUuid}`}
+                            checked={jobLinkBulkBindDialog.selectedProjectUuids.includes(projUuid)}
+                            onCheckedChange={(checked) => {
+                              setJobLinkBulkBindDialog((prev) => ({
+                                ...prev,
+                                selectedProjectUuids: checked
+                                  ? [...prev.selectedProjectUuids, projUuid]
+                                  : prev.selectedProjectUuids.filter((uuid) => uuid !== projUuid),
+                              }));
+                            }}
+                            disabled={jobLinkBulkBindDialog.saving}
+                          />
+                          <Label
+                            htmlFor={`project-${projUuid}`}
+                            className="text-sm cursor-pointer flex-1"
+                          >
+                            {proj.project_index} - {proj.project_name}
+                          </Label>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t">
+              <Button
+                variant="outline"
+                onClick={() => setJobLinkBulkBindDialog((prev) => ({ ...prev, open: false, selectedProjectUuids: [] }))}
+                disabled={jobLinkBulkBindDialog.saving}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleJobLinkBulkBind}
+                disabled={jobLinkBulkBindDialog.saving || jobLinkBulkBindDialog.selectedProjectUuids.length === 0}
+              >
+                {jobLinkBulkBindDialog.saving ? 'Binding...' : 'Bind Jobs'}
               </Button>
             </div>
           </div>
