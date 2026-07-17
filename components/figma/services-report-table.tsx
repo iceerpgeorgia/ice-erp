@@ -454,6 +454,29 @@ export function ServicesReportTable() {
   });
   const [jobLinkBulkServiceState, setJobLinkBulkServiceState] = useState<string>('Active');
   const [jobLinkBulkUpdating, setJobLinkBulkUpdating] = useState(false);
+  const [jobLinkEditDialog, setJobLinkEditDialog] = useState<{
+    open: boolean;
+    jobUuid: string | null;
+    jobName: string;
+    floors: string;
+    weight: string;
+    sellingPrice: string;
+    isFf: boolean;
+    isActive: boolean;
+    loading: boolean;
+    saving: boolean;
+  }>({
+    open: false,
+    jobUuid: null,
+    jobName: '',
+    floors: '',
+    weight: '',
+    sellingPrice: '',
+    isFf: false,
+    isActive: true,
+    loading: false,
+    saving: false,
+  });
   const [paymentProjects, setPaymentProjects] = useState<ProjectOption[]>([]);
   const [paymentCounteragents, setPaymentCounteragents] = useState<CounteragentOption[]>([]);
   const [paymentFinancialCodes, setPaymentFinancialCodes] = useState<FinancialCodeOption[]>([]);
@@ -1094,6 +1117,83 @@ export function ServicesReportTable() {
       alert('Failed to update service state for selected jobs');
     } finally {
       setJobLinkBulkUpdating(false);
+    }
+  };
+
+  const openJobLinkEditDialog = async (jobUuid: string) => {
+    setJobLinkEditDialog((prev) => ({ ...prev, open: true, jobUuid, loading: true }));
+    try {
+      const response = await fetch(`/api/jobs?uuid=${jobUuid}`);
+      if (response.ok) {
+        const jobsData = await response.json();
+        const job = Array.isArray(jobsData) ? jobsData.find((j: any) => j.jobUuid === jobUuid || j.uuid === jobUuid) : null;
+        if (job) {
+          setJobLinkEditDialog((prev) => ({
+            ...prev,
+            jobName: job.jobName || job.job_name || '',
+            floors: job.floors?.toString() || '',
+            weight: job.weight?.toString() || '',
+            sellingPrice: job.sellingPrice?.toString() || job.selling_price?.toString() || '',
+            isFf: Boolean(job.isFf || job.is_ff),
+            isActive: job.is_active !== false,
+            loading: false,
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch job details:', error);
+      setJobLinkEditDialog((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleJobLinkEditSave = async () => {
+    if (!jobLinkEditDialog.jobUuid) return;
+    setJobLinkEditDialog((prev) => ({ ...prev, saving: true }));
+    try {
+      const response = await fetch('/api/jobs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: jobLinkEditDialog.jobUuid,
+          jobName: jobLinkEditDialog.jobName,
+          floors: jobLinkEditDialog.floors ? parseInt(jobLinkEditDialog.floors) : null,
+          weight: jobLinkEditDialog.weight ? parseFloat(jobLinkEditDialog.weight) : null,
+          sellingPrice: jobLinkEditDialog.sellingPrice ? parseFloat(jobLinkEditDialog.sellingPrice) : null,
+          isFf: jobLinkEditDialog.isFf,
+          isActive: jobLinkEditDialog.isActive,
+        }),
+      });
+
+      if (response.ok) {
+        setJobLinkEditDialog((prev) => ({ ...prev, open: false, saving: false, jobUuid: null }));
+        // Refresh the jobs in the dialog
+        if (jobLinkDialog.projectUuid) {
+          setJobLinkDialog((prev) => ({ ...prev, loading: true }));
+          try {
+            const jobsRes = await fetch('/api/jobs');
+            const jobsData = jobsRes.ok ? await jobsRes.json() : [];
+            const allJobs: JobRow[] = (Array.isArray(jobsData) ? jobsData : []).map((j: any) => ({
+              jobUuid: j.jobUuid,
+              jobName: j.jobName || j.job_name || '',
+              projectName: j.projectName || j.project_name || '',
+              brandName: j.brandName || j.brand_name || '',
+              floors: j.floors ?? null,
+              weight: j.weight ?? null,
+              isFf: Boolean(j.isFf || j.is_ff),
+              isActive: j.is_active !== false,
+            }));
+            setJobLinkDialog((prev) => ({ ...prev, allJobs, loading: false }));
+          } catch {
+            setJobLinkDialog((prev) => ({ ...prev, loading: false }));
+          }
+        }
+      } else {
+        throw new Error('Failed to save job');
+      }
+    } catch (error) {
+      console.error('Failed to save job:', error);
+      alert('Failed to save job changes');
+      setJobLinkEditDialog((prev) => ({ ...prev, saving: false }));
     }
   };
 
@@ -2263,11 +2363,12 @@ export function ServicesReportTable() {
                       <th className="px-4 py-2 text-right">Weight</th>
                       <th className="px-4 py-2 text-center">FF</th>
                       <th className="px-4 py-2 text-center">Active</th>
+                      <th className="px-4 py-2 text-center w-12">Edit</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredDialogJobs.length === 0 ? (
-                      <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No jobs match your search.</td></tr>
+                      <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">No jobs match your search.</td></tr>
                     ) : (
                       filteredDialogJobs.map((job) => {
                         const checked = jobLinkDialog.linkedJobUuids.has(job.jobUuid);
@@ -2275,19 +2376,28 @@ export function ServicesReportTable() {
                         return (
                           <tr
                             key={uniqueRowKey}
-                            className={`border-b hover:bg-gray-50 cursor-pointer ${checked ? 'bg-blue-50' : ''}`}
-                            onClick={() => toggleJobLink(job.jobUuid)}
+                            className={`border-b hover:bg-gray-50 ${checked ? 'bg-blue-50' : ''}`}
                           >
                             <td className="px-4 py-2">
                               <Checkbox checked={checked} onCheckedChange={() => toggleJobLink(job.jobUuid)} />
                             </td>
-                            <td className="px-4 py-2 font-medium">{job.jobName}</td>
-                            <td className="px-4 py-2 text-gray-600">{job.projectName || '-'}</td>
-                            <td className="px-4 py-2 text-gray-600">{job.brandName || '-'}</td>
-                            <td className="px-4 py-2 text-right">{job.floors ?? '-'}</td>
-                            <td className="px-4 py-2 text-right">{job.weight ?? '-'}</td>
-                            <td className="px-4 py-2 text-center">{job.isFf ? 'FF' : ''}</td>
-                            <td className="px-4 py-2 text-center">{job.isActive ? 'Yes' : 'No'}</td>
+                            <td className="px-4 py-2 font-medium cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.jobName}</td>
+                            <td className="px-4 py-2 text-gray-600 cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.projectName || '-'}</td>
+                            <td className="px-4 py-2 text-gray-600 cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.brandName || '-'}</td>
+                            <td className="px-4 py-2 text-right cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.floors ?? '-'}</td>
+                            <td className="px-4 py-2 text-right cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.weight ?? '-'}</td>
+                            <td className="px-4 py-2 text-center cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.isFf ? 'FF' : ''}</td>
+                            <td className="px-4 py-2 text-center cursor-pointer hover:underline" onClick={() => toggleJobLink(job.jobUuid)}>{job.isActive ? 'Yes' : 'No'}</td>
+                            <td className="px-4 py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0"
+                                onClick={() => openJobLinkEditDialog(job.jobUuid)}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            </td>
                           </tr>
                         );
                       })
@@ -2302,6 +2412,120 @@ export function ServicesReportTable() {
               </Button>
               <Button onClick={saveJobLinks} disabled={jobLinkDialog.saving || jobLinkDialog.loading}>
                 {jobLinkDialog.saving ? 'Saving...' : `Save (${jobLinkDialog.linkedJobUuids.size} jobs)`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Job Edit Dialog */}
+      {jobLinkEditDialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b px-5 py-3 sticky top-0 bg-white">
+              <h2 className="text-base font-semibold">Edit Job</h2>
+              <button 
+                onClick={() => setJobLinkEditDialog((prev) => ({ ...prev, open: false, jobUuid: null }))} 
+                className="text-gray-400 hover:text-gray-600" 
+                disabled={jobLinkEditDialog.saving}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4 px-5 py-4">
+              {jobLinkEditDialog.loading ? (
+                <div className="text-sm text-gray-500 text-center py-8">Loading job details...</div>
+              ) : (
+                <>
+                  <div>
+                    <Label htmlFor="job-name">Job Name *</Label>
+                    <Input
+                      id="job-name"
+                      value={jobLinkEditDialog.jobName}
+                      onChange={(e) => setJobLinkEditDialog((prev) => ({ ...prev, jobName: e.target.value }))}
+                      placeholder="Enter job name"
+                      disabled={jobLinkEditDialog.saving}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="job-floors">Floors *</Label>
+                      <Input
+                        id="job-floors"
+                        type="number"
+                        value={jobLinkEditDialog.floors}
+                        onChange={(e) => setJobLinkEditDialog((prev) => ({ ...prev, floors: e.target.value }))}
+                        placeholder="Enter number of floors"
+                        disabled={jobLinkEditDialog.saving}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="job-weight">Weight (kg) *</Label>
+                      <Input
+                        id="job-weight"
+                        type="number"
+                        value={jobLinkEditDialog.weight}
+                        onChange={(e) => setJobLinkEditDialog((prev) => ({ ...prev, weight: e.target.value }))}
+                        placeholder="Enter weight in kg"
+                        disabled={jobLinkEditDialog.saving}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="job-selling-price">Selling Price</Label>
+                      <Input
+                        id="job-selling-price"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={jobLinkEditDialog.sellingPrice}
+                        onChange={(e) => setJobLinkEditDialog((prev) => ({ ...prev, sellingPrice: e.target.value }))}
+                        placeholder="Enter selling price"
+                        disabled={jobLinkEditDialog.saving}
+                      />
+                    </div>
+                    <div className="flex items-end gap-4">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="job-ff"
+                          checked={jobLinkEditDialog.isFf}
+                          onChange={(e) => setJobLinkEditDialog((prev) => ({ ...prev, isFf: e.target.checked }))}
+                          disabled={jobLinkEditDialog.saving}
+                          className="rounded"
+                        />
+                        <Label htmlFor="job-ff" className="text-sm font-medium cursor-pointer">FF</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="job-active"
+                          checked={jobLinkEditDialog.isActive}
+                          onChange={(e) => setJobLinkEditDialog((prev) => ({ ...prev, isActive: e.target.checked }))}
+                          disabled={jobLinkEditDialog.saving}
+                          className="rounded"
+                        />
+                        <Label htmlFor="job-active" className="text-sm font-medium cursor-pointer">Active</Label>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t">
+              <Button 
+                variant="outline" 
+                onClick={() => setJobLinkEditDialog((prev) => ({ ...prev, open: false, jobUuid: null }))}
+                disabled={jobLinkEditDialog.saving}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleJobLinkEditSave}
+                disabled={jobLinkEditDialog.saving || jobLinkEditDialog.loading}
+              >
+                {jobLinkEditDialog.saving ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
           </div>

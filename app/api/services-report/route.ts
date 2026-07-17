@@ -156,6 +156,7 @@ export async function GET(request: NextRequest) {
         JOIN payments p ON pl.payment_id = p.payment_id
         LEFT JOIN currencies c ON p.currency_uuid = c.uuid
         LEFT JOIN project_currency_info pci ON p.project_uuid = pci.project_uuid
+        LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid
         WHERE (pl.is_deleted = false OR pl.is_deleted IS NULL)
           AND p.financial_code_uuid IN (${financialCodePlaceholders})
           ${insiderFilter}
