@@ -288,13 +288,13 @@ const formatDate = (value: string | null) => {
   return `${day}.${month}.${year}`;
 };
 
-// Job service state colors with abbreviations
+// Job service state colors with abbreviations - pastel tones
 const JOB_STATE_COLORS: Record<string, { bg: string; text: string; abbr: string }> = {
-  active: { bg: '#D4EDDA', text: '#155724', abbr: 'A' }, // Green
-  conversion: { bg: '#FFE5CC', text: '#CC6600', abbr: 'C' }, // Orange
-  free: { bg: '#D1ECF1', text: '#0C5460', abbr: 'F' }, // Teal
-  others: { bg: '#E8EAED', text: '#5F6368', abbr: 'O' }, // Gray
-  recovery: { bg: '#F8D7DA', text: '#721C24', abbr: 'R' }, // Red
+  active: { bg: '#E8F8F5', text: '#2D7366', abbr: 'A' }, // Pastel green
+  conversion: { bg: '#F5EDD9', text: '#8B6F47', abbr: 'C' }, // Pastel orange
+  free: { bg: '#E6F7F9', text: '#3B7A8A', abbr: 'F' }, // Pastel teal
+  others: { bg: '#F0F1F2', text: '#6B7280', abbr: 'O' }, // Pastel gray
+  recovery: { bg: '#F9E8EB', text: '#A55D7E', abbr: 'R' }, // Pastel pink
 };
 
 const COLUMN_BG: Partial<Record<SectionColumnKey, string>> = {
@@ -2211,13 +2211,13 @@ export function ServicesReportTable() {
                       const isSortable = column.key !== 'actions';
                       const isFilterable = column.key !== 'actions';
                       
-                      // Apply job state colors to columns
+                      // Apply job state colors to columns - pastel tones
                       const jobStateColorMap: Record<string, string> = {
-                        jobsActive: '#D4EDDA',
-                        jobsConversion: '#FFE5CC',
-                        jobsFree: '#D1ECF1',
-                        jobsOthers: '#E8EAED',
-                        jobsRecovery: '#F8D7DA',
+                        jobsActive: '#E8F8F5',
+                        jobsConversion: '#F5EDD9',
+                        jobsFree: '#E6F7F9',
+                        jobsOthers: '#F0F1F2',
+                        jobsRecovery: '#F9E8EB',
                       };
                       const headerBg = jobStateColorMap[column.key] || bg || '#f9fafb';
                       
