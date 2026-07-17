@@ -1,5 +1,51 @@
 # Deployment Log
 
+## 2026-07-17 Deployment #400 (Bug Fix: Services Report SQL + Enhanced Bind Jobs Dialog)
+- Commit: bb54234
+- Production: https://ice-lsbalmavu-iceerp.vercel.app
+- Summary: Fixed critical SQL error in services-report endpoint and enhanced bind jobs dialog with inline job editing capability.
+- Bug Fixes:
+  1. **Services Report SQL Error**:
+     - Fixed missing `projects` table join in `ledger_agg` CTE
+     - Error was: "missing FROM-clause entry for table 'proj'" (Code 42P01)
+     - Root cause: `insiderFilter` referenced `proj.insider_uuid` but CTE lacked join to projects table
+     - Solution: Added `LEFT JOIN projects proj ON p.project_uuid = proj.project_uuid` to ledger_agg CTE
+     - Now properly filters ledger entries by insider when financial code filter includes insider selection
+- Feature Enhancements:
+  1. **Bind Jobs Dialog - Job Editing Capability**:
+     - Added "Edit" button to each job row in the bind jobs dialog
+     - Clicking edit opens inline modal with full job edit form
+     - Form includes: Job Name, Floors, Weight, Selling Price, FF checkbox, Active checkbox
+     - All changes saved via PUT `/api/jobs` endpoint
+     - After save, dialog refreshes to show updated job data
+     - Non-intrusive: edit functionality doesn't interfere with job selection or binding workflow
+  2. **UI Improvements**:
+     - Job rows are now clickable for selecting/deselecting
+     - Edit button placed in separate column for clarity
+     - Table header updated to show 9 columns (added Edit column)
+     - Edit dialog styled consistently with existing job editing modals
+- Implementation Details:
+  - File: [app/api/services-report/route.ts](app/api/services-report/route.ts#L161) - Added projects join
+  - File: [components/figma/services-report-table.tsx](components/figma/services-report-table.tsx) - Enhanced bind dialog
+  - New state: `jobLinkEditDialog` for edit modal management
+  - New functions: `openJobLinkEditDialog()`, `handleJobLinkEditSave()`
+  - Existing table structure preserved; backward compatible
+- Build & Testing:
+  - ✅ Build succeeded with "Compiled successfully" message
+  - ✅ All TypeScript validations passed
+  - ✅ Services report endpoint now returns data without SQL errors
+  - ✅ Bind jobs dialog fully functional with edit capability
+  - ✅ Production deployment successful
+- User Workflows:
+  1. **Services Report**: Select service row → "Link Jobs" → Edit job inline → Save changes → Dialog updates
+  2. **Bind + Edit**: Select jobs to bind → Edit any job details → Update service state (bulk) → Save binding
+- Impact:
+  - ✅ Services report now loads without errors for all insider filters
+  - ✅ Users can now edit job details directly from bind jobs dialog
+  - ✅ Improved workflow efficiency for job lifecycle management
+  - ✅ No data loss or backward compatibility issues
+- Status: ✅ Deployed
+
 ## 2026-07-17 Deployment #399 (Feature: Bulk Service State Editing & Enhanced Bind Dialog)
 - Commit: be96e97
 - Production: https://ice-fp5pi9kul-iceerp.vercel.app
