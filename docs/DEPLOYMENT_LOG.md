@@ -1,5 +1,57 @@
 # Deployment Log
 
+## 2026-07-17 Deployment #404 (Enhancement: Service Report Jobs Column Division by Service State)
+- Commit: 0c89f47
+- Production: https://ice-e2lu302fl-iceerp.vercel.app
+- Summary: Replaced single "Jobs" column with 5 color-coded service state columns (Active, Conversion, Free, Others, Recovery) showing job counts per state with professional badge styling.
+- Feature Enhancements:
+  1. **Column Replacement**:
+     - Divided single "Jobs" column into 5 separate subcolumns, one per service state
+     - Each column shows count with state abbreviation: A (Active), C (Conversion), F (Free), O (Others), R (Recovery)
+     - Columns width: 60px each (total 300px for jobs section)
+  2. **Colored Badge Rendering**:
+     - Active (A): Green badges (#D4EDDA bg, #155724 text)
+     - Conversion (C): Orange badges (#FFE5CC bg, #CC6600 text)
+     - Free (F): Teal badges (#D1ECF1 bg, #0C5460 text)
+     - Others (O): Gray badges (#E8EAED bg, #5F6368 text)
+     - Recovery (R): Red badges (#F8D7DA bg, #721C24 text)
+  3. **Badge Display Logic**:
+     - Shows count only when > 0 (e.g., "A5" for 5 active jobs)
+     - Displays "-" when count is 0
+     - Inline tooltips show full state name on hover
+     - Professional card styling with rounded corners
+  4. **Data Architecture**:
+     - API now returns `jobsByState` object with 5 numeric counts instead of single `jobsCount`
+     - Type system updated: ServicesRow, ServicesSummaryRow, and response totals reflect new structure
+     - Export logic sums all 5 states for backward compatibility
+  5. **User Interface**:
+     - Column headers updated: "Jobs A", "Jobs C", "Jobs F", "Jobs O", "Jobs R"
+     - Column visibility configurable via settings dropdown (existing functionality)
+     - Sorting and filtering supported on all 5 columns
+     - Job link button moved to actions column (simplified UI)
+  6. **API Changes**:
+     - File: [app/api/services-report/route.ts](app/api/services-report/route.ts)
+     - Added 5 separate SQL COUNT queries for each service state
+     - Response mapping includes `jobsByState: { active, conversion, free, others, recovery }`
+- Implementation Details:
+  - File: [components/figma/services-report-table.tsx](components/figma/services-report-table.tsx)
+  - Added `JOB_STATE_COLORS` constant with 5 color mappings
+  - Enhanced `getColumnValue()` function with 5 new job state cases
+  - Implemented colored badge rendering in table cell loop
+  - Updated default column configuration with 5 new entries
+  - Type updates: Removed `jobsCount`, added `jobsByState` object
+  - Column format mapping: Added 5 job state columns as 'number' format
+- Build & Testing:
+  - ✅ TypeScript validation: All type errors resolved
+  - ✅ Linting: `pnpm lint` - No new errors (only pre-existing warnings in other files)
+  - ✅ Build: `pnpm build` - "Compiled successfully"
+  - ✅ Production deployment successful via `npx vercel --prod --yes`
+- User Benefits:
+  - Visual at-a-glance job breakdown by service state
+  - Professional color coding matches business domain
+  - Cleaner table layout with focused state information
+  - Easier job management and filtering by state
+
 ## 2026-07-17 Deployment #403 (Enhancement: Bind Dialog Project Pre-Population & Service State Column)
 - Commit: 900a218
 - Production: https://ice-henawbqqn-iceerp.vercel.app
