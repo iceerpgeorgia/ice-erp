@@ -1134,8 +1134,9 @@ export function ServicesReportTable() {
         throw new Error(data?.error || 'Failed to save job links');
       }
 
+      // Close dialog without reloading all jobs
       setJobLinkDialog((prev) => ({ ...prev, open: false, saving: false }));
-      await fetchReport();
+      console.log(`[Bind Dialog] Bound ${jobUuids.length} jobs to project ${jobLinkDialog.projectUuid}`);
     } catch (err: any) {
       alert(err?.message || 'Failed to save job links');
       setJobLinkDialog((prev) => ({ ...prev, saving: false }));
@@ -1157,36 +1158,23 @@ export function ServicesReportTable() {
         }),
       });
       if (res.ok) {
-        // Refetch jobs for the dialog
-        setJobLinkBulkServiceState('Active');
-        setJobLinkDialog((prev) => ({ ...prev, linkedJobUuids: new Set(), loading: true }));
-        
-        // Reload jobs
-        try {
-          const jobsRes = await fetch('/api/jobs');
-          const jobsData = jobsRes.ok ? await jobsRes.json() : [];
-          const allJobs: JobRow[] = (Array.isArray(jobsData) ? jobsData : []).map((j: any) => ({
-            jobUuid: j.jobUuid,
-            jobName: j.jobName || j.job_name || '',
-            projectName: j.projectName || j.project_name || '',
-            projectIndex: j.projectIndex || j.project_index || '-',
-            brandName: j.brandName || j.brand_name || '',
-            floors: j.floors ?? null,
-            weight: j.weight ?? null,
-            isFf: Boolean(j.isFf || j.is_ff),
-            isActive: j.is_active !== false,
-            serviceState: j.serviceState || j.service_state || null,
-          }));
-          setJobLinkDialog((prev) => ({ ...prev, allJobs, loading: false }));
-        } catch {
-          setJobLinkDialog((prev) => ({ ...prev, loading: false }));
-        }
+        // Update service state inline for all selected jobs
+        setJobLinkDialog((prev) => ({
+          ...prev,
+          allJobs: prev.allJobs.map((job) =>
+            jobUuids.includes(job.jobUuid)
+              ? { ...job, serviceState: jobLinkBulkServiceState }
+              : job
+          ),
+        }));
+        setJobLinkBulkServiceState('');
+        console.log(`[Bind Dialog] Updated service state for ${jobUuids.length} jobs to ${jobLinkBulkServiceState}`);
       } else {
         throw new Error('Failed to update service state');
       }
     } catch (error) {
-      console.error('Failed to bulk update service state:', error);
-      alert('Failed to update service state for selected jobs');
+      console.error('Failed to update service state:', error);
+      alert('Failed to update service state');
     } finally {
       setJobLinkBulkUpdating(false);
     }
@@ -1249,7 +1237,7 @@ export function ServicesReportTable() {
   };
 
   const handleJobLinkEditSave = async () => {
-    if (!jobLinkEditDialog.id) return;
+    if (!jobLinkEditDialog.jobUuid) return;
     setJobLinkEditDialog((prev) => ({ ...prev, saving: true }));
     try {
       const response = await fetch('/api/jobs', {
@@ -1270,30 +1258,24 @@ export function ServicesReportTable() {
       });
 
       if (response.ok) {
+        // Update the job inline in the dialog instead of reloading all jobs
+        setJobLinkDialog((prev) => ({
+          ...prev,
+          allJobs: prev.allJobs.map((job) =>
+            job.jobUuid === jobLinkEditDialog.jobUuid
+              ? {
+                  ...job,
+                  jobName: jobLinkEditDialog.jobName,
+                  floors: jobLinkEditDialog.floors ? parseInt(jobLinkEditDialog.floors) : null,
+                  weight: jobLinkEditDialog.weight ? parseFloat(jobLinkEditDialog.weight) : null,
+                  isFf: jobLinkEditDialog.isFf,
+                  serviceState: jobLinkEditDialog.serviceState || 'Active',
+                }
+              : job
+          ),
+        }));
         setJobLinkEditDialog((prev) => ({ ...prev, open: false, saving: false, jobUuid: null }));
-        // Refresh the jobs in the dialog
-        if (jobLinkDialog.projectUuid) {
-          setJobLinkDialog((prev) => ({ ...prev, loading: true }));
-          try {
-            const jobsRes = await fetch('/api/jobs');
-            const jobsData = jobsRes.ok ? await jobsRes.json() : [];
-            const allJobs: JobRow[] = (Array.isArray(jobsData) ? jobsData : []).map((j: any) => ({
-              jobUuid: j.jobUuid,
-              jobName: j.jobName || j.job_name || '',
-              projectName: j.projectName || j.project_name || '',
-              projectIndex: j.projectIndex || j.project_index || '-',
-              brandName: j.brandName || j.brand_name || '',
-              floors: j.floors ?? null,
-              weight: j.weight ?? null,
-              isFf: Boolean(j.isFf || j.is_ff),
-              isActive: j.is_active !== false,
-              serviceState: j.serviceState || j.service_state || null,
-            }));
-            setJobLinkDialog((prev) => ({ ...prev, allJobs, loading: false }));
-          } catch {
-            setJobLinkDialog((prev) => ({ ...prev, loading: false }));
-          }
-        }
+        console.log(`[Bind Dialog] Updated job ${jobLinkEditDialog.jobUuid} inline`);
       } else {
         throw new Error('Failed to save job');
       }
@@ -1330,11 +1312,9 @@ export function ServicesReportTable() {
 
       console.log(`[Bind Dialog] Successfully bound ${jobUuids.length} job(s) to ${jobLinkBulkBindDialog.selectedProjectUuids.length} project(s)`);
       
+      // Close dialog without reloading all jobs
       setJobLinkBulkBindDialog((prev) => ({ ...prev, open: false, saving: false, selectedProjectUuids: [] }));
       setJobLinkDialog((prev) => ({ ...prev, linkedJobUuids: new Set() }));
-      // Refresh report to show updated bindings
-      await fetchReport();
-      alert(`Successfully bound ${jobUuids.length} job(s) to ${jobLinkBulkBindDialog.selectedProjectUuids.length} project(s)`);
     } catch (error) {
       console.error('Failed to bulk bind jobs:', error);
       alert('Failed to bind jobs to projects: ' + (error instanceof Error ? error.message : String(error)));
@@ -2589,7 +2569,7 @@ export function ServicesReportTable() {
                           <ColumnFilterPopover
                             columnKey="jobName"
                             columnLabel="Job Name"
-                            values={jobLinkDialog.allJobs.map((j) => j.jobName).filter(Boolean)}
+                            values={Array.from(new Set(jobLinkDialog.allJobs.map((j) => j.jobName).filter(Boolean)))}
                             activeFilters={new Set(jobLinkColumnFilters.jobName || [])}
                             columnFormat="text"
                             onFilterChange={(values) => {
@@ -2608,7 +2588,7 @@ export function ServicesReportTable() {
                           <ColumnFilterPopover
                             columnKey="projectIndex"
                             columnLabel="Original Project"
-                            values={jobLinkDialog.allJobs.map((j) => j.projectIndex).filter(Boolean)}
+                            values={Array.from(new Set(jobLinkDialog.allJobs.map((j) => j.projectIndex).filter(Boolean)))}
                             activeFilters={new Set(jobLinkColumnFilters.projectIndex || [])}
                             columnFormat="text"
                             onFilterChange={(values) => {
@@ -2627,7 +2607,7 @@ export function ServicesReportTable() {
                           <ColumnFilterPopover
                             columnKey="brandName"
                             columnLabel="Brand"
-                            values={jobLinkDialog.allJobs.map((j) => j.brandName).filter(Boolean)}
+                            values={Array.from(new Set(jobLinkDialog.allJobs.map((j) => j.brandName).filter(Boolean)))}
                             activeFilters={new Set(jobLinkColumnFilters.brandName || [])}
                             columnFormat="text"
                             onFilterChange={(values) => {
@@ -2646,7 +2626,7 @@ export function ServicesReportTable() {
                           <ColumnFilterPopover
                             columnKey="floors"
                             columnLabel="Floors"
-                            values={jobLinkDialog.allJobs.map((j) => j.floors?.toString()).filter(Boolean) as any[]}
+                            values={Array.from(new Set(jobLinkDialog.allJobs.map((j) => j.floors?.toString()).filter(Boolean))) as any[]}
                             activeFilters={new Set(jobLinkColumnFilters.floors || [])}
                             columnFormat="number"
                             onFilterChange={(values) => {
@@ -2665,7 +2645,7 @@ export function ServicesReportTable() {
                           <ColumnFilterPopover
                             columnKey="weight"
                             columnLabel="Weight"
-                            values={jobLinkDialog.allJobs.map((j) => j.weight?.toString()).filter(Boolean) as any[]}
+                            values={Array.from(new Set(jobLinkDialog.allJobs.map((j) => j.weight?.toString()).filter(Boolean))) as any[]}
                             activeFilters={new Set(jobLinkColumnFilters.weight || [])}
                             columnFormat="number"
                             onFilterChange={(values) => {
@@ -2722,7 +2702,7 @@ export function ServicesReportTable() {
                           <ColumnFilterPopover
                             columnKey="serviceState"
                             columnLabel="Service State"
-                            values={jobLinkDialog.allJobs.map((j) => j.serviceState || '-').filter(Boolean)}
+                            values={Array.from(new Set(jobLinkDialog.allJobs.map((j) => j.serviceState || '-').filter(Boolean)))}
                             activeFilters={new Set(jobLinkColumnFilters.serviceState || [])}
                             columnFormat="text"
                             onFilterChange={(values) => {
