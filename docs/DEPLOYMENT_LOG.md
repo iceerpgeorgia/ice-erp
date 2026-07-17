@@ -1,5 +1,16 @@
 # Deployment Log
 
+## 2026-07-17 Deployment #406 (Style: Pastel Color Palette for Job State Columns)
+- Commit: 27b7bc2
+- Production: https://ice-i22jz1vyd-iceerp.vercel.app
+- Summary: Softened job state column colors to pastel tones for improved visual aesthetics
+- Colors updated:
+  - Active: Light pastel green #E8F8F5 with text #2D7366
+  - Conversion: Light pastel orange #F5EDD9 with text #8B6F47
+  - Free: Light pastel teal #E6F7F9 with text #3B7A8A
+  - Others: Light pastel gray #F0F1F2 with text #6B7280
+  - Recovery: Light pastel pink #F9E8EB with text #A55D7E
+
 ## 2026-07-17 Deployment #405 (Refinement: Job State Columns Color-Coded Display)
 - Commit: c0223e8
 - Production: https://ice-g6v6hezki-iceerp.vercel.app
