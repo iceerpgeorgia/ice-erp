@@ -1,5 +1,21 @@
 # Deployment Log
 
+## 2026-07-17 Deployment #407 (Fix: Services Report Aggregation & Currency Conversion)
+- Commit: d976c35
+- Production: https://ice-n6px74jqd-iceerp.vercel.app
+- Summary: Fixed critical aggregation and currency conversion issues in services report API
+- Changes:
+  - Fixed ledger_agg CTE to properly aggregate ledger entries per payment across all dates (removed date grouping)
+  - Created nbg_rates_for_ledger CTE for efficient pre-fetched NBG rates with correct date context
+  - Simplified ledger_converted CTE to use pre-fetched rates instead of inefficient subqueries
+  - Fixed cost_items CTE to aggregate cost ledger entries correctly (removed date grouping)
+  - Created nbg_rates_for_cost CTE for cost items NBG rate lookup
+  - Fixed cost_agg and cost_bank_agg CTEs to use pre-fetched rates with proper currency conversion
+  - Accruals, Orders, and Payments now aggregated correctly
+  - Cost Accruals, Orders, and Payments now converted to project currency using NBG exchange rates
+  - All currency conversions use appropriate date context (latest ledger date or bank transaction date)
+  - Performance improved by eliminating N+1 rate lookups
+
 ## 2026-07-17 Deployment #406 (Style: Pastel Color Palette for Job State Columns)
 - Commit: 27b7bc2
 - Production: https://ice-i22jz1vyd-iceerp.vercel.app
