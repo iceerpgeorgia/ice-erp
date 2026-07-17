@@ -1,5 +1,29 @@
 # Deployment Log
 
+## 2026-06-16 Deployment #402 (Enhancement: Bind Dialog Project Shortcut)
+- Commit: ecbeb34
+- Production: https://ice-pm7o6jlrh-iceerp.vercel.app
+- Summary: Added shortcut button to project name in bind jobs dialog to open project in admin panel.
+- Feature Enhancements:
+  1. **Project Shortcut Button**:
+     - Added Link2 icon button next to project name in bind jobs dialog
+     - Clicking opens `/admin/projects?projectUuid=...` in new tab
+     - Button only appears when project UUID is available
+     - Styled consistently with payments report patterns (gray → blue hover)
+- Implementation Details:
+  - File: [components/figma/services-report-table.tsx](components/figma/services-report-table.tsx#L2365) - Added Link2 icon button
+  - Imports: Link2 icon already available from lucide-react
+  - Responsive design: Uses flex layout with proper spacing
+- Build & Testing:
+  - ✅ Build succeeded with "Compiled successfully" message
+  - ✅ All TypeScript validations passed
+  - ✅ Production deployment successful
+- Impact:
+  - ✅ Users can now quickly navigate to project details from bind dialog
+  - ✅ Improved workflow efficiency with one-click project access
+  - ✅ Consistency with payments report shortcut patterns
+- Status: ✅ Deployed
+
 ## 2026-06-16 Deployment #401 (Enhancement: Bind Dialog Search Filter UX)
 - Commit: 55db02c
 - Production: https://ice-kpt179i89-iceerp.vercel.app
