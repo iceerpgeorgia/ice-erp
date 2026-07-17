@@ -1,5 +1,42 @@
 # Deployment Log
 
+## 2026-06-16 Deployment #401 (Enhancement: Bind Dialog Search Filter UX)
+- Commit: 55db02c
+- Production: https://ice-kpt179i89-iceerp.vercel.app
+- Summary: Enhanced search filter UI in bind jobs dialog to match payments report styling with improved discoverability and UX.
+- Feature Enhancements:
+  1. **Search Filter UI Improvements**:
+     - Added Search icon (lucide-react) left-aligned in input for visual discoverability
+     - Added dynamic clear button (X) that appears when search has content
+     - Added result counter showing "N result(s)" during active search
+     - Set autoFocus on search input for immediate keyboard focus
+     - Better visual hierarchy and UX parity with payments report
+  2. **Styling & Layout**:
+     - Search input uses relative positioning with absolute-positioned icons
+     - Clear button uses hover state (gray-400 → gray-600) for better visual feedback
+     - Result counter displays with muted text color and no-wrap constraint
+     - Icons properly sized (h-4 w-4) with vertical centering
+- Implementation Details:
+  - File: [components/figma/services-report-table.tsx](components/figma/services-report-table.tsx) - Enhanced search UI
+  - Import: Added `Search` icon from lucide-react
+  - Search container: Uses flex layout with relative positioning for icons
+  - Clear button: Conditionally renders with `jobLinkDialog.search` state check
+  - Result counter: Displays filtered job count with pluralization
+- Build & Testing:
+  - ✅ Build succeeded with "Compiled successfully" message
+  - ✅ All TypeScript validations passed
+  - ✅ Search filter dynamically updates as user types
+  - ✅ Production deployment successful
+- User Workflows:
+  1. **Search**: Click job link dialog → Focus automatically on search input → Type to filter jobs → See result count → Click X to clear
+  2. **Filter Combination**: Use search + column filters together for advanced job discovery
+- Impact:
+  - ✅ Improved user experience with visual search indicators
+  - ✅ Consistency with payments report search UI patterns
+  - ✅ Better discoverability of job filtering capability
+  - ✅ Reduced cognitive load with result counter
+- Status: ✅ Deployed
+
 ## 2026-07-17 Deployment #400 (Bug Fix: Services Report SQL + Enhanced Bind Jobs Dialog)
 - Commit: bb54234
 - Production: https://ice-lsbalmavu-iceerp.vercel.app
