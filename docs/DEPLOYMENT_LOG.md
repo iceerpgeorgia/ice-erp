@@ -1,5 +1,21 @@
 # Deployment Log
 
+## 2026-06-21 Deployment #353 (Critical Fix: SQL Type Mismatch - Payment Adjustments Not Aggregating)
+- Commit: 39ee992
+- Production: https://ice-42hybjvj6-iceerp.vercel.app
+- Summary: CRITICAL FIX - Payment adjustments were not being aggregated due to SQL type mismatch in UNION ALL clause.
+- Root Cause: PostgreSQL UNION type mismatch error - raw_record_uuid was cast as NULL::text in adjustments SELECT but the bank transaction tables have raw_record_uuid as UUID type. This caused the UNION ALL to fail silently, preventing adjustments from being included in payment aggregation.
+- Verification: Tested query directly - project 2496a0e0-1118-49dc-8a82-539003dc1b23 with 53454.00 adjustment was not being included. After fix, adjustment correctly aggregates.
+- Changes:
+  - app/api/projects-v2/route.ts: Changed `NULL::text as raw_record_uuid` to `NULL::uuid as raw_record_uuid` in payment_adjustments SELECT
+  - app/api/projects/route.ts: Changed both occurrences of `NULL::text as raw_record_uuid` to `NULL::uuid as raw_record_uuid` in payment_adjustments UNION SELECT (two locations for single and bulk queries)
+- Type Consistency: All three UNION ALL sources (bank transactions, batch partitions, adjustments) now have consistent column types:
+  - payment_id: text
+  - nominal_amount: numeric
+  - raw_record_uuid: uuid (not text)
+  - account_currency_amount: numeric
+- Impact: Payment adjustments now properly aggregate and display in project balances. Project 2496a0e0-1118-49dc-8a82-539003dc1b23 should now show balance = 0 (53454 - 53454 adjustment).
+
 ## 2026-06-21 Deployment #352 (Fix: SQL Column Mismatch in Projects Balance)
 - Commit: 0d9e88d
 - Production: https://ice-1r67w4rjo-iceerp.vercel.app
