@@ -95,6 +95,14 @@ export async function GET(req: NextRequest) {
               ) cba
               JOIN bank_transaction_batches btb
                 ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
+
+              UNION ALL
+
+              SELECT
+                pa.payment_id,
+                COALESCE(pa.nominal_amount, pa.amount) as nominal_amount
+              FROM payment_adjustments pa
+              WHERE (pa.is_deleted = false OR pa.is_deleted IS NULL)
             ) combined
             WHERE payment_id IS NOT NULL
             GROUP BY payment_id
@@ -193,6 +201,14 @@ export async function GET(req: NextRequest) {
             ) cba
             JOIN bank_transaction_batches btb
               ON btb.raw_record_uuid::text = cba.raw_record_uuid::text
+
+            UNION ALL
+
+            SELECT
+              pa.payment_id,
+              COALESCE(pa.nominal_amount, pa.amount) as nominal_amount
+            FROM payment_adjustments pa
+            WHERE (pa.is_deleted = false OR pa.is_deleted IS NULL)
           ) combined
           WHERE payment_id IS NOT NULL
           GROUP BY payment_id
