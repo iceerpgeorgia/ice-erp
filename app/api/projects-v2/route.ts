@@ -89,7 +89,9 @@ export async function GET(req: NextRequest) {
 
             SELECT
               pa.payment_id,
-              COALESCE(pa.nominal_amount, pa.amount) as nominal_amount
+              COALESCE(pa.nominal_amount, pa.amount) as nominal_amount,
+              NULL::uuid as raw_record_uuid,
+              NULL::numeric as account_currency_amount
             FROM payment_adjustments pa
             WHERE (pa.is_deleted = false OR pa.is_deleted IS NULL)
           ) combined
