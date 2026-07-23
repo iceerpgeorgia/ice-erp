@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
             UNION ALL
 
             SELECT
-              pa.payment_id,
+              pa.payment_id::text as payment_id,
               COALESCE(pa.nominal_amount, pa.amount) as nominal_amount,
               NULL::uuid as raw_record_uuid,
               NULL::numeric as account_currency_amount
