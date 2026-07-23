@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
             UNION ALL
 
             SELECT
-              btb.payment_id,
+              btb.payment_id::text as payment_id,
               (COALESCE(NULLIF(btb.nominal_amount, 0), btb.partition_amount) * CASE WHEN cba.account_currency_amount < 0 THEN -1 ELSE 1 END) as nominal_amount,
               cba.raw_record_uuid,
               cba.account_currency_amount
